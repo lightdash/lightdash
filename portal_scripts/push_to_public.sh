@@ -1,6 +1,21 @@
 #!/bin/bash
 set -e
 
+get_restricted_content () {
+    ALL_CONTENT=$1
+    HAS_RESTRICTED=$(echo "$ALL_CONTENT" | grep -iq -e 'RK..Y' -e 'P.RFTO' && { echo 1; } || { echo 0; })
+    if [ $HAS_RESTRICTED = 1 ]; then
+        RESTRICTED_CONTENT=$(echo "$ALL_CONTENT" | (grep -i -e 'RK..Y' -e 'P.RFTO'))
+        echo "$RESTRICTED_CONTENT"
+    fi
+}
+
+print_code_diff () {
+  echo "vvvvvvv DIFF FROM PUBLIC vvvvvvv"
+  git --no-pager diff public/main
+  echo "^^^^^^^ DIFF FROM PUBLIC ^^^^^^^"
+}
+
 if ! test -f $PWD/yarn.lock; then
     echo "#### Script must run from the repository's root directory"
     exit 1
@@ -14,9 +29,18 @@ else
     $PWD/portal_scripts/add_upstream.sh
 fi
 
+HAS_PUBLIC_REMOTE=$(git remote get-url public | grep -q 'No such remote' && { echo 0; } || { echo 1; })
+if [ $HAS_PUBLIC_REMOTE = 0 ]; then
+    echo '#### Please set a remote repo named "public" where code should be pushed.'
+    echo "    git remote add public https://github.com/<your.username>/lightdash.git"
+    exit 1
+fi
+
+git fetch public
+
 MODIFIED=$(git status | grep -q 'branch is ahead of' && { echo 1; } || { echo 0; })
 if [ $MODIFIED = 1 ]; then
-    echo "#### Add/commit your local changes before pushing to LD public."
+    echo "#### Add/commit your local changes before pushing to public LD."
     exit 1
 fi
 
@@ -29,22 +53,26 @@ if [ $IS_TRACKING_PUBLIC != 1 ]; then
     exit 1
 fi
 
-IS_MASTER_BRANCH=$(echo $BRANCH_INFO | grep -q ' master\.\.\.upstream\/main' && { echo 1; } || { echo 0; })
+IS_MASTER_BRANCH=$(echo $BRANCH_INFO | grep -q ' master\.\.\.' && { echo 1; } || { echo 0; })
 if [ $IS_MASTER_BRANCH = 1 ]; then
     echo "#### Do not push master branch to public LD."
     exit 1
 fi
 
-HAS_RESTRICTED_WORDS=$(echo $BRANCH_INFO | grep -iq -e 'WORKDAY' -e 'PERFTOOL' && { echo 1; } || { echo 0; })
-if [ $HAS_RESTRICTED_WORDS = 1 ]; then
-    echo "#### Branch name must not use restricted words: WORKDAY, PERFTOOL"
+RESTRICTED_WORDS_IN_BRANCH_NAME=$(get_restricted_content "$BRANCH_INFO")
+if [[ $RESTRICTED_WORDS_IN_BRANCH_NAME ]]; then
+    echo "vvvvvvv Branch name must not use restricted words vvvvvvv"
+    echo "$RESTRICTED_WORDS_IN_BRANCH_NAME"
+    echo "^^^^^^^ Branch name must not use restricted words ^^^^^^^"
     exit 1
 fi
 
-HAS_PUBLIC_REMOTE=$(git remote get-url public | grep -q 'No such remote' && { echo 0; } || { echo 1; })
-if [ $HAS_PUBLIC_REMOTE = 0 ]; then
-    echo '#### Please set a remote repo named "public" where code should be pushed.'
-    echo "    git remote add public https://github.com/<your.username>/lightdash.git"
+CODE_DIFF=$(git diff public/main)
+RESTRICTED_WORDS_IN_CODE=$(get_restricted_content "$CODE_DIFF")
+if [[ $RESTRICTED_WORDS_IN_CODE ]]; then
+    echo "vvvvvvv Code changes must not use restricted words vvvvvvv"
+    echo "$RESTRICTED_WORDS_IN_CODE"
+    echo "^^^^^^^ Code changes must not use restricted words ^^^^^^^"
     exit 1
 fi
 
@@ -70,9 +98,8 @@ while true; do
     break
 done
 
-echo "vvvvvvv DIFF FROM UPSTREAM vvvvvvv"
-git diff upstream/main
-echo "^^^^^^^ DIFF FROM UPSTREAM ^^^^^^^"
+print_code_diff
+
 echo "#### Push the above changes to public GitHub? (y/n)"
 FINAL_OK=""
 while true; do
