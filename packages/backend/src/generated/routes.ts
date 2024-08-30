@@ -7114,27 +7114,93 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizBarChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'VizBaseConfig' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        fieldConfig: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'VizChartLayout' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        type: { ref: 'ChartKind.VERTICAL_BAR', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizLineChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'VizBaseConfig' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        fieldConfig: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'VizChartLayout' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        type: { ref: 'ChartKind.LINE', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'VizBarChartConfig' },
+                { ref: 'VizLineChartConfig' },
+                { ref: 'VizPieChartConfig' },
+                { ref: 'VizTableConfig' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateSqlChart: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 spaceUuid: { dataType: 'string', required: true },
-                config: {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'VizBaseConfig' },
-                        {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'VizCartesianChartConfig' },
-                                { ref: 'VizPieChartConfig' },
-                                { ref: 'VizTableConfig' },
-                            ],
-                        },
-                    ],
-                    required: true,
-                },
+                config: { ref: 'VizChartConfig', required: true },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 description: {
@@ -7202,21 +7268,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                config: {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'VizBaseConfig' },
-                        {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'VizCartesianChartConfig' },
-                                { ref: 'VizPieChartConfig' },
-                                { ref: 'VizTableConfig' },
-                            ],
-                        },
-                    ],
-                    required: true,
-                },
+                config: { ref: 'VizChartConfig', required: true },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
             },
@@ -14933,6 +14985,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
+                schema: { in: 'query', name: 'schema', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
