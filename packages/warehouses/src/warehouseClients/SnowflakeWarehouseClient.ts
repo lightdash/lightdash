@@ -508,10 +508,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         if (database) {
             values.push(database);
         }
-        console.log({ values });
-        console.log({ query });
         const { rows } = await this.runQuery(query, tags, undefined, values);
-        console.table(rows);
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }
 
