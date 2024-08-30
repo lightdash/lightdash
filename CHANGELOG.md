@@ -1,3 +1,10 @@
+## [0.1236.1](https://github.com/lightdash/lightdash/compare/0.1236.0...0.1236.1) (2024-08-30)
+
+
+### Bug Fixes
+
+* viewers+ can view sql runner charts  ([#11310](https://github.com/lightdash/lightdash/issues/11310)) ([9b8d95a](https://github.com/lightdash/lightdash/commit/9b8d95aae4a5c30eb040621e468d1c53843550b5))
+
 # [0.1236.0](https://github.com/lightdash/lightdash/compare/0.1235.0...0.1236.0) (2024-08-29)
 
 
