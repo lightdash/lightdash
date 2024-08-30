@@ -16,7 +16,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectSemanticLayerInfo } from '../store/selectors';
 import {
     resetState,
-    setSelectedChartType,
+    setActiveChartKind,
     SidebarTabs,
 } from '../store/semanticViewerSlice';
 import SidebarViewFields from './SidebarViewFields';
@@ -30,7 +30,7 @@ const Sidebar: FC = () => {
     const handleExitView = () => {
         dispatch(resetState());
     };
-    const { activeSidebarTab, selectedChartType, columns } = useAppSelector(
+    const { activeSidebarTab, activeChartKind, columns } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -83,10 +83,10 @@ const Sidebar: FC = () => {
                 <Stack sx={{ flex: 1, overflow: 'hidden' }}>
                     <VisualizationConfigPanel
                         selectedChartType={
-                            selectedChartType || ChartKind.VERTICAL_BAR
+                            activeChartKind ?? ChartKind.VERTICAL_BAR
                         }
                         setSelectedChartType={(value) =>
-                            dispatch(setSelectedChartType(value))
+                            dispatch(setActiveChartKind(value))
                         }
                         sqlColumns={columns}
                     />

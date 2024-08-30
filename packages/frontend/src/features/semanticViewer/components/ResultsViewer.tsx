@@ -18,7 +18,7 @@ const ResultsViewer: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
-    const { results, columns, selectedChartType } = useAppSelector(
+    const { results, columns, activeChartKind } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -55,7 +55,7 @@ const ResultsViewer: FC = () => {
                             key={idx}
                             isVisible={
                                 Boolean(config) &&
-                                selectedChartType === config?.type
+                                activeChartKind === config?.type
                             }
                         >
                             {isVizTableConfig(config) ? (

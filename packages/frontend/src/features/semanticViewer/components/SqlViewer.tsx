@@ -11,13 +11,11 @@ import {
 const SqlViewer: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
+    const { results } = useAppSelector((state) => state.semanticViewer);
 
     const sql = useSemanticLayerSql(
-        {
-            projectUuid,
-            query: semanticQuery,
-        },
-        { keepPreviousData: true },
+        { projectUuid, query: semanticQuery },
+        { keepPreviousData: true, enabled: results.length !== 0 },
     );
 
     if (sql.isError) {
