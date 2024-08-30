@@ -55,7 +55,7 @@ export const RunSemanticQueryButton: FC = () => {
     });
 
     useEffect(() => {
-        if (!resultsData || activeChartKind === undefined) return;
+        if (!resultsData) return;
 
         const usedColumns = columns.filter((c) =>
             allSelectedFields.includes(c.reference),
