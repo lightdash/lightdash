@@ -1,0 +1,67 @@
+
+
+# Lightdash CLI reference
+
+The Lightdash CLI is the recommended way to develop your Lightdash project. It makes development faster and easier, as well as giving you options for building more powerful automation to manage your Lightdash projects.
+
+---
+
+
+## Global Options
+
+There are two global options that can be used with any command: [version](#version) and [help](#help).
+
+
+### Version
+
+`--version` or `-V`
+
+Ignores the preceding command and shows the installed CLI version. Usually it's used right after `lightdash`, like one of these:
+
+```console
+lightdash --version
+lightdash -V
+```
+
+
+### Help
+
+`--help` or `-h`
+
+Tells you what the preceding command does and lists all command-specific options. You can also view the general Lightdash CLI help like this:
+
+```console
+lightdash --help
+lightdash -h
+```
+
+Both return:
+
+![lightdash help CLI results](./assets/lightdash-help.png)
+
+When you use the `--help` or `-h` option with a specific command it'll look like this:
+
+```console
+lightdash validate --help
+```
+
+![lightdash validate help CLI results](./assets/lightdash-validate-help.png)
+
+
+## Commands
+
+  login [options] <url>         Logs in to a Lightdash instance.
+  
+  👀 See https://docs.lightdash.com/guides/cli/cli-authentication for more help and examples
+  config                        Sets configuration
+  dbt                           Runs dbt commands
+  compile [options]             Compiles Lightdash resources
+  preview [options]             Creates a new preview project - waits for a keypress to stop
+  start-preview [options]       Creates a new preview project
+  stop-preview [options]        Deletes preview project
+  deploy [options]              Compiles and deploys a Lightdash project
+  refresh [options]             Refreshes Lightdash project with remote repository
+  validate [options]            Validates a project
+  generate [options]            Generates a new schema.yml file for model
+  generate-exposures [options]  [Experimental command] Generates a .yml file for Lightdash exposures
+  help [command]                display help for command
