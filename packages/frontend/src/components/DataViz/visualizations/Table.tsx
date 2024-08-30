@@ -2,7 +2,7 @@ import {
     type RawResultRow,
     type VizTableColumnsConfig,
 } from '@lightdash/common';
-import { Badge, Flex, Group } from '@mantine/core';
+import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -19,11 +19,13 @@ import { useTableDataModel } from '../transformers/useTableDataModel';
 type TableProps<T extends ResultsRunner> = {
     config?: VizTableColumnsConfig;
     resultsRunner: T;
+    flexProps?: FlexProps;
 };
 
 export const Table = <T extends ResultsRunner>({
     resultsRunner,
     config,
+    flexProps,
 }: TableProps<T>) => {
     const {
         tableWrapperRef,
@@ -42,9 +44,11 @@ export const Table = <T extends ResultsRunner>({
                 ref={tableWrapperRef}
                 dir="column"
                 miw="100%"
+                {...flexProps}
                 sx={{
                     flex: 1,
                     overflow: 'auto',
+                    ...flexProps?.sx,
                 }}
             >
                 <TableStyled>
