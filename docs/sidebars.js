@@ -141,11 +141,8 @@ module.exports = {
                     type: 'category',
                     label: 'CLI',
                     link: {
-                        type: 'generated-index',
-                        title: 'CLI References',
-                        description:
-                            'Below are reference docs for all Lightdash CLI commands.',
-                        slug: '/references/cli',
+                        type: 'doc',
+                        id: 'references/lightdash-cli',
                     },
                     items: [
                         {
