@@ -11,7 +11,6 @@ import {
     CreateSqlChart,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
-    SqlRunnerPivotQueryPayload,
     UpdateSqlChart,
 } from '@lightdash/common';
 import {

@@ -20,6 +20,8 @@ export const useChart = <T extends ResultsRunner>({
     limit,
     orgColors,
     onPivot,
+    slug,
+    uuid,
 }: {
     config?: VizCartesianChartConfig | VizPieChartConfig;
     resultsRunner: T;
@@ -28,6 +30,8 @@ export const useChart = <T extends ResultsRunner>({
     limit?: number;
     orgColors?: string[];
     onPivot?: (pivotData: PivotChartData) => void;
+    slug?: string;
+    uuid?: string;
 }) => {
     const chartTransformer = useMemo(() => {
         if (config?.type === ChartKind.PIE) {
@@ -51,6 +55,8 @@ export const useChart = <T extends ResultsRunner>({
                 sql,
                 projectUuid,
                 limit,
+                slug,
+                uuid,
             ),
         // TODO: FIX THIS ISSUE - it should include the SQL, but the sql shouldn't change on change, but on run query
         // eslint-disable-next-line react-hooks/exhaustive-deps

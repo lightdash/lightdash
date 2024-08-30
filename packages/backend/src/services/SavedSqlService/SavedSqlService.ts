@@ -174,6 +174,7 @@ export class SavedSqlService extends BaseService {
         }
         const { hasAccess: hasViewAccess, userAccess } =
             await this.hasSavedChartAccess(user, 'view', savedChart);
+
         if (!hasViewAccess) {
             throw new ForbiddenError("You don't have access to this chart");
         }
@@ -418,7 +419,35 @@ export class SavedSqlService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
-        if (
+
+        // If it's a saved chart, check if the user has access to it
+        if (body.slug || body.uuid) {
+            let savedChart;
+            if (body.uuid) {
+                savedChart = await this.savedSqlModel.getByUuid(body.uuid, {
+                    projectUuid,
+                });
+            } else if (body.slug) {
+                savedChart = await this.savedSqlModel.getBySlug(
+                    projectUuid,
+                    body.slug,
+                );
+            }
+
+            if (!savedChart) {
+                throw new Error('Chart not found');
+            }
+
+            const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
+                user,
+                'view',
+                savedChart,
+            );
+            if (!hasViewAccess) {
+                throw new ForbiddenError("You don't have access to this chart");
+            }
+        } else if (
+            // If it's not a saved chart, check if the user has access to run a pivot query
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
                 'manage',

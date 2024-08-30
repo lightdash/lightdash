@@ -45,6 +45,8 @@ export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
 export type SqlRunnerBody = {
     sql: string;
     limit?: number;
+    slug?: string;
+    uuid?: string;
 };
 
 export type SqlRunnerPivotQueryBody = SqlRunnerBody &
