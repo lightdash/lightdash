@@ -24,6 +24,7 @@ export const DEFAULT_NAME = 'Untitled SQL Query';
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
+    activeSchema: string | undefined;
     savedSqlChart: SqlChart | undefined;
     name: string;
     description: string;
@@ -52,6 +53,7 @@ export interface SqlRunnerState {
 const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
+    activeSchema: undefined,
     savedSqlChart: undefined,
     name: '',
     description: '',
@@ -154,9 +156,12 @@ export const sqlRunnerSlice = createSlice({
         },
         toggleActiveTable: (
             state,
-            action: PayloadAction<string | undefined>,
+            action: PayloadAction<
+                { table: string; schema: string } | undefined
+            >,
         ) => {
-            state.activeTable = action.payload;
+            state.activeTable = action.payload?.table;
+            state.activeSchema = action.payload?.schema;
         },
         toggleModal: (
             state,

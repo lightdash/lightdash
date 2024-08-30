@@ -3080,6 +3080,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         tableName: string,
+        schema?: string,
     ): Promise<WarehouseTableSchema> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3107,10 +3108,11 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
-        const schema = ProjectService.getWarehouseSchema(credentials);
+        const warehouseSchema =
+            schema || ProjectService.getWarehouseSchema(credentials);
         const database = ProjectService.getWarehouseDatabase(credentials);
 
-        if (!schema) {
+        if (!warehouseSchema) {
             throw new NotFoundError(
                 'Schema not found in warehouse credentials',
             );
@@ -3120,16 +3122,14 @@ export class ProjectService extends BaseService {
                 'Database not found in warehouse credentials',
             );
         }
-
         const warehouseCatalog = await warehouseClient.getFields(
             tableName,
-            schema,
+            warehouseSchema,
             queryTags,
         );
 
         await sshTunnel.disconnect();
-
-        return warehouseCatalog[database][schema][tableName];
+        return warehouseCatalog[database][warehouseSchema][tableName];
     }
 
     async getTablesConfiguration(

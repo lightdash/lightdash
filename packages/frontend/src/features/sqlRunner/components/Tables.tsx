@@ -54,7 +54,7 @@ const TableItem: FC<TableItemProps> = memo(
                             dispatch(setSql(`SELECT * FROM ${quotedTable}`));
                         }
 
-                        dispatch(toggleActiveTable(table));
+                        dispatch(toggleActiveTable({ table, schema }));
                     }}
                     w="100%"
                     p={4}
