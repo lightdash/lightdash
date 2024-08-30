@@ -83,6 +83,7 @@ export interface WarehouseClient {
     getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog>;
 

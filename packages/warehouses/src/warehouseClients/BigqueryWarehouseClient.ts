@@ -319,9 +319,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     async getFields(
         tableName: string,
         schema: string,
+        database?: string,
     ): Promise<WarehouseCatalog> {
         const client = new BigQuery({
-            projectId: this.credentials.project,
+            projectId: database || this.credentials.project,
             location: this.credentials.location,
             maxRetries: this.credentials.retries,
             credentials: this.credentials.keyfileContents,

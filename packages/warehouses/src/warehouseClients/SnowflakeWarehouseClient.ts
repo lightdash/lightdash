@@ -462,9 +462,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         const whereSql = databaseName ? `AND TABLE_CATALOG ILIKE ?` : '';
         const query = `
             SELECT
-                LOWER(TABLE_CATALOG) as "table_catalog",
-                LOWER(TABLE_SCHEMA) as "table_schema",
-                LOWER(TABLE_NAME) as "table_name"
+                TABLE_CATALOG as "table_catalog",
+                TABLE_SCHEMA as "table_schema",
+                TABLE_NAME as "table_name"
             FROM information_schema.tables
             WHERE TABLE_TYPE = 'BASE TABLE'
             ${whereSql}
@@ -486,26 +486,32 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     async getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema ? `AND TABLE_SCHEMA ILIKE ?` : '';
-
         const query = `
-            SELECT LOWER(TABLE_CATALOG) as "table_catalog",
-                   LOWER(TABLE_SCHEMA)  as "table_schema",
-                   LOWER(TABLE_NAME)    as "table_name",
-                   LOWER(COLUMN_NAME)   as "column_name",
+            SELECT TABLE_CATALOG as "table_catalog",
+                   TABLE_SCHEMA  as "table_schema",
+                   TABLE_NAME    as "table_name",
+                   COLUMN_NAME   as "column_name",
                    DATA_TYPE            as "data_type"
             FROM information_schema.columns
-            WHERE TABLE_NAME ILIKE ? ${schemaFilter}
+            WHERE TABLE_NAME = ?
+            ${schema ? 'AND TABLE_SCHEMA = ?' : ''}
+            ${database ? 'AND TABLE_CATALOG = ?' : ''}
             ORDER BY 1, 2, 3;
         `;
-        const { rows } = await this.runQuery(
-            query,
-            tags,
-            undefined,
-            schema ? [tableName, schema] : [tableName],
-        );
+        const values = [tableName];
+        if (schema) {
+            values.push(schema);
+        }
+        if (database) {
+            values.push(database);
+        }
+        console.log({ values });
+        console.log({ query });
+        const { rows } = await this.runQuery(query, tags, undefined, values);
+        console.table(rows);
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }
 

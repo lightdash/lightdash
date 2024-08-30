@@ -70,13 +70,13 @@ export class SqlRunnerController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Get('/tables/{tableName}')
+    @Get('/fields')
     @OperationId('getTableFields')
     async getTableFields(
         @Path() projectUuid: string,
-        @Path() tableName: string,
         @Request() req: express.Request,
-        @Query() schema?: string,
+        @Query() tableName?: string,
+        @Query() schemaName?: string,
     ): Promise<ApiWarehouseTableFields> {
         this.setStatus(200);
 
@@ -84,7 +84,12 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getWarehouseFields(req.user!, projectUuid, tableName, schema),
+                .getWarehouseFields(
+                    req.user!,
+                    projectUuid,
+                    tableName,
+                    schemaName,
+                ),
         };
     }
 

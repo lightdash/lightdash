@@ -3002,9 +3002,10 @@ export class ProjectService extends BaseService {
             credentials,
         );
 
-        const schema = ProjectService.getWarehouseSchema(credentials);
-
-        const warehouseTables = await warehouseClient.getAllTables(schema);
+        // const schema = ProjectService.getWarehouseSchema(credentials);
+        //
+        // console.log(schema);
+        const warehouseTables = await warehouseClient.getAllTables();
 
         const catalog =
             WarehouseAvailableTablesModel.toWarehouseCatalog(warehouseTables);
@@ -3079,8 +3080,8 @@ export class ProjectService extends BaseService {
     async getWarehouseFields(
         user: SessionUser,
         projectUuid: string,
-        tableName: string,
-        schema?: string,
+        tableName?: string,
+        schemaName?: string,
     ): Promise<WarehouseTableSchema> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3108,28 +3109,31 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
-        const warehouseSchema =
-            schema || ProjectService.getWarehouseSchema(credentials);
-        const database = ProjectService.getWarehouseDatabase(credentials);
-
-        if (!warehouseSchema) {
-            throw new NotFoundError(
-                'Schema not found in warehouse credentials',
-            );
-        }
+        let database = ProjectService.getWarehouseDatabase(credentials);
         if (!database) {
             throw new NotFoundError(
                 'Database not found in warehouse credentials',
             );
         }
+        if (credentials.type === WarehouseTypes.SNOWFLAKE) {
+            // TODO: credentials returning a lower case database name for snowflake (bug) - this hack works for unquoted database names
+            database = database.toUpperCase();
+        }
+        if (!schemaName) {
+            throw new ParameterError('Schema name is required');
+        }
+        if (!tableName) {
+            throw new ParameterError('Table name is required');
+        }
         const warehouseCatalog = await warehouseClient.getFields(
             tableName,
-            warehouseSchema,
+            schemaName,
+            database,
             queryTags,
         );
 
         await sshTunnel.disconnect();
-        return warehouseCatalog[database][warehouseSchema][tableName];
+        return warehouseCatalog[database][schemaName][tableName];
     }
 
     async getTablesConfiguration(

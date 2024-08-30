@@ -49,7 +49,10 @@ export const getResultsFromStream = async <T>(url: string | undefined) => {
         const result = await responseStream.text();
 
         // Split the JSON strings by newline
-        const jsonStrings = result.trim().split('\n');
+        const jsonStrings = result
+            .trim()
+            .split('\n')
+            .filter((s) => s !== '');
         const jsonObjects: T[] = jsonStrings
             .map((jsonString) => {
                 try {
