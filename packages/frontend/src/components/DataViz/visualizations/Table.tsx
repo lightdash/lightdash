@@ -2,7 +2,7 @@ import {
     type RawResultRow,
     type VizTableColumnsConfig,
 } from '@lightdash/common';
-import { Flex } from '@mantine/core';
+import { Badge, Flex, Group } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -58,12 +58,28 @@ export const Table = <T extends ResultsRunner>({
                                             backgroundColor: TABLE_HEADER_BG,
                                         }}
                                     >
-                                        {/* TODO: do we need to check if it's a
-                                        placeholder? */}
-                                        {flexRender(
-                                            header.column.columnDef.header,
-                                            header.getContext(),
-                                        )}
+                                        <Group spacing="two">
+                                            {config?.columns[header.id]
+                                                ?.aggregation && (
+                                                <Badge
+                                                    size="sm"
+                                                    color="indigo"
+                                                    radius="xs"
+                                                >
+                                                    {
+                                                        config?.columns[
+                                                            header.id
+                                                        ]?.aggregation
+                                                    }
+                                                </Badge>
+                                            )}
+                                            {/* TODO: do we need to check if it's a
+                                            placeholder? */}
+                                            {flexRender(
+                                                header.column.columnDef.header,
+                                                header.getContext(),
+                                            )}
+                                        </Group>
                                     </th>
                                 )),
                             )}

@@ -1,4 +1,5 @@
 import {
+    type PivotChartData,
     type VizCartesianChartConfig,
     type VizPieChartConfig,
 } from '@lightdash/common';
@@ -6,6 +7,7 @@ import { LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo } from 'react';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import { type ResultsAndColumns } from '../Results';
 import { type ResultsRunner } from '../transformers/ResultsRunner';
@@ -20,6 +22,9 @@ type ChartViewProps<T extends ResultsRunner> = {
     sql?: string;
     projectUuid?: string;
     limit?: number;
+    onPivot?: (pivotData: PivotChartData | undefined) => void;
+    slug?: string;
+    uuid?: string;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const ChartView = memo(
@@ -32,12 +37,27 @@ const ChartView = memo(
         isLoading: isLoadingProp,
         resultsRunner,
         style,
+        onPivot,
+        slug,
+        uuid,
     }: ChartViewProps<T>) => {
+        const { data: org } = useOrganization();
+
         const {
             loading: transformLoading,
             error,
             value: spec,
-        } = useChart({ config, resultsRunner, sql, projectUuid, limit });
+        } = useChart({
+            config,
+            resultsRunner,
+            sql,
+            projectUuid,
+            limit,
+            orgColors: org?.chartColors,
+            onPivot,
+            slug,
+            uuid,
+        });
 
         if (!config?.fieldConfig?.x || config?.fieldConfig.y.length === 0) {
             return (
@@ -53,7 +73,6 @@ const ChartView = memo(
                 />
             );
         }
-
         const loading = isLoadingProp || transformLoading;
 
         // TODO: this could be more robust

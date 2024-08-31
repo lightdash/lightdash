@@ -70,6 +70,8 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
         sql: string,
         projectUuid: string,
         limit: number,
+        slug?: string,
+        uuid?: string,
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
@@ -80,6 +82,8 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
         }
         const pivotResults = await pivotQueryFn({
             projectUuid,
+            slug,
+            uuid,
             sql,
             indexColumn: {
                 reference: config.x.reference,

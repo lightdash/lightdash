@@ -24,6 +24,7 @@ export const DEFAULT_NAME = 'Untitled SQL Query';
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
+    activeSchema: string | undefined;
     savedSqlChart: SqlChart | undefined;
     name: string;
     description: string;
@@ -52,6 +53,7 @@ export interface SqlRunnerState {
 const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
+    activeSchema: undefined,
     savedSqlChart: undefined,
     name: '',
     description: '',
@@ -124,9 +126,6 @@ export const sqlRunnerSlice = createSlice({
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
         },
-        setSqlLimit: (state, action: PayloadAction<number>) => {
-            state.limit = action.payload;
-        },
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
             if (action.payload === EditorTabs.VISUALIZATION) {
@@ -147,6 +146,7 @@ export const sqlRunnerSlice = createSlice({
             state.limit = action.payload.limit || 500;
             state.selectedChartType =
                 action.payload.config.type || ChartKind.VERTICAL_BAR;
+            state.activeConfigs.push(action.payload.config.type);
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
@@ -156,9 +156,12 @@ export const sqlRunnerSlice = createSlice({
         },
         toggleActiveTable: (
             state,
-            action: PayloadAction<string | undefined>,
+            action: PayloadAction<
+                { table: string; schema: string } | undefined
+            >,
         ) => {
-            state.activeTable = action.payload;
+            state.activeTable = action.payload?.table;
+            state.activeSchema = action.payload?.schema;
         },
         toggleModal: (
             state,
@@ -179,7 +182,6 @@ export const {
     setSqlRunnerResults,
     updateName,
     setSql,
-    setSqlLimit,
     setActiveEditorTab,
     setSavedChartData,
     setSelectedChartType,

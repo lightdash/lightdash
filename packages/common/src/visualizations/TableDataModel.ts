@@ -9,7 +9,12 @@ import type { IResultsRunner } from './types/IResultsRunner';
 
 export class TableDataModel
     implements
-        IChartDataModel<VizTableOptions, VizTableConfig, ChartKind.TABLE>
+        IChartDataModel<
+            VizTableOptions,
+            VizTableConfig,
+            undefined,
+            ChartKind.TABLE
+        >
 {
     private readonly resultsRunner: IResultsRunner<VizChartLayout>;
 
@@ -50,11 +55,11 @@ export class TableDataModel
             (acc, key) => ({
                 ...acc,
                 [key]: {
-                    visible: true, // FIXME: should this be true all the time?
+                    visible: this.config?.columns[key].visible ?? true,
                     reference: key,
-                    label: key,
-                    frozen: true,
-                    order: undefined,
+                    label: this.config?.columns[key].label ?? key,
+                    frozen: this.config?.columns[key].frozen ?? false,
+                    order: this.config?.columns[key].order,
                 },
             }),
             {},

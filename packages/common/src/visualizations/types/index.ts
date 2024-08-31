@@ -6,6 +6,7 @@ import { type CartesianChartDisplay } from '../CartesianChartDataModel';
 export enum VizAggregationOptions {
     SUM = 'sum',
     COUNT = 'count',
+    AVERAGE = 'avg',
     MIN = 'min',
     MAX = 'max',
     FIRST = 'first',
@@ -14,6 +15,7 @@ export enum VizAggregationOptions {
 export const vizAggregationOptions = [
     VizAggregationOptions.SUM,
     VizAggregationOptions.COUNT,
+    VizAggregationOptions.AVERAGE,
     VizAggregationOptions.MIN,
     VizAggregationOptions.MAX,
     VizAggregationOptions.FIRST,
@@ -23,7 +25,7 @@ export const VIZ_DEFAULT_AGGREGATION = VizAggregationOptions.COUNT;
 
 export type VizSqlColumn = {
     reference: string;
-    type: DimensionType;
+    type?: DimensionType;
 };
 
 export enum VizIndexType {
@@ -93,6 +95,7 @@ export type VizTableColumnsConfig = {
             label: string;
             frozen: boolean;
             order?: number;
+            aggregation?: VizAggregationOptions;
         };
     };
 };

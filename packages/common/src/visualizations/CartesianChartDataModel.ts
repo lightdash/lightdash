@@ -15,35 +15,27 @@ type CartesianChartKind = Extract<
     ChartKind.LINE | ChartKind.VERTICAL_BAR
 >;
 
-// type CartesianChartConfig<TPivotChartLayout> = {
-//     metadata: {
-//         version: number;
-//     };
-//     type: CartesianChartKind;
-//     fieldConfig: TPivotChartLayout | undefined;
-//     display: CartesianChartDisplay | undefined;
-// };
-
 export class CartesianChartDataModel
     implements
         IChartDataModel<
             VizCartesianChartOptions,
             VizCartesianChartConfig,
+            CartesianChartDisplay,
             CartesianChartKind
         >
 {
     private readonly resultsRunner: IResultsRunner<VizChartLayout>;
 
-    private readonly config: VizCartesianChartConfig | undefined;
+    private readonly fieldConfig: VizCartesianChartConfig['fieldConfig'];
 
     private colorMap: Map<string, string>;
 
     constructor(args: {
         resultsRunner: IResultsRunner<VizChartLayout>;
-        config: VizCartesianChartConfig | undefined;
+        fieldConfig: VizCartesianChartConfig['fieldConfig'];
     }) {
         this.resultsRunner = args.resultsRunner;
-        this.config = args.config;
+        this.fieldConfig = args.fieldConfig;
 
         this.colorMap = new Map();
     }
@@ -51,6 +43,7 @@ export class CartesianChartDataModel
     private getSeriesColor(
         seriesIdentifier: string,
         possibleXAxisValues: string[] | undefined,
+        orgColors?: string[],
     ): string | undefined {
         // Go through the possibleXAxisValues and check if the seriesIdentifier is in the value - "completed_sum(order_id)" is the identifier and "completed" is one of the possible values
         const foundValue = possibleXAxisValues?.find((value) =>
@@ -67,10 +60,10 @@ export class CartesianChartDataModel
         );
 
         if (genericIdentifier && !this.colorMap.has(genericIdentifier)) {
+            const colorPalette = orgColors || ECHARTS_DEFAULT_COLORS;
             // This code assigns a color to a series in the chart
             const color =
-                // TODO: Update this to support the organization color palette
-                ECHARTS_DEFAULT_COLORS[
+                colorPalette[
                     this.colorMap.size % ECHARTS_DEFAULT_COLORS.length // This ensures we cycle through the colors if we have more series than colors
                 ];
             this.colorMap.set(genericIdentifier, color);
@@ -88,16 +81,19 @@ export class CartesianChartDataModel
         return undefined;
     }
 
-    mergeConfig(chartKind: CartesianChartKind): VizCartesianChartConfig {
+    mergeConfig(
+        chartKind: CartesianChartKind,
+        display: CartesianChartDisplay | undefined,
+    ): VizCartesianChartConfig {
         return {
             metadata: {
                 version: 1,
             },
             type: chartKind,
             fieldConfig: this.resultsRunner.mergePivotChartLayout(
-                this.config?.fieldConfig,
+                this.fieldConfig,
             ),
-            display: this.config?.display,
+            display,
         };
     }
 
@@ -110,22 +106,38 @@ export class CartesianChartDataModel
         sql?: string,
         projectUuid?: string,
         limit?: number,
+        slug?: string,
+        uuid?: string,
     ) {
         if (!layout) {
             return undefined;
         }
+
         return this.resultsRunner.getPivotChartData(
             layout,
             sql,
             projectUuid,
             limit,
+            slug,
+            uuid,
         );
+    }
+
+    static getDefaultColor(index: number, orgColors?: string[]) {
+        const colorPalette = orgColors || ECHARTS_DEFAULT_COLORS;
+        // This code assigns a color to a series in the chart
+        const color =
+            colorPalette[
+                index % colorPalette.length // This ensures we cycle through the colors if we have more series than colors
+            ];
+        return color;
     }
 
     getEchartsSpec(
         transformedData: Awaited<ReturnType<typeof this.getTransformedData>>,
         display: CartesianChartDisplay | undefined,
         type: ChartKind,
+        orgColors?: string[],
     ) {
         if (!transformedData) {
             return {};
@@ -137,12 +149,13 @@ export class CartesianChartDataModel
             type === ChartKind.VERTICAL_BAR ? 'bar' : 'line';
 
         const shouldStack = display?.stack === true;
-
+        /*
+// For old colors method
         const possibleXAxisValues = transformedData.results.map((row) =>
             transformedData.indexColumn?.reference
                 ? `${row[transformedData.indexColumn.reference]}`
                 : '-',
-        );
+        ); */
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
@@ -176,10 +189,14 @@ export class CartesianChartDataModel
                               )
                             : undefined,
                     },
-                    color: this.getSeriesColor(
-                        seriesColumn,
-                        possibleXAxisValues,
-                    ),
+                    color:
+                        (display?.series &&
+                            display.series[seriesColumn]?.color) ||
+                        CartesianChartDataModel.getDefaultColor(
+                            index,
+                            orgColors,
+                        ),
+                    // this.getSeriesColor( seriesColumn, possibleXAxisValues, orgColors),
                 };
             },
         );
@@ -257,10 +274,14 @@ export type CartesianChartDisplay = {
         position?: string;
         format?: Format;
     }[];
-    series?: Record<
-        string,
-        { label?: string; format?: Format; yAxisIndex?: number }
-    >;
+    series?: {
+        [key: string]: {
+            label?: string;
+            format?: Format;
+            yAxisIndex?: number;
+            color?: string;
+        };
+    };
     legend?: {
         position: 'top' | 'bottom' | 'left' | 'right';
         align: 'start' | 'center' | 'end';

@@ -6,6 +6,7 @@ import {
     SqlChart,
     UpdateSqlChart,
     VizBaseConfig,
+    VizChartConfig,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../database/entities/dashboards';
@@ -32,6 +33,9 @@ type SelectSavedSql = Pick<
     | 'dashboard_uuid'
     | 'created_at'
     | 'last_version_updated_at'
+    | 'views_count'
+    | 'first_viewed_at'
+    | 'last_viewed_at'
 > &
     Pick<DbSavedSqlVersion, 'sql' | 'limit' | 'config' | 'chart_kind'> &
     Pick<DbSpace, 'space_uuid'> &
@@ -106,6 +110,9 @@ export class SavedSqlModel {
             organization: {
                 organizationUuid: row.organization_uuid,
             },
+            views: row.views_count,
+            firstViewedAt: row.first_viewed_at || new Date(),
+            lastViewedAt: row.last_viewed_at || new Date(),
         };
     }
 
@@ -166,6 +173,9 @@ export class SavedSqlModel {
                 `${SavedSqlTableName}.created_at`,
                 `${SavedSqlTableName}.slug`,
                 `${SavedSqlTableName}.last_version_updated_at`,
+                `${SavedSqlTableName}.views_count`,
+                `${SavedSqlTableName}.first_viewed_at`,
+                `${SavedSqlTableName}.last_viewed_at`,
                 `${DashboardsTableName}.name as dashboardName`,
                 `${SavedSqlVersionsTableName}.sql`,
                 `${SavedSqlVersionsTableName}.limit`,
@@ -245,7 +255,7 @@ export class SavedSqlModel {
         data: {
             savedSqlUuid: string;
             userUuid: string;
-            config: VizBaseConfig;
+            config: VizChartConfig;
             sql: string;
             limit: number;
         },

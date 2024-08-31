@@ -2061,20 +2061,24 @@ export class ProjectService extends BaseService {
         const groupBySelectMetrics = [
             ...(valuesColumns ?? []).map(
                 (col) =>
-                    `${col.aggregation}(${col.reference}) as ${col.reference}`,
+                    `${col.aggregation}(${col.reference}) as ${col.reference}_${col.aggregation}`,
             ),
         ];
         const groupByQuery = `SELECT ${[
-            ...groupBySelectDimensions,
+            ...new Set(groupBySelectDimensions), // Remove duplicate columns
             ...groupBySelectMetrics,
-        ].join(
-            ', ',
-        )} FROM original_query group by ${groupBySelectDimensions.join(', ')}`;
+        ].join(', ')} FROM original_query group by ${Array.from(
+            new Set(groupBySelectDimensions),
+        ).join(', ')}`;
 
         const selectReferences = [
             indexColumn.reference,
             ...(groupByColumns || []).map((col) => col.reference),
-            ...(valuesColumns || []).map((col) => col.reference),
+            ...(valuesColumns || []).map((col) =>
+                groupByColumns && groupByColumns.length > 0
+                    ? `${col.reference}_${col.aggregation}`
+                    : `${col.reference}_${col.aggregation} as ${col.reference}`,
+            ),
         ];
 
         const pivotQuery = `SELECT ${selectReferences.join(
@@ -2204,7 +2208,7 @@ export class ProjectService extends BaseService {
                                 currentTransformedRow =
                                     currentTransformedRow ?? {};
                                 currentTransformedRow[valueColumnReference] =
-                                    row[col.reference];
+                                    row[`${col.reference}_${col.aggregation}`];
                             });
                         });
                     },
@@ -2222,7 +2226,9 @@ export class ProjectService extends BaseService {
             fileUrl,
             valuesColumns: groupByColumns
                 ? Array.from(valuesColumnReferences)
-                : valuesColumns.map((col) => col.reference),
+                : valuesColumns.map(
+                      (col) => `${col.reference}_${col.aggregation}`,
+                  ),
             indexColumn,
         };
     }
@@ -3074,6 +3080,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         tableName: string,
+        schema?: string,
     ): Promise<WarehouseTableSchema> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3101,10 +3108,11 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
-        const schema = ProjectService.getWarehouseSchema(credentials);
+        const warehouseSchema =
+            schema || ProjectService.getWarehouseSchema(credentials);
         const database = ProjectService.getWarehouseDatabase(credentials);
 
-        if (!schema) {
+        if (!warehouseSchema) {
             throw new NotFoundError(
                 'Schema not found in warehouse credentials',
             );
@@ -3114,16 +3122,14 @@ export class ProjectService extends BaseService {
                 'Database not found in warehouse credentials',
             );
         }
-
         const warehouseCatalog = await warehouseClient.getFields(
             tableName,
-            schema,
+            warehouseSchema,
             queryTags,
         );
 
         await sshTunnel.disconnect();
-
-        return warehouseCatalog[database][schema][tableName];
+        return warehouseCatalog[database][warehouseSchema][tableName];
     }
 
     async getTablesConfiguration(

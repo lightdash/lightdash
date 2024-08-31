@@ -253,28 +253,17 @@ Object.entries(warehouseConnections).forEach(
                                     );
 
                                     expect(results).to.have.length(2);
-                                    expect(
-                                        results[0].payment_id.value.raw,
-                                    ).to.be.eq(1);
-                                    expect(
-                                        results[0].payment_id.value.formatted,
-                                    ).to.be.eq('1');
-                                    expect(
-                                        results[0].payment_method.value.raw,
-                                    ).to.be.eq('credit_card');
-                                    expect(
-                                        results[0].payment_method.value
-                                            .formatted,
-                                    ).to.be.eq('credit_card');
-                                    // TODO FIX amount, DIfferent warehouses have different format
-                                    // expect(results[0].amount.value.raw).to.be.eq("10.0000000000000000");
 
-                                    expect(
-                                        results[1].payment_id.value.raw,
-                                    ).to.be.eq(2);
-                                    expect(
-                                        results[1].payment_method.value.raw,
-                                    ).to.be.eq('credit_card');
+                                    expect(results[0].payment_id).to.be.eq(1);
+
+                                    expect(results[0].payment_method).to.be.eq(
+                                        'credit_card',
+                                    );
+
+                                    expect(results[1].payment_id).to.be.eq(2);
+                                    expect(results[1].payment_method).to.be.eq(
+                                        'credit_card',
+                                    );
                                 });
                             } // Else keep polling
                             else if (retries < maxRetries) {

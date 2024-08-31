@@ -3,6 +3,7 @@ import {
     type VizAggregationOptions,
     type VizBaseConfig,
     type VizCartesianChartConfig,
+    type VizChartConfig,
     type VizPieChartConfig,
     type VizSqlColumn,
     type VizTableConfig,
@@ -44,6 +45,8 @@ export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
 export type SqlRunnerBody = {
     sql: string;
     limit?: number;
+    slug?: string;
+    uuid?: string;
 };
 
 export type SqlRunnerPivotQueryBody = SqlRunnerBody &
@@ -134,6 +137,9 @@ export type SqlChart = {
     dashboard: Pick<Dashboard, 'uuid' | 'name'> | null;
     project: Pick<Project, 'projectUuid'>;
     organization: Pick<Organization, 'organizationUuid'>;
+    views: number;
+    firstViewedAt: Date;
+    lastViewedAt: Date;
 };
 
 export type CreateSqlChart = {
@@ -141,8 +147,7 @@ export type CreateSqlChart = {
     description: string | null;
     sql: string;
     limit: number;
-    config: VizBaseConfig &
-        (VizCartesianChartConfig | VizPieChartConfig | VizTableConfig);
+    config: VizChartConfig;
     spaceUuid: string;
 };
 
@@ -155,8 +160,7 @@ export type UpdateUnversionedSqlChart = {
 export type UpdateVersionedSqlChart = {
     sql: string;
     limit: number;
-    config: VizBaseConfig &
-        (VizCartesianChartConfig | VizPieChartConfig | VizTableConfig);
+    config: VizChartConfig;
 };
 
 export type UpdateSqlChart = {

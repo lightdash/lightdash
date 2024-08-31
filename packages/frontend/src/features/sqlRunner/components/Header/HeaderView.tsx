@@ -83,8 +83,8 @@ export const HeaderView: FC = () => {
                                 description={
                                     savedSqlChart.description ?? undefined
                                 }
-                                viewStats={1} // todo: update endpoint to return view stats
-                                firstViewedAt={undefined}
+                                viewStats={savedSqlChart.views}
+                                firstViewedAt={savedSqlChart.firstViewedAt}
                                 withChartData={false}
                             />
                         </Group>
@@ -96,33 +96,33 @@ export const HeaderView: FC = () => {
                                 label="Edit chart"
                                 position="bottom"
                             >
-                                <ActionIcon size="xs">
-                                    <MantineIcon
-                                        icon={IconPencil}
-                                        onClick={() =>
-                                            history.push(
-                                                `/projects/${projectUuid}/sql-runner/${savedSqlChart.slug}/edit`,
-                                            )
-                                        }
-                                    />
+                                <ActionIcon
+                                    size="xs"
+                                    onClick={() =>
+                                        history.push(
+                                            `/projects/${projectUuid}/sql-runner/${savedSqlChart.slug}/edit`,
+                                        )
+                                    }
+                                >
+                                    <MantineIcon icon={IconPencil} />
                                 </ActionIcon>
                             </Tooltip>
                         )}
-                        {canManageChart && (
+                        {canManageSqlRunner && canManageChart && (
                             <Tooltip
                                 variant="xs"
                                 label="Delete"
                                 position="bottom"
                             >
-                                <ActionIcon size="xs">
-                                    <MantineIcon
-                                        icon={IconTrash}
-                                        onClick={() =>
-                                            dispatch(
-                                                toggleModal('deleteChartModal'),
-                                            )
-                                        }
-                                    />
+                                <ActionIcon
+                                    size="xs"
+                                    onClick={() =>
+                                        dispatch(
+                                            toggleModal('deleteChartModal'),
+                                        )
+                                    }
+                                >
+                                    <MantineIcon icon={IconTrash} />
                                 </ActionIcon>
                             </Tooltip>
                         )}

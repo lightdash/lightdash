@@ -83,6 +83,9 @@ const TableField: FC<{
 export const TableFields: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
+    const activeSchema = useAppSelector(
+        (state) => state.sqlRunner.activeSchema,
+    );
 
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -90,6 +93,7 @@ export const TableFields: FC = () => {
     const isValidSearch = Boolean(
         debouncedSearch && debouncedSearch.trim().length > 2,
     );
+
     const {
         data: tableFields,
         isLoading,
@@ -97,6 +101,7 @@ export const TableFields: FC = () => {
     } = useTableFields({
         projectUuid,
         tableName: activeTable,
+        schema: activeSchema,
         search: isValidSearch ? debouncedSearch : undefined,
     });
 

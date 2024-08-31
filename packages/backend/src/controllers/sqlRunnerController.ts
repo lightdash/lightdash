@@ -11,7 +11,6 @@ import {
     CreateSqlChart,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
-    SqlRunnerPivotQueryPayload,
     UpdateSqlChart,
 } from '@lightdash/common';
 import {
@@ -24,6 +23,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -76,6 +76,7 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Path() tableName: string,
         @Request() req: express.Request,
+        @Query() schema?: string,
     ): Promise<ApiWarehouseTableFields> {
         this.setStatus(200);
 
@@ -83,7 +84,7 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getWarehouseFields(req.user!, projectUuid, tableName),
+                .getWarehouseFields(req.user!, projectUuid, tableName, schema),
         };
     }
 

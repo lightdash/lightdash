@@ -23,6 +23,7 @@ import {
     LightdashAnalytics,
     QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
+import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -37,6 +38,7 @@ type SavedSqlServiceArguments = {
     spaceModel: SpaceModel;
     savedSqlModel: SavedSqlModel;
     schedulerClient: SchedulerClient;
+    analyticsModel: AnalyticsModel;
 };
 
 // TODO: Rename to SqlRunnerService
@@ -52,6 +54,8 @@ export class SavedSqlService extends BaseService {
 
     private readonly schedulerClient: SchedulerClient;
 
+    private readonly analyticsModel: AnalyticsModel;
+
     constructor(args: SavedSqlServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -59,6 +63,7 @@ export class SavedSqlService extends BaseService {
         this.spaceModel = args.spaceModel;
         this.savedSqlModel = args.savedSqlModel;
         this.schedulerClient = args.schedulerClient;
+        this.analyticsModel = args.analyticsModel;
     }
 
     static getCreateVersionEventProperties(
@@ -169,6 +174,7 @@ export class SavedSqlService extends BaseService {
         }
         const { hasAccess: hasViewAccess, userAccess } =
             await this.hasSavedChartAccess(user, 'view', savedChart);
+
         if (!hasViewAccess) {
             throw new ForbiddenError("You don't have access to this chart");
         }
@@ -413,7 +419,35 @@ export class SavedSqlService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
-        if (
+
+        // If it's a saved chart, check if the user has access to it
+        if (body.slug || body.uuid) {
+            let savedChart;
+            if (body.uuid) {
+                savedChart = await this.savedSqlModel.getByUuid(body.uuid, {
+                    projectUuid,
+                });
+            } else if (body.slug) {
+                savedChart = await this.savedSqlModel.getBySlug(
+                    projectUuid,
+                    body.slug,
+                );
+            }
+
+            if (!savedChart) {
+                throw new Error('Chart not found');
+            }
+
+            const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
+                user,
+                'view',
+                savedChart,
+            );
+            if (!hasViewAccess) {
+                throw new ForbiddenError("You don't have access to this chart");
+            }
+        } else if (
+            // If it's not a saved chart, check if the user has access to run a pivot query
             user.ability.cannot('create', 'Job') ||
             user.ability.cannot(
                 'manage',
@@ -465,6 +499,10 @@ export class SavedSqlService extends BaseService {
             context: QueryExecutionContext.SQL_CHART,
         });
 
+        await this.analyticsModel.addSqlChartViewEvent(
+            savedChart.savedSqlUuid,
+            user.userUuid,
+        );
         return {
             jobId,
         };

@@ -1,3 +1,69 @@
+# [0.1237.0](https://github.com/lightdash/lightdash/compare/0.1236.2...0.1237.0) (2024-08-30)
+
+
+### Features
+
+* avg aggregation sql runner ([#11314](https://github.com/lightdash/lightdash/issues/11314)) ([0e3ea91](https://github.com/lightdash/lightdash/commit/0e3ea91ccc3a21711eeb9edf869ce63619da563f))
+
+## [0.1236.2](https://github.com/lightdash/lightdash/compare/0.1236.1...0.1236.2) (2024-08-30)
+
+
+### Bug Fixes
+
+* sql runner fields on different schema ([#11313](https://github.com/lightdash/lightdash/issues/11313)) ([0f8349d](https://github.com/lightdash/lightdash/commit/0f8349d76ed45b7faafec6a15118fa106f8cdf48))
+
+
+### Performance Improvements
+
+* only trigger query when config.type/config.fieldConfig changes ([#11304](https://github.com/lightdash/lightdash/issues/11304)) ([e9fb8e6](https://github.com/lightdash/lightdash/commit/e9fb8e62951a163611b2415d5115bfd936e40e7e))
+
+## [0.1236.1](https://github.com/lightdash/lightdash/compare/0.1236.0...0.1236.1) (2024-08-30)
+
+
+### Bug Fixes
+
+* viewers+ can view sql runner charts  ([#11310](https://github.com/lightdash/lightdash/issues/11310)) ([9b8d95a](https://github.com/lightdash/lightdash/commit/9b8d95aae4a5c30eb040621e468d1c53843550b5))
+
+# [0.1236.0](https://github.com/lightdash/lightdash/compare/0.1235.0...0.1236.0) (2024-08-29)
+
+
+### Features
+
+* change colors and labels sql runner ([#11295](https://github.com/lightdash/lightdash/issues/11295)) ([3d0ae64](https://github.com/lightdash/lightdash/commit/3d0ae645504d7bf241b8119ec114337cf44f5165))
+
+# [0.1235.0](https://github.com/lightdash/lightdash/compare/0.1234.0...0.1235.0) (2024-08-29)
+
+
+### Features
+
+* track views sql runner chart ([#11302](https://github.com/lightdash/lightdash/issues/11302)) ([c1a431b](https://github.com/lightdash/lightdash/commit/c1a431b17eda9660fb89edc944d5f3791e79837e))
+
+# [0.1234.0](https://github.com/lightdash/lightdash/compare/0.1233.0...0.1234.0) (2024-08-29)
+
+
+### Bug Fixes
+
+* non-bar charts not showing on edit ([#11303](https://github.com/lightdash/lightdash/issues/11303)) ([c35a378](https://github.com/lightdash/lightdash/commit/c35a378dfd263b163a5c95b8c3b74a1147774d3b))
+
+
+### Features
+
+* remove limit and display chart results in chart viz ([#11291](https://github.com/lightdash/lightdash/issues/11291)) ([0d44301](https://github.com/lightdash/lightdash/commit/0d443012e62372697a8ed95b029e8006f5b3d64b))
+
+# [0.1233.0](https://github.com/lightdash/lightdash/compare/0.1232.1...0.1233.0) (2024-08-29)
+
+
+### Features
+
+* edit sql chart from dashboard ([#11300](https://github.com/lightdash/lightdash/issues/11300)) ([47dc49d](https://github.com/lightdash/lightdash/commit/47dc49d351229f882853b09efd3f8a99187620d0))
+
+## [0.1232.1](https://github.com/lightdash/lightdash/compare/0.1232.0...0.1232.1) (2024-08-29)
+
+
+### Bug Fixes
+
+* amend expectactions on sql runner api test ([#11296](https://github.com/lightdash/lightdash/issues/11296)) ([9fc730f](https://github.com/lightdash/lightdash/commit/9fc730fa42cc7008ef9b7a2c09bf2c49c76b3b4a))
+
 # [0.1232.0](https://github.com/lightdash/lightdash/compare/0.1231.0...0.1232.0) (2024-08-28)
 
 
