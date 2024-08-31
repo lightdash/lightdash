@@ -1293,20 +1293,31 @@ export default class SchedulerTask {
         if (thresholds.length < 1 || results.length < 1) {
             return false;
         }
+
         const { fieldId, operator, value: thresholdValue } = thresholds[0];
 
         const getValue = (resultIdx: number) => {
-            if (resultIdx >= results.length) {
-                if (results.length === 1) {
-                    throw new NotEnoughResults(
-                        `Threshold alert error: Query returned only 1 row, but more rows are required to evaluate the threshold.`,
-                    );
-                } else {
-                    throw new NotEnoughResults(
-                        `Threshold alert error: Insufficient results returned by query. Expected more than ${resultIdx + 1} rows.`,
-                    );
-                }
+            // Case 1: No rows available (resultIdx === 0)
+            if (resultIdx === 0 && results.length === 0) {
+                throw new NotEnoughResults(
+                    `Threshold alert error: Query returned no rows, but at least one row is required.`,
+                );
             }
+
+            // Case 2: One row available but increase/decrease comparison needs two rows
+            if (resultIdx === 1 && results.length === 1) {
+                throw new NotEnoughResults(
+                    `Threshold alert error: Query returned only 1 row, but 2 rows are needed for increase/decrease comparison.`,
+                );
+            }
+
+            // If we are trying to access beyond available rows, throw a general error
+            if (resultIdx >= results.length) {
+                throw new NotEnoughResults(
+                    `Threshold alert error: Can't find enough results for threshold evaluation.`,
+                );
+            }
+
             const result = results[resultIdx];
 
             if (!(fieldId in result)) {
@@ -1317,14 +1328,23 @@ export default class SchedulerTask {
             }
             return parseFloat(result[fieldId]);
         };
+
         const latestValue = getValue(0);
         switch (operator) {
             case ThresholdOperator.GREATER_THAN:
                 return latestValue > thresholdValue;
+
             case ThresholdOperator.LESS_THAN:
                 return latestValue < thresholdValue;
+
             case ThresholdOperator.INCREASED_BY:
             case ThresholdOperator.DECREASED_BY:
+                // Ensure at least two rows exist for these operations
+                if (results.length < 2) {
+                    throw new NotEnoughResults(
+                        `Threshold alert error: Increase/decrease comparison requires at least two rows, but only ${results.length} row(s) were returned.`,
+                    );
+                }
                 const previousValue = getValue(1);
                 if (operator === ThresholdOperator.INCREASED_BY) {
                     const percentageIncrease =
@@ -1341,6 +1361,7 @@ export default class SchedulerTask {
                     `Unknown threshold alert operator: ${operator}`,
                 );
         }
+
         return false;
     }
 
