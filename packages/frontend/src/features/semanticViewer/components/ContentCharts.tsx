@@ -51,8 +51,6 @@ const ContentCharts: FC = () => {
         setOpenPanel(undefined);
     };
 
-    console.log({ vizConfig, openPanel, tab: TabPanel.VISUALIZATION_TABLE });
-
     return (
         <>
             <PanelGroup direction="vertical">
@@ -60,7 +58,7 @@ const ContentCharts: FC = () => {
                     id="semantic-viewer-panel-charts"
                     order={1}
                     minSize={30}
-                    style={{ display: 'flex' }}
+                    style={{ display: 'flex', flexDirection: 'column' }}
                 >
                     {vizConfig && isVizTableConfig(vizConfig) ? (
                         <Table
@@ -68,8 +66,9 @@ const ContentCharts: FC = () => {
                             resultsRunner={resultsRunner}
                             config={vizConfig}
                             flexProps={{
-                                sx: { flexGrow: 1 },
                                 m: '-1px',
+                                w: '100%',
+                                sx: { flexGrow: 1 },
                             }}
                         />
                     ) : vizConfig && !isVizTableConfig(vizConfig) ? (
@@ -80,9 +79,8 @@ const ContentCharts: FC = () => {
                             config={vizConfig}
                             isLoading={false}
                             style={{
-                                // NOTE: Ensures the chart is always full height
-                                minHeight: 500,
-                                flex: 1,
+                                flexGrow: 1,
+                                width: '100%',
                                 marginTop: mantineTheme.spacing.sm,
                             }}
                         />

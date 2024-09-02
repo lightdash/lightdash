@@ -1,3 +1,4 @@
+import { type VizTableColumnsConfig } from '@lightdash/common';
 import { createSelector } from 'reselect';
 import { type RootState } from '.';
 
@@ -71,6 +72,29 @@ export const selectSemanticLayerQuery = createSelector(
             ...allSelectedFieldsByKind,
             sortBy,
             limit,
+        };
+    },
+);
+
+export const selectResultsTableVizConfig = createSelector(
+    [selectAllSelectedFieldNames, (s: RootState) => s.semanticViewer.columns],
+    (allSelectedFieldNames, columns): VizTableColumnsConfig => {
+        const selectedColumns = columns.filter((c) =>
+            allSelectedFieldNames.includes(c.reference),
+        );
+
+        return {
+            columns: Object.fromEntries(
+                selectedColumns.map((c) => [
+                    c.reference,
+                    {
+                        visible: true,
+                        reference: c.reference,
+                        label: c.reference,
+                        frozen: false,
+                    },
+                ]),
+            ),
         };
     },
 );

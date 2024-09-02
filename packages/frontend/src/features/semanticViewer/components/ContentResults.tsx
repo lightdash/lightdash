@@ -7,6 +7,7 @@ import { Table } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 import {
+    selectResultsTableVizConfig,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
@@ -22,6 +23,8 @@ const ContentResults: FC = () => {
     const { results, columns } = useAppSelector(
         (state) => state.semanticViewer,
     );
+
+    const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
 
     const [openPanel, setOpenPanel] = useState<TabPanel>();
 
@@ -42,8 +45,6 @@ const ContentResults: FC = () => {
         });
     }, [columns, semanticViewerInfo, results, semanticQuery]);
 
-    console.log(Object.fromEntries(columns.map((c) => [c.reference, c])));
-
     return (
         <>
             <PanelGroup direction="vertical">
@@ -55,11 +56,7 @@ const ContentResults: FC = () => {
                 >
                     <Table
                         resultsRunner={resultsRunner}
-                        // config={{
-                        //     columns: Object.fromEntries(
-                        //         columns.map((c) => [c.reference, c]),
-                        //     ),
-                        // }}
+                        config={resultsTableVizConfig}
                         flexProps={{
                             m: '-1px',
                         }}
