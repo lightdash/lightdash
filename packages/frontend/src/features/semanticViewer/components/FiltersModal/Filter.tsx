@@ -29,7 +29,10 @@ type FilterProps = Pick<StackProps, 'style'> & {
     allFields: SemanticLayerField[];
     onDelete: () => void;
     onUpdate: (filter: SemanticLayerFilter) => void;
-    isNested?: boolean;
+    nestedProps?: {
+        currentGroup: AndOr;
+        moveSelfInParent: (moveTo: AndOr, filterUuid: string) => void;
+    };
 };
 
 const Filter: FC<FilterProps> = ({
@@ -38,8 +41,8 @@ const Filter: FC<FilterProps> = ({
     allFields,
     onDelete,
     onUpdate,
-    isNested,
     style,
+    nestedProps,
 }) => {
     const { showToastError } = useToaster();
     const theme = useMantineTheme();
@@ -247,6 +250,7 @@ const Filter: FC<FilterProps> = ({
         [filter, onUpdate],
     );
 
+    // This is used to move a filter within its parent group (passed down as props by parent filter to nested filters)
     const handleNestedFilterMove = useCallback(
         (moveTo: AndOr, uuid: string) => {
             switch (moveTo) {
@@ -263,10 +267,23 @@ const Filter: FC<FilterProps> = ({
         [handleMoveFilterToAnd, handleMoveFilterToOr],
     );
 
+    const hasNestedFilters = useMemo(() => {
+        return nestedAndFilters.length > 0 || nestedOrFilters.length > 0;
+    }, [nestedAndFilters, nestedOrFilters]);
+
     return (
-        <Stack w="100%" spacing="xs" style={style}>
-            <Group spacing="xs" w="100%" style={{ zIndex: 3 }}>
-                {!isNested && (
+        <Stack w="100%" spacing="sm" style={style}>
+            <Group spacing="xs" w="100%" style={{ zIndex: 3 }} noWrap>
+                {nestedProps ? (
+                    <AndOrSelect
+                        size="xs"
+                        value={nestedProps.currentGroup}
+                        onChange={(moveTo) => {
+                            nestedProps.moveSelfInParent?.(moveTo, filter.uuid);
+                        }}
+                        w={70}
+                    />
+                ) : (
                     <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
                         Where
                     </Text>
@@ -274,7 +291,7 @@ const Filter: FC<FilterProps> = ({
                 <Select
                     size="xs"
                     withinPortal
-                    style={{ flex: 1 }}
+                    style={{ flex: 2 }}
                     data={fieldOptions}
                     value={filter.field}
                     onChange={(value) => {
@@ -304,7 +321,7 @@ const Filter: FC<FilterProps> = ({
                 <FilterMultiStringInput
                     size="xs"
                     withinPortal
-                    style={{ flex: 1 }}
+                    style={{ flex: 2 }}
                     values={filter.values}
                     onChange={(values) => {
                         onUpdate({ ...filter, values });
@@ -338,60 +355,40 @@ const Filter: FC<FilterProps> = ({
                 </Menu>
             </Group>
 
-            {(nestedAndFilters.length > 0 || nestedOrFilters.length > 0) && (
-                <Stack spacing="xs" pl="sm">
+            {hasNestedFilters && (
+                <Stack spacing="xs" pl="5xl">
                     {nestedAndFilters.map((nestedFilter) => (
-                        <Group key={nestedFilter.uuid} spacing="xs" w="100%">
-                            <AndOrSelect
-                                size="xs"
-                                value={AndOr.AND}
-                                onChange={(moveTo) => {
-                                    handleNestedFilterMove(
-                                        moveTo,
-                                        nestedFilter.uuid,
-                                    );
-                                }}
-                                style={{ flex: 1 }}
-                            />
-                            <Filter
-                                filter={nestedFilter}
-                                fieldOptions={fieldOptions}
-                                allFields={allFields}
-                                isNested
-                                onUpdate={handleUpdateNestedFilter}
-                                onDelete={() =>
-                                    handleDeleteNestedFilter(nestedFilter.uuid)
-                                }
-                                style={{ flex: 9 }}
-                            />
-                        </Group>
+                        <Filter
+                            key={nestedFilter.uuid}
+                            filter={nestedFilter}
+                            fieldOptions={fieldOptions}
+                            allFields={allFields}
+                            nestedProps={{
+                                currentGroup: AndOr.AND,
+                                moveSelfInParent: handleNestedFilterMove,
+                            }}
+                            onUpdate={handleUpdateNestedFilter}
+                            onDelete={() =>
+                                handleDeleteNestedFilter(nestedFilter.uuid)
+                            }
+                        />
                     ))}
 
                     {nestedOrFilters.map((nestedFilter) => (
-                        <Group key={nestedFilter.uuid} spacing="xs" w="100%">
-                            <AndOrSelect
-                                size="xs"
-                                value={AndOr.OR}
-                                onChange={(moveTo) => {
-                                    handleNestedFilterMove(
-                                        moveTo,
-                                        nestedFilter.uuid,
-                                    );
-                                }}
-                                style={{ flex: 1 }}
-                            />
-                            <Filter
-                                filter={nestedFilter}
-                                fieldOptions={fieldOptions}
-                                allFields={allFields}
-                                isNested
-                                onUpdate={handleUpdateNestedFilter}
-                                onDelete={() =>
-                                    handleDeleteNestedFilter(nestedFilter.uuid)
-                                }
-                                style={{ flex: 9 }}
-                            />
-                        </Group>
+                        <Filter
+                            key={nestedFilter.uuid}
+                            filter={nestedFilter}
+                            fieldOptions={fieldOptions}
+                            allFields={allFields}
+                            nestedProps={{
+                                currentGroup: AndOr.OR,
+                                moveSelfInParent: handleNestedFilterMove,
+                            }}
+                            onUpdate={handleUpdateNestedFilter}
+                            onDelete={() =>
+                                handleDeleteNestedFilter(nestedFilter.uuid)
+                            }
+                        />
                     ))}
                 </Stack>
             )}
