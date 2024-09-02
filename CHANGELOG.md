@@ -1,3 +1,10 @@
+## [0.1237.4](https://github.com/lightdash/lightdash/compare/0.1237.3...0.1237.4) (2024-09-02)
+
+
+### Bug Fixes
+
+* dashboard mentions not working sometimes and added loading state ([#11246](https://github.com/lightdash/lightdash/issues/11246)) ([1dd45b0](https://github.com/lightdash/lightdash/commit/1dd45b035b9485c6f646f68a4a4a5520eca15010))
+
 ## [0.1237.3](https://github.com/lightdash/lightdash/compare/0.1237.2...0.1237.3) (2024-09-02)
 
 
