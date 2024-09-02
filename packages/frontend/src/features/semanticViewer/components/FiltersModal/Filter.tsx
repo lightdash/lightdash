@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     type SemanticLayerField,
     type SemanticLayerFilter,
 } from '@lightdash/common';
@@ -11,6 +12,7 @@ import {
     Text,
     useMantineTheme,
     type SelectItem,
+    type StackProps,
 } from '@mantine/core';
 import { IconDots, IconTrash, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -18,15 +20,17 @@ import { v4 as uuidv4 } from 'uuid';
 import FilterMultiStringInput from '../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import AndOrSelect, { AndOr } from './AndOrSelect';
 import getOperatorString from './getOperatorString';
-interface FilterProps {
+
+type FilterProps = Pick<StackProps, 'style'> & {
     filter: SemanticLayerFilter;
     fieldOptions: SelectItem[];
     allFields: SemanticLayerField[];
     onDelete: () => void;
     onUpdate: (filter: SemanticLayerFilter) => void;
     isNested?: boolean;
-}
+};
 
 const Filter: FC<FilterProps> = ({
     filter,
@@ -35,6 +39,7 @@ const Filter: FC<FilterProps> = ({
     onDelete,
     onUpdate,
     isNested,
+    style,
 }) => {
     const { showToastError } = useToaster();
     const theme = useMantineTheme();
@@ -163,8 +168,86 @@ const Filter: FC<FilterProps> = ({
         [allFields, filter, onUpdate, showToastError],
     );
 
+    const handleMoveFilterToAnd = useCallback(
+        (uuid: string) => {
+            const { and, or, ...filterToUpdate } = filter;
+
+            if (and) {
+                // check if filter is already in and
+                const nestedFilter = and.find((f) => f.uuid === uuid);
+                if (nestedFilter) {
+                    return;
+                }
+            }
+
+            const nestedFilter = or?.find((f) => f.uuid === uuid);
+
+            if (!nestedFilter) {
+                return;
+            }
+
+            const updatedOrFilters = or?.filter((f) => f.uuid !== uuid) ?? [];
+
+            onUpdate({
+                ...filterToUpdate,
+                ...(updatedOrFilters.length > 0
+                    ? { or: updatedOrFilters }
+                    : {}),
+                and: [...(filter.and ?? []), nestedFilter],
+            });
+        },
+        [filter, onUpdate],
+    );
+
+    const handleMoveFilterToOr = useCallback(
+        (uuid: string) => {
+            const { and, or, ...filterToUpdate } = filter;
+
+            if (or) {
+                // check if filter is already in or
+                const nestedFilter = or.find((f) => f.uuid === uuid);
+                if (nestedFilter) {
+                    return;
+                }
+            }
+
+            const nestedFilter = and?.find((f) => f.uuid === uuid);
+
+            if (!nestedFilter) {
+                return;
+            }
+
+            const updatedAndFilters = and?.filter((f) => f.uuid !== uuid) ?? [];
+
+            onUpdate({
+                ...filterToUpdate,
+                ...(updatedAndFilters.length > 0
+                    ? { and: updatedAndFilters }
+                    : {}),
+                or: [...(filter.or ?? []), nestedFilter],
+            });
+        },
+        [filter, onUpdate],
+    );
+
+    const handleNestedFilterMove = useCallback(
+        (moveTo: AndOr, uuid: string) => {
+            switch (moveTo) {
+                case AndOr.AND:
+                    handleMoveFilterToAnd(uuid);
+                    break;
+                case AndOr.OR:
+                    handleMoveFilterToOr(uuid);
+                    break;
+                default:
+                    assertUnreachable(moveTo, `Invalid move: ${moveTo}`);
+            }
+        },
+        [handleMoveFilterToAnd, handleMoveFilterToOr],
+    );
+
     return (
-        <Stack w="100%" spacing="xs">
+        <Stack w="100%" spacing="xs" style={style}>
             <Group spacing="xs" w="100%" style={{ zIndex: 3 }}>
                 {!isNested && (
                     <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
@@ -239,33 +322,59 @@ const Filter: FC<FilterProps> = ({
             {(nestedAndFilters.length > 0 ||
                 nestedOrFilters.length > 0 ||
                 isAddingNestedFilter) && (
-                <Stack spacing="xs" pl="sm" style={{ flexGrow: 1 }}>
+                <Stack spacing="xs" pl="sm">
                     {nestedAndFilters.map((nestedFilter) => (
-                        <Filter
-                            key={nestedFilter.uuid}
-                            filter={nestedFilter}
-                            fieldOptions={fieldOptions}
-                            allFields={allFields}
-                            isNested
-                            onUpdate={handleUpdateNestedFilter}
-                            onDelete={() =>
-                                handleDeleteNestedFilter(nestedFilter.uuid)
-                            }
-                        />
+                        <Group key={nestedFilter.uuid} spacing="xs" w="100%">
+                            <AndOrSelect
+                                size="xs"
+                                value={AndOr.AND}
+                                onChange={(moveTo) => {
+                                    handleNestedFilterMove(
+                                        moveTo,
+                                        nestedFilter.uuid,
+                                    );
+                                }}
+                                style={{ flex: 1 }}
+                            />
+                            <Filter
+                                filter={nestedFilter}
+                                fieldOptions={fieldOptions}
+                                allFields={allFields}
+                                isNested
+                                onUpdate={handleUpdateNestedFilter}
+                                onDelete={() =>
+                                    handleDeleteNestedFilter(nestedFilter.uuid)
+                                }
+                                style={{ flex: 9 }}
+                            />
+                        </Group>
                     ))}
 
                     {nestedOrFilters.map((nestedFilter) => (
-                        <Filter
-                            key={nestedFilter.uuid}
-                            filter={nestedFilter}
-                            fieldOptions={fieldOptions}
-                            allFields={allFields}
-                            isNested
-                            onUpdate={handleUpdateNestedFilter}
-                            onDelete={() =>
-                                handleDeleteNestedFilter(nestedFilter.uuid)
-                            }
-                        />
+                        <Group key={nestedFilter.uuid} spacing="xs" w="100%">
+                            <AndOrSelect
+                                size="xs"
+                                value={AndOr.OR}
+                                onChange={(moveTo) => {
+                                    handleNestedFilterMove(
+                                        moveTo,
+                                        nestedFilter.uuid,
+                                    );
+                                }}
+                                style={{ flex: 1 }}
+                            />
+                            <Filter
+                                filter={nestedFilter}
+                                fieldOptions={fieldOptions}
+                                allFields={allFields}
+                                isNested
+                                onUpdate={handleUpdateNestedFilter}
+                                onDelete={() =>
+                                    handleDeleteNestedFilter(nestedFilter.uuid)
+                                }
+                                style={{ flex: 9 }}
+                            />
+                        </Group>
                     ))}
 
                     {isAddingNestedFilter && (
