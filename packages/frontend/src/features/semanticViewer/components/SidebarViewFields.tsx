@@ -128,6 +128,7 @@ const SidebarViewFields = () => {
                         }
                         placeholder="Search fields"
                         value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                     />
 
                     <SidebarViewFieldsGroup
