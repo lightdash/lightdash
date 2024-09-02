@@ -43,11 +43,11 @@ export const CommentForm: FC<Props> = ({
 }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const spaceUuid = useDashboardContext((c) => c.dashboard?.spaceUuid);
-    const { data: listUsers, isSuccess } = useOrganizationUsers();
+    const { data: listUsers } = useOrganizationUsers();
     const { data: space } = useSpace(projectUuid ?? '', spaceUuid ?? '');
 
-    const userNames: SuggestionsItem[] = useMemo(() => {
-        if (!listUsers || !space?.access) return [];
+    const userNames: SuggestionsItem[] | undefined = useMemo(() => {
+        if (!listUsers || !space?.access) return undefined;
         return listUsers.reduce<SuggestionsItem[]>((acc, user) => {
             if (!user.isActive) return acc;
 
@@ -85,8 +85,9 @@ export const CommentForm: FC<Props> = ({
         setShouldClearEditor(true);
     });
 
-    if (isSuccess && userNames?.length < 1)
+    if (userNames === undefined) {
         return <LoadingCommentWithMentions />;
+    }
 
     return (
         <form onSubmit={handleSubmit}>
@@ -98,14 +99,12 @@ export const CommentForm: FC<Props> = ({
                         </Avatar>
                     </Grid.Col>
                     <Grid.Col span={18} w={mode === 'reply' ? 300 : 350}>
-                        {isSuccess && userNames && userNames.length > 0 && (
-                            <CommentWithMentions
-                                suggestions={userNames}
-                                shouldClearEditor={shouldClearEditor}
-                                setShouldClearEditor={setShouldClearEditor}
-                                onUpdate={setEditor}
-                            />
-                        )}
+                        <CommentWithMentions
+                            suggestions={userNames}
+                            shouldClearEditor={shouldClearEditor}
+                            setShouldClearEditor={setShouldClearEditor}
+                            onUpdate={setEditor}
+                        />
                     </Grid.Col>
                 </Grid>
                 <Group position="right" spacing="xs">
