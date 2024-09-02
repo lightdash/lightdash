@@ -287,8 +287,7 @@ export const semanticViewerSlice = createSlice({
 
             state.columns = sqlColumns;
         },
-        // TODO: maybe move logic out of the slice?
-        // It's here because there is no way to pass in 'no sort'
+
         updateSortBy: (
             state,
             action: PayloadAction<{ name: string; kind: FieldType }>,
