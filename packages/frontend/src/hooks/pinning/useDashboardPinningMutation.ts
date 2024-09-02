@@ -34,11 +34,7 @@ export const useDashboardPinningMutation = () => {
                 ]);
                 await queryClient.invalidateQueries(['content']);
 
-                const isPinned = dashboard.items.some(
-                    (pinnedItem) =>
-                        pinnedItem?.dashboardUuid === variables.uuid,
-                );
-                if (isPinned) {
+                if (dashboard.isPinned) {
                     showToastSuccess({
                         title: 'Success! Dashboard was pinned to homepage',
                     });

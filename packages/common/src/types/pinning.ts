@@ -5,7 +5,6 @@ import {
     type ResourceViewItemType,
     type ResourceViewSpaceItem,
 } from './resourceViewItem';
-import { type ChartSummary } from './savedCharts';
 
 export type PinnedList = {
     pinnedListUuid: string;
@@ -97,11 +96,12 @@ export type PinnedItems = Array<
     ResourceViewDashboardItem | ResourceViewChartItem | ResourceViewSpaceItem
 >;
 
-export type TogglePinnedItemInfo = Pick<
-    PinnedListAndItems,
-    'pinnedListUuid' | 'items'
-> &
-    Pick<ChartSummary, 'projectUuid' | 'spaceUuid'>;
+export type TogglePinnedItemInfo = {
+    pinnedListUuid: string;
+    projectUuid: string;
+    spaceUuid: string;
+    isPinned: boolean;
+};
 
 export type ApiTogglePinnedItem = {
     status: 'ok';

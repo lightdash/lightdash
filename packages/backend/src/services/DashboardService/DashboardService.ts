@@ -662,7 +662,9 @@ export class DashboardService extends BaseService {
             projectUuid,
             spaceUuid,
             pinnedListUuid: pinnedList.pinnedListUuid,
-            items: pinnedList.items,
+            isPinned: !!pinnedList.items.find(
+                (item) => item.dashboardUuid === dashboardUuid,
+            ),
         };
     }
 
