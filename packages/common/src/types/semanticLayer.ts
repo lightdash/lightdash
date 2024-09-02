@@ -1,11 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
-import {
-    SemanticLayerStringFilterOperator,
-    type SemanticLayerFilter,
-} from './semanticLayerFilter';
-
-export * from './semanticLayerFilter';
 
 export type SemanticLayerView = {
     name: string;
@@ -142,6 +136,31 @@ export type SemanticLayerQueryPayload = {
     context: 'semanticViewer';
 };
 
+export enum SemanticLayerStringFilterOperator {
+    IS = 'IS',
+    IS_NOT = 'IS NOT',
+}
+
+export type SemanticLayerFilterBase = {
+    uuid: string;
+    field: string;
+    fieldKind: FieldType; // This is mostly to help with frontend state and avoiding having to set all the fields in redux to be able to find the kind
+    fieldType: SemanticLayerFieldType;
+};
+
+export type SemanticLayerStringFilter = SemanticLayerFilterBase & {
+    operator: SemanticLayerStringFilterOperator;
+    values: string[];
+};
+
+// TODO: right now we only support string filters, this type should be a union of all filter types
+type SemanticLayerFilterTypes = SemanticLayerStringFilter;
+
+export type SemanticLayerFilter = SemanticLayerFilterTypes & {
+    and?: SemanticLayerFilter[];
+    or?: SemanticLayerFilter[];
+};
+
 // Helper functions and constants
 
 export const semanticLayerQueryJob = 'semanticLayer';
@@ -181,4 +200,25 @@ export function getAvailableSemanticLayerFilterOperators(
                 `Unsupported field type: ${fieldType}`,
             );
     }
+}
+
+export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
+    field: string;
+    fieldKind: FieldType;
+    fieldType: SemanticLayerFieldType;
+}[] {
+    const andFiltersFieldNames =
+        filter.and?.flatMap(getFilterFieldNamesRecursively) ?? [];
+    const orFiltersFieldNames =
+        filter.or?.flatMap(getFilterFieldNamesRecursively) ?? [];
+
+    return [
+        {
+            field: filter.field,
+            fieldKind: filter.fieldKind,
+            fieldType: filter.fieldType,
+        },
+        ...andFiltersFieldNames,
+        ...orFiltersFieldNames,
+    ];
 }

@@ -149,9 +149,18 @@ const Filter: FC<FilterProps> = ({
     );
 
     const handleAddNestedFilter = useCallback(
-        (field: string) => {
-            const defaultOperator = allFields?.find((f) => f.name === field)
-                ?.availableOperators[0];
+        (fieldName: string) => {
+            const field = allFields?.find((f) => f.name === fieldName);
+
+            if (!field) {
+                showToastError({
+                    title: 'Error',
+                    subtitle: 'Field not found',
+                });
+                return;
+            }
+
+            const defaultOperator = field.availableOperators[0];
 
             if (!defaultOperator) {
                 showToastError({
@@ -163,7 +172,9 @@ const Filter: FC<FilterProps> = ({
 
             const newFilter: SemanticLayerFilter = {
                 uuid: uuidv4(),
-                field: field,
+                field: fieldName,
+                fieldKind: field.kind,
+                fieldType: field.type,
                 operator: defaultOperator,
                 values: [],
             };

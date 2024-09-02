@@ -9232,6 +9232,9 @@
             },
             "SemanticLayerFilterBase": {
                 "properties": {
+                    "fieldKind": {
+                        "$ref": "#/components/schemas/FieldType"
+                    },
                     "field": {
                         "type": "string"
                     },
@@ -9239,7 +9242,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["field", "uuid"],
+                "required": ["fieldKind", "field", "uuid"],
                 "type": "object"
             },
             "SemanticLayerStringFilterOperator": {
@@ -9268,45 +9271,13 @@
                     }
                 ]
             },
-            "SemanticLayerSimpleFilter": {
+            "SemanticLayerFilterTypes": {
                 "$ref": "#/components/schemas/SemanticLayerStringFilter"
             },
             "SemanticLayerFilter": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerSimpleFilter"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerAndFilter"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerOrFilter"
-                    }
-                ]
-            },
-            "SemanticLayerAndFilter": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/SemanticLayerSimpleFilter"
-                    },
-                    {
-                        "properties": {
-                            "and": {
-                                "items": {
-                                    "$ref": "#/components/schemas/SemanticLayerFilter"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["and"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerOrFilter": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerSimpleFilter"
+                        "$ref": "#/components/schemas/SemanticLayerFilterTypes"
                     },
                     {
                         "properties": {
@@ -9315,9 +9286,14 @@
                                     "$ref": "#/components/schemas/SemanticLayerFilter"
                                 },
                                 "type": "array"
+                            },
+                            "and": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SemanticLayerFilter"
+                                },
+                                "type": "array"
                             }
                         },
-                        "required": ["or"],
                         "type": "object"
                     }
                 ]

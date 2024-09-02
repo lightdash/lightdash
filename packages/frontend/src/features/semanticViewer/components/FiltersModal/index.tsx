@@ -13,6 +13,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { IconPlus, IconX } from '@tabler/icons-react';
+import { uniqBy } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -21,6 +22,7 @@ import { useSemanticLayerViewFields } from '../../api/hooks';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     selectAllSelectedFieldsByKind,
+    selectFilterFields,
     selectSemanticLayerInfo,
 } from '../../store/selectors';
 import {
@@ -45,6 +47,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
     const allSelectedFieldsBykind = useAppSelector(
         selectAllSelectedFieldsByKind,
     );
+    const filterFields = useAppSelector(selectFilterFields);
 
     const dispatch = useAppDispatch();
 
@@ -54,11 +57,34 @@ const FiltersModal: FC<FiltersModalProps> = ({
         throw new Error('View not set');
     }
 
+    const usedFields = useMemo(() => {
+        return {
+            dimensions: uniqBy(
+                [
+                    ...filterFields.dimensions,
+                    ...allSelectedFieldsBykind.dimensions,
+                ],
+                'name',
+            ),
+            metrics: uniqBy(
+                [...filterFields.metrics, ...allSelectedFieldsBykind.metrics],
+                'name',
+            ),
+            timeDimensions: uniqBy(
+                [
+                    ...filterFields.timeDimensions,
+                    ...allSelectedFieldsBykind.timeDimensions,
+                ],
+                'name',
+            ),
+        };
+    }, [filterFields, allSelectedFieldsBykind]);
+
     const { data: fields } = useSemanticLayerViewFields(
         {
             projectUuid,
             view,
-            selectedFields: allSelectedFieldsBykind,
+            selectedFields: usedFields,
         },
         {
             keepPreviousData: true,
@@ -130,9 +156,20 @@ const FiltersModal: FC<FiltersModalProps> = ({
                                     return;
                                 }
 
-                                const defaultOperator = fields?.find(
+                                const field = fields?.find(
                                     (f) => f.name === value,
-                                )?.availableOperators[0];
+                                );
+
+                                if (!field) {
+                                    showToastError({
+                                        title: 'Error',
+                                        subtitle: 'Field not found',
+                                    });
+                                    return;
+                                }
+
+                                const defaultOperator =
+                                    field.availableOperators[0];
 
                                 if (!defaultOperator) {
                                     showToastError({
@@ -147,6 +184,8 @@ const FiltersModal: FC<FiltersModalProps> = ({
                                     addFilter({
                                         uuid: uuidv4(),
                                         field: value,
+                                        fieldKind: field.kind,
+                                        fieldType: field.type,
                                         operator: defaultOperator,
                                         values: [],
                                     }),

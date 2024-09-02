@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
+import { uniqBy } from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -17,6 +18,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
+    selectFilterFields,
     selectSemanticLayerInfo,
 } from '../store/selectors';
 import { setFields } from '../store/semanticViewerSlice';
@@ -44,6 +46,7 @@ const SidebarViewFields = () => {
     const allSelectedFieldsBykind = useAppSelector(
         selectAllSelectedFieldsByKind,
     );
+    const filterFields = useAppSelector(selectFilterFields);
 
     const dispatch = useAppDispatch();
 
@@ -53,11 +56,34 @@ const SidebarViewFields = () => {
         throw new Error('Impossible state');
     }
 
+    const usedFields = useMemo(() => {
+        return {
+            dimensions: uniqBy(
+                [
+                    ...filterFields.dimensions,
+                    ...allSelectedFieldsBykind.dimensions,
+                ],
+                'name',
+            ),
+            metrics: uniqBy(
+                [...filterFields.metrics, ...allSelectedFieldsBykind.metrics],
+                'name',
+            ),
+            timeDimensions: uniqBy(
+                [
+                    ...filterFields.timeDimensions,
+                    ...allSelectedFieldsBykind.timeDimensions,
+                ],
+                'name',
+            ),
+        };
+    }, [filterFields, allSelectedFieldsBykind]);
+
     const fields = useSemanticLayerViewFields(
         {
             projectUuid,
             view,
-            selectedFields: allSelectedFieldsBykind,
+            selectedFields: usedFields,
         },
         {
             keepPreviousData: true,
