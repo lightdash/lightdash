@@ -72,7 +72,7 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
             <form title="Duplicate Chart" onSubmit={handleConfirm}>
                 <Stack spacing="lg" pt="sm">
                     <TextInput
-                        label="Enter a memorable name for your chart"
+                        label="Chart Name"
                         required
                         placeholder="eg. How many weekly active users do we have?"
                         disabled={isLoading}

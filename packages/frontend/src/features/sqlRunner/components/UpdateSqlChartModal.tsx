@@ -117,7 +117,7 @@ export const UpdateSqlChartModal = ({
                 <Stack p="md">
                     <Stack spacing="xs">
                         <TextInput
-                            label="Enter a memorable name for your chart"
+                            label="Chart Name"
                             placeholder="eg. How many weekly active users do we have?"
                             required
                             {...form.getInputProps('name')}

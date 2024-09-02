@@ -67,7 +67,7 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
             <form title="Update Chart" onSubmit={handleConfirm}>
                 <Stack spacing="lg" pt="sm">
                     <TextInput
-                        label="Enter a memorable name for your chart"
+                        label="Chart Name"
                         required
                         placeholder="eg. How many weekly active users do we have?"
                         disabled={isUpdating}
