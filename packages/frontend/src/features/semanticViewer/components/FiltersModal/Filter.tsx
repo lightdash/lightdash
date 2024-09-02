@@ -256,7 +256,7 @@ const Filter: FC<FilterProps> = ({
                 )}
                 <Select
                     size="xs"
-                    withinPortal={true}
+                    withinPortal
                     style={{ flex: 1 }}
                     data={fieldOptions}
                     value={filter.field}
@@ -270,7 +270,7 @@ const Filter: FC<FilterProps> = ({
                 />
                 <Select
                     size="xs"
-                    withinPortal={true}
+                    withinPortal
                     style={{ flex: 1 }}
                     data={operatorsOpts ?? []}
                     value={currentOperator}
@@ -286,6 +286,7 @@ const Filter: FC<FilterProps> = ({
                 />
                 <FilterMultiStringInput
                     size="xs"
+                    withinPortal
                     style={{ flex: 1 }}
                     values={filter.values}
                     onChange={(values) => {
