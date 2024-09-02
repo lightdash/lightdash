@@ -74,31 +74,37 @@ const Filter: FC<FilterProps> = ({
 
     const handleDeleteNestedFilter = useCallback(
         (uuid: string) => {
-            const updatedAndFilters = filter.and?.filter(
-                (f) => f.uuid !== uuid,
-            );
+            const { and, or, ...filterToUpdate } = filter;
+
+            const updatedAndFilters = and?.filter((f) => f.uuid !== uuid);
 
             if (
-                updatedAndFilters?.length !== filter.and?.length &&
-                (updatedAndFilters?.length ?? 0) > 0
+                and &&
+                updatedAndFilters &&
+                updatedAndFilters.length < and.length
             ) {
-                onUpdate({ ...filter, and: updatedAndFilters });
+                onUpdate({
+                    ...filterToUpdate,
+                    ...(updatedAndFilters.length > 0
+                        ? { and: updatedAndFilters }
+                        : {}),
+                    or,
+                });
                 return;
             }
 
-            const updatedOrFilters = filter.or?.filter((f) => f.uuid !== uuid);
+            const updatedOrFilters = or?.filter((f) => f.uuid !== uuid);
 
-            if (
-                updatedOrFilters?.length !== filter.or?.length &&
-                (updatedOrFilters?.length ?? 0) > 0
-            ) {
-                onUpdate({ ...filter, or: updatedOrFilters });
+            if (updatedOrFilters && or && updatedOrFilters.length < or.length) {
+                onUpdate({
+                    ...filterToUpdate,
+                    ...(updatedOrFilters.length > 0
+                        ? { or: updatedOrFilters }
+                        : {}),
+                    and,
+                });
                 return;
             }
-
-            const { and, or, ...updatedFilter } = filter;
-
-            onUpdate(updatedFilter);
         },
         [filter, onUpdate],
     );
