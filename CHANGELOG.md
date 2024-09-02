@@ -1,3 +1,10 @@
+# [0.1238.0](https://github.com/lightdash/lightdash/compare/0.1237.4...0.1238.0) (2024-09-02)
+
+
+### Features
+
+* allow fine tuning query limits for non-table visualizations ([#11321](https://github.com/lightdash/lightdash/issues/11321)) ([ac9f01f](https://github.com/lightdash/lightdash/commit/ac9f01fb5eca4c7927ba5a5b28f6a909dbe122f8))
+
 ## [0.1237.4](https://github.com/lightdash/lightdash/compare/0.1237.3...0.1237.4) (2024-09-02)
 
 
