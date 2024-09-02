@@ -21,6 +21,7 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useSemanticLayerViewFields } from '../../api/hooks';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
+    selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
     selectFilterFields,
     selectSemanticLayerInfo,
@@ -47,6 +48,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
     const allSelectedFieldsBykind = useAppSelector(
         selectAllSelectedFieldsByKind,
     );
+    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
     const filterFields = useAppSelector(selectFilterFields);
 
     const dispatch = useAppDispatch();
@@ -103,9 +105,12 @@ const FiltersModal: FC<FiltersModalProps> = ({
                 .map((f) => ({
                     value: f.name,
                     label: f.label ?? f.name,
+                    group: allSelectedFieldNames.includes(f.name)
+                        ? 'Results'
+                        : 'Other fields',
                 })) ?? []
         );
-    }, [fields]);
+    }, [allSelectedFieldNames, fields]);
 
     const handleApply = useCallback(() => {
         onApply?.();
