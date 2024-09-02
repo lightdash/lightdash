@@ -1,5 +1,5 @@
 import { type Comment } from '@lightdash/common';
-import { Avatar, Button, Grid, Group, Stack } from '@mantine/core';
+import { Avatar, Button, Grid, Group, Skeleton, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type Editor, type JSONContent } from '@tiptap/react';
 import { useMemo, useState, type FC } from 'react';
@@ -9,7 +9,6 @@ import { useDashboardContext } from '../../../providers/DashboardProvider';
 import { type SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
 import { CommentWithMentions } from './CommentWithMentions';
-import LoadingCommentWithMentions from './LoadingCommentWithMentions';
 
 type Props = {
     userName: string;
@@ -85,10 +84,6 @@ export const CommentForm: FC<Props> = ({
         setShouldClearEditor(true);
     });
 
-    if (userNames === undefined) {
-        return <LoadingCommentWithMentions />;
-    }
-
     return (
         <form onSubmit={handleSubmit}>
             <Stack spacing="xs" mt="xs">
@@ -99,12 +94,16 @@ export const CommentForm: FC<Props> = ({
                         </Avatar>
                     </Grid.Col>
                     <Grid.Col span={18} w={mode === 'reply' ? 300 : 350}>
-                        <CommentWithMentions
-                            suggestions={userNames}
-                            shouldClearEditor={shouldClearEditor}
-                            setShouldClearEditor={setShouldClearEditor}
-                            onUpdate={setEditor}
-                        />
+                        {userNames ? (
+                            <CommentWithMentions
+                                suggestions={userNames}
+                                shouldClearEditor={shouldClearEditor}
+                                setShouldClearEditor={setShouldClearEditor}
+                                onUpdate={setEditor}
+                            />
+                        ) : (
+                            <Skeleton h={30} w={'100%'} />
+                        )}
                     </Grid.Col>
                 </Grid>
                 <Group position="right" spacing="xs">
