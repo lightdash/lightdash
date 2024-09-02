@@ -1,5 +1,5 @@
 import { Box } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { useAppSelector } from '../store/hooks';
 import BadgeButton from './BadgeButton';
 import FiltersModal from './FiltersModal';
@@ -7,9 +7,7 @@ import FiltersModal from './FiltersModal';
 const Filters: FC = () => {
     const [filtersModalOpened, setFiltersModalOpened] = useState(false);
     const { filters } = useAppSelector((state) => state.semanticViewer);
-
-    // TODO: This will need to take into account nested filters
-    const filtersCount = Object.keys(filters).length;
+    const filtersCount = useMemo(() => Object.keys(filters).length, [filters]);
 
     return (
         <Box>
