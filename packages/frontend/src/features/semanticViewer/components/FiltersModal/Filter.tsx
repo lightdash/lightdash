@@ -32,6 +32,7 @@ type FilterProps = Pick<StackProps, 'style'> & {
     nestedProps?: {
         currentGroup: AndOr;
         moveSelfInParent: (moveTo: AndOr, filterUuid: string) => void;
+        bgShade: number;
     };
 };
 
@@ -271,8 +272,22 @@ const Filter: FC<FilterProps> = ({
         return nestedAndFilters.length > 0 || nestedOrFilters.length > 0;
     }, [nestedAndFilters, nestedOrFilters]);
 
+    console.log(nestedProps?.bgShade);
+
+    const currBgShade = Math.min(nestedProps?.bgShade ?? 0, 4);
+
     return (
-        <Stack w="100%" spacing="sm" style={style}>
+        <Stack
+            w="100%"
+            spacing="sm"
+            style={{
+                ...style,
+                borderRadius: theme.radius.md,
+                border: `2px solid ${theme.colors.gray[5]}`,
+                backgroundColor: theme.colors.gray[currBgShade],
+            }}
+            p="sm"
+        >
             <Group spacing="xs" w="100%" style={{ zIndex: 3 }} noWrap>
                 {nestedProps ? (
                     <AndOrSelect
@@ -366,6 +381,7 @@ const Filter: FC<FilterProps> = ({
                             nestedProps={{
                                 currentGroup: AndOr.AND,
                                 moveSelfInParent: handleNestedFilterMove,
+                                bgShade: currBgShade + 2,
                             }}
                             onUpdate={handleUpdateNestedFilter}
                             onDelete={() =>
@@ -383,6 +399,7 @@ const Filter: FC<FilterProps> = ({
                             nestedProps={{
                                 currentGroup: AndOr.OR,
                                 moveSelfInParent: handleNestedFilterMove,
+                                bgShade: currBgShade + 2,
                             }}
                             onUpdate={handleUpdateNestedFilter}
                             onDelete={() =>
