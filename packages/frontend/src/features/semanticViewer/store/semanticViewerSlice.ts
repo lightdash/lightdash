@@ -15,7 +15,6 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { v4 as uuidv4 } from 'uuid';
 
 export enum EditorTabs {
     SQL = 'sql',
@@ -147,9 +146,7 @@ export interface SemanticViewerState {
 
     sortBy: SemanticLayerSortBy[];
 
-    filters: {
-        [uuid: string]: SemanticLayerFilter;
-    };
+    filters: SemanticLayerFilter[];
 }
 
 const initialState: SemanticViewerState = {
@@ -173,7 +170,7 @@ const initialState: SemanticViewerState = {
     limit: undefined,
 
     sortBy: [],
-    filters: {},
+    filters: [],
 };
 
 export const semanticViewerSlice = createSlice({
@@ -270,19 +267,25 @@ export const semanticViewerSlice = createSlice({
             state.columns = sqlColumns;
         },
         addFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
-            state.filters[uuidv4()] = action.payload;
+            state.filters.push(action.payload);
         },
         removeFilter: (state, action: PayloadAction<string>) => {
-            delete state.filters[action.payload];
+            const filterIndex = state.filters.findIndex(
+                (filter) => filter.uuid === action.payload,
+            );
+
+            if (filterIndex !== -1) {
+                state.filters.splice(filterIndex, 1);
+            }
         },
-        updateFilter: (
-            state,
-            action: PayloadAction<{
-                uuid: string;
-                filter: SemanticLayerFilter;
-            }>,
-        ) => {
-            state.filters[action.payload.uuid] = action.payload.filter;
+        updateFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
+            const filterIndex = state.filters.findIndex(
+                (filter) => filter.uuid === action.payload.uuid,
+            );
+
+            if (filterIndex !== -1) {
+                state.filters[filterIndex] = action.payload;
+            }
         },
     },
 });

@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useSemanticLayerViewFields } from '../../api/hooks';
@@ -84,17 +85,15 @@ const FiltersModal: FC<FiltersModalProps> = ({
             p="sm"
         >
             <Stack align="flex-start" spacing="sm">
-                {Object.entries(filters).map(([uuid, filter]) => (
+                {filters.map((filter) => (
                     <Filter
-                        key={uuid}
+                        key={filter.uuid}
                         filter={filter}
                         fieldOptions={availableFieldOptions}
                         allFields={fields ?? []}
-                        onDelete={() => dispatch(removeFilter(uuid))}
+                        onDelete={() => dispatch(removeFilter(filter.uuid))}
                         onUpdate={(updatedFilter) =>
-                            dispatch(
-                                updateFilter({ uuid, filter: updatedFilter }),
-                            )
+                            dispatch(updateFilter(updatedFilter))
                         }
                     />
                 ))}
@@ -137,6 +136,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
 
                                 dispatch(
                                     addFilter({
+                                        uuid: uuidv4(),
                                         field: value,
                                         operator: defaultOperator,
                                         values: [],

@@ -4,6 +4,7 @@ export enum SemanticLayerStringFilterOperator {
 }
 
 export type SemanticLayerFilterBase = {
+    uuid: string;
     field: string;
 };
 

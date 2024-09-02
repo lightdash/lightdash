@@ -8374,7 +8374,10 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { field: { dataType: 'string', required: true } },
+            nestedProperties: {
+                field: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
@@ -8409,7 +8412,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerFilterTypes: {
+    SemanticLayerSimpleFilter: {
         dataType: 'refAlias',
         type: { ref: 'SemanticLayerStringFilter', validators: {} },
     },
@@ -8417,9 +8420,46 @@ const models: TsoaRoute.Models = {
     SemanticLayerFilter: {
         dataType: 'refAlias',
         type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'SemanticLayerSimpleFilter' },
+                { ref: 'SemanticLayerAndFilter' },
+                { ref: 'SemanticLayerOrFilter' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerAndFilter: {
+        dataType: 'refAlias',
+        type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'SemanticLayerFilterTypes' },
+                { ref: 'SemanticLayerSimpleFilter' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        and: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'SemanticLayerFilter',
+                            },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerOrFilter: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'SemanticLayerSimpleFilter' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -8429,13 +8469,7 @@ const models: TsoaRoute.Models = {
                                 dataType: 'refAlias',
                                 ref: 'SemanticLayerFilter',
                             },
-                        },
-                        and: {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'SemanticLayerFilter',
-                            },
+                            required: true,
                         },
                     },
                 },

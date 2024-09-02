@@ -14,10 +14,10 @@ const Filters: FC = () => {
     return (
         <Box pos="relative">
             <BadgeButton
-                variant="filled"
+                variant="outline"
                 onClick={() => setFiltersModalOpened(true)}
             >
-                Filters ({filtersCount})
+                Filters {filtersCount > 0 && `(${filtersCount})`}
             </BadgeButton>
             <FiltersModal
                 size="xl"
