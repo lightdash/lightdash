@@ -208,6 +208,30 @@ export const semanticViewerSlice = createSlice({
         ) => {
             const key = getKeyByField(action.payload);
             state[key][action.payload.name] = action.payload;
+
+            const fieldDefaultSortBy = {
+                name: action.payload.name,
+                kind: action.payload.kind,
+                direction: SemanticLayerSortByDirection.DESC,
+            };
+
+            // If no sorts, add this field as the sort
+            if (state.sortBy.length === 0) {
+                state.sortBy = [fieldDefaultSortBy];
+            } else if (
+                // If sort is on a metric, and this is a dimension, replace sort with this field
+                state.sortBy[0].kind === FieldType.METRIC &&
+                action.payload.kind === FieldType.DIMENSION
+            ) {
+                state.sortBy = [fieldDefaultSortBy];
+            } else if (
+                state.sortBy[0].kind === FieldType.DIMENSION &&
+                !isSemanticLayerStateTimeDimension(state.sortBy[0]) &&
+                isSemanticLayerStateTimeDimension(action.payload)
+            ) {
+                // If sort is on a dimension, and this is a time dimension, replace sort with this field
+                state.sortBy = [fieldDefaultSortBy];
+            }
         },
         deselectField: (
             state,
@@ -274,20 +298,20 @@ export const semanticViewerSlice = createSlice({
                 (sort) => sort.name === name && sort.kind === kind,
             );
             if (!existing) {
-                state.sortBy.push({
-                    name,
-                    kind,
-                    direction: SemanticLayerSortByDirection.ASC,
-                });
+                state.sortBy = [
+                    {
+                        name,
+                        kind,
+                        direction: SemanticLayerSortByDirection.DESC,
+                    },
+                ];
             } else if (
                 existing &&
-                existing.direction === SemanticLayerSortByDirection.ASC
+                existing.direction === SemanticLayerSortByDirection.DESC
             ) {
-                existing.direction = SemanticLayerSortByDirection.DESC;
+                existing.direction = SemanticLayerSortByDirection.ASC;
             } else {
-                state.sortBy = state.sortBy.filter(
-                    (sort) => sort.name !== name && sort.kind !== kind,
-                );
+                state.sortBy = [];
             }
         },
     },
