@@ -20,7 +20,6 @@ import {
     SemanticLayerTimeGranularity,
     SemanticLayerTransformer,
 } from '@lightdash/common';
-import { Query } from '@tsoa/runtime';
 
 function getSemanticLayerTypeFromCubeType(
     cubeType: TCubeMemberType,

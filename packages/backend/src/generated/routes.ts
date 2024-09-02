@@ -8345,24 +8345,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerAggFunc: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['sum'] },
-                { dataType: 'enum', enums: ['max'] },
-                { dataType: 'enum', enums: ['min'] },
-                { dataType: 'enum', enums: ['mean'] },
-                { dataType: 'enum', enums: ['median'] },
-                { dataType: 'enum', enums: ['first'] },
-                { dataType: 'enum', enums: ['last'] },
-                { dataType: 'enum', enums: ['count'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerPivot: {
         dataType: 'refAlias',
         type: {
@@ -8370,16 +8352,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 values: {
                     dataType: 'array',
-                    array: {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            aggFunction: {
-                                ref: 'SemanticLayerAggFunc',
-                                required: true,
-                            },
-                            name: { dataType: 'string', required: true },
-                        },
-                    },
+                    array: { dataType: 'string' },
                     required: true,
                 },
                 index: {
