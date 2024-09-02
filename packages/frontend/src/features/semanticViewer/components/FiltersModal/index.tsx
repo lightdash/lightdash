@@ -1,4 +1,8 @@
 import {
+    FieldType as FieldKind,
+    SemanticLayerFieldType,
+} from '@lightdash/common';
+import {
     ActionIcon,
     Button,
     Flex,
@@ -64,7 +68,12 @@ const FiltersModal: FC<FiltersModalProps> = ({
     const availableFieldOptions = useMemo(() => {
         return (
             fields
-                ?.filter((f) => f.visible)
+                ?.filter(
+                    (f) =>
+                        f.visible &&
+                        f.type === SemanticLayerFieldType.STRING &&
+                        f.kind === FieldKind.DIMENSION, // TODO: for now only string dimensions are supported
+                )
                 .map((f) => ({
                     value: f.name,
                     label: f.label ?? f.name,
