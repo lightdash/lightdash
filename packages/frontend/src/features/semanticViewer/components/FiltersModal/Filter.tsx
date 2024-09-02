@@ -95,7 +95,7 @@ const Filter: FC<FilterProps> = ({
 
             const updatedOrFilters = or?.filter((f) => f.uuid !== uuid);
 
-            if (updatedOrFilters && or && updatedOrFilters.length < or.length) {
+            if (or && updatedOrFilters && updatedOrFilters.length < or.length) {
                 onUpdate({
                     ...filterToUpdate,
                     ...(updatedOrFilters.length > 0
