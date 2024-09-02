@@ -8,6 +8,8 @@ import {
     Menu,
     Select,
     Stack,
+    Text,
+    useMantineTheme,
     type SelectItem,
 } from '@mantine/core';
 import { IconDots, IconTrash, IconX } from '@tabler/icons-react';
@@ -23,6 +25,7 @@ interface FilterProps {
     allFields: SemanticLayerField[];
     onDelete: () => void;
     onUpdate: (filter: SemanticLayerFilter) => void;
+    isNested?: boolean;
 }
 
 const Filter: FC<FilterProps> = ({
@@ -31,8 +34,11 @@ const Filter: FC<FilterProps> = ({
     allFields,
     onDelete,
     onUpdate,
+    isNested,
 }) => {
     const { showToastError } = useToaster();
+    const theme = useMantineTheme();
+
     const currentField = useMemo(() => {
         return allFields.find((f) => f.name === filter.field);
     }, [allFields, filter.field]);
@@ -160,6 +166,11 @@ const Filter: FC<FilterProps> = ({
     return (
         <Stack w="100%" spacing="xs">
             <Group spacing="xs" w="100%" style={{ zIndex: 3 }}>
+                {!isNested && (
+                    <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
+                        Where
+                    </Text>
+                )}
                 <Select
                     size="xs"
                     withinPortal={true}
@@ -235,6 +246,7 @@ const Filter: FC<FilterProps> = ({
                             filter={nestedFilter}
                             fieldOptions={fieldOptions}
                             allFields={allFields}
+                            isNested
                             onUpdate={handleUpdateNestedFilter}
                             onDelete={() =>
                                 handleDeleteNestedFilter(nestedFilter.uuid)
@@ -248,6 +260,7 @@ const Filter: FC<FilterProps> = ({
                             filter={nestedFilter}
                             fieldOptions={fieldOptions}
                             allFields={allFields}
+                            isNested
                             onUpdate={handleUpdateNestedFilter}
                             onDelete={() =>
                                 handleDeleteNestedFilter(nestedFilter.uuid)
