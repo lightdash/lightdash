@@ -14,7 +14,7 @@ import {
     type SelectItem,
     type StackProps,
 } from '@mantine/core';
-import { IconDots, IconTrash, IconX } from '@tabler/icons-react';
+import { IconDots, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import FilterMultiStringInput from '../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
@@ -163,7 +163,7 @@ const Filter: FC<FilterProps> = ({
             };
 
             // be default add to and
-            onUpdate({ ...filter, and: [newFilter] });
+            onUpdate({ ...filter, and: [...(filter.and ?? []), newFilter] });
         },
         [allFields, filter, onUpdate, showToastError],
     );
@@ -293,21 +293,22 @@ const Filter: FC<FilterProps> = ({
                         onUpdate({ ...filter, values });
                     }}
                 />
+                <ActionIcon
+                    size="xs"
+                    onClick={() => {
+                        setIsAddingNestedFilter(true);
+                    }}
+                    disabled={isAddingNestedFilter}
+                >
+                    <IconPlus />
+                </ActionIcon>
                 <Menu withinPortal={true}>
                     <Menu.Target>
                         <ActionIcon size="xs">
-                            <IconDots color="red" />
+                            <IconDots />
                         </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Item
-                            disabled={isAddingNestedFilter}
-                            onClick={() => {
-                                setIsAddingNestedFilter(true);
-                            }}
-                        >
-                            Add nested filter
-                        </Menu.Item>
                         <Menu.Divider />
                         <Menu.Item
                             color="red"
@@ -320,9 +321,7 @@ const Filter: FC<FilterProps> = ({
                 </Menu>
             </Group>
 
-            {(nestedAndFilters.length > 0 ||
-                nestedOrFilters.length > 0 ||
-                isAddingNestedFilter) && (
+            {(nestedAndFilters.length > 0 || nestedOrFilters.length > 0) && (
                 <Stack spacing="xs" pl="sm">
                     {nestedAndFilters.map((nestedFilter) => (
                         <Group key={nestedFilter.uuid} spacing="xs" w="100%">
@@ -377,34 +376,34 @@ const Filter: FC<FilterProps> = ({
                             />
                         </Group>
                     ))}
-
-                    {isAddingNestedFilter && (
-                        <Group spacing="xs" style={{ zIndex: 3 }}>
-                            <Select
-                                size="xs"
-                                data={fieldOptions}
-                                placeholder="Select field"
-                                searchable
-                                withinPortal={true}
-                                onChange={(value) => {
-                                    setIsAddingNestedFilter(false);
-
-                                    if (!value) {
-                                        return;
-                                    }
-
-                                    handleAddNestedFilter(value);
-                                }}
-                            />
-                            <ActionIcon
-                                size="xs"
-                                onClick={() => setIsAddingNestedFilter(false)}
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        </Group>
-                    )}
                 </Stack>
+            )}
+
+            {isAddingNestedFilter && (
+                <Group spacing="xs" style={{ zIndex: 3 }}>
+                    <Select
+                        size="xs"
+                        data={fieldOptions}
+                        placeholder="Select field"
+                        searchable
+                        withinPortal={true}
+                        onChange={(value) => {
+                            setIsAddingNestedFilter(false);
+
+                            if (!value) {
+                                return;
+                            }
+
+                            handleAddNestedFilter(value);
+                        }}
+                    />
+                    <ActionIcon
+                        size="xs"
+                        onClick={() => setIsAddingNestedFilter(false)}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Group>
             )}
         </Stack>
     );
