@@ -102,6 +102,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     async getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
         throw new Error('Warehouse method not implemented.');

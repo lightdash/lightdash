@@ -18,14 +18,18 @@ const fetchTableFields = async ({
     projectUuid,
     tableName,
     schema,
-}: Pick<GetTableFieldsParams, 'projectUuid' | 'tableName' | 'schema'>) =>
-    lightdashApi<WarehouseTableSchema>({
-        url: `/projects/${projectUuid}/sqlRunner/tables/${tableName}${
-            schema ? `?schema=${schema}` : ''
-        }`,
+}: Pick<GetTableFieldsParams, 'projectUuid' | 'tableName' | 'schema'>) => {
+    const params = {
+        ...(tableName ? { tableName } : {}),
+        ...(schema ? { schemaName: schema } : {}),
+    };
+    const query = new URLSearchParams(params).toString();
+    return lightdashApi<WarehouseTableSchema>({
+        url: `/projects/${projectUuid}/sqlRunner/fields?${query}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 export type WarehouseTableField = {
     name: string;

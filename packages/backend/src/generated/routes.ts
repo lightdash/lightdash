@@ -14930,7 +14930,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v1/projects/:projectUuid/sqlRunner/tables/:tableName',
+        '/api/v1/projects/:projectUuid/sqlRunner/fields',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
         ...fetchMiddlewares<RequestHandler>(
             SqlRunnerController.prototype.getTableFields,
@@ -14948,19 +14948,22 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                tableName: {
-                    in: 'path',
-                    name: 'tableName',
-                    required: true,
-                    dataType: 'string',
-                },
                 req: {
                     in: 'request',
                     name: 'req',
                     required: true,
                     dataType: 'object',
                 },
-                schema: { in: 'query', name: 'schema', dataType: 'string' },
+                tableName: {
+                    in: 'query',
+                    name: 'tableName',
+                    dataType: 'string',
+                },
+                schemaName: {
+                    in: 'query',
+                    name: 'schemaName',
+                    dataType: 'string',
+                },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
