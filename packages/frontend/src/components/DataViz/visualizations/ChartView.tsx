@@ -1,5 +1,4 @@
 import {
-    isApiError,
     type PivotChartData,
     type VizCartesianChartConfig,
     type VizPieChartConfig,
@@ -76,14 +75,11 @@ const ChartView = memo(
         }
         const loading = isLoadingProp || transformLoading;
 
-        const errorMessage = isApiError(error)
-            ? error.error.message
-            : error?.message;
         if (error && !loading) {
             return (
                 <SuboptimalState
                     title="Error generating chart"
-                    description={errorMessage}
+                    description={error.message}
                     icon={IconAlertCircle}
                     mt="xl"
                 />
