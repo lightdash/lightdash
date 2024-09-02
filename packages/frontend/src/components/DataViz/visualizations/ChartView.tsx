@@ -1,4 +1,5 @@
 import {
+    isApiError,
     type PivotChartData,
     type VizCartesianChartConfig,
     type VizPieChartConfig,
@@ -59,6 +60,8 @@ const ChartView = memo(
             uuid,
         });
 
+        console.log({ error });
+
         if (!config?.fieldConfig?.x || config?.fieldConfig.y.length === 0) {
             return (
                 <SuboptimalState
@@ -75,11 +78,9 @@ const ChartView = memo(
         }
         const loading = isLoadingProp || transformLoading;
 
-        // TODO: this could be more robust
-        const errorMessage = error?.message?.includes('Binder Error')
-            ? 'Some specified columns do not exist in the data'
+        const errorMessage = isApiError(error)
+            ? error.error.message
             : error?.message;
-
         if (error && !loading) {
             return (
                 <SuboptimalState
