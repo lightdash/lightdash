@@ -38,9 +38,9 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     const cancelButtonText = useMemo(() => {
         switch (action) {
             case 'viewing':
+            case 'editing':
                 return 'Return to dashboard';
             case 'creating':
-            case 'editing':
                 return 'Cancel';
             default:
                 return assertUnreachable(
@@ -55,7 +55,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             case 'creating':
                 return 'Cancel chart creation and return to dashboard';
             case 'editing':
-                return 'Cancel chart editing and return to dashboard';
+                return 'Conclude chart editing and return to dashboard';
             case 'viewing':
                 return '';
             default:
