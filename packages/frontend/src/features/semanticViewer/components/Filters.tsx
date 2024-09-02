@@ -12,7 +12,7 @@ const Filters: FC = () => {
     const filtersCount = Object.keys(filters).length;
 
     return (
-        <Box pos="relative">
+        <Box>
             <BadgeButton
                 variant="outline"
                 onClick={() => setFiltersModalOpened(true)}
@@ -21,9 +21,6 @@ const Filters: FC = () => {
             </BadgeButton>
             <FiltersModal
                 size="xl"
-                pos="absolute"
-                top={0}
-                left={0}
                 opened={filtersModalOpened}
                 onClose={() => setFiltersModalOpened(false)}
                 withCloseButton={false}
