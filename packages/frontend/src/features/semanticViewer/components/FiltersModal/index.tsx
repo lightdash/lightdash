@@ -42,7 +42,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
     onClose,
     ...props
 }) => {
-    const [isAddingFilter, setIsAddingFilter] = useState(true);
+    const [isAddingFilter, setIsAddingFilter] = useState(false);
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const { view, filters } = useAppSelector((state) => state.semanticViewer);
     const allSelectedFieldsBykind = useAppSelector(
