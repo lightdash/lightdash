@@ -43,11 +43,13 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
     setActiveEditorTab,
+    setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;
+const DEFAULT_LIMIT = 500;
 
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
@@ -127,19 +129,16 @@ export const ContentPanel: FC = () => {
     // in the state to keep them around when the query is re-run.
     const [queryResults, setQueryResults] = useState<ResultsAndColumns>();
 
-    const handleRunQuery = useCallback(
-        async (limitOverride?: number) => {
-            if (!sql) return;
-            const newQueryResults = await runSqlQuery({
-                sql,
-                limit: limitOverride ?? limit,
-            });
+    const handleRunQuery = useCallback(async () => {
+        if (!sql) return;
+        const newQueryResults = await runSqlQuery({
+            sql,
+            limit: DEFAULT_LIMIT,
+        });
 
-            setQueryResults(newQueryResults);
-            notifications.clean();
-        },
-        [runSqlQuery, sql, limit],
-    );
+        setQueryResults(newQueryResults);
+        notifications.clean();
+    }, [runSqlQuery, sql]);
 
     // Run query on cmd + enter
     useHotkeys([
@@ -220,14 +219,14 @@ export const ContentPanel: FC = () => {
         return (
             queryResults?.results &&
             activeEditorTab === EditorTabs.SQL &&
-            queryResults.results.length >= 500
+            queryResults.results.length >= DEFAULT_LIMIT
         );
     }, [queryResults, activeEditorTab]);
 
     const showSqlResultsTable = useMemo(() => {
         return !!(
             (queryResults?.results && activeEditorTab === EditorTabs.SQL) ||
-            // if the chart is pivoted, show the sql results table
+            // if the chart is grouped, show the sql results table
             activeConfigs.chartConfigs.find((c) => c.type === selectedChartType)
                 ?.fieldConfig?.groupBy
         );
@@ -242,7 +241,7 @@ export const ContentPanel: FC = () => {
         return !!(
             queryResults?.results &&
             activeEditorTab === EditorTabs.VISUALIZATION &&
-            // if the chart is not pivoted, show the chart results table
+            // if the chart is not grouped, show the chart results table
             !activeConfigs.chartConfigs.find(
                 (c) => c.type === selectedChartType,
             )?.fieldConfig?.groupBy
@@ -253,6 +252,11 @@ export const ContentPanel: FC = () => {
         activeConfigs.chartConfigs,
         selectedChartType,
     ]);
+
+    const canSetSqlLimit = useMemo(
+        () => activeEditorTab === EditorTabs.VISUALIZATION,
+        [activeEditorTab],
+    );
 
     return (
         <Stack
@@ -330,6 +334,13 @@ export const ContentPanel: FC = () => {
                             isLoading={isLoading}
                             disabled={!sql}
                             onSubmit={() => handleRunQuery()}
+                            {...(canSetSqlLimit
+                                ? {
+                                      onLimitChange: (l) =>
+                                          dispatch(setSqlLimit(l)),
+                                      limit,
+                                  }
+                                : {})}
                         />
                     </Group>
                 </Paper>
@@ -518,7 +529,7 @@ export const ContentPanel: FC = () => {
                             {showLimitText && (
                                 <Group position="center">
                                     <Text fz="sm" fw={500}>
-                                        Showing first {limit} rows
+                                        Showing first {DEFAULT_LIMIT} rows
                                     </Text>
                                 </Group>
                             )}
