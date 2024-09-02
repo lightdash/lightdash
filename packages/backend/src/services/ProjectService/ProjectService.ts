@@ -2093,9 +2093,9 @@ export class ProjectService extends BaseService {
             // Wrap the original query in a CTE
             let pivotedSql = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery}), pivot_query AS (${pivotQuery})`;
 
-            pivotedSql += `\nSELECT * FROM pivot_query WHERE row_index < ${
+            pivotedSql += `\nSELECT * FROM pivot_query WHERE row_index <= ${
                 limit ?? 500
-            } and column_index < 10 order by row_index, column_index`;
+            } and column_index <= 10 order by row_index, column_index`;
 
             return pivotedSql;
         }
