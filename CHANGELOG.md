@@ -1,3 +1,11 @@
+## [0.1237.3](https://github.com/lightdash/lightdash/compare/0.1237.2...0.1237.3) (2024-09-02)
+
+
+### Bug Fixes
+
+* handle case sensitivity for SQL catalog for snowflake ([#11315](https://github.com/lightdash/lightdash/issues/11315)) ([ad268a7](https://github.com/lightdash/lightdash/commit/ad268a722590731c1b1c28551bc214b32bda4ffc)), closes [#11134](https://github.com/lightdash/lightdash/issues/11134) [#11134](https://github.com/lightdash/lightdash/issues/11134) [#11134](https://github.com/lightdash/lightdash/issues/11134)
+* use <= for row_index limit ([#11343](https://github.com/lightdash/lightdash/issues/11343)) ([98444ba](https://github.com/lightdash/lightdash/commit/98444ba4eeecad1e5006ab1cf25c869a67981828))
+
 ## [0.1237.2](https://github.com/lightdash/lightdash/compare/0.1237.1...0.1237.2) (2024-09-02)
 
 
