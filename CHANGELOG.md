@@ -1,3 +1,10 @@
+## [0.1237.2](https://github.com/lightdash/lightdash/compare/0.1237.1...0.1237.2) (2024-09-02)
+
+
+### Bug Fixes
+
+* remove semantic viewer aggregation functions ([#11333](https://github.com/lightdash/lightdash/issues/11333)) ([e4e8520](https://github.com/lightdash/lightdash/commit/e4e8520615ecdfe259342725fd61b8074f5b3761))
+
 ## [0.1237.1](https://github.com/lightdash/lightdash/compare/0.1237.0...0.1237.1) (2024-09-02)
 
 
