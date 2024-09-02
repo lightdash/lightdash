@@ -1,6 +1,7 @@
 import {
     CartesianChartDataModel,
     ChartKind,
+    isApiError,
     isVizCartesianChartConfig,
     isVizPieChartConfig,
     PieChartDataModel,
@@ -66,12 +67,19 @@ export const useChart = <T extends ResultsRunner>({
         [chartTransformer, config?.fieldConfig, projectUuid, limit],
     );
 
-    const transformedData = useAsync(async () => {
-        const data = await getTransformedData();
-        if (onPivot && data) {
-            onPivot(data);
+    const transformedData = useAsync<typeof getTransformedData>(async () => {
+        try {
+            const data = await getTransformedData();
+            if (onPivot && data) {
+                onPivot(data);
+            }
+            return data;
+        } catch (error) {
+            if (isApiError(error)) {
+                throw error.error;
+            }
+            throw error;
         }
-        return data;
     }, [getTransformedData]);
 
     const chartSpec = useMemo(() => {

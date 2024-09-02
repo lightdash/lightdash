@@ -692,6 +692,12 @@ export type ApiError = {
     error: ApiErrorDetail;
 };
 
+export const isApiError = (error: unknown): error is ApiError =>
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    error.status === 'error';
+
 export enum LightdashMode {
     DEFAULT = 'default',
     DEMO = 'demo',

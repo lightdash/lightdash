@@ -75,16 +75,11 @@ const ChartView = memo(
         }
         const loading = isLoadingProp || transformLoading;
 
-        // TODO: this could be more robust
-        const errorMessage = error?.message?.includes('Binder Error')
-            ? 'Some specified columns do not exist in the data'
-            : error?.message;
-
         if (error && !loading) {
             return (
                 <SuboptimalState
                     title="Error generating chart"
-                    description={errorMessage}
+                    description={error.message}
                     icon={IconAlertCircle}
                     mt="xl"
                 />
