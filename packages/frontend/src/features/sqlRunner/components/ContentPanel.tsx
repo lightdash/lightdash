@@ -49,7 +49,7 @@ import {
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;
-const DEFAULT_LIMIT = 500;
+const DEFAULT_SQL_LIMIT = 500;
 
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
@@ -133,7 +133,7 @@ export const ContentPanel: FC = () => {
         if (!sql) return;
         const newQueryResults = await runSqlQuery({
             sql,
-            limit: DEFAULT_LIMIT,
+            limit: DEFAULT_SQL_LIMIT,
         });
 
         setQueryResults(newQueryResults);
@@ -219,7 +219,7 @@ export const ContentPanel: FC = () => {
         return (
             queryResults?.results &&
             activeEditorTab === EditorTabs.SQL &&
-            queryResults.results.length >= DEFAULT_LIMIT
+            queryResults.results.length >= DEFAULT_SQL_LIMIT
         );
     }, [queryResults, activeEditorTab]);
 
@@ -529,7 +529,7 @@ export const ContentPanel: FC = () => {
                             {showLimitText && (
                                 <Group position="center">
                                     <Text fz="sm" fw={500}>
-                                        Showing first {DEFAULT_LIMIT} rows
+                                        Showing first {DEFAULT_SQL_LIMIT} rows
                                     </Text>
                                 </Group>
                             )}
