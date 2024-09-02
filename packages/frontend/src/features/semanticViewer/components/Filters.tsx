@@ -1,4 +1,5 @@
-import { Box } from '@mantine/core';
+import { Box, Button } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setIsFiltersModalOpen } from '../store/semanticViewerSlice';
@@ -24,9 +25,21 @@ const Filters: FC = () => {
 
     return (
         <Box>
-            <BadgeButton variant="outline" onClick={openFiltersModal}>
-                Filters {filtersCount > 0 && `(${filtersCount})`}
-            </BadgeButton>
+            {filtersCount > 0 ? (
+                <BadgeButton variant="outline" onClick={openFiltersModal}>
+                    Filters {`(${filtersCount})`}
+                </BadgeButton>
+            ) : (
+                <Button
+                    onClick={openFiltersModal}
+                    variant="outline"
+                    leftIcon={<IconPlus size={14} />}
+                    size="xs"
+                >
+                    Add filters
+                </Button>
+            )}
+
             <FiltersModal
                 size="xl"
                 opened={isFiltersModalOpen}

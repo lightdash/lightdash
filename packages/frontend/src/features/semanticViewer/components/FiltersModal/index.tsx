@@ -42,7 +42,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
     onClose,
     ...props
 }) => {
-    const [canAddFilter, setCanAddFilter] = useState(true);
+    const [isAddingFilter, setIsAddingFilter] = useState(true);
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const { view, filters } = useAppSelector((state) => state.semanticViewer);
     const allSelectedFieldsBykind = useAppSelector(
@@ -137,12 +137,12 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         }
                     />
                 ))}
-                {canAddFilter ? (
+                {!isAddingFilter ? (
                     <Button
                         variant="subtle"
                         size="xs"
                         leftIcon={<MantineIcon icon={IconPlus} />}
-                        onClick={() => setCanAddFilter(false)}
+                        onClick={() => setIsAddingFilter(true)}
                     >
                         Add filter
                     </Button>
@@ -155,7 +155,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                             searchable
                             withinPortal={true}
                             onChange={(value) => {
-                                setCanAddFilter(true);
+                                setIsAddingFilter(false);
 
                                 if (!value) {
                                     return;
@@ -199,7 +199,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         />
                         <ActionIcon
                             size="xs"
-                            onClick={() => setCanAddFilter(true)}
+                            onClick={() => setIsAddingFilter(false)}
                         >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
