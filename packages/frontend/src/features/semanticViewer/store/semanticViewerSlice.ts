@@ -4,6 +4,7 @@ import {
     DimensionType,
     FieldType,
     SemanticLayerFieldType,
+    SemanticLayerSortByDirection,
     type RawResultRow,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
@@ -262,6 +263,33 @@ export const semanticViewerSlice = createSlice({
 
             state.columns = sqlColumns;
         },
+        // TODO: maybe move logic out of the slice?
+        // It's here because there is no way to pass in 'no sort'
+        updateSortBy: (
+            state,
+            action: PayloadAction<{ name: string; kind: FieldType }>,
+        ) => {
+            const { name, kind } = action.payload;
+            const existing = state.sortBy.find(
+                (sort) => sort.name === name && sort.kind === kind,
+            );
+            if (!existing) {
+                state.sortBy.push({
+                    name,
+                    kind,
+                    direction: SemanticLayerSortByDirection.ASC,
+                });
+            } else if (
+                existing &&
+                existing.direction === SemanticLayerSortByDirection.ASC
+            ) {
+                existing.direction = SemanticLayerSortByDirection.DESC;
+            } else {
+                state.sortBy = state.sortBy.filter(
+                    (sort) => sort.name !== name && sort.kind !== kind,
+                );
+            }
+        },
     },
 });
 
@@ -278,4 +306,5 @@ export const {
     deselectField,
     setLimit,
     updateTimeDimensionGranularity,
+    updateSortBy,
 } = semanticViewerSlice.actions;

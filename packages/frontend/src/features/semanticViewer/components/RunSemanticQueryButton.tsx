@@ -107,7 +107,7 @@ export const RunSemanticQueryButton: FC = () => {
                 sortBy,
                 limit,
             }),
-        [allSelectedFieldsByKind, runSemanticViewerQuery, sortBy, limit],
+        [allSelectedFieldsByKind, runSemanticViewerQuery, limit, sortBy],
     );
 
     const handleLimitChange = useCallback(
