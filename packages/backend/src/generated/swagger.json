@@ -9085,8 +9085,18 @@
                 ],
                 "type": "string"
             },
+            "SemanticLayerStringFilterOperator": {
+                "enum": ["IS", "IS NOT"],
+                "type": "string"
+            },
             "SemanticLayerField": {
                 "properties": {
+                    "availableOperators": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                        },
+                        "type": "array"
+                    },
                     "availableGranularities": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerTimeGranularity"
@@ -9116,6 +9126,7 @@
                     }
                 },
                 "required": [
+                    "availableOperators",
                     "availableGranularities",
                     "visible",
                     "kind",
@@ -9232,6 +9243,9 @@
             },
             "SemanticLayerFilterBase": {
                 "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/SemanticLayerFieldType"
+                    },
                     "fieldKind": {
                         "$ref": "#/components/schemas/FieldType"
                     },
@@ -9242,12 +9256,8 @@
                         "type": "string"
                     }
                 },
-                "required": ["fieldKind", "field", "uuid"],
+                "required": ["fieldType", "fieldKind", "field", "uuid"],
                 "type": "object"
-            },
-            "SemanticLayerStringFilterOperator": {
-                "enum": ["IS", "IS NOT"],
-                "type": "string"
             },
             "SemanticLayerStringFilter": {
                 "allOf": [
