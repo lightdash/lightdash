@@ -5,7 +5,7 @@ import { type FC } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectAllSelectedFieldNames } from '../store/selectors';
+import { selectAllSelectedFieldNames, selectFilters } from '../store/selectors';
 import { EditorTabs, setActiveEditorTab } from '../store/semanticViewerSlice';
 import Filters from './Filters';
 import ResultsViewer from './ResultsViewer';
@@ -14,13 +14,16 @@ import SqlViewer from './SqlViewer';
 
 const Content: FC = () => {
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
+    const selectedFilters = useAppSelector(selectFilters);
+
     const { ref: inputSectionRef, width: inputSectionWidth } = useElementSize();
     const { activeEditorTab, results } = useAppSelector(
         (state) => state.semanticViewer,
     );
     const dispatch = useAppDispatch();
 
-    if (allSelectedFieldNames.length === 0) return null;
+    if (allSelectedFieldNames.length === 0 && selectedFilters.length === 0)
+        return null;
 
     return (
         <Flex direction="column" w="100%" maw="100%" h="100%" mah="100%">
@@ -65,6 +68,8 @@ const Content: FC = () => {
                                             <Text>Query</Text>
                                         </Group>
                                     ),
+                                    disabled:
+                                        allSelectedFieldNames.length === 0,
                                 },
                             ]}
                             defaultValue={EditorTabs.VISUALIZATION}
@@ -103,28 +108,28 @@ const Content: FC = () => {
                     overflow: 'auto',
                 })}
             >
-                <Box
-                    style={{ flex: 1 }}
-                    sx={{
-                        //position: 'absolute',
-                        //overflowY: 'hidden',
-                        //height: inputSectionHeight,
-
-                        width: inputSectionWidth,
-                    }}
-                >
-                    <ConditionalVisibility
-                        isVisible={activeEditorTab === EditorTabs.SQL}
+                {allSelectedFieldNames.length ? (
+                    <Box
+                        style={{ flex: 1 }}
+                        sx={{
+                            width: inputSectionWidth,
+                        }}
                     >
-                        <SqlViewer />
-                    </ConditionalVisibility>
+                        <ConditionalVisibility
+                            isVisible={activeEditorTab === EditorTabs.SQL}
+                        >
+                            <SqlViewer />
+                        </ConditionalVisibility>
 
-                    <ConditionalVisibility
-                        isVisible={activeEditorTab === EditorTabs.VISUALIZATION}
-                    >
-                        <ResultsViewer />
-                    </ConditionalVisibility>
-                </Box>
+                        <ConditionalVisibility
+                            isVisible={
+                                activeEditorTab === EditorTabs.VISUALIZATION
+                            }
+                        >
+                            <ResultsViewer />
+                        </ConditionalVisibility>
+                    </Box>
+                ) : null}
             </Paper>
         </Flex>
     );
