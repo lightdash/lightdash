@@ -3,13 +3,14 @@ import {
     type VizTableColumnsConfig,
 } from '@lightdash/common';
 import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
+import { mergeRefs } from '@mantine/hooks';
 import { flexRender } from '@tanstack/react-table';
+import { forwardRef } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
 import {
     Table as TableStyled,
-    TableContainer,
     TABLE_HEADER_BG,
     Tr,
 } from '../../common/Table/Table.styles';
@@ -22,32 +23,33 @@ type TableProps<T extends ResultsRunner> = {
     flexProps?: FlexProps;
 };
 
-export const Table = <T extends ResultsRunner>({
-    resultsRunner,
-    config,
-    flexProps,
-}: TableProps<T>) => {
-    const {
-        tableWrapperRef,
-        getColumnsCount,
-        getTableData,
-        paddingTop,
-        paddingBottom,
-    } = useTableDataModel({ config, resultsRunner });
+export const Table = forwardRef(
+    <T extends ResultsRunner>(
+        { resultsRunner, config, flexProps }: TableProps<T>,
+        ref: React.Ref<HTMLDivElement>,
+    ) => {
+        const {
+            tableWrapperRef,
+            getColumnsCount,
+            getTableData,
+            paddingTop,
+            paddingBottom,
+        } = useTableDataModel({ config, resultsRunner });
 
-    const columnsCount = getColumnsCount();
-    const { headerGroups, virtualRows, rowModelRows } = getTableData();
+        const columnsCount = getColumnsCount();
+        const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
-    return (
-        <TableContainer $shouldExpand>
+        return (
             <Flex
-                ref={tableWrapperRef}
-                dir="column"
+                ref={mergeRefs(ref, tableWrapperRef)}
+                direction="column"
                 miw="100%"
                 {...flexProps}
                 sx={{
-                    flex: 1,
                     overflow: 'auto',
+                    fontFamily: "'Inter', sans-serif",
+                    fontFeatureSettings: "'tnum'",
+                    flexGrow: 1,
                     ...flexProps?.sx,
                 }}
             >
@@ -145,6 +147,6 @@ export const Table = <T extends ResultsRunner>({
                     </tbody>
                 </TableStyled>
             </Flex>
-        </TableContainer>
-    );
-};
+        );
+    },
+);

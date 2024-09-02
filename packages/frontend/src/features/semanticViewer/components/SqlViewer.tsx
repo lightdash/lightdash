@@ -23,7 +23,7 @@ const SqlViewer: FC = () => {
     }
 
     return (
-        <Box pos="relative" h="100%">
+        <Box pos="relative" h="100%" w="100%" sx={{ overflow: 'auto' }}>
             <LoadingOverlay
                 visible={sql.isFetching}
                 opacity={1}
