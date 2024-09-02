@@ -5,6 +5,7 @@ import {
     IconCalendar,
     IconClockHour4,
     IconQuestionMark,
+    IconToggleLeft,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import { getItemIconName } from '../common/Filters/FieldIcon';
@@ -23,6 +24,8 @@ export const TableFieldIcon: FC<{
                 return IconCalendar;
             case 'time':
                 return IconClockHour4;
+            case 'segmented-control':
+                return IconToggleLeft;
             default:
                 return IconQuestionMark;
         }
