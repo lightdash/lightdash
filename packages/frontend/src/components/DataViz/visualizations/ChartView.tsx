@@ -60,8 +60,6 @@ const ChartView = memo(
             uuid,
         });
 
-        console.log({ error });
-
         if (!config?.fieldConfig?.x || config?.fieldConfig.y.length === 0) {
             return (
                 <SuboptimalState
