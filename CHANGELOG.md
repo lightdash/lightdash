@@ -1,3 +1,10 @@
+## [0.1237.1](https://github.com/lightdash/lightdash/compare/0.1237.0...0.1237.1) (2024-09-02)
+
+
+### Bug Fixes
+
+* display error message if failed ([#11324](https://github.com/lightdash/lightdash/issues/11324)) ([a2f0a4e](https://github.com/lightdash/lightdash/commit/a2f0a4e4a141c10f8e85d3e7eb5760cdf87b2eb5))
+
 # [0.1237.0](https://github.com/lightdash/lightdash/compare/0.1236.2...0.1237.0) (2024-08-30)
 
 
