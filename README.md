@@ -380,6 +380,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/maxdiplogit"><img src="https://avatars.githubusercontent.com/u/111004544?v=4?s=100" width="100px;" alt="Harshmeet Singh"/><br /><sub><b>Harshmeet Singh</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=maxdiplogit" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/andrewdw"><img src="https://avatars.githubusercontent.com/u/4855214?v=4?s=100" width="100px;" alt="Andrew Dillion-Walshe"/><br /><sub><b>Andrew Dillion-Walshe</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=andrewdw" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://dub.sh/MUN9v4r"><img src="https://avatars.githubusercontent.com/u/89914602?v=4?s=100" width="100px;" alt="Ayush Sharma"/><br /><sub><b>Ayush Sharma</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ayush3160" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
