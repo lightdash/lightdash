@@ -1,88 +1,106 @@
-import { ECHARTS_DEFAULT_COLORS, type ChartKind } from '@lightdash/common';
-import { Group, Stack, TextInput } from '@mantine/core';
+import {
+    ECHARTS_DEFAULT_COLORS,
+    type CartesianChartDisplay,
+    type ChartKind,
+    type VizChartLayout,
+} from '@lightdash/common';
+import { Group, Stack, TextInput, Tooltip } from '@mantine/core';
+import { IconBrush } from '@tabler/icons-react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
-import {
-    useVizDispatch,
-    useVizSelector,
-    type CartesianChartActionsType,
-} from '../store';
-import { selectCurrentCartesianChartState } from '../store/selectors';
+import { useVizDispatch, type CartesianChartActionsType } from '../store';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
+
+export type ConfigurableSeries = {
+    reference: VizChartLayout['y'][number]['reference'];
+    format: NonNullable<CartesianChartDisplay['series']>[number]['format'];
+    label: NonNullable<CartesianChartDisplay['series']>[number]['label'];
+    color: NonNullable<CartesianChartDisplay['series']>[number]['color'];
+};
 
 type SeriesColorProps = {
     selectedChartType: ChartKind;
     actions: CartesianChartActionsType;
+    series: ConfigurableSeries[];
 };
 
 export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
-    selectedChartType,
     actions,
+    series,
 }) => {
     const { data: org } = useOrganization();
     const colors = org?.chartColors ?? ECHARTS_DEFAULT_COLORS;
     const dispatch = useVizDispatch();
-    const currentConfig = useVizSelector((state) =>
-        selectCurrentCartesianChartState(state, selectedChartType),
-    );
-
-    const serieFields = currentConfig?.config?.fieldConfig?.y || [];
-    const series = currentConfig?.config?.display?.series || {};
 
     return (
         <Config>
             <Config.Section>
                 <Config.Heading>Series</Config.Heading>
                 <Stack spacing="xs">
-                    {serieFields.map((field, index) => (
-                        <Group key={field.reference} spacing="xs" noWrap>
-                            <TextInput
-                                value={
-                                    series[field.reference]?.label ||
-                                    field.reference
-                                }
-                                onChange={(e) => {
-                                    //TODO implement debounce?
-                                    dispatch(
-                                        actions.setSeriesLabel({
-                                            label: e.target.value,
-                                            reference: field.reference,
-                                        }),
-                                    );
-                                }}
-                            />
-                            <ColorSelector
-                                color={
-                                    series[field.reference]?.color ||
-                                    colors[index]
-                                }
-                                onColorChange={(color) => {
-                                    dispatch(
-                                        actions.setSeriesColor({
-                                            index,
-                                            color,
-                                            reference: field.reference,
-                                        }),
-                                    );
-                                }}
-                                swatches={colors}
-                            />
-
-                            <CartesianChartFormatConfig
-                                format={series[field.reference]?.format}
-                                onChangeFormat={(value) => {
-                                    dispatch(
-                                        actions.setSeriesFormat({
-                                            index,
-                                            format: value,
-                                            reference: field.reference,
-                                        }),
-                                    );
-                                }}
-                            />
-                        </Group>
-                    ))}
+                    {Object.entries(series).map(
+                        ([reference, { label, color, format }], index) => (
+                            <Group
+                                key={reference}
+                                spacing="xs"
+                                noWrap
+                                position="apart"
+                            >
+                                <Group>
+                                    <ColorSelector
+                                        color={color ?? colors[index]}
+                                        onColorChange={(c) => {
+                                            dispatch(
+                                                actions.setSeriesColor({
+                                                    index,
+                                                    color: c,
+                                                    reference,
+                                                }),
+                                            );
+                                        }}
+                                        swatches={colors}
+                                    />
+                                    <TextInput
+                                        radius="md"
+                                        value={label}
+                                        onChange={(e) => {
+                                            dispatch(
+                                                actions.setSeriesLabel({
+                                                    label: e.target.value,
+                                                    reference,
+                                                }),
+                                            );
+                                        }}
+                                    />
+                                </Group>
+                                <Group spacing="xs">
+                                    <Tooltip
+                                        label="Format"
+                                        variant="xs"
+                                        withinPortal
+                                    >
+                                        <MantineIcon
+                                            color="gray.5"
+                                            icon={IconBrush}
+                                        />
+                                    </Tooltip>
+                                    <CartesianChartFormatConfig
+                                        format={format}
+                                        onChangeFormat={(value) => {
+                                            dispatch(
+                                                actions.setSeriesFormat({
+                                                    index,
+                                                    format: value,
+                                                    reference,
+                                                }),
+                                            );
+                                        }}
+                                    />
+                                </Group>
+                            </Group>
+                        ),
+                    )}
                 </Stack>
             </Config.Section>
         </Config>
