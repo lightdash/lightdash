@@ -321,7 +321,6 @@ const Filter: FC<FilterProps> = ({
         }
 
         if (nestedFilterProps) {
-            console.log('nestedFilterProps', nestedFilterProps);
             return (
                 <Button
                     size="xs"
