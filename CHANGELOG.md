@@ -1,3 +1,11 @@
+## [0.1238.1](https://github.com/lightdash/lightdash/compare/0.1238.0...0.1238.1) (2024-09-03)
+
+
+### Bug Fixes
+
+* fixed delete dashboards from resources list ([#11205](https://github.com/lightdash/lightdash/issues/11205)) ([f3a4d48](https://github.com/lightdash/lightdash/commit/f3a4d4848e30c17b58b71c73c87c6f4337c6da8f))
+* only push if not included ([#11352](https://github.com/lightdash/lightdash/issues/11352)) ([076ad46](https://github.com/lightdash/lightdash/commit/076ad46e5edf929be571ee184babce41e93c3f82))
+
 # [0.1238.0](https://github.com/lightdash/lightdash/compare/0.1237.4...0.1238.0) (2024-09-02)
 
 
