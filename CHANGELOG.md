@@ -1,3 +1,10 @@
+## [0.1240.2](https://github.com/lightdash/lightdash/compare/0.1240.1...0.1240.2) (2024-09-03)
+
+
+### Bug Fixes
+
+* dont display validation errors originated from CLI ([#11361](https://github.com/lightdash/lightdash/issues/11361)) ([fbfdfd5](https://github.com/lightdash/lightdash/commit/fbfdfd5ceef7e2b923627d562fa271abffcbb0f2))
+
 ## [0.1240.1](https://github.com/lightdash/lightdash/compare/0.1240.0...0.1240.1) (2024-09-03)
 
 
