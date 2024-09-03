@@ -62,7 +62,7 @@ The table below includes a complete list of all commands available in the Lightd
 
 For examples and command-specific options, click through the command in the table for docs, or install the Lightdash CLI and use the [global help option](#help).
 
-| Command                                               | Description                                                                       |
+| <div style={{width:'250px'}}>Command</div>            | Description                                                                       |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------- |
 | [`login`](#lightdash-login)                           | Log in to a Lightdash instance using email/password or a token                    |
 | [`config set-project`](#lightdash-config-set-project) | Choose or set  the Lightdash project you are working on                           |
@@ -81,16 +81,22 @@ For examples and command-specific options, click through the command in the tabl
 
 ### `lightdash login`
 
-Log in to a Lightdash instance using email/password or a token. 
+Log in to a Lightdash instance using email and password or a token. 
 
 ```console
 lightdash login [URL]
 ```
 
-| Command Option | Required? | Description                                                                                        |
-| -------------- | --------- | -------------------------------------------------------------------------------------------------- |
-| `[URL]`        | 🟢 Yes    | The URL for your Lightdash instance                                                                |
-| `--token`      | 🔴 No     | For logging in via access token - common for SSO users - exclude this to login with email/password |
+**Argument:**
+
+- `[URL]`
+  - The URL for your Lightdash instance (see examples below)
+
+**Options:**
+
+- `--token`
+  - For logging in with an access token (common for SSO users) 
+  - Exclude this to log in with email and password
 
 **Examples:**
 
@@ -125,10 +131,12 @@ This command will bring up an interactive list of projects in your organization 
 
 If you need to set the project non-interactively, you can use one of the two optional arguments below.
 
-| Command Option | Required?   | Description                                                                                       |
-| -------------- | ----------- | ------------------------------------------------------------------------------------------------- |
-| `--name`       | 🟢 Yes      | Set the project non-interactively by passing a project name                                        |
-| `--uuid`       | 🟢 Yes      | For logging in via access token - most common for SSO users - exclude to login with email/password |
+**Options:**
+
+- `--name`
+  - Set the project non-interactively by passing an explicit project name
+- `--uuid`
+  - Set the project non-interactively by passing an explicit project UUID
 
 **Examples:**
 
@@ -147,7 +155,7 @@ lightdash config set-project --uuid "d75379bc-f6e9-4e52-86b2-d897cabacd0c"
 
 ### `lightdash compile`
 
-Compile Lightdash resources using your local project and database credentials. dbt gets compiled first, then your Lightdash explores.
+Compile Lightdash resources using your local project and database credentials. dbt gets compiled first, then your Lightdash explores. If you use [dbt node selection](#dbt-node-selection) to only compile a subset of models, Lightdash will also compile models joined to those models to ensure no field references are broken.
 
 All standard [dbt options](#dbt-options) work with `lightdash compile`.
 
@@ -179,22 +187,34 @@ Spin up a temporary preview project using your local project files and content (
 
 All standard [dbt options](#dbt-options) work with `lightdash preview`.
 
-| <div style={{width:'300px'}}>Command Option</div> | Description                                                                                                |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `--name [preview name]`                           | Custom name for the preview. If a name is not provided, a unique, randomly generated name will be created. |
-| `--start-of-week [number]`                        | Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)        |
-| `--skip-dbt-compile`                              | Skip `dbt compile` and deploy from the existing ./target/manifest.json (default: false)                    |
-| `--skip-warehouse-catalog`                        | Skip fetch warehouse catalog and use types in yml (default: false)                                         |
-| `--use-dbt-list [true/false]`                     | Use `dbt list` instead of `dbt compile` to generate dbt manifest.json (default: true)                      |
-| `--ignore-errors`                                 | Allows deploy with errors on compile (default: false)                                                      |
+**Options:**
 
-**Examples:**
+- `--name [preview name]`
+  - Custom name for the preview project. If a name is not provided, a unique, randomly generated name will be created.
+- `--start-of-week [number]`
+  - Specifies the first day of the week (used by week-related date functions). 
+  - 0 (Monday) to 6 (Sunday)
+- `--skip-dbt-compile`
+  - (default: false)
+  - Skip `dbt compile` and deploy from the existing ./target/manifest.json
+- `--skip-warehouse-catalog`
+  - (default: false)
+  - Skip fetch warehouse catalog and use types defined in the YAML.
+- `--use-dbt-list [true/false]`
+  - (default: true)
+  - Use `dbt list` instead of `dbt compile` to generate dbt manifest.json
+- `--ignore-errors`
+  - (default: false)
+  - Allows deploy with errors on compile
+
+**Example:**
 
 Create a preview project with the name **PR: Add Revenue Metric** and ignore validation errors while spinning it up:
 
 ```bash
 lightdash preview --name "PR: Add Revenue Metric" --ignore errors
 ```
+
 
 ### `lightdash start-preview`
 
@@ -210,14 +230,15 @@ All standard [dbt options](#dbt-options) work with `lightdash start-preview`.
 **Options:**
 
 - `--start-of-week [number]`
-  - Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday).
+  - Specifies the first day of the week (used by week-related date functions). 
+  - 0 (Monday) to 6 (Sunday)
 - `--skip-dbt-compile`
   - (default: false)
   - Skip `dbt compile` and deploy from the existing ./target/manifest.json
 - `--skip-warehouse-catalog`
   - (default: false)
-  - Skip fetch warehouse catalog and use types in yml
-- `--use-dbt-list [true|false]`
+  - Skip fetch warehouse catalog and use the types defined in YAML
+- `--use-dbt-list [true/false]`
   - (default: true)
   - Use `dbt list` instead of `dbt compile` to generate dbt manifest.json
 - `--ignore-errors`
@@ -227,7 +248,7 @@ All standard [dbt options](#dbt-options) work with `lightdash start-preview`.
 
 ### `lightdash stop-preview` 
 
-Shuts down a project that was created with `lightdash start-preview`.
+Shuts down a project that was created with [`lightdash start-preview`](#lightdash-start-preview).
 
 This command does not support using dbt options.
 
@@ -247,11 +268,11 @@ lightdash stop-preview "neon unicorn"
 
 ### `lightdash deploy`
 
-Compiles and deploys the current project to your [selected Lightdash Cloud project]((#lightdash-config-set-project)).
+Compiles and deploys the current project to your [selected Lightdash Cloud project](#lightdash-config-set-project).
 
 :::warning
 
-This command is usually [used in Github Actions](/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action) or other deploy scripts. It is not common practice to use `lightdash deploy` to push your local changes up to Lightdash Cloud outside of your initial project creation or times when you need to skip your standard deploy process.
+This command is usually [used in Github Actions](/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action) or other deploy scripts. It is not common practice to use `lightdash deploy` to push your local changes up to Lightdash Cloud outside of your initial project creation.
 
 :::
 
@@ -262,15 +283,20 @@ All standard [dbt options](#dbt-options) work with `lightdash deploy`.
 - `--create [project_name]`
   - Create a new project. If a project name is not provided, you'll be prompted for one on creation.
 - `--ignore-errors`
-  - Allows deploy with errors on compile (default: false)
+  - (default: false)
+  - Allows deploy with errors on compile.
 - `--start-of-week [number]`
-  - Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)
+  - Specifies the first day of the week (used by week-related date functions). 
+  - 0 (Monday) to 6 (Sunday)
 - `--skip-dbt-compile`
-  - Skip `dbt compile` and deploy from the existing ./target/manifest.json (default: false)
+  - (default: false)
+  - Skip `dbt compile` and deploy from the existing ./target/manifest.json.
 - `--skip-warehouse-catalog`
-  - Skip fetch warehouse catalog and use types in yml (default: false)
+  - (default: false)
+  - Skip fetch warehouse catalog and use types defined in the YAML.
 - `--use-dbt-list [true|false]`
-  - Use `dbt list` instead of `dbt compile` to generate dbt manifest.json (default: true)
+  - (default: true)
+  - Use `dbt list` instead of `dbt compile` to generate dbt manifest.json.
 
 
 ### `lightdash refresh` 
@@ -291,15 +317,28 @@ All standard [dbt options](#dbt-options) work with `lightdash validate`.
 - `--project [project uuid]`
   - Project UUID to validate, if not provided, the last preview will be used
 - `--preview`
-  - Validate the last preview if available (default: false)
+  - (default: false)
+  - Validate the last preview if available.
 - `--skip-dbt-compile`
-  - Skip `dbt compile` and deploy from the existing ./target/manifest.json (default: false)
+  - (default: false)
+  - Skip `dbt compile` and deploy from the existing ./target/manifest.json.
 - `--skip-warehouse-catalog`
-  - Skip fetch warehouse catalog and use types in yml (default: false)
-- `--use-dbt-list [true|false]`
-  - Use `dbt list` instead of `dbt compile` to generate dbt manifest.json (default: true)
+  - (default: false)
+  - Skip fetch warehouse catalog and use types defined in the YAML.
+- `--use-dbt-list [true/false]`
+  - (default: true)
+  - Use `dbt list` instead of `dbt compile` to generate dbt manifest.json.
 - `--only [elems...]`
-  - Specify project elements to validate (choices: "charts", "dashboards", "tables", default: ["charts","dashboards","tables"])
+  - (default: ["charts","dashboards","tables"])
+  - Specify project elements to validate.
+
+**Example:**
+
+Validate only dashboards and use the existing compiled dbt manifest:
+
+```bash
+lightdash validate --only ["dashboards"] --skip-dbt-compile
+```
 
 
 ### `lightdash generate`
@@ -382,7 +421,7 @@ lightdash dbt run --select mymodel
 These are options from the dbt Core CLI that also work with some Lightdash CLI commands.
 
 
-### dbt node selection 
+### dbt node selection
 
 You can select a subset of your dbt models by using the following options on any Lightdash commands that support dbt options.
 
