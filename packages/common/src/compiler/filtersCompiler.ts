@@ -1,5 +1,6 @@
 import moment from 'moment-timezone';
 import { SupportedDbtAdapter } from '../types/dbt';
+import { CompileError } from '../types/errors';
 import {
     CustomFormatType,
     DimensionType,
@@ -45,7 +46,7 @@ const raiseInvalidFilterError = (
         targetString = ` on "${filter.target.fieldId}" field`;
     }
 
-    throw Error(
+    throw new CompileError(
         `No function has been implemented to render SQL for the filter operator "${filter.operator}"${targetString} of type "${type}"`,
     );
 };
