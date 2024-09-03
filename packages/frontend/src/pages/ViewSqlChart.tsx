@@ -89,13 +89,6 @@ const ViewSqlChart = () => {
         [data],
     );
 
-    if (chartError) {
-        return <ErrorState error={chartError.error} />;
-    }
-    if (resultsError) {
-        return <ErrorState error={resultsError.error} />;
-    }
-
     return (
         <Page
             title="SQL chart"
@@ -146,6 +139,9 @@ const ViewSqlChart = () => {
                             onChange={(val: TabOption) => setActiveTab(val)}
                         />
                     </Group>
+
+                    {chartError && <ErrorState error={chartError.error} />}
+                    {resultsError && <ErrorState error={resultsError.error} />}
 
                     {data && !isLoading && (
                         <Box

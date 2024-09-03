@@ -162,6 +162,13 @@ export class CartesianChartDataModel
                 const seriesFormat = Object.values(display?.series || {}).find(
                     (s) => s.yAxisIndex === index,
                 )?.format;
+                const seriesLabel = Object.values(display?.series || {}).find(
+                    (s) => s.yAxisIndex === index,
+                )?.label;
+
+                const seriesColor = Object.values(display?.series || {}).find(
+                    (s) => s.yAxisIndex === index,
+                )?.color;
 
                 return {
                     dimensions: [
@@ -170,10 +177,7 @@ export class CartesianChartDataModel
                     ],
                     type: defaultSeriesType,
                     stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
-                    name:
-                        (display?.series &&
-                            display.series[seriesColumn]?.label) ||
-                        friendlyName(seriesColumn),
+                    name: seriesLabel || friendlyName(seriesColumn),
                     encode: {
                         x: transformedData.indexColumn?.reference,
                         y: seriesColumn,
@@ -190,8 +194,7 @@ export class CartesianChartDataModel
                             : undefined,
                     },
                     color:
-                        (display?.series &&
-                            display.series[seriesColumn]?.color) ||
+                        seriesColor ||
                         CartesianChartDataModel.getDefaultColor(
                             index,
                             orgColors,
@@ -243,7 +246,7 @@ export class CartesianChartDataModel
                     nameTextStyle: {
                         fontWeight: 'bold',
                     },
-                    ...(display?.yAxis?.[0].format
+                    ...(display?.yAxis?.[0]?.format
                         ? {
                               axisLabel: {
                                   formatter:

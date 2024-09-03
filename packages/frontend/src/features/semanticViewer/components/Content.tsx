@@ -1,130 +1,169 @@
-import { Box, Flex, Group, Paper, SegmentedControl, Text } from '@mantine/core';
-import { useElementSize } from '@mantine/hooks';
-import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
+import { FieldType, SemanticLayerSortByDirection } from '@lightdash/common';
+import { Button, Center, Group, SegmentedControl, Text } from '@mantine/core';
+import {
+    IconArrowDown,
+    IconArrowUp,
+    IconChartHistogram,
+    IconTable,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
-import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectAllSelectedFieldNames } from '../store/selectors';
-import { EditorTabs, setActiveEditorTab } from '../store/semanticViewerSlice';
-import ResultsViewer from './ResultsViewer';
+import {
+    selectAllSelectedFieldNames,
+    selectAllSelectedFieldsByKind,
+} from '../store/selectors';
+import {
+    EditorTabs,
+    setActiveEditorTab,
+    updateSortBy,
+} from '../store/semanticViewerSlice';
+import ContentCharts from './ContentCharts';
+import ContentResults from './ContentResults';
 import { RunSemanticQueryButton } from './RunSemanticQueryButton';
-import SqlViewer from './SqlViewer';
 
 const Content: FC = () => {
-    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const { ref: inputSectionRef, width: inputSectionWidth } = useElementSize();
-    const { activeEditorTab, results } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
     const dispatch = useAppDispatch();
 
-    if (allSelectedFieldNames.length === 0) return null;
+    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
+    const { results, view, activeEditorTab, sortBy } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
+
+    const allSelectedFieldsByKind = useAppSelector(
+        selectAllSelectedFieldsByKind,
+    );
+
+    const handleAddSortBy = (fieldName: string, kind: FieldType) => {
+        dispatch(updateSortBy({ name: fieldName, kind }));
+    };
 
     return (
-        <Flex direction="column" w="100%" maw="100%" h="100%" mah="100%">
-            <Paper
-                shadow="none"
-                radius={0}
+        <>
+            <Group
                 px="md"
-                py={6}
+                py="sm"
                 bg="gray.1"
                 sx={(theme) => ({
-                    borderWidth: '0 0 0 1px',
-                    borderStyle: 'solid',
-                    borderColor: theme.colors.gray[3],
+                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
                 })}
+                position="apart"
             >
-                <Group position="apart">
-                    <Group position="apart">
-                        <SegmentedControl
-                            color="dark"
-                            size="sm"
-                            radius="sm"
-                            data={[
-                                {
-                                    value: 'chart',
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <MantineIcon
-                                                icon={IconChartHistogram}
-                                            />
-                                            <Text>Chart</Text>
-                                        </Group>
-                                    ),
-                                    disabled: results.length === 0,
-                                },
-                                {
-                                    value: 'sql',
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <MantineIcon
-                                                icon={IconCodeCircle}
-                                            />
-                                            <Text>Query</Text>
-                                        </Group>
-                                    ),
-                                },
-                            ]}
-                            defaultValue={EditorTabs.VISUALIZATION}
-                            onChange={(value) => {
-                                if (value === 'sql') {
-                                    dispatch(
-                                        setActiveEditorTab(EditorTabs.SQL),
-                                    );
-                                } else {
-                                    dispatch(
-                                        setActiveEditorTab(
-                                            EditorTabs.VISUALIZATION,
-                                        ),
-                                    );
-                                }
-                            }}
-                        />
-                    </Group>
-
-                    <Group spacing="md">
-                        <RunSemanticQueryButton />
-                    </Group>
-                </Group>
-            </Paper>
-
-            <Paper
-                ref={inputSectionRef}
-                shadow="none"
-                radius={0}
-                style={{ flex: 1 }}
-                sx={(theme) => ({
-                    borderWidth: '0 0 0 1px',
-                    borderStyle: 'solid',
-                    borderColor: theme.colors.gray[3],
-                    overflow: 'auto',
-                })}
-            >
-                <Box
-                    style={{ flex: 1 }}
-                    sx={{
-                        //position: 'absolute',
-                        //overflowY: 'hidden',
-                        //height: inputSectionHeight,
-
-                        width: inputSectionWidth,
+                <SegmentedControl
+                    color="dark"
+                    size="sm"
+                    radius="sm"
+                    data={[
+                        {
+                            value: EditorTabs.RESULTS,
+                            label: (
+                                <Group spacing="xs" noWrap>
+                                    <MantineIcon icon={IconTable} />
+                                    <Text>Results</Text>
+                                </Group>
+                            ),
+                        },
+                        {
+                            value: EditorTabs.VISUALIZATION,
+                            label: (
+                                <Group spacing="xs" noWrap>
+                                    <MantineIcon icon={IconChartHistogram} />
+                                    <Text>Chart</Text>
+                                </Group>
+                            ),
+                        },
+                    ]}
+                    disabled={
+                        allSelectedFieldNames.length === 0 ||
+                        results.length === 0
+                    }
+                    value={activeEditorTab}
+                    onChange={(value: EditorTabs) => {
+                        dispatch(setActiveEditorTab(value));
                     }}
-                >
-                    <ConditionalVisibility
-                        isVisible={activeEditorTab === EditorTabs.SQL}
-                    >
-                        <SqlViewer />
-                    </ConditionalVisibility>
+                />
 
-                    <ConditionalVisibility
-                        isVisible={activeEditorTab === EditorTabs.VISUALIZATION}
-                    >
-                        <ResultsViewer />
-                    </ConditionalVisibility>
-                </Box>
-            </Paper>
-        </Flex>
+                <RunSemanticQueryButton />
+            </Group>
+            <Group
+                px="md"
+                pt="sm"
+                bg="gray.1"
+                sx={(theme) => ({
+                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                })}
+                spacing="xxs"
+                align="baseline"
+            >
+                <Text fw={600} h="100%" mr="xs">
+                    Sort by:
+                </Text>
+                {Object.entries(allSelectedFieldsByKind).map(([kind, fields]) =>
+                    fields.map((field) => {
+                        // TODO: this is annoying
+                        const normalKind =
+                            kind === 'metrics'
+                                ? FieldType.METRIC
+                                : FieldType.DIMENSION;
+
+                        const sortDirection = sortBy.find(
+                            (s) =>
+                                s.name === field.name && s.kind === normalKind,
+                        )?.direction;
+
+                        return (
+                            <Button
+                                key={`${kind}-${field.name}`}
+                                variant={sortDirection ? 'filled' : 'outline'}
+                                size="sm"
+                                mr="xs"
+                                mb="xs"
+                                color={kind === 'metrics' ? 'orange' : 'blue'}
+                                compact
+                                onClick={() =>
+                                    handleAddSortBy(field.name, normalKind)
+                                }
+                                rightIcon={
+                                    sortDirection && (
+                                        <MantineIcon
+                                            icon={
+                                                sortDirection ===
+                                                SemanticLayerSortByDirection.ASC
+                                                    ? IconArrowUp
+                                                    : IconArrowDown
+                                            }
+                                        ></MantineIcon>
+                                    )
+                                }
+                            >
+                                {field.name}
+                            </Button>
+                        );
+                    }),
+                )}
+            </Group>
+
+            {!view ? (
+                <Center sx={{ flexGrow: 1 }}>
+                    <SuboptimalState
+                        title="Select a view"
+                        description="Please select a view from the sidebar to start building a query"
+                    />
+                </Center>
+            ) : results.length === 0 ? (
+                <Center sx={{ flexGrow: 1 }}>
+                    <SuboptimalState
+                        title="No results"
+                        description="Please run the query to see results"
+                    />
+                </Center>
+            ) : activeEditorTab === EditorTabs.RESULTS ? (
+                <ContentResults />
+            ) : activeEditorTab === EditorTabs.VISUALIZATION ? (
+                <ContentCharts />
+            ) : null}
+        </>
     );
 };
 

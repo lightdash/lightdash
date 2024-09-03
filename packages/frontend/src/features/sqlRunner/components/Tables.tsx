@@ -150,16 +150,25 @@ const Table: FC<{
     }, [activeTable, tables, hasMatchingTable]);
     return (
         <Stack spacing={0}>
-            <Group noWrap spacing="two">
-                <Text p={6} fw={700} fz="md" c="gray.7">
-                    {schema}
-                </Text>
-                <ActionIcon onClick={() => setIsExpanded(!isExpanded)}>
+            <UnstyledButton
+                onClick={() => setIsExpanded(!isExpanded)}
+                sx={(theme) => ({
+                    borderRadius: theme.radius.md,
+                    '&:hover': {
+                        background: theme.colors.gray[1],
+                    },
+                })}
+            >
+                <Group noWrap spacing="two">
+                    <Text p={6} fw={700} fz="md" c="gray.7">
+                        {schema}
+                    </Text>
+
                     <MantineIcon
                         icon={isExpanded ? IconChevronDown : IconChevronRight}
                     />
-                </ActionIcon>
-            </Group>
+                </Group>
+            </UnstyledButton>
             {isExpanded &&
                 Object.keys(tables).map((table) => (
                     <TableItem

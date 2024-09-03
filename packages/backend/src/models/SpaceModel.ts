@@ -521,6 +521,7 @@ export class SpaceModel {
                             SELECT json_agg(validations.*)
                             FROM validations
                             WHERE validations.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                            AND validations.job_id IS NULL
                         ), '[]'
                     ) as validation_errors
                 `),
@@ -1004,6 +1005,7 @@ export class SpaceModel {
                             SELECT json_agg(validations.*)
                             FROM validations
                             WHERE validations.saved_chart_uuid = saved_queries.saved_query_uuid
+                            AND validations.job_id IS NULL
                         ), '[]'
                     ) as validation_errors
                 `),

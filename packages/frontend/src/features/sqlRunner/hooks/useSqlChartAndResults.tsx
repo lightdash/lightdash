@@ -1,4 +1,5 @@
 import {
+    isApiSqlRunnerJobErrorResponse,
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
     type ApiError,
@@ -25,28 +26,42 @@ const getSqlChartAndResults = async ({
         method: 'GET',
         body: undefined,
     });
+    const slug = chartAndScheduledJob.chart.slug;
     const job = await getSqlRunnerCompleteJob(chartAndScheduledJob.jobId);
 
+    if (isApiSqlRunnerJobErrorResponse(job)) {
+        throw {
+            ...job,
+            slug,
+        };
+    }
     const url =
         isApiSqlRunnerJobSuccessResponse(job) &&
         job?.details &&
         !isErrorDetails(job.details)
             ? job.details.fileUrl
             : undefined;
-    const results = await getResultsFromStream<RawResultRow>(url);
+    try {
+        const results = await getResultsFromStream<RawResultRow>(url);
 
-    return {
-        chart: chartAndScheduledJob.chart,
-        resultsAndColumns: {
-            results,
-            columns:
-                isApiSqlRunnerJobSuccessResponse(job) &&
-                job?.details &&
-                !isErrorDetails(job.details)
-                    ? job.details.columns
-                    : [],
-        },
-    };
+        return {
+            chart: chartAndScheduledJob.chart,
+            resultsAndColumns: {
+                results,
+                columns:
+                    isApiSqlRunnerJobSuccessResponse(job) &&
+                    job?.details &&
+                    !isErrorDetails(job.details)
+                        ? job.details.columns
+                        : [],
+            },
+        };
+    } catch (streamError) {
+        throw {
+            ...streamError,
+            slug,
+        };
+    }
 };
 
 /**
@@ -65,7 +80,7 @@ export const useSqlChartAndResults = ({
 }) => {
     return useQuery<
         { resultsAndColumns: ResultsAndColumns; chart: SqlChart },
-        ApiError
+        ApiError & { slug?: string }
     >(
         ['sqlChartResults', projectUuid, savedSqlUuid],
         () => {

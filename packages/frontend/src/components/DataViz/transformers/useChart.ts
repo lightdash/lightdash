@@ -34,7 +34,7 @@ export const useChart = <T extends ResultsRunner>({
     slug?: string;
     uuid?: string;
 }) => {
-    const chartTransformer = useMemo(() => {
+    const chartDataModel = useMemo(() => {
         if (config?.type === ChartKind.PIE) {
             return new PieChartDataModel({
                 resultsRunner,
@@ -54,7 +54,7 @@ export const useChart = <T extends ResultsRunner>({
 
     const getTransformedData = useCallback(
         async () =>
-            chartTransformer?.getTransformedData(
+            chartDataModel?.getTransformedData(
                 config?.fieldConfig,
                 sql,
                 projectUuid,
@@ -64,7 +64,7 @@ export const useChart = <T extends ResultsRunner>({
             ),
         // TODO: FIX THIS ISSUE - it should include the SQL, but the sql shouldn't change on change, but on run query
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [chartTransformer, config?.fieldConfig, projectUuid, limit],
+        [chartDataModel, config?.fieldConfig, projectUuid, limit],
     );
 
     const transformedData = useAsync<typeof getTransformedData>(async () => {
@@ -87,25 +87,25 @@ export const useChart = <T extends ResultsRunner>({
 
         if (
             isVizPieChartConfig(config) &&
-            chartTransformer instanceof PieChartDataModel
+            chartDataModel instanceof PieChartDataModel
         ) {
-            return chartTransformer.getEchartsSpec(
+            return chartDataModel.getEchartsSpec(
                 transformedData.value,
                 config.display,
             );
         }
         if (
             isVizCartesianChartConfig(config) &&
-            chartTransformer instanceof CartesianChartDataModel
+            chartDataModel instanceof CartesianChartDataModel
         ) {
-            return chartTransformer.getEchartsSpec(
+            return chartDataModel.getEchartsSpec(
                 transformedData.value,
                 config.display,
                 config.type,
                 orgColors,
             );
         }
-    }, [chartTransformer, config, transformedData.value, orgColors]);
+    }, [chartDataModel, config, orgColors, transformedData.value]);
 
     return {
         ...transformedData,

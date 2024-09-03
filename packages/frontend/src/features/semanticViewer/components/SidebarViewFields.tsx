@@ -9,6 +9,7 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
+import { pick } from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -16,8 +17,8 @@ import { useSemanticLayerViewFields } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
-    selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
+    selectSemanticLayerQuery,
 } from '../store/selectors';
 import { setFields } from '../store/semanticViewerSlice';
 import SidebarViewFieldsGroup from './SidebarViewFieldsGroup';
@@ -41,9 +42,7 @@ const SidebarViewFields = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const { view } = useAppSelector((state) => state.semanticViewer);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const allSelectedFieldsBykind = useAppSelector(
-        selectAllSelectedFieldsByKind,
-    );
+    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const dispatch = useAppDispatch();
 
@@ -57,24 +56,26 @@ const SidebarViewFields = () => {
         {
             projectUuid,
             view,
-            selectedFields: allSelectedFieldsBykind,
+            selectedFields: pick(semanticQuery, [
+                'dimensions',
+                'metrics',
+                'timeDimensions',
+            ]),
         },
-        {
-            keepPreviousData: true,
-        },
+        { keepPreviousData: true },
     );
+
+    useEffect(() => {
+        if (!fields.data) return;
+
+        dispatch(setFields(fields.data));
+    }, [dispatch, fields.data]);
 
     const searchedFields = useMemo(() => {
         if (!fields.data) return;
 
         return getSearchResults(fields.data, searchQuery);
     }, [fields.data, searchQuery]);
-
-    useEffect(() => {
-        if (fields.data) {
-            dispatch(setFields(fields.data));
-        }
-    }, [dispatch, fields.data]);
 
     if (fields.isError) {
         throw fields.error;
@@ -128,6 +129,7 @@ const SidebarViewFields = () => {
                         }
                         placeholder="Search fields"
                         value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                     />
 
                     <SidebarViewFieldsGroup

@@ -1,4 +1,5 @@
 import {
+    isApiSqlRunnerJobErrorResponse,
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
     type ApiError,
@@ -25,6 +26,10 @@ const getSqlChartResults = async ({
         },
     );
     const job = await getSqlRunnerCompleteJob(scheduledJob.jobId);
+
+    if (isApiSqlRunnerJobErrorResponse(job)) {
+        throw job;
+    }
     const url =
         isApiSqlRunnerJobSuccessResponse(job) &&
         job?.details &&

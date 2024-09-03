@@ -3,7 +3,6 @@ import {
     ChartKind,
     isVizTableConfig,
     type DashboardSqlChartTile as DashboardSqlChartTileType,
-    type SqlChart,
 } from '@lightdash/common';
 import { Box, Menu } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
@@ -14,7 +13,6 @@ import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunn
 import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { type ResultsAndColumns } from '../DataViz/Results';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
@@ -35,13 +33,12 @@ interface Props
  */
 const DashboardOptions = ({
     isEditMode,
-    data,
+    projectUuid,
+    slug,
 }: {
     isEditMode: boolean;
-    data: {
-        resultsAndColumns: ResultsAndColumns;
-        chart: SqlChart;
-    };
+    projectUuid: string;
+    slug: string;
 }) => {
     const history = useHistory();
     return (
@@ -51,7 +48,7 @@ const DashboardOptions = ({
                 disabled={isEditMode}
                 onClick={() =>
                     history.push(
-                        `/projects/${data.chart.project.projectUuid}/sql-runner/${data.chart.slug}/edit`,
+                        `/projects/${projectUuid}/sql-runner/${slug}/edit`,
                     )
                 }
             >
@@ -122,7 +119,18 @@ export const DashboardSqlChartTile: FC<Props> = ({
                 chartName={tile.properties.chartName ?? ''}
                 tile={tile}
                 title={tile.properties.title || tile.properties.chartName || ''}
+                titleHref={`/projects/${projectUuid}/sql-runner/${error.slug}`}
                 {...rest}
+                extraMenuItems={
+                    canManageSqlRunner &&
+                    error.slug && (
+                        <DashboardOptions
+                            isEditMode={isEditMode}
+                            projectUuid={projectUuid}
+                            slug={error.slug}
+                        />
+                    )
+                }
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
@@ -142,7 +150,11 @@ export const DashboardSqlChartTile: FC<Props> = ({
             {...rest}
             extraMenuItems={
                 canManageSqlRunner && (
-                    <DashboardOptions isEditMode={isEditMode} data={data} />
+                    <DashboardOptions
+                        isEditMode={isEditMode}
+                        projectUuid={projectUuid}
+                        slug={data.chart.slug}
+                    />
                 )
             }
         >

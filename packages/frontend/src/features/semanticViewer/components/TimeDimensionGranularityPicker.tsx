@@ -64,6 +64,8 @@ const TimeDimensionGranularityPicker: FC<
             <Menu.Dropdown>
                 <Menu.Label>Time granularity</Menu.Label>
 
+                <Menu.Divider />
+
                 {availableGranularities.map((granularity) => (
                     <Menu.Item
                         key={granularity}

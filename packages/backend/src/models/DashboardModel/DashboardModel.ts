@@ -363,6 +363,7 @@ export class DashboardModel {
                                     SELECT json_agg(validations.*)
                                     FROM validations
                                     WHERE validations.dashboard_uuid = ${DashboardsTableName}.dashboard_uuid
+                                    AND validations.job_id IS NULL
                                 ), '[]'
                             ) as validation_errors
                         `),

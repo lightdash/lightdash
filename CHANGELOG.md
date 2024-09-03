@@ -1,3 +1,60 @@
+## [0.1240.2](https://github.com/lightdash/lightdash/compare/0.1240.1...0.1240.2) (2024-09-03)
+
+
+### Bug Fixes
+
+* dont display validation errors originated from CLI ([#11361](https://github.com/lightdash/lightdash/issues/11361)) ([fbfdfd5](https://github.com/lightdash/lightdash/commit/fbfdfd5ceef7e2b923627d562fa271abffcbb0f2))
+
+## [0.1240.1](https://github.com/lightdash/lightdash/compare/0.1240.0...0.1240.1) (2024-09-03)
+
+
+### Bug Fixes
+
+* allow setting labels and colours to series ([#11359](https://github.com/lightdash/lightdash/issues/11359)) ([57134c6](https://github.com/lightdash/lightdash/commit/57134c61a36551c0ddbd9b1c34a6ccc4fae34036))
+
+# [0.1240.0](https://github.com/lightdash/lightdash/compare/0.1239.1...0.1240.0) (2024-09-03)
+
+
+### Features
+
+* allow move to space and delete for sql charts ([#11362](https://github.com/lightdash/lightdash/issues/11362)) ([c28f413](https://github.com/lightdash/lightdash/commit/c28f413cbe9c7a0f93664044361103f9493900b6))
+
+## [0.1239.1](https://github.com/lightdash/lightdash/compare/0.1239.0...0.1239.1) (2024-09-03)
+
+
+### Bug Fixes
+
+* allow clicking whole schema name to toggle ([#11360](https://github.com/lightdash/lightdash/issues/11360)) ([e3400ab](https://github.com/lightdash/lightdash/commit/e3400ab4088ce96e729e956986ab53a5cbc47483))
+
+# [0.1239.0](https://github.com/lightdash/lightdash/compare/0.1238.3...0.1239.0) (2024-09-03)
+
+
+### Features
+
+* semantic viewer layout ([#11356](https://github.com/lightdash/lightdash/issues/11356)) ([bf16d81](https://github.com/lightdash/lightdash/commit/bf16d814ba1351f3187198cf2d1b3e7606233d28))
+
+## [0.1238.3](https://github.com/lightdash/lightdash/compare/0.1238.2...0.1238.3) (2024-09-03)
+
+
+### Bug Fixes
+
+* self-hosted script to override password ([#11317](https://github.com/lightdash/lightdash/issues/11317)) ([0b3d033](https://github.com/lightdash/lightdash/commit/0b3d033cd79cb8b7266334e6d70bc2d5db48e030))
+
+## [0.1238.2](https://github.com/lightdash/lightdash/compare/0.1238.1...0.1238.2) (2024-09-03)
+
+
+### Bug Fixes
+
+* display sql runner error ([#11357](https://github.com/lightdash/lightdash/issues/11357)) ([3534f3a](https://github.com/lightdash/lightdash/commit/3534f3aeaf9afab1fdcef479645a1ebc0bb56959))
+
+## [0.1238.1](https://github.com/lightdash/lightdash/compare/0.1238.0...0.1238.1) (2024-09-03)
+
+
+### Bug Fixes
+
+* fixed delete dashboards from resources list ([#11205](https://github.com/lightdash/lightdash/issues/11205)) ([f3a4d48](https://github.com/lightdash/lightdash/commit/f3a4d4848e30c17b58b71c73c87c6f4337c6da8f))
+* only push if not included ([#11352](https://github.com/lightdash/lightdash/issues/11352)) ([076ad46](https://github.com/lightdash/lightdash/commit/076ad46e5edf929be571ee184babce41e93c3f82))
+
 # [0.1238.0](https://github.com/lightdash/lightdash/compare/0.1237.4...0.1238.0) (2024-09-02)
 
 
