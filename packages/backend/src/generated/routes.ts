@@ -6546,6 +6546,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                uuid: { dataType: 'string' },
+                slug: { dataType: 'string' },
                 limit: { dataType: 'double' },
                 sql: { dataType: 'string', required: true },
             },
@@ -6597,11 +6599,20 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 indexColumn: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        type: { dataType: 'string', required: true },
-                        reference: { dataType: 'string', required: true },
-                    },
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                type: { dataType: 'string', required: true },
+                                reference: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
                     required: true,
                 },
             },
@@ -6621,7 +6632,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SqlRunnerChartConfig: {
+    VizBaseConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6654,7 +6665,7 @@ const models: TsoaRoute.Models = {
         enums: ['time', 'category'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizSqlCartesianChartLayout: {
+    VizChartLayout: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6693,27 +6704,26 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 x: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        type: { ref: 'VizIndexType', required: true },
-                        reference: { dataType: 'string', required: true },
-                    },
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                type: { ref: 'VizIndexType', required: true },
+                                reference: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
                     required: true,
                 },
             },
             validators: {},
         },
     },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {},
-                validators: {},
-            },
-        },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CartesianChartDisplay: {
         dataType: 'refAlias',
@@ -6746,7 +6756,17 @@ const models: TsoaRoute.Models = {
                     },
                 },
                 series: {
-                    ref: 'Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__',
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {},
+                    additionalProperties: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            color: { dataType: 'string' },
+                            yAxisIndex: { dataType: 'double' },
+                            format: { ref: 'Format' },
+                            label: { dataType: 'string' },
+                        },
+                    },
                 },
                 yAxis: {
                     dataType: 'array',
@@ -6771,12 +6791,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CartesianChartSqlConfig: {
+    VizCartesianChartConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'SqlRunnerChartConfig' },
+                { ref: 'VizBaseConfig' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -6791,7 +6811,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizSqlCartesianChartLayout' },
+                                { ref: 'VizChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -6825,12 +6845,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PieChartSqlConfig: {
+    VizPieChartConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'SqlRunnerChartConfig' },
+                { ref: 'VizBaseConfig' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -6845,7 +6865,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizSqlCartesianChartLayout' },
+                                { ref: 'VizChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -6858,46 +6878,50 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SqlTableConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                columns: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: {
-                        dataType: 'nestedObjectLiteral',
-                        nestedProperties: {
-                            order: { dataType: 'double' },
-                            frozen: { dataType: 'boolean', required: true },
-                            label: { dataType: 'string', required: true },
-                            reference: { dataType: 'string', required: true },
-                            visible: { dataType: 'boolean', required: true },
-                        },
-                    },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ChartKind.TABLE': {
         dataType: 'refEnum',
         enums: ['table'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    TableChartSqlConfig: {
+    VizTableConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
-                { ref: 'SqlRunnerChartConfig' },
-                { ref: 'SqlTableConfig' },
+                { ref: 'VizBaseConfig' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        columns: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {},
+                            additionalProperties: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    aggregation: {
+                                        ref: 'VizAggregationOptions',
+                                    },
+                                    order: { dataType: 'double' },
+                                    frozen: {
+                                        dataType: 'boolean',
+                                        required: true,
+                                    },
+                                    label: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    reference: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                    visible: {
+                                        dataType: 'boolean',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            required: true,
+                        },
                         type: { ref: 'ChartKind.TABLE', required: true },
                     },
                 },
@@ -6966,6 +6990,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                lastViewedAt: { dataType: 'datetime', required: true },
+                firstViewedAt: { dataType: 'datetime', required: true },
+                views: { dataType: 'double', required: true },
                 organization: {
                     ref: 'Pick_Organization.organizationUuid_',
                     required: true,
@@ -7009,13 +7036,13 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'intersection',
                     subSchemas: [
-                        { ref: 'SqlRunnerChartConfig' },
+                        { ref: 'VizBaseConfig' },
                         {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'CartesianChartSqlConfig' },
-                                { ref: 'PieChartSqlConfig' },
-                                { ref: 'TableChartSqlConfig' },
+                                { ref: 'VizCartesianChartConfig' },
+                                { ref: 'VizPieChartConfig' },
+                                { ref: 'VizTableConfig' },
                             ],
                         },
                     ],
@@ -7089,27 +7116,93 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizBarChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'VizBaseConfig' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        fieldConfig: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'VizChartLayout' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        type: { ref: 'ChartKind.VERTICAL_BAR', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizLineChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'VizBaseConfig' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        fieldConfig: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'VizChartLayout' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        type: { ref: 'ChartKind.LINE', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'VizBarChartConfig' },
+                { ref: 'VizLineChartConfig' },
+                { ref: 'VizPieChartConfig' },
+                { ref: 'VizTableConfig' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateSqlChart: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 spaceUuid: { dataType: 'string', required: true },
-                config: {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'SqlRunnerChartConfig' },
-                        {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'CartesianChartSqlConfig' },
-                                { ref: 'PieChartSqlConfig' },
-                                { ref: 'TableChartSqlConfig' },
-                            ],
-                        },
-                    ],
-                    required: true,
-                },
+                config: { ref: 'VizChartConfig', required: true },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 description: {
@@ -7177,21 +7270,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                config: {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'SqlRunnerChartConfig' },
-                        {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'CartesianChartSqlConfig' },
-                                { ref: 'PieChartSqlConfig' },
-                                { ref: 'TableChartSqlConfig' },
-                            ],
-                        },
-                    ],
-                    required: true,
-                },
+                config: { ref: 'VizChartConfig', required: true },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
             },
@@ -8080,6 +8159,37 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerClientInfo: {
+        dataType: 'refObject',
+        properties: {
+            name: { dataType: 'string', required: true },
+            features: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    views: { dataType: 'boolean', required: true },
+                },
+                required: true,
+            },
+            config: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    maxQueryLimit: { dataType: 'double', required: true },
+                },
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSemanticLayerClientInfo: {
+        dataType: 'refObject',
+        properties: {
+            status: { dataType: 'enum', enums: ['ok'], required: true },
+            results: { ref: 'SemanticLayerClientInfo', required: true },
+        },
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerView: {
@@ -14877,6 +14987,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
+                schema: { in: 'query', name: 'schema', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16486,12 +16597,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
-                email: {
-                    in: 'query',
-                    name: 'email',
-                    required: true,
-                    dataType: 'string',
-                },
+                email: { in: 'query', name: 'email', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16583,6 +16689,63 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.listContent.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v2/projects/:projectUuid/semantic-layer',
+        ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SemanticLayerController.prototype.getSemanticLayerInfo,
+        ),
+
+        async function SemanticLayerController_getSemanticLayerInfo(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SemanticLayerController>(
+                        SemanticLayerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getSemanticLayerInfo.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -16772,63 +16935,6 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.runSemanticLayerResults.apply(
-                    controller,
-                    validatedArgs as any,
-                );
-                promiseHandler(controller, promise, response, 200, next);
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.get(
-        '/api/v2/projects/:projectUuid/semantic-layer/max-query-limit',
-        ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
-        ...fetchMiddlewares<RequestHandler>(
-            SemanticLayerController.prototype.getMaxQueryLimit,
-        ),
-
-        async function SemanticLayerController_getMaxQueryLimit(
-            request: any,
-            response: any,
-            next: any,
-        ) {
-            const args = {
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-            };
-
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = getValidatedArgs(args, request, response);
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<SemanticLayerController>(
-                        SemanticLayerController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                const promise = controller.getMaxQueryLimit.apply(
                     controller,
                     validatedArgs as any,
                 );

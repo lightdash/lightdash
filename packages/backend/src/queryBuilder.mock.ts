@@ -79,6 +79,9 @@ export const warehouseClientMock: WarehouseClient = {
     ): WarehouseCatalog {
         throw new Error('Function not implemented.');
     },
+    parseError: (error: Error) => {
+        throw error;
+    },
 };
 
 export const bigqueryClientMock: WarehouseClient = {
@@ -131,6 +134,9 @@ export const bigqueryClientMock: WarehouseClient = {
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog {
         throw new Error('Function not implemented.');
+    },
+    parseError: (error: Error) => {
+        throw error;
     },
 };
 

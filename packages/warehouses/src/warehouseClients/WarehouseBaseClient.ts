@@ -135,4 +135,8 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
             {},
         );
     }
+
+    parseError(error: Error): Error {
+        return error;
+    }
 }

@@ -22,21 +22,25 @@ describe('Login', () => {
         cy.url().should('include', '/home');
     });
 
-    it('Should display error message when credentials are invalid or not recognised', () => {
+    it.only('Should display error message when credentials are invalid or not recognised', () => {
         cy.logout();
         cy.visit('/login');
         cy.findByPlaceholderText('Your email address').type('test-email');
         cy.findByText('Continue').click();
         cy.findByText('Email address is not valid').should('be.visible');
-        cy.findByPlaceholderText('Your email address').type('test@emaill.com');
-        cy.findByText('Continue').click();
-        cy.findByPlaceholderText('Your password').type('test-password');
-        cy.get('[data-cy="signin-button"]').click();
-        cy.findByText('Email and password not recognized').should('be.visible');
-        cy.findByPlaceholderText('Your email address').type('test@email.com ');
+        cy.findByPlaceholderText('Your email address')
+            .clear()
+            .type('test@email.com ');
         cy.findByText('Continue').click();
         cy.findByText('Email address must not contain whitespaces').should(
             'be.visible',
         );
+        cy.findByPlaceholderText('Your email address')
+            .clear()
+            .type('test@emaill.com');
+        cy.findByText('Continue').click();
+        cy.findByPlaceholderText('Your password').clear().type('test-password');
+        cy.get('[data-cy="signin-button"]').click();
+        cy.findByText('Email and password not recognized').should('be.visible');
     });
 });

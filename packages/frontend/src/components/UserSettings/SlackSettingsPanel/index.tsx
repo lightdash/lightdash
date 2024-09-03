@@ -141,7 +141,7 @@ const SlackSettingsPanel: FC = () => {
                         Sharing in Slack allows you to unfurl Lightdash URLs and
                         schedule deliveries to specific people or channels
                         within your Slack workspace.{' '}
-                        <Anchor href="https://docs.lightdash.com/guides/sharing-in-slack">
+                        <Anchor href="https://docs.lightdash.com/references/slack-integration">
                             View docs
                         </Anchor>
                     </Text>

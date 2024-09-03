@@ -1,7 +1,4 @@
-import {
-    isTableChartSQLConfig,
-    type TableChartSqlConfig,
-} from '@lightdash/common';
+import { isVizTableConfig, type VizTableConfig } from '@lightdash/common';
 import {
     Box,
     getDefaultZIndex,
@@ -12,6 +9,7 @@ import {
     Stack,
     Text,
     Tooltip,
+    Transition,
     useMantineTheme,
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
@@ -20,6 +18,7 @@ import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import {
     useCallback,
     useDeferredValue,
+    useEffect,
     useMemo,
     useState,
     type FC,
@@ -27,26 +26,38 @@ import {
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
+import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
-import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { useChartResultsTableConfig } from '../hooks/useChartResultsTableConfig';
+import {
+    useSqlQueryRun,
+    type ResultsAndColumns,
+} from '../hooks/useSqlQueryRun';
+import { SqlRunnerResultsRunner } from '../runners/SqlRunnerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
     setActiveEditorTab,
-    setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
-import { SqlRunnerResultsTransformer } from '../transformers/SqlRunnerResultsTransformer';
-import { SqlEditor } from './SqlEditor';
+import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 
 const MIN_RESULTS_HEIGHT = 10;
 
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
+    const mantineTheme = useMantineTheme();
+    const { showToastError } = useToaster();
+
+    // state for helping highlight errors in the editor
+    const [hightlightError, setHightlightError] = useState<
+        MonacoHighlightChar | undefined
+    >(undefined);
 
     const {
         ref: inputSectionRef,
@@ -56,8 +67,6 @@ export const ContentPanel: FC = () => {
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
-    const mantineTheme = useMantineTheme();
-    const deferredInputSectionHeight = useDeferredValue(inputSectionHeight);
     const deferredResultsHeight = useDeferredValue(resultsHeight);
     const isResultsPanelFullHeight = useMemo(
         () => resultsHeight === maxResultsHeight,
@@ -65,6 +74,7 @@ export const ContentPanel: FC = () => {
     );
 
     const {
+        projectUuid,
         sql,
         limit,
         activeEditorTab,
@@ -73,65 +83,103 @@ export const ContentPanel: FC = () => {
     } = useAppSelector((state) => state.sqlRunner);
 
     // currently editing chart config
-    const currentVisConfig = useAppSelector((state) =>
+    const currentVizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
     );
 
-    const {
-        mutate: runSqlQuery,
-        data: queryResults,
-        isLoading,
-    } = useSqlQueryRun({
-        onSuccess: (data) => {
-            if (data) {
-                dispatch(setSqlRunnerResults(data));
-                dispatch(
-                    onResults({
-                        ...data,
-                        transformer: new SqlRunnerResultsTransformer({
-                            rows: data.results,
-                            columns: data.columns,
-                        }),
-                    }),
-                );
-                if (resultsHeight === MIN_RESULTS_HEIGHT) {
-                    setResultsHeight(inputSectionHeight / 2);
-                }
-            }
-        },
-    });
+    const hideResultsPanel = useMemo(
+        () =>
+            activeEditorTab === EditorTabs.VISUALIZATION &&
+            isVizTableConfig(currentVizConfig),
+        [activeEditorTab, currentVizConfig],
+    );
 
-    // Run query on cmd + enter
-    useHotkeys([
-        [
-            'mod + enter',
-            () => {
-                if (sql) runSqlQuery({ sql, limit: 7 });
+    const { mutateAsync: runSqlQuery, isLoading } = useSqlQueryRun(
+        projectUuid,
+        {
+            onSuccess: (_data) => {
+                // reset error highlighting
+                setHightlightError(undefined);
             },
-            { preventDefault: true },
-        ],
-    ]);
+            onError: ({ error }) => {
+                showToastError({
+                    title: 'Could not fetch SQL query results',
+                    subtitle: error.message,
+                });
+
+                if (error?.data) {
+                    // highlight error in editor
+                    const line = error?.data?.lineNumber;
+                    const char = error?.data?.charNumber;
+                    if (line && char) {
+                        setHightlightError({
+                            line: Number(error.data.lineNumber),
+                            char: Number(error.data.charNumber),
+                        });
+                    }
+                }
+            },
+        },
+    );
+
+    // React Query Mutation does not have a way to keep previous results
+    // like the React Query useQuery hook does. So we need to store the results
+    // in the state to keep them around when the query is re-run.
+    const [queryResults, setQueryResults] = useState<ResultsAndColumns>();
 
     const handleRunQuery = useCallback(
-        (limitOverride?: number) => {
+        async (limitOverride?: number) => {
             if (!sql) return;
-            runSqlQuery({
+            const newQueryResults = await runSqlQuery({
                 sql,
-                limit: limitOverride || limit,
+                limit: limitOverride ?? limit,
             });
+
+            setQueryResults(newQueryResults);
             notifications.clean();
         },
         [runSqlQuery, sql, limit],
     );
 
-    const transformer = useMemo(
-        () =>
-            new SqlRunnerResultsTransformer({
-                rows: queryResults?.results ?? [],
-                columns: queryResults?.columns ?? [],
-            }),
-        [queryResults],
-    );
+    // Run query on cmd + enter
+    useHotkeys([
+        ['mod + enter', () => handleRunQuery, { preventDefault: true }],
+    ]);
+
+    const resultsRunner = useMemo(() => {
+        if (!queryResults) return;
+
+        return new SqlRunnerResultsRunner({
+            rows: queryResults.results,
+            columns: queryResults.columns,
+        });
+    }, [queryResults]);
+
+    useEffect(() => {
+        if (queryResults && resultsHeight === MIN_RESULTS_HEIGHT) {
+            setResultsHeight(inputSectionHeight / 2);
+        }
+    }, [queryResults, resultsHeight, inputSectionHeight]);
+
+    useEffect(() => {
+        if (!queryResults || !resultsRunner || !selectedChartType) return;
+
+        dispatch(setSqlRunnerResults(queryResults));
+
+        const chartResultOptions = getChartConfigAndOptions(
+            resultsRunner,
+            selectedChartType,
+            currentVizConfig,
+        );
+
+        dispatch(onResults(chartResultOptions));
+    }, [
+        resultsRunner,
+        dispatch,
+        queryResults,
+        selectedChartType,
+        currentVizConfig,
+    ]);
 
     const activeConfigs = useAppSelector((state) => {
         const configsWithTable = state.sqlRunner.activeConfigs
@@ -141,14 +189,14 @@ export const ContentPanel: FC = () => {
                     config !== undefined,
             );
 
-        const tableConfig = configsWithTable.find(isTableChartSQLConfig);
+        const tableConfig = configsWithTable.find(isVizTableConfig);
         const chartConfigs = configsWithTable.filter(
             (
                 c,
             ): c is Exclude<
                 NonNullable<ReturnType<typeof selectChartConfigByKind>>,
-                TableChartSqlConfig
-            > => !isTableChartSQLConfig(c),
+                VizTableConfig
+            > => !isVizTableConfig(c),
         );
 
         return {
@@ -156,7 +204,55 @@ export const ContentPanel: FC = () => {
             tableConfig,
         };
     });
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+
+    const showTable = useMemo(
+        () => isVizTableConfig(currentVizConfig),
+        [currentVizConfig],
+    );
+
+    const {
+        tableConfigByChartType,
+        resultsTableRunnerByChartType,
+        handlePivotData,
+    } = useChartResultsTableConfig(resultsRunner, activeConfigs);
+
+    const showLimitText = useMemo(() => {
+        return (
+            queryResults?.results &&
+            activeEditorTab === EditorTabs.SQL &&
+            queryResults.results.length > 500
+        );
+    }, [queryResults, activeEditorTab]);
+
+    const showSqlResultsTable = useMemo(() => {
+        return !!(
+            (queryResults?.results && activeEditorTab === EditorTabs.SQL) ||
+            // if the chart is pivoted, show the sql results table
+            activeConfigs.chartConfigs.find((c) => c.type === selectedChartType)
+                ?.fieldConfig?.groupBy
+        );
+    }, [
+        queryResults,
+        activeEditorTab,
+        activeConfigs.chartConfigs,
+        selectedChartType,
+    ]);
+
+    const showChartResultsTable = useMemo(() => {
+        return !!(
+            queryResults?.results &&
+            activeEditorTab === EditorTabs.VISUALIZATION &&
+            // if the chart is not pivoted, show the chart results table
+            !activeConfigs.chartConfigs.find(
+                (c) => c.type === selectedChartType,
+            )?.fieldConfig?.groupBy
+        );
+    }, [
+        queryResults,
+        activeEditorTab,
+        activeConfigs.chartConfigs,
+        selectedChartType,
+    ]);
 
     return (
         <Stack
@@ -230,18 +326,11 @@ export const ContentPanel: FC = () => {
                             />
                         </Group>
 
-                        <Group spacing="md">
-                            <RunSqlQueryButton
-                                isLoading={isLoading}
-                                disabled={!sql}
-                                limit={limit}
-                                onSubmit={() => handleRunQuery()}
-                                onLimitChange={(newLimit) => {
-                                    dispatch(setSqlLimit(newLimit));
-                                    handleRunQuery(newLimit);
-                                }}
-                            />
-                        </Group>
+                        <RunSqlQueryButton
+                            isLoading={isLoading}
+                            disabled={!sql}
+                            onSubmit={() => handleRunQuery()}
+                        />
                     </Group>
                 </Paper>
 
@@ -261,7 +350,7 @@ export const ContentPanel: FC = () => {
                         style={{ flex: 1 }}
                         sx={{
                             position: 'absolute',
-                            overflowY: isTableChartSQLConfig(currentVisConfig)
+                            overflowY: isVizTableConfig(currentVizConfig)
                                 ? 'auto'
                                 : 'hidden',
                             height: inputSectionHeight,
@@ -271,7 +360,21 @@ export const ContentPanel: FC = () => {
                         <ConditionalVisibility
                             isVisible={activeEditorTab === EditorTabs.SQL}
                         >
-                            <SqlEditor onSubmit={() => handleRunQuery()} />
+                            <SqlEditor
+                                resetHighlightError={() =>
+                                    setHightlightError(undefined)
+                                }
+                                onSubmit={() => handleRunQuery()}
+                                highlightText={
+                                    hightlightError
+                                        ? {
+                                              // set set single character highlight (no end/range defined)
+                                              start: hightlightError,
+                                              end: undefined,
+                                          }
+                                        : undefined
+                                }
+                            />
                         </ConditionalVisibility>
 
                         <ConditionalVisibility
@@ -279,54 +382,107 @@ export const ContentPanel: FC = () => {
                                 activeEditorTab === EditorTabs.VISUALIZATION
                             }
                         >
-                            {queryResults?.results && currentVisConfig && (
-                                <>
-                                    {activeConfigs.chartConfigs.map((c) => (
-                                        <ConditionalVisibility
-                                            key={c.type}
-                                            isVisible={
-                                                selectedChartType === c.type
-                                            }
+                            {queryResults?.results &&
+                                resultsRunner &&
+                                currentVizConfig && (
+                                    <>
+                                        <Transition
+                                            keepMounted
+                                            mounted={!showTable}
+                                            transition="fade"
+                                            duration={400}
+                                            timingFunction="ease"
                                         >
-                                            <ChartView
-                                                data={queryResults}
-                                                config={c}
-                                                isLoading={isLoading}
-                                                transformer={transformer}
-                                                style={{
-                                                    height: deferredInputSectionHeight,
-                                                    width: '100%',
-                                                    flex: 1,
-                                                    marginTop:
-                                                        mantineTheme.spacing.sm,
-                                                }}
-                                                sql={sql}
-                                                projectUuid={projectUuid}
-                                                limit={limit}
-                                            />
-                                        </ConditionalVisibility>
-                                    ))}
+                                            {(styles) => (
+                                                <Box
+                                                    px="sm"
+                                                    pb="sm"
+                                                    style={styles}
+                                                >
+                                                    {activeConfigs.chartConfigs.map(
+                                                        (c) => (
+                                                            <ConditionalVisibility
+                                                                key={c.type}
+                                                                isVisible={
+                                                                    selectedChartType ===
+                                                                    c.type
+                                                                }
+                                                            >
+                                                                <ChartView
+                                                                    data={
+                                                                        queryResults
+                                                                    }
+                                                                    config={c}
+                                                                    isLoading={
+                                                                        isLoading
+                                                                    }
+                                                                    resultsRunner={
+                                                                        resultsRunner
+                                                                    }
+                                                                    style={{
+                                                                        height: inputSectionHeight,
+                                                                        // width: '100%',
+                                                                        flex: 1,
+                                                                        marginTop:
+                                                                            mantineTheme
+                                                                                .spacing
+                                                                                .sm,
+                                                                    }}
+                                                                    sql={sql}
+                                                                    projectUuid={
+                                                                        projectUuid
+                                                                    }
+                                                                    limit={
+                                                                        limit
+                                                                    }
+                                                                    onPivot={(
+                                                                        pivotData,
+                                                                    ) =>
+                                                                        handlePivotData(
+                                                                            c.type,
+                                                                            pivotData,
+                                                                        )
+                                                                    }
+                                                                />
+                                                            </ConditionalVisibility>
+                                                        ),
+                                                    )}
+                                                </Box>
+                                            )}
+                                        </Transition>
 
-                                    {activeConfigs.tableConfig && (
-                                        <Paper
-                                            shadow="none"
-                                            radius={0}
-                                            px="sm"
-                                            pb="sm"
-                                            sx={() => ({
-                                                flex: 1,
-                                            })}
+                                        <Transition
+                                            keepMounted
+                                            mounted={showTable}
+                                            transition="fade"
+                                            duration={300}
+                                            timingFunction="ease"
                                         >
-                                            <Table
-                                                data={queryResults.results}
-                                                config={
-                                                    activeConfigs.tableConfig
-                                                }
-                                            />
-                                        </Paper>
-                                    )}
-                                </>
-                            )}
+                                            {(styles) => (
+                                                <Box
+                                                    p="xs"
+                                                    style={{
+                                                        flex: 1,
+                                                        ...styles,
+                                                    }}
+                                                >
+                                                    <ConditionalVisibility
+                                                        isVisible={showTable}
+                                                    >
+                                                        <Table
+                                                            resultsRunner={
+                                                                resultsRunner
+                                                            }
+                                                            config={
+                                                                activeConfigs.tableConfig
+                                                            }
+                                                        />
+                                                    </ConditionalVisibility>
+                                                </Box>
+                                            )}
+                                        </Transition>
+                                    </>
+                                )}
                         </ConditionalVisibility>
                     </Box>
                 </Paper>
@@ -358,11 +514,19 @@ export const ContentPanel: FC = () => {
                                 borderColor: theme.colors.gray[3],
                                 cursor: 'ns-resize',
                             })}
-                        />
+                        >
+                            {showLimitText && (
+                                <Group position="center">
+                                    <Text fz="sm" fw={500}>
+                                        Showing first {limit} rows
+                                    </Text>
+                                </Group>
+                            )}
+                        </Paper>
                     }
                     style={{
                         position: 'relative',
-                        display: 'flex',
+                        display: hideResultsPanel ? 'none' : 'flex',
                         flexDirection: 'column',
                     }}
                     onResizeStop={(e, data) =>
@@ -372,10 +536,8 @@ export const ContentPanel: FC = () => {
                     <Paper
                         shadow="none"
                         radius={0}
-                        p="sm"
-                        mt="sm"
+                        pt={showLimitText ? 'xxl' : 'sm'}
                         sx={(theme) => ({
-                            flex: 1,
                             overflow: 'auto',
                             borderWidth: '0 0 1px 1px',
                             borderStyle: 'solid',
@@ -388,11 +550,41 @@ export const ContentPanel: FC = () => {
                             }}
                             visible={isLoading}
                         />
-                        {queryResults?.results && (
-                            <Table
-                                data={queryResults.results}
-                                config={resultsTableConfig}
-                            />
+                        {queryResults?.results && resultsRunner && (
+                            <>
+                                <ConditionalVisibility
+                                    isVisible={showSqlResultsTable}
+                                >
+                                    <Table
+                                        resultsRunner={resultsRunner}
+                                        config={resultsTableConfig}
+                                    />
+                                </ConditionalVisibility>
+
+                                <ConditionalVisibility
+                                    isVisible={showChartResultsTable}
+                                >
+                                    {selectedChartType &&
+                                        tableConfigByChartType &&
+                                        resultsTableRunnerByChartType &&
+                                        resultsTableRunnerByChartType[
+                                            selectedChartType
+                                        ] && (
+                                            <Table
+                                                resultsRunner={
+                                                    resultsTableRunnerByChartType[
+                                                        selectedChartType
+                                                    ]!
+                                                }
+                                                config={
+                                                    tableConfigByChartType[
+                                                        selectedChartType
+                                                    ]
+                                                }
+                                            />
+                                        )}
+                                </ConditionalVisibility>
+                            </>
                         )}
                     </Paper>
                 </ResizableBox>

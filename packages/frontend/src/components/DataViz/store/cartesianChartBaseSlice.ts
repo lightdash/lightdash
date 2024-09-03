@@ -2,31 +2,23 @@ import {
     isFormat,
     VizIndexType,
     VIZ_DEFAULT_AGGREGATION,
-    type BarChartSqlConfig,
     type CartesianChartDisplay,
-    type LineChartSqlConfig,
     type VizAggregationOptions,
-    type VizIndexLayoutOptions,
-    type VizPivotLayoutOptions,
-    type VizSqlCartesianChartLayout,
-    type VizValuesLayoutOptions,
+    type VizBarChartConfig,
+    type VizCartesianChartOptions,
+    type VizChartLayout,
+    type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { type ResultsAndColumns } from '../Results';
-import { type ResultsTransformer } from '../transformers/ResultsTransformer';
 
-type InitialState = {
-    defaultLayout: VizSqlCartesianChartLayout | undefined;
-    config: BarChartSqlConfig | LineChartSqlConfig | undefined;
-    options: {
-        indexLayoutOptions: VizIndexLayoutOptions[];
-        valuesLayoutOptions: VizValuesLayoutOptions[];
-        pivotLayoutOptions: VizPivotLayoutOptions[];
-    };
+export type CartesianChartState = {
+    defaultLayout: VizChartLayout | undefined;
+    config: VizBarChartConfig | VizLineChartConfig | undefined;
+    options: VizCartesianChartOptions;
 };
 
-const initialState: InitialState = {
+const initialState: CartesianChartState = {
     defaultLayout: undefined,
     config: undefined,
     options: {
@@ -40,16 +32,15 @@ export const cartesianChartConfigSlice = createSlice({
     name: 'cartesianChartBaseConfig',
     initialState,
     reducers: {
-        setXAxisReference: (
-            state,
-            action: PayloadAction<VizSqlCartesianChartLayout['x']['reference']>,
-        ) => {
-            if (state.config?.fieldConfig?.x) {
-                state.config.fieldConfig.x.reference = action.payload;
-                state.config.fieldConfig.x.type =
-                    state.options.indexLayoutOptions.find(
-                        (x) => x.reference === action.payload,
-                    )?.type ?? VizIndexType.CATEGORY;
+        setXAxisReference: (state, action: PayloadAction<string>) => {
+            if (state.config?.fieldConfig) {
+                state.config.fieldConfig.x = {
+                    reference: action.payload,
+                    type:
+                        state.options.indexLayoutOptions.find(
+                            (x) => x.reference === action.payload,
+                        )?.type ?? VizIndexType.CATEGORY,
+                };
             }
         },
         setGroupByReference: (
@@ -141,12 +132,13 @@ export const cartesianChartConfigSlice = createSlice({
                 label: string;
             }>,
         ) => {
-            if (!config || !config.display) return;
-
-            if (config.display.series) {
-                config.display.series[action.payload.reference].label =
-                    action.payload.label;
-            }
+            if (!config) return;
+            config.display = config.display || {};
+            config.display.series = config.display.series || {};
+            config.display.series[action.payload.reference] = {
+                ...config.display.series[action.payload.reference],
+                label: action.payload.label,
+            };
         },
         setYAxisPosition: (
             { config },
@@ -226,6 +218,10 @@ export const cartesianChartConfigSlice = createSlice({
                 }
             }
         },
+        removeXAxisField: (state) => {
+            if (!state.config?.fieldConfig) return;
+            delete state.config.fieldConfig.x;
+        },
         setStacked: ({ config }, action: PayloadAction<boolean>) => {
             if (!config) return;
 
@@ -297,19 +293,21 @@ export const cartesianChartConfigSlice = createSlice({
                 };
             }
         },
-        onResults: (
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-            state,
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-            action: PayloadAction<
-                ResultsAndColumns & { transformer: ResultsTransformer }
-            >,
+        setSeriesColor: (
+            { config },
+            action: PayloadAction<{
+                index: number;
+                color: string;
+                reference: string;
+            }>,
         ) => {
-            // This should be called from the sqlRunner or semanticViewer on results
-            // When this is called, this method will update the options and config on the different chat slices
-            // See extraReducers for more details
+            if (!config) return;
+            config.display = config.display || {};
+            config.display.series = config.display.series || {};
+            config.display.series[action.payload.reference] = {
+                ...config.display.series[action.payload.reference],
+                color: action.payload.color,
+            };
         },
     },
 });
-
-export const { onResults } = cartesianChartConfigSlice.actions;

@@ -10,15 +10,19 @@ import { lightdashApi } from '../../../api';
 export type GetTableFieldsParams = {
     projectUuid: string;
     tableName: string | undefined;
+    schema: string | undefined;
     search: string | undefined;
 };
 
 const fetchTableFields = async ({
     projectUuid,
     tableName,
-}: Pick<GetTableFieldsParams, 'projectUuid' | 'tableName'>) =>
+    schema,
+}: Pick<GetTableFieldsParams, 'projectUuid' | 'tableName' | 'schema'>) =>
     lightdashApi<WarehouseTableSchema>({
-        url: `/projects/${projectUuid}/sqlRunner/tables/${tableName}`,
+        url: `/projects/${projectUuid}/sqlRunner/tables/${tableName}${
+            schema ? `?schema=${schema}` : ''
+        }`,
         method: 'GET',
         body: undefined,
     });
@@ -32,17 +36,19 @@ export const useTableFields = ({
     projectUuid,
     tableName,
     search,
+    schema,
 }: GetTableFieldsParams) => {
     return useQuery<
         WarehouseTableSchema,
         ApiError,
         Array<WarehouseTableField> | undefined
     >({
-        queryKey: ['sqlRunner', 'tables', tableName, projectUuid],
+        queryKey: ['sqlRunner', 'tables', tableName, projectUuid, schema],
         queryFn: () =>
             fetchTableFields({
                 projectUuid,
                 tableName,
+                schema,
             }),
         retry: false,
         enabled: !!tableName,

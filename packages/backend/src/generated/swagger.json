@@ -7280,6 +7280,12 @@
             },
             "SqlRunnerBody": {
                 "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
                     "limit": {
                         "type": "number",
                         "format": "double"
@@ -7337,7 +7343,7 @@
                         "type": "object"
                     }
                 },
-                "required": ["valuesColumns", "indexColumn"],
+                "required": ["valuesColumns"],
                 "type": "object"
             },
             "SqlRunnerPivotQueryBody": {
@@ -7350,7 +7356,7 @@
                     }
                 ]
             },
-            "SqlRunnerChartConfig": {
+            "VizBaseConfig": {
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/ChartKind"
@@ -7381,7 +7387,7 @@
                 "enum": ["time", "category"],
                 "type": "string"
             },
-            "VizSqlCartesianChartLayout": {
+            "VizChartLayout": {
                 "properties": {
                     "groupBy": {
                         "items": {
@@ -7423,13 +7429,8 @@
                         "type": "object"
                     }
                 },
-                "required": ["y", "x"],
+                "required": ["y"],
                 "type": "object"
-            },
-            "Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "CartesianChartDisplay": {
                 "properties": {
@@ -7451,7 +7452,26 @@
                         "type": "object"
                     },
                     "series": {
-                        "$ref": "#/components/schemas/Record_string._label%3F%3Astring--format%3F%3AFormat--yAxisIndex%3F%3Anumber--__"
+                        "properties": {},
+                        "additionalProperties": {
+                            "properties": {
+                                "color": {
+                                    "type": "string"
+                                },
+                                "yAxisIndex": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "format": {
+                                    "$ref": "#/components/schemas/Format"
+                                },
+                                "label": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "object"
                     },
                     "yAxis": {
                         "items": {
@@ -7485,10 +7505,10 @@
                 },
                 "type": "object"
             },
-            "CartesianChartSqlConfig": {
+            "VizCartesianChartConfig": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                        "$ref": "#/components/schemas/VizBaseConfig"
                     },
                     {
                         "properties": {
@@ -7496,7 +7516,7 @@
                                 "$ref": "#/components/schemas/CartesianChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizSqlCartesianChartLayout"
+                                "$ref": "#/components/schemas/VizChartLayout"
                             },
                             "type": {
                                 "anyOf": [
@@ -7526,10 +7546,10 @@
                 },
                 "type": "object"
             },
-            "PieChartSqlConfig": {
+            "VizPieChartConfig": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                        "$ref": "#/components/schemas/VizBaseConfig"
                     },
                     {
                         "properties": {
@@ -7537,7 +7557,7 @@
                                 "$ref": "#/components/schemas/VizPieChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizSqlCartesianChartLayout"
+                                "$ref": "#/components/schemas/VizChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.PIE"
@@ -7548,62 +7568,56 @@
                     }
                 ]
             },
-            "SqlTableConfig": {
-                "properties": {
-                    "columns": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "properties": {
-                                "order": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "frozen": {
-                                    "type": "boolean"
-                                },
-                                "label": {
-                                    "type": "string"
-                                },
-                                "reference": {
-                                    "type": "string"
-                                },
-                                "visible": {
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "frozen",
-                                "label",
-                                "reference",
-                                "visible"
-                            ],
-                            "type": "object"
-                        },
-                        "type": "object"
-                    }
-                },
-                "required": ["columns"],
-                "type": "object"
-            },
             "ChartKind.TABLE": {
                 "enum": ["table"],
                 "type": "string"
             },
-            "TableChartSqlConfig": {
+            "VizTableConfig": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/SqlRunnerChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SqlTableConfig"
+                        "$ref": "#/components/schemas/VizBaseConfig"
                     },
                     {
                         "properties": {
+                            "columns": {
+                                "properties": {},
+                                "additionalProperties": {
+                                    "properties": {
+                                        "aggregation": {
+                                            "$ref": "#/components/schemas/VizAggregationOptions"
+                                        },
+                                        "order": {
+                                            "type": "number",
+                                            "format": "double"
+                                        },
+                                        "frozen": {
+                                            "type": "boolean"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "reference": {
+                                            "type": "string"
+                                        },
+                                        "visible": {
+                                            "type": "boolean"
+                                        }
+                                    },
+                                    "required": [
+                                        "frozen",
+                                        "label",
+                                        "reference",
+                                        "visible"
+                                    ],
+                                    "type": "object"
+                                },
+                                "type": "object"
+                            },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.TABLE"
                             }
                         },
-                        "required": ["type"],
+                        "required": ["columns", "type"],
                         "type": "object"
                     }
                 ]
@@ -7664,6 +7678,18 @@
             },
             "SqlChart": {
                 "properties": {
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "organization": {
                         "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
                     },
@@ -7711,18 +7737,18 @@
                     "config": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/SqlRunnerChartConfig"
+                                "$ref": "#/components/schemas/VizBaseConfig"
                             },
                             {
                                 "anyOf": [
                                     {
-                                        "$ref": "#/components/schemas/CartesianChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/PieChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizPieChartConfig"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/TableChartSqlConfig"
+                                        "$ref": "#/components/schemas/VizTableConfig"
                                     }
                                 ]
                             }
@@ -7750,6 +7776,9 @@
                     }
                 },
                 "required": [
+                    "lastViewedAt",
+                    "firstViewedAt",
+                    "views",
                     "organization",
                     "project",
                     "dashboard",
@@ -7829,30 +7858,73 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "VizBarChartConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/VizChartLayout"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "VizLineChartConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/VizChartLayout"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.LINE"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "VizChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBarChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizLineChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizPieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizTableConfig"
+                    }
+                ]
+            },
             "CreateSqlChart": {
                 "properties": {
                     "spaceUuid": {
                         "type": "string"
                     },
                     "config": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/SqlRunnerChartConfig"
-                            },
-                            {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/CartesianChartSqlConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/PieChartSqlConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/TableChartSqlConfig"
-                                    }
-                                ]
-                            }
-                        ]
+                        "$ref": "#/components/schemas/VizChartConfig"
                     },
                     "limit": {
                         "type": "number",
@@ -7922,24 +7994,7 @@
             "UpdateVersionedSqlChart": {
                 "properties": {
                     "config": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/SqlRunnerChartConfig"
-                            },
-                            {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/CartesianChartSqlConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/PieChartSqlConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/TableChartSqlConfig"
-                                    }
-                                ]
-                            }
-                        ]
+                        "$ref": "#/components/schemas/VizChartConfig"
                     },
                     "limit": {
                         "type": "number",
@@ -8948,6 +9003,50 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "SemanticLayerClientInfo": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "features": {
+                        "properties": {
+                            "views": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["views"],
+                        "type": "object"
+                    },
+                    "config": {
+                        "properties": {
+                            "maxQueryLimit": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["maxQueryLimit"],
+                        "type": "object"
+                    }
+                },
+                "required": ["name", "features", "config"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiSemanticLayerClientInfo": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerClientInfo"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
             "SemanticLayerView": {
                 "properties": {
                     "visible": {
@@ -9439,7 +9538,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1227.1",
+        "version": "0.1236.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -15125,14 +15224,14 @@
                         }
                     }
                 },
-                "description": "Get login options for email",
+                "description": "Get login options",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [
                     {
                         "in": "query",
                         "name": "email",
-                        "required": true,
+                        "required": false,
                         "schema": {
                             "type": "string"
                         }

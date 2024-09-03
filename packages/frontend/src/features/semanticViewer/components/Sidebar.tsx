@@ -13,6 +13,7 @@ import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { selectSemanticLayerInfo } from '../store/selectors';
 import {
     resetState,
     setSelectedChartType,
@@ -22,6 +23,7 @@ import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
 
 const Sidebar: FC = () => {
+    const { features } = useAppSelector(selectSemanticLayerInfo);
     const { view } = useAppSelector((state) => state.semanticViewer);
     const dispatch = useAppDispatch();
 
@@ -43,7 +45,7 @@ const Sidebar: FC = () => {
             >
                 <Title order={5} fz="sm" c="gray.6">
                     <Group spacing="xs">
-                        {view && (
+                        {features.views && view && (
                             <Tooltip
                                 variant="xs"
                                 label="Back to views"

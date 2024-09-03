@@ -49,6 +49,22 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         this.maxQueryLimit = lightdashConfig.query.maxLimit;
     }
 
+    getMaxQueryLimit() {
+        return this.maxQueryLimit;
+    }
+
+    getClientInfo() {
+        return {
+            name: 'dbtCloud',
+            features: {
+                views: false,
+            },
+            config: {
+                maxQueryLimit: this.getMaxQueryLimit(),
+            },
+        };
+    }
+
     private getClient() {
         if (!this.domain || !this.bearerToken) {
             throw new Error('DbtCloudGraphqlClient not initialized');
@@ -398,9 +414,5 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             dimensions,
             metrics,
         );
-    }
-
-    getMaxQueryLimit() {
-        return this.maxQueryLimit;
     }
 }

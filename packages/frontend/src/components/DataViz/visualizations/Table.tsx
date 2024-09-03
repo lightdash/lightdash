@@ -1,12 +1,9 @@
 import {
-    type ResultRow,
-    type SqlTableConfig,
-    type TableChartSqlConfig,
+    type RawResultRow,
+    type VizTableColumnsConfig,
 } from '@lightdash/common';
-import { Flex } from '@mantine/core';
+import { Badge, Flex, Group } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
-import { type FC } from 'react';
-import { useTableDataTransformer } from '../../../features/sqlRunner/transformers/useTableDataTransformer';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
@@ -16,20 +13,25 @@ import {
     TABLE_HEADER_BG,
     Tr,
 } from '../../common/Table/Table.styles';
+import { type ResultsRunner } from '../transformers/ResultsRunner';
+import { useTableDataModel } from '../transformers/useTableDataModel';
 
-type Props = {
-    data: ResultRow[];
-    config?: TableChartSqlConfig | SqlTableConfig;
+type TableProps<T extends ResultsRunner> = {
+    config?: VizTableColumnsConfig;
+    resultsRunner: T;
 };
 
-export const Table: FC<Props> = ({ data, config }) => {
+export const Table = <T extends ResultsRunner>({
+    resultsRunner,
+    config,
+}: TableProps<T>) => {
     const {
         tableWrapperRef,
         getColumnsCount,
         getTableData,
         paddingTop,
         paddingBottom,
-    } = useTableDataTransformer(data, config);
+    } = useTableDataModel({ config, resultsRunner });
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
@@ -56,12 +58,28 @@ export const Table: FC<Props> = ({ data, config }) => {
                                             backgroundColor: TABLE_HEADER_BG,
                                         }}
                                     >
-                                        {/* TODO: do we need to check if it's a
-                                        placeholder? */}
-                                        {flexRender(
-                                            header.column.columnDef.header,
-                                            header.getContext(),
-                                        )}
+                                        <Group spacing="two">
+                                            {config?.columns[header.id]
+                                                ?.aggregation && (
+                                                <Badge
+                                                    size="sm"
+                                                    color="indigo"
+                                                    radius="xs"
+                                                >
+                                                    {
+                                                        config?.columns[
+                                                            header.id
+                                                        ]?.aggregation
+                                                    }
+                                                </Badge>
+                                            )}
+                                            {/* TODO: do we need to check if it's a
+                                            placeholder? */}
+                                            {flexRender(
+                                                header.column.columnDef.header,
+                                                header.getContext(),
+                                            )}
+                                        </Group>
                                     </th>
                                 )),
                             )}
@@ -82,7 +100,7 @@ export const Table: FC<Props> = ({ data, config }) => {
                                         .map((cell) => {
                                             const cellValue =
                                                 cell.getValue() as
-                                                    | ResultRow[0]
+                                                    | RawResultRow[0]
                                                     | undefined;
 
                                             return (
@@ -94,8 +112,7 @@ export const Table: FC<Props> = ({ data, config }) => {
                                                     hasData={!!cellValue}
                                                     isLargeText={
                                                         (
-                                                            cellValue?.value
-                                                                ?.formatted ||
+                                                            cellValue?.toString() ||
                                                             ''
                                                         ).length >
                                                         SMALL_TEXT_LENGTH

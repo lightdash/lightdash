@@ -120,6 +120,7 @@ import {
     type ApiContentResponse,
 } from './types/content';
 import { type ApiPromotionChangesResponse } from './types/promotion';
+import { type ApiSemanticLayerClientInfo } from './types/semanticLayer';
 import {
     type ApiCreateSqlChart,
     type ApiSqlChart,
@@ -226,11 +227,11 @@ export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/warehouse';
-export * from './visualizations/CartesianChartDataTransformer';
-export * from './visualizations/PieChartDataTransformer';
-export * from './visualizations/ResultsRunnerBase';
-export * from './visualizations/ResultsTableTransformer';
+export * from './visualizations/CartesianChartDataModel';
+export * from './visualizations/PieChartDataModel';
+export * from './visualizations/TableDataModel';
 export * from './visualizations/types';
+export * from './visualizations/types/IResultsRunner';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {
@@ -671,7 +672,8 @@ type ApiResults =
     | ApiUpdateSqlChart['results']
     | ApiContentResponse['results']
     | ApiChartContentResponse['results']
-    | ApiSqlRunnerJobStatusResponse['results'];
+    | ApiSqlRunnerJobStatusResponse['results']
+    | ApiSemanticLayerClientInfo['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
