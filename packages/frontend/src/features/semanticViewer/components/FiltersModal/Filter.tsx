@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Button,
     Group,
     Menu,
     Select,
@@ -334,6 +335,7 @@ const Filter: FC<FilterProps> = ({
             <Stack
                 w="100%"
                 spacing="sm"
+                align="flex-start"
                 style={{
                     ...style,
                     borderRadius: theme.radius.md,
@@ -385,15 +387,6 @@ const Filter: FC<FilterProps> = ({
                             onUpdate({ ...filter, values });
                         }}
                     />
-                    <ActionIcon
-                        size="xs"
-                        onClick={() => {
-                            setIsAddingNestedFilter(true);
-                        }}
-                        disabled={isAddingNestedFilter}
-                    >
-                        <IconPlus />
-                    </ActionIcon>
                     <Menu withinPortal={true}>
                         <Menu.Target>
                             <ActionIcon size="xs">
@@ -401,7 +394,21 @@ const Filter: FC<FilterProps> = ({
                             </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
-                            <Menu.Divider />
+                            {!hasNestedFilters && (
+                                <>
+                                    <Menu.Label>Filter actions</Menu.Label>
+                                    <Menu.Item
+                                        icon={<MantineIcon icon={IconPlus} />}
+                                        disabled={isAddingNestedFilter}
+                                        onClick={() => {
+                                            setIsAddingNestedFilter(true);
+                                        }}
+                                    >
+                                        Add nested filter
+                                    </Menu.Item>
+                                    <Menu.Divider />
+                                </>
+                            )}
                             <Menu.Item
                                 color="red"
                                 icon={<IconTrash size={14} />}
@@ -479,6 +486,19 @@ const Filter: FC<FilterProps> = ({
                         </ActionIcon>
                     </Group>
                 )}
+                {hasNestedFilters ? (
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        onClick={() => {
+                            setIsAddingNestedFilter(true);
+                        }}
+                        disabled={isAddingNestedFilter}
+                        leftIcon={<MantineIcon icon={IconPlus} />}
+                    >
+                        Add filter
+                    </Button>
+                ) : null}
             </Stack>
         </Group>
     );
