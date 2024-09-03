@@ -27,7 +27,7 @@ const selectSelectedMetrics = (state: RootState) =>
     state.semanticViewer.selectedMetrics;
 const selectFilters = (state: RootState) => state.semanticViewer.filters;
 
-const selectAllSelectedFieldsByKind = createSelector(
+export const selectAllSelectedFieldsByKind = createSelector(
     [
         selectSelectedDimensions,
         selectSelectedTimeDimensions,
