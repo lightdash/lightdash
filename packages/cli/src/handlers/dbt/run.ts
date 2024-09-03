@@ -9,6 +9,7 @@ import { DbtCompileOptions } from './compile';
 type DbtRunHandlerOptions = DbtCompileOptions & {
     excludeMeta: boolean;
     verbose: boolean;
+    assumeYes: boolean;
 };
 
 export const dbtRunHandler = async (
@@ -29,7 +30,7 @@ export const dbtRunHandler = async (
     });
 
     const commands = command.parent.args.reduce<string[]>((acc, arg) => {
-        if (arg === '--verbose') return acc;
+        if (arg === '--verbose' || arg === '--assume-yes') return acc;
         return [...acc, arg];
     }, []);
 
@@ -53,7 +54,6 @@ export const dbtRunHandler = async (
     }
     await generateHandler({
         ...options,
-        assumeYes: true,
         excludeMeta: options.excludeMeta,
     });
 };

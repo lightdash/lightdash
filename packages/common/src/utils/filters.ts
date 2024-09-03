@@ -215,18 +215,22 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         ).startOf('year'),
                     };
 
+                    const fieldTimeInterval =
+                        isDimension(field) && field.timeInterval
+                            ? field.timeInterval
+                            : undefined;
+
                     const defaultDate =
-                        isDimension(field) &&
-                        field.timeInterval &&
-                        defaultTimeIntervalValues[field.timeInterval]
-                            ? defaultTimeIntervalValues[field.timeInterval]
+                        fieldTimeInterval &&
+                        defaultTimeIntervalValues[fieldTimeInterval]
+                            ? defaultTimeIntervalValues[fieldTimeInterval]
                             : moment();
 
                     const dateValue = valueIsDate
                         ? formatDate(
                               // Treat the date as UTC, then remove its timezone information before formatting
                               moment.utc(value).format('YYYY-MM-DD'),
-                              undefined,
+                              fieldTimeInterval, // Use the field's time interval if it has one
                               false,
                           )
                         : formatDate(defaultDate, undefined, false);

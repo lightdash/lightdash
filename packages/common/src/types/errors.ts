@@ -313,3 +313,14 @@ export class KnexPaginationError extends LightdashError {
         });
     }
 }
+
+export class SlackInstallationNotFoundError extends LightdashError {
+    constructor(message: string = 'Could not find slack installation') {
+        super({
+            message,
+            name: 'SlackInstallationNotFoundError',
+            statusCode: 404,
+            data: {},
+        });
+    }
+}

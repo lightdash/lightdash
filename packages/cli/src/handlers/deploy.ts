@@ -40,6 +40,11 @@ export const deploy = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
 ): Promise<void> => {
+    if (explores.length === 0) {
+        GlobalState.log(styles.warning('No explores found'));
+        process.exit(1);
+    }
+
     const errors = explores.filter((e) => isExploreError(e)).length;
     if (errors > 0) {
         if (options.ignoreErrors) {

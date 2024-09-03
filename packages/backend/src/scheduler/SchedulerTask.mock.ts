@@ -18,11 +18,21 @@ export const resultsWithOneRow = [
     },
 ];
 
-export const resultsWithTwoRows = [
+// 10% increase
+export const resultsWithTwoIncreasingRows = [
     {
-        revenue: 1000,
+        revenue: 110,
     },
     {
         revenue: 100,
+    },
+];
+// 10% decrease
+export const resultsWithTwoDecreasingRows = [
+    {
+        revenue: 100,
+    },
+    {
+        revenue: 110,
     },
 ];

@@ -1,15 +1,16 @@
 import {
     ChartKind,
-    type Dashboard,
+    isTableChartSQLConfig,
     type DashboardSqlChartTile as DashboardSqlChartTileType,
 } from '@lightdash/common';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import BarChart from '../../features/sqlRunner/components/visualizations/BarChart';
-import { Table } from '../../features/sqlRunner/components/visualizations/Table';
 import { useSqlChartAndResults } from '../../features/sqlRunner/hooks/useSqlChartAndResults';
+import { SqlRunnerResultsTransformer } from '../../features/sqlRunner/transformers/SqlRunnerResultsTransformer';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import ChartView from '../DataViz/visualizations/ChartView';
+import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
 
 interface Props
@@ -18,21 +19,19 @@ interface Props
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
     tile: DashboardSqlChartTileType;
-    onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
+    minimal?: boolean;
 }
 
 /**
  * TODO
  * Handle minimal mode
- * Handle edit
- * Add support for description and title
+ * handle tabs
  */
 
 export const DashboardSqlChartTile: FC<Props> = ({
     tile,
     isEditMode,
-    onEdit,
-    onDelete,
+    ...rest
 }) => {
     const { projectUuid } = useParams<{
         projectUuid: string;
@@ -43,74 +42,86 @@ export const DashboardSqlChartTile: FC<Props> = ({
         savedSqlUuid: tile.properties.savedSqlUuid,
     });
 
+    const sqlRunnerChartData = useMemo(
+        () => ({
+            results: data?.resultsAndColumns.results ?? [],
+            columns: data?.resultsAndColumns.columns ?? [],
+        }),
+        [data],
+    );
+
+    const transformer = useMemo(
+        () =>
+            new SqlRunnerResultsTransformer({
+                rows: sqlRunnerChartData.results,
+                columns: sqlRunnerChartData.columns,
+            }),
+        [sqlRunnerChartData],
+    );
+
     if (isLoading) {
         return (
             <TileBase
                 isEditMode={isEditMode}
                 chartName={tile.properties.chartName ?? ''}
-                titleHref={`/projects/${projectUuid}/sql-runner-new/saved/${tile.properties.savedSqlUuid}/`}
-                // TODO: complete this
-                belongsToDashboard={false}
                 tile={tile}
                 isLoading
-                title={tile.properties.chartName || ''}
-                // TODO: see if we can remove these
-                onDelete={() => {}}
-                onEdit={() => {}}
+                title={tile.properties.title || tile.properties.chartName || ''}
+                {...rest}
             />
         );
     }
 
-    if (error !== null || !data)
+    if (error !== null || !data) {
         return (
             <TileBase
-                title=""
                 isEditMode={isEditMode}
+                chartName={tile.properties.chartName ?? ''}
                 tile={tile}
-                onDelete={() => {}}
-                onEdit={() => {}}
+                title={tile.properties.title || tile.properties.chartName || ''}
+                {...rest}
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    // TODO: handle error
-                    title="No data available"
+                    title={error?.error?.message || 'No data available'}
                 />
             </TileBase>
         );
+    }
 
     return (
-        <>
-            {data.chart && data.results ? (
-                <TileBase
-                    isEditMode={isEditMode}
-                    chartName={tile.properties.chartName ?? ''}
-                    // TODO: Fix this link - should we use uuid or slug?
-                    titleHref={`/projects/${projectUuid}/sql-runner-new/saved/${tile.properties.savedSqlUuid}`}
-                    tile={tile}
-                    title={
-                        tile.properties.title || tile.properties.chartName || ''
-                    }
-                    onDelete={onDelete}
-                    onEdit={onEdit}
-                >
-                    {data.chart.config.type === ChartKind.TABLE && (
-                        <Table data={data.results} config={data.chart.config} />
-                    )}
-                    {data.chart.config.type === ChartKind.VERTICAL_BAR && (
-                        <BarChart
-                            data={data.results}
-                            config={data.chart.config}
-                            style={{
-                                minHeight: 'inherit',
-                                height: '100%',
-                                width: '100%',
-                            }}
-                        />
-                    )}
-                </TileBase>
-            ) : (
-                <div>No data</div>
+        <TileBase
+            isEditMode={isEditMode}
+            chartName={tile.properties.chartName ?? ''}
+            titleHref={`/projects/${projectUuid}/sql-runner/${data.chart.slug}`}
+            tile={tile}
+            title={tile.properties.title || tile.properties.chartName || ''}
+            {...rest}
+        >
+            {data.chart.config.type === ChartKind.TABLE &&
+                isTableChartSQLConfig(data.chart.config) && (
+                    <Table
+                        data={data.resultsAndColumns.results}
+                        config={data.chart.config}
+                    />
+                )}
+            {(data.chart.config.type === ChartKind.VERTICAL_BAR ||
+                data.chart.config.type === ChartKind.LINE ||
+                data.chart.config.type === ChartKind.PIE) && (
+                <ChartView
+                    data={sqlRunnerChartData}
+                    config={data.chart.config}
+                    style={{
+                        minHeight: 'inherit',
+                        height: '100%',
+                        width: '100%',
+                    }}
+                    transformer={transformer}
+                    isLoading={isLoading}
+                    sql={data.chart.sql}
+                    projectUuid={projectUuid}
+                />
             )}
-        </>
+        </TileBase>
     );
 };

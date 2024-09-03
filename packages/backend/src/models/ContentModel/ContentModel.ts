@@ -50,6 +50,8 @@ export class ContentModel {
             void query.unionAll(config.getSummaryQuery(this.database, filters));
         });
 
+        void query.orderBy('last_updated_at', 'DESC');
+
         const { pagination, data } = await KnexPaginate.paginate(
             query,
             paginateArgs,

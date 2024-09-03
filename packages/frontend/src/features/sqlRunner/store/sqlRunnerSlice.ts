@@ -1,17 +1,22 @@
 import {
     ChartKind,
-    type ResultRow,
     type SqlChart,
     type SqlTableConfig,
     type TableChartSqlConfig,
+    type VizSqlColumn,
 } from '@lightdash/common';
-
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 
-export enum VisTabs {
-    CHART = 'chart',
-    RESULTS = 'results',
+export enum EditorTabs {
+    SQL = 'sql',
+    VISUALIZATION = 'visualization',
+}
+
+export enum SidebarTabs {
+    TABLES = 'tables',
+    VISUALIZATION = 'visualization',
 }
 
 export const DEFAULT_NAME = 'Untitled SQL Query';
@@ -19,69 +24,80 @@ export const DEFAULT_NAME = 'Untitled SQL Query';
 export interface SqlRunnerState {
     projectUuid: string;
     activeTable: string | undefined;
-    savedSqlUuid: string | undefined;
-    space:
-        | {
-              uuid: string;
-              name: string;
-          }
-        | undefined;
+    savedSqlChart: SqlChart | undefined;
     name: string;
     description: string;
-
     sql: string;
-
-    activeVisTab: VisTabs;
-    selectedChartType: ChartKind;
-
+    limit: number;
+    activeSidebarTab: SidebarTabs;
+    activeEditorTab: EditorTabs;
+    selectedChartType: ChartKind | undefined;
     resultsTableConfig: SqlTableConfig | undefined;
-    tableChartConfig: TableChartSqlConfig | undefined;
-
     modals: {
         saveChartModal: {
             isOpen: boolean;
         };
+        deleteChartModal: {
+            isOpen: boolean;
+        };
+        updateChartModal: {
+            isOpen: boolean;
+        };
     };
-
     quoteChar: string;
+    sqlColumns: VizSqlColumn[] | undefined;
+    activeConfigs: ChartKind[];
 }
 
 const initialState: SqlRunnerState = {
     projectUuid: '',
     activeTable: undefined,
-    savedSqlUuid: undefined,
-    space: undefined,
+    savedSqlChart: undefined,
     name: '',
     description: '',
     sql: '',
-    activeVisTab: VisTabs.CHART,
-    selectedChartType: ChartKind.VERTICAL_BAR,
+    limit: 500,
+    activeSidebarTab: SidebarTabs.TABLES,
+    activeEditorTab: EditorTabs.SQL,
+    selectedChartType: undefined,
     resultsTableConfig: undefined,
-    tableChartConfig: undefined,
     modals: {
         saveChartModal: {
             isOpen: false,
         },
+        deleteChartModal: {
+            isOpen: false,
+        },
+        updateChartModal: {
+            isOpen: false,
+        },
     },
     quoteChar: '"',
+    sqlColumns: undefined,
+    activeConfigs: [ChartKind.VERTICAL_BAR],
 };
 
 export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
     reducers: {
-        loadState: (state, action: PayloadAction<SqlRunnerState>) => {
-            return action.payload;
+        resetState: () => {
+            return initialState;
         },
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
-        setInitialResultsAndSeries: (
+        setSqlRunnerResults: (
             state,
-            action: PayloadAction<ResultRow[]>,
+            action: PayloadAction<ResultsAndColumns>,
         ) => {
+            if (!action.payload.results || !action.payload.columns) {
+                return;
+            }
+
+            state.sqlColumns = action.payload.columns;
             // Set the initial results table config
-            const columns = Object.keys(action.payload[0]).reduce<
+            const columns = Object.keys(action.payload.results[0]).reduce<
                 TableChartSqlConfig['columns']
             >(
                 (acc, key) => ({
@@ -97,22 +113,10 @@ export const sqlRunnerSlice = createSlice({
                 {},
             );
             // Set static results table
+            // TODO: should this be in a separate slice?
             state.resultsTableConfig = {
                 columns,
             };
-
-            // TODO: this initialization should be put somewhere it
-            // can be shared between the frontend and backend
-            if (state.tableChartConfig === undefined) {
-                // Editable table chart
-                state.tableChartConfig = {
-                    type: ChartKind.TABLE,
-                    metadata: {
-                        version: 1,
-                    },
-                    columns,
-                };
-            }
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
@@ -120,35 +124,35 @@ export const sqlRunnerSlice = createSlice({
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
         },
-        setActiveVisTab: (state, action: PayloadAction<VisTabs>) => {
-            state.activeVisTab = action.payload;
+        setSqlLimit: (state, action: PayloadAction<number>) => {
+            state.limit = action.payload;
         },
-        setSaveChartData: (state, action: PayloadAction<SqlChart>) => {
-            state.savedSqlUuid = action.payload.savedSqlUuid;
+        setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
+            state.activeEditorTab = action.payload;
+            if (action.payload === EditorTabs.VISUALIZATION) {
+                state.activeSidebarTab = SidebarTabs.VISUALIZATION;
+                if (state.selectedChartType === undefined) {
+                    state.selectedChartType = ChartKind.VERTICAL_BAR;
+                }
+            }
+            if (action.payload === EditorTabs.SQL) {
+                state.activeSidebarTab = SidebarTabs.TABLES;
+            }
+        },
+        setSavedChartData: (state, action: PayloadAction<SqlChart>) => {
+            state.savedSqlChart = action.payload;
             state.name = action.payload.name;
             state.description = action.payload.description || '';
-            state.space = action.payload.space;
-
             state.sql = action.payload.sql;
+            state.limit = action.payload.limit || 500;
             state.selectedChartType =
-                action.payload.config.type === ChartKind.TABLE
-                    ? ChartKind.TABLE
-                    : ChartKind.VERTICAL_BAR;
-            if (action.payload.config.type === ChartKind.TABLE) {
-                state.tableChartConfig = action.payload.config;
-            }
-        },
-        updateTableChartFieldConfigLabel: (
-            state,
-            action: PayloadAction<Record<'reference' | 'label', string>>,
-        ) => {
-            const { reference, label } = action.payload;
-            if (state.tableChartConfig) {
-                state.tableChartConfig.columns[reference].label = label;
-            }
+                action.payload.config.type || ChartKind.VERTICAL_BAR;
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
             state.selectedChartType = action.payload;
+            if (!state.activeConfigs.includes(action.payload)) {
+                state.activeConfigs.push(action.payload);
+            }
         },
         toggleActiveTable: (
             state,
@@ -172,14 +176,14 @@ export const sqlRunnerSlice = createSlice({
 export const {
     toggleActiveTable,
     setProjectUuid,
-    setInitialResultsAndSeries,
+    setSqlRunnerResults,
     updateName,
     setSql,
-    setActiveVisTab,
-    setSaveChartData,
-    updateTableChartFieldConfigLabel,
+    setSqlLimit,
+    setActiveEditorTab,
+    setSavedChartData,
     setSelectedChartType,
     toggleModal,
-    loadState,
+    resetState,
     setQuoteChar,
 } = sqlRunnerSlice.actions;

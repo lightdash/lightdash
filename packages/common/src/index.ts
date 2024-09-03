@@ -99,7 +99,7 @@ import {
     type SchedulerJobStatus,
     type SchedulerWithLogs,
 } from './types/scheduler';
-import { type SlackChannel } from './types/slack';
+import { type ApiSlackChannelsResponse } from './types/slack';
 import { type Space } from './types/space';
 import { type ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { type TableBase } from './types/table';
@@ -143,7 +143,6 @@ export * from './compiler/translator';
 export * from './dbt/validation';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
-export * from './transformers';
 export * from './types/analytics';
 export * from './types/api';
 export * from './types/api/comments';
@@ -162,6 +161,7 @@ export * from './types/csv';
 export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/dbtCloud';
+export * from './types/dbtSemanticLayer';
 export * from './types/downloadFile';
 export * from './types/email';
 export * from './types/errors';
@@ -193,6 +193,7 @@ export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/scheduler';
 export * from './types/search';
+export * from './types/semanticLayer';
 export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';
@@ -225,6 +226,11 @@ export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/warehouse';
+export * from './visualizations/CartesianChartDataTransformer';
+export * from './visualizations/PieChartDataTransformer';
+export * from './visualizations/ResultsRunnerBase';
+export * from './visualizations/ResultsTableTransformer';
+export * from './visualizations/types';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {
@@ -620,8 +626,8 @@ type ApiResults =
     | DbtCloudIntegration
     | ShareUrl
     | SlackSettings
+    | ApiSlackChannelsResponse['results']
     | UserActivity
-    | SlackChannel[]
     | SchedulerAndTargets
     | SchedulerAndTargets[]
     | FieldValueSearchResult

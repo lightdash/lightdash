@@ -25,6 +25,7 @@ import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
+import { SemanticLayerService } from './SemanticLayerService/SemanticLayerService';
 import { ShareService } from './ShareService/ShareService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
 import { SpaceService } from './SpaceService/SpaceService';
@@ -70,6 +71,7 @@ interface ServiceManifest {
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
+    semanticLayerService: SemanticLayerService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -421,6 +423,8 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
+                    warehouseAvailableTablesModel:
+                        this.models.getWarehouseAvailableTablesModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
@@ -579,6 +583,8 @@ export class ServiceRepository
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
+                    warehouseAvailableTablesModel:
+                        this.models.getWarehouseAvailableTablesModel(),
                 }),
         );
     }
@@ -640,6 +646,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }
@@ -653,6 +660,24 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     contentModel: this.models.getContentModel(),
+                }),
+        );
+    }
+
+    public getSemanticLayerService(): SemanticLayerService {
+        return this.getService(
+            'semanticLayerService',
+            () =>
+                new SemanticLayerService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    downloadFileModel: this.models.getDownloadFileModel(),
+
+                    schedulerClient: this.clients.getSchedulerClient(),
+                    cubeClient: this.clients.getCubeClient(),
+                    dbtCloudClient: this.clients.getDbtCloudGraphqlClient(),
+                    s3Client: this.clients.getS3Client(),
                 }),
         );
     }

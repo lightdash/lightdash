@@ -1,7 +1,7 @@
 version: 2
 models:
   - name: customers
-    meta:
+    meta: 
       joins:
         - join: membership
           hidden: true
@@ -20,7 +20,12 @@ models:
           - unique
           - not_null
       - name: first_name
-        description: Customer's first name. PII.
+        description: | 
+          # First name 
+          --- 
+          Customer's first name. PII.
+          ---
+          Supports URLs
         meta:
           dimension:
             type: string

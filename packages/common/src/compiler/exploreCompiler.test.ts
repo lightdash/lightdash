@@ -10,6 +10,7 @@ import {
     compiledJoinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeSqlFields,
     compiledJoinedExploreWithSubsetOfFields,
     compiledJoinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
+    compiledJoinedExploreWithTwoJoinsToTheSameTable,
     compiledSimpleJoinedExplore,
     compiledSimpleJoinedExploreWithAlwaysTrue,
     customSqlDimensionWithNoReferences,
@@ -46,6 +47,7 @@ import {
     joinedExploreWithJoinAliasAndSubsetOfFieldsThatDontIncludeSqlFields,
     joinedExploreWithSubsetOfFields,
     joinedExploreWithSubsetOfFieldsThatDontIncludeSqlFields,
+    joinedExploreWithTwoJoinsToTheSameTable,
     simpleJoinedExplore,
     simpleJoinedExploreWithAlwaysTrue,
     tablesWithMetricsWithFilters,
@@ -158,6 +160,11 @@ describe('Explores with a base table and joined table', () => {
         expect(
             compiler.compileExplore(joinedExploreWithSubsetOfFields),
         ).toStrictEqual(compiledJoinedExploreWithSubsetOfFields);
+    });
+    test('should compile with 2 joins to the same table, one without alias and one with alias', () => {
+        expect(
+            compiler.compileExplore(joinedExploreWithTwoJoinsToTheSameTable),
+        ).toStrictEqual(compiledJoinedExploreWithTwoJoinsToTheSameTable);
     });
     test('should compile with a subset of fields selected on join what dont include the fields in the join SQL', () => {
         expect(

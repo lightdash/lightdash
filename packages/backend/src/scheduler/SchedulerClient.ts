@@ -16,10 +16,13 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerJobStatus,
+    semanticLayerQueryJob,
+    SemanticLayerQueryPayload,
     SlackNotificationPayload,
     sqlRunnerJob,
     SqlRunnerPayload,
-    UnexpectedServerError,
+    sqlRunnerPivotQueryJob,
+    SqlRunnerPivotQueryPayload,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
 } from '@lightdash/common';
@@ -573,6 +576,28 @@ export class SchedulerClient {
         return jobId;
     }
 
+    async semanticLayerStreamingResults(payload: SemanticLayerQueryPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            semanticLayerQueryJob,
+            payload,
+            now,
+        );
+        await this.schedulerModel.logSchedulerJob({
+            task: semanticLayerQueryJob,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.userUuid,
+            },
+        });
+
+        return jobId;
+    }
+
     async runSql(payload: SqlRunnerPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
@@ -584,6 +609,29 @@ export class SchedulerClient {
         );
         await this.schedulerModel.logSchedulerJob({
             task: sqlRunnerJob,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.userUuid,
+            },
+        });
+
+        return jobId;
+    }
+
+    async runSqlPivotQuery(payload: SqlRunnerPivotQueryPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            sqlRunnerPivotQueryJob,
+            payload,
+            now,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: sqlRunnerPivotQueryJob,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,

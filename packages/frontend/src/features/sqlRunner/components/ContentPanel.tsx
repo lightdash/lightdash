@@ -1,51 +1,51 @@
-import { ChartKind } from '@lightdash/common';
 import {
-    ActionIcon,
+    isTableChartSQLConfig,
+    type TableChartSqlConfig,
+} from '@lightdash/common';
+import {
     Box,
-    Divider,
+    getDefaultZIndex,
     Group,
-    Loader,
+    LoadingOverlay,
     Paper,
+    SegmentedControl,
     Stack,
-    Tabs,
-    Title,
+    Text,
     Tooltip,
+    useMantineTheme,
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
+import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import {
-    IconAdjustmentsCog,
-    IconLayoutNavbarCollapse,
-    IconLayoutNavbarExpand,
-} from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+    useCallback,
+    useDeferredValue,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { ResizableBox } from 'react-resizable';
+import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { onResults } from '../../../components/DataViz/store/cartesianChartBaseSlice';
+import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import ChartView from '../../../components/DataViz/visualizations/ChartView';
+import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
-    setActiveVisTab,
-    setInitialResultsAndSeries,
-    setSql,
-    VisTabs,
+    EditorTabs,
+    setActiveEditorTab,
+    setSqlLimit,
+    setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
+import { SqlRunnerResultsTransformer } from '../transformers/SqlRunnerResultsTransformer';
 import { SqlEditor } from './SqlEditor';
-import BarChart from './visualizations/BarChart';
-import { Table } from './visualizations/Table';
 
-type Props = {
-    isChartConfigOpen: boolean;
-    openChartConfig: () => void;
-    closeChartConfig: () => void;
-};
+const MIN_RESULTS_HEIGHT = 10;
 
-const MIN_RESULTS_HEIGHT = 50;
-
-export const ContentPanel: FC<Props> = ({
-    isChartConfigOpen,
-    openChartConfig,
-    closeChartConfig,
-}) => {
+export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
 
     const {
@@ -56,36 +56,25 @@ export const ContentPanel: FC<Props> = ({
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
-    const isResultsHeightMoreThanHalf = useMemo(
-        () => resultsHeight > wrapperHeight / 2,
-        [resultsHeight, wrapperHeight],
-    );
+    const mantineTheme = useMantineTheme();
+    const deferredInputSectionHeight = useDeferredValue(inputSectionHeight);
+    const deferredResultsHeight = useDeferredValue(resultsHeight);
     const isResultsPanelFullHeight = useMemo(
         () => resultsHeight === maxResultsHeight,
         [resultsHeight, maxResultsHeight],
     );
 
-    const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const activeVisTab = useAppSelector(
-        (state) => state.sqlRunner.activeVisTab,
-    );
+    const {
+        sql,
+        limit,
+        activeEditorTab,
+        selectedChartType,
+        resultsTableConfig,
+    } = useAppSelector((state) => state.sqlRunner);
 
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
-
-    // Static results table
-    const resultsTableConfig = useAppSelector(
-        (state) => state.sqlRunner.resultsTableConfig,
-    );
-
-    // configurable table
-    const tableVisConfig = useAppSelector(
-        (state) => state.sqlRunner.tableChartConfig,
-    );
-
-    const barChartConfig = useAppSelector(
-        (state) => state.barChartConfig.config,
+    // currently editing chart config
+    const currentVisConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, selectedChartType),
     );
 
     const {
@@ -94,8 +83,17 @@ export const ContentPanel: FC<Props> = ({
         isLoading,
     } = useSqlQueryRun({
         onSuccess: (data) => {
-            if (data?.results) {
-                dispatch(setInitialResultsAndSeries(data.results));
+            if (data) {
+                dispatch(setSqlRunnerResults(data));
+                dispatch(
+                    onResults({
+                        ...data,
+                        transformer: new SqlRunnerResultsTransformer({
+                            rows: data.results,
+                            columns: data.columns,
+                        }),
+                    }),
+                );
                 if (resultsHeight === MIN_RESULTS_HEIGHT) {
                     setResultsHeight(inputSectionHeight / 2);
                 }
@@ -108,11 +106,57 @@ export const ContentPanel: FC<Props> = ({
         [
             'mod + enter',
             () => {
-                if (sql) runSqlQuery({ sql });
+                if (sql) runSqlQuery({ sql, limit: 7 });
             },
             { preventDefault: true },
         ],
     ]);
+
+    const handleRunQuery = useCallback(
+        (limitOverride?: number) => {
+            if (!sql) return;
+            runSqlQuery({
+                sql,
+                limit: limitOverride || limit,
+            });
+            notifications.clean();
+        },
+        [runSqlQuery, sql, limit],
+    );
+
+    const transformer = useMemo(
+        () =>
+            new SqlRunnerResultsTransformer({
+                rows: queryResults?.results ?? [],
+                columns: queryResults?.columns ?? [],
+            }),
+        [queryResults],
+    );
+
+    const activeConfigs = useAppSelector((state) => {
+        const configsWithTable = state.sqlRunner.activeConfigs
+            .map((type) => selectChartConfigByKind(state, type))
+            .filter(
+                (config): config is NonNullable<typeof config> =>
+                    config !== undefined,
+            );
+
+        const tableConfig = configsWithTable.find(isTableChartSQLConfig);
+        const chartConfigs = configsWithTable.filter(
+            (
+                c,
+            ): c is Exclude<
+                NonNullable<ReturnType<typeof selectChartConfigByKind>>,
+                TableChartSqlConfig
+            > => !isTableChartSQLConfig(c),
+        );
+
+        return {
+            chartConfigs,
+            tableConfig,
+        };
+    });
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     return (
         <Stack
@@ -125,7 +169,8 @@ export const ContentPanel: FC<Props> = ({
                     shadow="none"
                     radius={0}
                     px="md"
-                    py="sm"
+                    py={6}
+                    bg="gray.1"
                     sx={(theme) => ({
                         borderWidth: isResultsPanelFullHeight
                             ? '0 0 0 1px'
@@ -135,94 +180,184 @@ export const ContentPanel: FC<Props> = ({
                     })}
                 >
                     <Group position="apart">
-                        <Title order={5} c="gray.6">
-                            SQL panel
-                        </Title>
-                        <Group spacing="md">
-                            <Tooltip
-                                key={String(isResultsHeightMoreThanHalf)}
-                                variant="xs"
-                                label={
-                                    !isResultsHeightMoreThanHalf
-                                        ? 'Collapse'
-                                        : 'Expand'
-                                }
-                                position="bottom"
-                            >
-                                <ActionIcon
-                                    size="xs"
-                                    onClick={() =>
-                                        setResultsHeight(
-                                            isResultsHeightMoreThanHalf
-                                                ? MIN_RESULTS_HEIGHT
-                                                : maxResultsHeight,
-                                        )
+                        <Group position="apart">
+                            <SegmentedControl
+                                color="dark"
+                                size="sm"
+                                radius="sm"
+                                data={[
+                                    {
+                                        value: 'sql',
+                                        label: (
+                                            <Group spacing="xs" noWrap>
+                                                <MantineIcon
+                                                    icon={IconCodeCircle}
+                                                />
+                                                <Text>Query</Text>
+                                            </Group>
+                                        ),
+                                    },
+                                    {
+                                        value: 'chart',
+                                        label: (
+                                            <Group spacing="xs" noWrap>
+                                                <MantineIcon
+                                                    icon={IconChartHistogram}
+                                                />
+                                                <Text>Chart</Text>
+                                            </Group>
+                                        ),
+                                        disabled: !queryResults?.results,
+                                    },
+                                ]}
+                                defaultValue={'sql'}
+                                onChange={(value) => {
+                                    if (isLoading) {
+                                        return;
                                     }
-                                >
-                                    <MantineIcon
-                                        icon={
-                                            !isResultsHeightMoreThanHalf
-                                                ? IconLayoutNavbarCollapse
-                                                : IconLayoutNavbarExpand
-                                        }
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
+                                    if (value === 'sql') {
+                                        dispatch(
+                                            setActiveEditorTab(EditorTabs.SQL),
+                                        );
+                                    } else {
+                                        dispatch(
+                                            setActiveEditorTab(
+                                                EditorTabs.VISUALIZATION,
+                                            ),
+                                        );
+                                    }
+                                }}
+                            />
+                        </Group>
+
+                        <Group spacing="md">
                             <RunSqlQueryButton
                                 isLoading={isLoading}
-                                onSubmit={() => {
-                                    if (!sql) return;
-                                    runSqlQuery({
-                                        sql,
-                                    });
+                                disabled={!sql}
+                                limit={limit}
+                                onSubmit={() => handleRunQuery()}
+                                onLimitChange={(newLimit) => {
+                                    dispatch(setSqlLimit(newLimit));
+                                    handleRunQuery(newLimit);
                                 }}
                             />
                         </Group>
                     </Group>
                 </Paper>
+
                 <Paper
                     ref={inputSectionRef}
                     shadow="none"
                     radius={0}
-                    p="none"
                     style={{ flex: 1 }}
                     sx={(theme) => ({
                         borderWidth: '0 0 0 1px',
                         borderStyle: 'solid',
                         borderColor: theme.colors.gray[3],
+                        overflow: 'auto',
                     })}
                 >
                     <Box
+                        style={{ flex: 1 }}
                         sx={{
                             position: 'absolute',
+                            overflowY: isTableChartSQLConfig(currentVisConfig)
+                                ? 'auto'
+                                : 'hidden',
                             height: inputSectionHeight,
                             width: inputSectionWidth,
                         }}
                     >
-                        <SqlEditor
-                            sql={sql}
-                            onSqlChange={(newSql) => dispatch(setSql(newSql))}
-                            onSubmit={() => runSqlQuery({ sql })}
-                        />
+                        <ConditionalVisibility
+                            isVisible={activeEditorTab === EditorTabs.SQL}
+                        >
+                            <SqlEditor onSubmit={() => handleRunQuery()} />
+                        </ConditionalVisibility>
+
+                        <ConditionalVisibility
+                            isVisible={
+                                activeEditorTab === EditorTabs.VISUALIZATION
+                            }
+                        >
+                            {queryResults?.results && currentVisConfig && (
+                                <>
+                                    {activeConfigs.chartConfigs.map((c) => (
+                                        <ConditionalVisibility
+                                            key={c.type}
+                                            isVisible={
+                                                selectedChartType === c.type
+                                            }
+                                        >
+                                            <ChartView
+                                                data={queryResults}
+                                                config={c}
+                                                isLoading={isLoading}
+                                                transformer={transformer}
+                                                style={{
+                                                    height: deferredInputSectionHeight,
+                                                    width: '100%',
+                                                    flex: 1,
+                                                    marginTop:
+                                                        mantineTheme.spacing.sm,
+                                                }}
+                                                sql={sql}
+                                                projectUuid={projectUuid}
+                                                limit={limit}
+                                            />
+                                        </ConditionalVisibility>
+                                    ))}
+
+                                    {activeConfigs.tableConfig && (
+                                        <Paper
+                                            shadow="none"
+                                            radius={0}
+                                            px="sm"
+                                            pb="sm"
+                                            sx={() => ({
+                                                flex: 1,
+                                            })}
+                                        >
+                                            <Table
+                                                data={queryResults.results}
+                                                config={
+                                                    activeConfigs.tableConfig
+                                                }
+                                            />
+                                        </Paper>
+                                    )}
+                                </>
+                            )}
+                        </ConditionalVisibility>
                     </Box>
                 </Paper>
+
                 <ResizableBox
-                    height={resultsHeight}
+                    height={deferredResultsHeight}
                     minConstraints={[50, 50]}
                     maxConstraints={[Infinity, maxResultsHeight]}
                     resizeHandles={['n']}
                     axis="y"
                     handle={
-                        <Divider
-                            h={3}
-                            bg="gray.3"
+                        <Paper
                             pos="absolute"
-                            top={-2}
+                            top={0}
                             left={0}
                             right={0}
-                            sx={{
+                            shadow="none"
+                            radius={0}
+                            px="md"
+                            py={6}
+                            withBorder
+                            bg="gray.1"
+                            sx={(theme) => ({
+                                zIndex: getDefaultZIndex('modal') - 1,
+                                borderWidth: isResultsPanelFullHeight
+                                    ? '0 0 0 1px'
+                                    : '0 0 1px 1px',
+                                borderStyle: 'solid',
+                                borderColor: theme.colors.gray[3],
                                 cursor: 'ns-resize',
-                            }}
+                            })}
                         />
                     }
                     style={{
@@ -234,141 +369,32 @@ export const ContentPanel: FC<Props> = ({
                         setResultsHeight(data.size.height)
                     }
                 >
-                    <Stack h="100%" spacing={0}>
-                        <Paper
-                            shadow="none"
-                            radius={0}
-                            px="md"
-                            pb={0}
-                            pt="sm"
-                            withBorder
-                        >
-                            <Group position="apart" pb={0} noWrap>
-                                <Tabs
-                                    value={activeVisTab}
-                                    onTabChange={(val: VisTabs) => {
-                                        dispatch(setActiveVisTab(val));
-                                    }}
-                                    // Negative margin to ge the tab indicator on the border
-                                    mb={-2}
-                                >
-                                    <Tabs.List>
-                                        <Tabs.Tab
-                                            value={VisTabs.CHART}
-                                            disabled={isLoading}
-                                        >
-                                            Chart
-                                        </Tabs.Tab>
-                                        <Tabs.Tab
-                                            value={VisTabs.RESULTS}
-                                            disabled={isLoading}
-                                        >
-                                            Results
-                                        </Tabs.Tab>
-                                        {isLoading && (
-                                            <Loader mt="xs" size="xs" />
-                                        )}
-                                    </Tabs.List>
-                                </Tabs>
-
-                                <Group spacing="md" pb="sm" noWrap>
-                                    <Tooltip
-                                        key={String(
-                                            isResultsHeightMoreThanHalf,
-                                        )}
-                                        variant="xs"
-                                        label={
-                                            isResultsHeightMoreThanHalf
-                                                ? 'Collapse'
-                                                : 'Expand'
-                                        }
-                                        position="bottom"
-                                    >
-                                        <ActionIcon
-                                            size="xs"
-                                            onClick={() =>
-                                                setResultsHeight(
-                                                    isResultsHeightMoreThanHalf
-                                                        ? MIN_RESULTS_HEIGHT
-                                                        : maxResultsHeight,
-                                                )
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    isResultsHeightMoreThanHalf
-                                                        ? IconLayoutNavbarExpand
-                                                        : IconLayoutNavbarCollapse
-                                                }
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                    <Tooltip
-                                        variant="xs"
-                                        label="Configure"
-                                        position="bottom"
-                                    >
-                                        <ActionIcon
-                                            size="xs"
-                                            onClick={
-                                                isChartConfigOpen
-                                                    ? closeChartConfig
-                                                    : openChartConfig
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={IconAdjustmentsCog}
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </Group>
-                            </Group>
-                        </Paper>
-
-                        {queryResults?.results && !isLoading && (
-                            <Paper
-                                shadow="none"
-                                radius={0}
-                                px="md"
-                                py="sm"
-                                sx={(theme) => ({
-                                    flex: 1,
-                                    overflow: 'auto',
-                                    borderWidth: '0 0 1px 1px',
-                                    borderStyle: 'solid',
-                                    borderColor: theme.colors.gray[3],
-                                })}
-                                h="100%"
-                            >
-                                {activeVisTab === VisTabs.CHART && (
-                                    <>
-                                        {selectedChartType ===
-                                            ChartKind.TABLE && (
-                                            <Table
-                                                data={queryResults.results}
-                                                config={tableVisConfig}
-                                            />
-                                        )}
-                                        {selectedChartType ===
-                                            ChartKind.VERTICAL_BAR && (
-                                            <BarChart
-                                                data={queryResults.results}
-                                                config={barChartConfig}
-                                            />
-                                        )}
-                                    </>
-                                )}
-                                {activeVisTab === VisTabs.RESULTS && (
-                                    <>
-                                        <Table
-                                            data={queryResults.results}
-                                            config={resultsTableConfig}
-                                        />
-                                    </>
-                                )}
-                            </Paper>
+                    <Paper
+                        shadow="none"
+                        radius={0}
+                        p="sm"
+                        mt="sm"
+                        sx={(theme) => ({
+                            flex: 1,
+                            overflow: 'auto',
+                            borderWidth: '0 0 1px 1px',
+                            borderStyle: 'solid',
+                            borderColor: theme.colors.gray[3],
+                        })}
+                    >
+                        <LoadingOverlay
+                            loaderProps={{
+                                size: 'xs',
+                            }}
+                            visible={isLoading}
+                        />
+                        {queryResults?.results && (
+                            <Table
+                                data={queryResults.results}
+                                config={resultsTableConfig}
+                            />
                         )}
-                    </Stack>
+                    </Paper>
                 </ResizableBox>
             </Tooltip.Group>
         </Stack>

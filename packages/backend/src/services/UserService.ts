@@ -57,6 +57,7 @@ import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { postHogClient } from '../postHog';
 import { wrapSentryTransaction } from '../utils';
 import { BaseService } from './BaseService';
@@ -77,6 +78,7 @@ type UserServiceArguments = {
     personalAccessTokenModel: PersonalAccessTokenModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 };
 
 export class UserService extends BaseService {
@@ -110,6 +112,8 @@ export class UserService extends BaseService {
 
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
+    private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -130,6 +134,7 @@ export class UserService extends BaseService {
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
+        warehouseAvailableTablesModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -148,6 +153,7 @@ export class UserService extends BaseService {
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
+        this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
     }
 
     private identifyUser(
@@ -503,7 +509,7 @@ export class UserService extends BaseService {
                 userId: loginUser.userUuid,
                 event: 'user.logged_in',
                 properties: {
-                    loginProvider: 'google',
+                    loginProvider: openIdUser.openId.issuerType,
                 },
             });
 
@@ -658,7 +664,7 @@ export class UserService extends BaseService {
             userId: sessionUser.userUuid,
             event: 'user.identity_linked',
             properties: {
-                loginProvider: 'google',
+                loginProvider: openIdUser.openId.issuerType,
             },
         });
 
@@ -772,6 +778,11 @@ export class UserService extends BaseService {
         user: SessionUser,
         openIdentity: DeleteOpenIdentity,
     ): Promise<void> {
+        const userIdentity = await this.openIdIdentityModel.getIdentity(
+            user.userId,
+            openIdentity.issuer,
+            openIdentity.email,
+        );
         await this.openIdIdentityModel.deleteIdentity(
             user.userId,
             openIdentity.issuer,
@@ -781,7 +792,7 @@ export class UserService extends BaseService {
             userId: user.userUuid,
             event: 'user.identity_removed',
             properties: {
-                loginProvider: 'google',
+                loginProvider: userIdentity.issuerType,
             },
         });
     }
@@ -950,7 +961,7 @@ export class UserService extends BaseService {
             userId: user.userUuid,
             properties: {
                 userConnectionType: isOpenIdUser(createUser)
-                    ? 'google'
+                    ? createUser.openId.issuerType
                     : 'password',
             },
         });
@@ -959,7 +970,7 @@ export class UserService extends BaseService {
                 userId: user.userUuid,
                 event: 'user.identity_linked',
                 properties: {
-                    loginProvider: 'google',
+                    loginProvider: createUser.openId.issuerType,
                 },
             });
         } else {
@@ -1253,12 +1264,31 @@ export class UserService extends BaseService {
             refresh.requestNewAccessToken(
                 'google',
                 refreshToken,
-                (err: any, accessToken: string) => {
+                (err: any, accessToken: string, _refreshToken, result) => {
                     if (err || !accessToken) {
                         reject(err);
                         return;
                     }
-                    resolve(accessToken);
+
+                    const scopes: string[] =
+                        result && typeof result.scope === 'string'
+                            ? result.scope.split(' ')
+                            : [];
+                    if (
+                        scopes.includes(
+                            'https://www.googleapis.com/auth/drive.file',
+                        ) &&
+                        scopes.includes(
+                            'https://www.googleapis.com/auth/spreadsheets',
+                        )
+                    ) {
+                        resolve(accessToken);
+                    }
+                    reject(
+                        new AuthorizationError(
+                            'Missing authorization to access Google Drive',
+                        ),
+                    );
                 },
             );
         });

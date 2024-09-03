@@ -29,22 +29,27 @@ import {
     NotEnoughResults,
     NotificationFrequency,
     NotificationPayloadBase,
-    operatorAction,
+    operatorActionValue,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerFilterRule,
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
+    semanticLayerQueryJob,
+    SemanticLayerQueryPayload,
     SessionUser,
+    SlackInstallationNotFoundError,
     SlackNotificationPayload,
-    SQLColumn,
     sqlRunnerJob,
     SqlRunnerPayload,
+    sqlRunnerPivotQueryJob,
+    SqlRunnerPivotQueryPayload,
     ThresholdOperator,
     ThresholdOptions,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
+    VizSqlColumn,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -71,6 +76,7 @@ import { CsvService } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
+import { SemanticLayerService } from '../services/SemanticLayerService/SemanticLayerService';
 import { UnfurlService } from '../services/UnfurlService/UnfurlService';
 import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
@@ -91,6 +97,7 @@ type SchedulerTaskArguments = {
     s3Client: S3Client;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    semanticLayerService: SemanticLayerService;
 };
 
 export default class SchedulerTask {
@@ -122,6 +129,8 @@ export default class SchedulerTask {
 
     protected readonly slackClient: SlackClient;
 
+    private readonly semanticLayerService: SemanticLayerService;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -137,6 +146,7 @@ export default class SchedulerTask {
         this.s3Client = args.s3Client;
         this.schedulerClient = args.schedulerClient;
         this.slackClient = args.slackClient;
+        this.semanticLayerService = args.semanticLayerService;
     }
 
     protected async getChartOrDashboard(
@@ -610,7 +620,7 @@ export default class SchedulerTask {
                 details: { error: e.message },
             });
 
-            if (`${e}`.includes('Could not find slack installation')) {
+            if (e instanceof SlackInstallationNotFoundError) {
                 console.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
                 );
@@ -895,12 +905,34 @@ export default class SchedulerTask {
         }
     }
 
+    protected async semanticLayerQuery(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SemanticLayerQueryPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: semanticLayerQueryJob,
+                jobId,
+                scheduledTime,
+                details: { createdByUserUuid: payload.userUuid },
+            },
+            async () => {
+                const { fileUrl } =
+                    await this.semanticLayerService.streamQueryIntoFile(
+                        payload,
+                    );
+                return { fileUrl };
+            },
+        );
+    }
+
     protected async sqlRunner(
         jobId: string,
         scheduledTime: Date,
         payload: SqlRunnerPayload,
     ) {
-        await this.logWrapper<string | SQLColumn[]>(
+        await this.logWrapper<string | VizSqlColumn[]>(
             {
                 task: sqlRunnerJob,
                 jobId,
@@ -909,13 +941,25 @@ export default class SchedulerTask {
             },
             async () => {
                 const { fileUrl, columns } =
-                    await this.projectService.streamSqlQueryIntoFile(
-                        payload.userUuid,
-                        payload.projectUuid,
-                        payload.sql,
-                    );
+                    await this.projectService.streamSqlQueryIntoFile(payload);
                 return { fileUrl, columns };
             },
+        );
+    }
+
+    protected async sqlRunnerPivotQuery(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SqlRunnerPivotQueryPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: sqlRunnerPivotQueryJob,
+                jobId,
+                scheduledTime,
+                details: { createdByUserUuid: payload.userUuid },
+            },
+            async () => this.projectService.pivotQueryWorkerTask(payload),
         );
     }
 
@@ -967,6 +1011,7 @@ export default class SchedulerTask {
                 exploreName: payload.exploreId,
                 csvLimit: undefined,
                 context: QueryExecutionContext.GSHEETS,
+                chartUuid: undefined,
             });
             const refreshToken = await this.userService.getRefreshToken(
                 payload.userUuid,
@@ -1108,9 +1153,11 @@ export default class SchedulerTask {
                     (threshold) =>
                         `- **${friendlyName(
                             threshold.fieldId,
-                        )}** ${operatorAction(threshold.operator)} **${
-                            threshold.value
-                        }**`,
+                        )}** ${operatorActionValue(
+                            threshold.operator,
+                            threshold.value,
+                            '**',
+                        )}`,
                 );
                 const thresholdMessage = `Your results for the chart **${
                     details.name
@@ -1273,20 +1320,23 @@ export default class SchedulerTask {
             }
             return parseFloat(result[fieldId]);
         };
-        const firstValue = getValue(0);
+        const latestValue = getValue(0);
         switch (operator) {
             case ThresholdOperator.GREATER_THAN:
-                return firstValue > thresholdValue;
+                return latestValue > thresholdValue;
             case ThresholdOperator.LESS_THAN:
-                return firstValue < thresholdValue;
+                return latestValue < thresholdValue;
             case ThresholdOperator.INCREASED_BY:
             case ThresholdOperator.DECREASED_BY:
-                const secondValue = getValue(1);
-                const increase = firstValue - secondValue;
+                const previousValue = getValue(1);
                 if (operator === ThresholdOperator.INCREASED_BY) {
-                    return thresholdValue < increase / (secondValue * 100);
+                    const percentageIncrease =
+                        ((latestValue - previousValue) / previousValue) * 100;
+                    return percentageIncrease > thresholdValue;
                 }
-                return thresholdValue > increase / (secondValue * 100);
+                const percentageDecrease =
+                    ((previousValue - latestValue) / previousValue) * 100;
+                return percentageDecrease > thresholdValue;
 
             default:
                 assertUnreachable(
@@ -1362,6 +1412,7 @@ export default class SchedulerTask {
                 const { rows } = await this.projectService.getResultsForChart(
                     user,
                     savedChartUuid,
+                    QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                 );
 
                 if (thresholds !== undefined && thresholds.length > 0) {
@@ -1479,6 +1530,7 @@ export default class SchedulerTask {
                             await this.projectService.getResultsForChart(
                                 user,
                                 chartUuid,
+                                QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                             );
                         const explore = await this.projectService.getExplore(
                             user,
@@ -1704,6 +1756,7 @@ export default class SchedulerTask {
                         await this.projectService.getResultsForChart(
                             user,
                             savedChartUuid,
+                            QueryExecutionContext.SCHEDULED_CHART,
                         );
 
                     if (

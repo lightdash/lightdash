@@ -12,7 +12,7 @@ import {
 import { readFileSync } from 'fs';
 import path from 'path';
 import * as pg from 'pg';
-import { PoolConfig, QueryResult } from 'pg';
+import { PoolConfig, QueryResult, types } from 'pg';
 import { Writable } from 'stream';
 import { rootCertificates } from 'tls';
 import QueryStream from './PgQueryStream';
@@ -22,6 +22,9 @@ const POSTGRES_CA_BUNDLES = [
     ...rootCertificates,
     readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.pem')),
 ];
+
+types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
+types.setTypeParser(types.builtins.INT8, (value) => parseInt(value, 10));
 
 export enum PostgresTypes {
     INTEGER = 'integer',
@@ -359,25 +362,29 @@ export class PostgresClient<
         return catalog;
     }
 
-    async getTables(
-        schema?: string,
-        tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema ? `AND table_schema = $1` : '';
+    async getAllTables() {
+        const databaseName = this.config.database;
+        const whereSql = databaseName ? `AND table_catalog = $1` : '';
+        const filterSystemTables = `AND table_schema NOT IN ('information_schema', 'pg_catalog')`;
         const query = `
             SELECT table_catalog, table_schema, table_name
             FROM information_schema.tables
             WHERE table_type = 'BASE TABLE'
-                ${schemaFilter}
+                ${whereSql}
+                ${filterSystemTables}
             ORDER BY 1, 2, 3
         `;
         const { rows } = await this.runQuery(
             query,
-            tags,
+            {},
             undefined,
-            schema ? [schema] : undefined,
+            databaseName ? [databaseName] : [],
         );
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return rows.map((row) => ({
+            database: row.table_catalog,
+            schema: row.table_schema,
+            table: row.table_name,
+        }));
     }
 
     async getFields(

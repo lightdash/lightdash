@@ -4,6 +4,7 @@ import {
     getFilterRuleWithDefaultValue,
     getFilterTypeFromItem,
     getItemId,
+    isDateItem,
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
@@ -32,7 +33,7 @@ const FilterRuleForm: FC<Props> = ({
     onDelete,
     onConvertToGroup,
 }) => {
-    const { popoverProps } = useFiltersContext();
+    const { popoverProps, baseTable } = useFiltersContext();
     const activeField = useMemo(() => {
         return fields.find(
             (field) => getItemId(field) === filterRule.target.fieldId,
@@ -56,12 +57,23 @@ const FilterRuleForm: FC<Props> = ({
             );
             if (selectedField && activeField) {
                 if (selectedField.type === activeField.type) {
-                    onChange({
+                    const newFilterRuleBase = {
                         ...filterRule,
                         target: {
                             fieldId,
                         },
-                    });
+                    };
+
+                    const newFilterRule = isDateItem(selectedField)
+                        ? // If the field is the same type but different field, we need to update the filter rule with the new time frames
+                          getFilterRuleWithDefaultValue(
+                              selectedField,
+                              newFilterRuleBase,
+                              filterRule.values,
+                          )
+                        : newFilterRuleBase;
+
+                    onChange(newFilterRule);
                 } else {
                     onChange(createFilterRuleFromField(selectedField));
                 }
@@ -93,6 +105,7 @@ const FilterRuleForm: FC<Props> = ({
                     if (!field) return;
                     onFieldChange(getItemId(field));
                 }}
+                baseTable={baseTable}
             />
             <Select
                 size="xs"
