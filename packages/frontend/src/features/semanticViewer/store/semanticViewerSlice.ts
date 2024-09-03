@@ -17,7 +17,7 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
 export enum EditorTabs {
-    SQL = 'sql',
+    RESULTS = 'results',
     VISUALIZATION = 'visualization',
 }
 
@@ -128,10 +128,10 @@ export interface SemanticViewerState {
     info: undefined | (SemanticLayerClientInfo & { projectUuid: string });
 
     view: string | undefined;
+
     activeEditorTab: EditorTabs;
     activeSidebarTab: SidebarTabs;
-    // TODO: rename this
-    selectedChartType: ChartKind | undefined;
+    activeChartKind: ChartKind;
 
     resultsTableConfig: VizTableConfig | undefined;
 
@@ -152,19 +152,21 @@ const initialState: SemanticViewerState = {
 
     info: undefined,
 
-    activeEditorTab: EditorTabs.VISUALIZATION,
+    view: undefined,
+
+    activeEditorTab: EditorTabs.RESULTS,
     activeSidebarTab: SidebarTabs.TABLES,
-    selectedChartType: ChartKind.TABLE,
+    activeChartKind: ChartKind.VERTICAL_BAR,
+
     resultsTableConfig: undefined,
 
-    view: undefined,
+    results: [],
+    columns: [],
 
     selectedDimensions: {},
     selectedMetrics: {},
     selectedTimeDimensions: {},
 
-    results: [],
-    columns: [],
     limit: undefined,
 
     sortBy: [],
@@ -250,14 +252,12 @@ export const semanticViewerSlice = createSlice({
 
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
+
+            if (action.payload === EditorTabs.RESULTS) {
+                state.activeSidebarTab = SidebarTabs.TABLES;
+            }
             if (action.payload === EditorTabs.VISUALIZATION) {
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
-                if (state.selectedChartType === undefined) {
-                    state.selectedChartType = ChartKind.VERTICAL_BAR;
-                }
-            }
-            if (action.payload === EditorTabs.SQL) {
-                state.activeSidebarTab = SidebarTabs.TABLES;
             }
         },
 
@@ -273,11 +273,11 @@ export const semanticViewerSlice = createSlice({
             state.description = action.payload.description || '';
             state.sql = action.payload.sql;
             state.limit = action.payload.limit || 500;
-            state.selectedChartType =
+            state.activeChartKind =
                 action.payload.config.type || ChartKind.VERTICAL_BAR;*/
         },
-        setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
-            state.selectedChartType = action.payload;
+        setActiveChartKind: (state, action: PayloadAction<ChartKind>) => {
+            state.activeChartKind = action.payload;
         },
         setFields: (state, action: PayloadAction<SemanticLayerField[]>) => {
             const sqlColumns: VizSqlColumn[] = action.payload.map((field) => ({
@@ -323,7 +323,7 @@ export const {
     enterView,
     setResults,
     setActiveEditorTab,
-    setSelectedChartType,
+    setActiveChartKind,
     setFields,
     selectField,
     deselectField,

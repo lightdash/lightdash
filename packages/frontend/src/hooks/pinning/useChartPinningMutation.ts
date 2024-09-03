@@ -32,7 +32,8 @@ export const useChartPinningMutation = () => {
                 await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
                 ]);
-                if (savedChart.pinnedListUuid) {
+                await queryClient.invalidateQueries(['content']);
+                if (savedChart.isPinned) {
                     showToastSuccess({
                         title: 'Success! Chart was pinned to homepage',
                     });

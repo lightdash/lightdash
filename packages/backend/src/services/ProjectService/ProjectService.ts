@@ -44,6 +44,7 @@ import {
     getDashboardFilterRulesForTables,
     getDateDimension,
     getDimensions,
+    getFieldQuoteChar,
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
@@ -2042,6 +2043,7 @@ export class ProjectService extends BaseService {
     }
 
     static applyPivotToSqlQuery({
+        warehouseType,
         sql,
         limit,
         indexColumn,
@@ -2050,18 +2052,18 @@ export class ProjectService extends BaseService {
     }: Pick<
         SqlRunnerPivotQueryPayload,
         'sql' | 'limit' | 'indexColumn' | 'valuesColumns' | 'groupByColumns'
-    >): string {
+    > & { warehouseType: WarehouseTypes }): string {
         if (!indexColumn) throw new ParameterError('Index column is required');
-
+        const q = getFieldQuoteChar(warehouseType);
         const userSql = sql.replace(/;\s*$/, '');
         const groupBySelectDimensions = [
-            ...(groupByColumns || []).map((col) => col.reference),
-            indexColumn.reference,
+            ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
+            `${q}${indexColumn.reference}${q}`,
         ];
         const groupBySelectMetrics = [
             ...(valuesColumns ?? []).map(
                 (col) =>
-                    `${col.aggregation}(${col.reference}) as ${col.reference}_${col.aggregation}`,
+                    `${col.aggregation}(${q}${col.reference}${q}) as ${q}${col.reference}_${col.aggregation}${q}`,
             ),
         ];
         const groupByQuery = `SELECT ${[
@@ -2073,30 +2075,27 @@ export class ProjectService extends BaseService {
 
         const selectReferences = [
             indexColumn.reference,
-            ...(groupByColumns || []).map((col) => col.reference),
-            ...(valuesColumns || []).map((col) =>
-                groupByColumns && groupByColumns.length > 0
-                    ? `${col.reference}_${col.aggregation}`
-                    : `${col.reference}_${col.aggregation} as ${col.reference}`,
+            ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
+            ...(valuesColumns || []).map(
+                (col) => `${q}${col.reference}_${col.aggregation}${q}`,
             ),
         ];
 
         const pivotQuery = `SELECT ${selectReferences.join(
             ', ',
-        )}, dense_rank() over (order by ${
+        )}, dense_rank() over (order by ${q}${
             indexColumn.reference
-        }) as row_index, dense_rank() over (order by ${
+        }${q}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
             groupByColumns?.[0]?.reference
-        }) as column_index FROM group_by_query`;
+        }${q}) as ${q}column_index${q} FROM group_by_query`;
 
         if (groupByColumns && groupByColumns.length > 0) {
             // Wrap the original query in a CTE
             let pivotedSql = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery}), pivot_query AS (${pivotQuery})`;
 
-            pivotedSql += `\nSELECT * FROM pivot_query WHERE row_index < ${
+            pivotedSql += `\nSELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
                 limit ?? 500
-            } and column_index < 10 order by row_index, column_index`;
-
+            } and ${q}column_index${q} <= 10 order by ${q}row_index${q}, ${q}column_index${q}`;
             return pivotedSql;
         }
 
@@ -2126,8 +2125,13 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
 
+        const warehouseCredentials = await this.getWarehouseCredentials(
+            projectUuid,
+            userUuid,
+        );
         // Apply limit and pivot to the SQL query
         const pivotedSql = ProjectService.applyPivotToSqlQuery({
+            warehouseType: warehouseCredentials.type,
             sql,
             limit,
             indexColumn,
@@ -2148,7 +2152,7 @@ export class ProjectService extends BaseService {
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials(projectUuid, userUuid),
+            warehouseCredentials,
         );
         this.logger.debug(`Stream query against warehouse`);
         const queryTags: RunQueryTags = {
@@ -3002,9 +3006,7 @@ export class ProjectService extends BaseService {
             credentials,
         );
 
-        const schema = ProjectService.getWarehouseSchema(credentials);
-
-        const warehouseTables = await warehouseClient.getAllTables(schema);
+        const warehouseTables = await warehouseClient.getAllTables();
 
         const catalog =
             WarehouseAvailableTablesModel.toWarehouseCatalog(warehouseTables);
@@ -3079,8 +3081,8 @@ export class ProjectService extends BaseService {
     async getWarehouseFields(
         user: SessionUser,
         projectUuid: string,
-        tableName: string,
-        schema?: string,
+        tableName?: string,
+        schemaName?: string,
     ): Promise<WarehouseTableSchema> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3108,28 +3110,31 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
-        const warehouseSchema =
-            schema || ProjectService.getWarehouseSchema(credentials);
-        const database = ProjectService.getWarehouseDatabase(credentials);
-
-        if (!warehouseSchema) {
-            throw new NotFoundError(
-                'Schema not found in warehouse credentials',
-            );
-        }
+        let database = ProjectService.getWarehouseDatabase(credentials);
         if (!database) {
             throw new NotFoundError(
                 'Database not found in warehouse credentials',
             );
         }
+        if (credentials.type === WarehouseTypes.SNOWFLAKE) {
+            // TODO: credentials returning a lower case database name for snowflake (bug) - this hack works for unquoted database names
+            database = database.toUpperCase();
+        }
+        if (!schemaName) {
+            throw new ParameterError('Schema name is required');
+        }
+        if (!tableName) {
+            throw new ParameterError('Table name is required');
+        }
         const warehouseCatalog = await warehouseClient.getFields(
             tableName,
-            warehouseSchema,
+            schemaName,
+            database,
             queryTags,
         );
 
         await sshTunnel.disconnect();
-        return warehouseCatalog[database][warehouseSchema][tableName];
+        return warehouseCatalog[database][schemaName][tableName];
     }
 
     async getTablesConfiguration(

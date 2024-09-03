@@ -40,7 +40,7 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
     field,
     searchQuery,
 }) => {
-    const { ref, hovered } = useHover<HTMLButtonElement>();
+    const { ref, hovered } = useHover<HTMLAnchorElement>();
     const [isMenuOpen, { open: menuOpen, close: menuClose }] =
         useDisclosure(false);
 
@@ -69,6 +69,7 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
                     {field.label}
                 </Highlight>
             }
+            component="a"
             disabled={!field.visible}
             active={!!selectedField}
             h={28}
@@ -85,6 +86,8 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
                             opened: isMenuOpen,
                             onOpen: menuOpen,
                             onClose: menuClose,
+                            arrowOffset: 10,
+                            offset: -4,
                         }}
                         availableGranularities={field.availableGranularities}
                         value={
@@ -107,6 +110,7 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
                         }
                     >
                         <ActionIcon
+                            component="div"
                             variant="transparent"
                             onClick={(e) => {
                                 e.stopPropagation();

@@ -20,8 +20,8 @@ import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRun
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
-    selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
+    selectSemanticLayerQuery,
 } from '../store/selectors';
 import { setLimit, setResults } from '../store/semanticViewerSlice';
 
@@ -30,16 +30,14 @@ export const RunSemanticQueryButton: FC = () => {
     const { showToastError } = useToaster();
 
     const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
+    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const { columns, limit, sortBy, selectedChartType } = useAppSelector(
+    const { columns, limit, activeChartKind } = useAppSelector(
         (state) => state.semanticViewer,
     );
     const currentVizConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, selectedChartType),
-    );
-    const allSelectedFieldsByKind = useAppSelector(
-        selectAllSelectedFieldsByKind,
+        selectChartConfigByKind(state, activeChartKind),
     );
     const dispatch = useAppDispatch();
 
@@ -57,7 +55,7 @@ export const RunSemanticQueryButton: FC = () => {
     });
 
     useEffect(() => {
-        if (!resultsData || selectedChartType === undefined) return;
+        if (!resultsData) return;
 
         const usedColumns = columns.filter((c) =>
             allSelectedFields.includes(c.reference),
@@ -70,44 +68,33 @@ export const RunSemanticQueryButton: FC = () => {
         );
 
         const resultsRunner = new SemanticViewerResultsRunner({
+            query: semanticQuery,
             rows: resultsData,
             columns: usedColumns,
-            query: {
-                ...allSelectedFieldsByKind,
-                sortBy,
-                limit,
-            },
             projectUuid,
         });
 
         const chartResultOptions = getChartConfigAndOptions(
             resultsRunner,
-            selectedChartType,
+            activeChartKind,
             currentVizConfig,
         );
 
         dispatch(onResults(chartResultOptions));
     }, [
         allSelectedFields,
-        allSelectedFieldsByKind,
         columns,
         currentVizConfig,
         dispatch,
-        limit,
         projectUuid,
         resultsData,
-        selectedChartType,
-        sortBy,
+        activeChartKind,
+        semanticQuery,
     ]);
 
     const handleSubmit = useCallback(
-        () =>
-            runSemanticViewerQuery({
-                ...allSelectedFieldsByKind,
-                sortBy,
-                limit,
-            }),
-        [allSelectedFieldsByKind, runSemanticViewerQuery, limit, sortBy],
+        () => runSemanticViewerQuery(semanticQuery),
+        [semanticQuery, runSemanticViewerQuery],
     );
 
     const handleLimitChange = useCallback(

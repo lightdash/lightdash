@@ -1,6 +1,6 @@
 {
     "name": "frontend",
-    "version": "0.1237.1",
+    "version": "0.1239.0",
     "private": true,
     "scripts": {
         "start": "vite",
@@ -30,7 +30,7 @@
         "@emotion/react": "^11.10.6",
         "@hello-pangea/dnd": "^16.5.0",
         "@hookform/error-message": "^2.0.0",
-        "@lightdash/common": "^0.1237.1",
+        "@lightdash/common": "^0.1239.0",
         "@mantine/core": "^6.0.21",
         "@mantine/dates": "^6.0.21",
         "@mantine/form": "^7.5.2",
@@ -83,6 +83,7 @@
         "react-json-view": "^1.21.3",
         "react-redux": "^9.1.2",
         "react-resizable": "^3.0.5",
+        "react-resizable-panels": "^2.1.2",
         "react-router-dom": "5.3.4",
         "react-use": "^17.3.2",
         "react-use-intercom": "^1.5.1",
