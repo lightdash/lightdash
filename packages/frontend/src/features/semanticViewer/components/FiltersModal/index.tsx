@@ -126,9 +126,10 @@ const FiltersModal: FC<FiltersModalProps> = ({
             radius="md"
         >
             <Stack align="flex-start" spacing="sm">
-                {filters.map((filter) => (
+                {filters.map((filter, index) => (
                     <Filter
                         key={filter.uuid}
+                        isFirstRootFilter={index === 0}
                         filter={filter}
                         fieldOptions={availableFieldOptions}
                         allFields={fields ?? []}

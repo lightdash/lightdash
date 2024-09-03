@@ -46,6 +46,7 @@ type FilterProps = Pick<StackProps, 'style'> & {
         moveSelfInParent: (moveTo: AndOr, filterUuid: string) => void;
         bgShade: number;
     };
+    isFirstRootFilter?: boolean;
 };
 
 const Filter: FC<FilterProps> = ({
@@ -56,6 +57,7 @@ const Filter: FC<FilterProps> = ({
     onUpdate,
     style,
     nestedFilterProps,
+    isFirstRootFilter,
 }) => {
     const { showToastError } = useToaster();
     const theme = useMantineTheme();
@@ -290,11 +292,11 @@ const Filter: FC<FilterProps> = ({
     );
 
     const groupLeftComponent = useCallback(() => {
-        // Root filter with and without nested filters
+        // Root filter
         if (!nestedFilterProps) {
             return (
                 <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
-                    {hasNestedFilters ? 'Where' : 'And'}
+                    {isFirstRootFilter ? 'Where' : 'And'}
                 </Text>
             );
         }
@@ -309,7 +311,12 @@ const Filter: FC<FilterProps> = ({
         }
 
         return null;
-    }, [nestedFilterProps, hasNestedFilters, theme.colors.gray]);
+    }, [
+        nestedFilterProps,
+        hasNestedFilters,
+        theme.colors.gray,
+        isFirstRootFilter,
+    ]);
 
     const filterLeftComponent = useCallback(() => {
         if (hasNestedFilters) {
