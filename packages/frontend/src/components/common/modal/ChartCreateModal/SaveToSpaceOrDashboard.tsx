@@ -372,7 +372,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
             <Box p="md">
                 <Stack spacing="xs">
                     <TextInput
-                        label="Chart Name"
+                        label="Chart name"
                         placeholder="eg. How many weekly active users do we have?"
                         required
                         {...form.getInputProps('name')}

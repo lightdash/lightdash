@@ -163,7 +163,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
                 <Stack p="md">
                     <Stack spacing="xs">
                         <TextInput
-                            label="Chart Name"
+                            label="Chart name"
                             placeholder="eg. How many weekly active users do we have?"
                             required
                             {...form.getInputProps('name')}
