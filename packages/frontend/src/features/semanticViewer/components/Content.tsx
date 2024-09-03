@@ -87,7 +87,8 @@ const Content: FC = () => {
                             dispatch(setActiveEditorTab(value));
                         }}
                     />
-                    <Filters />
+
+                    {!!view && <Filters />}
                 </Group>
 
                 <RunSemanticQueryButton />
