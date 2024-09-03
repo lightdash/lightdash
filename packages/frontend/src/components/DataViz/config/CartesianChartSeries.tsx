@@ -47,7 +47,7 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
                                 noWrap
                                 position="apart"
                             >
-                                <Group>
+                                <Group spacing="two" noWrap>
                                     <ColorSelector
                                         color={color ?? colors[index]}
                                         onColorChange={(c) => {
@@ -74,7 +74,7 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
                                         }}
                                     />
                                 </Group>
-                                <Group spacing="xs">
+                                <Group spacing="two" noWrap>
                                     <Tooltip
                                         label="Format"
                                         variant="xs"
