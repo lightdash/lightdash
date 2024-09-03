@@ -1,3 +1,10 @@
+## [0.1238.2](https://github.com/lightdash/lightdash/compare/0.1238.1...0.1238.2) (2024-09-03)
+
+
+### Bug Fixes
+
+* display sql runner error ([#11357](https://github.com/lightdash/lightdash/issues/11357)) ([3534f3a](https://github.com/lightdash/lightdash/commit/3534f3aeaf9afab1fdcef479645a1ebc0bb56959))
+
 ## [0.1238.1](https://github.com/lightdash/lightdash/compare/0.1238.0...0.1238.1) (2024-09-03)
 
 
