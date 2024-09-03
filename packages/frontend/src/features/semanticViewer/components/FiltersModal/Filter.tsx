@@ -15,15 +15,25 @@ import {
     type SelectItem,
     type StackProps,
 } from '@mantine/core';
-import { IconDots, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
+import {
+    IconDots,
+    IconPlus,
+    IconRefresh,
+    IconTrash,
+    IconX,
+} from '@tabler/icons-react';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import FilterMultiStringInput from '../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
-import AndOrSelect, { AndOr } from './AndOrSelect';
 import getOperatorString from './getOperatorString';
+
+enum AndOr {
+    AND = 'and',
+    OR = 'or',
+}
 
 type FilterProps = Pick<StackProps, 'style'> & {
     filter: SemanticLayerFilter;
@@ -311,18 +321,23 @@ const Filter: FC<FilterProps> = ({
         }
 
         if (nestedFilterProps) {
+            console.log('nestedFilterProps', nestedFilterProps);
             return (
-                <AndOrSelect
+                <Button
                     size="xs"
-                    value={nestedFilterProps.currentGroup}
-                    onChange={(moveTo) => {
-                        nestedFilterProps.moveSelfInParent?.(
-                            moveTo,
+                    variant="white"
+                    leftIcon={<MantineIcon icon={IconRefresh} />}
+                    onClick={() => {
+                        nestedFilterProps.moveSelfInParent(
+                            nestedFilterProps.currentGroup === AndOr.AND
+                                ? AndOr.OR
+                                : AndOr.AND,
                             filter.uuid,
                         );
                     }}
-                    w={70}
-                />
+                >
+                    {capitalize(nestedFilterProps.currentGroup)}
+                </Button>
             );
         }
 
@@ -346,12 +361,12 @@ const Filter: FC<FilterProps> = ({
                 }}
                 p={hasNestedFilters ? 'sm' : undefined}
             >
-                <Group spacing="xs" w="100%" style={{ zIndex: 3 }} noWrap>
+                <Group spacing="xs" w="100%" align="center" noWrap>
                     {filterLeftComponent()}
                     <Select
                         size="xs"
                         withinPortal
-                        style={{ flex: 2 }}
+                        style={{ flex: 5 }}
                         data={fieldOptions}
                         value={filter.field}
                         onChange={(value) => {
@@ -381,7 +396,7 @@ const Filter: FC<FilterProps> = ({
                     <FilterMultiStringInput
                         size="xs"
                         withinPortal
-                        style={{ flex: 2 }}
+                        style={{ flex: 5 }}
                         values={filter.values}
                         onChange={(values) => {
                             onUpdate({ ...filter, values });
