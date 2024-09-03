@@ -48,7 +48,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
-import { intersection } from 'lodash';
+import { intersection, isEqual } from 'lodash';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
@@ -347,7 +347,10 @@ const SchedulerForm: FC<Props> = ({
     });
 
     const [allTabsSelected, setAllTabsSelected] = useState(
-        dashboard?.tabs.map((tab) => tab.uuid) === form.values.selectedTabs, // make sure tab ids are identical
+        isEqual(
+            dashboard?.tabs.map((tab) => tab.uuid),
+            form.values.selectedTabs,
+        ), // make sure tab ids are identical
     );
 
     const health = useHealth();
