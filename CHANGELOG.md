@@ -1,3 +1,10 @@
+## [0.1240.1](https://github.com/lightdash/lightdash/compare/0.1240.0...0.1240.1) (2024-09-03)
+
+
+### Bug Fixes
+
+* allow setting labels and colours to series ([#11359](https://github.com/lightdash/lightdash/issues/11359)) ([57134c6](https://github.com/lightdash/lightdash/commit/57134c61a36551c0ddbd9b1c34a6ccc4fae34036))
+
 # [0.1240.0](https://github.com/lightdash/lightdash/compare/0.1239.1...0.1240.0) (2024-09-03)
 
 
