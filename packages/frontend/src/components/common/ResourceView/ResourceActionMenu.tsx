@@ -243,7 +243,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 item,
                             });
                         }}
-                        sx={{ display: isSqlChart ? 'none' : 'block' }}
+                        sx={isSqlChart ? { display: 'none' } : {}}
                     >
                         Rename
                     </Menu.Item>
@@ -260,7 +260,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     item,
                                 });
                             }}
-                            sx={{ display: isSqlChart ? 'none' : 'block' }}
+                            sx={isSqlChart ? { display: 'none' } : {}}
                         >
                             Duplicate
                         </Menu.Item>
@@ -278,7 +278,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         item,
                                     });
                                 }}
-                                sx={{ display: isSqlChart ? 'none' : 'block' }}
+                                sx={isSqlChart ? { display: 'none' } : {}}
                             >
                                 Add to Dashboard
                             </Menu.Item>
@@ -351,7 +351,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     item,
                                 });
                             }}
-                            sx={{ display: isSqlChart ? 'none' : 'block' }}
+                            sx={isSqlChart ? { display: 'none' } : {}}
                         >
                             {isPinned
                                 ? 'Unpin from homepage'
@@ -362,7 +362,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     {item.type === ResourceViewItemType.CHART ||
                     item.type === ResourceViewItemType.DASHBOARD ? (
                         <>
-                            <Menu.Divider />
+                            <Menu.Divider
+                                display={isSqlChart ? 'none' : 'block'}
+                            />
 
                             <Menu
                                 withinPortal

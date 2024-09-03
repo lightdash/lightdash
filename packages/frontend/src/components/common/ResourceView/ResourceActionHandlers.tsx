@@ -119,7 +119,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         switch (action.item.type) {
             case ResourceViewItemType.CHART:
                 if (action.item.data.source === ChartSourceType.SQL) {
-                    return upsateSqlChart({
+                    return updateSqlChart({
                         savedSqlUuid: action.item.data.uuid,
                         unversionedData: {
                             name: action.item.data.name,
@@ -127,7 +127,6 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             spaceUuid: action.data.spaceUuid,
                         },
                     });
-                    return;
                 }
                 return moveChart({
                     uuid: action.item.data.uuid,
@@ -145,7 +144,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     'Resource type not supported',
                 );
         }
-    }, [action, moveChart, moveDashboard, upsateSqlChart]);
+    }, [action, moveChart, moveDashboard, updateSqlChart]);
 
     const handlePinToHomepage = useCallback(() => {
         if (action.type !== ResourceViewItemAction.PIN_TO_HOMEPAGE) return;
