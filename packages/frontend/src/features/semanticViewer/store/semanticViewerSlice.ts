@@ -137,6 +137,7 @@ export interface SemanticViewerState {
 
     results: RawResultRow[];
     columns: VizSqlColumn[];
+    fields: SemanticLayerField[];
 
     selectedDimensions: Record<string, SemanticLayerStateDimension>;
     selectedTimeDimensions: Record<string, SemanticLayerStateTimeDimension>;
@@ -166,7 +167,7 @@ const initialState: SemanticViewerState = {
 
     results: [],
     columns: [],
-
+    fields: [],
     selectedDimensions: {},
     selectedMetrics: {},
     selectedTimeDimensions: {},
@@ -268,6 +269,7 @@ export const semanticViewerSlice = createSlice({
             }));
 
             state.columns = sqlColumns;
+            state.fields = action.payload;
         },
         addFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
             state.filters.push(action.payload);

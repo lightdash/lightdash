@@ -1,5 +1,5 @@
 import type { SemanticLayerField } from '@lightdash/common';
-import { ActionIcon, Menu } from '@mantine/core';
+import { ActionIcon, Menu, type MenuProps } from '@mantine/core';
 import { IconDots, IconFilter } from '@tabler/icons-react';
 import { useCallback, type FC, type PropsWithChildren } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,7 +7,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch } from '../store/hooks';
 import { addFilterAndOpenModal } from '../store/semanticViewerSlice';
 
-type SidebarViewFieldMenuProps = {
+type SidebarViewFieldMenuProps = MenuProps & {
     field: SemanticLayerField;
     isMenuOpen: boolean;
     menuOpen: () => void;
@@ -16,7 +16,7 @@ type SidebarViewFieldMenuProps = {
 
 const SidebarViewFieldMenu: FC<
     PropsWithChildren<SidebarViewFieldMenuProps>
-> = ({ field, isMenuOpen, menuOpen, menuClose, children }) => {
+> = ({ field, isMenuOpen, menuOpen, menuClose, children, ...menuProps }) => {
     const dispatch = useAppDispatch();
 
     const handleAddFilter = useCallback(() => {
@@ -42,9 +42,11 @@ const SidebarViewFieldMenu: FC<
             onOpen={menuOpen}
             onClose={menuClose}
             opened={isMenuOpen}
+            {...menuProps}
         >
             <Menu.Target>
                 <ActionIcon
+                    component="div"
                     variant="transparent"
                     onClick={(e) => {
                         e.stopPropagation();

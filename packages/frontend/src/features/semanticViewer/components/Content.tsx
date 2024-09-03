@@ -8,6 +8,7 @@ import { selectAllSelectedFieldNames } from '../store/selectors';
 import { EditorTabs, setActiveEditorTab } from '../store/semanticViewerSlice';
 import ContentCharts from './ContentCharts';
 import ContentResults from './ContentResults';
+import Filters from './Filters';
 import { RunSemanticQueryButton } from './RunSemanticQueryButton';
 
 const Content: FC = () => {
@@ -29,39 +30,44 @@ const Content: FC = () => {
                 })}
                 position="apart"
             >
-                <SegmentedControl
-                    color="dark"
-                    size="sm"
-                    radius="sm"
-                    data={[
-                        {
-                            value: EditorTabs.RESULTS,
-                            label: (
-                                <Group spacing="xs" noWrap>
-                                    <MantineIcon icon={IconTable} />
-                                    <Text>Results</Text>
-                                </Group>
-                            ),
-                        },
-                        {
-                            value: EditorTabs.VISUALIZATION,
-                            label: (
-                                <Group spacing="xs" noWrap>
-                                    <MantineIcon icon={IconChartHistogram} />
-                                    <Text>Chart</Text>
-                                </Group>
-                            ),
-                        },
-                    ]}
-                    disabled={
-                        allSelectedFieldNames.length === 0 ||
-                        results.length === 0
-                    }
-                    value={activeEditorTab}
-                    onChange={(value: EditorTabs) => {
-                        dispatch(setActiveEditorTab(value));
-                    }}
-                />
+                <Group>
+                    <SegmentedControl
+                        color="dark"
+                        size="sm"
+                        radius="sm"
+                        data={[
+                            {
+                                value: EditorTabs.RESULTS,
+                                label: (
+                                    <Group spacing="xs" noWrap>
+                                        <MantineIcon icon={IconTable} />
+                                        <Text>Results</Text>
+                                    </Group>
+                                ),
+                            },
+                            {
+                                value: EditorTabs.VISUALIZATION,
+                                label: (
+                                    <Group spacing="xs" noWrap>
+                                        <MantineIcon
+                                            icon={IconChartHistogram}
+                                        />
+                                        <Text>Chart</Text>
+                                    </Group>
+                                ),
+                            },
+                        ]}
+                        disabled={
+                            allSelectedFieldNames.length === 0 ||
+                            results.length === 0
+                        }
+                        value={activeEditorTab}
+                        onChange={(value: EditorTabs) => {
+                            dispatch(setActiveEditorTab(value));
+                        }}
+                    />
+                    <Filters />
+                </Group>
 
                 <RunSemanticQueryButton />
             </Group>

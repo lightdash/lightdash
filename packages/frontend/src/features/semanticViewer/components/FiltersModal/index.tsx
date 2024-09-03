@@ -13,19 +13,12 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { IconPlus, IconX } from '@tabler/icons-react';
-import { uniqBy } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
-import { useSemanticLayerViewFields } from '../../api/hooks';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import {
-    selectAllSelectedFieldNames,
-    selectAllSelectedFieldsByKind,
-    selectFilterFields,
-    selectSemanticLayerInfo,
-} from '../../store/selectors';
+import { selectAllSelectedFieldNames } from '../../store/selectors';
 import {
     addFilter,
     removeFilter,
@@ -43,55 +36,12 @@ const FiltersModal: FC<FiltersModalProps> = ({
     ...props
 }) => {
     const [isAddingFilter, setIsAddingFilter] = useState(false);
-    const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
-    const { view, filters } = useAppSelector((state) => state.semanticViewer);
-    const allSelectedFieldsBykind = useAppSelector(
-        selectAllSelectedFieldsByKind,
-    );
+    const { filters, fields } = useAppSelector((state) => state.semanticViewer);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const filterFields = useAppSelector(selectFilterFields);
 
     const dispatch = useAppDispatch();
 
     const { showToastError } = useToaster();
-
-    if (!view) {
-        throw new Error('View not set');
-    }
-
-    const usedFields = useMemo(() => {
-        return {
-            dimensions: uniqBy(
-                [
-                    ...filterFields.dimensions,
-                    ...allSelectedFieldsBykind.dimensions,
-                ],
-                'name',
-            ),
-            metrics: uniqBy(
-                [...filterFields.metrics, ...allSelectedFieldsBykind.metrics],
-                'name',
-            ),
-            timeDimensions: uniqBy(
-                [
-                    ...filterFields.timeDimensions,
-                    ...allSelectedFieldsBykind.timeDimensions,
-                ],
-                'name',
-            ),
-        };
-    }, [filterFields, allSelectedFieldsBykind]);
-
-    const { data: fields } = useSemanticLayerViewFields(
-        {
-            projectUuid,
-            view,
-            selectedFields: usedFields,
-        },
-        {
-            keepPreviousData: true,
-        },
-    );
 
     const availableFieldOptions = useMemo(() => {
         return (
