@@ -1,3 +1,10 @@
+## [0.1239.1](https://github.com/lightdash/lightdash/compare/0.1239.0...0.1239.1) (2024-09-03)
+
+
+### Bug Fixes
+
+* allow clicking whole schema name to toggle ([#11360](https://github.com/lightdash/lightdash/issues/11360)) ([e3400ab](https://github.com/lightdash/lightdash/commit/e3400ab4088ce96e729e956986ab53a5cbc47483))
+
 # [0.1239.0](https://github.com/lightdash/lightdash/compare/0.1238.3...0.1239.0) (2024-09-03)
 
 
