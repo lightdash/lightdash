@@ -25,6 +25,7 @@ import {
     updateFilter,
 } from '../../store/semanticViewerSlice';
 import Filter from './Filter';
+import FilterButton from './FilterButton';
 import FilterFieldSelectItem from './FilterFieldSelectItem';
 
 type FiltersModalProps = ModalProps & {
@@ -95,14 +96,12 @@ const FiltersModal: FC<FiltersModalProps> = ({
                     />
                 ))}
                 {!isAddingFilter ? (
-                    <Button
-                        variant="subtle"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconPlus} />}
+                    <FilterButton
+                        icon={IconPlus}
                         onClick={() => setIsAddingFilter(true)}
                     >
                         Add filter
-                    </Button>
+                    </FilterButton>
                 ) : (
                     <Group spacing="xs">
                         <Select

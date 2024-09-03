@@ -5,9 +5,10 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Button,
+    Box,
     Group,
     Menu,
+    rem,
     Select,
     Stack,
     Text,
@@ -28,6 +29,7 @@ import { v4 as uuidv4 } from 'uuid';
 import FilterMultiStringInput from '../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import FilterButton from './FilterButton';
 import FilterFieldSelectItem from './FilterFieldSelectItem';
 import getOperatorString from './getOperatorString';
 
@@ -45,9 +47,95 @@ type FilterProps = Pick<StackProps, 'style'> & {
     nestedFilterProps?: {
         currentGroup: AndOr;
         moveSelfInParent: (moveTo: AndOr, filterUuid: string) => void;
-        bgShade: number;
+        nestingLevel: number;
     };
     isFirstRootFilter?: boolean;
+};
+
+const LEFT_COMPONENT_WIDTH = rem(44);
+
+type GroupLeftProps = {
+    nestedFilterProps: { currentGroup: AndOr } | undefined;
+    hasNestedFilters: boolean;
+    isFirstRootFilter: boolean | undefined;
+};
+
+const GroupLeft: FC<GroupLeftProps> = ({
+    nestedFilterProps,
+    hasNestedFilters,
+    isFirstRootFilter,
+}) => {
+    const theme = useMantineTheme();
+
+    // Root filter
+    if (!nestedFilterProps) {
+        return (
+            <Box w={LEFT_COMPONENT_WIDTH} style={{ flexShrink: 0 }}>
+                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
+                    {isFirstRootFilter ? 'Where' : 'And'}
+                </Text>
+            </Box>
+        );
+    }
+
+    // Nested filter with nested filters
+    if (nestedFilterProps && hasNestedFilters) {
+        return (
+            <Box w={LEFT_COMPONENT_WIDTH} style={{ flexShrink: 0 }}>
+                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
+                    {capitalize(nestedFilterProps.currentGroup)}
+                </Text>
+            </Box>
+        );
+    }
+
+    return null;
+};
+
+type FilterLeftProps = {
+    filter: SemanticLayerFilter;
+    nestedFilterProps: FilterProps['nestedFilterProps'];
+    hasNestedFilters: boolean;
+};
+
+const FilterLeft: FC<FilterLeftProps> = ({
+    filter,
+    nestedFilterProps,
+    hasNestedFilters,
+}) => {
+    const theme = useMantineTheme();
+
+    if (hasNestedFilters) {
+        return (
+            <Box w={LEFT_COMPONENT_WIDTH} style={{ flexShrink: 0 }}>
+                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
+                    Where
+                </Text>
+            </Box>
+        );
+    }
+
+    if (nestedFilterProps) {
+        return (
+            <Box w={LEFT_COMPONENT_WIDTH} style={{ flexShrink: 0 }}>
+                <FilterButton
+                    icon={IconRefresh}
+                    onClick={() => {
+                        nestedFilterProps.moveSelfInParent(
+                            nestedFilterProps.currentGroup === AndOr.AND
+                                ? AndOr.OR
+                                : AndOr.AND,
+                            filter.uuid,
+                        );
+                    }}
+                >
+                    {capitalize(nestedFilterProps.currentGroup)}
+                </FilterButton>
+            </Box>
+        );
+    }
+
+    return null;
 };
 
 const Filter: FC<FilterProps> = ({
@@ -287,89 +375,46 @@ const Filter: FC<FilterProps> = ({
         return nestedAndFilters.length > 0 || nestedOrFilters.length > 0;
     }, [nestedAndFilters, nestedOrFilters]);
 
+    const currentNestingLevel = useMemo(() => {
+        return nestedFilterProps?.nestingLevel ?? 0;
+    }, [nestedFilterProps]);
+
     const currBgShade = useMemo(
-        () => Math.min(nestedFilterProps?.bgShade ?? 0, 2),
-        [nestedFilterProps],
+        () => Math.min(currentNestingLevel, 1),
+        [currentNestingLevel],
     );
-
-    const groupLeftComponent = useCallback(() => {
-        // Root filter
-        if (!nestedFilterProps) {
-            return (
-                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
-                    {isFirstRootFilter ? 'Where' : 'And'}
-                </Text>
-            );
-        }
-
-        // Nested filter with nested filters
-        if (nestedFilterProps && hasNestedFilters) {
-            return (
-                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
-                    {capitalize(nestedFilterProps.currentGroup)}
-                </Text>
-            );
-        }
-
-        return null;
-    }, [
-        nestedFilterProps,
-        hasNestedFilters,
-        theme.colors.gray,
-        isFirstRootFilter,
-    ]);
-
-    const filterLeftComponent = useCallback(() => {
-        if (hasNestedFilters) {
-            return (
-                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
-                    Where
-                </Text>
-            );
-        }
-
-        if (nestedFilterProps) {
-            return (
-                <Button
-                    size="xs"
-                    variant="white"
-                    leftIcon={<MantineIcon icon={IconRefresh} />}
-                    onClick={() => {
-                        nestedFilterProps.moveSelfInParent(
-                            nestedFilterProps.currentGroup === AndOr.AND
-                                ? AndOr.OR
-                                : AndOr.AND,
-                            filter.uuid,
-                        );
-                    }}
-                >
-                    {capitalize(nestedFilterProps.currentGroup)}
-                </Button>
-            );
-        }
-
-        return null;
-    }, [nestedFilterProps, hasNestedFilters, theme.colors.gray, filter.uuid]);
 
     return (
         <Group w="100%" spacing="xs" align="center" noWrap>
-            {groupLeftComponent()}
+            <GroupLeft
+                nestedFilterProps={nestedFilterProps}
+                hasNestedFilters={hasNestedFilters}
+                isFirstRootFilter={isFirstRootFilter}
+            />
+
             <Stack
                 w="100%"
-                spacing="sm"
+                spacing="xs"
                 align="flex-start"
                 style={{
                     ...style,
                     borderRadius: theme.radius.md,
                     ...(hasNestedFilters && {
-                        border: `1px solid ${theme.colors.gray[4]}`,
+                        border: `1px solid ${
+                            theme.colors.gray[currBgShade + 2]
+                        }`,
                         backgroundColor: theme.colors.gray[currBgShade],
                     }),
                 }}
                 p={hasNestedFilters ? 'sm' : undefined}
             >
                 <Group spacing="xs" w="100%" align="center" noWrap>
-                    {filterLeftComponent()}
+                    <FilterLeft
+                        filter={filter}
+                        nestedFilterProps={nestedFilterProps}
+                        hasNestedFilters={hasNestedFilters}
+                    />
+
                     <Select
                         size="xs"
                         withinPortal
@@ -385,12 +430,16 @@ const Filter: FC<FilterProps> = ({
                             onUpdate({ ...filter, field: value });
                         }}
                     />
+
                     <Select
                         size="xs"
+                        w={75}
                         withinPortal
-                        style={{ flex: 1 }}
                         data={operatorsOpts ?? []}
                         value={currentOperator}
+                        portalProps={{
+                            color: 'red',
+                        }}
                         onChange={(
                             value: SemanticLayerFilter['operator'] | null,
                         ) => {
@@ -401,6 +450,7 @@ const Filter: FC<FilterProps> = ({
                             onUpdate({ ...filter, operator: value });
                         }}
                     />
+
                     <FilterMultiStringInput
                         size="xs"
                         withinPortal
@@ -410,12 +460,14 @@ const Filter: FC<FilterProps> = ({
                             onUpdate({ ...filter, values });
                         }}
                     />
-                    <Menu withinPortal={true}>
+
+                    <Menu withinPortal withArrow shadow="md">
                         <Menu.Target>
                             <ActionIcon size="xs">
                                 <IconDots />
                             </ActionIcon>
                         </Menu.Target>
+
                         <Menu.Dropdown>
                             {!hasNestedFilters && (
                                 <>
@@ -454,7 +506,7 @@ const Filter: FC<FilterProps> = ({
                                 nestedFilterProps={{
                                     currentGroup: AndOr.AND,
                                     moveSelfInParent: handleNestedFilterMove,
-                                    bgShade: currBgShade + 2,
+                                    nestingLevel: currentNestingLevel + 1,
                                 }}
                                 onUpdate={handleUpdateNestedFilter}
                                 onDelete={() =>
@@ -472,7 +524,7 @@ const Filter: FC<FilterProps> = ({
                                 nestedFilterProps={{
                                     currentGroup: AndOr.OR,
                                     moveSelfInParent: handleNestedFilterMove,
-                                    bgShade: currBgShade + 2,
+                                    nestingLevel: currentNestingLevel + 1,
                                 }}
                                 onUpdate={handleUpdateNestedFilter}
                                 onDelete={() =>
@@ -509,18 +561,17 @@ const Filter: FC<FilterProps> = ({
                         </ActionIcon>
                     </Group>
                 )}
+
                 {hasNestedFilters ? (
-                    <Button
-                        size="xs"
-                        variant="subtle"
+                    <FilterButton
+                        icon={IconPlus}
                         onClick={() => {
                             setIsAddingNestedFilter(true);
                         }}
                         disabled={isAddingNestedFilter}
-                        leftIcon={<MantineIcon icon={IconPlus} />}
                     >
-                        Add filter
-                    </Button>
+                        Add nested filter
+                    </FilterButton>
                 ) : null}
             </Stack>
         </Group>
