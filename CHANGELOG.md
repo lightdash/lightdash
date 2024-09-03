@@ -1,3 +1,10 @@
+## [0.1238.3](https://github.com/lightdash/lightdash/compare/0.1238.2...0.1238.3) (2024-09-03)
+
+
+### Bug Fixes
+
+* self-hosted script to override password ([#11317](https://github.com/lightdash/lightdash/issues/11317)) ([0b3d033](https://github.com/lightdash/lightdash/commit/0b3d033cd79cb8b7266334e6d70bc2d5db48e030))
+
 ## [0.1238.2](https://github.com/lightdash/lightdash/compare/0.1238.1...0.1238.2) (2024-09-03)
 
 
