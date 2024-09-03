@@ -2,6 +2,7 @@ import {
     Box,
     Card,
     Flex,
+    getDefaultZIndex,
     Stack,
     Transition,
     type CardProps,
@@ -38,6 +39,8 @@ type Props = {
     position?: SidebarPosition;
     widthProps?: SidebarWidthProps;
     mainWidth?: number;
+    onResizeStart?: () => void;
+    onResizeEnd?: () => void;
 };
 
 const Sidebar: FC<React.PropsWithChildren<Props>> = ({
@@ -48,6 +51,8 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     widthProps = {},
     mainWidth,
     children,
+    onResizeStart,
+    onResizeEnd,
 }) => {
     const {
         defaultWidth = SIDEBAR_DEFAULT_WIDTH,
@@ -61,6 +66,8 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
             maxWidth,
             position,
             mainWidth,
+            onResizeStart,
+            onResizeEnd,
         });
 
     const transition: MantineTransition = {
@@ -122,7 +129,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                                 {...cardProps}
                                 sx={(theme) => ({
                                     cursor: 'col-resize',
-
+                                    zIndex: getDefaultZIndex('app') + 1,
                                     ...(isResizing
                                         ? {
                                               background:
