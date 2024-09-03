@@ -123,6 +123,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
             onClose={onClose}
             overlayProps={{ opacity: 0.1 }}
             p="sm"
+            radius="md"
         >
             <Stack align="flex-start" spacing="sm">
                 {filters.map((filter) => (
