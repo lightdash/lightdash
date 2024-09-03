@@ -3,6 +3,7 @@ import {
     getFilterFieldNamesRecursively,
     SemanticLayerFieldType,
     type SemanticLayerField,
+    type VizTableColumnsConfig,
 } from '@lightdash/common';
 import { createSelector } from 'reselect';
 import { type RootState } from '.';
@@ -26,7 +27,7 @@ const selectSelectedMetrics = (state: RootState) =>
     state.semanticViewer.selectedMetrics;
 export const selectFilters = (state: RootState) => state.semanticViewer.filters;
 
-export const selectAllSelectedFieldsByKind = createSelector(
+const selectAllSelectedFieldsByKind = createSelector(
     [
         selectSelectedDimensions,
         selectSelectedTimeDimensions,
@@ -100,5 +101,42 @@ export const selectAllSelectedFieldNames = createSelector(
             ...timeDimensions.map((td) => td.name),
             ...metrics.map((m) => m.name),
         ];
+    },
+);
+
+const selectLimit = (state: RootState) => state.semanticViewer.limit;
+const selectSortBy = (state: RootState) => state.semanticViewer.sortBy;
+
+export const selectSemanticLayerQuery = createSelector(
+    [selectAllSelectedFieldsByKind, selectSortBy, selectLimit],
+    (allSelectedFieldsByKind, sortBy, limit) => {
+        return {
+            ...allSelectedFieldsByKind,
+            sortBy,
+            limit,
+        };
+    },
+);
+
+export const selectResultsTableVizConfig = createSelector(
+    [selectAllSelectedFieldNames, (s: RootState) => s.semanticViewer.columns],
+    (allSelectedFieldNames, columns): VizTableColumnsConfig => {
+        const selectedColumns = columns.filter((c) =>
+            allSelectedFieldNames.includes(c.reference),
+        );
+
+        return {
+            columns: Object.fromEntries(
+                selectedColumns.map((c) => [
+                    c.reference,
+                    {
+                        visible: true,
+                        reference: c.reference,
+                        label: c.reference,
+                        frozen: false,
+                    },
+                ]),
+            ),
+        };
     },
 );

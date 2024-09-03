@@ -17,9 +17,9 @@ import { useSemanticLayerViewFields } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
-    selectAllSelectedFieldsByKind,
     selectFilterFields,
     selectSemanticLayerInfo,
+    selectSemanticLayerQuery,
 } from '../store/selectors';
 import { setFields } from '../store/semanticViewerSlice';
 import SidebarViewFieldsGroup from './SidebarViewFieldsGroup';
@@ -43,10 +43,8 @@ const SidebarViewFields = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const { view } = useAppSelector((state) => state.semanticViewer);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const allSelectedFieldsBykind = useAppSelector(
-        selectAllSelectedFieldsByKind,
-    );
     const filterFields = useAppSelector(selectFilterFields);
+    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const dispatch = useAppDispatch();
 
@@ -59,25 +57,22 @@ const SidebarViewFields = () => {
     const usedFields = useMemo(() => {
         return {
             dimensions: uniqBy(
-                [
-                    ...filterFields.dimensions,
-                    ...allSelectedFieldsBykind.dimensions,
-                ],
+                [...filterFields.dimensions, ...semanticQuery.dimensions],
                 'name',
             ),
             metrics: uniqBy(
-                [...filterFields.metrics, ...allSelectedFieldsBykind.metrics],
+                [...filterFields.metrics, ...semanticQuery.metrics],
                 'name',
             ),
             timeDimensions: uniqBy(
                 [
                     ...filterFields.timeDimensions,
-                    ...allSelectedFieldsBykind.timeDimensions,
+                    ...semanticQuery.timeDimensions,
                 ],
                 'name',
             ),
         };
-    }, [filterFields, allSelectedFieldsBykind]);
+    }, [filterFields, semanticQuery]);
 
     const fields = useSemanticLayerViewFields(
         {
@@ -90,17 +85,17 @@ const SidebarViewFields = () => {
         },
     );
 
+    useEffect(() => {
+        if (!fields.data) return;
+
+        dispatch(setFields(fields.data));
+    }, [dispatch, fields.data]);
+
     const searchedFields = useMemo(() => {
         if (!fields.data) return;
 
         return getSearchResults(fields.data, searchQuery);
     }, [fields.data, searchQuery]);
-
-    useEffect(() => {
-        if (fields.data) {
-            dispatch(setFields(fields.data));
-        }
-    }, [dispatch, fields.data]);
 
     if (fields.isError) {
         throw fields.error;
@@ -154,6 +149,7 @@ const SidebarViewFields = () => {
                         }
                         placeholder="Search fields"
                         value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                     />
 
                     <SidebarViewFieldsGroup

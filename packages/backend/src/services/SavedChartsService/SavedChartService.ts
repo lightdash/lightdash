@@ -489,6 +489,9 @@ export class SavedChartService extends BaseService {
             projectUuid,
             spaceUuid,
             pinnedListUuid: pinnedList.pinnedListUuid,
+            isPinned: !!pinnedList.items.find(
+                (item) => item.savedChartUuid === savedChartUuid,
+            ),
         };
     }
 

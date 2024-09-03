@@ -33,10 +33,13 @@ const SemanticViewerPageWithStore = () => {
 
     useEffect(() => {
         if (!info) return;
+        if (semanticViewerState === SemanticViewerStateStatus.INITIALIZED) {
+            return;
+        }
 
         dispatch(setSemanticLayerInfo({ projectUuid, ...info }));
         dispatch(setSemanticLayerStatus(SemanticViewerStateStatus.INITIALIZED));
-    }, [projectUuid, dispatch, info]);
+    }, [projectUuid, dispatch, info, semanticViewerState]);
 
     useUnmount(() => {
         dispatch(resetState());
@@ -50,6 +53,7 @@ const SemanticViewerPageWithStore = () => {
         <Page
             title="Semantic Viewer"
             withFullHeight
+            withSidebarBorder
             noContentPadding
             sidebar={<SemanticViewer.Sidebar />}
         >

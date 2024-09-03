@@ -100,6 +100,10 @@ export const isApiSqlRunnerJobSuccessResponse = (
 ): response is ApiSqlRunnerJobSuccessResponse['results'] =>
     response.status === SchedulerJobStatus.COMPLETED;
 
+export const isApiSqlRunnerJobErrorResponse = (
+    response: ApiSqlRunnerJobStatusResponse['results'] | ApiError,
+): response is ApiError => response.status === SchedulerJobStatus.ERROR;
+
 // TODO: common type with semantic viewer and should be abstracted
 export type ApiSqlRunnerJobPivotQuerySuccessResponse = {
     results: {

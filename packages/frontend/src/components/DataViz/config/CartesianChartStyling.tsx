@@ -1,8 +1,15 @@
-import { VizIndexType, type ChartKind } from '@lightdash/common';
+import {
+    ECHARTS_DEFAULT_COLORS,
+    friendlyName,
+    VizIndexType,
+    type ChartKind,
+} from '@lightdash/common';
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
+import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import {
     useVizDispatch,
@@ -11,7 +18,10 @@ import {
 } from '../store';
 import { selectCurrentCartesianChartState } from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
-import { CartesianChartSeries } from './CartesianChartSeries';
+import {
+    CartesianChartSeries,
+    type ConfigurableSeries,
+} from './CartesianChartSeries';
 
 export const CartesianChartStyling = ({
     selectedChartType,
@@ -20,29 +30,46 @@ export const CartesianChartStyling = ({
     selectedChartType: ChartKind;
     actions: CartesianChartActionsType;
 }) => {
+    const { data: org } = useOrganization();
+    const colors = org?.chartColors ?? ECHARTS_DEFAULT_COLORS;
     const dispatch = useVizDispatch();
 
     const currentConfig = useVizSelector((state) =>
         selectCurrentCartesianChartState(state, selectedChartType),
     );
 
-    const series = useVizSelector((state) => {
+    const series: ConfigurableSeries[] = useMemo(() => {
         if (
-            !state.barChartConfig.config?.fieldConfig?.y ||
-            state.barChartConfig.config.fieldConfig.y.length <= 1
+            !currentConfig?.config?.fieldConfig?.y ||
+            currentConfig?.config?.fieldConfig?.y.length <= 1
         ) {
             return [];
         }
-        return state.barChartConfig.config.fieldConfig.y.map((f) => {
-            const format =
-                state.barChartConfig.config?.display?.series?.[f.reference]
-                    ?.format;
+        return currentConfig?.config?.fieldConfig?.y.map((f, index) => {
+            const seriesFormat = Object.values(
+                currentConfig?.config?.display?.series || {},
+            ).find((s) => s.yAxisIndex === index)?.format;
+            const seriesLabel =
+                Object.values(
+                    currentConfig?.config?.display?.series || {},
+                ).find((s) => s.yAxisIndex === index)?.label ??
+                friendlyName(`${f.reference}_${f.aggregation}`);
+
+            const seriesColor = Object.values(
+                currentConfig?.config?.display?.series || {},
+            ).find((s) => s.yAxisIndex === index)?.color;
             return {
                 reference: f.reference,
-                format,
+                format: seriesFormat,
+                label: seriesLabel,
+                color: seriesColor ?? colors[index],
             };
         });
-    });
+    }, [
+        colors,
+        currentConfig?.config?.display?.series,
+        currentConfig?.config?.fieldConfig?.y,
+    ]);
 
     const xAxisLabel = useMemo(() => {
         return (
@@ -56,6 +83,16 @@ export const CartesianChartStyling = ({
             currentConfig?.config?.fieldConfig?.y?.[0]?.reference
         );
     }, [currentConfig]);
+    const yAxisLabelColor = useMemo(
+        () =>
+            currentConfig?.config?.fieldConfig?.y?.[0]?.reference &&
+            currentConfig?.config?.display?.series?.[
+                currentConfig.config.fieldConfig?.y[0].reference
+            ]?.color,
+
+        [currentConfig],
+    );
+
     const yAxisPosition = currentConfig?.config?.display?.yAxis?.[0]?.position;
 
     return (
@@ -110,18 +147,42 @@ export const CartesianChartStyling = ({
                     <Config.Heading>{`Y-axis`}</Config.Heading>
                     <Config.Group>
                         <Config.Label>{`Label`}</Config.Label>
-                        <TextInput
-                            value={yAxisLabel}
-                            radius="md"
-                            onChange={(e) =>
-                                dispatch(
-                                    actions.setYAxisLabel({
-                                        index: 0,
-                                        label: e.target.value,
-                                    }),
-                                )
-                            }
-                        />
+                        <Group>
+                            {series.length === 0 && (
+                                <ColorSelector
+                                    color={yAxisLabelColor ?? colors[0]}
+                                    onColorChange={(color) => {
+                                        if (
+                                            !currentConfig?.config?.fieldConfig
+                                                ?.y[0].reference
+                                        )
+                                            return;
+                                        dispatch(
+                                            actions.setSeriesColor({
+                                                color,
+                                                reference:
+                                                    currentConfig?.config
+                                                        ?.fieldConfig?.y[0]
+                                                        .reference,
+                                            }),
+                                        );
+                                    }}
+                                    swatches={colors}
+                                />
+                            )}
+                            <TextInput
+                                value={yAxisLabel}
+                                radius="md"
+                                onChange={(e) =>
+                                    dispatch(
+                                        actions.setYAxisLabel({
+                                            index: 0,
+                                            label: e.target.value,
+                                        }),
+                                    )
+                                }
+                            />
+                        </Group>
                     </Config.Group>
                     {series.length < 1 && (
                         <Config.Group>
@@ -181,10 +242,13 @@ export const CartesianChartStyling = ({
                     </Config.Group>
                 </Config.Section>
             </Config>
-            <CartesianChartSeries
-                selectedChartType={selectedChartType}
-                actions={actions}
-            />
+            {series.length > 0 && (
+                <CartesianChartSeries
+                    selectedChartType={selectedChartType}
+                    actions={actions}
+                    series={series}
+                />
+            )}
         </Stack>
     );
 };

@@ -100,12 +100,28 @@ export const useUpdateSqlChartMutation = (
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
-    return useMutation<{ savedSqlUuid: string }, ApiError, UpdateSqlChart>(
-        (data) => updateSavedSqlChart(projectUuid, savedSqlUuid!, data),
+    return useMutation<
+        { savedSqlUuid: string },
+        ApiError,
+        UpdateSqlChart & { savedSqlUuid?: string }
+    >(
+        (data) =>
+            updateSavedSqlChart(
+                projectUuid,
+                data.savedSqlUuid || savedSqlUuid!,
+                data,
+            ),
         {
             mutationKey: ['sqlRunner', 'updateSqlChart', savedSqlUuid],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['sqlRunner']);
+                await queryClient.invalidateQueries(['spaces']);
+                await queryClient.invalidateQueries(['space']);
+                await queryClient.invalidateQueries(['pinned_items']);
+                await queryClient.invalidateQueries([
+                    'most-popular-and-recently-updated',
+                ]);
+                await queryClient.invalidateQueries(['content']);
                 showToastSuccess({
                     title: `Success! SQL chart updated`,
                 });
@@ -140,6 +156,14 @@ export const useDeleteSqlChartMutation = (
             mutationKey: ['sqlRunner', 'deleteSqlChart', savedSqlUuid],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['sqlRunner']);
+                await queryClient.invalidateQueries(['spaces']);
+                await queryClient.invalidateQueries(['space']);
+                await queryClient.invalidateQueries(['pinned_items']);
+                await queryClient.invalidateQueries([
+                    'most-popular-and-recently-updated',
+                ]);
+                await queryClient.invalidateQueries(['content']);
+
                 showToastSuccess({
                     title: `Success! SQL chart deleted`,
                 });

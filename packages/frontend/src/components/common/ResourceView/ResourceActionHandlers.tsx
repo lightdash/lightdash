@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ChartSourceType,
     ResourceViewItemType,
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
@@ -13,6 +14,8 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
 import { useParams } from 'react-router-dom';
+import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
+import { useUpdateSqlChartMutation } from '../../../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useMoveDashboardMutation } from '../../../hooks/dashboard/useDashboard';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
@@ -82,6 +85,11 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { mutate: moveChart } = useMoveChartMutation();
+    const { mutate: updateSqlChart } = useUpdateSqlChartMutation(
+        projectUuid,
+        '',
+    );
+
     const { mutate: moveDashboard } = useMoveDashboardMutation();
     const { mutate: pinChart } = useChartPinningMutation();
     const { mutate: pinDashboard } = useDashboardPinningMutation();
@@ -110,6 +118,16 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
 
         switch (action.item.type) {
             case ResourceViewItemType.CHART:
+                if (action.item.data.source === ChartSourceType.SQL) {
+                    return updateSqlChart({
+                        savedSqlUuid: action.item.data.uuid,
+                        unversionedData: {
+                            name: action.item.data.name,
+                            description: action.item.data.description || null,
+                            spaceUuid: action.data.spaceUuid,
+                        },
+                    });
+                }
                 return moveChart({
                     uuid: action.item.data.uuid,
                     ...action.data,
@@ -126,7 +144,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     'Resource type not supported',
                 );
         }
-    }, [action, moveChart, moveDashboard]);
+    }, [action, moveChart, moveDashboard, updateSqlChart]);
 
     const handlePinToHomepage = useCallback(() => {
         if (action.type !== ResourceViewItemAction.PIN_TO_HOMEPAGE) return;
@@ -203,6 +221,18 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         case ResourceViewItemAction.DELETE:
             switch (action.item.type) {
                 case ResourceViewItemType.CHART:
+                    if (action.item.data.source === ChartSourceType.SQL) {
+                        return (
+                            <DeleteSqlChartModal
+                                opened
+                                savedSqlUuid={action.item.data.uuid}
+                                onClose={handleReset}
+                                onSuccess={handleReset}
+                                projectUuid={projectUuid}
+                                name={action.item.data.name}
+                            />
+                        );
+                    }
                     return (
                         <ChartDeleteModal
                             opened

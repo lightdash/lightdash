@@ -918,7 +918,10 @@ export class UserService extends BaseService {
                 user.userUuid,
                 data.password,
             );
-            await this.userModel.updatePassword(user.userId, data.newPassword);
+            await this.userModel.updatePassword(
+                user.userUuid,
+                data.newPassword,
+            );
         } else {
             await this.userModel.createPassword(user.userId, data.newPassword);
         }

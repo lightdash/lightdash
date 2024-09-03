@@ -1,41 +1,21 @@
 import { Box, LoadingOverlay } from '@mantine/core';
 import { Prism } from '@mantine/prism';
-import { useMemo, type FC } from 'react';
+import { type FC } from 'react';
 import { useSemanticLayerSql } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
 import {
-    selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
+    selectSemanticLayerQuery,
 } from '../store/selectors';
 
 const SqlViewer: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
-
-    const { sortBy, limit, filters } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
-
-    const filtersArr = useMemo(() => {
-        return Object.values(filters);
-    }, [filters]);
-
-    const allSelectedFieldsByKind = useAppSelector(
-        selectAllSelectedFieldsByKind,
-    );
+    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
+    const { results } = useAppSelector((state) => state.semanticViewer);
 
     const sql = useSemanticLayerSql(
-        {
-            projectUuid,
-            query: {
-                ...allSelectedFieldsByKind,
-                sortBy,
-                limit,
-                filters: filtersArr,
-            },
-        },
-        {
-            keepPreviousData: true,
-        },
+        { projectUuid, query: semanticQuery },
+        { keepPreviousData: true, enabled: results.length !== 0 },
     );
 
     if (sql.isError) {
@@ -43,7 +23,7 @@ const SqlViewer: FC = () => {
     }
 
     return (
-        <Box pos="relative" h="100%">
+        <Box pos="relative" h="100%" w="100%" sx={{ overflow: 'auto' }}>
             <LoadingOverlay
                 visible={sql.isFetching}
                 opacity={1}

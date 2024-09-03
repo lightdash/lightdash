@@ -202,6 +202,7 @@ export const useSavedQueryDeleteMutation = () => {
                 await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
                 ]);
+                await queryClient.invalidateQueries(['content']);
 
                 showToastSuccess({
                     title: `Success! Chart was deleted.`,
@@ -294,6 +295,7 @@ export const useUpdateMutation = (
                 await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
                 ]);
+                await queryClient.invalidateQueries(['content']);
 
                 await queryClient.invalidateQueries(['spaces']);
                 queryClient.setQueryData(['saved_query', data.uuid], data);
@@ -346,6 +348,7 @@ export const useMoveChartMutation = (
             await queryClient.invalidateQueries([
                 'most-popular-and-recently-updated',
             ]);
+            await queryClient.invalidateQueries(['content']);
 
             queryClient.setQueryData(['saved_query', data.uuid], data);
             showToastSuccess({
@@ -429,6 +432,7 @@ export const useDuplicateChartMutation = (
                 await queryClient.invalidateQueries([
                     'most-popular-and-recently-updated',
                 ]);
+                await queryClient.invalidateQueries(['content']);
 
                 if (
                     !options?.showRedirectButton &&

@@ -1,137 +1,91 @@
-import { Box, Flex, Group, Paper, SegmentedControl, Text } from '@mantine/core';
-import { useElementSize } from '@mantine/hooks';
-import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
+import { Center, Group, SegmentedControl, Text } from '@mantine/core';
+import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectAllSelectedFieldNames, selectFilters } from '../store/selectors';
+import { selectAllSelectedFieldNames } from '../store/selectors';
 import { EditorTabs, setActiveEditorTab } from '../store/semanticViewerSlice';
-import Filters from './Filters';
-import ResultsViewer from './ResultsViewer';
+import ContentCharts from './ContentCharts';
+import ContentResults from './ContentResults';
 import { RunSemanticQueryButton } from './RunSemanticQueryButton';
-import SqlViewer from './SqlViewer';
 
 const Content: FC = () => {
-    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const selectedFilters = useAppSelector(selectFilters);
-
-    const { ref: inputSectionRef, width: inputSectionWidth } = useElementSize();
-    const { activeEditorTab, results } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
     const dispatch = useAppDispatch();
 
-    if (allSelectedFieldNames.length === 0 && selectedFilters.length === 0)
-        return null;
+    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
+    const { results, view, activeEditorTab } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
 
     return (
-        <Flex direction="column" w="100%" maw="100%" h="100%" mah="100%">
-            <Paper
-                shadow="none"
-                radius={0}
+        <>
+            <Group
                 px="md"
-                py={6}
+                py="sm"
                 bg="gray.1"
                 sx={(theme) => ({
-                    borderWidth: '0 0 0 1px',
-                    borderStyle: 'solid',
-                    borderColor: theme.colors.gray[3],
+                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
                 })}
+                position="apart"
             >
-                <Group position="apart">
-                    <Group position="apart" pos="relative">
-                        <SegmentedControl
-                            color="dark"
-                            size="sm"
-                            radius="sm"
-                            data={[
-                                {
-                                    value: 'chart',
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <MantineIcon
-                                                icon={IconChartHistogram}
-                                            />
-                                            <Text>Chart</Text>
-                                        </Group>
-                                    ),
-                                    disabled: results.length === 0,
-                                },
-                                {
-                                    value: 'sql',
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <MantineIcon
-                                                icon={IconCodeCircle}
-                                            />
-                                            <Text>Query</Text>
-                                        </Group>
-                                    ),
-                                    disabled:
-                                        allSelectedFieldNames.length === 0,
-                                },
-                            ]}
-                            defaultValue={EditorTabs.VISUALIZATION}
-                            onChange={(value) => {
-                                if (value === 'sql') {
-                                    dispatch(
-                                        setActiveEditorTab(EditorTabs.SQL),
-                                    );
-                                } else {
-                                    dispatch(
-                                        setActiveEditorTab(
-                                            EditorTabs.VISUALIZATION,
-                                        ),
-                                    );
-                                }
-                            }}
-                        />
-                        <Filters />
-                    </Group>
+                <SegmentedControl
+                    color="dark"
+                    size="sm"
+                    radius="sm"
+                    data={[
+                        {
+                            value: EditorTabs.RESULTS,
+                            label: (
+                                <Group spacing="xs" noWrap>
+                                    <MantineIcon icon={IconTable} />
+                                    <Text>Results</Text>
+                                </Group>
+                            ),
+                        },
+                        {
+                            value: EditorTabs.VISUALIZATION,
+                            label: (
+                                <Group spacing="xs" noWrap>
+                                    <MantineIcon icon={IconChartHistogram} />
+                                    <Text>Chart</Text>
+                                </Group>
+                            ),
+                        },
+                    ]}
+                    disabled={
+                        allSelectedFieldNames.length === 0 ||
+                        results.length === 0
+                    }
+                    value={activeEditorTab}
+                    onChange={(value: EditorTabs) => {
+                        dispatch(setActiveEditorTab(value));
+                    }}
+                />
 
-                    <Group spacing="md">
-                        <RunSemanticQueryButton />
-                    </Group>
-                </Group>
-            </Paper>
+                <RunSemanticQueryButton />
+            </Group>
 
-            <Paper
-                ref={inputSectionRef}
-                shadow="none"
-                radius={0}
-                style={{ flex: 1 }}
-                sx={(theme) => ({
-                    borderWidth: '0 0 0 1px',
-                    borderStyle: 'solid',
-                    borderColor: theme.colors.gray[3],
-                    overflow: 'auto',
-                })}
-            >
-                {allSelectedFieldNames.length ? (
-                    <Box
-                        style={{ flex: 1 }}
-                        sx={{
-                            width: inputSectionWidth,
-                        }}
-                    >
-                        <ConditionalVisibility
-                            isVisible={activeEditorTab === EditorTabs.SQL}
-                        >
-                            <SqlViewer />
-                        </ConditionalVisibility>
-
-                        <ConditionalVisibility
-                            isVisible={
-                                activeEditorTab === EditorTabs.VISUALIZATION
-                            }
-                        >
-                            <ResultsViewer />
-                        </ConditionalVisibility>
-                    </Box>
-                ) : null}
-            </Paper>
-        </Flex>
+            {!view ? (
+                <Center sx={{ flexGrow: 1 }}>
+                    <SuboptimalState
+                        title="Select a view"
+                        description="Please select a view from the sidebar to start building a query"
+                    />
+                </Center>
+            ) : results.length === 0 ? (
+                <Center sx={{ flexGrow: 1 }}>
+                    <SuboptimalState
+                        title="No results"
+                        description="Please run the query to see results"
+                    />
+                </Center>
+            ) : activeEditorTab === EditorTabs.RESULTS ? (
+                <ContentResults />
+            ) : activeEditorTab === EditorTabs.VISUALIZATION ? (
+                <ContentCharts />
+            ) : null}
+        </>
     );
 };
 
