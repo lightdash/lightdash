@@ -1,3 +1,10 @@
+# [0.1240.0](https://github.com/lightdash/lightdash/compare/0.1239.1...0.1240.0) (2024-09-03)
+
+
+### Features
+
+* allow move to space and delete for sql charts ([#11362](https://github.com/lightdash/lightdash/issues/11362)) ([c28f413](https://github.com/lightdash/lightdash/commit/c28f413cbe9c7a0f93664044361103f9493900b6))
+
 ## [0.1239.1](https://github.com/lightdash/lightdash/compare/0.1239.0...0.1239.1) (2024-09-03)
 
 
