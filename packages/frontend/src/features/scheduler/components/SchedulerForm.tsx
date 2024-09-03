@@ -48,6 +48,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
+import { intersection } from 'lodash';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
@@ -252,7 +253,17 @@ const SchedulerForm: FC<Props> = ({
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
-                ? getFormValuesFromScheduler(savedSchedulerData)
+                ? getFormValuesFromScheduler({
+                      ...savedSchedulerData,
+                      ...(isDashboardScheduler(savedSchedulerData) && {
+                          selectedTabs: isDashboardTabsAvailable
+                              ? intersection(
+                                    savedSchedulerData.selectedTabs,
+                                    dashboard?.tabs.map((tab) => tab.uuid),
+                                )
+                              : undefined, // remove tabs that have been deleted
+                      }),
+                  })
                 : isThresholdAlert
                 ? DEFAULT_VALUES_ALERT
                 : {
@@ -336,7 +347,7 @@ const SchedulerForm: FC<Props> = ({
     });
 
     const [allTabsSelected, setAllTabsSelected] = useState(
-        dashboard?.tabs?.length === form.values.selectedTabs?.length,
+        dashboard?.tabs.map((tab) => tab.uuid) === form.values.selectedTabs, // make sure tab ids are identical
     );
 
     const health = useHealth();
