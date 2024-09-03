@@ -25,6 +25,7 @@ import {
     updateFilter,
 } from '../../store/semanticViewerSlice';
 import Filter from './Filter';
+import FilterFieldSelectItem from './FilterFieldSelectItem';
 
 type FiltersModalProps = ModalProps & {
     onApply?: () => void;
@@ -55,6 +56,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                 .map((f) => ({
                     value: f.name,
                     field: f,
+                    label: f.label,
                     group: allSelectedFieldNames.includes(f.name)
                         ? 'Results'
                         : 'Other fields',
@@ -103,6 +105,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         <Select
                             size="xs"
                             data={availableFieldOptions}
+                            itemComponent={FilterFieldSelectItem}
                             placeholder="Select field"
                             searchable
                             withinPortal={true}
