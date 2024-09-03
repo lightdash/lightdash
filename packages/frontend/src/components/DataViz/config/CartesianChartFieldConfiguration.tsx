@@ -154,12 +154,15 @@ const GroupByFieldAxisConfig = ({
     sqlColumns,
 }: {
     sqlColumns: VizSqlColumn[];
-
     field: undefined | { reference: string };
     groupByOptions?: VizPivotLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useVizDispatch();
+    const error =
+        field !== undefined &&
+        !groupByOptions.find((x) => x.reference === field.reference) &&
+        `Column "${field.reference}" does not exist. Choose another`;
     return (
         <FieldReferenceSelect
             clearable
@@ -169,11 +172,13 @@ const GroupByFieldAxisConfig = ({
             }))}
             value={field?.reference ?? null}
             placeholder="Select group by"
-            error={
-                field !== undefined &&
-                !groupByOptions.find((x) => x.reference === field.reference) &&
-                `Column "${field.reference}" does not exist. Choose another`
-            }
+            onClick={() => {
+                // If the user had a grouped by field, but then deleted it, and there are no more group by options, unset the group by reference, since the clear button doesn't get rendered
+                if (groupByOptions.length === 0 && !!error) {
+                    dispatch(actions.unsetGroupByReference());
+                }
+            }}
+            error={error}
             onChange={(value) => {
                 if (!value) {
                     dispatch(actions.unsetGroupByReference());
