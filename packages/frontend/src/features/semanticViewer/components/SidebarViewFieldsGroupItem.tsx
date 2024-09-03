@@ -40,7 +40,7 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
     field,
     searchQuery,
 }) => {
-    const { ref, hovered } = useHover<HTMLButtonElement>();
+    const { ref, hovered } = useHover<HTMLAnchorElement>();
     const [isMenuOpen, { open: menuOpen, close: menuClose }] =
         useDisclosure(false);
 
@@ -69,6 +69,7 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
                     {field.label}
                 </Highlight>
             }
+            component="a"
             disabled={!field.visible}
             active={!!selectedField}
             h={28}
