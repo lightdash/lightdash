@@ -119,6 +119,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                 chartName={tile.properties.chartName ?? ''}
                 tile={tile}
                 title={tile.properties.title || tile.properties.chartName || ''}
+                titleHref={`/projects/${projectUuid}/sql-runner/${error.slug}`}
                 {...rest}
                 extraMenuItems={
                     canManageSqlRunner &&
