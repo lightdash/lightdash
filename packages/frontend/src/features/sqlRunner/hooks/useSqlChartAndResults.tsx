@@ -1,4 +1,5 @@
 import {
+    isApiSqlRunnerJobErrorResponse,
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
     type ApiError,
@@ -25,8 +26,15 @@ const getSqlChartAndResults = async ({
         method: 'GET',
         body: undefined,
     });
+    const slug = chartAndScheduledJob.chart.slug;
     const job = await getSqlRunnerCompleteJob(chartAndScheduledJob.jobId);
 
+    if (isApiSqlRunnerJobErrorResponse(job)) {
+        throw {
+            ...job,
+            slug,
+        };
+    }
     const url =
         isApiSqlRunnerJobSuccessResponse(job) &&
         job?.details &&
@@ -65,7 +73,7 @@ export const useSqlChartAndResults = ({
 }) => {
     return useQuery<
         { resultsAndColumns: ResultsAndColumns; chart: SqlChart },
-        ApiError
+        ApiError & { slug?: string }
     >(
         ['sqlChartResults', projectUuid, savedSqlUuid],
         () => {
