@@ -27,7 +27,7 @@ const Filters: FC = () => {
         <Box>
             {filtersCount > 0 ? (
                 <BadgeButton variant="outline" onClick={openFiltersModal}>
-                    Filters {`(${filtersCount})`}
+                    Filters ({filtersCount})
                 </BadgeButton>
             ) : (
                 <Button
