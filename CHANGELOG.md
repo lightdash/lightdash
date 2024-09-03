@@ -1,3 +1,10 @@
+# [0.1239.0](https://github.com/lightdash/lightdash/compare/0.1238.3...0.1239.0) (2024-09-03)
+
+
+### Features
+
+* semantic viewer layout ([#11356](https://github.com/lightdash/lightdash/issues/11356)) ([bf16d81](https://github.com/lightdash/lightdash/commit/bf16d814ba1351f3187198cf2d1b3e7606233d28))
+
 ## [0.1238.3](https://github.com/lightdash/lightdash/compare/0.1238.2...0.1238.3) (2024-09-03)
 
 
