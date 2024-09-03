@@ -28,6 +28,7 @@ import { v4 as uuidv4 } from 'uuid';
 import FilterMultiStringInput from '../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import FilterFieldSelectItem from './FilterFieldSelectItem';
 import getOperatorString from './getOperatorString';
 
 enum AndOr {
@@ -374,6 +375,7 @@ const Filter: FC<FilterProps> = ({
                         withinPortal
                         style={{ flex: 5 }}
                         data={fieldOptions}
+                        itemComponent={FilterFieldSelectItem}
                         value={filter.field}
                         onChange={(value) => {
                             if (!value) {

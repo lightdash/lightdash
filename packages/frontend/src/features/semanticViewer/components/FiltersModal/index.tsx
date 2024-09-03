@@ -104,7 +104,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                 )
                 .map((f) => ({
                     value: f.name,
-                    label: f.label ?? f.name,
+                    field: f,
                     group: allSelectedFieldNames.includes(f.name)
                         ? 'Results'
                         : 'Other fields',
