@@ -41,7 +41,7 @@ const Filters: FC = () => {
             )}
 
             <FiltersModal
-                size="80%"
+                size="40%"
                 opened={isFiltersModalOpen}
                 onClose={closeFiltersModal}
                 withCloseButton={false}

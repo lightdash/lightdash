@@ -15,6 +15,7 @@ import {
     type StackProps,
 } from '@mantine/core';
 import { IconDots, IconPlus, IconTrash, IconX } from '@tabler/icons-react';
+import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import FilterMultiStringInput from '../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
@@ -29,7 +30,7 @@ type FilterProps = Pick<StackProps, 'style'> & {
     allFields: SemanticLayerField[];
     onDelete: () => void;
     onUpdate: (filter: SemanticLayerFilter) => void;
-    nestedProps?: {
+    nestedFilterProps?: {
         currentGroup: AndOr;
         moveSelfInParent: (moveTo: AndOr, filterUuid: string) => void;
         bgShade: number;
@@ -43,7 +44,7 @@ const Filter: FC<FilterProps> = ({
     onDelete,
     onUpdate,
     style,
-    nestedProps,
+    nestedFilterProps,
 }) => {
     const { showToastError } = useToaster();
     const theme = useMantineTheme();
@@ -272,171 +273,214 @@ const Filter: FC<FilterProps> = ({
         return nestedAndFilters.length > 0 || nestedOrFilters.length > 0;
     }, [nestedAndFilters, nestedOrFilters]);
 
-    console.log(nestedProps?.bgShade);
+    const currBgShade = useMemo(
+        () => Math.min(nestedFilterProps?.bgShade ?? 0, 2),
+        [nestedFilterProps],
+    );
 
-    const currBgShade = Math.min(nestedProps?.bgShade ?? 0, 4);
+    const groupLeftComponent = useCallback(() => {
+        // Root filter with and without nested filters
+        if (!nestedFilterProps) {
+            return (
+                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
+                    {hasNestedFilters ? 'Where' : 'And'}
+                </Text>
+            );
+        }
+
+        // Nested filter with nested filters
+        if (nestedFilterProps && hasNestedFilters) {
+            return (
+                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
+                    {capitalize(nestedFilterProps.currentGroup)}
+                </Text>
+            );
+        }
+
+        return null;
+    }, [nestedFilterProps, hasNestedFilters, theme.colors.gray]);
+
+    const filterLeftComponent = useCallback(() => {
+        if (hasNestedFilters) {
+            return (
+                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
+                    Where
+                </Text>
+            );
+        }
+
+        if (nestedFilterProps) {
+            return (
+                <AndOrSelect
+                    size="xs"
+                    value={nestedFilterProps.currentGroup}
+                    onChange={(moveTo) => {
+                        nestedFilterProps.moveSelfInParent?.(
+                            moveTo,
+                            filter.uuid,
+                        );
+                    }}
+                    w={70}
+                />
+            );
+        }
+
+        return null;
+    }, [nestedFilterProps, hasNestedFilters, theme.colors.gray, filter.uuid]);
 
     return (
-        <Stack
-            w="100%"
-            spacing="sm"
-            style={{
-                ...style,
-                borderRadius: theme.radius.md,
-                border: `2px solid ${theme.colors.gray[5]}`,
-                backgroundColor: theme.colors.gray[currBgShade],
-            }}
-            p="sm"
-        >
-            <Group spacing="xs" w="100%" style={{ zIndex: 3 }} noWrap>
-                {nestedProps ? (
-                    <AndOrSelect
-                        size="xs"
-                        value={nestedProps.currentGroup}
-                        onChange={(moveTo) => {
-                            nestedProps.moveSelfInParent?.(moveTo, filter.uuid);
-                        }}
-                        w={70}
-                    />
-                ) : (
-                    <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
-                        Where
-                    </Text>
-                )}
-                <Select
-                    size="xs"
-                    withinPortal
-                    style={{ flex: 2 }}
-                    data={fieldOptions}
-                    value={filter.field}
-                    onChange={(value) => {
-                        if (!value) {
-                            return;
-                        }
-
-                        onUpdate({ ...filter, field: value });
-                    }}
-                />
-                <Select
-                    size="xs"
-                    withinPortal
-                    style={{ flex: 1 }}
-                    data={operatorsOpts ?? []}
-                    value={currentOperator}
-                    onChange={(
-                        value: SemanticLayerFilter['operator'] | null,
-                    ) => {
-                        if (!value) {
-                            return;
-                        }
-
-                        onUpdate({ ...filter, operator: value });
-                    }}
-                />
-                <FilterMultiStringInput
-                    size="xs"
-                    withinPortal
-                    style={{ flex: 2 }}
-                    values={filter.values}
-                    onChange={(values) => {
-                        onUpdate({ ...filter, values });
-                    }}
-                />
-                <ActionIcon
-                    size="xs"
-                    onClick={() => {
-                        setIsAddingNestedFilter(true);
-                    }}
-                    disabled={isAddingNestedFilter}
-                >
-                    <IconPlus />
-                </ActionIcon>
-                <Menu withinPortal={true}>
-                    <Menu.Target>
-                        <ActionIcon size="xs">
-                            <IconDots />
-                        </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <Menu.Divider />
-                        <Menu.Item
-                            color="red"
-                            icon={<IconTrash size={14} />}
-                            onClick={onDelete}
-                        >
-                            Delete filter
-                        </Menu.Item>
-                    </Menu.Dropdown>
-                </Menu>
-            </Group>
-
-            {hasNestedFilters && (
-                <Stack spacing="xs" pl="5xl">
-                    {nestedAndFilters.map((nestedFilter) => (
-                        <Filter
-                            key={nestedFilter.uuid}
-                            filter={nestedFilter}
-                            fieldOptions={fieldOptions}
-                            allFields={allFields}
-                            nestedProps={{
-                                currentGroup: AndOr.AND,
-                                moveSelfInParent: handleNestedFilterMove,
-                                bgShade: currBgShade + 2,
-                            }}
-                            onUpdate={handleUpdateNestedFilter}
-                            onDelete={() =>
-                                handleDeleteNestedFilter(nestedFilter.uuid)
-                            }
-                        />
-                    ))}
-
-                    {nestedOrFilters.map((nestedFilter) => (
-                        <Filter
-                            key={nestedFilter.uuid}
-                            filter={nestedFilter}
-                            fieldOptions={fieldOptions}
-                            allFields={allFields}
-                            nestedProps={{
-                                currentGroup: AndOr.OR,
-                                moveSelfInParent: handleNestedFilterMove,
-                                bgShade: currBgShade + 2,
-                            }}
-                            onUpdate={handleUpdateNestedFilter}
-                            onDelete={() =>
-                                handleDeleteNestedFilter(nestedFilter.uuid)
-                            }
-                        />
-                    ))}
-                </Stack>
-            )}
-
-            {isAddingNestedFilter && (
-                <Group spacing="xs" style={{ zIndex: 3 }}>
+        <Group w="100%" spacing="xs" align="center" noWrap>
+            {groupLeftComponent()}
+            <Stack
+                w="100%"
+                spacing="sm"
+                style={{
+                    ...style,
+                    borderRadius: theme.radius.md,
+                    ...(hasNestedFilters && {
+                        border: `1px solid ${theme.colors.gray[4]}`,
+                        backgroundColor: theme.colors.gray[currBgShade],
+                    }),
+                }}
+                p={hasNestedFilters ? 'sm' : undefined}
+            >
+                <Group spacing="xs" w="100%" style={{ zIndex: 3 }} noWrap>
+                    {filterLeftComponent()}
                     <Select
                         size="xs"
+                        withinPortal
+                        style={{ flex: 2 }}
                         data={fieldOptions}
-                        placeholder="Select field"
-                        searchable
-                        withinPortal={true}
+                        value={filter.field}
                         onChange={(value) => {
-                            setIsAddingNestedFilter(false);
-
                             if (!value) {
                                 return;
                             }
 
-                            handleAddNestedFilter(value);
+                            onUpdate({ ...filter, field: value });
+                        }}
+                    />
+                    <Select
+                        size="xs"
+                        withinPortal
+                        style={{ flex: 1 }}
+                        data={operatorsOpts ?? []}
+                        value={currentOperator}
+                        onChange={(
+                            value: SemanticLayerFilter['operator'] | null,
+                        ) => {
+                            if (!value) {
+                                return;
+                            }
+
+                            onUpdate({ ...filter, operator: value });
+                        }}
+                    />
+                    <FilterMultiStringInput
+                        size="xs"
+                        withinPortal
+                        style={{ flex: 2 }}
+                        values={filter.values}
+                        onChange={(values) => {
+                            onUpdate({ ...filter, values });
                         }}
                     />
                     <ActionIcon
                         size="xs"
-                        onClick={() => setIsAddingNestedFilter(false)}
+                        onClick={() => {
+                            setIsAddingNestedFilter(true);
+                        }}
+                        disabled={isAddingNestedFilter}
                     >
-                        <MantineIcon icon={IconX} />
+                        <IconPlus />
                     </ActionIcon>
+                    <Menu withinPortal={true}>
+                        <Menu.Target>
+                            <ActionIcon size="xs">
+                                <IconDots />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Divider />
+                            <Menu.Item
+                                color="red"
+                                icon={<IconTrash size={14} />}
+                                onClick={onDelete}
+                            >
+                                Delete filter
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
                 </Group>
-            )}
-        </Stack>
+
+                {hasNestedFilters && (
+                    <Stack spacing="xs" pl="2xl" w="100%">
+                        {nestedAndFilters.map((nestedFilter) => (
+                            <Filter
+                                key={nestedFilter.uuid}
+                                filter={nestedFilter}
+                                fieldOptions={fieldOptions}
+                                allFields={allFields}
+                                nestedFilterProps={{
+                                    currentGroup: AndOr.AND,
+                                    moveSelfInParent: handleNestedFilterMove,
+                                    bgShade: currBgShade + 2,
+                                }}
+                                onUpdate={handleUpdateNestedFilter}
+                                onDelete={() =>
+                                    handleDeleteNestedFilter(nestedFilter.uuid)
+                                }
+                            />
+                        ))}
+
+                        {nestedOrFilters.map((nestedFilter) => (
+                            <Filter
+                                key={nestedFilter.uuid}
+                                filter={nestedFilter}
+                                fieldOptions={fieldOptions}
+                                allFields={allFields}
+                                nestedFilterProps={{
+                                    currentGroup: AndOr.OR,
+                                    moveSelfInParent: handleNestedFilterMove,
+                                    bgShade: currBgShade + 2,
+                                }}
+                                onUpdate={handleUpdateNestedFilter}
+                                onDelete={() =>
+                                    handleDeleteNestedFilter(nestedFilter.uuid)
+                                }
+                            />
+                        ))}
+                    </Stack>
+                )}
+
+                {isAddingNestedFilter && (
+                    <Group spacing="xs" style={{ zIndex: 3 }}>
+                        <Select
+                            size="xs"
+                            data={fieldOptions}
+                            placeholder="Select field"
+                            searchable
+                            withinPortal={true}
+                            onChange={(value) => {
+                                setIsAddingNestedFilter(false);
+
+                                if (!value) {
+                                    return;
+                                }
+
+                                handleAddNestedFilter(value);
+                            }}
+                        />
+                        <ActionIcon
+                            size="xs"
+                            onClick={() => setIsAddingNestedFilter(false)}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Group>
+                )}
+            </Stack>
+        </Group>
     );
 };
 
