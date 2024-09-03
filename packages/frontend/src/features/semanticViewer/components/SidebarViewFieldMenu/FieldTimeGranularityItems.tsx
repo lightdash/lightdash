@@ -5,7 +5,7 @@ import {
 import { Menu } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineIcon from '../../../../components/common/MantineIcon';
 
 const getTimeGranularityLabel = (granularity: SemanticLayerTimeGranularity) => {
     switch (granularity) {
@@ -39,7 +39,7 @@ const getTimeGranularityLabel = (granularity: SemanticLayerTimeGranularity) => {
     }
 };
 
-type TimeGranularityPickerMenuItemProps = {
+type Props = {
     availableGranularities: SemanticLayerTimeGranularity[];
     value: SemanticLayerTimeGranularity | null;
     onChange: (
@@ -47,11 +47,13 @@ type TimeGranularityPickerMenuItemProps = {
     ) => void;
 };
 
-const TimeGranularityPickerMenuItem: FC<TimeGranularityPickerMenuItemProps> = ({
+const FieldTimeGranularityItems: FC<Props> = ({
     availableGranularities,
     value,
     onChange,
 }) => {
+    if (availableGranularities.length === 0) return null;
+
     return (
         <>
             <Menu.Label>Time granularity</Menu.Label>
@@ -83,4 +85,4 @@ const TimeGranularityPickerMenuItem: FC<TimeGranularityPickerMenuItemProps> = ({
     );
 };
 
-export default TimeGranularityPickerMenuItem;
+export default FieldTimeGranularityItems;

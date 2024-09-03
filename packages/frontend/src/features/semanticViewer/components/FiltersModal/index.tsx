@@ -45,23 +45,26 @@ const FiltersModal: FC<FiltersModalProps> = ({
     const { showToastError } = useToaster();
 
     const availableFieldOptions = useMemo(() => {
-        return (
-            fields
-                ?.filter(
-                    (f) =>
-                        f.visible &&
-                        f.type === SemanticLayerFieldType.STRING &&
-                        f.kind === FieldKind.DIMENSION, // TODO: for now only string dimensions are supported
-                )
-                .map((f) => ({
-                    value: f.name,
-                    field: f,
-                    label: f.label,
-                    group: allSelectedFieldNames.includes(f.name)
-                        ? 'Results'
-                        : 'Other fields',
-                })) ?? []
-        );
+        if (!fields) return [];
+
+        return fields
+            .filter(
+                (f) =>
+                    f.visible &&
+                    f.type === SemanticLayerFieldType.STRING &&
+                    f.kind === FieldKind.DIMENSION, // TODO: for now only string dimensions are supported
+            )
+            .map((f) => ({
+                value: f.name,
+                field: f,
+                label: f.label,
+                group: allSelectedFieldNames.includes(f.name)
+                    ? 'Results'
+                    : 'Other fields',
+            }))
+            .sort((a, b) =>
+                a.group === 'Results' && b.group !== 'Results' ? 0 : 1,
+            );
     }, [allSelectedFieldNames, fields]);
 
     const handleApply = useCallback(() => {

@@ -4,9 +4,11 @@ import {
     type SemanticLayerField,
     type SemanticLayerTimeDimension,
 } from '@lightdash/common';
-import { Highlight, NavLink } from '@mantine/core';
+import { ActionIcon, Highlight, Menu, NavLink } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
+import { IconDots } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { getSelectedField } from '../store/selectors';
 import {
@@ -16,8 +18,7 @@ import {
     updateTimeDimensionGranularity,
 } from '../store/semanticViewerSlice';
 import FieldIcon from './FieldIcon';
-import SidebarViewFieldMenu from './SidebarViewFieldMenu';
-import TimeGranularityPickerMenuItem from './TimeGranularityPickerMenuItem';
+import * as SidebarViewFieldMenu from './SidebarViewFieldMenu';
 
 const getNavbarColorByFieldKind = (kind: SemanticLayerField['kind']) => {
     switch (kind) {
@@ -79,16 +80,36 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
             icon={<FieldIcon field={field} size="md" />}
             rightSection={
                 (selectedField || hovered || isMenuOpen) && (
-                    <SidebarViewFieldMenu
-                        field={field}
-                        isMenuOpen={isMenuOpen}
-                        menuOpen={menuOpen}
-                        menuClose={menuClose}
+                    <Menu
+                        withArrow
+                        withinPortal
+                        shadow="md"
+                        position="bottom-end"
                         arrowOffset={10}
-                        offset={-4}
+                        offset={2}
+                        opened={isMenuOpen}
+                        onOpen={menuOpen}
+                        onClose={menuClose}
                     >
-                        {field.availableGranularities.length > 0 ? (
-                            <TimeGranularityPickerMenuItem
+                        <Menu.Target>
+                            <ActionIcon
+                                component="div"
+                                variant="transparent"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                }}
+                            >
+                                <MantineIcon
+                                    icon={IconDots}
+                                    color="gray"
+                                    size="md"
+                                />
+                            </ActionIcon>
+                        </Menu.Target>
+
+                        <Menu.Dropdown>
+                            <SidebarViewFieldMenu.FieldTimeGranularityItems
                                 availableGranularities={
                                     field.availableGranularities
                                 }
@@ -113,8 +134,12 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
                                           })
                                 }
                             />
-                        ) : null}
-                    </SidebarViewFieldMenu>
+
+                            <SidebarViewFieldMenu.FieldFilterItems
+                                field={field}
+                            />
+                        </Menu.Dropdown>
+                    </Menu>
                 )
             }
             onClick={() =>
