@@ -85,7 +85,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const { mutate: moveChart } = useMoveChartMutation();
-    const { mutate: upsateSqlChart } = useUpdateSqlChartMutation(
+    const { mutate: updateSqlChart } = useUpdateSqlChartMutation(
         projectUuid,
         '',
     );
