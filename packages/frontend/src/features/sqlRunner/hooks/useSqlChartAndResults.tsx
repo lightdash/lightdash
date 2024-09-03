@@ -41,20 +41,27 @@ const getSqlChartAndResults = async ({
         !isErrorDetails(job.details)
             ? job.details.fileUrl
             : undefined;
-    const results = await getResultsFromStream<RawResultRow>(url);
+    try {
+        const results = await getResultsFromStream<RawResultRow>(url);
 
-    return {
-        chart: chartAndScheduledJob.chart,
-        resultsAndColumns: {
-            results,
-            columns:
-                isApiSqlRunnerJobSuccessResponse(job) &&
-                job?.details &&
-                !isErrorDetails(job.details)
-                    ? job.details.columns
-                    : [],
-        },
-    };
+        return {
+            chart: chartAndScheduledJob.chart,
+            resultsAndColumns: {
+                results,
+                columns:
+                    isApiSqlRunnerJobSuccessResponse(job) &&
+                    job?.details &&
+                    !isErrorDetails(job.details)
+                        ? job.details.columns
+                        : [],
+            },
+        };
+    } catch (streamError) {
+        throw {
+            ...streamError,
+            slug,
+        };
+    }
 };
 
 /**
