@@ -296,18 +296,33 @@ export const cartesianChartConfigSlice = createSlice({
         setSeriesColor: (
             { config },
             action: PayloadAction<{
-                index: number;
-                color: string;
                 reference: string;
+                color: string;
+                index?: number;
             }>,
         ) => {
             if (!config) return;
             config.display = config.display || {};
+            config.display.yAxis = config.display.yAxis || [];
             config.display.series = config.display.series || {};
-            config.display.series[action.payload.reference] = {
-                ...config.display.series[action.payload.reference],
-                color: action.payload.color,
-            };
+
+            if (config.fieldConfig?.y.length === 1) {
+                const yReference = config.fieldConfig?.y[0].reference;
+                if (yReference) {
+                    config.display.series[yReference] = {
+                        ...config.display.series[yReference],
+                        yAxisIndex: 0,
+                        color: action.payload.color,
+                    };
+                }
+            }
+            if (action.payload.index !== undefined) {
+                config.display.series[action.payload.reference] = {
+                    ...config.display.series[action.payload.reference],
+                    yAxisIndex: action.payload.index,
+                    color: action.payload.color,
+                };
+            }
         },
     },
 });
