@@ -22,6 +22,10 @@ export interface IResultsRunner<TPivotChartLayout> {
 
     getColumns(): string[];
 
+    getColumnsAccessorFn(
+        column: string,
+    ): (row: RawResultRow) => RawResultRow[string];
+
     getRows(): RawResultRow[];
 
     // TODO: other runner types

@@ -40,6 +40,23 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         this.projectUuid = projectUuid;
     }
 
+    getColumnsAccessorFn(column: string) {
+        return (row: RawResultRow) => {
+            const rowKeys = Object.keys(row);
+
+            // Result columns casing depends on warehouse, so we need to find the correct column name
+            const rowKey = rowKeys.find(
+                (key) => key.toLowerCase() === column.toLowerCase(),
+            );
+
+            if (!rowKey) {
+                return;
+            }
+
+            return row[rowKey];
+        };
+    }
+
     async getPivotChartData(config: VizChartLayout): Promise<PivotChartData> {
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
         const pivotedResults = await apiGetSemanticLayerQueryResults({
@@ -50,7 +67,6 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
             },
         });
 
-        // TODO: confirm if it is correct
         return {
             indexColumn: config.x,
             results: pivotedResults ?? [],
