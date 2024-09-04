@@ -3761,6 +3761,12 @@ export class ProjectService extends BaseService {
     async getMostPopular(
         allowedSpaces: Pick<SpaceSummary, 'uuid'>[],
     ): Promise<(SpaceQuery | DashboardBasicDetails)[]> {
+        const mostPopularCharts = await this.spaceModel.getSpaceQueries(
+            allowedSpaces.map(({ uuid }) => uuid),
+            {
+                mostPopular: true,
+            },
+        );
         const mostPopularSqlCharts = await this.spaceModel.getSpaceSqlCharts(
             allowedSpaces.map(({ uuid }) => uuid),
             {
@@ -3774,7 +3780,11 @@ export class ProjectService extends BaseService {
             },
         );
 
-        return [...mostPopularSqlCharts, ...mostPopularDashboards];
+        return [
+            ...mostPopularCharts,
+            ...mostPopularSqlCharts,
+            ...mostPopularDashboards,
+        ];
     }
 
     async getRecentlyUpdated(
