@@ -119,11 +119,6 @@ export class SavedSqlService extends BaseService {
             spaceUuid,
         );
 
-        const hasFeatureFlag = await isFeatureFlagEnabled(
-            FeatureFlags.SaveSqlChart,
-            user,
-        );
-
         const hasPermission = user.ability.can(
             action,
             subject('SavedChart', {
@@ -135,7 +130,7 @@ export class SavedSqlService extends BaseService {
         );
 
         return {
-            hasAccess: hasFeatureFlag && hasPermission,
+            hasAccess: hasPermission,
             userAccess: access[0],
         };
     }

@@ -33,7 +33,4 @@ export enum FeatureFlags {
 
     /* Send local timezone to the warehouse session */
     EnableUserTimezones = 'enable-user-timezones',
-
-    /* Allow users to save SQL charts */
-    SaveSqlChart = 'save-sql-chart',
 }
