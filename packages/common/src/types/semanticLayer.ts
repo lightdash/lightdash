@@ -240,5 +240,5 @@ export function convertToResultsColumns(
 ) {
     return columns
         .map((value) => convertColumnToResultsColumn(value, resultsColumns))
-        .filter(Boolean) as string[];
+        .filter((value): value is string => !!value);
 }
