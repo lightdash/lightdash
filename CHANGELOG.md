@@ -1,3 +1,10 @@
+# [0.1243.0](https://github.com/lightdash/lightdash/compare/0.1242.0...0.1243.0) (2024-09-04)
+
+
+### Features
+
+* allow editing chart title, description, move ([#11403](https://github.com/lightdash/lightdash/issues/11403)) ([b945998](https://github.com/lightdash/lightdash/commit/b94599807fb4bb29a491cc46779bcc94fba11a54))
+
 # [0.1242.0](https://github.com/lightdash/lightdash/compare/0.1241.2...0.1242.0) (2024-09-04)
 
 
