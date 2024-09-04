@@ -93,7 +93,10 @@ export const sqlRunnerSlice = createSlice({
             state,
             action: PayloadAction<ResultsAndColumns>,
         ) => {
-            if (!action.payload.results || !action.payload.columns) {
+            if (
+                action.payload.results.length === 0 ||
+                action.payload.columns.length === 0
+            ) {
                 return;
             }
 
