@@ -4,6 +4,7 @@ import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
@@ -51,6 +52,12 @@ const ContentCharts: FC = () => {
         setOpenPanel(undefined);
     };
 
+    const [chartVizQuery, chartSpec] = useChartViz({
+        resultsRunner,
+        config: vizConfig,
+        projectUuid,
+    });
+
     return (
         <>
             <PanelGroup direction="vertical">
@@ -62,7 +69,6 @@ const ContentCharts: FC = () => {
                 >
                     {vizConfig && isVizTableConfig(vizConfig) ? (
                         <Table
-                            key={vizConfig.type}
                             resultsRunner={resultsRunner}
                             config={vizConfig}
                             flexProps={{
@@ -73,10 +79,10 @@ const ContentCharts: FC = () => {
                         />
                     ) : vizConfig && !isVizTableConfig(vizConfig) ? (
                         <ChartView
-                            key={vizConfig.type}
-                            resultsRunner={resultsRunner}
                             config={vizConfig}
-                            isLoading={false}
+                            spec={chartSpec}
+                            isLoading={chartVizQuery.isLoading}
+                            error={chartVizQuery.error}
                             style={{
                                 flexGrow: 1,
                                 width: '100%',
