@@ -599,7 +599,7 @@ export type ChartSummary = Pick<
 > & {
     chartType?: ChartType | undefined;
     chartKind?: ChartKind | undefined;
-    source: ChartSourceType;
+    source?: ChartSourceType;
 };
 
 export type SpaceQuery = ChartSummary &
