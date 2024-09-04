@@ -169,7 +169,6 @@ const ViewSqlChart = () => {
                                                         resultsRunner
                                                     }
                                                     isLoading={isLoading}
-                                                    data={data}
                                                     config={currentVisConfig}
                                                     style={{
                                                         height: '100%',

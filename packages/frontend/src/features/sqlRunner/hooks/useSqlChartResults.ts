@@ -11,7 +11,7 @@ import { lightdashApi } from '../../../api';
 import { getResultsFromStream, getSqlRunnerCompleteJob } from './requestUtils';
 import { type ResultsAndColumns } from './useSqlQueryRun';
 
-const getSqlChartResults = async ({
+export const getSqlChartResults = async ({
     projectUuid,
     slug,
 }: {

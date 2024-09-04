@@ -3,7 +3,6 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiSqlChart,
-    ApiSqlChartWithResults,
     ApiSuccessEmpty,
     ApiUpdateSqlChart,
     ApiWarehouseCatalog,
@@ -248,31 +247,6 @@ export class SqlRunnerController extends BaseController {
             results: await this.services
                 .getSavedSqlService()
                 .getSqlChartResultJob(req.user!, projectUuid, slug),
-        };
-    }
-
-    /**
-     * Gets chart and schedules a job to get its results
-     * @param projectUuid - the uuid of the project
-     * @param uuid - the uuid of the saved chart
-     * @param req - express request
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('saved/{uuid}/chart-and-results')
-    @OperationId('getSavedSqlChartWithResults')
-    async getSavedSqlChartWithResults(
-        @Path() uuid: string,
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-    ): Promise<ApiSqlChartWithResults> {
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results: await this.services
-                .getSavedSqlService()
-                .getChartWithResultJob(req.user!, projectUuid, uuid),
         };
     }
 
