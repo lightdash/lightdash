@@ -163,7 +163,8 @@ const ViewSqlChart = () => {
                                         )}
                                         {!isVizTableConfig(currentVisConfig) &&
                                             data &&
-                                            params.slug && (
+                                            params.slug &&
+                                            sql && (
                                                 <ChartView
                                                     resultsRunner={
                                                         resultsRunner
