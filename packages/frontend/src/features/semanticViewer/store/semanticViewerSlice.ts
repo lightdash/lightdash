@@ -8,6 +8,7 @@ import {
     type RawResultRow,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
+    type SemanticLayerFilter,
     type SemanticLayerSortBy,
     type SemanticLayerTimeDimension,
     type VizSqlColumn,
@@ -137,6 +138,7 @@ export interface SemanticViewerState {
 
     results: RawResultRow[];
     columns: VizSqlColumn[];
+    fields: SemanticLayerField[];
 
     selectedDimensions: Record<string, SemanticLayerStateDimension>;
     selectedTimeDimensions: Record<string, SemanticLayerStateTimeDimension>;
@@ -145,6 +147,10 @@ export interface SemanticViewerState {
     limit: number | undefined;
 
     sortBy: SemanticLayerSortBy[];
+
+    filters: SemanticLayerFilter[];
+
+    isFiltersModalOpen: boolean;
 }
 
 const initialState: SemanticViewerState = {
@@ -162,7 +168,7 @@ const initialState: SemanticViewerState = {
 
     results: [],
     columns: [],
-
+    fields: [],
     selectedDimensions: {},
     selectedMetrics: {},
     selectedTimeDimensions: {},
@@ -170,6 +176,8 @@ const initialState: SemanticViewerState = {
     limit: undefined,
 
     sortBy: [],
+    filters: [],
+    isFiltersModalOpen: false,
 };
 
 export const semanticViewerSlice = createSlice({
@@ -286,6 +294,38 @@ export const semanticViewerSlice = createSlice({
             }));
 
             state.columns = sqlColumns;
+            state.fields = action.payload;
+        },
+        addFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
+            state.filters.push(action.payload);
+        },
+        removeFilter: (state, action: PayloadAction<string>) => {
+            const filterIndex = state.filters.findIndex(
+                (filter) => filter.uuid === action.payload,
+            );
+
+            if (filterIndex !== -1) {
+                state.filters.splice(filterIndex, 1);
+            }
+        },
+        updateFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
+            const filterIndex = state.filters.findIndex(
+                (filter) => filter.uuid === action.payload.uuid,
+            );
+
+            if (filterIndex !== -1) {
+                state.filters[filterIndex] = action.payload;
+            }
+        },
+        setIsFiltersModalOpen: (state, action: PayloadAction<boolean>) => {
+            state.isFiltersModalOpen = action.payload;
+        },
+        addFilterAndOpenModal: (
+            state,
+            action: PayloadAction<SemanticLayerFilter>,
+        ) => {
+            state.filters.push(action.payload);
+            state.isFiltersModalOpen = true;
         },
 
         updateSortBy: (
@@ -329,5 +369,10 @@ export const {
     deselectField,
     setLimit,
     updateTimeDimensionGranularity,
+    addFilter,
+    removeFilter,
+    updateFilter,
+    setIsFiltersModalOpen,
+    addFilterAndOpenModal,
     updateSortBy,
 } = semanticViewerSlice.actions;

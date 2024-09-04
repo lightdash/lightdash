@@ -39,6 +39,7 @@ export const RunSemanticQueryButton: FC = () => {
     const currentVizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, activeChartKind),
     );
+
     const dispatch = useAppDispatch();
 
     const {

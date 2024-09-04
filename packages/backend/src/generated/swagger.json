@@ -9062,8 +9062,18 @@
                 ],
                 "type": "string"
             },
+            "SemanticLayerStringFilterOperator": {
+                "enum": ["IS", "IS NOT"],
+                "type": "string"
+            },
             "SemanticLayerField": {
                 "properties": {
+                    "availableOperators": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                        },
+                        "type": "array"
+                    },
                     "availableGranularities": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerTimeGranularity"
@@ -9093,6 +9103,7 @@
                     }
                 },
                 "required": [
+                    "availableOperators",
                     "availableGranularities",
                     "visible",
                     "kind",
@@ -9207,8 +9218,81 @@
                 "required": ["values", "index", "on"],
                 "type": "object"
             },
+            "SemanticLayerFilterBase": {
+                "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/SemanticLayerFieldType"
+                    },
+                    "fieldKind": {
+                        "$ref": "#/components/schemas/FieldType"
+                    },
+                    "field": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldType", "fieldKind", "field", "uuid"],
+                "type": "object"
+            },
+            "SemanticLayerStringFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "operator": {
+                                "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                            }
+                        },
+                        "required": ["values", "operator"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerFilterTypes": {
+                "$ref": "#/components/schemas/SemanticLayerStringFilter"
+            },
+            "SemanticLayerFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterTypes"
+                    },
+                    {
+                        "properties": {
+                            "or": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SemanticLayerFilter"
+                                },
+                                "type": "array"
+                            },
+                            "and": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SemanticLayerFilter"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "SemanticLayerQuery": {
                 "properties": {
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerFilter"
+                        },
+                        "type": "array"
+                    },
                     "pivot": {
                         "$ref": "#/components/schemas/SemanticLayerPivot"
                     },
@@ -9245,6 +9329,7 @@
                     }
                 },
                 "required": [
+                    "filters",
                     "sortBy",
                     "metrics",
                     "timeDimensions",
@@ -9493,7 +9578,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1240.2",
+        "version": "0.1240.5",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

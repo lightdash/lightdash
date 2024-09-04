@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { pick } from 'lodash';
+import { uniqBy } from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -17,6 +17,7 @@ import { useSemanticLayerViewFields } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
+    selectFilterFields,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
@@ -42,6 +43,7 @@ const SidebarViewFields = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const { view } = useAppSelector((state) => state.semanticViewer);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
+    const filterFields = useAppSelector(selectFilterFields);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const dispatch = useAppDispatch();
@@ -52,17 +54,35 @@ const SidebarViewFields = () => {
         throw new Error('Impossible state');
     }
 
+    const usedFields = useMemo(() => {
+        return {
+            dimensions: uniqBy(
+                [...filterFields.dimensions, ...semanticQuery.dimensions],
+                'name',
+            ),
+            metrics: uniqBy(
+                [...filterFields.metrics, ...semanticQuery.metrics],
+                'name',
+            ),
+            timeDimensions: uniqBy(
+                [
+                    ...filterFields.timeDimensions,
+                    ...semanticQuery.timeDimensions,
+                ],
+                'name',
+            ),
+        };
+    }, [filterFields, semanticQuery]);
+
     const fields = useSemanticLayerViewFields(
         {
             projectUuid,
             view,
-            selectedFields: pick(semanticQuery, [
-                'dimensions',
-                'metrics',
-                'timeDimensions',
-            ]),
+            selectedFields: usedFields,
         },
-        { keepPreviousData: true },
+        {
+            keepPreviousData: true,
+        },
     );
 
     useEffect(() => {

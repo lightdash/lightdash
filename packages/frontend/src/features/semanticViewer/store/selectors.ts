@@ -1,4 +1,10 @@
-import { type VizTableColumnsConfig } from '@lightdash/common';
+import {
+    FieldType as FieldKind,
+    getFilterFieldNamesRecursively,
+    SemanticLayerFieldType,
+    type SemanticLayerField,
+    type VizTableColumnsConfig,
+} from '@lightdash/common';
 import { createSelector } from 'reselect';
 import { type RootState } from '.';
 
@@ -19,6 +25,7 @@ const selectSelectedTimeDimensions = (state: RootState) =>
     state.semanticViewer.selectedTimeDimensions;
 const selectSelectedMetrics = (state: RootState) =>
     state.semanticViewer.selectedMetrics;
+const selectFilters = (state: RootState) => state.semanticViewer.filters;
 
 export const selectAllSelectedFieldsByKind = createSelector(
     [
@@ -51,6 +58,41 @@ export const getSelectedField = (name: string) =>
         },
     );
 
+export const selectFilterFields = createSelector([selectFilters], (filters) => {
+    const allFilterFields = Object.values(filters).flatMap(
+        getFilterFieldNamesRecursively,
+    );
+
+    return allFilterFields.reduce(
+        (acc, f) => {
+            if (
+                f.fieldKind === FieldKind.DIMENSION &&
+                f.fieldType !== SemanticLayerFieldType.TIME
+            ) {
+                acc.dimensions.push({ name: f.field });
+            }
+
+            if (
+                f.fieldKind === FieldKind.DIMENSION &&
+                f.fieldType === SemanticLayerFieldType.TIME
+            ) {
+                acc.timeDimensions.push({ name: f.field });
+            }
+
+            if (f.fieldKind === FieldKind.METRIC) {
+                acc.metrics.push({ name: f.field });
+            }
+
+            return acc;
+        },
+        {
+            dimensions: [] as Pick<SemanticLayerField, 'name'>[],
+            timeDimensions: [] as Pick<SemanticLayerField, 'name'>[],
+            metrics: [] as Pick<SemanticLayerField, 'name'>[],
+        },
+    );
+});
+
 export const selectAllSelectedFieldNames = createSelector(
     [selectAllSelectedFieldsByKind],
     ({ dimensions, metrics, timeDimensions }) => {
@@ -66,12 +108,13 @@ const selectLimit = (state: RootState) => state.semanticViewer.limit;
 const selectSortBy = (state: RootState) => state.semanticViewer.sortBy;
 
 export const selectSemanticLayerQuery = createSelector(
-    [selectAllSelectedFieldsByKind, selectSortBy, selectLimit],
-    (allSelectedFieldsByKind, sortBy, limit) => {
+    [selectAllSelectedFieldsByKind, selectSortBy, selectLimit, selectFilters],
+    (allSelectedFieldsByKind, sortBy, limit, filters) => {
         return {
             ...allSelectedFieldsByKind,
             sortBy,
             limit,
+            filters,
         };
     },
 );

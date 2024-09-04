@@ -4,7 +4,7 @@ import {
     type SemanticLayerField,
     type SemanticLayerTimeDimension,
 } from '@lightdash/common';
-import { ActionIcon, Highlight, NavLink } from '@mantine/core';
+import { ActionIcon, Highlight, Menu, NavLink } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconDots } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -18,7 +18,7 @@ import {
     updateTimeDimensionGranularity,
 } from '../store/semanticViewerSlice';
 import FieldIcon from './FieldIcon';
-import TimeDimensionGranularityPicker from './TimeDimensionGranularityPicker';
+import * as SidebarViewFieldMenu from './SidebarViewFieldMenu';
 
 const getNavbarColorByFieldKind = (kind: SemanticLayerField['kind']) => {
     switch (kind) {
@@ -79,52 +79,68 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
             })}
             icon={<FieldIcon field={field} size="md" />}
             rightSection={
-                (selectedField || hovered || isMenuOpen) &&
-                field.availableGranularities.length > 0 ? (
-                    <TimeDimensionGranularityPicker
-                        menuProps={{
-                            opened: isMenuOpen,
-                            onOpen: menuOpen,
-                            onClose: menuClose,
-                            arrowOffset: 10,
-                            offset: -4,
-                        }}
-                        availableGranularities={field.availableGranularities}
-                        value={
-                            selectedField &&
-                            isSemanticLayerStateTimeDimension(selectedField)
-                                ? selectedField.granularity ?? null
-                                : null
-                        }
-                        onChange={(granularity) =>
-                            selectedField
-                                ? handleUpdateTimeDimensionGranularity({
-                                      ...field,
-                                      ...selectedField,
-                                      granularity,
-                                  })
-                                : handleSelect({
-                                      ...field,
-                                      granularity,
-                                  })
-                        }
+                (selectedField || hovered || isMenuOpen) && (
+                    <Menu
+                        withArrow
+                        withinPortal
+                        shadow="md"
+                        position="bottom-end"
+                        arrowOffset={10}
+                        offset={2}
+                        opened={isMenuOpen}
+                        onOpen={menuOpen}
+                        onClose={menuClose}
                     >
-                        <ActionIcon
-                            component="div"
-                            variant="transparent"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                            }}
-                        >
-                            <MantineIcon
-                                icon={IconDots}
-                                color="gray"
-                                size="md"
+                        <Menu.Target>
+                            <ActionIcon
+                                component="div"
+                                variant="transparent"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                }}
+                            >
+                                <MantineIcon
+                                    icon={IconDots}
+                                    color="gray"
+                                    size="md"
+                                />
+                            </ActionIcon>
+                        </Menu.Target>
+
+                        <Menu.Dropdown>
+                            <SidebarViewFieldMenu.FieldTimeGranularityItems
+                                availableGranularities={
+                                    field.availableGranularities
+                                }
+                                value={
+                                    selectedField &&
+                                    isSemanticLayerStateTimeDimension(
+                                        selectedField,
+                                    )
+                                        ? selectedField.granularity ?? null
+                                        : null
+                                }
+                                onChange={(granularity) =>
+                                    selectedField
+                                        ? handleUpdateTimeDimensionGranularity({
+                                              ...field,
+                                              ...selectedField,
+                                              granularity,
+                                          })
+                                        : handleSelect({
+                                              ...field,
+                                              granularity,
+                                          })
+                                }
                             />
-                        </ActionIcon>
-                    </TimeDimensionGranularityPicker>
-                ) : null
+
+                            <SidebarViewFieldMenu.FieldFilterItems
+                                field={field}
+                            />
+                        </Menu.Dropdown>
+                    </Menu>
+                )
             }
             onClick={() =>
                 !!selectedField ? handleDeselect(field) : handleSelect(field)
