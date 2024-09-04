@@ -10,6 +10,7 @@ import {
 import {
     IconArrowBackUp,
     IconDeviceFloppy,
+    IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
@@ -82,6 +83,14 @@ export const HeaderEdit: FC = () => {
                             <Title c="dark.6" order={5} fw={600}>
                                 {savedSqlChart.name}
                             </Title>
+                            <ActionIcon
+                                size="xs"
+                                onClick={() => {
+                                    dispatch(toggleModal('updateChartModal'));
+                                }}
+                            >
+                                <MantineIcon icon={IconPencil} />
+                            </ActionIcon>
                         </Group>
                         <Group spacing="xs">
                             <UpdatedInfo
