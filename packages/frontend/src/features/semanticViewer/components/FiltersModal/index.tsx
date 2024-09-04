@@ -77,7 +77,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
         <Modal
             {...props}
             onClose={onClose}
-            overlayProps={{ opacity: 0.1 }}
+            overlayProps={{ opacity: 0.5 }}
             p="sm"
             radius="md"
         >

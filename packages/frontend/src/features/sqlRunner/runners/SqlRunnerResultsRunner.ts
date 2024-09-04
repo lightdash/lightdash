@@ -13,7 +13,7 @@ import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsR
 import {
     getResultsFromStream,
     getSqlRunnerCompleteJob,
-} from '../hooks/requestUtils';
+} from '../../../utils/requestUtils';
 
 const schedulePivotSqlJob = async ({
     projectUuid,

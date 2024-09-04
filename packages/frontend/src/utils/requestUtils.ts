@@ -6,7 +6,7 @@ import {
     type ApiSqlRunnerJobStatusResponse,
     type ApiSqlRunnerJobSuccessResponse,
 } from '@lightdash/common';
-import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
+import { getSchedulerJobStatus } from '../features/scheduler/hooks/useScheduler';
 
 // To be reused across all hooks that need to fetch SQL query results
 export const getResultsFromStream = async <T>(url: string | undefined) => {
@@ -81,7 +81,7 @@ export const getResultsFromStream = async <T>(url: string | undefined) => {
     }
 };
 
-// recursively check job status until it's complete
+// TODO: this + type should be named something more generic since it is reused in multiple features
 export const getSqlRunnerCompleteJob = async (
     jobId: string,
 ): Promise<ApiSqlRunnerJobSuccessResponse['results'] | ApiError> => {

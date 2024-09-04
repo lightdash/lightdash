@@ -12,7 +12,7 @@ import { lightdashApi } from '../../../api';
 import {
     getResultsFromStream,
     getSqlRunnerCompleteJob,
-} from '../../sqlRunner/hooks/requestUtils';
+} from '../../../utils/requestUtils';
 
 type GetSemanticLayerInfoRequestParams = {
     projectUuid: string;
