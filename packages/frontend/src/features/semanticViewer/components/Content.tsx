@@ -40,6 +40,11 @@ const Content: FC = () => {
         dispatch(updateSortBy({ name: fieldName, kind }));
     };
 
+    const selectedFieldsCount =
+        allSelectedFieldsByKind.dimensions.length +
+        allSelectedFieldsByKind.metrics.length +
+        allSelectedFieldsByKind.timeDimensions.length;
+
     return (
         <>
             <Group
@@ -93,63 +98,76 @@ const Content: FC = () => {
 
                 <RunSemanticQueryButton />
             </Group>
-            <Group
-                px="md"
-                pt="sm"
-                bg="gray.1"
-                sx={(theme) => ({
-                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
-                })}
-                spacing="xxs"
-                align="baseline"
-            >
-                <Text fw={600} h="100%" mr="xs">
-                    Sort by:
-                </Text>
-                {Object.entries(allSelectedFieldsByKind).map(([kind, fields]) =>
-                    fields.map((field) => {
-                        // TODO: this is annoying
-                        const normalKind =
-                            kind === 'metrics'
-                                ? FieldType.METRIC
-                                : FieldType.DIMENSION;
+            {selectedFieldsCount > 0 && (
+                <Group
+                    px="md"
+                    pt="sm"
+                    bg="gray.1"
+                    sx={(theme) => ({
+                        borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                    })}
+                    spacing="xxs"
+                    align="baseline"
+                >
+                    <Text fw={600} h="100%" mr="xs">
+                        Sort by:
+                    </Text>
+                    {Object.entries(allSelectedFieldsByKind).map(
+                        ([kind, fields]) =>
+                            fields.map((field) => {
+                                // TODO: this is annoying
+                                const normalKind =
+                                    kind === 'metrics'
+                                        ? FieldType.METRIC
+                                        : FieldType.DIMENSION;
 
-                        const sortDirection = sortBy.find(
-                            (s) =>
-                                s.name === field.name && s.kind === normalKind,
-                        )?.direction;
+                                const sortDirection = sortBy.find(
+                                    (s) =>
+                                        s.name === field.name &&
+                                        s.kind === normalKind,
+                                )?.direction;
 
-                        return (
-                            <Button
-                                key={`${kind}-${field.name}`}
-                                variant={sortDirection ? 'filled' : 'outline'}
-                                size="sm"
-                                mr="xs"
-                                mb="xs"
-                                color={kind === 'metrics' ? 'orange' : 'blue'}
-                                compact
-                                onClick={() =>
-                                    handleAddSortBy(field.name, normalKind)
-                                }
-                                rightIcon={
-                                    sortDirection && (
-                                        <MantineIcon
-                                            icon={
-                                                sortDirection ===
-                                                SemanticLayerSortByDirection.ASC
-                                                    ? IconArrowUp
-                                                    : IconArrowDown
-                                            }
-                                        ></MantineIcon>
-                                    )
-                                }
-                            >
-                                {field.name}
-                            </Button>
-                        );
-                    }),
-                )}
-            </Group>
+                                return (
+                                    <Button
+                                        key={`${kind}-${field.name}`}
+                                        variant={
+                                            sortDirection ? 'filled' : 'outline'
+                                        }
+                                        size="sm"
+                                        mr="xs"
+                                        mb="xs"
+                                        color={
+                                            kind === 'metrics'
+                                                ? 'orange'
+                                                : 'blue'
+                                        }
+                                        compact
+                                        onClick={() =>
+                                            handleAddSortBy(
+                                                field.name,
+                                                normalKind,
+                                            )
+                                        }
+                                        rightIcon={
+                                            sortDirection && (
+                                                <MantineIcon
+                                                    icon={
+                                                        sortDirection ===
+                                                        SemanticLayerSortByDirection.ASC
+                                                            ? IconArrowUp
+                                                            : IconArrowDown
+                                                    }
+                                                ></MantineIcon>
+                                            )
+                                        }
+                                    >
+                                        {field.name}
+                                    </Button>
+                                );
+                            }),
+                    )}
+                </Group>
+            )}
 
             {!view ? (
                 <Center sx={{ flexGrow: 1 }}>
