@@ -1,3 +1,10 @@
+## [0.1240.5](https://github.com/lightdash/lightdash/compare/0.1240.4...0.1240.5) (2024-09-04)
+
+
+### Bug Fixes
+
+* reduce api requests on chart view dashboard tile ([#11384](https://github.com/lightdash/lightdash/issues/11384)) ([e34516c](https://github.com/lightdash/lightdash/commit/e34516c6afd10204c2e9d455913853a1e0f503d4))
+
 ## [0.1240.4](https://github.com/lightdash/lightdash/compare/0.1240.3...0.1240.4) (2024-09-04)
 
 
