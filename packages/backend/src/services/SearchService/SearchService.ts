@@ -80,6 +80,7 @@ export class SearchService extends BaseService {
         const spaceUuids = [
             ...new Set([
                 ...results.dashboards.map((dashboard) => dashboard.spaceUuid),
+                ...results.sqlCharts.map((sqlChart) => sqlChart.spaceUuid),
                 ...results.savedCharts.map(
                     (savedChart) => savedChart.spaceUuid,
                 ),
@@ -182,10 +183,13 @@ export class SearchService extends BaseService {
         const hasSavedChartAccess = await Promise.all(
             results.savedCharts.map(filterItem),
         );
+        const hasSqlChartAccess = await Promise.all(
+            results.sqlCharts.map(filterItem),
+        );
+
         const hasSpaceAccess = await Promise.all(
             results.spaces.map(filterItem),
         );
-
         const filteredResults = {
             ...results,
             tables: filteredTables,
@@ -195,6 +199,9 @@ export class SearchService extends BaseService {
             ),
             savedCharts: results.savedCharts.filter(
                 (_, index) => hasSavedChartAccess[index],
+            ),
+            sqlCharts: results.sqlCharts.filter(
+                (_, index) => hasSqlChartAccess[index],
             ),
             spaces: results.spaces.filter((_, index) => hasSpaceAccess[index]),
             pages: user.ability.can(
@@ -214,6 +221,7 @@ export class SearchService extends BaseService {
                 spacesResultsCount: filteredResults.spaces.length,
                 dashboardsResultsCount: filteredResults.dashboards.length,
                 savedChartsResultsCount: filteredResults.savedCharts.length,
+                sqlChartsResultsCount: filteredResults.sqlCharts.length,
                 tablesResultsCount: filteredResults.tables.length,
                 fieldsResultsCount: filteredResults.fields.length,
             },
