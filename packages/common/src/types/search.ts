@@ -40,9 +40,9 @@ export type SqlChartSearchResult = Pick<
     SqlChart,
     'name' | 'description' | 'slug'
 > & {
-    uuid: string;
+    uuid: SqlChart['savedSqlUuid'];
     chartType: ChartKind;
-    spaceUuid: string;
+    spaceUuid: SqlChart['space']['uuid'];
 } & RankedItem;
 
 export type TableSearchResult = Pick<
