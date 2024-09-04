@@ -75,7 +75,6 @@ const ContentCharts: FC = () => {
                         <ChartView
                             key={vizConfig.type}
                             resultsRunner={resultsRunner}
-                            data={{ results, columns }}
                             config={vizConfig}
                             isLoading={false}
                             style={{

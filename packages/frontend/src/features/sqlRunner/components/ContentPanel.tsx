@@ -420,9 +420,6 @@ export const ContentPanel: FC = () => {
                                                                 }
                                                             >
                                                                 <ChartView
-                                                                    data={
-                                                                        queryResults
-                                                                    }
                                                                     config={c}
                                                                     isLoading={
                                                                         isLoading
