@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    ChartSourceType,
     ChartType,
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToSpaceRole,
@@ -936,16 +937,16 @@ export class SpaceModel {
                 `${chartTable}.last_version_updated_by_user_uuid`,
                 'users.user_uuid',
             )
-            .leftJoin(
+            /* .leftJoin(
                 PinnedChartTableName,
                 `${PinnedChartTableName}.saved_chart_uuid`,
-                `${SavedChartsTableName}.saved_query_uuid`,
+                `${chartTable}.saved_sql_uuid`,
             )
             .leftJoin(
                 PinnedListTableName,
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.pinned_list_uuid`,
-            )
+            ) */
             .leftJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -959,7 +960,7 @@ export class SpaceModel {
             .leftJoin(
                 DashboardsTableName,
                 `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
+                `${chartTable}.dashboard_uuid`,
             )
             .select<
                 {
@@ -973,8 +974,8 @@ export class SpaceModel {
                     views_count: number;
                     first_viewed_at: Date | null;
                     chart_kind: ChartKind;
-                    pinned_list_uuid: string;
-                    order: number;
+                    // pinned_list_uuid: string;
+                    // order: number;
                     space_uuid: string;
                     space_name: string;
                     project_uuid: string;
@@ -995,8 +996,8 @@ export class SpaceModel {
                 `${chartTable}.first_viewed_at`,
                 `${chartTable}.last_version_chart_kind as chart_kind`,
 
-                `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedChartTableName}.order`,
+                // `${PinnedListTableName}.pinned_list_uuid`,
+                // `${PinnedChartTableName}.order`,
                 `${SpaceTableName}.space_uuid`,
                 `${SpaceTableName}.name as space_name`,
                 `${ProjectTableName}.project_uuid`,
@@ -1055,10 +1056,11 @@ export class SpaceModel {
             firstViewedAt: savedQuery.first_viewed_at,
             chartType: ChartType.CARTESIAN,
             chartKind: savedQuery.chart_kind,
-            pinnedListUuid: savedQuery.pinned_list_uuid,
-            pinnedListOrder: savedQuery.order,
+            pinnedListUuid: '', // savedQuery.pinned_list_uuid,
+            pinnedListOrder: 0, // savedQuery.order,
             validationErrors: [],
             slug: savedQuery.slug,
+            source: ChartSourceType.SQL,
         }));
     }
 
@@ -1224,6 +1226,7 @@ export class SpaceModel {
                 }),
             ),
             slug: savedQuery.slug,
+            source: ChartSourceType.DBT_EXPLORE,
         }));
     }
 

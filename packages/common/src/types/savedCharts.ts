@@ -1,6 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
+import { type ChartSourceType } from './content';
 import { type CompactOrAlias } from './field';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 // eslint-disable-next-line import/no-cycle
@@ -595,7 +596,11 @@ export type ChartSummary = Pick<
     | 'dashboardUuid'
     | 'dashboardName'
     | 'slug'
-> & { chartType?: ChartType | undefined; chartKind?: ChartKind | undefined };
+> & {
+    chartType?: ChartType | undefined;
+    chartKind?: ChartKind | undefined;
+    source: ChartSourceType;
+};
 
 export type SpaceQuery = ChartSummary &
     Pick<SavedChart, 'updatedAt' | 'updatedByUser' | 'pinnedListOrder'> &
