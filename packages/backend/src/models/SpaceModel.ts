@@ -52,6 +52,7 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
+import { SavedSqlTableName } from '../database/entities/savedSql';
 import {
     DbSpace,
     SpaceGroupAccessTableName,
@@ -913,6 +914,152 @@ export class SpaceModel {
         return this._getSpaceAccess(spaceUuids, {
             userUuid,
         });
+    }
+
+    async getSpaceSqlCharts(
+        spaceUuids: string[],
+        filters?: {
+            recentlyUpdated?: boolean;
+            mostPopular?: boolean;
+        },
+    ): Promise<SpaceQuery[]> {
+        const chartTable = SavedSqlTableName;
+        let spaceQueriesQuery = this.database('saved_sql')
+            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .leftJoin(
+                SpaceTableName,
+                `${chartTable}.space_uuid`,
+                `${SpaceTableName}.space_uuid`,
+            )
+            .leftJoin(
+                'users',
+                `${chartTable}.last_version_updated_by_user_uuid`,
+                'users.user_uuid',
+            )
+            .leftJoin(
+                PinnedChartTableName,
+                `${PinnedChartTableName}.saved_chart_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
+            )
+            .leftJoin(
+                PinnedListTableName,
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedChartTableName}.pinned_list_uuid`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .leftJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .select<
+                {
+                    saved_sql_uuid: string;
+                    name: string;
+                    description?: string;
+                    created_at: Date;
+                    user_uuid: string;
+                    first_name: string;
+                    last_name: string;
+                    views_count: number;
+                    first_viewed_at: Date | null;
+                    chart_kind: ChartKind;
+                    pinned_list_uuid: string;
+                    order: number;
+                    space_uuid: string;
+                    space_name: string;
+                    project_uuid: string;
+                    organization_uuid: string;
+                    dashboard_uuid: string | null;
+                    dashboard_name: string | null;
+                    slug: string;
+                }[]
+            >([
+                `${chartTable}.saved_sql_uuid`,
+                `${chartTable}.name`,
+                `${chartTable}.description`,
+                `${chartTable}.last_version_updated_at as created_at`,
+                `users.user_uuid`,
+                `users.first_name`,
+                `users.last_name`,
+                `${chartTable}.views_count`,
+                `${chartTable}.first_viewed_at`,
+                `${chartTable}.last_version_chart_kind as chart_kind`,
+
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedChartTableName}.order`,
+                `${SpaceTableName}.space_uuid`,
+                `${SpaceTableName}.name as space_name`,
+                `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.name as dashboard_name`,
+                `${chartTable}.slug`,
+            ]);
+
+        if (filters?.recentlyUpdated || filters?.mostPopular) {
+            spaceQueriesQuery = spaceQueriesQuery
+                .orderBy(
+                    filters.mostPopular
+                        ? [
+                              {
+                                  column: 'views_count',
+                                  order: 'desc',
+                              },
+                          ]
+                        : [
+                              {
+                                  column: `${chartTable}.last_version_updated_at`,
+                                  order: 'desc',
+                              },
+                          ],
+                )
+                .limit(this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
+        } else {
+            spaceQueriesQuery = spaceQueriesQuery.orderBy([
+                {
+                    column: `${chartTable}.last_version_updated_at`,
+                    order: 'desc',
+                },
+            ]);
+        }
+
+        const savedQueries = await spaceQueriesQuery;
+
+        return savedQueries.map((savedQuery) => ({
+            uuid: savedQuery.saved_sql_uuid,
+            name: savedQuery.name,
+            spaceName: savedQuery.space_name,
+            dashboardName: savedQuery.dashboard_name,
+            organizationUuid: savedQuery.organization_uuid,
+            projectUuid: savedQuery.project_uuid,
+            dashboardUuid: savedQuery.dashboard_uuid,
+            description: savedQuery.description,
+            updatedAt: savedQuery.created_at,
+            updatedByUser: {
+                userUuid: savedQuery.user_uuid,
+                firstName: savedQuery.first_name,
+                lastName: savedQuery.last_name,
+            },
+            spaceUuid: savedQuery.space_uuid,
+            views: savedQuery.views_count,
+            firstViewedAt: savedQuery.first_viewed_at,
+            chartType: ChartType.CARTESIAN,
+            chartKind: savedQuery.chart_kind,
+            pinnedListUuid: savedQuery.pinned_list_uuid,
+            pinnedListOrder: savedQuery.order,
+            validationErrors: [],
+            slug: savedQuery.slug,
+        }));
     }
 
     async getSpaceQueries(
