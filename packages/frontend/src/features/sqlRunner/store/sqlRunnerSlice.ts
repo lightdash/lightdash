@@ -93,6 +93,9 @@ export const sqlRunnerSlice = createSlice({
         },
         setFetchResultsOnLoad: (state, action: PayloadAction<boolean>) => {
             state.fetchResultsOnLoad = action.payload;
+            if (action.payload === true) {
+                state.activeEditorTab = EditorTabs.VISUALIZATION;
+            }
         },
         setSqlRunnerResults: (
             state,
