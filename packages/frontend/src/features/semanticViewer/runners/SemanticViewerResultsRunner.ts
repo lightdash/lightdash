@@ -61,8 +61,8 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
     async getPivotChartData(config: VizChartLayout): Promise<PivotChartData> {
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
 
-        // Since we no longer pivot in the backend (e.g. for pie charts), we need to filter out the dimensions, time dimensions and metrics
-        // that are not included in the pivot config, this way the results will be correctly aggregated
+        // Filter dimensions, time dimensions, and metrics to match pivot config
+        // This ensures correct aggregation for non-aggregated backend pivots (e.g., pie charts)
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid: this.projectUuid,
             query: {
