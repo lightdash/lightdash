@@ -470,6 +470,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             ${whereSql}
             ORDER BY 1,2,3
         `;
+        console.debug('Running query to fetch all tables: ', {
+            query,
+            databaseName,
+        });
         const { rows } = await this.runQuery(
             query,
             {},
@@ -508,6 +512,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         if (database) {
             values.push(database);
         }
+        console.debug('Running query to fetch fields: ', {
+            query,
+            values,
+        });
         const { rows } = await this.runQuery(query, tags, undefined, values);
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }
