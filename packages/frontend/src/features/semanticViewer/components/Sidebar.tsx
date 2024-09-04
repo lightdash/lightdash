@@ -11,7 +11,6 @@ import {
 import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectSemanticLayerInfo } from '../store/selectors';
 import {
@@ -19,6 +18,7 @@ import {
     setActiveChartKind,
     SidebarTabs,
 } from '../store/semanticViewerSlice';
+import { SemanticViewerVizConfig } from './SemanticViewerVizConfig';
 import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
 
@@ -30,7 +30,7 @@ const Sidebar: FC = () => {
     const handleExitView = () => {
         dispatch(resetState());
     };
-    const { activeSidebarTab, activeChartKind, columns } = useAppSelector(
+    const { activeSidebarTab, activeChartKind, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -81,14 +81,14 @@ const Sidebar: FC = () => {
                 }}
             >
                 <Stack sx={{ flex: 1, overflow: 'hidden' }}>
-                    <VisualizationConfigPanel
+                    <SemanticViewerVizConfig
                         selectedChartType={
                             activeChartKind ?? ChartKind.VERTICAL_BAR
                         }
                         setSelectedChartType={(value) =>
                             dispatch(setActiveChartKind(value))
                         }
-                        sqlColumns={columns}
+                        fields={fields}
                     />
                 </Stack>
             </ScrollArea>

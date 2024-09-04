@@ -111,6 +111,8 @@ const SidebarViewFields = () => {
 
     const searchedOrAllFields = searchedFields ?? fields.data;
 
+    console.log(searchedOrAllFields);
+
     return fields.data.length === 0 ? (
         <SuboptimalState
             title="No fields available"

@@ -95,7 +95,7 @@ const getKeyByField = (
     }
 };
 
-function getDimensionTypeFromSemanticLayerFieldType(
+export function getDimensionTypeFromSemanticLayerFieldType(
     type: SemanticLayerFieldType,
 ): DimensionType {
     switch (type) {
@@ -288,12 +288,6 @@ export const semanticViewerSlice = createSlice({
             state.activeChartKind = action.payload;
         },
         setFields: (state, action: PayloadAction<SemanticLayerField[]>) => {
-            const sqlColumns: VizSqlColumn[] = action.payload.map((field) => ({
-                reference: field.name,
-                type: getDimensionTypeFromSemanticLayerFieldType(field.type),
-            }));
-
-            state.columns = sqlColumns;
             state.fields = action.payload;
         },
         addFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
