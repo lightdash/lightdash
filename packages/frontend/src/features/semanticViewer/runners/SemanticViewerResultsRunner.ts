@@ -60,10 +60,33 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
 
     async getPivotChartData(config: VizChartLayout): Promise<PivotChartData> {
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
+
+        // Since we no longer pivot in the backend (e.g. for pie charts), we need to filter out the dimensions, time dimensions and metrics
+        // that are not included in the pivot config, this way the results will be correctly aggregated
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid: this.projectUuid,
             query: {
                 ...this.query,
+                dimensions: this.query.dimensions.filter(
+                    (dimension) =>
+                        pivotConfig.on.includes(dimension.name) ||
+                        pivotConfig.index.includes(dimension.name),
+                ),
+                timeDimensions: this.query.timeDimensions.filter(
+                    (timeDimension) =>
+                        pivotConfig.on.includes(timeDimension.name) ||
+                        pivotConfig.index.includes(timeDimension.name),
+                ),
+                metrics: this.query.metrics.filter((metric) =>
+                    pivotConfig.values.includes(metric.name),
+                ),
+                // TODO: could this break sorting?
+                sortBy: this.query.sortBy.filter(
+                    (sortBy) =>
+                        pivotConfig.on.includes(sortBy.name) ||
+                        pivotConfig.index.includes(sortBy.name) ||
+                        pivotConfig.values.includes(sortBy.name),
+                ),
                 pivot: pivotConfig,
             },
         });
