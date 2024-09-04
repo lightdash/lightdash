@@ -1,3 +1,10 @@
+# [0.1241.0](https://github.com/lightdash/lightdash/compare/0.1240.5...0.1241.0) (2024-09-04)
+
+
+### Features
+
+* add string filters ([#11307](https://github.com/lightdash/lightdash/issues/11307)) ([b08df2c](https://github.com/lightdash/lightdash/commit/b08df2cb8be1905d928cf2b6465a13d2505db56c))
+
 ## [0.1240.5](https://github.com/lightdash/lightdash/compare/0.1240.4...0.1240.5) (2024-09-04)
 
 
