@@ -6,9 +6,9 @@ import {
 } from '@lightdash/common';
 import { Box, Menu } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
-import { useSqlChartAndResults } from '../../features/sqlRunner/hooks/useSqlChartAndResults';
+import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
 import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
 import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
@@ -31,32 +31,35 @@ interface Props
  * Handle minimal mode
  * handle tabs
  */
-const DashboardOptions = ({
-    isEditMode,
-    projectUuid,
-    slug,
-}: {
-    isEditMode: boolean;
-    projectUuid: string;
-    slug: string;
-}) => {
-    const history = useHistory();
-    return (
-        <Box>
-            <Menu.Item
-                icon={<MantineIcon icon={IconFilePencil} />}
-                disabled={isEditMode}
-                onClick={() =>
-                    history.push(
-                        `/projects/${projectUuid}/sql-runner/${slug}/edit`,
-                    )
-                }
-            >
-                Edit SQL chart
-            </Menu.Item>
-        </Box>
-    );
-};
+const DashboardOptions = memo(
+    ({
+        isEditMode,
+        projectUuid,
+        slug,
+    }: {
+        isEditMode: boolean;
+        projectUuid: string;
+        slug: string;
+    }) => {
+        const history = useHistory();
+        return (
+            <Box>
+                <Menu.Item
+                    icon={<MantineIcon icon={IconFilePencil} />}
+                    disabled={isEditMode}
+                    onClick={() =>
+                        history.push(
+                            `/projects/${projectUuid}/sql-runner/${slug}/edit`,
+                        )
+                    }
+                >
+                    Edit SQL chart
+                </Menu.Item>
+            </Box>
+        );
+    },
+);
+
 export const DashboardSqlChartTile: FC<Props> = ({
     tile,
     isEditMode,
@@ -69,7 +72,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
         dashboardUuid: string;
     }>();
     const savedSqlUuid = tile.properties.savedSqlUuid;
-    const { data, isLoading, error } = useSqlChartAndResults({
+    const { data, isLoading, error } = useDashboardSqlChart({
         projectUuid,
         savedSqlUuid,
     });
@@ -160,17 +163,19 @@ export const DashboardSqlChartTile: FC<Props> = ({
         >
             {data.chart.config.type === ChartKind.TABLE &&
                 isVizTableConfig(data.chart.config) && (
-                    <Table
-                        resultsRunner={resultsRunner}
-                        config={data.chart.config}
-                    />
+                    // So that the Table tile isn't cropped by the overflow
+                    <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
+                        <Table
+                            resultsRunner={resultsRunner}
+                            config={data.chart.config}
+                        />
+                    </Box>
                 )}
-            {(data.chart.config.type === ChartKind.VERTICAL_BAR ||
-                data.chart.config.type === ChartKind.LINE ||
-                data.chart.config.type === ChartKind.PIE) &&
-                savedSqlUuid && (
+            {savedSqlUuid &&
+                (data.chart.config.type === ChartKind.VERTICAL_BAR ||
+                    data.chart.config.type === ChartKind.LINE ||
+                    data.chart.config.type === ChartKind.PIE) && (
                     <ChartView
-                        data={sqlRunnerChartData}
                         config={data.chart.config}
                         style={{
                             minHeight: 'inherit',
@@ -178,10 +183,11 @@ export const DashboardSqlChartTile: FC<Props> = ({
                             width: '100%',
                         }}
                         resultsRunner={resultsRunner}
-                        isLoading={isLoading}
+                        isLoading={false}
                         sql={data.chart.sql}
                         projectUuid={projectUuid}
                         uuid={savedSqlUuid}
+                        limit={data.chart.limit}
                     />
                 )}
         </TileBase>

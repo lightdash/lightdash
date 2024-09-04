@@ -1,3 +1,32 @@
+## [0.1240.5](https://github.com/lightdash/lightdash/compare/0.1240.4...0.1240.5) (2024-09-04)
+
+
+### Bug Fixes
+
+* reduce api requests on chart view dashboard tile ([#11384](https://github.com/lightdash/lightdash/issues/11384)) ([e34516c](https://github.com/lightdash/lightdash/commit/e34516c6afd10204c2e9d455913853a1e0f503d4))
+
+## [0.1240.4](https://github.com/lightdash/lightdash/compare/0.1240.3...0.1240.4) (2024-09-04)
+
+
+### Bug Fixes
+
+* allow clearing the groupby if no options ([#11373](https://github.com/lightdash/lightdash/issues/11373)) ([bc53e2d](https://github.com/lightdash/lightdash/commit/bc53e2d372dbc52797c3498e543656a9f5b4e8ff))
+* check for results and columns length ([#11387](https://github.com/lightdash/lightdash/issues/11387)) ([d75f50a](https://github.com/lightdash/lightdash/commit/d75f50ad883b699cb1c4ff5af52c7951814fd615))
+
+## [0.1240.3](https://github.com/lightdash/lightdash/compare/0.1240.2...0.1240.3) (2024-09-04)
+
+
+### Bug Fixes
+
+* pass limit to saved chart & tile ([#11386](https://github.com/lightdash/lightdash/issues/11386)) ([a284991](https://github.com/lightdash/lightdash/commit/a2849913b34baa344a76981ef1b871e1611153b6))
+
+## [0.1240.2](https://github.com/lightdash/lightdash/compare/0.1240.1...0.1240.2) (2024-09-03)
+
+
+### Bug Fixes
+
+* dont display validation errors originated from CLI ([#11361](https://github.com/lightdash/lightdash/issues/11361)) ([fbfdfd5](https://github.com/lightdash/lightdash/commit/fbfdfd5ceef7e2b923627d562fa271abffcbb0f2))
+
 ## [0.1240.1](https://github.com/lightdash/lightdash/compare/0.1240.0...0.1240.1) (2024-09-03)
 
 

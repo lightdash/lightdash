@@ -1,0 +1,443 @@
+# Lightdash CLI reference
+
+The Lightdash CLI is the recommended way to develop your Lightdash project. It makes development faster and easier, as well as giving you options for building more powerful automation to manage your Lightdash projects.
+
+---
+
+## Global options
+
+There are three global options that can be used with any Lightdash CLI command: [version](#version), [help](#help), and [verbose](#verbose).
+
+### Version
+
+`--version` or `-V`
+
+Ignores the preceding command and shows the installed CLI version. Usually it's used right after `lightdash`, like this:
+
+```bash
+lightdash --version
+```
+
+### Help
+
+`--help` or `-h`
+
+Tells you what the preceding command does and lists all command-specific options. You can view the Lightdash CLI help like this:
+
+```console
+lightdash --help
+```
+
+That returns the Lightdash CLI help menu:
+
+![lightdash help CLI results](./assets/cli-lightdash-help.png)
+
+When you use the `--help` or `-h` option with a speific command:
+
+```console
+lightdash validate -h
+```
+
+That returns details and examples for the command itself:
+
+![lightdash validate help CLI results](./assets/cli-lightdash-validate-help.png)
+
+### Verbose
+
+`--verbose`
+
+Defaults to OFF. When included, each step will print logs as it progresses through the command. For example, here's a `--verbose` version of `lightdash generate-exposures`:
+
+![lightdash generate-exposures verbose example](./assets/cli-verbose-example.png)
+
+## Commands
+
+The table below includes a complete list of all commands available in the Lightdash CLI.
+
+For examples and command-specific options, click through the command in the table for docs, or install the Lightdash CLI and use the [global help option](#help).
+
+| <div style={{width:'250px'}}>Command</div>            | Description                                                                     |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [`login`](#lightdash-login)                           | Log in to a Lightdash instance using email/password or a token                  |
+| [`config set-project`](#lightdash-config-set-project) | Choose or set the Lightdash project you are working on                          |
+| [`compile`](#lightdash-compile)                       | Compile lightdash resources using your local project files                      |
+| [`preview`](#lightdash-preview)                       | Create a temporary preview project, then wait for a keypress to stop            |
+| [`start-preview`](#lightdash-start-preview)           | Create a preview project that stays open until it is stopped                    |
+| [`stop-preview`](#lightdash-stop-preview)             | Shut down an open preview project                                               |
+| [`deploy`](#lightdash-deploy)                         | Compile and deploy a Lightdash project using your local project and credentials |
+| [`refresh`](#lightdash-refresh)                       | Refresh Lightdash project with remote repository                                |
+| [`validate`](#lightdash-validate)                     | Validates content from your active project against your local project files     |
+| [`generate`](#lightdash-generate)                     | Generates or updates schema.yml file(s) for the selected model(s)               |
+| [`generate-exposures`](#lightdash-generate-exposures) | [Experimental command] Generates a .yml file for Lightdash exposures            |
+| [`dbt run`](#lightdash-dbt-run)                       | Executes dbt run, then `lightdash generate` to add/update `schema.yml` files    |
+
+---
+
+### `lightdash login`
+
+Log in to a Lightdash instance using email and password or a token.
+
+```console
+lightdash login [URL]
+```
+
+**Argument:**
+
+- `[URL]`
+  - The URL for your Lightdash instance (see examples below)
+
+**Options:**
+
+- `--token`
+  - For logging in with an access token (common for SSO users)
+  - Exclude this to log in with email and password
+
+**Examples:**
+
+Log in to Lightdash Cloud US instance (for most Starter customers):
+
+```bash
+lightdash login https://app.lightdash.cloud
+```
+
+Log in to Lightdash Cloud EU instance while showing detailed logs of login process:
+
+```bash
+lightdash login https://eu1.lightdash.cloud --verbose
+```
+
+Log in to a custom domain with a personal access token (exclude `--token` to log in with email and password):
+
+```bash
+lightdash login https://custom.lightdash.domain --token bv6105f53cb127087189cfib180a3131
+```
+
+### `lightdash config set-project`
+
+Choose the project you're developing in so the CLI knows which project content to look at for other commands like `lightdash validate` and `lightdash preview`. If your organization only has one project you won't need to use this!
+
+```bash
+lightdash config set-project
+```
+
+This command will bring up an interactive list of projects in your organization to choose from.
+
+If you need to set the project non-interactively, you can use one of the two optional arguments below.
+
+**Options:**
+
+- `--name`
+  - Set the project non-interactively by passing an explicit project name
+- `--uuid`
+  - Set the project non-interactively by passing an explicit project UUID
+
+**Examples:**
+
+Set project to "Healthcare Demo":
+
+```bash
+lightdash config set-project --name "Healthcare Demo"
+```
+
+Set project to the one with this UUID:
+
+```bash
+lightdash config set-project --uuid "d75379bc-f6e9-4e52-86b2-d897cabacd0c"
+```
+
+### `lightdash compile`
+
+Compile Lightdash resources using your local project and database credentials. dbt gets compiled first, then your Lightdash explores. If you use [dbt node selection](#dbt-node-selection) to only compile a subset of models, Lightdash will also compile models joined to those models to ensure no field references are broken.
+
+All standard [dbt options](#dbt-options) work with `lightdash compile`.
+
+**Examples:**
+
+Compile the whole project:
+
+```bash
+lightdash compile
+```
+
+Compile only the `accounts` dbt model, then your Lightdash explores:
+
+```bash
+lightdash compile -s accounts
+```
+
+Compile your project using the `production` profile from your local `profiles.yml` file:
+
+```bash
+lightdash compile --profile production
+```
+
+### `lightdash preview`
+
+Spin up a temporary preview project using your local project files and content (charts and dashboards) copied from your [selected project](#lightdash-config-set-project).
+
+All standard [dbt options](#dbt-options) work with `lightdash preview`.
+
+**Options:**
+
+- `--name [preview name]`
+  - Custom name for the preview project. If a name is not provided, a unique, randomly generated name will be created.
+- `--start-of-week [number]`
+  - Specifies the first day of the week (used by week-related date functions).
+  - 0 (Monday) to 6 (Sunday)
+- `--skip-dbt-compile`
+  - (default: false)
+  - Skip `dbt compile` and deploy from the existing ./target/manifest.json
+- `--skip-warehouse-catalog`
+  - (default: false)
+  - Skip fetch warehouse catalog and use types defined in the YAML.
+- `--use-dbt-list [true/false]`
+  - (default: true)
+  - Use `dbt list` instead of `dbt compile` to generate dbt manifest.json
+- `--ignore-errors`
+  - (default: false)
+  - Allows deploy with errors on compile
+
+**Example:**
+
+Create a preview project with the name **PR: Add Revenue Metric** and ignore validation errors while spinning it up:
+
+```bash
+lightdash preview --name "PR: Add Revenue Metric" --ignore errors
+```
+
+### `lightdash start-preview`
+
+Create a persistent preview project using your local project files and content (charts and dashboards) copied from your [selected project](#lightdash-config-set-project).
+
+All standard [dbt options](#dbt-options) work with `lightdash start-preview`.
+
+**Required argument:**
+
+- `--name [preview name]`
+  - Name for the preview project. If a preview project with this name already exists, it will be updated, otherwise it will create a new preview project.
+
+**Options:**
+
+- `--start-of-week [number]`
+  - Specifies the first day of the week (used by week-related date functions).
+  - 0 (Monday) to 6 (Sunday)
+- `--skip-dbt-compile`
+  - (default: false)
+  - Skip `dbt compile` and deploy from the existing ./target/manifest.json
+- `--skip-warehouse-catalog`
+  - (default: false)
+  - Skip fetch warehouse catalog and use the types defined in YAML
+- `--use-dbt-list [true/false]`
+  - (default: true)
+  - Use `dbt list` instead of `dbt compile` to generate dbt manifest.json
+- `--ignore-errors`
+  - (default: false)
+  - Allows deploy with errors on compile
+
+### `lightdash stop-preview`
+
+Shuts down a project that was created with [`lightdash start-preview`](#lightdash-start-preview).
+
+This command does not support using dbt options.
+
+**Required argument:**
+
+- `--name [preview name]`
+  - Name of the preview project to be deleted.
+
+**Example:**
+
+Shut down the preview project named **neon unicorn**.
+
+```bash
+lightdash stop-preview "neon unicorn"
+```
+
+### `lightdash deploy`
+
+Compiles and deploys the current project to your [selected Lightdash Cloud project](#lightdash-config-set-project).
+
+:::warning
+
+This command is usually [used in Github Actions](/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action) or other deploy scripts. It is not common practice to use `lightdash deploy` to push your local changes up to Lightdash Cloud outside of your initial project creation.
+
+:::
+
+All standard [dbt options](#dbt-options) work with `lightdash deploy`.
+
+**Options:**
+
+- `--create [project_name]`
+  - Create a new project. If a project name is not provided, you'll be prompted for one on creation.
+- `--ignore-errors`
+  - (default: false)
+  - Allows deploy with errors on compile.
+- `--start-of-week [number]`
+  - Specifies the first day of the week (used by week-related date functions).
+  - 0 (Monday) to 6 (Sunday)
+- `--skip-dbt-compile`
+  - (default: false)
+  - Skip `dbt compile` and deploy from the existing ./target/manifest.json.
+- `--skip-warehouse-catalog`
+  - (default: false)
+  - Skip fetch warehouse catalog and use types defined in the YAML.
+- `--use-dbt-list [true|false]`
+  - (default: true)
+  - Use `dbt list` instead of `dbt compile` to generate dbt manifest.json.
+
+### `lightdash refresh`
+
+Refreshes your hosted Lightdash project using the latest code from your linked Github repository. This is equivalent to pressing **Refresh dbt** in the UI as an admin.
+
+This command does not support using dbt options.
+
+### `lightdash validate`
+
+Validates a project by comparing the content in your currently selected project against your local project files. Returns all charts and dashboards that have errors.
+
+All standard [dbt options](#dbt-options) work with `lightdash validate`.
+
+**Options:**
+
+- `--project [project uuid]`
+  - Project UUID to validate, if not provided, the last preview will be used
+- `--preview`
+  - (default: false)
+  - Validate the last preview if available.
+- `--skip-dbt-compile`
+  - (default: false)
+  - Skip `dbt compile` and deploy from the existing ./target/manifest.json.
+- `--skip-warehouse-catalog`
+  - (default: false)
+  - Skip fetch warehouse catalog and use types defined in the YAML.
+- `--use-dbt-list [true/false]`
+  - (default: true)
+  - Use `dbt list` instead of `dbt compile` to generate dbt manifest.json.
+- `--only [elems...]`
+  - (default: ["charts","dashboards","tables"])
+  - Specify project elements to validate.
+
+**Example:**
+
+Validate only dashboards and use the existing compiled dbt manifest:
+
+```bash
+lightdash validate --only ["dashboards"] --skip-dbt-compile
+```
+
+### `lightdash generate`
+
+Generates a new `schema.yml` file or updates existing `schema.yml` for selected model(s).
+
+Supports most (but not all) [dbt options](#dbt-options). These options are supported by `lightdash generate`:
+
+- `--select`
+- `--models`
+- `--exclude`
+- `--project-dir`
+- `--profiles-dir`
+- `--profile`
+- `--target`
+- `--vars`
+
+**Options:**
+
+- `-y` or `--assume-yes`
+  - (default: false)
+  - assume yes to prompts
+- `--exclude-meta`
+  - (default: false)
+  - exclude Lightdash metadata from the generated .yml
+
+**Examples:**
+
+Generate or update YAML file for a single dbt model to cover all columns in the database:
+
+```bash
+lightdash generate -s mymodel
+```
+
+### `lightdash generate-exposures`
+
+Generates a `schema.yml` file for Lightdash exposures.
+
+:::warning
+
+This command is still in beta and may be removed or updated without warning.
+
+:::
+
+This command does not support using dbt options.
+
+**Options:**
+
+- `--project-dir [path]`
+  - (default: ".")
+  - The directory of the dbt project
+- `--output [path]`
+  - The path where the output exposures YAML file will be written
+
+### `lightdash dbt run`
+
+Runs dbt and then generates or updates `schema.yml` file(s) for models that have columns missing or changed from the existing `schema.yml` files.
+
+All standard [dbt options](#dbt-options) work with `lightdash dbt run`.
+
+**Options:**
+
+- `--exclude-meta`
+  - (default: false)
+  - exclude Lightdash metadata from the generated .yml
+- `-y` or `--assume-yes`
+  - assume yes to prompts (default: false)
+
+**Examples:**
+
+Run a single model and create or update its `schema.yml` file:
+
+```bash
+lightdash dbt run --select mymodel
+```
+
+## dbt options
+
+These are options from the dbt Core CLI that also work with some Lightdash CLI commands.
+
+### dbt node selection
+
+You can select a subset of your dbt models by using the following options on any Lightdash commands that support dbt options.
+
+**Node selection:**
+
+- `-s [models...]` or `--select [models...]`
+  - [Read the dbt docs on select](https://docs.getdbt.com/reference/node-selection/syntax#shorthand)
+- `-m [models...]` or `--models [models...]`
+  - This is a legacy term for `--select`
+- `--exclude [models...]`
+  - [Read the dbt docs on exclude](https://docs.getdbt.com/reference/node-selection/exclude)
+- `--selector [selector_name]`
+  - [Read the dbt docs on selector](https://docs.getdbt.com/reference/node-selection/yaml-selectors)
+
+### dbt flags
+
+These dbt flags work with Lightdash commands that support dbt options. [Read the dbt docs on global config flags](https://docs.getdbt.com/reference/global-configs/about-global-configs#available-flags) for details.
+
+- `--project-dir [path]`
+- `--profiles-dir [path]`
+- `--profile [name]`
+- `--target [name]`
+- `--no-version-check`
+- `--state [state]`
+- `--full-refresh`
+
+### dbt project variables
+
+You can set dbt project variables in Lightdash commands that support dbt options. [Read the dbt docs on project variables](https://docs.getdbt.com/docs/build/project-variables) for details.
+
+`--vars [vars]`
+
+### dbt threads
+
+You can set the number of threads for dbt in Lightdash commands that support dbt options. [Read the dbt docs on threads](https://docs.getdbt.com/docs/running-a-dbt-project/using-threads) for details.
+
+`--threads [number]`

@@ -14,7 +14,7 @@ import {
 } from '../../../utils/requestUtils';
 import { type ResultsAndColumns } from './useSqlQueryRun';
 
-const getSqlChartResults = async ({
+export const getSqlChartResults = async ({
     projectUuid,
     slug,
 }: {

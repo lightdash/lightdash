@@ -9,13 +9,10 @@ import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
-import { type ResultsAndColumns } from '../Results';
 import { type ResultsRunner } from '../transformers/ResultsRunner';
 import { useChart } from '../transformers/useChart';
 
 type ChartViewProps<T extends ResultsRunner> = {
-    // TODO: we probably can remove this prop
-    data: ResultsAndColumns;
     config?: VizCartesianChartConfig | VizPieChartConfig;
     isLoading: boolean;
     resultsRunner: T;
@@ -29,7 +26,6 @@ type ChartViewProps<T extends ResultsRunner> = {
 
 const ChartView = memo(
     <T extends ResultsRunner>({
-        data: _data,
         config,
         sql,
         projectUuid,

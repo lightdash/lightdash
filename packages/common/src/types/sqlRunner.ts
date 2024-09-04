@@ -13,7 +13,7 @@ import { type Organization } from './organization';
 import { type Project } from './projects';
 import { type RawResultRow } from './results';
 import { type ChartKind } from './savedCharts';
-import { SchedulerJobStatus, type ApiJobScheduledResponse } from './scheduler';
+import { SchedulerJobStatus } from './scheduler';
 import { type SpaceSummary } from './space';
 import { type LightdashUser } from './user';
 
@@ -190,13 +190,5 @@ export type ApiUpdateSqlChart = {
     results: {
         savedSqlUuid: string;
         savedSqlVersionUuid: string | null;
-    };
-};
-
-export type ApiSqlChartWithResults = {
-    status: 'ok';
-    results: {
-        jobId: ApiJobScheduledResponse['results']['jobId'];
-        chart: SqlChart;
     };
 };

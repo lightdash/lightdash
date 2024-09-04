@@ -167,6 +167,7 @@ export class SearchModel {
 
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
+            .whereNull('job_id')
             .whereIn('dashboard_uuid', dashboardUuids)
             .andWhereNot('dashboard_uuid', null)
             .select('validation_id', 'dashboard_uuid')
@@ -265,6 +266,7 @@ export class SearchModel {
 
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
+            .whereNull('job_id')
             .whereIn('saved_chart_uuid', chartUuids)
             .andWhereNot('saved_chart_uuid', null)
             .select('validation_id', 'saved_chart_uuid')
@@ -431,6 +433,7 @@ export class SearchModel {
 
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
+            .whereNull('job_id')
             .whereNotNull('model_name')
             .select('validation_id', 'model_name')
             .then((rows) =>

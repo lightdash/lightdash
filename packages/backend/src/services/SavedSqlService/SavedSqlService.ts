@@ -14,7 +14,6 @@ import {
     SpaceSummary,
     SqlChart,
     SqlRunnerPivotQueryBody,
-    SqlRunnerPivotQueryPayload,
     UpdateSqlChart,
 } from '@lightdash/common';
 import { uniq } from 'lodash';
@@ -28,7 +27,6 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { isFeatureFlagEnabled } from '../../postHog';
-import { applyLimitToSqlQuery } from '../../queryBuilder';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 
@@ -119,11 +117,6 @@ export class SavedSqlService extends BaseService {
             spaceUuid,
         );
 
-        const hasFeatureFlag = await isFeatureFlagEnabled(
-            FeatureFlags.SaveSqlChart,
-            user,
-        );
-
         const hasPermission = user.ability.can(
             action,
             subject('SavedChart', {
@@ -135,7 +128,7 @@ export class SavedSqlService extends BaseService {
         );
 
         return {
-            hasAccess: hasFeatureFlag && hasPermission,
+            hasAccess: hasPermission,
             userAccess: access[0],
         };
     }
@@ -505,43 +498,6 @@ export class SavedSqlService extends BaseService {
         );
         return {
             jobId,
-        };
-    }
-
-    async getChartWithResultJob(
-        user: SessionUser,
-        projectUuid: string,
-        savedSqlUuid: string,
-    ): Promise<{ jobId: string; chart: SqlChart }> {
-        const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
-            projectUuid,
-        });
-
-        const { hasAccess: hasViewAccess, userAccess } =
-            await this.hasSavedChartAccess(user, 'view', savedChart);
-        if (!hasViewAccess) {
-            throw new ForbiddenError("You don't have access to this chart");
-        }
-
-        const jobId = await this.schedulerClient.runSql({
-            userUuid: user.userUuid,
-            organizationUuid: savedChart.organization.organizationUuid,
-            projectUuid: savedChart.project.projectUuid,
-            sql: savedChart.sql,
-            limit: savedChart.limit,
-            sqlChartUuid: savedSqlUuid,
-            context: QueryExecutionContext.DASHBOARD,
-        });
-
-        return {
-            jobId,
-            chart: {
-                ...savedChart,
-                space: {
-                    ...savedChart.space,
-                    userAccess,
-                },
-            },
         };
     }
 }
