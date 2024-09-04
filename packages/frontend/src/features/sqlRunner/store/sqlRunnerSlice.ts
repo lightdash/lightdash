@@ -10,8 +10,8 @@ import { createSlice } from '@reduxjs/toolkit';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 
 export enum EditorTabs {
-    SQL = 'sql',
-    VISUALIZATION = 'visualization',
+    SQL = 'SQL',
+    VISUALIZATION = 'Chart',
 }
 
 export enum SidebarTabs {
@@ -48,6 +48,7 @@ export interface SqlRunnerState {
     quoteChar: string;
     sqlColumns: VizSqlColumn[] | undefined;
     activeConfigs: ChartKind[];
+    fetchResultsOnLoad: boolean;
 }
 
 const initialState: SqlRunnerState = {
@@ -77,6 +78,7 @@ const initialState: SqlRunnerState = {
     quoteChar: '"',
     sqlColumns: undefined,
     activeConfigs: [ChartKind.VERTICAL_BAR],
+    fetchResultsOnLoad: false,
 };
 
 export const sqlRunnerSlice = createSlice({
@@ -88,6 +90,9 @@ export const sqlRunnerSlice = createSlice({
         },
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
+        },
+        setFetchResultsOnLoad: (state, action: PayloadAction<boolean>) => {
+            state.fetchResultsOnLoad = action.payload;
         },
         setSqlRunnerResults: (
             state,
@@ -134,6 +139,12 @@ export const sqlRunnerSlice = createSlice({
         },
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
+            if (
+                state.fetchResultsOnLoad &&
+                state.activeEditorTab === EditorTabs.SQL
+            ) {
+                state.fetchResultsOnLoad = false;
+            }
             if (action.payload === EditorTabs.VISUALIZATION) {
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
                 if (state.selectedChartType === undefined) {
@@ -187,6 +198,7 @@ export const sqlRunnerSlice = createSlice({
 export const {
     toggleActiveTable,
     setProjectUuid,
+    setFetchResultsOnLoad,
     setSqlRunnerResults,
     updateName,
     setSql,
