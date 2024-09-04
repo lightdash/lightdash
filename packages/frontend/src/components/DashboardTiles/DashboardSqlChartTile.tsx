@@ -178,7 +178,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                     <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
                         <Table
                             resultsRunner={resultsRunner}
-                            config={data.chart.config}
+                            columnsConfig={data.chart.config.columns}
                         />
                     </Box>
                 )}

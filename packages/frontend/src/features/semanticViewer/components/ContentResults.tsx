@@ -56,7 +56,7 @@ const ContentResults: FC = () => {
                 >
                     <Table
                         resultsRunner={resultsRunner}
-                        config={resultsTableVizConfig}
+                        columnsConfig={resultsTableVizConfig.columns}
                         flexProps={{
                             m: '-1px',
                         }}
