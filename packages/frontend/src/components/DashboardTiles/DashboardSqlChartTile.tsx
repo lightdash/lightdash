@@ -182,6 +182,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                         sql={data.chart.sql}
                         projectUuid={projectUuid}
                         uuid={savedSqlUuid}
+                        limit={data.chart.limit}
                     />
                 )}
         </TileBase>
