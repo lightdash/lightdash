@@ -199,7 +199,7 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
     ): Promise<SqlChartSearchResult[]> {
-        if (!shouldSearchForType(SearchItemType.CHART, filters?.type)) {
+        if (!shouldSearchForType(SearchItemType.SQL_CHART, filters?.type)) {
             return [];
         }
 
