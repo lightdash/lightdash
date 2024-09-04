@@ -345,16 +345,7 @@ lightdash validate --only ["dashboards"] --skip-dbt-compile
 
 Generates a new `schema.yml` file or updates existing `schema.yml` for selected model(s).
 
-Supports most (but not all) [dbt options](#dbt-options). These options are supported by `lightdash generate`:
-
-- `--select`
-- `--models`
-- `--exclude`
-- `--project-dir`
-- `--profiles-dir`
-- `--profile`
-- `--target`
-- `--vars`
+All standard [dbt options](#dbt-options) work with `lightdash generate`.
 
 **Options:**
 
@@ -398,7 +389,7 @@ This command does not support using dbt options.
 
 Runs dbt and then generates or updates `schema.yml` file(s) for models that have columns missing or changed from the existing `schema.yml` files.
 
-All standard [dbt options](#dbt-options) work with `lightdash dbt run`.
+Any dbt option that works with `dbt run` will also work with `lightdash dbt run`. That includes all the [Lightdash dbt options](#dbt-options), and more ([see dbt run docs](https://docs.getdbt.com/reference/commands/run)).
 
 **Options:**
 - `--exclude-meta`
