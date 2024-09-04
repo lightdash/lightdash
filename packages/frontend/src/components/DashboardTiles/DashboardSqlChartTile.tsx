@@ -163,10 +163,13 @@ export const DashboardSqlChartTile: FC<Props> = ({
         >
             {data.chart.config.type === ChartKind.TABLE &&
                 isVizTableConfig(data.chart.config) && (
-                    <Table
-                        resultsRunner={resultsRunner}
-                        config={data.chart.config}
-                    />
+                    // So that the Table tile isn't cropped by the overflow
+                    <Box w="100%">
+                        <Table
+                            resultsRunner={resultsRunner}
+                            config={data.chart.config}
+                        />
+                    </Box>
                 )}
             {savedSqlUuid &&
                 (data.chart.config.type === ChartKind.VERTICAL_BAR ||
