@@ -45,16 +45,19 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
 
     getColumnsAccessorFn(column: string) {
         return (row: RawResultRow) => {
-            const rowKeys = Object.keys(row);
+            const resultsColumns = Object.keys(row);
 
             // Result columns casing depends on warehouse, so we need to find the correct column name
-            const rowKey = convertColumnToResultsColumn(column, rowKeys);
+            const mappedColumn = convertColumnToResultsColumn(
+                column,
+                resultsColumns,
+            );
 
-            if (!rowKey) {
+            if (!mappedColumn) {
                 return;
             }
 
-            return row[rowKey];
+            return row[mappedColumn];
         };
     }
 
