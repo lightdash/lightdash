@@ -259,13 +259,13 @@ export class SearchModel {
             filters,
         );
 
-        const savedCharts = await this.database(SavedSqlTableName)
+        const savedSqlCharts = await this.database(SavedSqlTableName)
             .select()
             .from(subquery.as('saved_charts_with_rank'))
             .where('search_rank', '>', 0)
             .limit(10);
 
-        return savedCharts;
+        return savedSqlCharts;
     }
 
     private async searchSavedCharts(
