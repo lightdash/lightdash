@@ -74,13 +74,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
     }, [onApply, onClose]);
 
     return (
-        <Modal
-            {...props}
-            onClose={onClose}
-            overlayProps={{ opacity: 0.5 }}
-            p="sm"
-            radius="md"
-        >
+        <Modal {...props} onClose={onClose} p="sm" radius="md">
             <Stack align="flex-start" spacing="sm">
                 {filters.map((filter, index) => (
                     <Filter
