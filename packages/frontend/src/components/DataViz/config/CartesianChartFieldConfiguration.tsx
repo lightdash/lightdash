@@ -7,8 +7,10 @@ import {
     type VizSqlColumn,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { ActionIcon, Box } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../../common/MantineIcon';
 import { AddButton } from '../../VisualizationConfigs/common/AddButton';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
@@ -161,10 +163,23 @@ const GroupByFieldAxisConfig = ({
     const dispatch = useVizDispatch();
     const error =
         field !== undefined &&
-        !groupByOptions.find((x) => x.reference === field.reference) &&
-        `Column "${field.reference}" does not exist. Choose another`;
+        !groupByOptions.find((x) => x.reference === field.reference)
+            ? `Column "${field.reference}" does not exist. Choose another`
+            : undefined;
     return (
         <FieldReferenceSelect
+            rightSection={
+                // When the field is deleted, the error state prevents the clear button from showing
+                error && (
+                    <ActionIcon
+                        onClick={() =>
+                            dispatch(actions.unsetGroupByReference())
+                        }
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                )
+            }
             clearable
             data={groupByOptions.map((groupBy) => ({
                 value: groupBy.reference,
@@ -172,12 +187,6 @@ const GroupByFieldAxisConfig = ({
             }))}
             value={field?.reference ?? null}
             placeholder="Select group by"
-            onClick={() => {
-                // If the user had a grouped by field, but then deleted it, and there are no more group by options, unset the group by reference, since the clear button doesn't get rendered
-                if (groupByOptions.length === 0 && !!error) {
-                    dispatch(actions.unsetGroupByReference());
-                }
-            }}
             error={error}
             onChange={(value) => {
                 if (!value) {
@@ -230,6 +239,7 @@ export const CartesianChartFieldConfiguration = ({
     const groupByLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getPivotLayoutOptions(state, selectedChartType),
     );
+
     return (
         <>
             <Config>
