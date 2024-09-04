@@ -164,7 +164,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
             {data.chart.config.type === ChartKind.TABLE &&
                 isVizTableConfig(data.chart.config) && (
                     // So that the Table tile isn't cropped by the overflow
-                    <Box w="100%">
+                    <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
                         <Table
                             resultsRunner={resultsRunner}
                             config={data.chart.config}
