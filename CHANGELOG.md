@@ -1,3 +1,10 @@
+## [0.1241.2](https://github.com/lightdash/lightdash/compare/0.1241.1...0.1241.2) (2024-09-04)
+
+
+### Bug Fixes
+
+* write last row pivot worker ([#11385](https://github.com/lightdash/lightdash/issues/11385)) ([11dc03f](https://github.com/lightdash/lightdash/commit/11dc03ff215dd3621afd89e2694c7dcb294fd25b))
+
 ## [0.1241.1](https://github.com/lightdash/lightdash/compare/0.1241.0...0.1241.1) (2024-09-04)
 
 
