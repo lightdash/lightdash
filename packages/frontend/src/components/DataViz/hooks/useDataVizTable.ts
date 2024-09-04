@@ -1,10 +1,4 @@
-import {
-    ChartKind,
-    TableDataModel,
-    type RawResultRow,
-    type VizTableColumnsConfig,
-    type VizTableConfig,
-} from '@lightdash/common';
+import { type RawResultRow, type VizColumnsConfig } from '@lightdash/common';
 import {
     getCoreRowModel,
     useReactTable,
@@ -14,47 +8,27 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
-import { type ResultsRunner } from './ResultsRunner';
 
-export const useTableDataModel = <T extends ResultsRunner>({
-    config,
-    resultsRunner,
-}: {
-    config: VizTableColumnsConfig | undefined;
-    resultsRunner: T;
-}) => {
-    const tableModel = useMemo(() => {
-        // TODO: currently usage of this hook relies just on columns, change to rely on full config so we don't have to create a dummy config
-        const tableConfig: VizTableConfig | undefined = config
-            ? {
-                  type: ChartKind.TABLE,
-                  metadata: {
-                      version: 1,
-                  },
-                  columns: config?.columns ?? {},
-              }
-            : undefined;
+const defaultAccessorFn = (column: string) => (row: RawResultRow) =>
+    row[column];
 
-        return new TableDataModel({
-            resultsRunner,
-            config: tableConfig,
-        });
-    }, [resultsRunner, config]);
-
-    const columns = useMemo(() => tableModel.getVisibleColumns(), [tableModel]);
-    const rows = useMemo(() => tableModel.getRows(), [tableModel]);
-
+const useDataVizTable = (
+    columns: string[],
+    rows: RawResultRow[],
+    columnsConfig: VizColumnsConfig,
+    accessorFn: typeof defaultAccessorFn = defaultAccessorFn,
+) => {
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
         return columns.map((column) => ({
             id: column,
             // react table has a bug with accessors that has dots in them
             // we found the fix here -> https://github.com/TanStack/table/issues/1671
             // do not remove the line below
-            accessorFn: resultsRunner.getColumnsAccessorFn(column),
-            header: config?.columns[column].label || column,
+            accessorFn: accessorFn(column),
+            header: columnsConfig[column]?.label ?? column,
             cell: getValueCell,
         }));
-    }, [columns, config?.columns, resultsRunner]);
+    }, [columns, columnsConfig, accessorFn]);
 
     const table = useReactTable({
         data: rows,
@@ -68,7 +42,7 @@ export const useTableDataModel = <T extends ResultsRunner>({
 
     const virtualizer = useVirtualizer({
         getScrollElement: () => tableWrapperRef.current,
-        count: tableModel.getRowsCount(),
+        count: rows.length,
         estimateSize: () => getRowHeight(),
         overscan: 25,
     });
@@ -101,10 +75,12 @@ export const useTableDataModel = <T extends ResultsRunner>({
         columns,
         rows,
         getRowHeight,
-        getRowsCount: () => tableModel.getRowsCount(),
-        getColumnsCount: () => tableModel.getColumnsCount(),
+        getRowsCount: () => rows.length,
+        getColumnsCount: () => columns.length,
         getTableData,
         paddingTop,
         paddingBottom,
     };
 };
+
+export default useDataVizTable;

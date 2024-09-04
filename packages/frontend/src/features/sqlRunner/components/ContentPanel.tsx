@@ -1,4 +1,8 @@
-import { isVizTableConfig, type VizTableConfig } from '@lightdash/common';
+import {
+    ChartKind,
+    isVizTableConfig,
+    type VizTableConfig,
+} from '@lightdash/common';
 import {
     Box,
     getDefaultZIndex,
@@ -30,6 +34,7 @@ import { onResults } from '../../../components/DataViz/store/actions/commonChart
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
+import ChartVizTransformedDataTable from '../../../components/DataViz/visualizations/ChartVizTransformedDataTable';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -240,32 +245,17 @@ export const ContentPanel: FC = () => {
     const showSqlResultsTable = useMemo(() => {
         return !!(
             (queryResults?.results && activeEditorTab === EditorTabs.SQL) ||
-            // if the chart is grouped, show the sql results table
-            activeConfigs.chartConfigs.find((c) => c.type === selectedChartType)
-                ?.fieldConfig?.groupBy
+            currentVizConfig?.type === ChartKind.TABLE
         );
-    }, [
-        queryResults,
-        activeEditorTab,
-        activeConfigs.chartConfigs,
-        selectedChartType,
-    ]);
+    }, [queryResults, activeEditorTab, currentVizConfig]);
 
     const showChartResultsTable = useMemo(() => {
         return !!(
             queryResults?.results &&
             activeEditorTab === EditorTabs.VISUALIZATION &&
-            // if the chart is not grouped, show the chart results table
-            !activeConfigs.chartConfigs.find(
-                (c) => c.type === selectedChartType,
-            )?.fieldConfig?.groupBy
+            currentVizConfig?.type !== ChartKind.TABLE
         );
-    }, [
-        queryResults,
-        activeEditorTab,
-        activeConfigs.chartConfigs,
-        selectedChartType,
-    ]);
+    }, [queryResults, activeEditorTab, currentVizConfig]);
 
     const canSetSqlLimit = useMemo(
         () => activeEditorTab === EditorTabs.VISUALIZATION,
@@ -478,8 +468,11 @@ export const ContentPanel: FC = () => {
                                                             resultsRunner={
                                                                 resultsRunner
                                                             }
-                                                            config={
-                                                                activeConfigs.tableConfig
+                                                            columnsConfig={
+                                                                activeConfigs
+                                                                    .tableConfig
+                                                                    ?.columns ??
+                                                                {}
                                                             }
                                                         />
                                                     </ConditionalVisibility>
@@ -562,7 +555,9 @@ export const ContentPanel: FC = () => {
                                 >
                                     <Table
                                         resultsRunner={resultsRunner}
-                                        config={resultsTableConfig}
+                                        columnsConfig={
+                                            resultsTableConfig?.columns ?? {}
+                                        }
                                     />
                                 </ConditionalVisibility>
 
@@ -574,20 +569,27 @@ export const ContentPanel: FC = () => {
                                         resultsTableRunnerByChartType &&
                                         resultsTableRunnerByChartType[
                                             selectedChartType
-                                        ] && (
+                                        ] &&
+                                        (chartVizQuery.data ? (
+                                            <ChartVizTransformedDataTable
+                                                transformedData={
+                                                    chartVizQuery.data
+                                                }
+                                            />
+                                        ) : (
                                             <Table
                                                 resultsRunner={
                                                     resultsTableRunnerByChartType[
                                                         selectedChartType
                                                     ]!
                                                 }
-                                                config={
+                                                columnsConfig={
                                                     tableConfigByChartType[
                                                         selectedChartType
-                                                    ]
+                                                    ]?.columns ?? {}
                                                 }
                                             />
-                                        )}
+                                        ))}
                                 </ConditionalVisibility>
                             </>
                         )}

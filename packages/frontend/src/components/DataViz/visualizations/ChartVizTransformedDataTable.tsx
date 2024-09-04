@@ -1,6 +1,7 @@
-import { type RawResultRow, type VizColumnsConfig } from '@lightdash/common';
-import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
+import { type PivotChartData, type RawResultRow } from '@lightdash/common';
+import { Flex, Group, type FlexProps } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
+import { type FC } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
@@ -9,27 +10,33 @@ import {
     TABLE_HEADER_BG,
     Tr,
 } from '../../common/Table/Table.styles';
-import { useTableDataModel } from '../hooks/useTableDataModel';
-import { type ResultsRunner } from '../transformers/ResultsRunner';
+import useDataVizTable from '../hooks/useDataVizTable';
 
-type TableProps<T extends ResultsRunner> = {
-    columnsConfig: VizColumnsConfig;
-    resultsRunner: T;
+type Props = {
+    transformedData: PivotChartData;
     flexProps?: FlexProps;
 };
 
-export const Table = <T extends ResultsRunner>({
-    resultsRunner,
-    columnsConfig,
+const ChartVizTransformedDataTable: FC<Props> = ({
+    transformedData,
     flexProps,
-}: TableProps<T>) => {
+}) => {
     const {
         tableWrapperRef,
         getColumnsCount,
         getTableData,
         paddingTop,
         paddingBottom,
-    } = useTableDataModel({ columnsConfig, resultsRunner });
+    } = useDataVizTable(
+        [
+            ...(transformedData.indexColumn?.reference
+                ? [transformedData.indexColumn.reference]
+                : []),
+            ...transformedData.valuesColumns,
+        ],
+        transformedData.results,
+        {},
+    );
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
@@ -60,21 +67,6 @@ export const Table = <T extends ResultsRunner>({
                                     }}
                                 >
                                     <Group spacing="two">
-                                        {columnsConfig[header.id]
-                                            ?.aggregation && (
-                                            <Badge
-                                                size="sm"
-                                                color="indigo"
-                                                radius="xs"
-                                            >
-                                                {
-                                                    columnsConfig[header.id]
-                                                        ?.aggregation
-                                                }
-                                            </Badge>
-                                        )}
-                                        {/* TODO: do we need to check if it's a
-                                            placeholder? */}
                                         {flexRender(
                                             header.column.columnDef.header,
                                             header.getContext(),
@@ -140,3 +132,5 @@ export const Table = <T extends ResultsRunner>({
         </Flex>
     );
 };
+
+export default ChartVizTransformedDataTable;

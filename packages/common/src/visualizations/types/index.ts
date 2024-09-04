@@ -80,22 +80,24 @@ export type VizPieChartOptions = {
     metricFieldOptions: VizValuesLayoutOptions[];
 };
 
+export type VizColumnConfig = {
+    visible: boolean;
+    reference: string;
+    label: string;
+    frozen: boolean;
+    order?: number;
+    aggregation?: VizAggregationOptions;
+};
+
+export type VizColumnsConfig = Record<string, VizColumnConfig>;
+
+export type VizTableColumnsConfig = {
+    columns: VizColumnsConfig;
+};
+
 // TODO: FIXME!! it should be a common type!
 export type VizTableOptions = {
     defaultColumnConfig: VizTableColumnsConfig['columns'] | undefined;
-};
-
-export type VizTableColumnsConfig = {
-    columns: {
-        [key: string]: {
-            visible: boolean;
-            reference: string;
-            label: string;
-            frozen: boolean;
-            order?: number;
-            aggregation?: VizAggregationOptions;
-        };
-    };
 };
 
 export type VizBaseConfig = {
