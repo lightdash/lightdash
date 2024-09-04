@@ -18,7 +18,7 @@ export type GetSavedSqlChartParams = {
     onSuccess?: (data: SqlChart) => void;
 };
 
-const fetchSavedSqlChart = async ({
+export const fetchSavedSqlChart = async ({
     projectUuid,
     slug,
     uuid,

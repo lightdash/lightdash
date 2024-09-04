@@ -7078,25 +7078,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSqlChartWithResults: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        chart: { ref: 'SqlChart', required: true },
-                        jobId: { dataType: 'string', required: true },
-                    },
-                    required: true,
-                },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCreateSqlChart: {
         dataType: 'refAlias',
         type: {
@@ -15364,69 +15345,6 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.getSavedSqlResultsJob.apply(
-                    controller,
-                    validatedArgs as any,
-                );
-                promiseHandler(controller, promise, response, 200, next);
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.get(
-        '/api/v1/projects/:projectUuid/sqlRunner/saved/:uuid/chart-and-results',
-        ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
-        ...fetchMiddlewares<RequestHandler>(
-            SqlRunnerController.prototype.getSavedSqlChartWithResults,
-        ),
-
-        async function SqlRunnerController_getSavedSqlChartWithResults(
-            request: any,
-            response: any,
-            next: any,
-        ) {
-            const args = {
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-            };
-
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = getValidatedArgs(args, request, response);
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<SqlRunnerController>(
-                        SqlRunnerController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                const promise = controller.getSavedSqlChartWithResults.apply(
                     controller,
                     validatedArgs as any,
                 );
