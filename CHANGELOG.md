@@ -1,3 +1,10 @@
+## [0.1240.3](https://github.com/lightdash/lightdash/compare/0.1240.2...0.1240.3) (2024-09-04)
+
+
+### Bug Fixes
+
+* pass limit to saved chart & tile ([#11386](https://github.com/lightdash/lightdash/issues/11386)) ([a284991](https://github.com/lightdash/lightdash/commit/a2849913b34baa344a76981ef1b871e1611153b6))
+
 ## [0.1240.2](https://github.com/lightdash/lightdash/compare/0.1240.1...0.1240.2) (2024-09-03)
 
 
