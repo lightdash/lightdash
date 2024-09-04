@@ -177,6 +177,7 @@ const ViewSqlChart = () => {
                                                     sql={sql}
                                                     projectUuid={projectUuid}
                                                     slug={params.slug}
+                                                    limit={sqlChart?.limit}
                                                 />
                                             )}
                                     </>
