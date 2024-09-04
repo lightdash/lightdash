@@ -184,18 +184,7 @@ export class SearchService extends BaseService {
             results.savedCharts.map(filterItem),
         );
         const hasSqlChartAccess = await Promise.all(
-            results.sqlCharts.map((sqlChart) => {
-                const { spaceUuid } = sqlChart;
-                const itemSpace = spaces.find((s) => s.uuid === spaceUuid);
-                return (
-                    itemSpace &&
-                    hasViewAccessToSpace(
-                        user,
-                        itemSpace,
-                        spacesAccess[spaceUuid] ?? [],
-                    )
-                );
-            }),
+            results.sqlCharts.map(filterItem),
         );
 
         const hasSpaceAccess = await Promise.all(
