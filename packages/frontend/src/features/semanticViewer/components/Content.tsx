@@ -40,6 +40,11 @@ const Content: FC = () => {
         dispatch(updateSortBy({ name: fieldName, kind }));
     };
 
+    const selectedFieldsCount =
+        allSelectedFieldsByKind.dimensions.length +
+        allSelectedFieldsByKind.metrics.length +
+        allSelectedFieldsByKind.timeDimensions.length;
+
     return (
         <>
             <Group
@@ -93,7 +98,7 @@ const Content: FC = () => {
 
                 <RunSemanticQueryButton />
             </Group>
-            {sortBy.length > 0 && (
+            {selectedFieldsCount > 0 && (
                 <Group
                     px="md"
                     pt="sm"
