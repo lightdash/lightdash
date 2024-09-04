@@ -2220,6 +2220,10 @@ export class ProjectService extends BaseService {
                         tags: queryTags,
                     },
                 );
+                // Write the last row
+                if (currentTransformedRow) {
+                    writer(currentTransformedRow);
+                }
             },
             this.s3Client,
         );
