@@ -65,7 +65,7 @@ export type SqlRunnerResultsRunnerDeps = {
 
 export class SqlRunnerResultsRunner extends ResultsRunner {
     // args should be rows, columns, values (blocked by db migration)
-    public async getPivotChartData(
+    async getPivotedVisualizationData(
         config: VizChartLayout,
         sql: string,
         projectUuid: string,

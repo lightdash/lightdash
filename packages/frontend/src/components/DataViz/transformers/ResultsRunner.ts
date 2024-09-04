@@ -246,7 +246,7 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
         return mergedLayout;
     }
 
-    getPivotChartData(
+    getPivotedVisualizationData(
         _config: VizChartLayout,
         _sql?: string,
         _projectUuid?: string,
