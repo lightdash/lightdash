@@ -1,3 +1,10 @@
+## [0.1241.1](https://github.com/lightdash/lightdash/compare/0.1241.0...0.1241.1) (2024-09-04)
+
+
+### Bug Fixes
+
+* wait for sql before viewing sql chart ([#11398](https://github.com/lightdash/lightdash/issues/11398)) ([6844d49](https://github.com/lightdash/lightdash/commit/6844d49c3700e01b58e3907ccf76e8a90e7f1497))
+
 # [0.1241.0](https://github.com/lightdash/lightdash/compare/0.1240.5...0.1241.0) (2024-09-04)
 
 
