@@ -1,3 +1,11 @@
+# [0.1242.0](https://github.com/lightdash/lightdash/compare/0.1241.2...0.1242.0) (2024-09-04)
+
+
+### Features
+
+* add sql runner charts to search ([#11397](https://github.com/lightdash/lightdash/issues/11397)) ([293eeaf](https://github.com/lightdash/lightdash/commit/293eeaf4a09a39a10910170270add2864617335c))
+* add sql runner to popular chart endpoint ([#11399](https://github.com/lightdash/lightdash/issues/11399)) ([808fd8e](https://github.com/lightdash/lightdash/commit/808fd8e98e30b3d8a853502f3542cd3011a72ffb))
+
 ## [0.1241.2](https://github.com/lightdash/lightdash/compare/0.1241.1...0.1241.2) (2024-09-04)
 
 
