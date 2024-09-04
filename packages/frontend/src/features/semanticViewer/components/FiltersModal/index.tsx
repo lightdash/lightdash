@@ -163,17 +163,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                     </Group>
                 )}
                 <Flex w="100%" justify="flex-end">
-                    <Button
-                        bg="black"
-                        onClick={handleApply}
-                        sx={(theme) => ({
-                            ':hover': {
-                                backgroundColor: theme.colors.gray[6],
-                            },
-                        })}
-                    >
-                        Apply
-                    </Button>
+                    <Button onClick={handleApply}>Apply</Button>
                 </Flex>
             </Stack>
         </Modal>
