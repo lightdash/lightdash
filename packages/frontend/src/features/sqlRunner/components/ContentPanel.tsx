@@ -584,7 +584,7 @@ export const ContentPanel: FC = () => {
                                                 columnsConfig={Object.fromEntries(
                                                     chartVizQuery.data.columns.map(
                                                         (field) => [
-                                                            field,
+                                                            field.reference,
                                                             {
                                                                 visible: true,
                                                                 reference:
