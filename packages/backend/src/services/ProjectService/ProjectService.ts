@@ -3138,10 +3138,7 @@ export class ProjectService extends BaseService {
         );
 
         await sshTunnel.disconnect();
-        const warehouseDatabase =
-            warehouseCatalog[database] ||
-            warehouseCatalog[database?.toLowerCase()];
-        return warehouseDatabase[schemaName][tableName];
+        return warehouseCatalog[database][schemaName][tableName];
     }
 
     async getTablesConfiguration(
