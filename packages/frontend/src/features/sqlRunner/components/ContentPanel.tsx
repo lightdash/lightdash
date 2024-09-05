@@ -1,7 +1,6 @@
 import {
     ChartKind,
     isVizTableConfig,
-    type PivotChartData,
     type VizTableConfig,
 } from '@lightdash/common';
 import {
@@ -42,7 +41,6 @@ import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useChartResultsTableConfig } from '../hooks/useChartResultsTableConfig';
 import {
     useSqlQueryRun,
     type ResultsAndColumns,
@@ -226,12 +224,6 @@ export const ContentPanel: FC = () => {
         [currentVizConfig],
     );
 
-    const {
-        tableConfigByChartType,
-        resultsTableRunnerByChartType,
-        handlePivotData,
-    } = useChartResultsTableConfig(resultsRunner, activeConfigs);
-
     const showLimitText = useMemo(() => {
         return (
             queryResults?.results &&
@@ -259,14 +251,14 @@ export const ContentPanel: FC = () => {
         () => activeEditorTab === EditorTabs.VISUALIZATION,
         [activeEditorTab],
     );
-    const onPivot = useCallback(
-        (d: PivotChartData | undefined) => {
-            if (currentVizConfig && !isVizTableConfig(currentVizConfig)) {
-                handlePivotData(currentVizConfig.type, d);
-            }
-        },
-        [currentVizConfig, handlePivotData],
-    );
+    // const onPivot = useCallback(
+    //     (d: PivotChartData | undefined) => {
+    //         if (currentVizConfig && !isVizTableConfig(currentVizConfig)) {
+    //             handlePivotData(currentVizConfig.type, d);
+    //         }
+    //     },
+    //     [currentVizConfig, handlePivotData],
+    // );
 
     const [chartVizQuery, chartSpec] = useChartViz({
         projectUuid,
@@ -274,7 +266,6 @@ export const ContentPanel: FC = () => {
         config: currentVizConfig,
         sql,
         limit,
-        onPivot,
     });
 
     return (
