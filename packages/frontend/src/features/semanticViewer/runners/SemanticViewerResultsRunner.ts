@@ -122,6 +122,9 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
             indexColumn,
             results: pivotedResults ?? [],
             valuesColumns: difference(allResultsColumns, columnsToRemove),
+            columns: allResultsColumns.map((field) => ({
+                reference: field,
+            })),
         };
     }
 }

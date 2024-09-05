@@ -67,6 +67,7 @@ export type PivotChartData = {
     results: RawResultRow[];
     indexColumn: { reference: string; type: string } | undefined;
     valuesColumns: string[];
+    columns: VizSqlColumn[];
 };
 
 export type VizCartesianChartOptions = {

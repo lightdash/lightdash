@@ -47,7 +47,7 @@ const useDataVizTable = (
         overscan: 25,
     });
 
-    const getTableData = () => {
+    const getTableData = useCallback(() => {
         const { rows: rowModelRows } = table.getRowModel();
         const virtualRows = virtualizer.getVirtualItems();
 
@@ -56,19 +56,22 @@ const useDataVizTable = (
             virtualRows,
             rowModelRows,
         };
-    };
+    }, [table, virtualizer]);
 
-    const paddingTop =
-        virtualizer.getVirtualItems().length > 0
+    const paddingTop = useMemo(() => {
+        return virtualizer.getVirtualItems().length > 0
             ? virtualizer.getVirtualItems()[0]?.start || 0
             : 0;
-    const paddingBottom =
-        virtualizer.getVirtualItems().length > 0
+    }, [virtualizer]);
+
+    const paddingBottom = useMemo(() => {
+        return virtualizer.getVirtualItems().length > 0
             ? virtualizer.getTotalSize() -
-              (virtualizer.getVirtualItems()[
-                  virtualizer.getVirtualItems().length - 1
-              ]?.end || 0)
+                  (virtualizer.getVirtualItems()[
+                      virtualizer.getVirtualItems().length - 1
+                  ]?.end || 0)
             : 0;
+    }, [virtualizer]);
 
     return {
         tableWrapperRef,

@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    DimensionType,
     isVizTableConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -34,7 +35,6 @@ import { onResults } from '../../../components/DataViz/store/actions/commonChart
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
-import ChartVizTransformedDataTable from '../../../components/DataViz/visualizations/ChartVizTransformedDataTable';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -570,26 +570,36 @@ export const ContentPanel: FC = () => {
                                         resultsTableRunnerByChartType[
                                             selectedChartType
                                         ] &&
-                                        (chartVizQuery.data ? (
-                                            <ChartVizTransformedDataTable
-                                                transformedData={
-                                                    chartVizQuery.data
-                                                }
-                                            />
-                                        ) : (
+                                        chartVizQuery.data && (
                                             <Table
                                                 resultsRunner={
-                                                    resultsTableRunnerByChartType[
-                                                        selectedChartType
-                                                    ]!
+                                                    new SqlRunnerResultsRunner({
+                                                        rows: chartVizQuery.data
+                                                            .results,
+                                                        columns:
+                                                            chartVizQuery.data
+                                                                .columns,
+                                                    })
                                                 }
-                                                columnsConfig={
-                                                    tableConfigByChartType[
-                                                        selectedChartType
-                                                    ]?.columns ?? {}
-                                                }
+                                                columnsConfig={Object.fromEntries(
+                                                    chartVizQuery.data.columns.map(
+                                                        (field) => [
+                                                            field,
+                                                            {
+                                                                visible: true,
+                                                                reference:
+                                                                    field.reference,
+                                                                label: field.reference,
+                                                                type: DimensionType.STRING,
+                                                                frozen: false,
+                                                                // TODO: add aggregation
+                                                                // aggregation?: VizAggregationOptions;
+                                                            },
+                                                        ],
+                                                    ),
+                                                )}
                                             />
-                                        ))}
+                                        )}
                                 </ConditionalVisibility>
                             </>
                         )}

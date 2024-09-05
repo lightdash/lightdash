@@ -1,4 +1,5 @@
 import {
+    DimensionType,
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
     type ApiJobScheduledResponse,
@@ -31,7 +32,7 @@ type PivotQueryFn = (
     args: SqlRunnerPivotQueryBody & {
         projectUuid: string;
     },
-) => Promise<PivotChartData>;
+) => Promise<Omit<PivotChartData, 'columns'>>;
 
 const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
     const scheduledJob = await schedulePivotSqlJob({
@@ -78,8 +79,10 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
+                columns: [],
             };
         }
+
         const pivotResults = await pivotQueryFn({
             projectUuid,
             slug,
@@ -97,10 +100,21 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
             limit,
         });
 
+        const columns: VizSqlColumn[] = [
+            ...(pivotResults.indexColumn?.reference
+                ? [pivotResults.indexColumn.reference]
+                : []),
+            ...pivotResults.valuesColumns,
+        ].map((field) => ({
+            reference: field,
+            type: DimensionType.STRING,
+        }));
+
         return {
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,
             valuesColumns: pivotResults.valuesColumns,
+            columns,
         };
     }
 }

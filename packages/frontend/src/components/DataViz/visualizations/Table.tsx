@@ -34,6 +34,8 @@ export const Table = <T extends ResultsRunner>({
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
+    console.log(columnsConfig);
+
     return (
         <Flex
             ref={tableWrapperRef}
@@ -48,6 +50,7 @@ export const Table = <T extends ResultsRunner>({
                 ...flexProps?.sx,
             }}
         >
+            <div>yello!</div>
             <TableStyled>
                 <thead>
                     <tr>
