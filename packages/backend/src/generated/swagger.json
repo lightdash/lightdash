@@ -7575,6 +7575,14 @@
                 "enum": ["table"],
                 "type": "string"
             },
+            "Record_string.VizColumnConfig_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "VizColumnsConfig": {
+                "$ref": "#/components/schemas/Record_string.VizColumnConfig_"
+            },
             "VizTableConfig": {
                 "allOf": [
                     {
@@ -7583,38 +7591,7 @@
                     {
                         "properties": {
                             "columns": {
-                                "properties": {},
-                                "additionalProperties": {
-                                    "properties": {
-                                        "aggregation": {
-                                            "$ref": "#/components/schemas/VizAggregationOptions"
-                                        },
-                                        "order": {
-                                            "type": "number",
-                                            "format": "double"
-                                        },
-                                        "frozen": {
-                                            "type": "boolean"
-                                        },
-                                        "label": {
-                                            "type": "string"
-                                        },
-                                        "reference": {
-                                            "type": "string"
-                                        },
-                                        "visible": {
-                                            "type": "boolean"
-                                        }
-                                    },
-                                    "required": [
-                                        "frozen",
-                                        "label",
-                                        "reference",
-                                        "visible"
-                                    ],
-                                    "type": "object"
-                                },
-                                "type": "object"
+                                "$ref": "#/components/schemas/VizColumnsConfig"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.TABLE"
@@ -9581,7 +9558,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1244.0",
+        "version": "0.1244.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

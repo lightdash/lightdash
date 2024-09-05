@@ -1,3 +1,31 @@
+# [0.1246.0](https://github.com/lightdash/lightdash/compare/0.1245.0...0.1246.0) (2024-09-05)
+
+
+### Features
+
+* sql runner pivot table ([#11419](https://github.com/lightdash/lightdash/issues/11419)) ([d92cd61](https://github.com/lightdash/lightdash/commit/d92cd61dd18b68601ace5d1b867732db3ea8999f))
+
+# [0.1245.0](https://github.com/lightdash/lightdash/compare/0.1244.3...0.1245.0) (2024-09-05)
+
+
+### Features
+
+* support Bigquery execution project ([#11374](https://github.com/lightdash/lightdash/issues/11374)) ([8c608db](https://github.com/lightdash/lightdash/commit/8c608db00e6382c5691119b8138cfad3b70e9f93))
+
+## [0.1244.3](https://github.com/lightdash/lightdash/compare/0.1244.2...0.1244.3) (2024-09-05)
+
+
+### Bug Fixes
+
+* upgrade @easyops-cn/docusaurus-search-local from 0.40.1 to 0.44.5 ([#11413](https://github.com/lightdash/lightdash/issues/11413)) ([400bf94](https://github.com/lightdash/lightdash/commit/400bf94ee03366bde692872399a03432427f8e8a))
+
+## [0.1244.2](https://github.com/lightdash/lightdash/compare/0.1244.1...0.1244.2) (2024-09-05)
+
+
+### Bug Fixes
+
+* upgrade clsx from 2.1.0 to 2.1.1 ([#11415](https://github.com/lightdash/lightdash/issues/11415)) ([c965f08](https://github.com/lightdash/lightdash/commit/c965f08d1dd8386776b931bcb75611638f659341))
+
 ## [0.1244.1](https://github.com/lightdash/lightdash/compare/0.1244.0...0.1244.1) (2024-09-05)
 
 

@@ -1,4 +1,8 @@
-import { isVizTableConfig, type VizTableConfig } from '@lightdash/common';
+import {
+    ChartKind,
+    isVizTableConfig,
+    type VizTableConfig,
+} from '@lightdash/common';
 import {
     Box,
     Group,
@@ -238,32 +242,17 @@ export const ContentPanel: FC = () => {
     const showSqlResultsTable = useMemo(() => {
         return !!(
             (queryResults?.results && activeEditorTab === EditorTabs.SQL) ||
-            // if the chart is grouped, show the sql results table
-            activeConfigs.chartConfigs.find((c) => c.type === selectedChartType)
-                ?.fieldConfig?.groupBy
+            currentVizConfig?.type === ChartKind.TABLE
         );
-    }, [
-        queryResults,
-        activeEditorTab,
-        activeConfigs.chartConfigs,
-        selectedChartType,
-    ]);
+    }, [queryResults, activeEditorTab, currentVizConfig]);
 
     const showChartResultsTable = useMemo(() => {
         return !!(
             queryResults?.results &&
             activeEditorTab === EditorTabs.VISUALIZATION &&
-            // if the chart is not grouped, show the chart results table
-            !activeConfigs.chartConfigs.find(
-                (c) => c.type === selectedChartType,
-            )?.fieldConfig?.groupBy
+            currentVizConfig?.type !== ChartKind.TABLE
         );
-    }, [
-        queryResults,
-        activeEditorTab,
-        activeConfigs.chartConfigs,
-        selectedChartType,
-    ]);
+    }, [queryResults, activeEditorTab, currentVizConfig]);
 
     const canSetSqlLimit = useMemo(
         () => activeEditorTab === EditorTabs.VISUALIZATION,

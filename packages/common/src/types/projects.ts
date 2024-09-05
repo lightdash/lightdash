@@ -49,6 +49,7 @@ export type CreateBigqueryCredentials = {
     location: string | undefined;
     maximumBytesBilled: number | undefined;
     startOfWeek?: WeekDay | null;
+    executionProject?: string;
 };
 export const sensitiveCredentialsFieldNames = [
     'user',

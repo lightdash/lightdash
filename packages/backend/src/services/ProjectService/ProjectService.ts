@@ -2118,7 +2118,7 @@ export class ProjectService extends BaseService {
     }: SqlRunnerPivotQueryPayload): Promise<
         {
             fileUrl: string;
-        } & Omit<PivotChartData, 'results'>
+        } & Omit<PivotChartData, 'results' | 'columns'>
     > {
         if (!indexColumn) throw new ParameterError('Index column is required');
         const { organizationUuid } = await this.projectModel.getSummary(

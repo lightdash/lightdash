@@ -170,7 +170,9 @@ const ViewSqlChart = () => {
                                         {isVizTableConfig(currentVisConfig) && (
                                             <Table
                                                 resultsRunner={resultsRunner}
-                                                config={currentVisConfig}
+                                                columnsConfig={
+                                                    currentVisConfig.columns
+                                                }
                                             />
                                         )}
                                         {!isVizTableConfig(currentVisConfig) &&
