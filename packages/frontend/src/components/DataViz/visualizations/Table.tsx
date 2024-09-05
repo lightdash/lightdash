@@ -30,7 +30,12 @@ export const Table = <T extends ResultsRunner>({
         getTableData,
         paddingTop,
         paddingBottom,
-    } = useTableDataModel({ columnsConfig, resultsRunner });
+    } = useTableDataModel({
+        config: {
+            columns: columnsConfig,
+        },
+        resultsRunner,
+    });
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
@@ -45,6 +50,7 @@ export const Table = <T extends ResultsRunner>({
                     flex: 1,
                     overflow: 'auto',
                 }}
+                {...flexProps}
             >
                 <TableStyled>
                     <thead>

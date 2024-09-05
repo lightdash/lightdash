@@ -1,6 +1,7 @@
 import {
     ChartKind,
     isVizTableConfig,
+    type PivotChartData,
     type VizTableConfig,
 } from '@lightdash/common';
 import {
@@ -258,6 +259,14 @@ export const ContentPanel: FC = () => {
         () => activeEditorTab === EditorTabs.VISUALIZATION,
         [activeEditorTab],
     );
+    const onPivot = useCallback(
+        (d: PivotChartData | undefined) => {
+            if (currentVizConfig && !isVizTableConfig(currentVizConfig)) {
+                handlePivotData(currentVizConfig.type, d);
+            }
+        },
+        [currentVizConfig, handlePivotData],
+    );
 
     const [chartVizQuery, chartSpec] = useChartViz({
         projectUuid,
@@ -265,11 +274,7 @@ export const ContentPanel: FC = () => {
         config: currentVizConfig,
         sql,
         limit,
-        onPivot: (d) => {
-            if (currentVizConfig && !isVizTableConfig(currentVizConfig)) {
-                handlePivotData(currentVizConfig.type, d);
-            }
-        },
+        onPivot,
     });
 
     return (
