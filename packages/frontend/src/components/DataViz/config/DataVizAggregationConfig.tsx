@@ -9,6 +9,7 @@ import {
     IconMathMax,
     IconMathMin,
     IconMathOff,
+    IconNumber1,
     IconSum,
     IconTrendingUp,
 } from '@tabler/icons-react';
@@ -37,6 +38,9 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
             break;
         case MetricType.MAX:
             icon = IconMathMax;
+            break;
+        case 'first':
+            icon = IconNumber1;
             break;
         default:
             icon = IconMathOff;
