@@ -1,3 +1,10 @@
+# [0.1245.0](https://github.com/lightdash/lightdash/compare/0.1244.3...0.1245.0) (2024-09-05)
+
+
+### Features
+
+* support Bigquery execution project ([#11374](https://github.com/lightdash/lightdash/issues/11374)) ([8c608db](https://github.com/lightdash/lightdash/commit/8c608db00e6382c5691119b8138cfad3b70e9f93))
+
 ## [0.1244.3](https://github.com/lightdash/lightdash/compare/0.1244.2...0.1244.3) (2024-09-05)
 
 
