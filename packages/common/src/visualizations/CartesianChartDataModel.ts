@@ -113,7 +113,7 @@ export class CartesianChartDataModel
             return undefined;
         }
 
-        return this.resultsRunner.getPivotChartData(
+        return this.resultsRunner.getPivotedVisualizationData(
             layout,
             sql,
             projectUuid,

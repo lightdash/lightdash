@@ -16,6 +16,7 @@ import { ConditionalVisibility } from '../components/common/ConditionalVisibilit
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
+import { useChartViz } from '../components/DataViz/hooks/useChartViz';
 import { setChartConfig } from '../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../components/DataViz/store/selectors';
 import ChartView from '../components/DataViz/visualizations/ChartView';
@@ -88,6 +89,16 @@ const ViewSqlChart = () => {
             }),
         [data],
     );
+
+    const [chartVizQuery, chartSpec] = useChartViz({
+        resultsRunner,
+        config: currentVisConfig,
+        uuid: sqlChart?.savedSqlUuid,
+        sql,
+        projectUuid,
+        slug: params.slug,
+        limit: sqlChart?.limit,
+    });
 
     return (
         <Page
@@ -166,18 +177,14 @@ const ViewSqlChart = () => {
                                             params.slug &&
                                             sql && (
                                                 <ChartView
-                                                    resultsRunner={
-                                                        resultsRunner
-                                                    }
-                                                    isLoading={isLoading}
                                                     config={currentVisConfig}
-                                                    style={{
-                                                        height: '100%',
-                                                    }}
-                                                    sql={sql}
-                                                    projectUuid={projectUuid}
-                                                    slug={params.slug}
-                                                    limit={sqlChart?.limit}
+                                                    spec={chartSpec}
+                                                    isLoading={
+                                                        isLoading ||
+                                                        chartVizQuery.isLoading
+                                                    }
+                                                    error={chartVizQuery.error}
+                                                    style={{ height: '100%' }}
                                                 />
                                             )}
                                     </>

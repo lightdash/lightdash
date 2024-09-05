@@ -1,3 +1,17 @@
+## [0.1244.1](https://github.com/lightdash/lightdash/compare/0.1244.0...0.1244.1) (2024-09-05)
+
+
+### Bug Fixes
+
+* result cols mapping and query when fetching pivoted results ([#11404](https://github.com/lightdash/lightdash/issues/11404)) ([593df57](https://github.com/lightdash/lightdash/commit/593df57e119bd0064734b7f9dfb13d47389c694a))
+
+# [0.1244.0](https://github.com/lightdash/lightdash/compare/0.1243.0...0.1244.0) (2024-09-05)
+
+
+### Features
+
+* fetch results on load of edit chart ([#11401](https://github.com/lightdash/lightdash/issues/11401)) ([2472903](https://github.com/lightdash/lightdash/commit/24729031857cb8e26103dd268ac7e8bd0312324b))
+
 # [0.1243.0](https://github.com/lightdash/lightdash/compare/0.1242.0...0.1243.0) (2024-09-04)
 
 

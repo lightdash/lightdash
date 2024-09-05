@@ -136,6 +136,12 @@ export type VizTableConfig = VizBaseConfig & {
     columns: VizTableColumnsConfig['columns'];
 };
 
+export type AllVizChartConfig =
+    | VizBarChartConfig
+    | VizLineChartConfig
+    | VizPieChartConfig
+    | VizTableConfig;
+
 export const isVizBarChartConfig = (
     value: VizBaseConfig | undefined,
 ): value is VizBarChartConfig =>
