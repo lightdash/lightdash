@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ChartKind,
+    DimensionType,
     FieldType,
     SemanticLayerFieldType,
     SemanticLayerSortByDirection,
@@ -94,23 +95,22 @@ const getKeyByField = (
     }
 };
 
-// TODO: removed but still may be needed
-// export function getDimensionTypeFromSemanticLayerFieldType(
-//     type: SemanticLayerFieldType,
-// ): DimensionType {
-//     switch (type) {
-//         case SemanticLayerFieldType.TIME:
-//             return DimensionType.TIMESTAMP;
-//         case SemanticLayerFieldType.STRING:
-//             return DimensionType.STRING;
-//         case SemanticLayerFieldType.NUMBER:
-//             return DimensionType.NUMBER;
-//         case SemanticLayerFieldType.BOOLEAN:
-//             return DimensionType.BOOLEAN;
-//         default:
-//             return assertUnreachable(type, `Unknown field type: ${type}`);
-//     }
-// }
+function getDimensionTypeFromSemanticLayerFieldType(
+    type: SemanticLayerFieldType,
+): DimensionType {
+    switch (type) {
+        case SemanticLayerFieldType.TIME:
+            return DimensionType.TIMESTAMP;
+        case SemanticLayerFieldType.STRING:
+            return DimensionType.STRING;
+        case SemanticLayerFieldType.NUMBER:
+            return DimensionType.NUMBER;
+        case SemanticLayerFieldType.BOOLEAN:
+            return DimensionType.BOOLEAN;
+        default:
+            return assertUnreachable(type, `Unknown field type: ${type}`);
+    }
+}
 
 export type ResultsAndColumns = {
     results: RawResultRow[];
