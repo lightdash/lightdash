@@ -2220,6 +2220,10 @@ export class ProjectService extends BaseService {
                         tags: queryTags,
                     },
                 );
+                // Write the last row
+                if (currentTransformedRow) {
+                    writer(currentTransformedRow);
+                }
             },
             this.s3Client,
         );
@@ -3767,7 +3771,12 @@ export class ProjectService extends BaseService {
                 mostPopular: true,
             },
         );
-
+        const mostPopularSqlCharts = await this.spaceModel.getSpaceSqlCharts(
+            allowedSpaces.map(({ uuid }) => uuid),
+            {
+                mostPopular: true,
+            },
+        );
         const mostPopularDashboards = await this.spaceModel.getSpaceDashboards(
             allowedSpaces.map(({ uuid }) => uuid),
             {
@@ -3775,7 +3784,11 @@ export class ProjectService extends BaseService {
             },
         );
 
-        return [...mostPopularCharts, ...mostPopularDashboards];
+        return [
+            ...mostPopularCharts,
+            ...mostPopularSqlCharts,
+            ...mostPopularDashboards,
+        ];
     }
 
     async getRecentlyUpdated(
@@ -3787,7 +3800,13 @@ export class ProjectService extends BaseService {
                 recentlyUpdated: true,
             },
         );
-
+        const recentlyUpdatedSqlCharts =
+            await this.spaceModel.getSpaceSqlCharts(
+                allowedSpaces.map(({ uuid }) => uuid),
+                {
+                    recentlyUpdated: true,
+                },
+            );
         const recentlyUpdatedDashboards =
             await this.spaceModel.getSpaceDashboards(
                 allowedSpaces.map(({ uuid }) => uuid),
@@ -3795,8 +3814,11 @@ export class ProjectService extends BaseService {
                     recentlyUpdated: true,
                 },
             );
-
-        return [...recentlyUpdatedCharts, ...recentlyUpdatedDashboards];
+        return [
+            ...recentlyUpdatedCharts,
+            ...recentlyUpdatedSqlCharts,
+            ...recentlyUpdatedDashboards,
+        ];
     }
 
     async getSpaces(

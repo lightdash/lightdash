@@ -1,3 +1,25 @@
+# [0.1243.0](https://github.com/lightdash/lightdash/compare/0.1242.0...0.1243.0) (2024-09-04)
+
+
+### Features
+
+* allow editing chart title, description, move ([#11403](https://github.com/lightdash/lightdash/issues/11403)) ([b945998](https://github.com/lightdash/lightdash/commit/b94599807fb4bb29a491cc46779bcc94fba11a54))
+
+# [0.1242.0](https://github.com/lightdash/lightdash/compare/0.1241.2...0.1242.0) (2024-09-04)
+
+
+### Features
+
+* add sql runner charts to search ([#11397](https://github.com/lightdash/lightdash/issues/11397)) ([293eeaf](https://github.com/lightdash/lightdash/commit/293eeaf4a09a39a10910170270add2864617335c))
+* add sql runner to popular chart endpoint ([#11399](https://github.com/lightdash/lightdash/issues/11399)) ([808fd8e](https://github.com/lightdash/lightdash/commit/808fd8e98e30b3d8a853502f3542cd3011a72ffb))
+
+## [0.1241.2](https://github.com/lightdash/lightdash/compare/0.1241.1...0.1241.2) (2024-09-04)
+
+
+### Bug Fixes
+
+* write last row pivot worker ([#11385](https://github.com/lightdash/lightdash/issues/11385)) ([11dc03f](https://github.com/lightdash/lightdash/commit/11dc03ff215dd3621afd89e2694c7dcb294fd25b))
+
 ## [0.1241.1](https://github.com/lightdash/lightdash/compare/0.1241.0...0.1241.1) (2024-09-04)
 
 

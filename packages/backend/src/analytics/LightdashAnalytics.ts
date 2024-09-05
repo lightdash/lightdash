@@ -579,6 +579,7 @@ type ProjectSearch = BaseTrack & {
         spacesResultsCount: number;
         dashboardsResultsCount: number;
         savedChartsResultsCount: number;
+        sqlChartsResultsCount: number;
         tablesResultsCount: number;
         fieldsResultsCount: number;
     };

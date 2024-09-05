@@ -1,4 +1,4 @@
-import { Box, LoadingOverlay } from '@mantine/core';
+import { Box, getDefaultZIndex, LoadingOverlay } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { type FC } from 'react';
 import { useSemanticLayerSql } from '../api/hooks';
@@ -27,6 +27,7 @@ const SqlViewer: FC = () => {
             <LoadingOverlay
                 visible={sql.isFetching}
                 opacity={1}
+                zIndex={getDefaultZIndex('modal') - 1}
                 loaderProps={{ color: 'gray', size: 'sm' }}
             />
 

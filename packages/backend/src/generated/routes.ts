@@ -4822,6 +4822,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        source: { ref: 'ChartSourceType', required: true },
                         chartKind: {
                             dataType: 'union',
                             subSchemas: [
