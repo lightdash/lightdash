@@ -75,14 +75,21 @@ export const ContentPanel: FC = () => {
         [resultsHeight, maxResultsHeight],
     );
 
-    const {
-        projectUuid,
-        sql,
-        limit,
-        activeEditorTab,
-        selectedChartType,
-        resultsTableConfig,
-    } = useAppSelector((state) => state.sqlRunner);
+    const fetchResultsOnLoad = useAppSelector(
+        (state) => state.sqlRunner.fetchResultsOnLoad,
+    );
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+    const activeEditorTab = useAppSelector(
+        (state) => state.sqlRunner.activeEditorTab,
+    );
+    const limit = useAppSelector((state) => state.sqlRunner.limit);
+    const resultsTableConfig = useAppSelector(
+        (state) => state.sqlRunner.resultsTableConfig,
+    );
 
     // currently editing chart config
     const currentVizConfig = useAppSelector((state) =>
@@ -144,6 +151,14 @@ export const ContentPanel: FC = () => {
     useHotkeys([
         ['mod + enter', () => handleRunQuery, { preventDefault: true }],
     ]);
+
+    useEffect(() => {
+        if (fetchResultsOnLoad && !queryResults) {
+            void handleRunQuery();
+        } else if (fetchResultsOnLoad && queryResults) {
+            dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
+        }
+    }, [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch]);
 
     const resultsRunner = useMemo(() => {
         if (!queryResults) return;
@@ -287,18 +302,18 @@ export const ContentPanel: FC = () => {
                                 radius="sm"
                                 data={[
                                     {
-                                        value: 'sql',
+                                        value: EditorTabs.SQL,
                                         label: (
                                             <Group spacing="xs" noWrap>
                                                 <MantineIcon
                                                     icon={IconCodeCircle}
                                                 />
-                                                <Text>Query</Text>
+                                                <Text>SQL</Text>
                                             </Group>
                                         ),
                                     },
                                     {
-                                        value: 'chart',
+                                        value: EditorTabs.VISUALIZATION,
                                         label: (
                                             <Group spacing="xs" noWrap>
                                                 <MantineIcon
@@ -310,22 +325,13 @@ export const ContentPanel: FC = () => {
                                         disabled: !queryResults?.results,
                                     },
                                 ]}
-                                defaultValue={'sql'}
-                                onChange={(value) => {
+                                value={activeEditorTab}
+                                onChange={(value: EditorTabs) => {
                                     if (isLoading) {
                                         return;
                                     }
-                                    if (value === 'sql') {
-                                        dispatch(
-                                            setActiveEditorTab(EditorTabs.SQL),
-                                        );
-                                    } else {
-                                        dispatch(
-                                            setActiveEditorTab(
-                                                EditorTabs.VISUALIZATION,
-                                            ),
-                                        );
-                                    }
+
+                                    dispatch(setActiveEditorTab(value));
                                 }}
                             />
                         </Group>
