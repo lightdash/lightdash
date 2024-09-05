@@ -52,10 +52,11 @@ export const useSemanticLayerViews = ({
 type SemanticLayerViewFieldsParams = {
     projectUuid: string;
     view: string;
-    selectedFields: Pick<
-        SemanticLayerQuery,
-        'dimensions' | 'timeDimensions' | 'metrics'
-    >;
+    selectedFields: {
+        dimensions: Pick<SemanticLayerField, 'name'>[];
+        timeDimensions: Pick<SemanticLayerField, 'name'>[];
+        metrics: Pick<SemanticLayerField, 'name'>[];
+    };
 };
 
 export const useSemanticLayerViewFields = (

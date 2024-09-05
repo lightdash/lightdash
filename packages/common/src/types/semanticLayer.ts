@@ -48,7 +48,7 @@ export type SemanticLayerField = {
 };
 
 export type SemanticLayerTimeDimension = SemanticLayerField & {
-    granularity?: SemanticLayerTimeGranularity;
+    granularity: SemanticLayerTimeGranularity;
 };
 
 export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
@@ -234,7 +234,7 @@ export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
     ];
 }
 
-// Helper functions to convert between the column names in the query and the column names in the results
+// Helper functions to convert between the column names in the query and the column names in the results this is mainly to help with case sensitivity
 
 export function convertColumnToResultsColumn(
     column: string,
@@ -251,5 +251,23 @@ export function convertToResultsColumns(
 ) {
     return columns
         .map((value) => convertColumnToResultsColumn(value, resultsColumns))
+        .filter((value): value is string => !!value);
+}
+
+// Helper functions to find the column names in the results from the column names in the query
+
+export function findMappingColumn(
+    column: string,
+    mappings: SemanticLayerColumnMapping[],
+) {
+    return mappings.find((mapping) => mapping.fieldName === column)?.columnName;
+}
+
+export function findMappingColumns(
+    columns: string[],
+    mappings: SemanticLayerColumnMapping[],
+) {
+    return columns
+        .map((column) => findMappingColumn(column, mappings))
         .filter((value): value is string => !!value);
 }

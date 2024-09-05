@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     FieldType as FieldKind,
+    SemanticLayerTimeGranularity,
     type SemanticLayerField,
     type SemanticLayerTimeDimension,
 } from '@lightdash/common';
@@ -121,18 +122,25 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
                                         ? selectedField.granularity ?? null
                                         : null
                                 }
-                                onChange={(granularity) =>
-                                    selectedField
-                                        ? handleUpdateTimeDimensionGranularity({
-                                              ...field,
-                                              ...selectedField,
-                                              granularity,
-                                          })
-                                        : handleSelect({
-                                              ...field,
-                                              granularity,
-                                          })
-                                }
+                                onChange={(granularity) => {
+                                    const defaultedGranularity =
+                                        granularity ??
+                                        field.availableGranularities[0] ??
+                                        SemanticLayerTimeGranularity.DAY;
+
+                                    if (selectedField) {
+                                        handleUpdateTimeDimensionGranularity({
+                                            ...field,
+                                            ...selectedField,
+                                            granularity: defaultedGranularity,
+                                        });
+                                    } else {
+                                        handleSelect({
+                                            ...field,
+                                            granularity: defaultedGranularity,
+                                        });
+                                    }
+                                }}
                             />
 
                             <SidebarViewFieldMenu.FieldFilterItems

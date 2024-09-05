@@ -211,11 +211,16 @@ export class SemanticLayerService extends BaseService {
                 results.push(...rows);
             });
 
+            const columnMappings = await this.getColumnMappings(
+                projectUuid,
+                query,
+            );
+
             // Pivot results
             const pivotedResults =
                 query.pivot.index.length === 0
                     ? results
-                    : pivotResults(results, query.pivot);
+                    : pivotResults(results, query.pivot, columnMappings);
 
             streamFunctionCallback = async (writer) => {
                 pivotedResults.forEach(writer);
