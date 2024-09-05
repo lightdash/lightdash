@@ -4,13 +4,14 @@ import {
     isVizTableConfig,
     type DashboardSqlChartTile as DashboardSqlChartTileType,
 } from '@lightdash/common';
-import { Box, Menu } from '@mantine/core';
+import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
 import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
 import { useApp } from '../../providers/AppProvider';
+import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useChartViz } from '../DataViz/hooks/useChartViz';
@@ -41,24 +42,16 @@ const DashboardOptions = memo(
         isEditMode: boolean;
         projectUuid: string;
         slug: string;
-    }) => {
-        const history = useHistory();
-        return (
-            <Box>
-                <Menu.Item
-                    icon={<MantineIcon icon={IconFilePencil} />}
-                    disabled={isEditMode}
-                    onClick={() =>
-                        history.push(
-                            `/projects/${projectUuid}/sql-runner/${slug}/edit`,
-                        )
-                    }
-                >
-                    Edit SQL chart
-                </Menu.Item>
-            </Box>
-        );
-    },
+    }) => (
+        <LinkMenuItem
+            icon={<MantineIcon icon={IconFilePencil} />}
+            href={`/projects/${projectUuid}/sql-runner/${slug}/edit`}
+            disabled={isEditMode}
+            target="_blank"
+        >
+            Edit SQL chart
+        </LinkMenuItem>
+    ),
 );
 
 export const DashboardSqlChartTile: FC<Props> = ({
