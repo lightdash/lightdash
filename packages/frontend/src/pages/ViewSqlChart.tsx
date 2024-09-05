@@ -34,6 +34,7 @@ import {
     resetState,
     setProjectUuid,
     setSavedChartData,
+    setSqlRunnerResults,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 
 enum TabOption {
@@ -89,6 +90,11 @@ const ViewSqlChart = () => {
             }),
         [data],
     );
+
+    useEffect(() => {
+        if (!data) return;
+        dispatch(setSqlRunnerResults(data));
+    }, [data, dispatch]);
 
     const [chartVizQuery, chartSpec] = useChartViz({
         resultsRunner,
@@ -193,7 +199,6 @@ const ViewSqlChart = () => {
                                     </>
                                 )}
                             </ConditionalVisibility>
-
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.RESULTS}
                             >

@@ -559,16 +559,14 @@ These filters do not appear in the `Filters` tab in the Explore view, instead, t
 
 :::info
 
-To use special characters such as `%!_>` in your filter value you must escape them with a backslash `\`. For example,
-if you wanted to filter for users with subscription status `is_subscribed` you should write the metric like:
+To use special characters such as `%!_>` in your filter value you can either put the value in quotes, or escape special characters with a backslash `\`. For example,
+if you wanted to filter for subscription status of `is_subscribed` you can write the metric in one of these ways:
 
 ```yaml
-columns:
-  - name: user_id
-    meta:
-      metrics:
-        total_subscribed_users:
-          type: count_distinct
+          filters:
+            - subscription_status: "is_subscribed"
+```
+```yaml
           filters:
             - subscription_status: is\_subscribed
 ```
