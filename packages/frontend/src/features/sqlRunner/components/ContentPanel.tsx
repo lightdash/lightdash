@@ -1,4 +1,8 @@
-import { isVizTableConfig, type VizTableConfig } from '@lightdash/common';
+import {
+    ChartKind,
+    isVizTableConfig,
+    type VizTableConfig,
+} from '@lightdash/common';
 import {
     Box,
     getDefaultZIndex,
@@ -240,32 +244,17 @@ export const ContentPanel: FC = () => {
     const showSqlResultsTable = useMemo(() => {
         return !!(
             (queryResults?.results && activeEditorTab === EditorTabs.SQL) ||
-            // if the chart is grouped, show the sql results table
-            activeConfigs.chartConfigs.find((c) => c.type === selectedChartType)
-                ?.fieldConfig?.groupBy
+            currentVizConfig?.type === ChartKind.TABLE
         );
-    }, [
-        queryResults,
-        activeEditorTab,
-        activeConfigs.chartConfigs,
-        selectedChartType,
-    ]);
+    }, [queryResults, activeEditorTab, currentVizConfig]);
 
     const showChartResultsTable = useMemo(() => {
         return !!(
             queryResults?.results &&
             activeEditorTab === EditorTabs.VISUALIZATION &&
-            // if the chart is not grouped, show the chart results table
-            !activeConfigs.chartConfigs.find(
-                (c) => c.type === selectedChartType,
-            )?.fieldConfig?.groupBy
+            currentVizConfig?.type !== ChartKind.TABLE
         );
-    }, [
-        queryResults,
-        activeEditorTab,
-        activeConfigs.chartConfigs,
-        selectedChartType,
-    ]);
+    }, [queryResults, activeEditorTab, currentVizConfig]);
 
     const canSetSqlLimit = useMemo(
         () => activeEditorTab === EditorTabs.VISUALIZATION,
@@ -478,8 +467,11 @@ export const ContentPanel: FC = () => {
                                                             resultsRunner={
                                                                 resultsRunner
                                                             }
-                                                            config={
-                                                                activeConfigs.tableConfig
+                                                            columnsConfig={
+                                                                activeConfigs
+                                                                    .tableConfig
+                                                                    ?.columns ??
+                                                                {}
                                                             }
                                                         />
                                                     </ConditionalVisibility>
@@ -562,7 +554,9 @@ export const ContentPanel: FC = () => {
                                 >
                                     <Table
                                         resultsRunner={resultsRunner}
-                                        config={resultsTableConfig}
+                                        columnsConfig={
+                                            resultsTableConfig?.columns ?? {}
+                                        }
                                     />
                                 </ConditionalVisibility>
 
@@ -574,18 +568,34 @@ export const ContentPanel: FC = () => {
                                         resultsTableRunnerByChartType &&
                                         resultsTableRunnerByChartType[
                                             selectedChartType
-                                        ] && (
+                                        ] &&
+                                        chartVizQuery.data && (
                                             <Table
                                                 resultsRunner={
-                                                    resultsTableRunnerByChartType[
-                                                        selectedChartType
-                                                    ]!
+                                                    new SqlRunnerResultsRunner({
+                                                        rows: chartVizQuery.data
+                                                            .results,
+                                                        columns:
+                                                            chartVizQuery.data
+                                                                .columns,
+                                                    })
                                                 }
-                                                config={
-                                                    tableConfigByChartType[
-                                                        selectedChartType
-                                                    ]
-                                                }
+                                                columnsConfig={Object.fromEntries(
+                                                    chartVizQuery.data.columns.map(
+                                                        (field) => [
+                                                            field.reference,
+                                                            {
+                                                                visible: true,
+                                                                reference:
+                                                                    field.reference,
+                                                                label: field.reference,
+                                                                frozen: false,
+                                                                // TODO: add aggregation
+                                                                // aggregation?: VizAggregationOptions;
+                                                            },
+                                                        ],
+                                                    ),
+                                                )}
                                             />
                                         )}
                                 </ConditionalVisibility>

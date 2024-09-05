@@ -169,7 +169,9 @@ const ViewSqlChart = () => {
                                         {isVizTableConfig(currentVisConfig) && (
                                             <Table
                                                 resultsRunner={resultsRunner}
-                                                config={currentVisConfig}
+                                                columnsConfig={
+                                                    currentVisConfig.columns
+                                                }
                                             />
                                         )}
                                         {!isVizTableConfig(currentVisConfig) &&
@@ -196,7 +198,9 @@ const ViewSqlChart = () => {
                             >
                                 <Table
                                     resultsRunner={resultsRunner}
-                                    config={resultsTableConfig}
+                                    columnsConfig={
+                                        resultsTableConfig?.columns ?? {}
+                                    }
                                 />
                             </ConditionalVisibility>
                         </Box>

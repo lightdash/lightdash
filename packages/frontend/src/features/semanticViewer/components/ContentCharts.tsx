@@ -70,7 +70,7 @@ const ContentCharts: FC = () => {
                     {vizConfig && isVizTableConfig(vizConfig) ? (
                         <Table
                             resultsRunner={resultsRunner}
-                            config={vizConfig}
+                            columnsConfig={vizConfig.columns}
                             flexProps={{
                                 m: '-1px',
                                 w: '100%',

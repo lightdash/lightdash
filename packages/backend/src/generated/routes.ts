@@ -6884,6 +6884,20 @@ const models: TsoaRoute.Models = {
         enums: ['table'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.VizColumnConfig_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizColumnsConfig: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.VizColumnConfig_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     VizTableConfig: {
         dataType: 'refAlias',
         type: {
@@ -6893,36 +6907,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        columns: {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {},
-                            additionalProperties: {
-                                dataType: 'nestedObjectLiteral',
-                                nestedProperties: {
-                                    aggregation: {
-                                        ref: 'VizAggregationOptions',
-                                    },
-                                    order: { dataType: 'double' },
-                                    frozen: {
-                                        dataType: 'boolean',
-                                        required: true,
-                                    },
-                                    label: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                    reference: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                    visible: {
-                                        dataType: 'boolean',
-                                        required: true,
-                                    },
-                                },
-                            },
-                            required: true,
-                        },
+                        columns: { ref: 'VizColumnsConfig', required: true },
                         type: { ref: 'ChartKind.TABLE', required: true },
                     },
                 },
