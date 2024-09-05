@@ -210,7 +210,7 @@ export class CartesianChartDataModel
                 appendToBody: true, // Similar to rendering a tooltip in a Portal
             },
             legend: {
-                show: true,
+                show: !!(this.fieldConfig && this.fieldConfig.y.length > 1),
                 type: 'scroll',
             },
             xAxis: {
