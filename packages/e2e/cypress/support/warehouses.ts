@@ -50,7 +50,7 @@ const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
         role: 'SYSADMIN',
         database: 'SNOWFLAKE_DATABASE_STAGING',
         warehouse: 'TESTING',
-        schema: 'jaffle',
+        schema: 'JAFFLE',
         type: WarehouseTypes.SNOWFLAKE,
     },
     /* trino: {

@@ -11,17 +11,14 @@ import warehouseConnections from '../../support/warehouses';
 const apiUrl = '/api/v1';
 
 // Object.entries({ postgres: warehouseConnections.postgresSQL }).forEach(  // For testing
-// Object.entries(warehouseConnections).forEach(
-Object.entries({ snowflake: warehouseConnections.snowflake }).forEach(
+Object.entries(warehouseConnections).forEach(
+    // Object.entries({ snowflake: warehouseConnections.snowflake }).forEach(
     // For testing
     ([warehouseName, warehouseConfig]) => {
         const getDatabaseDetails = () => {
             switch (warehouseConfig.type) {
                 case WarehouseTypes.SNOWFLAKE:
-                    return [
-                        warehouseConfig.database, // On staging, these are uppercased
-                        warehouseConfig.schema,
-                    ];
+                    return [warehouseConfig.database, warehouseConfig.schema];
                 case WarehouseTypes.BIGQUERY:
                     return [warehouseConfig.project, warehouseConfig.dataset];
                 case WarehouseTypes.REDSHIFT:
@@ -199,8 +196,12 @@ Object.entries({ snowflake: warehouseConnections.snowflake }).forEach(
                 });
             });
             it(`Get fields for SQL runner ${warehouseName}`, () => {
+                const tableName =
+                    warehouseConfig.type === WarehouseTypes.SNOWFLAKE
+                        ? 'ORDERS'
+                        : 'orders';
                 cy.request<ApiWarehouseTableFields>({
-                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/fields?tableName=orders&schemaName=${
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/fields?tableName=${tableName}&schemaName=${
                         getDatabaseDetails()[1]
                     }`,
                     headers: { 'Content-type': 'application/json' },
@@ -384,65 +385,6 @@ Object.entries({ snowflake: warehouseConnections.snowflake }).forEach(
                                         'order_id_sum',
                                     );
                                 });
-                            } else if (retries < maxRetries) {
-                                poll(retries + 1);
-                            } else {
-                                expect(
-                                    resp.body.results.status,
-                                    'Reached max number of retries without getting completed job',
-                                ).to.eq('completed');
-                            }
-                        });
-                    };
-                    poll();
-                });
-            });
-
-            it.skip(`Run pivot query for ${warehouseName} for first aggregation`, () => {
-                const [database, schema] = getDatabaseDetails();
-                const sql =
-                    warehouseConfig.type === WarehouseTypes.SNOWFLAKE
-                        ? `SELECT "orders".order_id AS "order_id", 
-                    "orders".status AS "status"
-                     FROM ${database}.${schema}.orders AS "orders"`
-                        : `SELECT * FROM ${database}.${schema}.orders`;
-
-                const pivotQueryPayload = {
-                    sql,
-                    indexColumn: { reference: 'status', type: 'category' },
-                    valuesColumns: [
-                        { reference: 'order_id', aggregation: 'first' },
-                    ],
-                    limit: 500,
-                };
-
-                cy.request({
-                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/runPivotQuery`,
-                    headers: { 'Content-type': 'application/json' },
-                    method: 'POST',
-                    body: JSON.stringify(pivotQueryPayload),
-                }).then((runResp) => {
-                    expect(runResp.status).to.eq(200);
-                    const { jobId } = runResp.body.results;
-
-                    const maxRetries = 50;
-
-                    // Poll request until job is `completed`
-                    const poll = (retries = 0) => {
-                        cy.wait(1000);
-                        cy.request({
-                            url: `${apiUrl}/schedulers/job/${jobId}/status`,
-                            method: 'GET',
-                        }).then((resp) => {
-                            expect(resp.status).to.eq(200);
-                            if (
-                                resp.body.results.status === 'completed' ||
-                                resp.body.results.status === 'error'
-                            ) {
-                                expect(resp.body.results.status).to.eq(
-                                    'completed',
-                                );
-                                // Don't care much about the response, just that it doesn't error
                             } else if (retries < maxRetries) {
                                 poll(retries + 1);
                             } else {
