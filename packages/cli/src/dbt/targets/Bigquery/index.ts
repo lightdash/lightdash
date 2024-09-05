@@ -22,6 +22,7 @@ type BigqueryTarget = {
     location?: string;
     maximum_bytes_billed?: number;
     timeout_seconds?: number;
+    execution_project?: string;
 };
 
 export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
@@ -56,6 +57,10 @@ export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
         },
         timeout_seconds: {
             type: 'integer',
+            nullable: true,
+        },
+        execution_project: {
+            type: 'string',
             nullable: true,
         },
     },
@@ -109,6 +114,7 @@ export const convertBigquerySchema = async (
             retries: target.retries,
             maximumBytesBilled: target.maximum_bytes_billed,
             location: target.location,
+            executionProject: target.execution_project,
         };
     }
 

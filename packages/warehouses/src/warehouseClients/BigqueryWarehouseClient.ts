@@ -114,7 +114,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         super(credentials);
         try {
             this.client = new BigQuery({
-                projectId: credentials.project,
+                projectId: credentials.executionProject || credentials.project,
                 location: credentials.location,
                 maxRetries: credentials.retries,
                 credentials: credentials.keyfileContents,
