@@ -3,6 +3,7 @@ import {
     convertToResultsColumns,
     type PivotChartData,
     type RawResultRow,
+    type SemanticLayerColumnMapping,
     type SemanticLayerPivot,
     type SemanticLayerQuery,
     type VizChartLayout,
@@ -27,13 +28,17 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
 
     private readonly projectUuid: string;
 
+    private readonly columnMappings: SemanticLayerColumnMapping[];
+
     constructor({
         query,
         projectUuid,
+        columnMappings,
         ...args
     }: {
         query: SemanticLayerQuery;
         projectUuid: string;
+        columnMappings: SemanticLayerColumnMapping[];
         rows: RawResultRow[];
         columns: VizSqlColumn[];
     }) {
@@ -41,15 +46,23 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
 
         this.query = query;
         this.projectUuid = projectUuid;
+        this.columnMappings = columnMappings;
     }
 
     getColumnsAccessorFn(column: string) {
         return (row: RawResultRow) => {
             const resultsColumns = Object.keys(row);
+            const columnMapping = this.columnMappings.find(
+                (mapping) => mapping.fieldName === column,
+            )?.columnName;
+
+            if (!columnMapping) {
+                return;
+            }
 
             // Result columns casing depends on warehouse, so we need to find the correct column name
             const mappedColumn = convertColumnToResultsColumn(
-                column,
+                columnMapping,
                 resultsColumns,
             );
 
@@ -99,9 +112,13 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         const allResultsColumns = Object.keys(pivotedResults?.[0] ?? {});
         let indexColumn: VizChartLayout['x'] | undefined;
 
-        if (config.x) {
+        const mappedX = this.columnMappings.find(
+            (mapping) => mapping.fieldName === config.x?.reference,
+        )?.columnName;
+
+        if (mappedX && config.x?.type) {
             const xReference = convertColumnToResultsColumn(
-                config.x.reference,
+                mappedX,
                 allResultsColumns,
             );
 
@@ -113,8 +130,17 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
                 : undefined;
         }
 
-        const columnsToRemove = convertToResultsColumns(
-            [...pivotConfig.index, ...pivotConfig.on],
+        const columnsToRemove = [...pivotConfig.index, ...pivotConfig.on]
+            .map(
+                (column) =>
+                    this.columnMappings.find(
+                        (mapping) => mapping.fieldName === column,
+                    )?.columnName,
+            )
+            .filter((c): c is string => !!c);
+
+        const resultsColumnsToRemove = convertToResultsColumns(
+            columnsToRemove,
             allResultsColumns,
         );
 

@@ -155,4 +155,22 @@ export const cubeTransfomers: SemanticLayerTransformer<
     },
     resultsToResultRows: (results) => results.tablePivot(),
     sqlToString: (cubeSql) => cubeSql.sql(),
+    queryToColumnMappings: (query) => {
+        const dimensions = query.dimensions.map((d) => ({
+            fieldName: d.name,
+            columnName: d.name,
+        }));
+
+        const timeDimensions = query.timeDimensions.map((td) => ({
+            fieldName: td.name,
+            columnName: td.name, // TODO: check what the column name might be for cube
+        }));
+
+        const metrics = query.metrics.map((m) => ({
+            fieldName: m.name,
+            columnName: m.name,
+        }));
+
+        return [...dimensions, ...timeDimensions, ...metrics];
+    },
 };

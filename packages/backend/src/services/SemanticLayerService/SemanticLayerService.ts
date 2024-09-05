@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DimensionType,
     ForbiddenError,
     MissingConfigError,
     ParameterError,
@@ -10,6 +11,8 @@ import {
     SemanticLayerResultRow,
     SemanticLayerView,
     SessionUser,
+    type SemanticLayerColumnMapping,
+    type VizSqlColumn,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
@@ -248,5 +251,10 @@ export class SemanticLayerService extends BaseService {
         await this.checkCanViewProject(user, projectUuid);
         const client = await this.getSemanticLayerClient(projectUuid);
         return client.getClientInfo();
+    }
+
+    async getColumnMappings(projectUuid: string, query: SemanticLayerQuery) {
+        const client = await this.getSemanticLayerClient(projectUuid);
+        return client.getColumnMappings(query);
     }
 }

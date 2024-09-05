@@ -4,6 +4,7 @@ import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Table } from '../../../components/DataViz/visualizations/Table';
+import { useSemanticLayerColumnMappings } from '../api/hooks';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 import {
@@ -36,14 +37,20 @@ const ContentResults: FC = () => {
         setOpenPanel(undefined);
     };
 
+    const { data: columnMappings } = useSemanticLayerColumnMappings(
+        semanticViewerInfo.projectUuid,
+        semanticQuery,
+    );
+
     const resultsRunner = useMemo(() => {
         return new SemanticViewerResultsRunner({
             query: semanticQuery,
             rows: results ?? [],
             columns: columns ?? [],
             projectUuid: semanticViewerInfo.projectUuid,
+            columnMappings: columnMappings ?? [],
         });
-    }, [columns, semanticViewerInfo, results, semanticQuery]);
+    }, [columns, semanticViewerInfo, results, semanticQuery, columnMappings]);
 
     return (
         <>

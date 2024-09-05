@@ -8,6 +8,7 @@ import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
+import { useSemanticLayerColumnMappings } from '../api/hooks';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 import {
@@ -33,14 +34,20 @@ const ContentCharts: FC = () => {
         selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
     );
 
+    const { data: columnMappings } = useSemanticLayerColumnMappings(
+        projectUuid,
+        semanticQuery,
+    );
+
     const resultsRunner = useMemo(() => {
         return new SemanticViewerResultsRunner({
             query: semanticQuery,
             rows: results ?? [],
             columns: columns ?? [],
             projectUuid,
+            columnMappings: columnMappings ?? [],
         });
-    }, [columns, projectUuid, results, semanticQuery]);
+    }, [columns, projectUuid, results, semanticQuery, columnMappings]);
 
     const [openPanel, setOpenPanel] = useState<TabPanel>();
 

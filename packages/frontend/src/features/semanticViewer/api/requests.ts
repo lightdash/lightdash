@@ -3,6 +3,7 @@ import {
     isErrorDetails,
     type ApiJobScheduledResponse,
     type ApiSemanticLayerClientInfo,
+    type SemanticLayerColumnMapping,
     type SemanticLayerField,
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
@@ -111,3 +112,14 @@ export const apiGetSemanticLayerQueryResults = async ({
 
     return getResultsFromStream<SemanticLayerResultRow>(url);
 };
+
+export const apiGetSemanticLayerColumnMappings = ({
+    projectUuid,
+    query,
+}: PostSemanticLayerQueryRequestParams) =>
+    lightdashApi<SemanticLayerColumnMapping[]>({
+        version: 'v2',
+        method: 'POST',
+        url: `/projects/${projectUuid}/semantic-layer/column-mappings`,
+        body: JSON.stringify(query),
+    });

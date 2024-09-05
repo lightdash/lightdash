@@ -1,6 +1,7 @@
 import {
     type ApiError,
     type SemanticLayerClientInfo,
+    type SemanticLayerColumnMapping,
     type SemanticLayerField,
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
@@ -13,6 +14,7 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import {
+    apiGetSemanticLayerColumnMappings,
     apiGetSemanticLayerInfo,
     apiGetSemanticLayerQueryResults,
     apiGetSemanticLayerViews,
@@ -108,4 +110,21 @@ export const useSemanticLayerQueryResults = (
                 query,
             }),
         ...useMutationParams,
+    });
+
+export const useSemanticLayerColumnMappings = (
+    projectUuid: string,
+    query: SemanticLayerQuery,
+    useQueryParams?: UseQueryOptions<SemanticLayerColumnMapping[], ApiError>,
+) =>
+    useQuery<SemanticLayerColumnMapping[], ApiError>({
+        queryKey: [
+            projectUuid,
+            'semanticLayer',
+            'columnMappings',
+            JSON.stringify(query),
+        ],
+        queryFn: () =>
+            apiGetSemanticLayerColumnMappings({ projectUuid, query }),
+        ...useQueryParams,
     });

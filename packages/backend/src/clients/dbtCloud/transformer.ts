@@ -121,4 +121,24 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
         });
     },
     sqlToString: (sql) => sql,
+    queryToColumnMappings: (query) => {
+        const dimensions = query.dimensions.map((d) => ({
+            fieldName: d.name,
+            columnName: d.name,
+        }));
+
+        const timeDimensions = query.timeDimensions.map((td) => ({
+            fieldName: td.name,
+            columnName: td.granularity
+                ? `${td.name}__${getDbtTimeGranularity(td.granularity)}`
+                : td.name,
+        }));
+
+        const metrics = query.metrics.map((m) => ({
+            fieldName: m.name,
+            columnName: m.name,
+        }));
+
+        return [...dimensions, ...timeDimensions, ...metrics];
+    },
 };

@@ -77,6 +77,11 @@ export type SemanticLayerResultRow = Record<
     string | number | boolean | null
 >;
 
+export type SemanticLayerColumnMapping = {
+    fieldName: string;
+    columnName: string;
+};
+
 export interface SemanticLayerTransformer<
     ViewType,
     QueryType,
@@ -93,6 +98,9 @@ export interface SemanticLayerTransformer<
     semanticLayerQueryToQuery: (query: SemanticLayerQuery) => QueryType;
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
+    queryToColumnMappings: (
+        query: SemanticLayerQuery,
+    ) => SemanticLayerColumnMapping[];
 }
 
 export interface SemanticLayerClientInfo {
@@ -127,6 +135,9 @@ export interface SemanticLayerClient {
     ) => Promise<number>;
     getSql: (query: SemanticLayerQuery) => Promise<string>;
     getMaxQueryLimit: () => number;
+    getColumnMappings: (
+        query: SemanticLayerQuery,
+    ) => SemanticLayerColumnMapping[];
 }
 
 export type SemanticLayerQueryPayload = {

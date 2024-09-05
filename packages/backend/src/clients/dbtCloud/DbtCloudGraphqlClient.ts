@@ -415,4 +415,8 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             metrics,
         );
     }
+
+    getColumnMappings(query: SemanticLayerQuery) {
+        return this.transformers.queryToColumnMappings(query);
+    }
 }

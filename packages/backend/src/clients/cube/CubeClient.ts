@@ -6,6 +6,7 @@ import {
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
+    type SemanticLayerColumnMapping,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { cubeTransfomers } from './transformer';
@@ -237,5 +238,9 @@ export default class CubeClient implements SemanticLayerClient {
         });
 
         return this.transformers.sqlToString(sql);
+    }
+
+    getColumnMappings(query: SemanticLayerQuery) {
+        return this.transformers.queryToColumnMappings(query);
     }
 }
