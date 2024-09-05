@@ -1,3 +1,15 @@
+# [0.1247.0](https://github.com/lightdash/lightdash/compare/0.1246.0...0.1247.0) (2024-09-05)
+
+
+### Bug Fixes
+
+* open results table on query ([#11432](https://github.com/lightdash/lightdash/issues/11432)) ([5a7f211](https://github.com/lightdash/lightdash/commit/5a7f211f700b59ba6769c9a657208007668ddbf0))
+
+
+### Features
+
+* open edit sql chart in new tab - dashboard ([#11429](https://github.com/lightdash/lightdash/issues/11429)) ([56d9db7](https://github.com/lightdash/lightdash/commit/56d9db77301a70deaacbc6ca20c4f4b94aa63d17))
+
 # [0.1246.0](https://github.com/lightdash/lightdash/compare/0.1245.0...0.1246.0) (2024-09-05)
 
 
