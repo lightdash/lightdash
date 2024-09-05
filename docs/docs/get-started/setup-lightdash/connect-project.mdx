@@ -213,6 +213,10 @@ For example, setting this to `1000000000` means if a query would bill more than 
 
 This controls what day is the start of the week in Lightdash. `Auto` sets it to whatever the default is for your data warehouse. Or, you can customize it and select the day of the week from the drop-down menu. This will be taken into account when using 'WEEK' time interval in Lightdash.
 
+#### Execution project
+
+Here you can specify an execution project to bill for query execution, instead of using the project where your dbt resources are materialized. If you leave this blank, all costs get applied to the project from the top of the connection details.
+
 ---
 
 ### Postgres
