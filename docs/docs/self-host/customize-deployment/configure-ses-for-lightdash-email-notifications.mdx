@@ -1,0 +1,43 @@
+---
+sidebar_label: SES for emails
+---
+
+# Configure AWS SES for Lightdash email notifications
+
+## Environment Variables
+
+This is a reference to all the AWS SES environment variables that can be used to configure a Lightdash email client.
+
+| Variable                           | Description                                               | Required? | Default   |
+| ---------------------------------- | --------------------------------------------------------- | --------- | --------- |
+| `EMAIL_SES_REGION`                 | AWS Region override                                       |           | [1]       |
+| `EMAIL_SES_ENDPOINT`               | AWS SES endpoint override                                 |           | [1]       |
+| `EMAIL_SES_ACCESS_KEY`             | IAM user access key                                       |           |           |
+| `EMAIL_SES_SECRET_KEY`             | IAM user secret key                                       |           |           |
+| `EMAIL_SES_SENDER_EMAIL`           | The email address that sends emails                       | ✅[2]     |           |
+| `EMAIL_SES_SENDER_NAME`            | The name of the email address that sends emails           |           | Lightdash |
+| `EMAIL_SES_CONFIGURATION_SET_NAME` | The SES configuration set name to use when sending emails |           |           |
+
+[1] If not provided then AWS SDK defaults are used.
+[2] Provide at minimum `EMAIL_SES_SENDER_EMAIL` to enable the SES email transport. It should be an SES verified identity.
+
+If you don't provide `EMAIL_SES_ACCESS_KEY` and `EMAIL_SES_SECRET_KEY` the SES client will use AWS SDK credential provider chain,
+see this [AWS documentation](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-credentials-node.html) for more details.
+
+## IAM Policy
+
+Lightdash requires _ses:SendRawEmail_ permission.
+
+```json
+{
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "ses:SendRawEmail",
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+IAM policies should be appropriately scoped, find resource type and condition keys for SES in this [AWS documentation](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonses.html).

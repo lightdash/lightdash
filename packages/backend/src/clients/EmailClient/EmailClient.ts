@@ -1,3 +1,4 @@
+import { SendRawEmailCommand } from '@aws-sdk/client-ses';
 import {
     CreateProjectMember,
     InviteLink,
@@ -10,10 +11,12 @@ import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
 import hbs from 'nodemailer-express-handlebars';
 import Mail from 'nodemailer/lib/mailer';
+import SESTransport from 'nodemailer/lib/ses-transport';
 import { AuthenticationType } from 'nodemailer/lib/smtp-connection';
 import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import { createSESClient } from '../Aws/ses';
 
 export type AttachmentUrl = {
     path: string;
@@ -22,11 +25,17 @@ export type AttachmentUrl = {
     truncated: boolean;
 };
 type EmailClientArguments = {
-    lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
+    lightdashConfig: Pick<
+        LightdashConfig,
+        'smtp' | 'ses' | 'siteUrl' | 'query'
+    >;
 };
 
 export default class EmailClient {
-    lightdashConfig: Pick<LightdashConfig, 'smtp' | 'siteUrl' | 'query'>;
+    lightdashConfig: Pick<
+        LightdashConfig,
+        'smtp' | 'ses' | 'siteUrl' | 'query'
+    >;
 
     transporter: nodemailer.Transporter | undefined;
 
@@ -34,7 +43,7 @@ export default class EmailClient {
         this.lightdashConfig = lightdashConfig;
 
         if (this.lightdashConfig.smtp) {
-            Logger.debug(`Create email transporter`);
+            Logger.debug(`Create SMTP email transporter`);
 
             const auth: AuthenticationType = this.lightdashConfig.smtp.auth
                 .accessToken
@@ -76,7 +85,35 @@ export default class EmailClient {
                     Logger.debug(`Email transporter verified with success`);
                 }
             });
+        }
 
+        if (this.lightdashConfig.ses) {
+            Logger.debug(`Create SES email transporter`);
+
+            const sesClient = createSESClient({
+                lightdashConfig: this.lightdashConfig,
+            });
+
+            const transportOptions: SESTransport.Options = {
+                SES: {
+                    ses: sesClient,
+                    aws: { SendRawEmailCommand },
+                },
+                ses: this.lightdashConfig.ses.options
+                    ? {
+                          ConfigurationSetName:
+                              this.lightdashConfig.ses.options
+                                  .configurationSetName,
+                      }
+                    : undefined,
+            };
+
+            this.transporter = nodemailer.createTransport(transportOptions, {
+                from: `"${this.lightdashConfig.ses.sender.name}" <${this.lightdashConfig.ses.sender.email}>`,
+            });
+        }
+
+        if (this.transporter) {
             this.transporter.use(
                 'compile',
                 hbs({

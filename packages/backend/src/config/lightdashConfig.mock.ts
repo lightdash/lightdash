@@ -137,6 +137,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     smtp: undefined,
+    ses: undefined,
     siteUrl: 'https://test.lightdash.cloud',
     query: {
         maxLimit: 5000,

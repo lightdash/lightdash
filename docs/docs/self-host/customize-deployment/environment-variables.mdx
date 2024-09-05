@@ -46,6 +46,23 @@ This is a reference to all the SMTP environment variables that can be used to co
 
 [1] `EMAIL_SMTP_PASSWORD` or `EMAIL_SMTP_ACCESS_TOKEN` needs to be provided
 
+## AWS SES environment variables
+
+This is a reference to all the AWS SES environment variables that can be used to configure a Lightdash email client.
+
+| Variable                           | Description                                               | Required? | Default   |
+| ---------------------------------- | --------------------------------------------------------- | --------- | --------- |
+| `EMAIL_SES_REGION`                 | AWS Region override                                       |           | [1]       |
+| `EMAIL_SES_ENDPOINT`               | AWS SES endpoint override                                 |           | [1]       |
+| `EMAIL_SES_ACCESS_KEY`             | IAM user access key                                       |           |           |
+| `EMAIL_SES_SECRET_KEY`             | IAM user secret key                                       |           |           |
+| `EMAIL_SES_SENDER_EMAIL`           | The email address that sends emails                       | ✅[2]     |           |
+| `EMAIL_SES_SENDER_NAME`            | The name of the email address that sends emails           |           | Lightdash |
+| `EMAIL_SES_CONFIGURATION_SET_NAME` | The SES configuration set name to use when sending emails |           |           |
+
+[1] If not provided then AWS SDK defaults are used.
+[2] Provide at minimum `EMAIL_SES_SENDER_EMAIL` to enable the SES email transport. It should be an SES verified identity.
+
 ## SSO environment variables
 
 These variables enable you to control Single Sign On (SSO) functionality.

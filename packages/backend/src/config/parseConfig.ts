@@ -196,6 +196,7 @@ export type LightdashConfig = {
     trustProxy: boolean;
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
+    ses: SesConfig | undefined;
     rudder: RudderConfig;
     posthog: PosthogConfig;
     mode: LightdashMode;
@@ -300,6 +301,19 @@ export type S3Config = {
     endpoint?: string;
     bucket?: string;
     expirationTime?: number;
+};
+export type SesConfig = {
+    region?: string;
+    accessKey?: string;
+    secretKey?: string;
+    endpoint?: string;
+    options?: {
+        configurationSetName?: string;
+    };
+    sender: {
+        name?: string;
+        email: string;
+    };
 };
 export type IntercomConfig = {
     appId: string;
@@ -481,6 +495,24 @@ export const parseConfig = (): LightdashConfig => {
                   sender: {
                       name: process.env.EMAIL_SMTP_SENDER_NAME || 'Lightdash',
                       email: process.env.EMAIL_SMTP_SENDER_EMAIL || '',
+                  },
+              }
+            : undefined,
+        ses: process.env.EMAIL_SES_SENDER_EMAIL
+            ? {
+                  region: process.env.EMAIL_SES_REGION,
+                  accessKey: process.env.EMAIL_SES_ACCESS_KEY,
+                  secretKey: process.env.EMAIL_SES_SECRET_KEY,
+                  endpoint: process.env.EMAIL_SES_ENDPOINT,
+                  options: process.env.EMAIL_SES_CONFIGURATION_SET_NAME
+                      ? {
+                            configurationSetName:
+                                process.env.EMAIL_SES_CONFIGURATION_SET_NAME,
+                        }
+                      : undefined,
+                  sender: {
+                      name: process.env.EMAIL_SES_SENDER_NAME || 'Lightdash',
+                      email: process.env.EMAIL_SES_SENDER_EMAIL,
                   },
               }
             : undefined,
