@@ -1,3 +1,10 @@
+## [0.1247.1](https://github.com/lightdash/lightdash/compare/0.1247.0...0.1247.1) (2024-09-05)
+
+
+### Bug Fixes
+
+* sql runner view mode results table ([#11442](https://github.com/lightdash/lightdash/issues/11442)) ([86fad50](https://github.com/lightdash/lightdash/commit/86fad50b602e833be7a474fd4b9b923a5952b4a5))
+
 # [0.1247.0](https://github.com/lightdash/lightdash/compare/0.1246.0...0.1247.0) (2024-09-05)
 
 
