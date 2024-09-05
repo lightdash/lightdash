@@ -13,6 +13,7 @@ import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunn
 import { useApp } from '../../providers/AppProvider';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { useChartViz } from '../DataViz/hooks/useChartViz';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
@@ -102,6 +103,16 @@ export const DashboardSqlChartTile: FC<Props> = ({
         [sqlRunnerChartData],
     );
 
+    const [chartVizQuery, chartSpec] = useChartViz({
+        projectUuid,
+        resultsRunner,
+        config: data?.chart.config,
+        uuid: savedSqlUuid ?? undefined,
+        sql: data?.chart.sql,
+        slug: data?.chart.slug,
+        limit: data?.chart.limit,
+    });
+
     if (isLoading) {
         return (
             <TileBase
@@ -177,17 +188,14 @@ export const DashboardSqlChartTile: FC<Props> = ({
                     data.chart.config.type === ChartKind.PIE) && (
                     <ChartView
                         config={data.chart.config}
+                        spec={chartSpec}
+                        isLoading={chartVizQuery.isLoading}
+                        error={chartVizQuery.error}
                         style={{
                             minHeight: 'inherit',
                             height: '100%',
                             width: '100%',
                         }}
-                        resultsRunner={resultsRunner}
-                        isLoading={false}
-                        sql={data.chart.sql}
-                        projectUuid={projectUuid}
-                        uuid={savedSqlUuid}
-                        limit={data.chart.limit}
                     />
                 )}
         </TileBase>

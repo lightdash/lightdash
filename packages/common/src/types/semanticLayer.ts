@@ -222,3 +222,23 @@ export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
         ...orFiltersFieldNames,
     ];
 }
+
+// Helper functions to convert between the column names in the query and the column names in the results
+
+export function convertColumnToResultsColumn(
+    column: string,
+    resultsColumns: string[],
+) {
+    return resultsColumns.find(
+        (resultCol) => resultCol.toLowerCase() === column.toLowerCase(),
+    );
+}
+
+export function convertToResultsColumns(
+    columns: string[],
+    resultsColumns: string[],
+) {
+    return columns
+        .map((value) => convertColumnToResultsColumn(value, resultsColumns))
+        .filter((value): value is string => !!value);
+}

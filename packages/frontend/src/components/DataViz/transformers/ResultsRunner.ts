@@ -246,7 +246,7 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
         return mergedLayout;
     }
 
-    getPivotChartData(
+    getPivotedVisualizationData(
         _config: VizChartLayout,
         _sql?: string,
         _projectUuid?: string,
@@ -257,6 +257,10 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
 
     getColumns(): string[] {
         return this.columns.map((column) => column.reference);
+    }
+
+    getColumnsAccessorFn(column: string) {
+        return (row: RawResultRow) => row[column];
     }
 
     getRows() {

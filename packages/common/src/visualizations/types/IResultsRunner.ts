@@ -3,7 +3,7 @@ import { type RawResultRow } from '../../types/results';
 
 export interface IResultsRunner<TPivotChartLayout> {
     // Includes bar, chart, line, pie, scatter, and table v1(?)
-    getPivotChartData(
+    getPivotedVisualizationData(
         config: TPivotChartLayout,
         sql?: string,
         projectUuid?: string,
@@ -21,6 +21,10 @@ export interface IResultsRunner<TPivotChartLayout> {
     pivotChartOptions(): VizCartesianChartOptions;
 
     getColumns(): string[];
+
+    getColumnsAccessorFn(
+        column: string,
+    ): (row: RawResultRow) => RawResultRow[string];
 
     getRows(): RawResultRow[];
 
