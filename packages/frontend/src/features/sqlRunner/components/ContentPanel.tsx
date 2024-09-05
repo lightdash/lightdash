@@ -18,14 +18,7 @@ import {
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
-import {
-    useCallback,
-    useDeferredValue,
-    useEffect,
-    useMemo,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -72,7 +65,6 @@ export const ContentPanel: FC = () => {
     const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
     const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
     const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
-    const deferredResultsHeight = useDeferredValue(resultsHeight);
     const isResultsPanelFullHeight = useMemo(
         () => resultsHeight === maxResultsHeight,
         [resultsHeight, maxResultsHeight],
@@ -485,7 +477,7 @@ export const ContentPanel: FC = () => {
                 </Paper>
 
                 <ResizableBox
-                    height={deferredResultsHeight}
+                    height={resultsHeight}
                     minConstraints={[50, 50]}
                     maxConstraints={[Infinity, maxResultsHeight]}
                     resizeHandles={['n']}
