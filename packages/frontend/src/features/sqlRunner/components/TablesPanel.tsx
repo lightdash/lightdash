@@ -1,57 +1,56 @@
-import { Box, Divider } from '@mantine/core';
-import { ResizableBox } from 'react-resizable';
-import {
-    SIDEBAR_MAX_WIDTH,
-    SIDEBAR_MIN_WIDTH,
-} from '../../../components/common/Page/Sidebar';
+import { Box } from '@mantine/core';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useAppSelector } from '../store/hooks';
 import { TableFields } from './TableFields';
 import { Tables } from './Tables';
 
-import 'react-resizable/css/styles.css';
-
-const DEFAULT_RESIZABLE_BOX_HEIGHT_PX = 250;
-const MIN_RESIZABLE_BOX_HEIGHT_PX = 150;
-const MAX_RESIZABLE_BOX_HEIGHT_PX = 500;
-
 export const TablesPanel = () => {
+    const initialPanelSizes = [80, 20];
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
     return (
-        <>
-            <Tables />
+        <PanelGroup direction="vertical">
+            <Panel
+                id="sql-runner-tables"
+                order={1}
+                defaultSize={initialPanelSizes[0]}
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                <Tables />
+            </Panel>
 
             {activeTable && (
-                <Box pos="relative">
-                    <ResizableBox
-                        height={DEFAULT_RESIZABLE_BOX_HEIGHT_PX}
-                        minConstraints={[
-                            SIDEBAR_MIN_WIDTH,
-                            MIN_RESIZABLE_BOX_HEIGHT_PX,
-                        ]}
-                        maxConstraints={[
-                            SIDEBAR_MAX_WIDTH,
-                            MAX_RESIZABLE_BOX_HEIGHT_PX,
-                        ]}
-                        resizeHandles={['n']}
-                        axis="y"
-                        handle={
-                            <Divider
-                                h={5}
-                                bg="gray.3"
-                                pos="absolute"
-                                top={-2}
-                                left={0}
-                                right={0}
-                                sx={{
-                                    cursor: 'ns-resize',
-                                }}
-                            />
-                        }
+                <>
+                    <Box
+                        component={PanelResizeHandle}
+                        bg="gray.3"
+                        h={3}
+                        sx={(theme) => ({
+                            transition: 'background-color 0.2s ease-in-out',
+                            '&[data-resize-handle-state="hover"]': {
+                                backgroundColor: theme.colors.gray[3],
+                            },
+                            '&[data-resize-handle-state="drag"]': {
+                                backgroundColor: theme.colors.gray[2],
+                            },
+                        })}
+                    />
+
+                    <Panel
+                        id="sql-runner-table-fields"
+                        order={2}
+                        defaultSize={initialPanelSizes[1]}
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
                     >
                         <TableFields />
-                    </ResizableBox>
-                </Box>
+                    </Panel>
+                </>
             )}
-        </>
+        </PanelGroup>
     );
 };
