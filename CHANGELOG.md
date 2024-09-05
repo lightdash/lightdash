@@ -1,3 +1,10 @@
+## [0.1244.3](https://github.com/lightdash/lightdash/compare/0.1244.2...0.1244.3) (2024-09-05)
+
+
+### Bug Fixes
+
+* upgrade @easyops-cn/docusaurus-search-local from 0.40.1 to 0.44.5 ([#11413](https://github.com/lightdash/lightdash/issues/11413)) ([400bf94](https://github.com/lightdash/lightdash/commit/400bf94ee03366bde692872399a03432427f8e8a))
+
 ## [0.1244.2](https://github.com/lightdash/lightdash/compare/0.1244.1...0.1244.2) (2024-09-05)
 
 
