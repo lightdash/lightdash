@@ -200,7 +200,9 @@ const ViewSqlChart = () => {
                                 <Paper withBorder shadow="none" radius={0}>
                                     <Table
                                         resultsRunner={resultsRunner}
-                                        config={resultsTableConfig}
+                                        columnsConfig={
+                                            resultsTableConfig?.columns ?? {}
+                                        }
                                         flexProps={{
                                             mah: 'calc(100vh - 300px)',
                                         }}

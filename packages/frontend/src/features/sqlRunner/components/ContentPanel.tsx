@@ -480,8 +480,11 @@ export const ContentPanel: FC = () => {
                                                                     resultsRunner={
                                                                         resultsRunner
                                                                     }
-                                                                    config={
-                                                                        activeConfigs.tableConfig
+                                                                    columnsConfig={
+                                                                        activeConfigs
+                                                                            .tableConfig
+                                                                            ?.columns ??
+                                                                        {}
                                                                     }
                                                                     flexProps={{
                                                                         mah: '100%',
@@ -557,7 +560,10 @@ export const ContentPanel: FC = () => {
                                     >
                                         <Table
                                             resultsRunner={resultsRunner}
-                                            config={resultsTableConfig}
+                                            columnsConfig={
+                                                resultsTableConfig?.columns ??
+                                                {}
+                                            }
                                             flexProps={{
                                                 mah: '100%',
                                             }}
@@ -572,18 +578,39 @@ export const ContentPanel: FC = () => {
                                             resultsTableRunnerByChartType &&
                                             resultsTableRunnerByChartType[
                                                 selectedChartType
-                                            ] && (
+                                            ] &&
+                                            chartVizQuery.data && (
                                                 <Table
                                                     resultsRunner={
-                                                        resultsTableRunnerByChartType[
-                                                            selectedChartType
-                                                        ]!
+                                                        new SqlRunnerResultsRunner(
+                                                            {
+                                                                rows: chartVizQuery
+                                                                    .data
+                                                                    .results,
+                                                                columns:
+                                                                    chartVizQuery
+                                                                        .data
+                                                                        .columns,
+                                                            },
+                                                        )
                                                     }
-                                                    config={
-                                                        tableConfigByChartType[
-                                                            selectedChartType
-                                                        ]
-                                                    }
+                                                    columnsConfig={Object.fromEntries(
+                                                        chartVizQuery.data.columns.map(
+                                                            (field) => [
+                                                                field.reference,
+                                                                {
+                                                                    visible:
+                                                                        true,
+                                                                    reference:
+                                                                        field.reference,
+                                                                    label: field.reference,
+                                                                    frozen: false,
+                                                                    // TODO: add aggregation
+                                                                    // aggregation?: VizAggregationOptions;
+                                                                },
+                                                            ],
+                                                        ),
+                                                    )}
                                                     flexProps={{
                                                         mah: '100%',
                                                     }}
