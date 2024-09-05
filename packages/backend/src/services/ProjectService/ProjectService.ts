@@ -2063,6 +2063,13 @@ export class ProjectService extends BaseService {
         ];
         const groupBySelectMetrics = [
             ...(valuesColumns ?? []).map((col) => {
+                if (
+                    col.aggregation === VizAggregationOptions.FIRST &&
+                    warehouseType === WarehouseTypes.POSTGRES
+                ) {
+                    // ANY_VALUE on Postgres is only available from version v16+
+                    return `(ARRAY_AGG(${q}${col.reference}${q}))[1] AS ${q}${col.reference}_${col.aggregation}${q}`;
+                }
                 const aggregationFunction =
                     col.aggregation === VizAggregationOptions.FIRST
                         ? 'ANY_VALUE'
