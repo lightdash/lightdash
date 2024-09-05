@@ -41,7 +41,7 @@ import {
     findFieldByIdInExplore,
     ForbiddenError,
     formatRows,
-    getAggregationFunction,
+    getAggregatedField,
     getDashboardFilterRulesForTables,
     getDateDimension,
     getDimensions,
