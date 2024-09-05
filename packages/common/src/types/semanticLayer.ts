@@ -256,18 +256,19 @@ export function convertToResultsColumns(
 
 // Helper functions to find the column names in the results from the column names in the query
 
-export function findMappingColumn(
-    column: string,
+export function mapFieldNameToResultsColumn(
+    fieldName: string,
     mappings: SemanticLayerColumnMapping[],
 ) {
-    return mappings.find((mapping) => mapping.fieldName === column)?.columnName;
+    return mappings.find((mapping) => mapping.fieldName === fieldName)
+        ?.columnName;
 }
 
-export function findMappingColumns(
-    columns: string[],
+export function mapFieldNameToResultsColumns(
+    fieldNames: string[],
     mappings: SemanticLayerColumnMapping[],
 ) {
-    return columns
-        .map((column) => findMappingColumn(column, mappings))
+    return fieldNames
+        .map((fieldName) => mapFieldNameToResultsColumn(fieldName, mappings))
         .filter((value): value is string => !!value);
 }

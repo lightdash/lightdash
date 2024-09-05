@@ -1,6 +1,6 @@
 import {
     convertToResultsColumns,
-    findMappingColumns,
+    mapFieldNameToResultsColumns,
     SemanticLayerPivot,
     SemanticLayerResultRow,
     type SemanticLayerColumnMapping,
@@ -13,9 +13,15 @@ export function pivotResults(
     columnMappings: SemanticLayerColumnMapping[],
 ): SemanticLayerResultRow[] {
     // Find the column name, this might still have different casing from the results
-    const valuesMappedColumns = findMappingColumns(values, columnMappings);
-    const onMappedColumns = findMappingColumns(options.on, columnMappings);
-    const indexMappedColumns = findMappingColumns(
+    const valuesMappedColumns = mapFieldNameToResultsColumns(
+        values,
+        columnMappings,
+    );
+    const onMappedColumns = mapFieldNameToResultsColumns(
+        options.on,
+        columnMappings,
+    );
+    const indexMappedColumns = mapFieldNameToResultsColumns(
         options.index,
         columnMappings,
     );

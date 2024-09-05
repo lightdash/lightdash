@@ -1,6 +1,8 @@
 import {
     convertColumnToResultsColumn,
     convertToResultsColumns,
+    mapFieldNameToResultsColumn,
+    mapFieldNameToResultsColumns,
     type PivotChartData,
     type RawResultRow,
     type SemanticLayerColumnMapping,
@@ -52,9 +54,10 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
     getColumnsAccessorFn(column: string) {
         return (row: RawResultRow) => {
             const resultsColumns = Object.keys(row);
-            const columnMapping = this.columnMappings.find(
-                (mapping) => mapping.fieldName === column,
-            )?.columnName;
+            const columnMapping = mapFieldNameToResultsColumn(
+                column,
+                this.columnMappings,
+            );
 
             if (!columnMapping) {
                 return;
@@ -112,32 +115,31 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         const allResultsColumns = Object.keys(pivotedResults?.[0] ?? {});
         let indexColumn: VizChartLayout['x'] | undefined;
 
-        const mappedX = this.columnMappings.find(
-            (mapping) => mapping.fieldName === config.x?.reference,
-        )?.columnName;
-
-        if (mappedX && config.x?.type) {
-            const xReference = convertColumnToResultsColumn(
-                mappedX,
-                allResultsColumns,
+        if (config.x) {
+            const mappedX = mapFieldNameToResultsColumn(
+                config.x.reference,
+                this.columnMappings,
             );
 
-            indexColumn = xReference
-                ? {
-                      ...config.x,
-                      reference: xReference,
-                  }
-                : undefined;
+            if (mappedX) {
+                const xReference = convertColumnToResultsColumn(
+                    mappedX,
+                    allResultsColumns,
+                );
+
+                indexColumn = xReference
+                    ? {
+                          ...config.x,
+                          reference: xReference,
+                      }
+                    : undefined;
+            }
         }
 
-        const columnsToRemove = [...pivotConfig.index, ...pivotConfig.on]
-            .map(
-                (column) =>
-                    this.columnMappings.find(
-                        (mapping) => mapping.fieldName === column,
-                    )?.columnName,
-            )
-            .filter((c): c is string => !!c);
+        const columnsToRemove = mapFieldNameToResultsColumns(
+            [...pivotConfig.index, ...pivotConfig.on],
+            this.columnMappings,
+        );
 
         const resultsColumnsToRemove = convertToResultsColumns(
             columnsToRemove,
