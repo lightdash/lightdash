@@ -59,8 +59,15 @@ export const useChartViz = <T extends ResultsRunner>({
         }
     }, [resultsRunner, config]);
 
+    const queryKey = useMemo(() => {
+        if (!config) return undefined;
+        if (isVizTableConfig(config)) return undefined;
+
+        return [projectUuid, limit, JSON.stringify(config.fieldConfig)];
+    }, [projectUuid, limit, config]);
+
     const transformedDataQuery = useQuery<PivotChartData | undefined, Error>({
-        queryKey: [projectUuid, limit, JSON.stringify(config)],
+        queryKey: queryKey!,
         queryFn: () => {
             if (isVizTableConfig(config)) return;
 
@@ -81,7 +88,7 @@ export const useChartViz = <T extends ResultsRunner>({
                 }
             }
         },
-        enabled: !!chartDataModel,
+        enabled: !!chartDataModel && !!queryKey,
         keepPreviousData: true,
     });
 
