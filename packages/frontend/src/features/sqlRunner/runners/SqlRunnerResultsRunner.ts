@@ -1,5 +1,4 @@
 import {
-    DimensionType,
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
     type ApiJobScheduledResponse,
@@ -107,7 +106,6 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
             ...pivotResults.valuesColumns,
         ].map((field) => ({
             reference: field,
-            type: DimensionType.STRING,
         }));
 
         return {

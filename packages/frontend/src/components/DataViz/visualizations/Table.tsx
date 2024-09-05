@@ -48,7 +48,6 @@ export const Table = <T extends ResultsRunner>({
                 ...flexProps?.sx,
             }}
         >
-            <div>yello!</div>
             <TableStyled>
                 <thead>
                     <tr>

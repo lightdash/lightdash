@@ -1,6 +1,5 @@
 import {
     ChartKind,
-    DimensionType,
     isVizTableConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -590,7 +589,6 @@ export const ContentPanel: FC = () => {
                                                                 reference:
                                                                     field.reference,
                                                                 label: field.reference,
-                                                                type: DimensionType.STRING,
                                                                 frozen: false,
                                                                 // TODO: add aggregation
                                                                 // aggregation?: VizAggregationOptions;
