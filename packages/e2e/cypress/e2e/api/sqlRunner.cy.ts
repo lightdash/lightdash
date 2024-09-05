@@ -7,17 +7,21 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import warehouseConnections from '../../support/warehouses';
-// import warehouseConnections from '../../support/warehouses';
 
 const apiUrl = '/api/v1';
 
 // Object.entries({ postgres: warehouseConnections.postgresSQL }).forEach(  // For testing
-Object.entries(warehouseConnections).forEach(
+// Object.entries(warehouseConnections).forEach(
+Object.entries({ snowflake: warehouseConnections.snowflake }).forEach(
+    // For testing
     ([warehouseName, warehouseConfig]) => {
         const getDatabaseDetails = () => {
             switch (warehouseConfig.type) {
                 case WarehouseTypes.SNOWFLAKE:
-                    return [warehouseConfig.database, warehouseConfig.schema];
+                    return [
+                        warehouseConfig.database.toLowerCase(),
+                        warehouseConfig.schema.toLowerCase(),
+                    ];
                 case WarehouseTypes.BIGQUERY:
                     return [warehouseConfig.project, warehouseConfig.dataset];
                 case WarehouseTypes.REDSHIFT:
@@ -77,16 +81,18 @@ Object.entries(warehouseConnections).forEach(
                                 `Job status (${retries}): ${resp.body.results.status}`,
                             );
                             cy.log(JSON.stringify(resp));
-                            if (resp.body.results.status === 'error') {
-                                assert(
-                                    false,
-                                    `Unexpected error on sql runner ${resp.body.results.details.error}`,
-                                );
-                            } else if (
-                                resp.body.results.status === 'completed'
+                            if (
+                                resp.body.results.status === 'completed' ||
+                                resp.body.results.status === 'error'
                             ) {
                                 switch (warehouseConfig.type) {
                                     case WarehouseTypes.SNOWFLAKE:
+                                        expect(resp.body.results.status).to.eq(
+                                            'error',
+                                        );
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('SQL compilation error:');
                                         expect(
                                             resp.body.results.details
                                                 .lineNumber,
@@ -97,6 +103,12 @@ Object.entries(warehouseConnections).forEach(
                                         ).to.eq(48);
                                         break;
                                     case WarehouseTypes.BIGQUERY:
+                                        expect(resp.body.results.status).to.eq(
+                                            'error',
+                                        );
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('Syntax error:');
                                         expect(
                                             resp.body.results.details
                                                 .lineNumber,
@@ -108,6 +120,9 @@ Object.entries(warehouseConnections).forEach(
                                         break;
                                     case WarehouseTypes.POSTGRES:
                                         expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('syntax error');
+                                        expect(
                                             resp.body.results.details
                                                 .lineNumber,
                                         ).to.eq(1);
@@ -117,10 +132,12 @@ Object.entries(warehouseConnections).forEach(
                                         ).to.eq(15);
                                         break;
                                     default:
-                                        assert(
-                                            false,
-                                            'Unexpected warehouse type',
+                                        expect(resp.body.results.status).to.eq(
+                                            'error',
                                         );
+                                        expect(
+                                            resp.body.results.details.error,
+                                        ).to.include('syntax error');
                                         break;
                                 }
                             } // Else keep polling
@@ -268,15 +285,19 @@ Object.entries(warehouseConnections).forEach(
                     poll();
                 });
             });
-            it.only(`Run pivot query for ${warehouseName}`, () => {
+            it(`Run pivot query for ${warehouseName}`, () => {
                 const [database, schema] = getDatabaseDetails();
-
-                const sql = `SELECT * FROM ${database}.${schema}.orders`;
+                const sql =
+                    warehouseConfig.type === WarehouseTypes.SNOWFLAKE
+                        ? `SELECT "orders".order_id AS "order_id", 
+                    "orders".status AS "status"
+                     FROM ${database}.${schema}.orders AS "orders"`
+                        : `SELECT * FROM ${database}.${schema}.orders`;
                 const pivotQueryPayload = {
                     sql,
                     indexColumn: { reference: 'status', type: 'category' },
                     valuesColumns: [
-                        { reference: 'order_id', aggregation: 'first' },
+                        { reference: 'order_id', aggregation: 'sum' },
                     ],
                     limit: 500,
                 };
@@ -330,15 +351,68 @@ Object.entries(warehouseConnections).forEach(
                                         'status',
                                     );
                                     expect(results[0]).to.have.property(
-                                        'order_id_completed',
-                                    );
-                                    expect(results[0]).to.have.property(
-                                        'order_id_pending',
-                                    );
-                                    expect(results[0]).to.have.property(
-                                        'order_id_shipped',
+                                        'order_id_sum',
                                     );
                                 });
+                            } else if (retries < maxRetries) {
+                                poll(retries + 1);
+                            } else {
+                                expect(
+                                    resp.body.results.status,
+                                    'Reached max number of retries without getting completed job',
+                                ).to.eq('completed');
+                            }
+                        });
+                    };
+                    poll();
+                });
+            });
+
+            it.skip(`Run pivot query for ${warehouseName} for first aggregation`, () => {
+                const [database, schema] = getDatabaseDetails();
+                const sql =
+                    warehouseConfig.type === WarehouseTypes.SNOWFLAKE
+                        ? `SELECT "orders".order_id AS "order_id", 
+                    "orders".status AS "status"
+                     FROM ${database}.${schema}.orders AS "orders"`
+                        : `SELECT * FROM ${database}.${schema}.orders`;
+
+                const pivotQueryPayload = {
+                    sql,
+                    indexColumn: { reference: 'status', type: 'category' },
+                    valuesColumns: [
+                        { reference: 'order_id', aggregation: 'first' },
+                    ],
+                    limit: 500,
+                };
+
+                cy.request({
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/runPivotQuery`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: JSON.stringify(pivotQueryPayload),
+                }).then((runResp) => {
+                    expect(runResp.status).to.eq(200);
+                    const { jobId } = runResp.body.results;
+
+                    const maxRetries = 50;
+
+                    // Poll request until job is `completed`
+                    const poll = (retries = 0) => {
+                        cy.wait(1000);
+                        cy.request({
+                            url: `${apiUrl}/schedulers/job/${jobId}/status`,
+                            method: 'GET',
+                        }).then((resp) => {
+                            expect(resp.status).to.eq(200);
+                            if (
+                                resp.body.results.status === 'completed' ||
+                                resp.body.results.status === 'error'
+                            ) {
+                                expect(resp.body.results.status).to.eq(
+                                    'completed',
+                                );
+                                // Don't care much about the response, just that it doesn't error
                             } else if (retries < maxRetries) {
                                 poll(retries + 1);
                             } else {

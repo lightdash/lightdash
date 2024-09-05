@@ -3138,7 +3138,7 @@ export class ProjectService extends BaseService {
         );
 
         await sshTunnel.disconnect();
-        return warehouseCatalog[database][schemaName][tableName];
+        return warehouseCatalog[database.toLowerCase()][schemaName][tableName];
     }
 
     async getTablesConfiguration(
