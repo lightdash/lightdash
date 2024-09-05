@@ -1,3 +1,10 @@
+## [0.1244.2](https://github.com/lightdash/lightdash/compare/0.1244.1...0.1244.2) (2024-09-05)
+
+
+### Bug Fixes
+
+* upgrade clsx from 2.1.0 to 2.1.1 ([#11415](https://github.com/lightdash/lightdash/issues/11415)) ([c965f08](https://github.com/lightdash/lightdash/commit/c965f08d1dd8386776b931bcb75611638f659341))
+
 ## [0.1244.1](https://github.com/lightdash/lightdash/compare/0.1244.0...0.1244.1) (2024-09-05)
 
 
