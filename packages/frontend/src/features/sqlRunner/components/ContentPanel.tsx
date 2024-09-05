@@ -1,7 +1,6 @@
 import { isVizTableConfig, type VizTableConfig } from '@lightdash/common';
 import {
     Box,
-    getDefaultZIndex,
     Group,
     LoadingOverlay,
     Paper,
@@ -17,13 +16,18 @@ import { notifications } from '@mantine/notifications';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import {
     useCallback,
-    useDeferredValue,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FC,
 } from 'react';
-import { ResizableBox } from 'react-resizable';
+import {
+    Panel,
+    PanelGroup,
+    PanelResizeHandle,
+    type ImperativePanelHandle,
+} from 'react-resizable-panels';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
@@ -48,13 +52,14 @@ import {
 } from '../store/sqlRunnerSlice';
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 
-const MIN_RESULTS_HEIGHT = 10;
 const DEFAULT_SQL_LIMIT = 500;
 
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
     const mantineTheme = useMantineTheme();
     const { showToastError } = useToaster();
+    const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
+    const resultsPanelRef = useRef<ImperativePanelHandle>(null);
 
     // state for helping highlight errors in the editor
     const [hightlightError, setHightlightError] = useState<
@@ -66,14 +71,6 @@ export const ContentPanel: FC = () => {
         width: inputSectionWidth,
         height: inputSectionHeight,
     } = useElementSize();
-    const { ref: wrapperRef, height: wrapperHeight } = useElementSize();
-    const [resultsHeight, setResultsHeight] = useState(MIN_RESULTS_HEIGHT);
-    const maxResultsHeight = useMemo(() => wrapperHeight - 56, [wrapperHeight]);
-    const deferredResultsHeight = useDeferredValue(resultsHeight);
-    const isResultsPanelFullHeight = useMemo(
-        () => resultsHeight === maxResultsHeight,
-        [resultsHeight, maxResultsHeight],
-    );
 
     const fetchResultsOnLoad = useAppSelector(
         (state) => state.sqlRunner.fetchResultsOnLoad,
@@ -170,10 +167,11 @@ export const ContentPanel: FC = () => {
     }, [queryResults]);
 
     useEffect(() => {
-        if (queryResults && resultsHeight === MIN_RESULTS_HEIGHT) {
-            setResultsHeight(inputSectionHeight / 2);
+        if (queryResults && panelSizes[1] === 0) {
+            resultsPanelRef.current?.resize(50);
+            setPanelSizes([50, 50]);
         }
-    }, [queryResults, resultsHeight, inputSectionHeight]);
+    }, [queryResults, panelSizes]);
 
     useEffect(() => {
         if (!queryResults || !resultsRunner || !selectedChartType) return;
@@ -274,11 +272,7 @@ export const ContentPanel: FC = () => {
     );
 
     return (
-        <Stack
-            spacing="none"
-            style={{ flex: 1, overflow: 'hidden' }}
-            ref={wrapperRef}
-        >
+        <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
             <Tooltip.Group>
                 <Paper
                     shadow="none"
@@ -287,9 +281,7 @@ export const ContentPanel: FC = () => {
                     py={6}
                     bg="gray.1"
                     sx={(theme) => ({
-                        borderWidth: isResultsPanelFullHeight
-                            ? '0 0 0 1px'
-                            : '0 0 1px 1px',
+                        borderWidth: '0 0 1px 1px',
                         borderStyle: 'solid',
                         borderColor: theme.colors.gray[3],
                     })}
@@ -351,257 +343,279 @@ export const ContentPanel: FC = () => {
                     </Group>
                 </Paper>
 
-                <Paper
-                    ref={inputSectionRef}
-                    shadow="none"
-                    radius={0}
-                    style={{ flex: 1 }}
-                    sx={(theme) => ({
-                        borderWidth: '0 0 0 1px',
-                        borderStyle: 'solid',
-                        borderColor: theme.colors.gray[3],
-                        overflow: 'auto',
-                    })}
+                <PanelGroup
+                    direction="vertical"
+                    onLayout={(sizes) => setPanelSizes(sizes)}
                 >
-                    <Box
-                        style={{ flex: 1 }}
-                        sx={{
-                            position: 'absolute',
-                            overflowY: isVizTableConfig(currentVizConfig)
-                                ? 'auto'
-                                : 'hidden',
-                            height: inputSectionHeight,
-                            width: inputSectionWidth,
-                        }}
+                    <Panel
+                        id="sql-runner-panel-sql-or-charts"
+                        order={1}
+                        minSize={30}
+                        style={{ display: 'flex', flexDirection: 'column' }}
                     >
-                        <ConditionalVisibility
-                            isVisible={activeEditorTab === EditorTabs.SQL}
-                        >
-                            <SqlEditor
-                                resetHighlightError={() =>
-                                    setHightlightError(undefined)
-                                }
-                                onSubmit={() => handleRunQuery()}
-                                highlightText={
-                                    hightlightError
-                                        ? {
-                                              // set set single character highlight (no end/range defined)
-                                              start: hightlightError,
-                                              end: undefined,
-                                          }
-                                        : undefined
-                                }
-                            />
-                        </ConditionalVisibility>
-
-                        <ConditionalVisibility
-                            isVisible={
-                                activeEditorTab === EditorTabs.VISUALIZATION
-                            }
-                        >
-                            {queryResults?.results &&
-                                resultsRunner &&
-                                currentVizConfig && (
-                                    <>
-                                        <Transition
-                                            keepMounted
-                                            mounted={!showTable}
-                                            transition="fade"
-                                            duration={400}
-                                            timingFunction="ease"
-                                        >
-                                            {(styles) => (
-                                                <Box
-                                                    px="sm"
-                                                    pb="sm"
-                                                    style={styles}
-                                                >
-                                                    {activeConfigs.chartConfigs.map(
-                                                        (c) => (
-                                                            <ConditionalVisibility
-                                                                key={c.type}
-                                                                isVisible={
-                                                                    selectedChartType ===
-                                                                    c.type
-                                                                }
-                                                            >
-                                                                <ChartView
-                                                                    config={c}
-                                                                    isLoading={
-                                                                        isLoading
-                                                                    }
-                                                                    resultsRunner={
-                                                                        resultsRunner
-                                                                    }
-                                                                    style={{
-                                                                        height: inputSectionHeight,
-                                                                        // width: '100%',
-                                                                        flex: 1,
-                                                                        marginTop:
-                                                                            mantineTheme
-                                                                                .spacing
-                                                                                .sm,
-                                                                    }}
-                                                                    sql={sql}
-                                                                    projectUuid={
-                                                                        projectUuid
-                                                                    }
-                                                                    limit={
-                                                                        limit
-                                                                    }
-                                                                    onPivot={(
-                                                                        pivotData,
-                                                                    ) =>
-                                                                        handlePivotData(
-                                                                            c.type,
-                                                                            pivotData,
-                                                                        )
-                                                                    }
-                                                                />
-                                                            </ConditionalVisibility>
-                                                        ),
-                                                    )}
-                                                </Box>
-                                            )}
-                                        </Transition>
-
-                                        <Transition
-                                            keepMounted
-                                            mounted={showTable}
-                                            transition="fade"
-                                            duration={300}
-                                            timingFunction="ease"
-                                        >
-                                            {(styles) => (
-                                                <Box
-                                                    p="xs"
-                                                    style={{
-                                                        flex: 1,
-                                                        ...styles,
-                                                    }}
-                                                >
-                                                    <ConditionalVisibility
-                                                        isVisible={showTable}
-                                                    >
-                                                        <Table
-                                                            resultsRunner={
-                                                                resultsRunner
-                                                            }
-                                                            config={
-                                                                activeConfigs.tableConfig
-                                                            }
-                                                        />
-                                                    </ConditionalVisibility>
-                                                </Box>
-                                            )}
-                                        </Transition>
-                                    </>
-                                )}
-                        </ConditionalVisibility>
-                    </Box>
-                </Paper>
-
-                <ResizableBox
-                    height={deferredResultsHeight}
-                    minConstraints={[50, 50]}
-                    maxConstraints={[Infinity, maxResultsHeight]}
-                    resizeHandles={['n']}
-                    axis="y"
-                    handle={
                         <Paper
-                            pos="absolute"
-                            top={0}
-                            left={0}
-                            right={0}
+                            ref={inputSectionRef}
                             shadow="none"
                             radius={0}
-                            px="md"
-                            py={6}
-                            withBorder
-                            bg="gray.1"
+                            style={{ flex: 1 }}
                             sx={(theme) => ({
-                                zIndex: getDefaultZIndex('modal') - 1,
-                                borderWidth: isResultsPanelFullHeight
-                                    ? '0 0 0 1px'
-                                    : '0 0 1px 1px',
+                                borderWidth: '0 0 0 1px',
                                 borderStyle: 'solid',
                                 borderColor: theme.colors.gray[3],
-                                cursor: 'ns-resize',
+                                overflow: 'auto',
                             })}
                         >
-                            {showLimitText && (
-                                <Group position="center">
-                                    <Text fz="sm" fw={500}>
-                                        Showing first {DEFAULT_SQL_LIMIT} rows
-                                    </Text>
-                                </Group>
-                            )}
-                        </Paper>
-                    }
-                    style={{
-                        position: 'relative',
-                        display: hideResultsPanel ? 'none' : 'flex',
-                        flexDirection: 'column',
-                    }}
-                    onResizeStop={(e, data) =>
-                        setResultsHeight(data.size.height)
-                    }
-                >
-                    <Paper
-                        shadow="none"
-                        radius={0}
-                        pt={showLimitText ? 'xxl' : 'sm'}
-                        sx={(theme) => ({
-                            overflow: 'auto',
-                            borderWidth: '0 0 1px 1px',
-                            borderStyle: 'solid',
-                            borderColor: theme.colors.gray[3],
-                        })}
-                    >
-                        <LoadingOverlay
-                            loaderProps={{
-                                size: 'xs',
-                            }}
-                            visible={isLoading}
-                        />
-                        {queryResults?.results && resultsRunner && (
-                            <>
+                            <Box
+                                style={{ flex: 1 }}
+                                sx={{
+                                    position: 'absolute',
+                                    overflowY: isVizTableConfig(
+                                        currentVizConfig,
+                                    )
+                                        ? 'auto'
+                                        : 'hidden',
+                                    height: inputSectionHeight,
+                                    width: inputSectionWidth,
+                                }}
+                            >
                                 <ConditionalVisibility
-                                    isVisible={showSqlResultsTable}
+                                    isVisible={
+                                        activeEditorTab === EditorTabs.SQL
+                                    }
                                 >
-                                    <Table
-                                        resultsRunner={resultsRunner}
-                                        config={resultsTableConfig}
+                                    <SqlEditor
+                                        resetHighlightError={() =>
+                                            setHightlightError(undefined)
+                                        }
+                                        onSubmit={() => handleRunQuery()}
+                                        highlightText={
+                                            hightlightError
+                                                ? {
+                                                      // set set single character highlight (no end/range defined)
+                                                      start: hightlightError,
+                                                      end: undefined,
+                                                  }
+                                                : undefined
+                                        }
                                     />
                                 </ConditionalVisibility>
 
                                 <ConditionalVisibility
-                                    isVisible={showChartResultsTable}
+                                    isVisible={
+                                        activeEditorTab ===
+                                        EditorTabs.VISUALIZATION
+                                    }
                                 >
-                                    {selectedChartType &&
-                                        tableConfigByChartType &&
-                                        resultsTableRunnerByChartType &&
-                                        resultsTableRunnerByChartType[
-                                            selectedChartType
-                                        ] && (
-                                            <Table
-                                                resultsRunner={
-                                                    resultsTableRunnerByChartType[
-                                                        selectedChartType
-                                                    ]!
-                                                }
-                                                config={
-                                                    tableConfigByChartType[
-                                                        selectedChartType
-                                                    ]
-                                                }
-                                            />
+                                    {queryResults?.results &&
+                                        resultsRunner &&
+                                        currentVizConfig && (
+                                            <>
+                                                <Transition
+                                                    keepMounted
+                                                    mounted={!showTable}
+                                                    transition="fade"
+                                                    duration={400}
+                                                    timingFunction="ease"
+                                                >
+                                                    {(styles) => (
+                                                        <Box
+                                                            px="sm"
+                                                            pb="sm"
+                                                            style={styles}
+                                                        >
+                                                            {activeConfigs.chartConfigs.map(
+                                                                (c) => (
+                                                                    <ConditionalVisibility
+                                                                        key={
+                                                                            c.type
+                                                                        }
+                                                                        isVisible={
+                                                                            selectedChartType ===
+                                                                            c.type
+                                                                        }
+                                                                    >
+                                                                        <ChartView
+                                                                            config={
+                                                                                c
+                                                                            }
+                                                                            isLoading={
+                                                                                isLoading
+                                                                            }
+                                                                            resultsRunner={
+                                                                                resultsRunner
+                                                                            }
+                                                                            style={{
+                                                                                height: inputSectionHeight,
+                                                                                flex: 1,
+                                                                                marginTop:
+                                                                                    mantineTheme
+                                                                                        .spacing
+                                                                                        .sm,
+                                                                            }}
+                                                                            sql={
+                                                                                sql
+                                                                            }
+                                                                            projectUuid={
+                                                                                projectUuid
+                                                                            }
+                                                                            limit={
+                                                                                limit
+                                                                            }
+                                                                            onPivot={(
+                                                                                pivotData,
+                                                                            ) =>
+                                                                                handlePivotData(
+                                                                                    c.type,
+                                                                                    pivotData,
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                    </ConditionalVisibility>
+                                                                ),
+                                                            )}
+                                                        </Box>
+                                                    )}
+                                                </Transition>
+
+                                                <Transition
+                                                    keepMounted
+                                                    mounted={showTable}
+                                                    transition="fade"
+                                                    duration={300}
+                                                    timingFunction="ease"
+                                                >
+                                                    {(styles) => (
+                                                        <Box
+                                                            style={{
+                                                                flex: 1,
+                                                                height: inputSectionHeight,
+                                                                ...styles,
+                                                            }}
+                                                        >
+                                                            <ConditionalVisibility
+                                                                isVisible={
+                                                                    showTable
+                                                                }
+                                                            >
+                                                                <Table
+                                                                    resultsRunner={
+                                                                        resultsRunner
+                                                                    }
+                                                                    config={
+                                                                        activeConfigs.tableConfig
+                                                                    }
+                                                                    flexProps={{
+                                                                        mah: '100%',
+                                                                    }}
+                                                                />
+                                                            </ConditionalVisibility>
+                                                        </Box>
+                                                    )}
+                                                </Transition>
+                                            </>
                                         )}
                                 </ConditionalVisibility>
-                            </>
-                        )}
-                    </Paper>
-                </ResizableBox>
+                            </Box>
+                        </Paper>
+                    </Panel>
+
+                    <Box
+                        hidden={hideResultsPanel}
+                        component={PanelResizeHandle}
+                        bg="gray.3"
+                        h={showLimitText ? 20 : 10}
+                        sx={(theme) => ({
+                            transition: 'background-color 0.2s ease-in-out',
+                            '&[data-resize-handle-state="hover"]': {
+                                backgroundColor: theme.colors.gray[3],
+                            },
+                            '&[data-resize-handle-state="drag"]': {
+                                backgroundColor: theme.colors.gray[2],
+                            },
+                        })}
+                    >
+                        {showLimitText ? (
+                            <Group position="center">
+                                <Text fz="sm" fw={500}>
+                                    Showing first {DEFAULT_SQL_LIMIT} rows
+                                </Text>
+                            </Group>
+                        ) : undefined}
+                    </Box>
+
+                    <Panel
+                        id="sql-runner-panel-results"
+                        order={2}
+                        defaultSize={panelSizes[1]}
+                        maxSize={500}
+                        ref={resultsPanelRef}
+                        style={{
+                            display: hideResultsPanel ? 'none' : 'flex',
+                            flexDirection: 'column',
+                        }}
+                    >
+                        <Box
+                            h="100%"
+                            pos="relative"
+                            sx={(theme) => ({
+                                overflow: 'auto',
+                                borderWidth: '0 0 1px 1px',
+                                borderStyle: 'solid',
+                                borderColor: theme.colors.gray[3],
+                            })}
+                        >
+                            <LoadingOverlay
+                                pos="absolute"
+                                loaderProps={{
+                                    size: 'xs',
+                                }}
+                                visible={isLoading}
+                            />
+                            {queryResults?.results && resultsRunner && (
+                                <>
+                                    <ConditionalVisibility
+                                        isVisible={showSqlResultsTable}
+                                    >
+                                        <Table
+                                            resultsRunner={resultsRunner}
+                                            config={resultsTableConfig}
+                                            flexProps={{
+                                                mah: '100%',
+                                            }}
+                                        />
+                                    </ConditionalVisibility>
+
+                                    <ConditionalVisibility
+                                        isVisible={showChartResultsTable}
+                                    >
+                                        {selectedChartType &&
+                                            tableConfigByChartType &&
+                                            resultsTableRunnerByChartType &&
+                                            resultsTableRunnerByChartType[
+                                                selectedChartType
+                                            ] && (
+                                                <Table
+                                                    resultsRunner={
+                                                        resultsTableRunnerByChartType[
+                                                            selectedChartType
+                                                        ]!
+                                                    }
+                                                    config={
+                                                        tableConfigByChartType[
+                                                            selectedChartType
+                                                        ]
+                                                    }
+                                                    flexProps={{
+                                                        mah: '100%',
+                                                    }}
+                                                />
+                                            )}
+                                    </ConditionalVisibility>
+                                </>
+                            )}
+                        </Box>
+                    </Panel>
+                </PanelGroup>
             </Tooltip.Group>
         </Stack>
     );

@@ -145,6 +145,7 @@ const ViewSqlChart = () => {
 
                     {data && !isLoading && (
                         <Box
+                            h="100%"
                             sx={{
                                 position: 'relative',
                                 flex: 1,
@@ -187,10 +188,15 @@ const ViewSqlChart = () => {
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.RESULTS}
                             >
-                                <Table
-                                    resultsRunner={resultsRunner}
-                                    config={resultsTableConfig}
-                                />
+                                <Paper withBorder shadow="none" radius={0}>
+                                    <Table
+                                        resultsRunner={resultsRunner}
+                                        config={resultsTableConfig}
+                                        flexProps={{
+                                            mah: 'calc(100vh - 300px)',
+                                        }}
+                                    />
+                                </Paper>
                             </ConditionalVisibility>
                         </Box>
                     )}
