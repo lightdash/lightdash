@@ -41,7 +41,7 @@ export const HeaderEdit: FC = () => {
     const config = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
     );
-    const { mutate } = useUpdateSqlChartMutation(
+    const { mutate, isLoading } = useUpdateSqlChartMutation(
         savedSqlChart?.project.projectUuid || '',
         savedSqlChart?.savedSqlUuid || '',
     );
@@ -116,6 +116,7 @@ export const HeaderEdit: FC = () => {
                             variant="default"
                             size="xs"
                             disabled={!config || !sql}
+                            loading={isLoading}
                             onClick={() => {
                                 if (config && sql) {
                                     mutate({
@@ -136,27 +137,25 @@ export const HeaderEdit: FC = () => {
                             label="Back to view page"
                             position="bottom"
                         >
-                            <ActionIcon size="xs">
-                                <MantineIcon
-                                    icon={IconArrowBackUp}
-                                    onClick={() =>
-                                        history.push(
-                                            `/projects/${savedSqlChart.project.projectUuid}/sql-runner/${savedSqlChart.slug}`,
-                                        )
-                                    }
-                                />
+                            <ActionIcon
+                                size="xs"
+                                onClick={() =>
+                                    history.push(
+                                        `/projects/${savedSqlChart.project.projectUuid}/sql-runner/${savedSqlChart.slug}`,
+                                    )
+                                }
+                            >
+                                <MantineIcon icon={IconArrowBackUp} />
                             </ActionIcon>
                         </Tooltip>
                         <Tooltip variant="xs" label="Delete" position="bottom">
-                            <ActionIcon size="xs">
-                                <MantineIcon
-                                    icon={IconTrash}
-                                    onClick={() =>
-                                        dispatch(
-                                            toggleModal('deleteChartModal'),
-                                        )
-                                    }
-                                />
+                            <ActionIcon
+                                size="xs"
+                                onClick={() =>
+                                    dispatch(toggleModal('deleteChartModal'))
+                                }
+                            >
+                                <MantineIcon icon={IconTrash} />
                             </ActionIcon>
                         </Tooltip>
                     </Group>
