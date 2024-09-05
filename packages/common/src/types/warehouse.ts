@@ -6,6 +6,7 @@ import { type CreateWarehouseCredentials } from './projects';
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;
 };
+
 export type WarehouseCatalog = {
     [database: string]: {
         [schema: string]: {
@@ -13,6 +14,12 @@ export type WarehouseCatalog = {
         };
     };
 };
+
+export type WarehouseTables = {
+    database: string;
+    schema: string;
+    table: string;
+}[];
 
 export type WarehouseResults = {
     fields: Record<string, { type: DimensionType }>;
@@ -68,13 +75,15 @@ export interface WarehouseClient {
 
     concatString(...args: string[]): string;
 
-    getTables(
+    getAllTables(
         schema?: string,
         tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog>;
+    ): Promise<WarehouseTables>;
+
     getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog>;
 
@@ -82,6 +91,8 @@ export interface WarehouseClient {
         rows: Record<string, any>[],
         mapFieldType: (type: string) => DimensionType,
     ): WarehouseCatalog;
+
+    parseError(error: Error): Error;
 }
 
 export type ApiWarehouseCatalog = {

@@ -1,11 +1,16 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
+import { Type } from '@aws-sdk/client-s3';
 import {
     CartesianSeriesType,
+    ChartKind,
     ChartType,
     DbtProjectType,
+    getRequestMethod,
     LightdashInstallType,
     LightdashMode,
+    LightdashRequestMethodHeader,
     LightdashUser,
+    OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     PinnedItem,
     ProjectMemberRole,
@@ -18,8 +23,10 @@ import {
 import Analytics, {
     Track as AnalyticsTrack,
 } from '@rudderstack/rudder-sdk-node';
+import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
 import { VERSION } from '../version';
 
 type Identify = {
@@ -66,31 +73,24 @@ type DbtCloudIntegration = BaseTrack & {
     };
 };
 
-type SqlExecutedEvent = BaseTrack & {
-    event: 'sql.executed';
-    properties: {
-        projectId: string;
-    };
-};
-
 type LoginEvent = BaseTrack & {
     event: 'user.logged_in';
     properties: {
-        loginProvider: 'password' | 'google';
+        loginProvider: 'password' | OpenIdIdentityIssuerType;
     };
 };
 
 type IdentityLinkedEvent = BaseTrack & {
     event: 'user.identity_linked' | 'user.identity_removed';
     properties: {
-        loginProvider: 'google';
+        loginProvider: OpenIdIdentityIssuerType;
     };
 };
 
 type CreateUserEvent = BaseTrack & {
     event: 'user.created';
     properties: {
-        userConnectionType: 'password' | 'google';
+        userConnectionType: 'password' | OpenIdIdentityIssuerType;
     };
 };
 
@@ -154,40 +154,72 @@ type UserJoinOrganizationEvent = BaseTrack & {
 
 export enum QueryExecutionContext {
     DASHBOARD = 'dashboardView',
+    AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
     EXPLORE = 'exploreView',
     CHART = 'chartView',
+    SQL_CHART = 'sqlChartView',
+    SQL_RUNNER = 'sqlRunner',
     VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
     CSV = 'csvDownload',
     GSHEETS = 'gsheets',
+    SCHEDULED_GSHEETS_CHART = 'scheduledGsheetsChart',
+    SCHEDULED_GSHEETS_DASHBOARD = 'scheduledGsheetsDashboard',
+    SCHEDULED_CHART = 'scheduledChart',
+    SCHEDULED_DASHBOARD = 'scheduledDashboard',
     CALCULATE_TOTAL = 'calculateTotal',
+    API = 'api',
+    CLI = 'cli',
 }
+
+export const getContextFromHeader = (req: Request) => {
+    const method = getRequestMethod(req.header(LightdashRequestMethodHeader));
+    switch (method) {
+        case RequestMethod.CLI:
+        case RequestMethod.CLI_CI:
+            return QueryExecutionContext.CLI;
+        case RequestMethod.UNKNOWN:
+            return QueryExecutionContext.API;
+        default:
+            return undefined;
+    }
+};
+
+type MetricQueryExecutionProperties = {
+    chartId?: string;
+    metricsCount: number;
+    dimensionsCount: number;
+    tableCalculationsCount: number;
+    tableCalculationsPercentFormatCount: number;
+    tableCalculationsCurrencyFormatCount: number;
+    tableCalculationsNumberFormatCount: number;
+    filtersCount: number;
+    sortsCount: number;
+    hasExampleMetric: boolean;
+    additionalMetricsCount: number;
+    additionalMetricsFilterCount: number;
+    additionalMetricsPercentFormatCount: number;
+    additionalMetricsCurrencyFormatCount: number;
+    additionalMetricsNumberFormatCount: number;
+    numFixedWidthBinCustomDimensions: number;
+    numFixedBinsBinCustomDimensions: number;
+    numCustomRangeBinCustomDimensions: number;
+    numCustomSqlDimensions: number;
+    dateZoomGranularity: string | null;
+    timezone?: string;
+};
+
+type SqlExecutionProperties = {
+    sqlChartId?: string;
+    usingStreaming: boolean;
+};
 
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
-        projectId: string;
-        metricsCount: number;
-        dimensionsCount: number;
-        tableCalculationsCount: number;
-        tableCalculationsPercentFormatCount: number;
-        tableCalculationsCurrencyFormatCount: number;
-        tableCalculationsNumberFormatCount: number;
-        filtersCount: number;
-        sortsCount: number;
-        hasExampleMetric: boolean;
-        additionalMetricsCount: number;
-        additionalMetricsFilterCount: number;
-        additionalMetricsPercentFormatCount: number;
-        additionalMetricsCurrencyFormatCount: number;
-        additionalMetricsNumberFormatCount: number;
         context: QueryExecutionContext;
-        numFixedWidthBinCustomDimensions: number;
-        numFixedBinsBinCustomDimensions: number;
-        numCustomRangeBinCustomDimensions: number;
-        numCustomSqlDimensions: number;
-        dateZoomGranularity: string | null;
-        timezone?: string;
-    };
+        organizationId: string;
+        projectId: string;
+    } & (MetricQueryExecutionProperties | SqlExecutionProperties);
 };
 
 type CreateOrganizationEvent = BaseTrack & {
@@ -482,6 +514,7 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         filtersCount: number;
         tilesCount: number;
         chartTilesCount: number;
+        sqlChartTilesCount: number;
         markdownTilesCount: number;
         loomTilesCount: number;
         duplicated?: boolean;
@@ -546,6 +579,7 @@ type ProjectSearch = BaseTrack & {
         spacesResultsCount: number;
         dashboardsResultsCount: number;
         savedChartsResultsCount: number;
+        sqlChartsResultsCount: number;
         tablesResultsCount: number;
         fieldsResultsCount: number;
     };
@@ -638,6 +672,71 @@ type DashboardView = BaseTrack & {
         dashboardId: string;
         projectId: string;
         organizationId: string;
+    };
+};
+
+type ViewSqlChart = BaseTrack & {
+    event: 'sql_chart.view';
+    userId: string;
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type CreateSqlChartEvent = BaseTrack & {
+    event: 'sql_chart.created';
+    userId: string;
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type UpdateSqlChartEvent = BaseTrack & {
+    event: 'sql_chart.updated';
+    userId: string;
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+type DeleteSqlChartEvent = BaseTrack & {
+    event: 'sql_chart.deleted';
+    userId: string;
+    properties: {
+        chartId: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
+export type CreateSqlChartVersionEvent = BaseTrack & {
+    event: 'sql_chart_version.created';
+    userId: string;
+    properties: {
+        chartId: string;
+        versionId: string;
+        projectId: string;
+        organizationId: string;
+        chartKind: ChartKind;
+        barChart?: {
+            groupByCount: number;
+            yAxisCount: number;
+            aggregationTypes: string[];
+        };
+        lineChart?: {
+            groupByCount: number;
+            yAxisCount: number;
+            aggregationTypes: string[];
+        };
+        pieChart?: {
+            groupByCount: number;
+        };
     };
 };
 
@@ -902,6 +1001,19 @@ export type GroupDeleteEvent = BaseTrack & {
     };
 };
 
+export type SemanticLayerView = BaseTrack & {
+    event: 'semantic_layer.get_views'; // started, completed, error suffix when using wrapEvent
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        // on completed
+        viewsCount?: number;
+        // on error
+        error?: string;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -936,7 +1048,6 @@ type TypedEvent =
     | UserWarehouseCredentialsDeleteEvent
     | LoginEvent
     | IdentityLinkedEvent
-    | SqlExecutedEvent
     | DbtCloudIntegration
     | PersonalAccessTokenEvent
     | DuplicatedChartCreatedEvent
@@ -970,7 +1081,14 @@ type TypedEvent =
     | GroupCreateAndUpdateEvent
     | GroupDeleteEvent
     | ConditionalFormattingRuleSavedEvent
+    | ViewSqlChart
+    | CreateSqlChartEvent
+    | UpdateSqlChartEvent
+    | DeleteSqlChartEvent
+    | CreateSqlChartVersionEvent
     | CommentsEvent;
+
+type WrapTypedEvent = SemanticLayerView;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {
@@ -983,6 +1101,7 @@ type LightdashAnalyticsArguments = {
     dataPlaneUrl: string;
     options?: ConstructorParameters<typeof Analytics>[2];
 };
+
 export class LightdashAnalytics extends Analytics {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -1074,5 +1193,43 @@ export class LightdashAnalytics extends Analytics {
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
+    }
+
+    async wrapEvent<T>(
+        payload: WrapTypedEvent,
+        func: () => Promise<T>,
+        extraProperties?: (r: T) => any,
+    ) {
+        try {
+            this.track({
+                ...payload,
+                event: `${payload.event}.started`,
+            });
+
+            const results = await func();
+
+            const properties = extraProperties ? extraProperties(results) : {};
+            this.track({
+                ...payload,
+                event: `${payload.event}.completed`,
+                properties: {
+                    ...payload.properties,
+                    ...properties,
+                },
+            });
+
+            return results;
+        } catch (e) {
+            await this.track({
+                ...payload,
+                event: `${payload.event}.error`,
+                properties: {
+                    ...payload.properties,
+                    error: e.message,
+                },
+            });
+            Logger.error(`Error in scheduler task: ${e}`);
+            throw e;
+        }
     }
 }

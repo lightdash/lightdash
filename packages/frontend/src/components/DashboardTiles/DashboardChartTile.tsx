@@ -30,6 +30,7 @@ import {
     ActionIcon,
     Badge,
     Box,
+    Group,
     HoverCard,
     Menu,
     Portal,
@@ -40,6 +41,7 @@ import {
 import { useClipboard } from '@mantine/hooks';
 import {
     IconAlertCircle,
+    IconAlertTriangle,
     IconCopy,
     IconFilter,
     IconFolders,
@@ -343,6 +345,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             projectUuid: chart.projectUuid,
         }),
     );
+    const userCanRunCustomSql = user.data?.ability.can(
+        'manage',
+        subject('CustomSql', {
+            organizationUuid: chart.organizationUuid,
+            projectUuid: chart.projectUuid,
+        }),
+    );
 
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
 
@@ -558,14 +567,29 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         }),
         [chart, metricQuery],
     );
-    const { pathname: chartPathname, search: chartSearch } = useMemo(
-        () =>
-            getExplorerUrlFromCreateSavedChartVersion(
+    const cannotUseCustomDimensions =
+        !userCanRunCustomSql &&
+        chartWithDashboardFilters.metricQuery.customDimensions;
+
+    const { pathname: chartPathname, search: chartSearch } = useMemo(() => {
+        if (cannotUseCustomDimensions) {
+            const queryWithoutCustomDimensions = {
+                ...chartWithDashboardFilters,
+                metricQuery: {
+                    ...chartWithDashboardFilters.metricQuery,
+                    customDimensions: undefined,
+                },
+            };
+            return getExplorerUrlFromCreateSavedChartVersion(
                 chartWithDashboardFilters.projectUuid,
-                chartWithDashboardFilters,
-            ),
-        [chartWithDashboardFilters],
-    );
+                queryWithoutCustomDimensions,
+            );
+        }
+        return getExplorerUrlFromCreateSavedChartVersion(
+            chartWithDashboardFilters.projectUuid,
+            chartWithDashboardFilters,
+        );
+    }, [chartWithDashboardFilters, cannotUseCustomDimensions]);
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
@@ -586,6 +610,36 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             ),
         [showComments, isCommentsMenuOpen, tileUuid],
     );
+
+    const editButtonTooltipLabel = useMemo(() => {
+        const canManageChartSpace = user.data?.ability?.can(
+            'manage',
+            subject('Space', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
+                spaceUuid: chart.spaceUuid,
+            }),
+        );
+
+        if (!canManageChartSpace) {
+            return (
+                <Text>
+                    Cannot edit chart belonging to space:{' '}
+                    <Text span fw={500}>
+                        {chart.spaceName}
+                    </Text>
+                </Text>
+            );
+        }
+
+        return <Text>You do not have permission to edit this chart</Text>;
+    }, [
+        chart.organizationUuid,
+        chart.projectUuid,
+        chart.spaceName,
+        chart.spaceUuid,
+        user.data?.ability,
+    ]);
 
     return (
         <>
@@ -722,32 +776,66 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             <Tooltip
                                 disabled={!isEditMode}
                                 label="Finish editing dashboard to use these actions"
+                                variant="xs"
                             >
                                 <Box>
-                                    {userCanManageChart && (
-                                        <EditChartMenuItem
-                                            tile={props.tile}
-                                            disabled={isEditMode}
-                                        />
-                                    )}
+                                    <Tooltip
+                                        disabled={
+                                            userCanManageChart || isEditMode
+                                        }
+                                        label={editButtonTooltipLabel}
+                                        position="top-start"
+                                        variant="xs"
+                                    >
+                                        <Box>
+                                            <EditChartMenuItem
+                                                tile={props.tile}
+                                                disabled={
+                                                    isEditMode ||
+                                                    !userCanManageChart
+                                                }
+                                            />
+                                        </Box>
+                                    </Tooltip>
 
                                     {userCanManageExplore && chartPathname && (
-                                        <Menu.Item
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconTelescope}
-                                                />
+                                        <Tooltip
+                                            label={
+                                                'This chart contains custom dimensions, you will not be able to run custom SQL on explore.'
                                             }
-                                            disabled={isEditMode}
-                                            onClick={() =>
-                                                handleCreateShareUrl(
-                                                    chartPathname,
-                                                    chartSearch,
-                                                )
+                                            position="top-start"
+                                            variant="xs"
+                                            disabled={
+                                                !cannotUseCustomDimensions
                                             }
                                         >
-                                            Explore from here
-                                        </Menu.Item>
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconTelescope}
+                                                    />
+                                                }
+                                                disabled={isEditMode}
+                                                onClick={() =>
+                                                    handleCreateShareUrl(
+                                                        chartPathname,
+                                                        chartSearch,
+                                                    )
+                                                }
+                                            >
+                                                <Group>
+                                                    Explore from here
+                                                    {cannotUseCustomDimensions && (
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconAlertTriangle
+                                                            }
+                                                            color="yellow.9"
+                                                        />
+                                                    )}
+                                                </Group>
+                                            </Menu.Item>
+                                        </Tooltip>
                                     )}
 
                                     {userCanExportData && (
@@ -799,7 +887,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     onClick={() =>
                                         duplicateChart({
                                             uuid: savedChartUuid,
-                                            name: chart.name,
+                                            name: `Copy of ${chart.name}`,
                                             description: chart.description,
                                         })
                                     }

@@ -16,6 +16,7 @@ import {
     HoverCard,
     List,
     Modal,
+    Pagination,
     Paper,
     Select,
     Stack,
@@ -25,6 +26,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconHelp,
@@ -33,12 +35,12 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
-import { useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteOrganizationUserMutation,
-    useOrganizationUsers,
+    usePaginatedOrganizationUsers,
     useUpdateUserMutation,
 } from '../../../hooks/useOrganizationUsers';
 import { useApp } from '../../../providers/AppProvider';
@@ -47,6 +49,7 @@ import { EventName } from '../../../types/Events';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import { DEFAULT_PAGE_SIZE } from '../../common/Table/types';
 import InvitesModal from './InvitesModal';
 import InviteSuccess from './InviteSuccess';
 
@@ -323,12 +326,35 @@ const UsersView: FC = () => {
     const [showInviteModal, setShowInviteModal] = useState(false);
     const { user, health } = useApp();
     const { classes } = useTableStyles();
-
+    const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
+    const [debouncedSearchQueryAndPage] = useDebouncedValue(
+        { search, page },
+        300,
+    );
 
     // TODO: fix the hardcoded groups number. This should be paginated.
-    const { data: organizationUsers, isInitialLoading: isLoadingUsers } =
-        useOrganizationUsers({ searchInput: search, includeGroups: 10000 });
+    const { data: paginatedUsers, isInitialLoading: isLoadingUsers } =
+        usePaginatedOrganizationUsers({
+            searchInput: debouncedSearchQueryAndPage.search,
+            includeGroups: 10000,
+            paginateArgs: {
+                page: debouncedSearchQueryAndPage.page,
+                pageSize: DEFAULT_PAGE_SIZE,
+            },
+        });
+
+    useEffect(() => {
+        setPage(1);
+    }, [search]);
+
+    const organizationUsers = useMemo(() => {
+        return paginatedUsers?.data;
+    }, [paginatedUsers]);
+
+    const pagination = useMemo(() => {
+        return paginatedUsers?.pagination;
+    }, [paginatedUsers]);
 
     if (!user.data || !health.data) return null;
 
@@ -345,6 +371,7 @@ const UsersView: FC = () => {
                     <Group align="center" position="apart">
                         <TextInput
                             size="xs"
+                            data-testid="org-users-search-input"
                             placeholder="Search users by name, email, or role"
                             onChange={(e) => setSearch(e.target.value)}
                             value={search}
@@ -413,6 +440,17 @@ const UsersView: FC = () => {
                         )}
                     </tbody>
                 </Table>
+                {pagination?.totalPageCount && pagination.totalPageCount > 1 ? (
+                    <Flex m="sm" align="center" justify="center">
+                        <Pagination
+                            size="sm"
+                            value={page}
+                            onChange={setPage}
+                            total={pagination?.totalPageCount}
+                            mt="sm"
+                        />
+                    </Flex>
+                ) : null}
             </SettingsCard>
             <InvitesModal
                 key={`invite-modal-${showInviteModal}`}

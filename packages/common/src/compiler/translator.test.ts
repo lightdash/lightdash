@@ -242,6 +242,7 @@ describe('convert tables from dbt models', () => {
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_LABEL);
     });
 
+    // `sql_where` is an alias of `sql_filter`
     it('should convert dbt model with sql where', async () => {
         expect(
             convertTable(

@@ -43,12 +43,12 @@ import { useApp } from '../../../../providers/AppProvider';
 import { Can } from '../../Authorization';
 import MantineIcon from '../../MantineIcon';
 
-enum SaveDestination {
+export enum SaveDestination {
     Dashboard = 'dashboard',
     Space = 'space',
 }
 
-const validationSchema = z.object({
+export const validationSchema = z.object({
     name: z.string().nonempty(),
     spaceUuid: z.string().optional(),
     dashboardUuid: z.string().optional(),
@@ -60,15 +60,19 @@ const validationSchema = z.object({
         .default(SaveDestination.Space),
 });
 
-type FormValues = z.infer<typeof validationSchema>;
+export type FormValues = z.infer<typeof validationSchema>;
 
-type SaveToSpaceProps = {
+export type SaveToSpaceProps = {
     form: UseFormReturnType<FormValues>;
     spaces: SpaceSummary[] | undefined;
     projectUuid: string;
 };
 
-const SaveToSpace: FC<SaveToSpaceProps> = ({ form, spaces, projectUuid }) => {
+export const SaveToSpace: FC<SaveToSpaceProps> = ({
+    form,
+    spaces,
+    projectUuid,
+}) => {
     const { user } = useApp();
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
     const isCreatingNewSpace =

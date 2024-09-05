@@ -1,64 +1,67 @@
-version: "3.8"
+version: '3.8'
 volumes:
-  node_modules:
+    node_modules:
 
 services:
-  lightdash-dev:
-    build:
-      context: ..
-      dockerfile: dockerfile
-      target: dev
-    depends_on:
-      - db-dev
-    environment:
-      - PGHOST=${PGHOST}
-      - PGPORT=${PGPORT}
-      - PGUSER=${PGUSER}
-      - PGPASSWORD=${PGPASSWORD}
-      - PGDATABASE=${PGDATABASE}
-      - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
-      - RUDDERSTACK_DATA_PLANE_URL=${RUDDERSTACK_DATA_PLANE_URL}
-      - SECURE_COOKIES=${SECURE_COOKIES}
-      - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
-      - LIGHTDASH_LOG_LEVEL=${LIGHTDASH_LOG_LEVEL}
-      - NODE_ENV=${NODE_ENV}
-      - LIGHTDASH_CONFIG_FILE=${LIGHTDASH_CONFIG_FILE}
-      - DBT_DEMO_DIR=${DBT_DEMO_DIR}
-      - AUTH_DISABLE_PASSWORD_AUTHENTICATION=${AUTH_DISABLE_PASSWORD_AUTHENTICATION}
-      - AUTH_ENABLE_GROUP_SYNC=${AUTH_ENABLE_GROUP_SYNC}
-      - SITE_URL=${SITE_URL}
-      - EXPOSED_SITE_URL=${EXPOSED_SITE_URL}
-      - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS}
-      - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
-      - HEADLESS_BROWSER_HOST=${HEADLESS_BROWSER_HOST}
-      - HEADLESS_BROWSER_PORT=${HEADLESS_BROWSER_PORT}
-      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
-      - GROUPS_ENABLED=${GROUPS_ENABLED}
-      - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
-      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
-      - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
-      - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
-      - SLACK_STATE_SECRET=${SLACK_STATE_SECRET}
-    volumes:
-      - "../:/usr/app"
-      - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"
-      - "node_modules:/usr/app/node_modules/" # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
-    ports:
-      - "8080:8080"
-      - "9090:9090"
-      - "3000:3000"
-    command: ""
-    entrypoint: [ "/bin/sh", "-c", "sleep infinity" ]
-  db-dev:
-    image: postgres:15.4
-    restart: always
-    environment:
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
+    lightdash-dev:
+        build:
+            context: ..
+            dockerfile: dockerfile
+            target: dev
+        depends_on:
+            - db-dev
+        environment:
+            - PGHOST=${PGHOST}
+            - PGPORT=${PGPORT}
+            - PGUSER=${PGUSER}
+            - PGPASSWORD=${PGPASSWORD}
+            - PGDATABASE=${PGDATABASE}
+            - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
+            - RUDDERSTACK_DATA_PLANE_URL=${RUDDERSTACK_DATA_PLANE_URL}
+            - SECURE_COOKIES=${SECURE_COOKIES}
+            - LIGHTDASH_SECRET=${LIGHTDASH_SECRET}
+            - LIGHTDASH_LOG_LEVEL=${LIGHTDASH_LOG_LEVEL}
+            - NODE_ENV=${NODE_ENV}
+            - DBT_DEMO_DIR=${DBT_DEMO_DIR}
+            - AUTH_DISABLE_PASSWORD_AUTHENTICATION=${AUTH_DISABLE_PASSWORD_AUTHENTICATION}
+            - AUTH_ENABLE_GROUP_SYNC=${AUTH_ENABLE_GROUP_SYNC}
+            - SITE_URL=${SITE_URL}
+            - EXPOSED_SITE_URL=${EXPOSED_SITE_URL}
+            - ALLOW_MULTIPLE_ORGS=${ALLOW_MULTIPLE_ORGS}
+            - LIGHTDASH_QUERY_MAX_LIMIT=${LIGHTDASH_QUERY_MAX_LIMIT}
+            - HEADLESS_BROWSER_HOST=${HEADLESS_BROWSER_HOST}
+            - HEADLESS_BROWSER_PORT=${HEADLESS_BROWSER_PORT}
+            - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
+            - GROUPS_ENABLED=${GROUPS_ENABLED}
+            - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
+            - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+            - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
+            - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
+            - SLACK_STATE_SECRET=${SLACK_STATE_SECRET}
+            - DBT_CLOUD_ENVIRONMENT_ID=${DBT_CLOUD_ENVIRONMENT_ID}
+            - DBT_CLOUD_BEARER_TOKEN=${DBT_CLOUD_BEARER_TOKEN}
+            - CUBE_TOKEN=${CUBE_TOKEN}
+            - CUBE_DOMAIN=${CUBE_DOMAIN}
+        volumes:
+            - '../:/usr/app'
+            - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'
+            - 'node_modules:/usr/app/node_modules/' # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
+        ports:
+            - '8080:8080'
+            - '9090:9090'
+            - '3000:3000'
+        command: ''
+        entrypoint: ['/bin/sh', '-c', 'sleep infinity']
+    db-dev:
+        image: postgres:15.4
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: password
+        ports:
+            - '5432:5432'
 
-  headless-browser:
-    image: browserless/chrome
-    restart: always
-    ports:
-      - "3001:3000"
+    headless-browser:
+        image: browserless/chrome
+        restart: always
+        ports:
+            - '3001:3000'

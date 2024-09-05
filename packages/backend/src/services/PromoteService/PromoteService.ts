@@ -618,7 +618,7 @@ export class PromoteService extends BaseService {
 
         return {
             ...promotionChanges,
-            charts: {
+            charts: [
                 ...existingCharts,
                 ...updatedCharts.map((chart) => ({
                     action: PromotionAction.UPDATE,
@@ -628,7 +628,7 @@ export class PromoteService extends BaseService {
                     action: PromotionAction.CREATE,
                     data: chart,
                 })),
-            },
+            ],
             dashboards: updatedDashboardsWithChartUuids,
         };
     }

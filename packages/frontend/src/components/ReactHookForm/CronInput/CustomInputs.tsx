@@ -28,6 +28,7 @@ const CustomInputs: FC<{
 
     return (
         <TextInput
+            maw="350px"
             withAsterisk
             value={cronExpression}
             placeholder="0 9 * * 1"

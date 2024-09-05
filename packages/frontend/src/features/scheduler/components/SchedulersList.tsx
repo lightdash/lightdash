@@ -89,6 +89,7 @@ const SchedulersList: FC<Props> = ({
                               />
                           ),
                   )}
+
             {schedulerUuid && (
                 <SchedulerDeleteModal
                     opened={true}

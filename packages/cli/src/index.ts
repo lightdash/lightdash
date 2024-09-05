@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-import { LightdashError } from '@lightdash/common';
+import { LightdashError, ValidationTarget } from '@lightdash/common';
 import { InvalidArgumentError, Option, program } from 'commander';
-import * as os from 'os';
-import * as path from 'path';
+import { findDbtDefaultProfile } from './dbt/profile';
 import { compileHandler } from './handlers/compile';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
@@ -29,8 +28,7 @@ const OPTIMIZED_NODE_VERSION = 20;
 const { version: VERSION } = require('../package.json');
 
 const defaultProjectDir = process.env.DBT_PROJECT_DIR || '.';
-const defaultProfilesDir =
-    process.env.DBT_PROFILES_DIR || path.join(os.homedir(), '.dbt');
+const defaultProfilesDir: string = findDbtDefaultProfile();
 
 function parseIntArgument(value: string) {
     const parsedValue = parseInt(value, 10);
@@ -245,7 +243,7 @@ ${styles.bold('Examples:')}
         false,
     )
     .option('--verbose', undefined, false)
-
+    .option('-y, --assume-yes', 'assume yes to prompts', false)
     .action(dbtRunHandler);
 
 program
@@ -346,6 +344,7 @@ program
         parseUseDbtListOption,
         true,
     )
+    .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .action(previewHandler);
 
 program
@@ -408,6 +407,7 @@ program
         parseUseDbtListOption,
         true,
     )
+    .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .action(startPreviewHandler);
 
 program
@@ -554,6 +554,11 @@ program
         'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
         parseUseDbtListOption,
         true,
+    )
+    .addOption(
+        new Option('--only <elems...>', 'Specify project elements to validate')
+            .choices(Object.values(ValidationTarget))
+            .default(Object.values(ValidationTarget)),
     )
     .action(validateHandler);
 

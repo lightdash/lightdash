@@ -4,6 +4,7 @@ import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
+import { ContentModel } from './ContentModel/ContentModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import { DownloadFileModel } from './DownloadFileModel';
@@ -24,6 +25,7 @@ import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { SavedChartModel } from './SavedChartModel';
+import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
 import { SessionModel } from './SessionModel';
@@ -35,6 +37,7 @@ import { UserAttributesModel } from './UserAttributesModel';
 import { UserModel } from './UserModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
+import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 
 /**
  * Interface outlining all models. Add new models to
@@ -74,8 +77,11 @@ export type ModelManifest = {
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
+    savedSqlModel: SavedSqlModel;
+    contentModel: ContentModel;
 
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
@@ -439,6 +445,13 @@ export class ModelRepository
         );
     }
 
+    public getWarehouseAvailableTablesModel(): WarehouseAvailableTablesModel {
+        return this.getModel(
+            'warehouseAvailableTablesModel',
+            () => new WarehouseAvailableTablesModel(this.database),
+        );
+    }
+
     public getValidationModel(): ValidationModel {
         return this.getModel(
             'validationModel',
@@ -450,6 +463,20 @@ export class ModelRepository
         return this.getModel(
             'catalogModel',
             () => new CatalogModel({ database: this.database }),
+        );
+    }
+
+    public getSavedSqlModel(): SavedSqlModel {
+        return this.getModel(
+            'savedSqlModel',
+            () => new SavedSqlModel({ database: this.database }),
+        );
+    }
+
+    public getContentModel(): ContentModel {
+        return this.getModel(
+            'contentModel',
+            () => new ContentModel({ database: this.database }),
         );
     }
 

@@ -1,4 +1,9 @@
-import { type DashboardChartTile } from '@lightdash/common';
+import {
+    isDashboardChartTileType,
+    isDashboardSqlChartTile,
+    type DashboardChartTile,
+    type DashboardSqlChartTile,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -12,7 +17,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconChartAreaLine, IconEye, IconEyeOff } from '@tabler/icons-react';
+import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useParams } from 'react-router-dom';
 import { useChartSummaries } from '../../../hooks/useChartSummaries';
 import MantineIcon from '../../common/MantineIcon';
@@ -25,7 +30,7 @@ interface ChartUpdateModalProps extends ModalProps {
         newChartUuid: string,
         shouldHideTitle: boolean,
     ) => void;
-    tile: DashboardChartTile;
+    tile: DashboardChartTile | DashboardSqlChartTile;
 }
 
 const ChartUpdateModal = ({
@@ -37,7 +42,9 @@ const ChartUpdateModal = ({
 }: ChartUpdateModalProps) => {
     const form = useForm({
         initialValues: {
-            uuid: tile.properties.savedChartUuid,
+            uuid: isDashboardSqlChartTile(tile)
+                ? tile.properties.savedSqlUuid
+                : tile.properties.savedChartUuid,
             title: tile.properties.title,
             hideTitle,
         },
@@ -61,16 +68,7 @@ const ChartUpdateModal = ({
     return (
         <Modal
             onClose={() => onClose?.()}
-            title={
-                <Flex align="center" gap="xs">
-                    <MantineIcon
-                        icon={IconChartAreaLine}
-                        size="lg"
-                        color="blue.8"
-                    />
-                    <Title order={4}>Edit tile content</Title>
-                </Flex>
-            }
+            title={<Title order={4}>Edit tile content</Title>}
             withCloseButton
             className="non-draggable"
             {...modalProps}
@@ -103,38 +101,39 @@ const ChartUpdateModal = ({
                             />
                         </ActionIcon>
                     </Flex>
-                    {!tile.properties.belongsToDashboard && (
-                        <Select
-                            styles={(theme) => ({
-                                separator: {
-                                    position: 'sticky',
-                                    top: 0,
-                                    backgroundColor: 'white',
-                                },
-                                separatorLabel: {
-                                    color: theme.colors.gray[6],
-                                    fontWeight: 500,
-                                },
-                            })}
-                            id="savedChartUuid"
-                            name="savedChartUuid"
-                            label="Select chart"
-                            data={(savedCharts || []).map(
-                                ({ uuid, name, spaceName }) => {
-                                    return {
-                                        value: uuid,
-                                        label: name,
-                                        group: spaceName,
-                                    };
-                                },
-                            )}
-                            disabled={isInitialLoading}
-                            withinPortal
-                            {...form.getInputProps('uuid')}
-                            searchable
-                            placeholder="Search..."
-                        />
-                    )}
+                    {isDashboardChartTileType(tile) &&
+                        tile.properties.belongsToDashboard && (
+                            <Select
+                                styles={(theme) => ({
+                                    separator: {
+                                        position: 'sticky',
+                                        top: 0,
+                                        backgroundColor: 'white',
+                                    },
+                                    separatorLabel: {
+                                        color: theme.colors.gray[6],
+                                        fontWeight: 500,
+                                    },
+                                })}
+                                id="savedChartUuid"
+                                name="savedChartUuid"
+                                label="Select chart"
+                                data={(savedCharts || []).map(
+                                    ({ uuid, name, spaceName }) => {
+                                        return {
+                                            value: uuid,
+                                            label: name,
+                                            group: spaceName,
+                                        };
+                                    },
+                                )}
+                                disabled={isInitialLoading}
+                                withinPortal
+                                {...form.getInputProps('uuid')}
+                                searchable
+                                placeholder="Search..."
+                            />
+                        )}
                     <Group spacing="xs" position="right" mt="md">
                         <Button onClick={() => onClose?.()} variant="outline">
                             Cancel

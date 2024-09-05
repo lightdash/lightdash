@@ -312,13 +312,13 @@ export class UserController extends BaseController {
     }
 
     /**
-     * Get login options for email
+     * Get login options
      */
     @Get('/login-options')
     @OperationId('getLoginOptions')
     async getLoginOptions(
         @Request() req: express.Request,
-        @Query() email: string,
+        @Query() email?: string,
     ): Promise<ApiGetLoginOptionsResponse> {
         const loginOptions = await this.services
             .getUserService()

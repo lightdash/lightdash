@@ -239,12 +239,12 @@ export class WarehouseConnectionError extends LightdashError {
 }
 
 export class WarehouseQueryError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: { [key: string]: any } = {}) {
         super({
             message,
             name: 'WarehouseQueryError',
             statusCode: 400,
-            data: {},
+            data,
         });
     }
 }
@@ -298,6 +298,28 @@ export class NotEnoughResults extends LightdashError {
             message,
             name: 'NotEnoughResults',
             statusCode: 406,
+            data: {},
+        });
+    }
+}
+
+export class KnexPaginationError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'KnexPaginationError',
+            statusCode: 422,
+            data: {},
+        });
+    }
+}
+
+export class SlackInstallationNotFoundError extends LightdashError {
+    constructor(message: string = 'Could not find slack installation') {
+        super({
+            message,
+            name: 'SlackInstallationNotFoundError',
+            statusCode: 404,
             data: {},
         });
     }

@@ -2,7 +2,7 @@ import ClickableDimension from './assets/clickable-dimension-link.jpg';
 import PieChartColor from './assets/pie-chart-color.png';
 import Groups from './assets/groups.png';
 
-# Dimensions reference doc
+# Dimensions reference
 
 Dimensions are the columns in your table. They are the "attributes" of your data. For example, `user_id` in your users table is a dimension.
 
@@ -25,10 +25,6 @@ models:
       - name: user_id # will be "User id" in LightDash
         description: 'Unique identifier for a user."
 ```
-
-Column descriptions in your YAML file are automatically pulled into Lightdash and you can spot them if you hover over the dimension name 👀
-
-![screenshot-column-descriptions](assets/screenshot-column-descriptions.png)
 
 ## Dimension configuration
 
@@ -128,6 +124,66 @@ We currently support these dimension types:
 | timestamp       |
 | date            |
 | boolean         |
+
+## Description
+
+Column descriptions in your YAML file are automatically pulled into Lightdash and you can spot them if you hover over the dimension name 👀
+
+![screenshot-column-descriptions](assets/screenshot-column-descriptions.png)
+
+Descriptions support any formatting that works with YAML, but the three characters used most often are:
+
+### Quotes for escaping
+
+When you surround text with double or single quotes it will escape the text between so that any special characters recognized by YAML will still pass through to the Lightdash UI.
+
+```yaml
+description: 'The contents of this column include this & that.'
+```
+
+### Greater than symbol for folded text blocks
+
+When you use `>-` it allows you to type descriptions that are multiple lines long in the YAML file, but the text will be combined into a single line when parsed. The `lightdash generate` command will automatically add this to keep YAML files easy to read.
+
+This description in YAML:
+
+```yaml
+- name: product_tier
+  description: >-
+    This is a longer description...
+    ...that requires multiple lines
+    and it will be combined in the Lightdash UI
+```
+
+Will appear like this in the Lightdash UI:
+
+```
+This is a longer description......that requires multiple lines and it will be combined in the Lightdash UI
+```
+
+### Vertical bar for preserving line breaks
+
+If you need line breaks to stay in place when they show up in the Lightdash UI, you can use a `|` character like this:
+
+```yaml
+- name: product_tier
+  description: |
+    This is a longer description...
+    ...that requires multiple lines
+    and it will stay on multiple lines
+```
+
+And in Lightdash UI it will appear like this:
+
+```
+This is a longer description...
+...that requires multiple lines
+and it will stay on multiple lines
+```
+
+### Using dbt doc blocks
+
+You can also use dbt docs blocks in descriptions, [more on that here](/guides/cli/how-to-auto-generate-schema-files#using-doc-blocks-to-build-better-yml-files).
 
 ## Compact values
 
@@ -269,7 +325,7 @@ These are the options:
 
 ## Groups
 
-You can group your dimensions and metrics in the sidebar using the `groups` parameter. 
+You can group your dimensions and metrics in the sidebar using the `groups` parameter.
 
 To do this, you need to set up `group_details` in the model's configuration. Then, you can use these groups to organize metrics and dimensions. You can create nested groups up to 2 levels.
 
@@ -279,7 +335,7 @@ models:
   - name: baskets
     meta:
       group_details:
-        product_details: 
+        product_details:
           label: Product Details
           description: 'Fields that have information about the products in the basket.'
         item_details:
@@ -495,8 +551,7 @@ columns](#parsing-json-columns), or creating persisted groups/buckets based off 
 A "normal" dimension is a column created in your .sql file in dbt that is written to your data warehouse.
 An additional dimension is not included in your dbt .sql file, so it's not written to your data warehouse. When used in Lightdash, it just adds the dimension definition to your SQL query (so it's "created" at runtime).
 
-All the [dimension configuration](#dimension-configuration), beside `time_intervals`, are available for additional
-dimensions. You can also [use additional dimensions when defining metrics](#using-additional-dimensions-in-metrics).
+All [dimension configurations](#dimension-configuration) are available for additional dimensions. You can also [use additional dimensions when defining metrics](#using-additional-dimensions-in-metrics).
 
 :::info
 
@@ -558,13 +613,32 @@ columns:
           sql: JSON_VALUE(${metadata}, '$.version') # custom SQL applied to get the "version" value inside metadata
 ```
 
+### Adding multiple timezones for the same dimension
+
+You can use additional dimensions to convert a timestamp into multiple timezones:
+
+```yaml
+columns:
+  - name: created_at
+    description: 'The time that the thing was created'
+    meta:
+      dimension:
+        label: 'Created (UTC)'
+        type: timestamp
+      additional_dimensions:
+        created_at_est:
+          type: timestamp
+          label: 'Created (EST)'
+          description: 'The time that the thing was created, in EST'
+          sql: "convert_timezone('UTC', 'America/New_York', ${TABLE}.created_at)"
+```
+
 ### Using additional dimensions in metrics
 
 To define metrics based on additional dimensions, you need to add them to the model's meta metrics, or use custom SQL in
 defining them under the column's meta.
 
 ```yaml
-version: 2
 models:
   - name: users
     meta:

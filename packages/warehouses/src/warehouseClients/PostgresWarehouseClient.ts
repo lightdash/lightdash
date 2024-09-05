@@ -12,7 +12,7 @@ import {
 import { readFileSync } from 'fs';
 import path from 'path';
 import * as pg from 'pg';
-import { PoolConfig, QueryResult } from 'pg';
+import { PoolConfig, QueryResult, types } from 'pg';
 import { Writable } from 'stream';
 import { rootCertificates } from 'tls';
 import QueryStream from './PgQueryStream';
@@ -22,6 +22,9 @@ const POSTGRES_CA_BUNDLES = [
     ...rootCertificates,
     readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.pem')),
 ];
+
+types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
+types.setTypeParser(types.builtins.INT8, (value) => parseInt(value, 10));
 
 export enum PostgresTypes {
     INTEGER = 'integer',
@@ -275,9 +278,8 @@ export class PostgresClient<
             });
         })
             .catch((e) => {
-                throw new WarehouseQueryError(
-                    `Error running postgres query: ${e}`,
-                );
+                const error = e as pg.DatabaseError;
+                throw this.parseError(error, sql);
             })
             .finally(() => {
                 pool?.end().catch(() => {
@@ -359,34 +361,37 @@ export class PostgresClient<
         return catalog;
     }
 
-    async getTables(
-        schema?: string,
-        tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema ? `AND table_schema = $1` : '';
+    async getAllTables() {
+        const databaseName = this.config.database;
+        const whereSql = databaseName ? `AND table_catalog = $1` : '';
+        const filterSystemTables = `AND table_schema NOT IN ('information_schema', 'pg_catalog')`;
         const query = `
             SELECT table_catalog, table_schema, table_name
             FROM information_schema.tables
             WHERE table_type = 'BASE TABLE'
-                ${schemaFilter}
+                ${whereSql}
+                ${filterSystemTables}
             ORDER BY 1, 2, 3
         `;
         const { rows } = await this.runQuery(
             query,
-            tags,
+            {},
             undefined,
-            schema ? [schema] : undefined,
+            databaseName ? [databaseName] : [],
         );
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return rows.map((row) => ({
+            database: row.table_catalog,
+            schema: row.table_schema,
+            table: row.table_name,
+        }));
     }
 
     async getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema ? `AND table_schema = $2` : '';
-
         const query = `
             SELECT table_catalog,
                    table_schema,
@@ -395,14 +400,17 @@ export class PostgresClient<
                    data_type
             FROM information_schema.columns
             WHERE table_name = $1
-                ${schemaFilter};
+            ${schema ? 'AND table_schema = $2' : ''}
+            ${database ? 'AND table_catalog = $3' : ''}
         `;
-        const { rows } = await this.runQuery(
-            query,
-            tags,
-            undefined,
-            schema ? [tableName, schema] : [tableName],
-        );
+        const values = [tableName];
+        if (schema) {
+            values.push(schema);
+        }
+        if (database) {
+            values.push(database);
+        }
+        const { rows } = await this.runQuery(query, tags, undefined, values);
 
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }
@@ -436,6 +444,64 @@ export class PostgresClient<
 
     concatString(...args: string[]) {
         return `(${args.join(' || ')})`;
+    }
+
+    parseError(error: pg.DatabaseError, query: string = '') {
+        // getErrorLineAndCharPosition is a helper function to get the line and character position of the error
+        // NOTE: the database returns "position" which is the count of characters from the start of the query, regardless of newlines
+        // this function converts the position to line number and character position
+        const getErrorLineAndCharPosition = (
+            queryString: string,
+            position: string | undefined,
+        ) => {
+            if (!position) return undefined;
+            // convert the position to a number
+            const positionNum = parseInt(position, 10);
+            // If the position is not a number, return an error message
+            if (Number.isNaN(positionNum)) return undefined;
+            // Split the queryString into lines
+            const lines = queryString.split('\n');
+            let currentCharCount = 0;
+            // Loop through each line to determine the line number and character position
+            for (let i = 0; i < lines.length; i += 1) {
+                const line = lines[i];
+                const nextCharCount = currentCharCount + line.length + 1; // +1 accounts for the newline character
+                // If the position falls within this line
+                if (positionNum <= nextCharCount) {
+                    const charPosition = positionNum - currentCharCount;
+                    return { line: i + 1, charPosition };
+                }
+                // Update the current character count
+                currentCharCount = nextCharCount;
+            }
+            // If the position is beyond the queryString length, return an error message
+            return undefined;
+        };
+        // do noithing if there is no position returned)
+        if (!error?.position) return new WarehouseQueryError(error?.message);
+        // The query will look something like this:
+        // 'WITH user_sql AS (
+        //     SELECT * FROM `lightdash-database-staging`.`e2e_jaffle_shop`.`users`;
+        // ) select * from user_sql limit 500';
+        // We want to check for the first part of the query, if so strip the first and last lines
+        const queryMatch = query.match(/(?:WITH\s+[a-zA-Z_]+\s+AS\s*\()\s*?/i);
+        // get the position and line from the position returned from postgres
+        const positionObj = getErrorLineAndCharPosition(query, error?.position);
+        // do nothing if the line and charNumber cannot be determined
+        if (!positionObj) return new WarehouseQueryError(error?.message);
+        let lineNumber = positionObj.line;
+        const charNumber = positionObj.charPosition;
+        // if query match, subtract the number of lines from the line number
+        if (queryMatch && lineNumber && lineNumber > 1) {
+            lineNumber -= 1;
+        }
+        // return a new error with the line and character number in data object
+        return new WarehouseQueryError(error.message, {
+            lineNumber,
+            charNumber,
+        });
+
+        return new WarehouseQueryError(error?.message || 'Unknown error');
     }
 }
 

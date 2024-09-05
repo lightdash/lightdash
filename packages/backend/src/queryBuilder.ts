@@ -249,48 +249,68 @@ const getJoinType = (type: DbtModelJoinType = 'left') => {
     }
 };
 
-export const sortMonthName = (dimension: CompiledDimension) => {
-    const fieldSql = `${dimension.compiledSql}`;
+export const sortMonthName = (
+    dimension: CompiledDimension,
+    fieldQuoteChar: string,
+    descending: Boolean,
+) => {
+    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
+
     return `(
         CASE
-            WHEN ${fieldSql} = 'January' THEN 1
-            WHEN ${fieldSql} = 'February' THEN 2
-            WHEN ${fieldSql} = 'March' THEN 3
-            WHEN ${fieldSql} = 'April' THEN 4
-            WHEN ${fieldSql} = 'May' THEN 5
-            WHEN ${fieldSql} = 'June' THEN 6
-            WHEN ${fieldSql} = 'July' THEN 7
-            WHEN ${fieldSql} = 'August' THEN 8
-            WHEN ${fieldSql} = 'September' THEN 9
-            WHEN ${fieldSql} = 'October' THEN 10
-            WHEN ${fieldSql} = 'November' THEN 11
-            WHEN ${fieldSql} = 'December' THEN 12
+            WHEN ${fieldId} = 'January' THEN 1
+            WHEN ${fieldId} = 'February' THEN 2
+            WHEN ${fieldId} = 'March' THEN 3
+            WHEN ${fieldId} = 'April' THEN 4
+            WHEN ${fieldId} = 'May' THEN 5
+            WHEN ${fieldId} = 'June' THEN 6
+            WHEN ${fieldId} = 'July' THEN 7
+            WHEN ${fieldId} = 'August' THEN 8
+            WHEN ${fieldId} = 'September' THEN 9
+            WHEN ${fieldId} = 'October' THEN 10
+            WHEN ${fieldId} = 'November' THEN 11
+            WHEN ${fieldId} = 'December' THEN 12
             ELSE 0
         END
-        )`;
+        )${descending ? ' DESC' : ''}`;
 };
 export const sortDayOfWeekName = (
     dimension: CompiledDimension,
     startOfWeek: WeekDay | null | undefined,
     fieldQuoteChar: string,
+    descending: Boolean,
 ) => {
-    const filedId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
+    const fieldId = `${fieldQuoteChar}${getItemId(dimension)}${fieldQuoteChar}`;
     const calculateDayIndex = (dayNumber: number) => {
         if (startOfWeek === null || startOfWeek === undefined) return dayNumber; // startOfWeek can be 0, so don't do !startOfWeek
         return ((dayNumber + 7 - (startOfWeek + 2)) % 7) + 1;
     };
     return `(
         CASE
-            WHEN ${filedId} = 'Sunday' THEN ${calculateDayIndex(1)}
-            WHEN ${filedId} = 'Monday' THEN ${calculateDayIndex(2)}
-            WHEN ${filedId} = 'Tuesday' THEN ${calculateDayIndex(3)}
-            WHEN ${filedId} = 'Wednesday' THEN ${calculateDayIndex(4)}
-            WHEN ${filedId} = 'Thursday' THEN ${calculateDayIndex(5)}
-            WHEN ${filedId} = 'Friday' THEN ${calculateDayIndex(6)}
-            WHEN ${filedId} = 'Saturday' THEN ${calculateDayIndex(7)}
+            WHEN ${fieldId} = 'Sunday' THEN ${calculateDayIndex(1)}
+            WHEN ${fieldId} = 'Monday' THEN ${calculateDayIndex(2)}
+            WHEN ${fieldId} = 'Tuesday' THEN ${calculateDayIndex(3)}
+            WHEN ${fieldId} = 'Wednesday' THEN ${calculateDayIndex(4)}
+            WHEN ${fieldId} = 'Thursday' THEN ${calculateDayIndex(5)}
+            WHEN ${fieldId} = 'Friday' THEN ${calculateDayIndex(6)}
+            WHEN ${fieldId} = 'Saturday' THEN ${calculateDayIndex(7)}
             ELSE 0
         END
-    )`;
+    )${descending ? ' DESC' : ''}`;
+};
+
+export const applyLimitToSqlQuery = ({
+    sqlQuery,
+    limit,
+}: {
+    sqlQuery: string;
+    limit: number | undefined;
+}): string => {
+    if (limit === undefined) return sqlQuery;
+    return `WITH user_sql AS (\n${sqlQuery.replace(
+        /;\s*$/,
+        '',
+    )}\n) select * from user_sql limit ${limit}`;
 };
 
 export const getCustomSqlDimensionSql = ({
@@ -641,6 +661,32 @@ export const getCustomBinDimensionSql = ({
     return { ctes, joins, tables: [...new Set(tables)], selects };
 };
 
+const getJoinedTables = (explore: Explore, tableNames: string[]): string[] => {
+    if (tableNames.length === 0) {
+        return [];
+    }
+    const allNewReferences = explore.joinedTables.reduce<string[]>(
+        (sum, joinedTable) => {
+            if (tableNames.includes(joinedTable.table)) {
+                const newReferencesInJoin = parseAllReferences(
+                    joinedTable.sqlOn,
+                    joinedTable.table,
+                ).reduce<string[]>(
+                    (acc, { refTable }) =>
+                        !tableNames.includes(refTable)
+                            ? [...acc, refTable]
+                            : acc,
+                    [],
+                );
+                return [...sum, ...newReferencesInJoin];
+            }
+            return sum;
+        },
+        [],
+    );
+    return [...allNewReferences, ...getJoinedTables(explore, allNewReferences)];
+};
+
 export type CompiledQuery = {
     query: string;
     hasExampleMetric: boolean;
@@ -757,6 +803,7 @@ export const buildQuery = ({
                 `custom metric: "${metric.name}"`,
             );
         });
+
     const selectedTables = new Set<string>([
         ...metrics.reduce<string[]>((acc, field) => {
             const metric = getMetricFromId(field, explore, compiledMetricQuery);
@@ -803,34 +850,21 @@ export const buildQuery = ({
         ),
     ]);
 
-    const getJoinedTables = (tableNames: string[]): string[] => {
-        if (tableNames.length === 0) {
-            return [];
-        }
-        const allNewReferences = explore.joinedTables.reduce<string[]>(
-            (sum, joinedTable) => {
-                if (tableNames.includes(joinedTable.table)) {
-                    const newReferencesInJoin = parseAllReferences(
-                        joinedTable.sqlOn,
-                        joinedTable.table,
-                    ).reduce<string[]>(
-                        (acc, { refTable }) =>
-                            !tableNames.includes(refTable)
-                                ? [...acc, refTable]
-                                : acc,
-                        [],
-                    );
-                    return [...sum, ...newReferencesInJoin];
-                }
-                return sum;
-            },
-            [],
-        );
-        return [...allNewReferences, ...getJoinedTables(allNewReferences)];
-    };
+    const tableCompiledSqlWhere = explore.tables[explore.baseTable].sqlWhere;
+    const tableSqlWhere = explore.tables[explore.baseTable].uncompiledSqlWhere;
+
+    const tableSqlWhereTableReferences = tableSqlWhere
+        ? parseAllReferences(tableSqlWhere, explore.baseTable)
+        : undefined;
+
+    const tablesFromTableSqlWhereFilter = tableSqlWhereTableReferences
+        ? tableSqlWhereTableReferences.map((ref) => ref.refTable)
+        : [];
+
     const joinedTables = new Set([
         ...selectedTables,
-        ...getJoinedTables([...selectedTables]),
+        ...getJoinedTables(explore, [...selectedTables]),
+        ...tablesFromTableSqlWhereFilter,
     ]);
 
     const sqlJoins = explore.joinedTables
@@ -915,7 +949,13 @@ export const buildQuery = ({
             sortedDimension &&
             sortedDimension.timeInterval === TimeFrames.MONTH_NAME
         ) {
-            return sortMonthName(sortedDimension);
+            shouldWrapQueryCTE = true;
+
+            return sortMonthName(
+                sortedDimension,
+                getFieldQuoteChar(warehouseClient.credentials.type),
+                sort.descending,
+            );
         }
         if (
             sortedDimension &&
@@ -929,6 +969,7 @@ export const buildQuery = ({
                 sortedDimension,
                 startOfWeek,
                 getFieldQuoteChar(warehouseClient.credentials.type),
+                sort.descending,
             );
         }
         return `${fieldQuoteChar}${sort.fieldId}${fieldQuoteChar}${
@@ -1058,12 +1099,10 @@ export const buildQuery = ({
             filters.dimensions,
         );
 
-    const baseTableSqlWhere = explore.tables[explore.baseTable].sqlWhere;
-
-    const tableSqlWhere = baseTableSqlWhere
+    const tableSqlWhereWithReplacedAttributes = tableCompiledSqlWhere
         ? [
               replaceUserAttributes(
-                  baseTableSqlWhere,
+                  tableCompiledSqlWhere,
                   intrinsicUserAttributes,
                   userAttributes,
                   stringQuoteChar,
@@ -1080,7 +1119,7 @@ export const buildQuery = ({
         : [];
     const nestedFilterWhere = nestedFilterSql ? [nestedFilterSql] : [];
     const allSqlFilters = [
-        ...tableSqlWhere,
+        ...tableSqlWhereWithReplacedAttributes,
         ...nestedFilterWhere,
         ...requiredFiltersWhere,
     ];

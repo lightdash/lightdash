@@ -14,7 +14,6 @@ This is a reference to all environment variables that can be used to configure a
 | `SECURE_COOKIES`                             | Only allows cookies to be stored over a `https` connection. We use cookies to keep you logged in. This is recommended to be set to `true` in production.                                                      |           | `false`                                                         |
 | `COOKIES_MAX_AGE_HOURS`                      | How many hours a user session exists before the user is automatically signed out. For example if 24, then the user will be automatically after 24 hours of inactivity.                                        |           |                                                                 |
 | `TRUST_PROXY`                                | This tells the Lightdash server that it can trust the `X-Forwarded-Proto` header it receives in requests. This is useful if you use `SECURE_COOKIES=true` behind a HTTPS terminated proxy that you can trust. |           | `false`                                                         |
-| `LIGHTDASH_CONFIG_FILE`                      | Path to a `lightdash.yml` file to configure Lightdash. This is set by default and if you're using docker you shouldn't change it.                                                                             |           |                                                                 |
 | `SITE_URL`                                   | Site url where Lightdash is being hosted. It should include the protocol. E.g https://lightdash.mycompany.com                                                                                                 |           | `http://localhost:8080`                                         |
 | `STATIC_IP`                                  | Server static IP so users can add the IP to their warehouse allow-list.                                                                                                                                       |           | `http://localhost:8080`                                         |
 | `LIGHTDASH_QUERY_MAX_LIMIT`                  | Query max rows limit                                                                                                                                                                                          |           | `5000`                                                          |
@@ -29,7 +28,7 @@ This is a reference to all environment variables that can be used to configure a
 
 Lightdash also accepts all [standard postgres environment variables](https://www.postgresql.org/docs/9.3/libpq-envars.html)
 
-# SMTP environment variables
+## SMTP environment variables
 
 This is a reference to all the SMTP environment variables that can be used to configure a Lightdash email client.
 
@@ -47,7 +46,7 @@ This is a reference to all the SMTP environment variables that can be used to co
 
 [1] `EMAIL_SMTP_PASSWORD` or `EMAIL_SMTP_ACCESS_TOKEN` needs to be provided
 
-# SSO environment variables
+## SSO environment variables
 
 These variables enable you to control Single Sign On (SSO) functionality.
 
@@ -75,7 +74,7 @@ These variables enable you to control Single Sign On (SSO) functionality.
 | `AUTH_AZURE_AD_PRIVATE_KEY_PATH`       | Optional for Azure AD                                                            |           |         |
 | `AUTH_AZURE_AD_PRIVATE_KEY`            | Optional for Azure AD                                                            |           |         |
 
-# Logging environment variables
+## Logging environment variables
 
 | Variable                       | Description                                                 | Required? | Default                |
 | ------------------------------ | ----------------------------------------------------------- | --------- | ---------------------- |
@@ -88,7 +87,7 @@ These variables enable you to control Single Sign On (SSO) functionality.
 | `LIGHTDASH_LOG_FILE_FORMAT`    | The format of log messages in the log file                  |           | `LIGHTDASH_LOG_FORMAT` |
 | `LIGHTDASH_LOG_FILE_PATH`      | The path to the log file                                    |           | `./logs/all.log`       |
 
-# dbt semantic layer environment variables
+## dbt semantic layer environment variables
 
 | Variable                   | Description                         | Required?                                                                                                                                                      | Default                                 |
 | -------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
@@ -96,7 +95,7 @@ These variables enable you to control Single Sign On (SSO) functionality.
 | `DBT_CLOUD_ENVIRONMENT_ID` | dbt environment ID                  | ✅                                                                                                                                                             |                                         |
 | `DBT_CLOUD_BEARER_TOKEN`   | dbt cloud bearer token              | ✅                                                                                                                                                             |                                         |
 
-# Prometheus environment variables
+## Prometheus environment variables
 
 | Variable                                    | Description                                                                     | Required? | Default                     |
 | ------------------------------------------- | ------------------------------------------------------------------------------- | --------- | --------------------------- |
@@ -108,7 +107,7 @@ These variables enable you to control Single Sign On (SSO) functionality.
 | `LIGHTDASH_EVENT_LOOP_MONITORING_PRECISION` | Precision for event loop monitoring in milliseconds. Must be greater than zero. |           | `10`                        |
 | `LIGHTDASH_PROMETHEUS_LABELS`               | Labels to add to all metrics. Must be valid JSON                                |           |                             |
 
-# Security
+## Security
 
 | Variable                        | Description                                                                                                        | Required? | Default |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------- | ------- |

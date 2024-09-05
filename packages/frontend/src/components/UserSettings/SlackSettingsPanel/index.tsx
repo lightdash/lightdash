@@ -51,12 +51,14 @@ export const hasRequiredScopes = (slackSettings: SlackSettings) => {
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 
 const SlackSettingsPanel: FC = () => {
-    const { data, isError, isInitialLoading } = useGetSlack();
-    const isValidSlack = data?.slackTeamName !== undefined && !isError;
+    const { data: slackInstallation, isInitialLoading } = useGetSlack();
+    const organizationHasSlack = !!slackInstallation?.organizationUuid;
+
     const { data: slackChannels, isInitialLoading: isLoadingSlackChannels } =
         useSlackChannels({
-            enabled: isValidSlack,
+            enabled: organizationHasSlack,
         });
+
     const { mutate: deleteSlack } = useDeleteSlack();
     const { mutate: updateCustomSettings } =
         useUpdateSlackAppCustomSettingsMutation();
@@ -71,11 +73,11 @@ const SlackSettingsPanel: FC = () => {
     const { setFieldValue, onSubmit } = form;
 
     useEffect(() => {
-        if (!data) return;
+        if (!slackInstallation) return;
 
         const initialValues = {
-            notificationChannel: data.notificationChannel ?? null,
-            appProfilePhotoUrl: data.appProfilePhotoUrl ?? null,
+            notificationChannel: slackInstallation.notificationChannel ?? null,
+            appProfilePhotoUrl: slackInstallation.appProfilePhotoUrl ?? null,
         };
 
         if (form.initialized) {
@@ -85,7 +87,7 @@ const SlackSettingsPanel: FC = () => {
             form.initialize(initialValues);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data]);
+    }, [slackInstallation]);
 
     const slackChannelOptions = useMemo(() => {
         return (
@@ -101,7 +103,7 @@ const SlackSettingsPanel: FC = () => {
     }
 
     const handleSubmit = onSubmit((args) => {
-        if (isValidSlack) {
+        if (organizationHasSlack) {
             updateCustomSettings(args);
         }
     });
@@ -119,7 +121,7 @@ const SlackSettingsPanel: FC = () => {
 
             <Stack>
                 <Stack spacing="sm">
-                    {isValidSlack && (
+                    {organizationHasSlack && (
                         <Group spacing="xs">
                             <Text fw={500}>Added to the Slack workspace: </Text>{' '}
                             <Badge
@@ -129,7 +131,7 @@ const SlackSettingsPanel: FC = () => {
                                 w="fit-content"
                             >
                                 <Text span fw={500}>
-                                    {data.slackTeamName}
+                                    {slackInstallation.slackTeamName}
                                 </Text>
                             </Badge>
                         </Group>
@@ -139,13 +141,13 @@ const SlackSettingsPanel: FC = () => {
                         Sharing in Slack allows you to unfurl Lightdash URLs and
                         schedule deliveries to specific people or channels
                         within your Slack workspace.{' '}
-                        <Anchor href="https://docs.lightdash.com/guides/sharing-in-slack">
+                        <Anchor href="https://docs.lightdash.com/references/slack-integration">
                             View docs
                         </Anchor>
                     </Text>
                 </Stack>
 
-                {isValidSlack ? (
+                {organizationHasSlack ? (
                     <form onSubmit={handleSubmit}>
                         <Stack spacing="sm">
                             <Select
@@ -194,7 +196,7 @@ const SlackSettingsPanel: FC = () => {
                                     size="xs"
                                     placeholder="https://lightdash.cloud/photo.jpg"
                                     type="url"
-                                    disabled={!isValidSlack}
+                                    disabled={!organizationHasSlack}
                                     {...form.getInputProps(
                                         'appProfilePhotoUrl',
                                     )}
@@ -242,18 +244,22 @@ const SlackSettingsPanel: FC = () => {
                                 </Button>
                             </Group>
 
-                            {data && !hasRequiredScopes(data) && (
-                                <Alert
-                                    color="blue"
-                                    icon={
-                                        <MantineIcon icon={IconAlertCircle} />
-                                    }
-                                >
-                                    Your Slack integration is not up to date,
-                                    you should reinstall the Slack integration
-                                    to guarantee the best user experience.
-                                </Alert>
-                            )}
+                            {organizationHasSlack &&
+                                !hasRequiredScopes(slackInstallation) && (
+                                    <Alert
+                                        color="blue"
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconAlertCircle}
+                                            />
+                                        }
+                                    >
+                                        Your Slack integration is not up to
+                                        date, you should reinstall the Slack
+                                        integration to guarantee the best user
+                                        experience.
+                                    </Alert>
+                                )}
                         </Stack>
                     </form>
                 ) : (

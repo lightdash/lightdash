@@ -26,7 +26,7 @@ import {
     useTableStyles,
 } from './styles';
 
-const SMALL_TEXT_LENGTH = 35;
+export const SMALL_TEXT_LENGTH = 35;
 
 type BoxProps = Omit<BoxPropsBase, 'component' | 'children'>;
 

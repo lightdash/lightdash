@@ -1,5 +1,5 @@
 import { type ApiError, type ApiWarehouseCatalog } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../../../api';
 
@@ -17,7 +17,16 @@ const fetchTables = async ({
         body: undefined,
     });
 
-type TablesBySchema =
+const refreshTables = async ({
+    projectUuid,
+}: Pick<GetTablesParams, 'projectUuid'>) =>
+    lightdashApi<ApiWarehouseCatalog>({
+        url: `/projects/${projectUuid}/sqlRunner/refresh-catalog`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export type TablesBySchema =
     | {
           schema: keyof ApiWarehouseCatalog['results'][0];
           tables: ApiWarehouseCatalog['results'][0]['tables'];
@@ -25,7 +34,11 @@ type TablesBySchema =
     | undefined;
 
 export const useTables = ({ projectUuid, search }: GetTablesParams) => {
-    return useQuery<ApiWarehouseCatalog, ApiError, TablesBySchema>({
+    return useQuery<
+        ApiWarehouseCatalog,
+        ApiError,
+        { database: string; tablesBySchema: TablesBySchema } | undefined
+    >({
         queryKey: ['sqlRunner', 'tables', projectUuid],
         queryFn: () =>
             fetchTables({
@@ -40,7 +53,11 @@ export const useTables = ({ projectUuid, search }: GetTablesParams) => {
                 })),
             );
 
-            if (!search) return tablesBySchema;
+            if (!search)
+                return {
+                    database: Object.keys(data)[0],
+                    tablesBySchema,
+                };
 
             const searchResults: TablesBySchema = tablesBySchema
                 .map((schemaData) => {
@@ -73,7 +90,28 @@ export const useTables = ({ projectUuid, search }: GetTablesParams) => {
 
             if (searchResults.length === 0) {
                 return undefined;
-            } else return searchResults;
+            } else
+                return {
+                    database: Object.keys(data)[0],
+                    tablesBySchema: searchResults,
+                };
+        },
+    });
+};
+
+export const useRefreshTables = ({
+    projectUuid,
+}: Pick<GetTablesParams, 'projectUuid'>) => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: () => refreshTables({ projectUuid }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries([
+                'sqlRunner',
+                'tables',
+                projectUuid,
+            ]);
         },
     });
 };

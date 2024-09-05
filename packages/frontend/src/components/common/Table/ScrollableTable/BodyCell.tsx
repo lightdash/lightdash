@@ -1,4 +1,4 @@
-import { type ResultRow } from '@lightdash/common';
+import { type RawResultRow, type ResultRow } from '@lightdash/common';
 import { getHotkeyHandler, useClipboard, useDisclosure } from '@mantine/hooks';
 import { type Cell } from '@tanstack/react-table';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
@@ -11,7 +11,7 @@ import CellTooltip from './CellTooltip';
 import RichBodyCell from './RichBodyCell';
 
 interface CommonBodyCellProps {
-    cell: Cell<ResultRow, unknown>;
+    cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>;
     index: number;
     isNumericItem: boolean;
     hasData: boolean;

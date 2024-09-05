@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    ChartSourceType,
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -128,11 +129,30 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
         }),
     );
 
+    const isSqlChart =
+        item.type === ResourceViewItemType.CHART &&
+        item.data.source === ChartSourceType.SQL;
+
     switch (item.type) {
         case ResourceViewItemType.CHART: {
             const userAccess = spaces.find(
                 (space) => space.uuid === item.data.spaceUuid,
             )?.userAccess;
+
+            if (
+                isSqlChart &&
+                user.data?.ability?.cannot(
+                    'manage',
+                    subject('SqlRunner', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid,
+                        access: userAccess ? [userAccess] : [],
+                    }),
+                )
+            ) {
+                return null;
+            }
+
             if (
                 user.data?.ability?.cannot(
                     'manage',
@@ -183,7 +203,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }
-
     return (
         <>
             <Menu
@@ -224,6 +243,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 item,
                             });
                         }}
+                        sx={isSqlChart ? { display: 'none' } : {}}
                     >
                         Rename
                     </Menu.Item>
@@ -240,6 +260,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     item,
                                 });
                             }}
+                            sx={isSqlChart ? { display: 'none' } : {}}
                         >
                             Duplicate
                         </Menu.Item>
@@ -257,11 +278,13 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         item,
                                     });
                                 }}
+                                sx={isSqlChart ? { display: 'none' } : {}}
                             >
                                 Add to Dashboard
                             </Menu.Item>
                         )}
                     {userCanPromoteChart &&
+                        !isSqlChart &&
                         item.type !== ResourceViewItemType.SPACE && (
                             <Tooltip
                                 label="You must enable first an upstream project in settings > Data ops"
@@ -328,6 +351,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     item,
                                 });
                             }}
+                            sx={isSqlChart ? { display: 'none' } : {}}
                         >
                             {isPinned
                                 ? 'Unpin from homepage'
@@ -338,7 +362,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     {item.type === ResourceViewItemType.CHART ||
                     item.type === ResourceViewItemType.DASHBOARD ? (
                         <>
-                            <Menu.Divider />
+                            <Menu.Divider
+                                display={isSqlChart ? 'none' : 'block'}
+                            />
 
                             <Menu
                                 withinPortal

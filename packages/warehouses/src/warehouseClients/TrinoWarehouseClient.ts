@@ -221,7 +221,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             // stream initial data
             streamCallback({
                 fields,
-                rows: resultHandler(schema, queryResult.value.data),
+                rows: resultHandler(schema, queryResult.value.data ?? []),
             });
             // Using `await` in this loop ensures data chunks are fetched and processed sequentially.
             // This maintains order and data integrity.
@@ -231,7 +231,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 // stream next chunk of data
                 streamCallback({
                     fields,
-                    rows: resultHandler(schema, queryResult.value.data),
+                    rows: resultHandler(schema, queryResult.value.data ?? []),
                 });
             }
         } catch (e: any) {
@@ -320,12 +320,9 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
     async getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema
-            ? `AND table_schema = '${this.sanitizeInput(schema)}'`
-            : '';
-
         const query = `
             SELECT table_catalog,
                    table_schema,
@@ -334,7 +331,12 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                    data_type
             FROM information_schema.columns
             WHERE table_name = '${this.sanitizeInput(tableName)}'
-            ${schemaFilter};
+            ${schema ? `AND table_schema = ${this.sanitizeInput(schema)}` : ''}
+            ${
+                database
+                    ? `AND table_catalog = ${this.sanitizeInput(database)}`
+                    : ''
+            };
         `;
         const { rows } = await this.runQuery(query, tags);
 

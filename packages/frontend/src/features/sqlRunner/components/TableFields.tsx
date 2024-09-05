@@ -2,25 +2,91 @@ import {
     ActionIcon,
     Box,
     Center,
+    CopyButton,
+    Group,
     Highlight,
     Loader,
+    ScrollArea,
     Stack,
     Text,
     TextInput,
-    UnstyledButton,
+    Tooltip,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
-import { IconSearch, IconX } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useDebouncedValue, useHover } from '@mantine/hooks';
+import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
+import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useTableFields } from '../hooks/useTableFields';
+import { TableFieldIcon } from '../../../components/DataViz/Icons';
+import { useIsTruncated } from '../../../hooks/useIsTruncated';
+import {
+    useTableFields,
+    type WarehouseTableField,
+} from '../hooks/useTableFields';
+import { useAppSelector } from '../store/hooks';
 
-type Props = {
-    projectUuid: string;
-    activeTable: string | undefined;
-};
+const TableField: FC<{
+    activeTable: string;
+    field: WarehouseTableField;
+    search: string | undefined;
+}> = memo(({ activeTable, field, search }) => {
+    const { ref: hoverRef, hovered } = useHover();
+    const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
+    return (
+        <Group spacing={'xs'} noWrap ref={hoverRef}>
+            {hovered ? (
+                <Box display={hovered ? 'block' : 'none'}>
+                    <CopyButton value={`${activeTable}.${field.name}`}>
+                        {({ copied, copy }) => (
+                            <ActionIcon size={16} onClick={copy} bg="gray.1">
+                                <MantineIcon
+                                    icon={IconCopy}
+                                    color={copied ? 'green' : 'blue'}
+                                    onClick={copy}
+                                />
+                            </ActionIcon>
+                        )}
+                    </CopyButton>
+                </Box>
+            ) : (
+                <TableFieldIcon fieldType={field.type} />
+            )}
 
-export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
+            <Tooltip
+                withinPortal
+                variant="xs"
+                label={field.name}
+                disabled={!isTruncated}
+            >
+                <Highlight
+                    ref={truncatedRef}
+                    component={Text}
+                    fw={500}
+                    p={4}
+                    fz={13}
+                    c="gray.7"
+                    sx={{
+                        flex: 1,
+                    }}
+                    highlight={search || ''}
+                    truncate
+                >
+                    {field.name}
+                </Highlight>
+            </Tooltip>
+            <Text fz={12} c="gray.5">
+                {field.type}
+            </Text>
+        </Group>
+    );
+});
+
+export const TableFields: FC = () => {
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
+    const activeSchema = useAppSelector(
+        (state) => state.sqlRunner.activeSchema,
+    );
+
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
 
@@ -35,15 +101,9 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
     } = useTableFields({
         projectUuid,
         tableName: activeTable,
+        schema: activeSchema,
         search: isValidSearch ? debouncedSearch : undefined,
     });
-    const [activeFields, setActiveFields] = useState<Set<string> | undefined>();
-
-    useEffect(() => {
-        if (isSuccess) {
-            setActiveFields(undefined);
-        }
-    }, [isSuccess]);
 
     return (
         <Stack pt="sm" spacing="xs" h="calc(100% - 20px)" py="xs">
@@ -88,61 +148,25 @@ export const TableFields: FC<Props> = ({ projectUuid, activeTable }) => {
                     <Text c="gray.4">No table selected</Text>
                 </Center>
             )}
-            {isSuccess && tableFields && (
-                <>
-                    <Box
-                        h="100%"
-                        sx={{
-                            overflowY: 'auto',
-                        }}
-                    >
-                        <Stack spacing={0}>
-                            {tableFields.map((field) => (
-                                <UnstyledButton
-                                    key={field}
-                                    fw={500}
-                                    p={4}
-                                    fz={13}
-                                    c={
-                                        activeFields && activeFields.has(field)
-                                            ? 'gray.8'
-                                            : 'gray.7'
-                                    }
-                                    bg={
-                                        activeFields && activeFields.has(field)
-                                            ? 'gray.1'
-                                            : 'transparent'
-                                    }
-                                    onClick={() => {
-                                        setActiveFields((prev) => {
-                                            const newSet = new Set(prev);
-                                            if (newSet.has(field)) {
-                                                newSet.delete(field);
-                                            } else {
-                                                newSet.add(field);
-                                            }
-                                            return newSet;
-                                        });
-                                    }}
-                                    sx={(theme) => ({
-                                        borderRadius: theme.radius.sm,
-                                        '&:hover': {
-                                            backgroundColor:
-                                                theme.colors.gray[1],
-                                        },
-                                    })}
-                                >
-                                    <Highlight
-                                        component={Text}
-                                        highlight={search || ''}
-                                    >
-                                        {field}
-                                    </Highlight>
-                                </UnstyledButton>
-                            ))}
-                        </Stack>
-                    </Box>
-                </>
+            {isSuccess && tableFields && activeTable && (
+                <ScrollArea
+                    offsetScrollbars
+                    variant="primary"
+                    className="only-vertical"
+                    sx={{ flex: 1 }}
+                    type="auto"
+                >
+                    <Stack spacing={0}>
+                        {tableFields.map((field) => (
+                            <TableField
+                                key={field.name}
+                                activeTable={activeTable}
+                                field={field}
+                                search={search}
+                            />
+                        ))}
+                    </Stack>
+                </ScrollArea>
             )}
             {isSuccess && !tableFields && (
                 <Center p="sm">

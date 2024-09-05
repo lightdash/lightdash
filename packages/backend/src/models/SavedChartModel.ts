@@ -1168,6 +1168,7 @@ export class SavedChartModel {
                 dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
                 dashboardName: `${DashboardsTableName}.name`,
                 updatedAt: `saved_queries.last_version_updated_at`,
+                slug: `saved_queries.slug`,
             })
             .leftJoin(
                 DashboardsTableName,
@@ -1210,13 +1211,6 @@ export class SavedChartModel {
             Pick<Project, 'projectUuid'> &
             Pick<Organization, 'organizationUuid'>)[]
     > {
-        const getLatestQueryVersionSubQuery = this.database(
-            'saved_queries_versions',
-        )
-            .select('saved_query_id', 'explore_name')
-            .max('created_at as latest')
-            .groupBy('saved_query_id', 'explore_name');
-
         const charts = await this.database('saved_queries')
             .whereIn(
                 `${SavedChartsTableName}.saved_query_uuid`,
@@ -1226,7 +1220,7 @@ export class SavedChartModel {
                 uuid: 'saved_queries.saved_query_uuid',
                 name: 'saved_queries.name',
                 spaceUuid: 'spaces.space_uuid',
-                tableName: 'latest_saved_query.explore_name',
+                tableName: `${SavedChartVersionsTableName}.explore_name`,
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
             })
@@ -1247,20 +1241,24 @@ export class SavedChartModel {
                 );
             })
             .innerJoin(
-                getLatestQueryVersionSubQuery.as('latest_saved_query'),
-                function latestSavedQueryJoin() {
-                    this.on(
-                        `${SavedChartsTableName}.saved_query_id`,
-                        '=',
-                        'latest_saved_query.saved_query_id',
-                    );
-                },
+                SavedChartVersionsTableName,
+                'saved_queries.saved_query_id',
+                'saved_queries_versions.saved_query_id',
             )
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
             .leftJoin(
                 OrganizationTableName,
                 'organizations.organization_id',
                 'projects.organization_id',
+            )
+            .where(
+                // filter by last version
+                `saved_queries_version_id`,
+                this.database.raw(`(select saved_queries_version_id
+                                           from ${SavedChartVersionsTableName}
+                                           where saved_queries.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
+                                           order by ${SavedChartVersionsTableName}.created_at desc
+                                           limit 1)`),
             );
 
         if (charts.length === 0) {
@@ -1277,31 +1275,19 @@ export class SavedChartModel {
                 Pick<LightdashUser, 'firstName' | 'lastName'>
         >
     > {
-        const getLatestQueryVersionSubQuery = this.database(
-            'saved_queries_versions',
-        )
-            .select('saved_query_id', 'explore_name', 'updated_by_user_uuid')
-            .max('created_at as latest')
-            .groupBy('saved_query_id', 'explore_name', 'updated_by_user_uuid');
-
         return this.database('saved_queries')
             .select({
                 uuid: 'saved_queries.saved_query_uuid',
                 name: 'saved_queries.name',
                 description: 'saved_queries.description',
-                tableName: 'latest_saved_query.explore_name',
+                tableName: `${SavedChartVersionsTableName}.explore_name`,
                 firstName: `${UserTableName}.first_name`,
                 lastName: `${UserTableName}.last_name`,
             })
             .innerJoin(
-                getLatestQueryVersionSubQuery.as('latest_saved_query'),
-                function latestSavedQueryJoin() {
-                    this.on(
-                        `${SavedChartsTableName}.saved_query_id`,
-                        '=',
-                        'latest_saved_query.saved_query_id',
-                    );
-                },
+                SavedChartVersionsTableName,
+                'saved_queries.saved_query_id',
+                'saved_queries_versions.saved_query_id',
             )
             .leftJoin(
                 DashboardsTableName,
@@ -1322,9 +1308,18 @@ export class SavedChartModel {
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
             .leftJoin(
                 UserTableName,
-                `latest_saved_query.updated_by_user_uuid`,
+                `${SavedChartVersionsTableName}.updated_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .where('projects.project_uuid', projectUuid);
+            .where('projects.project_uuid', projectUuid)
+            .where(
+                // filter by last version
+                `saved_queries_version_id`,
+                this.database.raw(`(select saved_queries_version_id
+                                           from ${SavedChartVersionsTableName}
+                                           where saved_queries.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
+                                           order by ${SavedChartVersionsTableName}.created_at desc
+                                           limit 1)`),
+            );
     }
 }

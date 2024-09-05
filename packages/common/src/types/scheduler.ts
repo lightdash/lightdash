@@ -2,6 +2,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule } from './filter';
 import { type MetricQuery } from './metricQuery';
+import { type ValidationTarget } from './validation';
 
 export type SchedulerCsvOptions = {
     formatted: boolean;
@@ -47,7 +48,9 @@ export type SchedulerLog = {
         | 'compileProject'
         | 'testAndCompileProject'
         | 'validateProject'
-        | 'sqlRunner';
+        | 'sqlRunner'
+        | 'sqlRunnerPivotQuery'
+        | 'semanticLayer';
     schedulerUuid?: string;
     jobId: string;
     jobGroup?: string;
@@ -74,16 +77,20 @@ export enum NotificationFrequency {
     ONCE = 'once',
     // DAILY = 'daily',
 }
-export const operatorAction = (operator: ThresholdOperator) => {
+export const operatorActionValue = (
+    operator: ThresholdOperator,
+    value: number | string,
+    highlight: string = '*',
+) => {
     switch (operator) {
         case ThresholdOperator.GREATER_THAN:
-            return 'exceeded';
+            return `exceeded ${highlight}${value}${highlight}`;
         case ThresholdOperator.LESS_THAN:
-            return 'fell below';
+            return `fell below ${highlight}${value}${highlight}`;
         case ThresholdOperator.INCREASED_BY:
-            return 'increased by';
+            return `increased by ${highlight}${value}%${highlight} or more`;
         case ThresholdOperator.DECREASED_BY:
-            return 'decreased by';
+            return `decreased by ${highlight}${value}%${highlight} or less`;
         default:
             assertUnreachable(
                 operator,
@@ -406,6 +413,7 @@ export type ValidateProjectPayload = {
     userUuid: string;
     organizationUuid: string | undefined;
     explores?: (Explore | ExploreError)[];
+    validationTargets?: ValidationTarget[];
 };
 
 export type ApiJobScheduledResponse = {

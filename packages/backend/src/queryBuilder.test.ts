@@ -6,6 +6,7 @@ import {
     WeekDay,
 } from '@lightdash/common';
 import {
+    applyLimitToSqlQuery,
     assertValidDimensionRequiredAttribute,
     buildQuery,
     getCustomBinDimensionSql,
@@ -63,9 +64,11 @@ import {
     METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
     METRIC_QUERY_WITH_TABLE_REFERENCE,
     METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
+    MONTH_NAME_SORT_DESCENDING_SQL,
     MONTH_NAME_SORT_SQL,
     QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
+    WEEK_NAME_SORT_DESCENDING_SQL,
     WEEK_NAME_SORT_SQL,
 } from './queryBuilder.mock';
 
@@ -925,15 +928,29 @@ const ignoreIndentation = (sql: string) => sql.replace(/\s+/g, ' ');
 describe('Time frame sorting', () => {
     it('sortMonthName SQL', () => {
         expect(
-            ignoreIndentation(sortMonthName(COMPILED_MONTH_NAME_DIMENSION)),
+            ignoreIndentation(
+                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"', false),
+            ),
         ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_SQL));
     });
-    it('sortDayOfWeekName SQL for undefined startOfWeek', () => {
+    it('sortMonthName Descending SQL', () => {
         expect(
             ignoreIndentation(
-                sortDayOfWeekName(COMPILED_WEEK_NAME_DIMENSION, undefined, `"`),
+                sortMonthName(COMPILED_MONTH_NAME_DIMENSION, '"', true),
             ),
-        ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL));
+        ).toStrictEqual(ignoreIndentation(MONTH_NAME_SORT_DESCENDING_SQL));
+    });
+    it('sortDayOfWeekName SQL for Saturday startOfWeek', () => {
+        expect(
+            ignoreIndentation(
+                sortDayOfWeekName(
+                    COMPILED_WEEK_NAME_DIMENSION,
+                    undefined,
+                    `"`,
+                    true,
+                ),
+            ),
+        ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_DESCENDING_SQL));
     });
     it('sortDayOfWeekName SQL for Sunday startOfWeek', () => {
         expect(
@@ -942,6 +959,7 @@ describe('Time frame sorting', () => {
                     COMPILED_WEEK_NAME_DIMENSION,
                     WeekDay.SUNDAY,
                     `"`,
+                    false,
                 ),
             ),
         ).toStrictEqual(ignoreIndentation(WEEK_NAME_SORT_SQL)); // same as undefined
@@ -954,6 +972,7 @@ describe('Time frame sorting', () => {
                     COMPILED_WEEK_NAME_DIMENSION,
                     WeekDay.WEDNESDAY,
                     `"`,
+                    false,
                 ),
             ),
         ).toStrictEqual(
@@ -970,5 +989,58 @@ describe('Time frame sorting', () => {
             END
         )`),
         );
+    });
+});
+
+describe('applyLimitToSqlQuery', () => {
+    it('should return the original query if limit is undefined', () => {
+        const sqlQuery = 'SELECT * FROM users';
+        const limit = undefined;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(result).toBe(sqlQuery);
+    });
+
+    it('should return a query with a limit applied when limit is provided', () => {
+        const sqlQuery = 'SELECT * FROM users';
+        const limit = 10;
+
+        const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should strip semicolon from the end of the query', () => {
+        const sqlQuery = 'SELECT * FROM users;';
+        const limit = 10;
+        const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should return a query with a limit of 0 applied correctly', () => {
+        const sqlQuery = 'SELECT * FROM users';
+        const limit = 0;
+
+        const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should handle complex SQL queries correctly', () => {
+        const sqlQuery = `
+            SELECT name, age FROM users
+            WHERE age > 18
+            ORDER BY age DESC
+        `;
+        const limit = 5;
+
+        const expectedQuery = `WITH user_sql AS (\n${sqlQuery}\n) select * from user_sql limit ${limit}`;
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(result).toBe(expectedQuery);
     });
 });

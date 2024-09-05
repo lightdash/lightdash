@@ -1,9 +1,6 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import {
-    chartMock,
-    createChartAndUpdateDashboard,
-    createDashboard,
-} from './dashboard.cy';
+import { chartMock } from '../../support/mocks';
+import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 
 const apiUrl = '/api/v1';
 

@@ -91,7 +91,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 component={Link}
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
-                                to={`/projects/${projectUuid}/sqlRunner`}
+                                to={`/projects/${projectUuid}/sql-runner`}
                                 icon={IconTerminal2}
                             />
                         </Can>

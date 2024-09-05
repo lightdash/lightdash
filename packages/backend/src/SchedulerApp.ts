@@ -143,6 +143,8 @@ export default class SchedulerApp {
                 validationService:
                     this.serviceRepository.getValidationService(),
                 userService: this.serviceRepository.getUserService(),
+                semanticLayerService:
+                    this.serviceRepository.getSemanticLayerService(),
             },
             ...{
                 emailClient: this.clients.getEmailClient(),
@@ -173,14 +175,27 @@ export default class SchedulerApp {
                     }),
                 '/api/v1/livez': () => Promise.resolve(),
             },
+            beforeShutdown: async () => {
+                Logger.debug('Shutdown signal received');
+                Logger.info('Shutting down gracefully');
+            },
             onSignal: async () => {
-                Logger.debug('SIGTERM signal received: closing HTTP server');
+                Logger.info('Stopping Prometheus metrics');
                 this.prometheusMetrics.stop();
                 if (worker && worker.runner) {
+                    Logger.info('Stopping scheduler worker');
                     await worker?.runner?.stop();
                 }
             },
+            onShutdown: async () => {
+                Logger.info('Shutdown complete');
+            },
+            useExit0: true,
             logger: Logger.error,
+            sendFailuresDuringShutdown: true,
+            onSendFailureDuringShutdown: async () => {
+                Logger.debug('Returning 503 due to shutdown');
+            },
         });
 
         server.listen(this.port);

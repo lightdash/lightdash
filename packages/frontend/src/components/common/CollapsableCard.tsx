@@ -11,7 +11,7 @@ import {
     type PopoverProps,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
+import { useCallback, type FC, type Ref } from 'react';
 import MantineIcon from './MantineIcon';
 
 export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
@@ -45,6 +45,7 @@ interface CollapsableCardProps {
     minHeight?: number;
     toggleTooltip?: string;
     title: string;
+    headingRef?: Ref<HTMLDivElement>;
     headerElement?: JSX.Element;
     rightHeaderElement?: React.ReactNode;
     isVisualizationCard?: boolean;
@@ -58,6 +59,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     toggleTooltip,
     disabled = false,
     title,
+    headingRef,
     headerElement,
     rightHeaderElement,
     minHeight = 300,
@@ -81,7 +83,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
             }}
             shadow="xs"
         >
-            <Flex gap="xxs" align="center" mr="xs" h="xxl">
+            <Flex ref={headingRef} gap="xxs" align="center" mr="xs" h="xxl">
                 <Tooltip
                     position="top-start"
                     disabled={!toggleTooltip}

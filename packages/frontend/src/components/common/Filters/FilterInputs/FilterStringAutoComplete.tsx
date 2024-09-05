@@ -17,6 +17,7 @@ import {
 } from '../../../../hooks/useFieldValues';
 import MantineIcon from '../../MantineIcon';
 import { useFiltersContext } from '../FiltersProvider';
+import MultiValuePastePopover from './MultiValuePastePopover';
 
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     filterId: string;
@@ -44,6 +45,10 @@ const FilterStringAutoComplete: FC<Props> = ({
     }
 
     const [search, setSearch] = useState('');
+    const [pastePopUpOpened, setPastePopUpOpened] = useState(false);
+    const [tempPasteValues, setTempPasteValues] = useState<
+        string | undefined
+    >();
 
     const autocompleteFilterGroup = useMemo(
         () => getAutocompleteFilterGroup(filterId, field),
@@ -92,20 +97,12 @@ const FilterStringAutoComplete: FC<Props> = ({
     const handlePaste = useCallback(
         (event: React.ClipboardEvent<HTMLInputElement>) => {
             const clipboardData = event.clipboardData.getData('Text');
-            const clipboardDataArray = clipboardData
-                .split(/\,|\n/)
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0);
-
-            // if clipboard data is comma separated or new line separated and has more than 1 value
-            // we add all of them to the values list and reset search
-            // when there's only 1 value in the clipboard, we let the default behavior of the input handle it
-            if (clipboardDataArray.length > 1) {
-                handleAddMultiple(clipboardDataArray);
-                handleResetSearch();
+            if (clipboardData.includes(',') || clipboardData.includes('\n')) {
+                setTempPasteValues(clipboardData);
+                setPastePopUpOpened(true);
             }
         },
-        [handleAddMultiple, handleResetSearch],
+        [],
     );
 
     const handleKeyDown = useCallback(
@@ -154,76 +151,105 @@ const FilterStringAutoComplete: FC<Props> = ({
     );
 
     return (
-        <MultiSelect
-            size="xs"
-            w="100%"
-            placeholder={
-                values.length > 0 || disabled ? undefined : placeholder
-            }
-            disabled={disabled}
-            creatable
-            /**
-             * Opts out of Mantine's default condition and always allows adding, as long as not
-             * an empty query.
-             */
-            shouldCreate={(query) =>
-                query.trim().length > 0 && !values.includes(query)
-            }
-            getCreateLabel={(query) => (
-                <Group spacing="xxs">
-                    <MantineIcon icon={IconPlus} color="blue" size="sm" />
-                    <Text color="blue">Add "{query}"</Text>
-                </Group>
-            )}
-            styles={{
-                item: {
-                    // makes add new item button sticky to bottom
-                    '&:last-child:not([value])': {
-                        position: 'sticky',
-                        bottom: 4,
-                        // casts shadow on the bottom of the list to avoid transparency
-                        boxShadow: '0 4px 0 0 white',
-                    },
-                    '&:last-child:not([value]):not(:hover)': {
-                        background: 'white',
-                    },
-                },
-            }}
-            disableSelectedItemFiltering
-            searchable
-            clearSearchOnChange
-            {...rest}
-            searchValue={search}
-            onSearchChange={setSearch}
-            limit={MAX_AUTOCOMPLETE_RESULTS}
-            onPaste={handlePaste}
-            nothingFound={isInitialLoading ? 'Loading...' : 'No results found'}
-            rightSection={
-                isInitialLoading ? <Loader size="xs" color="gray" /> : null
-            }
-            dropdownComponent={DropdownComponentOverride}
-            itemComponent={({ label, ...others }) =>
-                others.disabled ? (
-                    <Text color="dimmed" {...others}>
-                        {label}
-                    </Text>
-                ) : (
-                    <Highlight highlight={search} {...others}>
-                        {label}
-                    </Highlight>
-                )
-            }
-            data={data}
-            value={values}
-            onDropdownOpen={onDropdownOpen}
-            onDropdownClose={() => {
+        <MultiValuePastePopover
+            opened={pastePopUpOpened}
+            onClose={() => {
+                setPastePopUpOpened(false);
+                setTempPasteValues(undefined);
                 handleResetSearch();
-                onDropdownClose?.();
             }}
-            onChange={handleChange}
-            onCreate={handleAdd}
-            onKeyDown={handleKeyDown}
-        />
+            onMultiValue={() => {
+                if (!tempPasteValues) {
+                    setPastePopUpOpened(false);
+                    return;
+                }
+                const clipboardDataArray = tempPasteValues
+                    .split(/\,|\n/)
+                    .map((s) => s.trim())
+                    .filter((s) => s.length > 0);
+                handleAddMultiple(clipboardDataArray);
+            }}
+            onSingleValue={() => {
+                if (!tempPasteValues) {
+                    setPastePopUpOpened(false);
+                    return;
+                }
+                handleAdd(tempPasteValues);
+            }}
+        >
+            <MultiSelect
+                size="xs"
+                w="100%"
+                placeholder={
+                    values.length > 0 || disabled ? undefined : placeholder
+                }
+                disabled={disabled}
+                creatable
+                /**
+                 * Opts out of Mantine's default condition and always allows adding, as long as not
+                 * an empty query.
+                 */
+                shouldCreate={(query) =>
+                    query.trim().length > 0 && !values.includes(query)
+                }
+                getCreateLabel={(query) => (
+                    <Group spacing="xxs">
+                        <MantineIcon icon={IconPlus} color="blue" size="sm" />
+                        <Text color="blue">Add "{query}"</Text>
+                    </Group>
+                )}
+                styles={{
+                    item: {
+                        // makes add new item button sticky to bottom
+                        '&:last-child:not([value])': {
+                            position: 'sticky',
+                            bottom: 4,
+                            // casts shadow on the bottom of the list to avoid transparency
+                            boxShadow: '0 4px 0 0 white',
+                        },
+                        '&:last-child:not([value]):not(:hover)': {
+                            background: 'white',
+                        },
+                    },
+                }}
+                disableSelectedItemFiltering
+                searchable
+                clearSearchOnChange
+                {...rest}
+                searchValue={search}
+                onSearchChange={setSearch}
+                limit={MAX_AUTOCOMPLETE_RESULTS}
+                onPaste={handlePaste}
+                nothingFound={
+                    isInitialLoading ? 'Loading...' : 'No results found'
+                }
+                rightSection={
+                    isInitialLoading ? <Loader size="xs" color="gray" /> : null
+                }
+                dropdownComponent={DropdownComponentOverride}
+                itemComponent={({ label, ...others }) =>
+                    others.disabled ? (
+                        <Text color="dimmed" {...others}>
+                            {label}
+                        </Text>
+                    ) : (
+                        <Highlight highlight={search} {...others}>
+                            {label}
+                        </Highlight>
+                    )
+                }
+                data={data}
+                value={values}
+                onDropdownOpen={onDropdownOpen}
+                onDropdownClose={() => {
+                    handleResetSearch();
+                    onDropdownClose?.();
+                }}
+                onChange={handleChange}
+                onCreate={handleAdd}
+                onKeyDown={handleKeyDown}
+            />
+        </MultiValuePastePopover>
     );
 };
 

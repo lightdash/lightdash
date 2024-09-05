@@ -32,6 +32,7 @@ import {
 } from './types/field';
 import { type AdditionalMetric, type MetricQuery } from './types/metricQuery';
 import {
+    type ApiOrganizationMemberProfiles,
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from './types/organizationMemberProfile';
@@ -98,7 +99,7 @@ import {
     type SchedulerJobStatus,
     type SchedulerWithLogs,
 } from './types/scheduler';
-import { type SlackChannel } from './types/slack';
+import { type ApiSlackChannelsResponse } from './types/slack';
 import { type Space } from './types/space';
 import { type ApiSshKeyPairResponse } from './types/SshKeyPair';
 import { type TableBase } from './types/table';
@@ -114,8 +115,20 @@ import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
 } from './types/catalog';
+import {
+    type ApiChartContentResponse,
+    type ApiContentResponse,
+} from './types/content';
 import { type ApiPromotionChangesResponse } from './types/promotion';
+import { type ApiSemanticLayerClientInfo } from './types/semanticLayer';
+import {
+    type ApiCreateSqlChart,
+    type ApiSqlChart,
+    type ApiSqlRunnerJobStatusResponse,
+    type ApiUpdateSqlChart,
+} from './types/sqlRunner';
 import { TimeFrames } from './types/timeFrames';
+import { type ApiWarehouseTableFields } from './types/warehouse';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
 import { getFields } from './utils/fields';
 import { formatItemValue } from './utils/formatting';
@@ -131,7 +144,6 @@ export * from './compiler/translator';
 export * from './dbt/validation';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
 export * from './templating/template';
-export * from './transformers';
 export * from './types/analytics';
 export * from './types/api';
 export * from './types/api/comments';
@@ -145,10 +157,12 @@ export * from './types/catalog';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
+export * from './types/content';
 export * from './types/csv';
 export * from './types/dashboard';
 export * from './types/dbt';
 export * from './types/dbtCloud';
+export * from './types/dbtSemanticLayer';
 export * from './types/downloadFile';
 export * from './types/email';
 export * from './types/errors';
@@ -161,6 +175,7 @@ export * from './types/gdrive';
 export * from './types/gitIntegration';
 export * from './types/groups';
 export * from './types/job';
+export * from './types/knex-paginate';
 export * from './types/metricQuery';
 export * from './types/notifications';
 export * from './types/openIdIdentity';
@@ -179,6 +194,7 @@ export * from './types/results';
 export * from './types/savedCharts';
 export * from './types/scheduler';
 export * from './types/search';
+export * from './types/semanticLayer';
 export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';
@@ -211,6 +227,11 @@ export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/warehouse';
+export * from './visualizations/CartesianChartDataModel';
+export * from './visualizations/PieChartDataModel';
+export * from './visualizations/TableDataModel';
+export * from './visualizations/types';
+export * from './visualizations/types/IResultsRunner';
 
 export const validateEmail = (email: string): boolean => {
     if (/\s/.test(email)) {
@@ -606,8 +627,8 @@ type ApiResults =
     | DbtCloudIntegration
     | ShareUrl
     | SlackSettings
+    | ApiSlackChannelsResponse['results']
     | UserActivity
-    | SlackChannel[]
     | SchedulerAndTargets
     | SchedulerAndTargets[]
     | FieldValueSearchResult
@@ -643,7 +664,16 @@ type ApiResults =
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
     | ApiPromotionChangesResponse['results']
-    | ApiTogglePinnedItem['results'];
+    | ApiWarehouseTableFields['results']
+    | ApiTogglePinnedItem['results']
+    | ApiOrganizationMemberProfiles['results']
+    | ApiSqlChart['results']
+    | ApiCreateSqlChart['results']
+    | ApiUpdateSqlChart['results']
+    | ApiContentResponse['results']
+    | ApiChartContentResponse['results']
+    | ApiSqlRunnerJobStatusResponse['results']
+    | ApiSemanticLayerClientInfo['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -661,6 +691,12 @@ export type ApiError = {
     status: 'error';
     error: ApiErrorDetail;
 };
+
+export const isApiError = (error: unknown): error is ApiError =>
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    error.status === 'error';
 
 export enum LightdashMode {
     DEFAULT = 'default',

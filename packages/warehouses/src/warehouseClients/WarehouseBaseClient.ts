@@ -93,16 +93,16 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
         return `CONCAT(${args.join(', ')})`;
     }
 
-    async getTables(
-        schema?: string,
-        tags?: Record<string, string>,
-    ): Promise<WarehouseCatalog> {
+    async getAllTables(): Promise<
+        { database: string; schema: string; table: string }[]
+    > {
         throw new Error('Warehouse method not implemented.');
     }
 
     async getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
         throw new Error('Warehouse method not implemented.');
@@ -135,5 +135,9 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
             },
             {},
         );
+    }
+
+    parseError(error: Error): Error {
+        return error;
     }
 }

@@ -288,8 +288,16 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         } catch (e: any) {
             throw new WarehouseQueryError(e.message);
         } finally {
-            if (query) await query.close();
-            await close();
+            try {
+                if (query) await query.close();
+                await close();
+            } catch (e: any) {
+                // Only console error. Don't allow close errors to override the original error
+                console.error(
+                    'Error closing Databricks session on streamQuery',
+                    e,
+                );
+            }
         }
     }
 
@@ -319,7 +327,15 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                     } catch (e: any) {
                         throw new WarehouseQueryError(e.message);
                     } finally {
-                        if (query) await query.close();
+                        try {
+                            if (query) await query.close();
+                        } catch (e: any) {
+                            // Only console error. Don't allow close errors to override the original error
+                            console.error(
+                                'Error closing Databricks query on getCatalog',
+                                e,
+                            );
+                        }
                     }
                 },
             );
@@ -330,7 +346,10 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 await close();
             } catch (e: any) {
                 // Only console error. Don't allow close errors to override the original error
-                console.error('Error closing Databricks session', e);
+                console.error(
+                    'Error closing Databricks session on getCatalog',
+                    e,
+                );
             }
         }
 
@@ -401,10 +420,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
     async getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema ? `AND table_schema = ?` : '';
-
         const query = `
             SELECT table_catalog,
                    table_schema,
@@ -413,14 +431,17 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                    data_type
             FROM information_schema.columns
             WHERE table_name = ?
-            ${schemaFilter};
+            ${schema ? 'AND table_schema = ?' : ''}
+            ${database ? 'AND table_catalog = ?' : ''}
         `;
-        const { rows } = await this.runQuery(
-            query,
-            tags,
-            undefined,
-            schema ? [tableName, schema] : [tableName],
-        );
+        const values = [tableName];
+        if (schema) {
+            values.push(schema);
+        }
+        if (database) {
+            values.push(database);
+        }
+        const { rows } = await this.runQuery(query, tags, undefined, values);
 
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }

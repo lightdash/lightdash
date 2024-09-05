@@ -5,6 +5,7 @@ import {
     Dashboard,
     DashboardBasicDetails,
     DashboardDAO,
+    DashboardTab,
     DashboardTileTypes,
     ForbiddenError,
     generateSlug,
@@ -15,6 +16,8 @@ import {
     isDashboardUnversionedFields,
     isDashboardVersionedFields,
     isUserWithOrg,
+    isValidFrequency,
+    ParameterError,
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
@@ -110,6 +113,9 @@ export class DashboardService extends BaseService {
             chartTilesCount: dashboard.tiles.filter(
                 ({ type }) => type === DashboardTileTypes.SAVED_CHART,
             ).length,
+            sqlChartTilesCount: dashboard.tiles.filter(
+                ({ type }) => type === DashboardTileTypes.SQL_CHART,
+            ).length,
             markdownTilesCount: dashboard.tiles.filter(
                 ({ type }) => type === DashboardTileTypes.MARKDOWN,
             ).length,
@@ -126,6 +132,7 @@ export class DashboardService extends BaseService {
         const orphanedCharts = await this.dashboardModel.getOrphanedCharts(
             dashboardUuid,
         );
+
         await Promise.all(
             orphanedCharts.map(async (chart) => {
                 const deletedChart = await this.savedChartModel.delete(
@@ -340,11 +347,28 @@ export class DashboardService extends BaseService {
             );
         }
 
+        const newTabsMap = dashboard.tabs.map((tab) => ({
+            uuid: tab.uuid,
+            newUuid: uuidv4(), // generate new uuid for copied tabs
+        }));
+
+        const newTabs: DashboardTab[] = dashboard.tabs.map((tab) => ({
+            ...tab,
+            uuid: newTabsMap.find((tabMap) => tabMap.uuid === tab.uuid)
+                ?.newUuid!,
+        }));
+
         const duplicatedDashboard = {
             ...dashboard,
+            tiles: dashboard.tiles.map((tile) => ({
+                ...tile,
+                tabUuid: newTabsMap.find((tab) => tab.uuid === tile.tabUuid)
+                    ?.newUuid!,
+            })),
             description: data.dashboardDesc,
             name: data.dashboardName,
             slug: generateSlug(dashboard.name),
+            tabs: newTabs,
         };
 
         const newDashboard = await this.dashboardModel.create(
@@ -378,7 +402,11 @@ export class DashboardService extends BaseService {
                                         firstName: user.firstName,
                                         lastName: user.lastName,
                                     },
-                                    slug: generateSlug(chartInDashboard.name),
+                                    slug: generateSlug(
+                                        `${
+                                            chartInDashboard.name
+                                        } ${Date.now()}`,
+                                    ),
                                 },
                             );
                         this.analytics.track({
@@ -411,7 +439,7 @@ export class DashboardService extends BaseService {
                 {
                     tiles: [...updatedTiles],
                     filters: newDashboard.filters,
-                    tabs: newDashboard.tabs,
+                    tabs: newTabs,
                 },
                 user,
                 projectUuid,
@@ -634,6 +662,9 @@ export class DashboardService extends BaseService {
             projectUuid,
             spaceUuid,
             pinnedListUuid: pinnedList.pinnedListUuid,
+            isPinned: !!pinnedList.items.find(
+                (item) => item.dashboardUuid === dashboardUuid,
+            ),
         };
     }
 
@@ -771,6 +802,12 @@ export class DashboardService extends BaseService {
     ): Promise<SchedulerAndTargets> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
+        }
+
+        if (!isValidFrequency(newScheduler.cron)) {
+            throw new ParameterError(
+                'Frequency not allowed, custom input is limited to hourly',
+            );
         }
         const { projectUuid, organizationUuid } =
             await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);

@@ -283,6 +283,7 @@ export const spacesWithSavedCharts: Space[] = [
                 projectUuid: 'projectUuid',
                 spaceName: 'spaceName',
                 organizationUuid: 'organizationUuid',
+                slug: 'saved-chart-name',
             },
         ],
         projectUuid,

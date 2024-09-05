@@ -12,7 +12,6 @@ import {
     NotFoundError,
     OpenIdIdentityIssuerType,
     OpenIdUser,
-    Organization,
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
@@ -292,6 +291,15 @@ export class UserModel {
             .leftJoin('users', 'users.user_id', 'password_logins.user_id')
             .where('users.user_uuid', userUuid);
         return user !== undefined;
+    }
+
+    async hasPasswordByEmail(email: string): Promise<boolean> {
+        const results = await this.database('password_logins')
+            .leftJoin('emails', 'password_logins.user_id', 'emails.user_id')
+            .andWhere('emails.email', email)
+            .andWhere('emails.is_primary', true)
+            .select('password_logins.user_id');
+        return results.length > 0;
     }
 
     async getUserByUuidAndPassword(
@@ -624,7 +632,9 @@ export class UserModel {
             .select('*', 'organizations.created_at as organization_created_at');
 
         if (user === undefined) {
-            throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
+            throw new NotFoundError(
+                `Cannot find user with uuid ${userUuid} and org ${organizationUuid}`,
+            );
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(
@@ -648,12 +658,15 @@ export class UserModel {
         };
     }
 
-    async findSessionUserByPrimaryEmail(email: string): Promise<SessionUser> {
+    async findSessionUserByPrimaryEmail(
+        email: string,
+    ): Promise<SessionUser | undefined> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('email', email)
+            .andWhere('emails.is_primary', true)
             .select('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
-            throw new NotFoundError(`Cannot find user with uuid ${email}`);
+            return undefined;
         }
         const lightdashUser = mapDbUserDetailsToLightdashUser(user);
         const projectRoles = await this.getUserProjectRoles(
@@ -769,13 +782,20 @@ export class UserModel {
         });
     }
 
-    async updatePassword(userId: number, newPassword: string): Promise<void> {
+    async updatePassword(userUuid: string, newPassword: string): Promise<void> {
         if (!validatePassword(newPassword)) {
             throw new ParameterError("Password doesn't meet requirements");
         }
+        const user = await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .select('user_id')
+            .first();
+        if (!user) {
+            throw new NotExistsError('Cannot find user');
+        }
         return this.database(PasswordLoginTableName)
             .where({
-                user_id: userId,
+                user_id: user.user_id,
             })
             .update({
                 password_hash: await bcrypt.hash(

@@ -7,6 +7,7 @@ import { type ValidationSummary } from './validation';
 
 export enum DashboardTileTypes {
     SAVED_CHART = 'saved_chart',
+    SQL_CHART = 'sql_chart',
     MARKDOWN = 'markdown',
     LOOM = 'loom',
 }
@@ -52,6 +53,16 @@ export type DashboardChartTileProperties = {
     };
 };
 
+export type DashboardSqlChartTileProperties = {
+    type: DashboardTileTypes.SQL_CHART;
+    properties: {
+        title?: string;
+        savedSqlUuid: string | null;
+        chartName: string;
+        hideTitle?: boolean;
+    };
+};
+
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
     DashboardMarkdownTileProperties;
 export type DashboardMarkdownTile = DashboardTileBase &
@@ -66,6 +77,11 @@ export type CreateDashboardChartTile = CreateDashboardTileBase &
 export type DashboardChartTile = DashboardTileBase &
     DashboardChartTileProperties;
 
+export type CreateDashboardSqlChartTile = CreateDashboardTileBase &
+    DashboardSqlChartTileProperties;
+export type DashboardSqlChartTile = DashboardTileBase &
+    DashboardSqlChartTileProperties;
+
 export const isChartTile = (
     tile: DashboardTileBase,
 ): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
@@ -77,6 +93,7 @@ export type CreateDashboard = {
         | CreateDashboardChartTile
         | CreateDashboardMarkdownTile
         | CreateDashboardLoomTile
+        | CreateDashboardSqlChartTile
     >;
     filters?: DashboardFilters;
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
@@ -87,7 +104,8 @@ export type CreateDashboard = {
 export type DashboardTile =
     | DashboardChartTile
     | DashboardMarkdownTile
-    | DashboardLoomTile;
+    | DashboardLoomTile
+    | DashboardSqlChartTile;
 
 export const isDashboardChartTileType = (
     tile: DashboardTile,
@@ -100,6 +118,10 @@ export const isDashboardMarkdownTileType = (
 export const isDashboardLoomTileType = (
     tile: DashboardTile,
 ): tile is DashboardLoomTile => tile.type === DashboardTileTypes.LOOM;
+
+export const isDashboardSqlChartTile = (
+    tile: DashboardTileBase,
+): tile is DashboardSqlChartTile => tile.type === DashboardTileTypes.SQL_CHART;
 
 export type DashboardTab = {
     uuid: string;

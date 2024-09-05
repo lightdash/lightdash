@@ -15,6 +15,7 @@ import {
     getEmailDomain,
     hasInviteCode,
     InviteLink,
+    isOpenIdIdentityIssuerType,
     isOpenIdUser,
     isUserWithOrg,
     LightdashMode,
@@ -57,6 +58,7 @@ import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { postHogClient } from '../postHog';
 import { wrapSentryTransaction } from '../utils';
 import { BaseService } from './BaseService';
@@ -77,6 +79,7 @@ type UserServiceArguments = {
     personalAccessTokenModel: PersonalAccessTokenModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+    warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
 };
 
 export class UserService extends BaseService {
@@ -110,6 +113,8 @@ export class UserService extends BaseService {
 
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
+    private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -130,6 +135,7 @@ export class UserService extends BaseService {
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
         userWarehouseCredentialsModel,
+        warehouseAvailableTablesModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -148,6 +154,7 @@ export class UserService extends BaseService {
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
+        this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
     }
 
     private identifyUser(
@@ -459,6 +466,11 @@ export class UserService extends BaseService {
                 `User with email ${openIdUser.openId.email} is not allowed to login with ${openIdUser.openId.issuerType}`,
             );
         }
+        this.logger.info(
+            `Logging with OpenId email ${openIdUser.openId.email} and groups ${
+                openIdUser.openId.groups
+            }, is authenticated: ${authenticatedUser !== undefined}`,
+        );
         // Identity already exists. Update the identity attributes and login the user
         if (openIdSession) {
             const organization = this.loginToOrganization(
@@ -498,7 +510,7 @@ export class UserService extends BaseService {
                 userId: loginUser.userUuid,
                 event: 'user.logged_in',
                 properties: {
-                    loginProvider: 'google',
+                    loginProvider: openIdUser.openId.issuerType,
                 },
             });
 
@@ -535,6 +547,19 @@ export class UserService extends BaseService {
                 const sessionUser = await this.userModel.findSessionUserByUUID(
                     identitiesUsers[0],
                 );
+                if (
+                    this.lightdashConfig.groups.enabled === true &&
+                    this.lightdashConfig.auth.enableGroupSync === true &&
+                    Array.isArray(openIdUser.openId.groups) &&
+                    openIdUser.openId.groups.length &&
+                    sessionUser.organizationUuid
+                )
+                    await this.tryAddUserToGroups({
+                        userUuid: sessionUser.userUuid,
+                        groups: openIdUser.openId.groups,
+                        organizationUuid: sessionUser.organizationUuid,
+                    });
+
                 return this.linkOpenIdIdentityToUser(
                     sessionUser,
                     openIdUser,
@@ -543,8 +568,60 @@ export class UserService extends BaseService {
             }
         }
 
+        // Link the new openid identity to an existing user if they already have the same primary email and it's verified
+        if (
+            !authenticatedUser &&
+            this.lightdashConfig.auth.enableOidcToEmailLinking
+        ) {
+            const userWithSameEmail =
+                await this.userModel.findSessionUserByPrimaryEmail(
+                    openIdUser.openId.email,
+                );
+
+            if (userWithSameEmail) {
+                const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+                    userWithSameEmail.userUuid,
+                );
+
+                if (emailStatus.isVerified) {
+                    if (
+                        this.lightdashConfig.groups.enabled === true &&
+                        this.lightdashConfig.auth.enableGroupSync === true &&
+                        Array.isArray(openIdUser.openId.groups) &&
+                        openIdUser.openId.groups.length &&
+                        userWithSameEmail.organizationUuid
+                    )
+                        await this.tryAddUserToGroups({
+                            userUuid: userWithSameEmail.userUuid,
+                            groups: openIdUser.openId.groups,
+                            organizationUuid:
+                                userWithSameEmail.organizationUuid,
+                        });
+
+                    return this.linkOpenIdIdentityToUser(
+                        userWithSameEmail,
+                        openIdUser,
+                        refreshToken,
+                    );
+                }
+            }
+        }
+
         // Link openid identity to currently logged in user
         if (authenticatedUser) {
+            if (
+                this.lightdashConfig.groups.enabled === true &&
+                this.lightdashConfig.auth.enableGroupSync === true &&
+                Array.isArray(openIdUser.openId.groups) &&
+                openIdUser.openId.groups.length &&
+                authenticatedUser.organizationUuid
+            )
+                await this.tryAddUserToGroups({
+                    userUuid: authenticatedUser.userUuid,
+                    groups: openIdUser.openId.groups,
+                    organizationUuid: authenticatedUser.organizationUuid,
+                });
+
             return this.linkOpenIdIdentityToUser(
                 authenticatedUser,
                 openIdUser,
@@ -558,21 +635,40 @@ export class UserService extends BaseService {
             inviteCode,
         );
         await this.tryVerifyUserEmail(createdUser, openIdUser.openId.email);
-
-        if (
+        const allowedOrgs =
+            await this.organizationModel.getAllowedOrgsForDomain(
+                getEmailDomain(openIdUser.openId.email),
+            );
+        const hasGroups =
             this.lightdashConfig.groups.enabled === true &&
             this.lightdashConfig.auth.enableGroupSync === true &&
             Array.isArray(openIdUser.openId.groups) &&
-            openIdUser.openId.groups.length &&
-            createdUser.organizationUuid
-        )
+            openIdUser.openId.groups.length;
+        let { organizationUuid } = createdUser;
+        if (
+            !organizationUuid &&
+            !inviteCode &&
+            hasGroups &&
+            allowedOrgs.length === 1
+        ) {
+            organizationUuid = allowedOrgs[0].organizationUuid;
+            this.logger.info(
+                `Automatically joining user '${createdUser.email}' whitelisted organization ${organizationUuid}`,
+            );
+            await this.joinOrg(createdUser, organizationUuid); // Join automatically the whitelisted org so we can apply groups
+        }
+
+        if (hasGroups && organizationUuid)
             await this.tryAddUserToGroups({
                 userUuid: createdUser.userUuid,
-                groups: openIdUser.openId.groups,
-                organizationUuid: createdUser.organizationUuid,
+                groups: openIdUser.openId.groups!,
+                organizationUuid,
             });
 
-        return createdUser;
+        return {
+            ...createdUser,
+            organizationUuid,
+        };
     }
 
     private async activateUserWithOpenId(
@@ -608,7 +704,7 @@ export class UserService extends BaseService {
             userId: sessionUser.userUuid,
             event: 'user.identity_linked',
             properties: {
-                loginProvider: 'google',
+                loginProvider: openIdUser.openId.issuerType,
             },
         });
 
@@ -722,6 +818,11 @@ export class UserService extends BaseService {
         user: SessionUser,
         openIdentity: DeleteOpenIdentity,
     ): Promise<void> {
+        const userIdentity = await this.openIdIdentityModel.getIdentity(
+            user.userId,
+            openIdentity.issuer,
+            openIdentity.email,
+        );
         await this.openIdIdentityModel.deleteIdentity(
             user.userId,
             openIdentity.issuer,
@@ -731,7 +832,7 @@ export class UserService extends BaseService {
             userId: user.userUuid,
             event: 'user.identity_removed',
             properties: {
-                loginProvider: 'google',
+                loginProvider: userIdentity.issuerType,
             },
         });
     }
@@ -817,7 +918,10 @@ export class UserService extends BaseService {
                 user.userUuid,
                 data.password,
             );
-            await this.userModel.updatePassword(user.userId, data.newPassword);
+            await this.userModel.updatePassword(
+                user.userUuid,
+                data.newPassword,
+            );
         } else {
             await this.userModel.createPassword(user.userId, data.newPassword);
         }
@@ -900,7 +1004,7 @@ export class UserService extends BaseService {
             userId: user.userUuid,
             properties: {
                 userConnectionType: isOpenIdUser(createUser)
-                    ? 'google'
+                    ? createUser.openId.issuerType
                     : 'password',
             },
         });
@@ -909,7 +1013,7 @@ export class UserService extends BaseService {
                 userId: user.userUuid,
                 event: 'user.identity_linked',
                 properties: {
-                    loginProvider: 'google',
+                    loginProvider: createUser.openId.issuerType,
                 },
             });
         } else {
@@ -1203,12 +1307,31 @@ export class UserService extends BaseService {
             refresh.requestNewAccessToken(
                 'google',
                 refreshToken,
-                (err: any, accessToken: string) => {
+                (err: any, accessToken: string, _refreshToken, result) => {
                     if (err || !accessToken) {
                         reject(err);
                         return;
                     }
-                    resolve(accessToken);
+
+                    const scopes: string[] =
+                        result && typeof result.scope === 'string'
+                            ? result.scope.split(' ')
+                            : [];
+                    if (
+                        scopes.includes(
+                            'https://www.googleapis.com/auth/drive.file',
+                        ) &&
+                        scopes.includes(
+                            'https://www.googleapis.com/auth/spreadsheets',
+                        )
+                    ) {
+                        resolve(accessToken);
+                    }
+                    reject(
+                        new AuthorizationError(
+                            'Missing authorization to access Google Drive',
+                        ),
+                    );
                 },
             );
         });
@@ -1326,79 +1449,97 @@ export class UserService extends BaseService {
         });
     }
 
-    async getLoginOptions(email: string): Promise<LoginOptions> {
-        const getRedirectUri = (issuer: OpenIdIdentityIssuerType) => {
-            switch (issuer) {
-                case OpenIdIdentityIssuerType.AZUREAD:
-                    return this.lightdashConfig.auth.azuread.loginPath;
-                case OpenIdIdentityIssuerType.GOOGLE:
-                    return this.lightdashConfig.auth.google.loginPath;
-                case OpenIdIdentityIssuerType.OKTA:
-                    return this.lightdashConfig.auth.okta.loginPath;
-                case OpenIdIdentityIssuerType.ONELOGIN:
-                    return this.lightdashConfig.auth.oneLogin.loginPath;
-                case OpenIdIdentityIssuerType.GENERIC_OIDC:
-                    return this.lightdashConfig.auth.oidc.loginPath;
-                default:
-                    assertUnreachable(
-                        issuer,
-                        `Invalid login option for issuer ${issuer}`,
-                    );
-            }
-            return undefined;
-        };
+    private getRedirectUri(issuer: OpenIdIdentityIssuerType) {
+        switch (issuer) {
+            case OpenIdIdentityIssuerType.AZUREAD:
+                return this.lightdashConfig.auth.azuread.loginPath;
+            case OpenIdIdentityIssuerType.GOOGLE:
+                return this.lightdashConfig.auth.google.loginPath;
+            case OpenIdIdentityIssuerType.OKTA:
+                return this.lightdashConfig.auth.okta.loginPath;
+            case OpenIdIdentityIssuerType.ONELOGIN:
+                return this.lightdashConfig.auth.oneLogin.loginPath;
+            case OpenIdIdentityIssuerType.GENERIC_OIDC:
+                return this.lightdashConfig.auth.oidc.loginPath;
+            default:
+                assertUnreachable(
+                    issuer,
+                    `Invalid login option for issuer ${issuer}`,
+                );
+        }
+        return undefined;
+    }
 
-        const enabledOpenIdIssuers = [
-            this.lightdashConfig.auth.azuread?.oauth2ClientId !== undefined &&
-                OpenIdIdentityIssuerType.AZUREAD,
-            this.lightdashConfig.auth.google?.enabled === true &&
-                OpenIdIdentityIssuerType.GOOGLE,
-            this.lightdashConfig.auth.okta?.oauth2ClientId !== undefined &&
-                OpenIdIdentityIssuerType.OKTA,
-            this.lightdashConfig.auth.oneLogin?.oauth2ClientId !== undefined &&
-                OpenIdIdentityIssuerType.ONELOGIN,
-            this.lightdashConfig.auth.oidc.clientId !== undefined &&
-                OpenIdIdentityIssuerType.GENERIC_OIDC,
-        ].filter(Boolean) as OpenIdIdentityIssuerType[];
+    private getInstanceLoginOptions() {
+        const options = new Set<LoginOptionTypes>();
+        if (!this.lightdashConfig.auth.disablePasswordAuthentication) {
+            options.add(LocalIssuerTypes.EMAIL);
+        }
+        if (this.lightdashConfig.auth.google.enabled) {
+            options.add(OpenIdIdentityIssuerType.GOOGLE);
+        }
+        if (this.lightdashConfig.auth.azuread?.oauth2ClientId !== undefined) {
+            options.add(OpenIdIdentityIssuerType.AZUREAD);
+        }
+        if (this.lightdashConfig.auth.oneLogin?.oauth2ClientId) {
+            options.add(OpenIdIdentityIssuerType.ONELOGIN);
+        }
+        if (this.lightdashConfig.auth.okta?.oauth2ClientId) {
+            options.add(OpenIdIdentityIssuerType.OKTA);
+        }
+        if (this.lightdashConfig.auth.oidc.clientId) {
+            options.add(OpenIdIdentityIssuerType.GENERIC_OIDC);
+        }
+        return options;
+    }
+
+    async getLoginOptions(email?: string): Promise<LoginOptions> {
+        const instancesOptions = this.getInstanceLoginOptions();
+        if (!email) {
+            return {
+                showOptions: Array.from(instancesOptions),
+                forceRedirect: false,
+                redirectUri: undefined,
+            };
+        }
 
         const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
-        // First it checks for existing enabled SSO logins
-        const activeIssuers = openIdIssuers.filter((issuer) =>
-            enabledOpenIdIssuers.includes(issuer),
+        const hasPassword = await this.userModel.hasPasswordByEmail(email);
+        const userOptions = hasPassword
+            ? [LocalIssuerTypes.EMAIL, ...openIdIssuers]
+            : openIdIssuers;
+        // Filter out the options that are not available for the instance. eg: user connected to google drive but google auth is not enabled
+        const validUserOptions = userOptions.filter((option) =>
+            instancesOptions.has(option),
         );
-        if (activeIssuers.length === 1) {
-            const openIdIssuer = activeIssuers[0];
+
+        // if user has no valid options, return instance options
+        if (validUserOptions.length === 0) {
             return {
-                showOptions: [openIdIssuer],
+                showOptions: Array.from(instancesOptions),
+                forceRedirect: false,
+                redirectUri: undefined,
+            };
+        }
+
+        const oidcOptions = validUserOptions.filter(isOpenIdIdentityIssuerType);
+        if (oidcOptions.length === 1) {
+            // Force redirect to the only issuer option
+            return {
+                showOptions: validUserOptions,
                 forceRedirect: true,
                 redirectUri: new URL(
-                    `/api/v1${getRedirectUri(
-                        openIdIssuer,
+                    `/api/v1${this.getRedirectUri(
+                        oidcOptions[0],
                     )}?login_hint=${encodeURIComponent(email)}`,
                     this.lightdashConfig.siteUrl,
                 ).href,
             };
         }
-
-        const isPasswordDisabled =
-            this.lightdashConfig.auth.disablePasswordAuthentication;
-
-        const allLoginOptions = isPasswordDisabled
-            ? enabledOpenIdIssuers
-            : [...enabledOpenIdIssuers, LocalIssuerTypes.EMAIL];
         return {
-            showOptions: allLoginOptions,
-            forceRedirect:
-                allLoginOptions.length === 1 && enabledOpenIdIssuers.length > 0,
-            redirectUri:
-                enabledOpenIdIssuers.length > 0
-                    ? new URL(
-                          `/api/v1${getRedirectUri(
-                              enabledOpenIdIssuers[0],
-                          )}?login_hint=${encodeURIComponent(email)}`,
-                          this.lightdashConfig.siteUrl,
-                      ).href
-                    : undefined,
+            showOptions: validUserOptions,
+            forceRedirect: false,
+            redirectUri: undefined,
         };
     }
 }

@@ -8,6 +8,8 @@ type Args = {
     maxWidth: number;
     position: SidebarPosition;
     mainWidth?: number;
+    onResizeStart?: () => void;
+    onResizeEnd?: () => void;
 };
 
 const useSidebarResize = ({
@@ -16,6 +18,8 @@ const useSidebarResize = ({
     defaultWidth,
     position,
     mainWidth,
+    onResizeStart,
+    onResizeEnd,
 }: Args) => {
     const sidebarRef = useRef<HTMLDivElement>(null);
     const [isResizing, setIsResizing] = useState(false);
@@ -23,11 +27,13 @@ const useSidebarResize = ({
 
     const startResizing = useCallback(() => {
         setIsResizing(true);
-    }, []);
+        onResizeStart?.();
+    }, [onResizeStart, setIsResizing]);
 
     const stopResizing = useCallback(() => {
         setIsResizing(false);
-    }, []);
+        onResizeEnd?.();
+    }, [onResizeEnd, setIsResizing]);
 
     const resize = useCallback(
         // mouse event on div

@@ -2,12 +2,13 @@
     "extends": "./../../tsconfig.json",
     "compilerOptions": {
         /* Visit https://aka.ms/tsconfig.json to read more about this file */
-
         /* Basic Options */
         // "incremental": true,                         /* Enable incremental compilation */
         "target": "es6" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017', 'ES2018', 'ES2019', 'ES2020', or 'ESNEXT'. */,
         "module": "commonjs" /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', 'es2020', or 'ESNext'. */,
-        "lib": ["esnext"],
+        "lib": [
+            "esnext"
+        ],
         // "allowJs": true,                             /* Allow javascript files to be compiled. */
         // "checkJs": true,                             /* Report errors in .js files. */
         // "jsx": "preserve",                           /* Specify JSX code generation: 'preserve', 'react-native', 'react', 'react-jsx' or 'react-jsxdev'. */
@@ -24,7 +25,6 @@
         // "importHelpers": true,                       /* Import emit helpers from 'tslib'. */
         // "downlevelIteration": true,                  /* Provide full support for iterables in 'for-of', spread, and destructuring when targeting 'ES5' or 'ES3'. */
         // "isolatedModules": true,                     /* Transpile each file as a separate module (similar to 'ts.transpileModule'). */
-
         /* Strict Type-Checking Options */
         "strict": true /* Enable all strict type-checking options. */,
         "noImplicitAny": true /* Raise error on expressions and declarations with an implied 'any' type. */,
@@ -34,7 +34,6 @@
         // "strictPropertyInitialization": true,        /* Enable strict checking of property initialization in classes. */
         // "noImplicitThis": true,                      /* Raise error on 'this' expressions with an implied 'any' type. */
         // "alwaysStrict": true,                        /* Parse in strict mode and emit "use strict" for each source file. */
-
         /* Additional Checks */
         // "noUnusedLocals": true,                      /* Report errors on unused locals. */
         // "noUnusedParameters": true,                  /* Report errors on unused parameters. */
@@ -42,7 +41,6 @@
         // "noFallthroughCasesInSwitch": true,          /* Report errors for fallthrough cases in switch statement. */
         // "noUncheckedIndexedAccess": true,            /* Include 'undefined' in index signature results */
         // "noPropertyAccessFromIndexSignature": true,  /* Require undeclared properties from index signatures to use element accesses. */
-
         /* Module Resolution Options */
         // "moduleResolution": "node",                  /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
         // "baseUrl": "./",                             /* Base directory to resolve non-absolute module names. */
@@ -55,21 +53,21 @@
         "resolveJsonModule": true,
         // "preserveSymlinks": true,                    /* Do not resolve the real path of symlinks. */
         // "allowUmdGlobalAccess": true,                /* Allow accessing UMD globals from modules. */
-
         /* Source Map Options */
         // "sourceRoot": "",                            /* Specify the location where debugger should locate TypeScript files instead of source locations. */
         // "mapRoot": "",                               /* Specify the location where debugger should locate map files instead of generated locations. */
         // "inlineSourceMap": true,                     /* Emit a single file with source maps instead of having a separate file. */
         // "inlineSources": true,                       /* Emit the source alongside the sourcemaps within a single file; requires '--inlineSourceMap' or '--sourceMap' to be set. */
-
         /* Experimental Options */
         // "experimentalDecorators": true,              /* Enables experimental support for ES7 decorators. */
         // "emitDecoratorMetadata": true,               /* Enables experimental support for emitting type metadata for decorators. */
-
         /* Advanced Options */
         "skipLibCheck": true /* Skip type checking of declaration files. */,
         "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
         "useUnknownInCatchVariables": false
     },
-    "include": ["src/**/*.ts", "src/**/*.json"]
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.json"
+    ]
 }

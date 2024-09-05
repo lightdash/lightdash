@@ -1,6 +1,6 @@
 import TableGroupLabelImg from '../references/assets/table-group-label.png';
 
-# Tables reference doc
+# Tables reference
 
 You can run queries against the tables in your Lightdash project.
 
@@ -107,9 +107,10 @@ Here are some other things worth mentioning about the `order_fields_by` paramete
 - By default, `order_fields_by` is set to `label`, which means that your fields will appear in the table listed alphabetically.
 - Since metrics can be declared in multiple places within your .yml (as a dbt metric, in the model `meta` tag, under a dimension's `meta`), we force the following order on metrics if you set `order_fields_by` to `index`:
 
-- dbt metrics appear first
-- then, metrics defined in the model's `meta`
-- then, metrics defined in the dimensions' `meta`
+  - dbt metrics appear first
+  - then, metrics defined in the model's `meta`
+  - then, metrics defined in the dimensions' `meta`
+
 - Group labels inherit the index of the first dimension that use them.
 
 ### Group label
@@ -134,9 +135,19 @@ Use `sql_filter` to permanently filter the table for all queries made against it
 
 - `${TABLE}` the current table
 - `${dimension_a}` a dimension from the current table
-- `${table_b.dimension_b} a dimension from a joined table
+- `${table_b.dimension_b}` a dimension from a joined table
 
-The filter will only be applied when querying this table directly. If the current table (Table A) is included via a join to another table (Table B) then the `sql_where` for Table B will be applied but not for Table A.
+:::info
+
+`sql_filter` will only be applied when querying tables directly. For example: If Table A includes another table (Table B) with `sql_filter` applied to it, then only the `sql_filter` from Table A will be applied when querying Table A directly. The `sql_filter` from Table B _will not_ be applied.
+
+:::
+
+:::info
+
+If you reference a dimension from a joined table in your `sql_filter`, the referenced table will be joined automatically. For example: If you reference `${table_b.dimension_b}` in Table A's `sql_filter`, then Table B will be joined to Table A automatically.
+
+:::
 
 ### Required attributes
 

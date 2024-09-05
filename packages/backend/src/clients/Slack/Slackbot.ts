@@ -1,4 +1,7 @@
-import { LightdashMode } from '@lightdash/common';
+import {
+    LightdashMode,
+    SlackInstallationNotFoundError,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { App, ExpressReceiver, LogLevel } from '@slack/bolt';
 import { Express } from 'express';
@@ -74,27 +77,44 @@ export class SlackBot {
         }
 
         try {
-            const slackReceiver = new ExpressReceiver({
-                ...slackOptions,
-                installationStore: {
-                    storeInstallation: (i) =>
-                        this.slackAuthenticationModel.createInstallation(i),
-                    fetchInstallation: (i) =>
-                        this.slackAuthenticationModel.getInstallation(i),
-                    deleteInstallation: (i) =>
-                        this.slackAuthenticationModel.deleteInstallation(i),
-                },
-                logLevel: LogLevel.INFO,
-                app: expressApp,
-            });
+            if (this.lightdashConfig.slack?.socketMode) {
+                const app = new App({
+                    ...slackOptions,
+                    installationStore: {
+                        storeInstallation: (i) =>
+                            this.slackAuthenticationModel.createInstallation(i),
+                        fetchInstallation: (i) =>
+                            this.slackAuthenticationModel.getInstallation(i),
+                        deleteInstallation: (i) =>
+                            this.slackAuthenticationModel.deleteInstallation(i),
+                    },
+                    logLevel: LogLevel.INFO,
+                    port: this.lightdashConfig.slack.port,
+                    socketMode: this.lightdashConfig.slack.socketMode,
+                    appToken: this.lightdashConfig.slack.appToken,
+                });
+                this.addEventListeners(app);
+            } else {
+                const slackReceiver = new ExpressReceiver({
+                    ...slackOptions,
+                    installationStore: {
+                        storeInstallation: (i) =>
+                            this.slackAuthenticationModel.createInstallation(i),
+                        fetchInstallation: (i) =>
+                            this.slackAuthenticationModel.getInstallation(i),
+                        deleteInstallation: (i) =>
+                            this.slackAuthenticationModel.deleteInstallation(i),
+                    },
+                    logLevel: LogLevel.INFO,
+                    app: expressApp,
+                });
+                const app = new App({
+                    ...slackOptions,
 
-            const app = new App({
-                ...slackOptions,
-
-                receiver: slackReceiver,
-            });
-
-            this.addEventListeners(app);
+                    receiver: slackReceiver,
+                });
+                this.addEventListeners(app);
+            }
         } catch (e: unknown) {
             Logger.error(`Unable to start Slack app ${e}`);
         }
@@ -172,7 +192,11 @@ export class SlackBot {
                             details?.organizationUuid,
                         );
 
-                    appProfilePhotoUrl = installation?.appProfilePhotoUrl;
+                    if (!installation) {
+                        throw new SlackInstallationNotFoundError();
+                    }
+
+                    appProfilePhotoUrl = installation.appProfilePhotoUrl;
 
                     const { imageUrl } = await this.unfurlService.unfurlImage({
                         url: details.minimalUrl,

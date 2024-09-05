@@ -45,6 +45,21 @@ export function getRegexFromUserQuery(query: string) {
     return new RegExp(splitQuery.join('|'), 'ig');
 }
 
+export function getColumnMatchRegexQuery(
+    queryBuilder: Knex.QueryBuilder,
+    searchQuery: string,
+    columns: string[],
+) {
+    const regex = getRegexFromUserQuery(searchQuery).source;
+
+    // use regexp_matches
+    return queryBuilder.where((builder) => {
+        columns.forEach((column) =>
+            builder.orWhereRaw(`:column: ~* :regex`, { column, regex }),
+        );
+    });
+}
+
 export function getTableOrFieldMatchCount(
     regex: RegExp,
     tableOrField: CompiledTable | CompiledField,

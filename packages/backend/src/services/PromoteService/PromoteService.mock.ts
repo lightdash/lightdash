@@ -132,6 +132,7 @@ export const existingUpstreamChart: UpstreamChart = {
         dashboardName: null,
         updatedAt: new Date(),
         chartType: ChartType.CARTESIAN,
+        slug: 'apple-chart',
     },
     projectUuid: upstreamProjectUuid,
     space: upstreamSpace,

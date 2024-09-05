@@ -4,6 +4,7 @@ import { type FC, type PropsWithChildren } from 'react';
 interface ConfigComponent extends FC<PropsWithChildren> {
     Section: FC<PropsWithChildren>;
     Heading: FC<PropsWithChildren>;
+    Subheading: FC<PropsWithChildren>;
     Group: FC<PropsWithChildren>;
     Label: FC<PropsWithChildren>;
 }
@@ -20,6 +21,12 @@ const Heading: FC<PropsWithChildren> = ({ children }) => (
     </Text>
 );
 
+const Subheading: FC<PropsWithChildren> = ({ children }) => (
+    <Text c="gray.7" fz={13} fw={600}>
+        {children}
+    </Text>
+);
+
 const Label: FC<PropsWithChildren> = ({ children }) => (
     <Text fw={500} size="xs" color="gray.6">
         {children}
@@ -32,5 +39,6 @@ const Group: FC<PropsWithChildren> = ({ children }) => (
 
 Config.Section = Section;
 Config.Heading = Heading;
+Config.Subheading = Subheading;
 Config.Group = Group;
 Config.Label = Label;

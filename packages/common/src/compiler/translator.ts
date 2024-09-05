@@ -298,63 +298,92 @@ export const convertTable = (
 
             let extraDimensions = {};
 
-            if (isInterval(dimension.type, column)) {
-                let intervals: TimeFrames[] = [];
-                if (
-                    column.meta.dimension?.time_intervals &&
-                    Array.isArray(column.meta.dimension.time_intervals)
-                ) {
-                    intervals = validateTimeFrames(
-                        column.meta.dimension.time_intervals,
-                    );
-                } else {
-                    intervals = getDefaultTimeFrames(dimension.type);
-                }
+            const processIntervalDimension = (dim: Dimension) => {
+                if (isInterval(dim.type, column)) {
+                    let intervals: TimeFrames[] = [];
+                    if (
+                        column.meta.dimension?.time_intervals &&
+                        Array.isArray(column.meta.dimension.time_intervals)
+                    ) {
+                        intervals = validateTimeFrames(
+                            column.meta.dimension.time_intervals,
+                        );
+                    } else {
+                        intervals = getDefaultTimeFrames(dim.type);
+                    }
 
-                extraDimensions = intervals.reduce(
-                    (acc, interval) => ({
-                        ...acc,
-                        [`${column.name}_${interval.toLowerCase()}`]:
-                            convertDimension(
-                                index,
-                                adapterType,
-                                model,
-                                tableLabel,
-                                column,
-                                undefined,
-                                interval,
-                                startOfWeek,
-                            ),
-                    }),
-                    {},
-                );
-            }
+                    return intervals.reduce(
+                        (acc, interval) => ({
+                            ...acc,
+                            [`${dim.name}_${interval.toLowerCase()}`]:
+                                convertDimension(
+                                    index,
+                                    adapterType,
+                                    model,
+                                    tableLabel,
+                                    {
+                                        ...column,
+                                        ...('isAdditionalDimension' in dim &&
+                                        dim.isAdditionalDimension
+                                            ? {
+                                                  name: dim.name,
+                                                  meta: {
+                                                      dimension: {
+                                                          ...column.meta
+                                                              .dimension,
+                                                          type: dim.type,
+                                                          label: dim.label,
+                                                          groups: dim.groups,
+                                                          sql: dim.sql,
+                                                      },
+                                                  },
+                                              }
+                                            : {}),
+                                    },
+                                    undefined,
+                                    interval,
+                                    startOfWeek,
+                                    'isAdditionalDimension' in dim &&
+                                        dim.isAdditionalDimension,
+                                ),
+                        }),
+                        {},
+                    );
+                }
+                return {};
+            };
+
+            extraDimensions = {
+                ...extraDimensions,
+                ...processIntervalDimension(dimension),
+            };
 
             extraDimensions = Object.entries(
                 column.meta.additional_dimensions || {},
-            ).reduce(
-                (acc, [subDimensionName, subDimension]) => ({
-                    ...acc,
-                    [subDimensionName]: convertDimension(
-                        index,
-                        adapterType,
-                        model,
-                        tableLabel,
-                        {
-                            ...column,
-                            name: subDimensionName,
-                            meta: {
-                                dimension: subDimension,
-                            },
+            ).reduce((acc, [subDimensionName, subDimension]) => {
+                const additionalDim = convertDimension(
+                    index,
+                    adapterType,
+                    model,
+                    tableLabel,
+                    {
+                        ...column,
+                        name: subDimensionName,
+                        meta: {
+                            dimension: subDimension,
                         },
-                        undefined,
-                        undefined,
-                        startOfWeek,
-                        true,
-                    ),
-                }),
-                extraDimensions,
-            );
+                    },
+                    undefined,
+                    undefined,
+                    startOfWeek,
+                    true,
+                );
+                return {
+                    ...acc,
+                    [subDimensionName]: additionalDim,
+                    ...processIntervalDimension(additionalDim),
+                };
+            }, extraDimensions);
 
             const columnMetrics = Object.fromEntries(
                 Object.entries(column.meta.metrics || {}).map(
@@ -572,26 +601,6 @@ export const convertExplores = async (
     );
 
     const exploreCompiler = new ExploreCompiler(warehouseClient);
-    const joinAliases = validModels.reduce<
-        Record<string, Record<string, string>>
-    >((acc, model) => {
-        const joins = model.config?.meta?.joins;
-        if (joins === undefined) return acc;
-
-        const aliases = joins.reduce<Record<string, string>>((acc2, join) => {
-            if (join.alias && tableLookup[join.join]) {
-                return {
-                    ...acc2,
-                    [join.alias]: join.join,
-                };
-            }
-            return acc2;
-        }, {});
-        return {
-            ...acc,
-            [model.name]: aliases,
-        };
-    }, {});
 
     const explores: (Explore | ExploreError)[] = validModels.map((model) => {
         const meta = model.config?.meta || model.meta; // Config block takes priority, then meta block
@@ -617,7 +626,6 @@ export const convertExplores = async (
                 warehouse: model.config?.snowflake_warehouse,
                 ymlPath: model.patch_path?.split('://')?.[1],
                 sqlPath: model.path,
-                joinAliases,
             });
         } catch (e) {
             return {

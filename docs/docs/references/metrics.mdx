@@ -1,6 +1,6 @@
 import UnderlyingData from '../guides/assets/underlying-data.jpg';
 
-# Metrics reference doc
+# Metrics reference
 
 A metric is a value that describes or summarizes features from a collection of data points.
 For example, `Num unique user ids` is a metric. It describes the unique number of `user_id`s in a collection of `user_id` data points.
@@ -54,7 +54,7 @@ models:
 
 ### 3. Using dbt's Semantic Layer
 
-Lightdash is dbt Semantic Layer ready and the integration is now available in public preview for Lightdash Cloud users. You can query your Semantic Layer via the Lightdash UI. To learn more about the Semantic Layer integration, click [here](https://docs.lightdash.com/guides/dbt-semantic-layer).
+Lightdash is dbt Semantic Layer ready and the integration is now available in public preview for Lightdash Cloud users. You can query your Semantic Layer via the Lightdash UI. To learn more about the Semantic Layer integration, click [here](/references/dbt-semantic-layer).
 
 ## Metric Categories
 
@@ -86,7 +86,7 @@ models:
         - join: web_sessions
           sql_on: ${web_sessions.date} = ${sales_stats.date}
       group_details:
-        product_details: 
+        product_details:
           label: Product Details
           description: 'Fields that have information about the products in the basket.'
         item_details:
@@ -492,7 +492,7 @@ You can compact values in your YAML. For example, if I wanted all of my revenue 
 
 ## Groups
 
-You can group your dimensions and metrics in the sidebar using the `groups` parameter. 
+You can group your dimensions and metrics in the sidebar using the `groups` parameter.
 
 To do this, you need to set up `group_details` in the model's configuration. Then, you can use these groups to organize metrics and dimensions. You can create nested groups up to 2 levels.
 
@@ -502,7 +502,7 @@ models:
   - name: baskets
     meta:
       group_details:
-        product_details: 
+        product_details:
           label: Product Details
           description: 'Fields that have information about the products in the basket.'
         item_details:

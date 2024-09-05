@@ -13,6 +13,7 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 
+import AuthPopupResult from './pages/AuthPopupResult';
 import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
@@ -33,6 +34,7 @@ import Register from './pages/Register';
 import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
+import SemanticViewerPage from './pages/SemanticViewer';
 import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
 import Space from './pages/Space';
@@ -41,10 +43,14 @@ import SqlRunner from './pages/SqlRunner';
 import SqlRunnerNew from './pages/SqlRunnerNew';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
+import ViewSqlChart from './pages/ViewSqlChart';
 
 const Routes: FC = () => {
     return (
         <Switch>
+            <Route path="/auth/popup/:status">
+                <AuthPopupResult />
+            </Route>
             <PrivateRoute path="/minimal">
                 <Switch>
                     <Route path="/minimal/projects/:projectUuid/saved/:savedQueryUuid">
@@ -226,7 +232,28 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
-                                    <Route path="/projects/:projectUuid/sql-runner-new">
+                                    <Route
+                                        exact
+                                        path="/projects/:projectUuid/sql-runner/:slug"
+                                    >
+                                        <NavBar />
+
+                                        <ViewSqlChart />
+                                    </Route>
+
+                                    <Route
+                                        exact
+                                        path="/projects/:projectUuid/sql-runner/:slug/edit"
+                                    >
+                                        <NavBar />
+
+                                        <SqlRunnerNew isEditMode />
+                                    </Route>
+
+                                    <Route
+                                        exact
+                                        path="/projects/:projectUuid/sql-runner"
+                                    >
                                         <NavBar />
 
                                         <SqlRunnerNew />
@@ -236,6 +263,19 @@ const Routes: FC = () => {
                                         <NavBar />
                                         <TrackPage name={PageName.METRIC_FLOW}>
                                             <MetricFlowPage />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route
+                                        exact
+                                        path="/projects/:projectUuid/semantic-viewer"
+                                    >
+                                        <NavBar />
+
+                                        <TrackPage
+                                            name={PageName.SEMANTIC_VIEWER}
+                                        >
+                                            <SemanticViewerPage />
                                         </TrackPage>
                                     </Route>
 

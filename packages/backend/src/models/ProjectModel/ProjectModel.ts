@@ -74,10 +74,7 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import {
-    convertExploresToCatalog,
-    ExploreCatalog,
-} from '../CatalogModel/utils';
+import { convertExploresToCatalog } from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
@@ -763,7 +760,7 @@ export class ProjectModel {
     async indexCatalog(
         projectUuid: string,
         cachedExplores: (Explore & { cachedExploreUuid: string })[],
-    ): Promise<[DbCatalogIn, ExploreCatalog][]> {
+    ): Promise<DbCatalogIn[]> {
         if (cachedExplores.length === 0) {
             return [];
         }
@@ -804,9 +801,7 @@ export class ProjectModel {
                             }),
                     );
 
-                    return transactionInserts.map<
-                        [DbCatalogIn, ExploreCatalog]
-                    >((insert, index) => [insert, catalogItems[index]]);
+                    return transactionInserts;
                 },
             );
 
@@ -1659,9 +1654,10 @@ export class ProjectModel {
                     )
                     .returning('*');
             }
-            const dashboardTabsMapping = dashboardTabs.map((c, i) => ({
-                uuid: c.uuid,
-                newUuid: newDashboardTabs[i].uuid,
+            const dashboardTabsMapping = newDashboardTabs.map((c, i) => ({
+                uuid: dashboardTabs[i].uuid,
+                newUuid: c.uuid,
+                dashboardVersionId: dashboardTabs[i].dashboard_version_id,
             }));
 
             const dashboardViews = await trx(DashboardViewsTableName).whereIn(
@@ -1737,7 +1733,10 @@ export class ProjectModel {
                                               m.id === d.dashboard_version_id,
                                       )?.newId!,
                                   tab_uuid: dashboardTabsMapping.find(
-                                      (m) => m.uuid === d.tab_uuid,
+                                      (m) =>
+                                          m.uuid === d.tab_uuid &&
+                                          m.dashboardVersionId ===
+                                              d.dashboard_version_id,
                                   )?.newUuid,
                               })),
                           )

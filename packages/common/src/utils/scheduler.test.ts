@@ -1,4 +1,4 @@
-import { getHumanReadableCronExpression } from './scheduler';
+import { getHumanReadableCronExpression, isValidFrequency } from './scheduler';
 
 describe('Scheduler utils', () => {
     describe('getHumanReadableCronExpression', () => {
@@ -34,6 +34,33 @@ describe('Scheduler utils', () => {
             expect(getHumanReadableCronExpression('* 13 1 * *')).toEqual(
                 'every minute, between 01:00 PM (UTC) and 01:59 PM (UTC), on day 1 of the month',
             );
+        });
+    });
+
+    describe('isValidFrequency', () => {
+        test('check valid expression', async () => {
+            expect(isValidFrequency('* * * *')).toEqual(false);
+            expect(isValidFrequency('* * * * * *')).toEqual(false);
+            expect(isValidFrequency('30 30 * * * *')).toEqual(false);
+            expect(isValidFrequency('30 , 30 * * * *')).toEqual(false);
+            expect(isValidFrequency('30-25 * * * *')).toEqual(false);
+            expect(isValidFrequency('55-65 * * * *')).toEqual(false);
+            expect(isValidFrequency('55,65 * * * *')).toEqual(false);
+        });
+        test('should check if frequency happens multiple times per hour', async () => {
+            expect(isValidFrequency('0 * * * *')).toEqual(true);
+            expect(isValidFrequency('30 * * * *')).toEqual(true);
+            expect(isValidFrequency('0 0 * * *')).toEqual(true);
+            expect(isValidFrequency('0 0 1 * *')).toEqual(true);
+
+            expect(isValidFrequency('* * * * *')).toEqual(false);
+            expect(isValidFrequency('*/5 * * * *')).toEqual(false);
+            expect(isValidFrequency('*/59 * * * *')).toEqual(false);
+            expect(isValidFrequency('0,15 * * * *')).toEqual(false);
+            expect(isValidFrequency('0,15 * * * *')).toEqual(false);
+            expect(isValidFrequency('3-5 * * * *')).toEqual(false); // At every minute from 3 through 5.
+            expect(isValidFrequency('* 0 * * *')).toEqual(false);
+            expect(isValidFrequency('*/5,15 * * * *')).toEqual(false);
         });
     });
 });

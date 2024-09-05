@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 
 import {
     getEmailSchema,
+    isOpenIdIdentityIssuerType,
     LightdashMode,
     LocalIssuerTypes,
-    OpenIdIdentityIssuerType,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
 } from '@lightdash/common';
 
 import {
+    ActionIcon,
     Anchor,
     Button,
     Card,
@@ -22,8 +23,10 @@ import {
     Title,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { IconX } from '@tabler/icons-react';
 import { Redirect, useLocation } from 'react-router-dom';
 import { z } from 'zod';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { ThirdPartySignInButton } from '../../../components/common/ThirdPartySignInButton';
 import PageSpinner from '../../../components/PageSpinner';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -53,7 +56,7 @@ const Login: FC<{}> = () => {
         }
     }, [flashMessages.data, showToastError]);
 
-    const [fetchOptionsEnabled, setFetchOptionsEnabled] = useState(false);
+    const [preCheckEmail, setPreCheckEmail] = useState<string>();
 
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
@@ -73,20 +76,19 @@ const Login: FC<{}> = () => {
 
     const {
         data: loginOptions,
+        isInitialLoading: isInitialLoadingLoginOptions,
         isLoading: loginOptionsLoading,
-        isFetched: loginOptionsFetched,
         isSuccess: loginOptionsSuccess,
     } = useFetchLoginOptions({
-        email: form.values.email,
-        useQueryOptions: {
-            enabled: fetchOptionsEnabled && form.values.email !== '',
-        },
+        email: preCheckEmail,
     });
 
     // Disable fetch once it has succeeded
     useEffect(() => {
         if (loginOptions && loginOptionsSuccess) {
-            setFetchOptionsEnabled(false);
+            if (loginOptions.forceRedirect && loginOptions.redirectUri) {
+                window.location.href = loginOptions.redirectUri;
+            }
         }
     }, [loginOptionsSuccess, loginOptions]);
 
@@ -114,8 +116,7 @@ const Login: FC<{}> = () => {
         }
     }, [isDemo, mutate, isIdle]);
 
-    const formStage =
-        loginOptionsSuccess && loginOptions?.showOptions ? 'login' : 'precheck';
+    const formStage = preCheckEmail ? 'login' : 'precheck';
 
     const isEmailLoginAvailable =
         loginOptions?.showOptions &&
@@ -123,7 +124,7 @@ const Login: FC<{}> = () => {
 
     const handleFormSubmit = useCallback(() => {
         if (formStage === 'precheck' && form.values.email !== '') {
-            setFetchOptionsEnabled(true);
+            setPreCheckEmail(form.values.email);
         } else if (
             formStage === 'login' &&
             isEmailLoginAvailable &&
@@ -135,22 +136,19 @@ const Login: FC<{}> = () => {
     }, [form.values, formStage, isEmailLoginAvailable, mutate]);
 
     const disableControls =
-        (loginOptionsLoading && loginOptionsFetched) ||
+        loginOptionsLoading ||
         (loginOptionsSuccess && loginOptions.forceRedirect === true) ||
         isLoading ||
         isSuccess;
 
-    const googleAuthAvailable = health.data?.auth.google.enabled;
+    const ssoOptions = useMemo(() => {
+        if (!loginOptions) {
+            return [];
+        }
+        return loginOptions.showOptions.filter(isOpenIdIdentityIssuerType);
+    }, [loginOptions]);
 
-    const otherSsoLogins = loginOptions?.showOptions
-        ? loginOptions.showOptions.filter(
-              (option) =>
-                  option !== LocalIssuerTypes.EMAIL &&
-                  option !== OpenIdIdentityIssuerType.GOOGLE,
-          )
-        : [];
-
-    if (health.isInitialLoading || isDemo) {
+    if (health.isInitialLoading || isDemo || isInitialLoadingLoginOptions) {
         return <PageSpinner />;
     }
     if (health.status === 'success' && health.data?.requiresOrgRegistration) {
@@ -165,14 +163,6 @@ const Login: FC<{}> = () => {
     }
     if (health.status === 'success' && health.data?.isAuthenticated) {
         return <Redirect to={redirectUrl} />;
-    }
-
-    if (
-        loginOptionsSuccess &&
-        loginOptions.forceRedirect === true &&
-        loginOptions.redirectUri
-    ) {
-        window.location.href = loginOptions.redirectUri;
     }
 
     return (
@@ -200,6 +190,21 @@ const Login: FC<{}> = () => {
                             required
                             {...form.getInputProps('email')}
                             disabled={disableControls}
+                            rightSection={
+                                preCheckEmail ? (
+                                    <ActionIcon
+                                        onClick={() => {
+                                            setPreCheckEmail(undefined);
+                                            form.setValues({
+                                                email: '',
+                                                password: '',
+                                            });
+                                        }}
+                                    >
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                ) : null
+                            }
                         />
                         {isEmailLoginAvailable && formStage === 'login' && (
                             <>
@@ -215,55 +220,54 @@ const Login: FC<{}> = () => {
                                 <Anchor href="/recover-password" mx="auto">
                                     Forgot your password?
                                 </Anchor>
+                                <Button
+                                    type="submit"
+                                    loading={disableControls}
+                                    data-cy="signin-button"
+                                >
+                                    Sign in
+                                </Button>
                             </>
                         )}
-                        <Button
-                            type="submit"
-                            loading={disableControls}
-                            data-cy="signin-button"
-                        >
-                            {formStage === 'login' && !loginOptionsFetched
-                                ? 'Sign in'
-                                : 'Continue'}
-                        </Button>
-                        {(googleAuthAvailable || otherSsoLogins.length > 0) && (
-                            <Divider
-                                my="sm"
-                                labelPosition="center"
-                                label={
-                                    <Text color="gray.5" size="sm" fw={500}>
-                                        OR
-                                    </Text>
-                                }
-                            />
+                        {formStage === 'precheck' && (
+                            <Button
+                                type="submit"
+                                loading={disableControls}
+                                data-cy="signin-button"
+                            >
+                                Continue
+                            </Button>
                         )}
-
-                        <Stack>
-                            {otherSsoLogins?.length > 0 &&
-                                Object.values(OpenIdIdentityIssuerType).reduce<
-                                    React.ReactNode[]
-                                >((acc, providerName) => {
-                                    if (otherSsoLogins.includes(providerName))
-                                        acc.push(
-                                            <ThirdPartySignInButton
-                                                key={providerName}
-                                                providerName={providerName}
-                                                redirect={redirectUrl}
-                                            />,
-                                        );
-                                    return acc;
-                                }, [])}
-
-                            {googleAuthAvailable && (
-                                <ThirdPartySignInButton
-                                    key={OpenIdIdentityIssuerType.GOOGLE}
-                                    providerName={
-                                        OpenIdIdentityIssuerType.GOOGLE
-                                    }
-                                    redirect={redirectUrl}
-                                />
-                            )}
-                        </Stack>
+                        {ssoOptions.length > 0 && (
+                            <>
+                                {(isEmailLoginAvailable ||
+                                    formStage === 'precheck') && (
+                                    <Divider
+                                        my="sm"
+                                        labelPosition="center"
+                                        label={
+                                            <Text
+                                                color="gray.5"
+                                                size="sm"
+                                                fw={500}
+                                            >
+                                                OR
+                                            </Text>
+                                        }
+                                    />
+                                )}
+                                <Stack>
+                                    {ssoOptions.map((providerName) => (
+                                        <ThirdPartySignInButton
+                                            key={providerName}
+                                            providerName={providerName}
+                                            redirect={redirectUrl}
+                                            disabled={disableControls}
+                                        />
+                                    ))}
+                                </Stack>
+                            </>
+                        )}
                         <Text mx="auto" mt="md">
                             Don't have an account?{' '}
                             <Anchor href="/register">Sign up</Anchor>
