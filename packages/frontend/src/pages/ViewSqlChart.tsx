@@ -206,21 +206,17 @@ const ViewSqlChart = () => {
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.RESULTS}
                             >
-                                <Paper
-                                    withBorder
-                                    shadow="none"
-                                    radius={0}
-                                    h={500}
-                                >
-                                    {resultsTableConfig?.columns && (
-                                        <Table
-                                            resultsRunner={resultsRunner}
-                                            columnsConfig={
-                                                resultsTableConfig.columns
-                                            }
-                                        />
-                                    )}
-                                </Paper>
+                                {resultsTableConfig?.columns && (
+                                    <Table
+                                        resultsRunner={resultsRunner}
+                                        columnsConfig={
+                                            resultsTableConfig.columns
+                                        }
+                                        flexProps={{
+                                            mah: 'calc(100vh - 250px)',
+                                        }}
+                                    />
+                                )}
                             </ConditionalVisibility>
                         </Box>
                     )}
