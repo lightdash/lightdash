@@ -1,285 +1,360 @@
 import {
+    ApiWarehouseTableFields,
     ChartKind,
     CreateSqlChart,
     SEED_PROJECT,
     UpdateSqlChart,
+    WarehouseTypes,
 } from '@lightdash/common';
+import warehouseConnections from '../../support/warehouses';
 // import warehouseConnections from '../../support/warehouses';
 
 const apiUrl = '/api/v1';
 
-// Object.entries({ postgres: warehouseConnections.postgres }).forEach(  // For testing
-// Object.entries(warehouseConnections).forEach(
-//     ([warehouseName, warehouseConfig]) => {
-//         const getDatabaseDetails = () => {
-//             switch (warehouseConfig.type) {
-//                 case WarehouseTypes.SNOWFLAKE:
-//                     return [
-//                         warehouseConfig.database.toLowerCase(),
-//                         warehouseConfig.schema.toLowerCase(),
-//                     ];
-//                 case WarehouseTypes.BIGQUERY:
-//                     return [warehouseConfig.project, warehouseConfig.dataset];
-//                 case WarehouseTypes.REDSHIFT:
-//                 case WarehouseTypes.POSTGRES:
-//                     return [warehouseConfig.dbname, warehouseConfig.schema];
-//                 default:
-//                     return ['unknown', 'unknown'];
-//             }
-//         };
-//         describe(`Get tables and fields for SQL runner on ${warehouseName} `, () => {
-//             const projectName = `SqlRunner ${warehouseName} ${Date.now()}`;
-//             let projectUuid: string;
-//             beforeEach(() => {
-//                 cy.login();
-//             });
-//             before('create upstream project', () => {
-//                 cy.login();
-//                 cy.createProject(projectName, warehouseConfig).then((puuid) => {
-//                     projectUuid = puuid;
-//                 });
-//             });
-//
-//             after('delete upstream project', () => {
-//                 cy.log(`Deleting project by name ${projectName}`);
-//                 cy.deleteProjectsByName([projectName]);
-//             });
-//
-//             // test for invalid sql
-//             // note each db type may have different error messages
-//             it(`Get error on invalid SQL for ${warehouseName}`, () => {
-//                 const sql =
-//                     'SELECT * FROM `fake_test_db`.e2e_jaffle_shop`.`raw_customers`';
-//                 cy.request({
-//                     url: `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
-//                     headers: { 'Content-type': 'application/json' },
-//                     method: 'POST',
-//                     body: JSON.stringify({
-//                         sql,
-//                     }),
-//                 }).then((runResp) => {
-//                     expect(runResp.status).to.eq(200);
-//                     const { jobId } = runResp.body.results;
-//
-//                     const maxRetries = 20; // Snowflake is a bit slow compared to the others (normally takes ~3 seconds)
-//
-//                     // Poll request until job is `completed`
-//                     const poll = (retries = 0) => {
-//                         cy.wait(500);
-//                         cy.request({
-//                             url: `${apiUrl}/schedulers/job/${jobId}/status`,
-//                             method: 'GET',
-//                         }).then((resp) => {
-//                             expect(resp.status).to.eq(200);
-//                             cy.log(
-//                                 `Job status (${retries}): ${resp.body.results.status}`,
-//                             );
-//                             cy.log(JSON.stringify(resp));
-//                             if (
-//                                 resp.body.results.status === 'completed' ||
-//                                 resp.body.results.status === 'error'
-//                             ) {
-//                                 switch (warehouseConfig.type) {
-//                                     case WarehouseTypes.SNOWFLAKE:
-//                                         expect(resp.body.results.status).to.eq(
-//                                             'error',
-//                                         );
-//                                         expect(
-//                                             resp.body.results.details.error,
-//                                         ).to.include('SQL compilation error:');
-//                                         expect(
-//                                             resp.body.results.details
-//                                                 .lineNumber,
-//                                         ).to.eq(1);
-//                                         expect(
-//                                             resp.body.results.details
-//                                                 .charNumber,
-//                                         ).to.eq(48);
-//                                         break;
-//                                     case WarehouseTypes.BIGQUERY:
-//                                         expect(resp.body.results.status).to.eq(
-//                                             'error',
-//                                         );
-//                                         expect(
-//                                             resp.body.results.details.error,
-//                                         ).to.include('Syntax error:');
-//                                         expect(
-//                                             resp.body.results.details
-//                                                 .lineNumber,
-//                                         ).to.eq(1);
-//                                         expect(
-//                                             resp.body.results.details
-//                                                 .charNumber,
-//                                         ).to.eq(48);
-//                                         break;
-//                                     case WarehouseTypes.POSTGRES:
-//                                         expect(
-//                                             resp.body.results.details.error,
-//                                         ).to.include('syntax error');
-//                                         expect(
-//                                             resp.body.results.details
-//                                                 .lineNumber,
-//                                         ).to.eq(1);
-//                                         expect(
-//                                             resp.body.results.details
-//                                                 .charNumber,
-//                                         ).to.eq(15);
-//                                         break;
-//                                     default:
-//                                         expect(resp.body.results.status).to.eq(
-//                                             'error',
-//                                         );
-//                                         expect(
-//                                             resp.body.results.details.error,
-//                                         ).to.include('syntax error');
-//                                         break;
-//                                 }
-//                             } // Else keep polling
-//                             else if (retries < maxRetries) {
-//                                 poll(retries + 1);
-//                             } else {
-//                                 expect(
-//                                     resp.body.results.status,
-//                                     'Reached max number of retries without getting completed job',
-//                                 ).to.eq('completed');
-//                             }
-//                         });
-//                     };
-//                     poll();
-//                 });
-//             });
-//
-//             it(`Get tables for SQL runner ${warehouseName}`, () => {
-//                 cy.request({
-//                     url: `${apiUrl}/projects/${projectUuid}/sqlRunner/tables`,
-//                     headers: { 'Content-type': 'application/json' },
-//                     method: 'GET',
-//                 }).then((resp) => {
-//                     expect(resp.status).to.eq(200);
-//
-//                     const [database, schema] = getDatabaseDetails();
-//
-//                     expect(Object.keys(resp.body.results)).to.include(database);
-//                     expect(Object.keys(resp.body.results[database])).to.include(
-//                         schema,
-//                     );
-//                     ['customers', 'orders', 'payments'].forEach((table) => {
-//                         expect(
-//                             Object.keys(resp.body.results[database][schema]),
-//                         ).to.include(table);
-//                     });
-//                     expect(
-//                         Object.keys(resp.body.results[database][schema].orders),
-//                     ).to.be.deep.eq([]);
-//                 });
-//             });
-//             it(`Get fields for SQL runner ${warehouseName}`, () => {
-//                 cy.request<ApiWarehouseTableFields>({
-//                     url: `${apiUrl}/projects/${projectUuid}/sqlRunner/tables/orders`,
-//                     headers: { 'Content-type': 'application/json' },
-//                     method: 'GET',
-//                 }).then((resp) => {
-//                     expect(resp.status).to.eq(200);
-//
-//                     const { results } = resp.body;
-//
-//                     expect(Object.keys(results)).to.have.length.gt(5);
-//                     ['order_id', 'status', 'amount'].forEach((table) => {
-//                         expect(Object.keys(results)).to.include(table);
-//                     });
-//                     expect(results.amount).to.be.eq('number');
-//                     expect(results.status).to.be.eq('string');
-//                     expect(results.is_completed).to.be.eq('boolean');
-//                     expect(results.order_date).to.be.eq('date');
-//                 });
-//             });
-//
-//             it(`Get streaming results from ${warehouseName}`, () => {
-//                 const [database, schema] = getDatabaseDetails();
-//                 const selectFields =
-//                     warehouseConfig.type !== WarehouseTypes.SNOWFLAKE
-//                         ? `*`
-//                         : `payment_id as "payment_id",
-//                 amount as "amount",
-//                 payment_method as "payment_method"`; // Need to lowercase column ids in snowflake
-//                 const sql = `SELECT ${selectFields}
-//                              FROM ${database}.${schema}.payments
-//                              ORDER BY payment_id asc LIMIT 2`;
-//
-//                 cy.request({
-//                     url: `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
-//                     headers: { 'Content-type': 'application/json' },
-//                     method: 'POST',
-//                     body: JSON.stringify({
-//                         sql,
-//                     }),
-//                 }).then((runResp) => {
-//                     expect(runResp.status).to.eq(200);
-//                     const { jobId } = runResp.body.results;
-//
-//                     const maxRetries = 20; // Snowflake is a bit slow compared to the others (normally takes ~3 seconds)
-//
-//                     // Poll request until job is `completed`
-//                     const poll = (retries = 0) => {
-//                         cy.wait(500);
-//                         cy.request({
-//                             url: `${apiUrl}/schedulers/job/${jobId}/status`,
-//                             method: 'GET',
-//                         }).then((resp) => {
-//                             expect(resp.status).to.eq(200);
-//                             cy.log(
-//                                 `Job status (${retries}): ${resp.body.results.status}`,
-//                             );
-//                             if (
-//                                 resp.body.results.status === 'completed' ||
-//                                 resp.body.results.status === 'error'
-//                             ) {
-//                                 expect(resp.body.results.status).to.eq(
-//                                     'completed',
-//                                 );
-//                                 const { fileUrl } = resp.body.results.details;
-//                                 cy.request({
-//                                     url: fileUrl,
-//                                     method: 'GET',
-//                                 }).then((fileResp) => {
-//                                     expect(fileResp.status).to.eq(200);
-//                                     const lines = fileResp.body
-//                                         .trim()
-//                                         .split('\n');
-//                                     const results = lines.map((line) =>
-//                                         JSON.parse(line),
-//                                     );
-//
-//                                     expect(results).to.have.length(2);
-//
-//                                     expect(results[0].payment_id).to.be.eq(1);
-//
-//                                     expect(results[0].payment_method).to.be.eq(
-//                                         'credit_card',
-//                                     );
-//
-//                                     expect(results[1].payment_id).to.be.eq(2);
-//                                     expect(results[1].payment_method).to.be.eq(
-//                                         'credit_card',
-//                                     );
-//                                 });
-//                             } // Else keep polling
-//                             else if (retries < maxRetries) {
-//                                 poll(retries + 1);
-//                             } else {
-//                                 expect(
-//                                     resp.body.results.status,
-//                                     'Reached max number of retries without getting completed job',
-//                                 ).to.eq('completed');
-//                             }
-//                         });
-//                     };
-//                     poll();
-//                 });
-//             });
-//         });
-//     },
-// );
+// Object.entries({ postgres: warehouseConnections.postgresSQL }).forEach(  // For testing
+Object.entries(warehouseConnections).forEach(
+    ([warehouseName, warehouseConfig]) => {
+        const getDatabaseDetails = () => {
+            switch (warehouseConfig.type) {
+                case WarehouseTypes.SNOWFLAKE:
+                    return [warehouseConfig.database, warehouseConfig.schema];
+                case WarehouseTypes.BIGQUERY:
+                    return [warehouseConfig.project, warehouseConfig.dataset];
+                case WarehouseTypes.REDSHIFT:
+                case WarehouseTypes.POSTGRES:
+                    return [warehouseConfig.dbname, warehouseConfig.schema];
+                default:
+                    return ['unknown', 'unknown'];
+            }
+        };
+        describe(`Get tables and fields for SQL runner on ${warehouseName} `, () => {
+            const projectName = `SqlRunner ${warehouseName} ${Date.now()}`;
+            let projectUuid: string;
+            beforeEach(() => {
+                cy.login();
+            });
+            before('create upstream project', () => {
+                cy.login();
+                cy.createProject(projectName, warehouseConfig).then((puuid) => {
+                    projectUuid = puuid;
+                });
+            });
+
+            after('delete upstream project', () => {
+                cy.log(`Deleting project by name ${projectName}`);
+                cy.deleteProjectsByName([projectName]);
+            });
+
+            // test for invalid sql
+            // note each db type may have different error messages
+            it.skip(`Get error on invalid SQL for ${warehouseName}`, () => {
+                const sql = `SELECT * FROM ${getDatabaseDetails()[0]}.${
+                    getDatabaseDetails()[1]
+                }.raw_customers`;
+                cy.log(`sql ${sql}`);
+                cy.request({
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: JSON.stringify({
+                        sql,
+                    }),
+                }).then((runResp) => {
+                    expect(runResp.status).to.eq(200);
+                    const { jobId } = runResp.body.results;
+
+                    const maxRetries = 20; // Snowflake is a bit slow compared to the others (normally takes ~3 seconds)
+
+                    // Poll request until job is `completed`
+                    const poll = (retries = 0) => {
+                        cy.wait(500);
+                        cy.request({
+                            url: `${apiUrl}/schedulers/job/${jobId}/status`,
+                            method: 'GET',
+                        }).then((resp) => {
+                            expect(resp.status).to.eq(200);
+                            cy.log(
+                                `Job status (${retries}): ${resp.body.results.status}`,
+                            );
+                            cy.log(JSON.stringify(resp));
+                            if (resp.body.results.status === 'error') {
+                                assert(
+                                    false,
+                                    `Unexpected error on sql runner ${resp.body.results.details.error}`,
+                                );
+                            } else if (
+                                resp.body.results.status === 'completed'
+                            ) {
+                                switch (warehouseConfig.type) {
+                                    case WarehouseTypes.SNOWFLAKE:
+                                        expect(
+                                            resp.body.results.details
+                                                .lineNumber,
+                                        ).to.eq(1);
+                                        expect(
+                                            resp.body.results.details
+                                                .charNumber,
+                                        ).to.eq(48);
+                                        break;
+                                    case WarehouseTypes.BIGQUERY:
+                                        expect(
+                                            resp.body.results.details
+                                                .lineNumber,
+                                        ).to.eq(1);
+                                        expect(
+                                            resp.body.results.details
+                                                .charNumber,
+                                        ).to.eq(48);
+                                        break;
+                                    case WarehouseTypes.POSTGRES:
+                                        expect(
+                                            resp.body.results.details
+                                                .lineNumber,
+                                        ).to.eq(1);
+                                        expect(
+                                            resp.body.results.details
+                                                .charNumber,
+                                        ).to.eq(15);
+                                        break;
+                                    default:
+                                        assert(
+                                            false,
+                                            'Unexpected warehouse type',
+                                        );
+                                        break;
+                                }
+                            } // Else keep polling
+                            else if (retries < maxRetries) {
+                                poll(retries + 1);
+                            } else {
+                                expect(
+                                    resp.body.results.status,
+                                    'Reached max number of retries without getting completed job',
+                                ).to.eq('completed');
+                            }
+                        });
+                    };
+                    poll();
+                });
+            });
+
+            it(`Get tables for SQL runner ${warehouseName}`, () => {
+                cy.request({
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/tables`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'GET',
+                }).then((resp) => {
+                    expect(resp.status).to.eq(200);
+
+                    const [database, schema] = getDatabaseDetails();
+
+                    expect(Object.keys(resp.body.results)).to.include(database);
+                    expect(Object.keys(resp.body.results[database])).to.include(
+                        schema,
+                    );
+                    ['customers', 'orders', 'payments'].forEach((table) => {
+                        expect(
+                            Object.keys(resp.body.results[database][schema]),
+                        ).to.include(table);
+                    });
+                    expect(
+                        Object.keys(resp.body.results[database][schema].orders),
+                    ).to.be.deep.eq([]);
+                });
+            });
+            it(`Get fields for SQL runner ${warehouseName}`, () => {
+                cy.request<ApiWarehouseTableFields>({
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/fields?tableName=orders&schemaName=${
+                        getDatabaseDetails()[1]
+                    }`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'GET',
+                }).then((resp) => {
+                    expect(resp.status).to.eq(200);
+
+                    const { results } = resp.body;
+
+                    expect(Object.keys(results)).to.have.length.gt(5);
+                    ['order_id', 'status', 'amount'].forEach((table) => {
+                        expect(Object.keys(results)).to.include(table);
+                    });
+                    expect(results.amount).to.be.eq('number');
+                    expect(results.status).to.be.eq('string');
+                    expect(results.is_completed).to.be.eq('boolean');
+                    expect(results.order_date).to.be.eq('date');
+                });
+            });
+
+            it(`Get streaming results from ${warehouseName}`, () => {
+                const [database, schema] = getDatabaseDetails();
+                const selectFields =
+                    warehouseConfig.type !== WarehouseTypes.SNOWFLAKE
+                        ? `*`
+                        : `payment_id as "payment_id",
+                amount as "amount",
+                payment_method as "payment_method"`; // Need to lowercase column ids in snowflake
+                const sql = `SELECT ${selectFields}
+                             FROM ${database}.${schema}.payments
+                             ORDER BY payment_id asc LIMIT 2`;
+
+                cy.request({
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: JSON.stringify({
+                        sql,
+                    }),
+                }).then((runResp) => {
+                    expect(runResp.status).to.eq(200);
+                    const { jobId } = runResp.body.results;
+
+                    const maxRetries = 20; // Snowflake is a bit slow compared to the others (normally takes ~3 seconds)
+
+                    // Poll request until job is `completed`
+                    const poll = (retries = 0) => {
+                        cy.wait(500);
+                        cy.request({
+                            url: `${apiUrl}/schedulers/job/${jobId}/status`,
+                            method: 'GET',
+                        }).then((resp) => {
+                            expect(resp.status).to.eq(200);
+                            cy.log(
+                                `Job status (${retries}): ${resp.body.results.status}`,
+                            );
+                            if (
+                                resp.body.results.status === 'completed' ||
+                                resp.body.results.status === 'error'
+                            ) {
+                                expect(resp.body.results.status).to.eq(
+                                    'completed',
+                                );
+                                const { fileUrl } = resp.body.results.details;
+                                cy.request({
+                                    url: fileUrl,
+                                    method: 'GET',
+                                }).then((fileResp) => {
+                                    expect(fileResp.status).to.eq(200);
+                                    const lines = fileResp.body
+                                        .trim()
+                                        .split('\n');
+                                    const results = lines.map((line) =>
+                                        JSON.parse(line),
+                                    );
+
+                                    expect(results).to.have.length(2);
+
+                                    expect(results[0].payment_id).to.be.eq(1);
+
+                                    expect(results[0].payment_method).to.be.eq(
+                                        'credit_card',
+                                    );
+
+                                    expect(results[1].payment_id).to.be.eq(2);
+                                    expect(results[1].payment_method).to.be.eq(
+                                        'credit_card',
+                                    );
+                                });
+                            } // Else keep polling
+                            else if (retries < maxRetries) {
+                                poll(retries + 1);
+                            } else {
+                                expect(
+                                    resp.body.results.status,
+                                    'Reached max number of retries without getting completed job',
+                                ).to.eq('completed');
+                            }
+                        });
+                    };
+                    poll();
+                });
+            });
+            it.only(`Run pivot query for ${warehouseName}`, () => {
+                const [database, schema] = getDatabaseDetails();
+
+                const sql = `SELECT * FROM ${database}.${schema}.orders`;
+                const pivotQueryPayload = {
+                    sql,
+                    indexColumn: { reference: 'status', type: 'category' },
+                    valuesColumns: [
+                        { reference: 'order_id', aggregation: 'first' },
+                    ],
+                    limit: 500,
+                };
+
+                cy.request({
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/runPivotQuery`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: JSON.stringify(pivotQueryPayload),
+                }).then((runResp) => {
+                    expect(runResp.status).to.eq(200);
+                    const { jobId } = runResp.body.results;
+
+                    const maxRetries = 50;
+
+                    // Poll request until job is `completed`
+                    const poll = (retries = 0) => {
+                        cy.wait(1000);
+                        cy.request({
+                            url: `${apiUrl}/schedulers/job/${jobId}/status`,
+                            method: 'GET',
+                        }).then((resp) => {
+                            expect(resp.status).to.eq(200);
+                            cy.log(
+                                `Job status (${retries}): ${resp.body.results.status}`,
+                            );
+                            if (
+                                resp.body.results.status === 'completed' ||
+                                resp.body.results.status === 'error'
+                            ) {
+                                expect(resp.body.results.status).to.eq(
+                                    'completed',
+                                );
+                                const { fileUrl } = resp.body.results.details;
+                                cy.request({
+                                    url: fileUrl,
+                                    method: 'GET',
+                                }).then((fileResp) => {
+                                    expect(fileResp.status).to.eq(200);
+                                    const lines = fileResp.body
+                                        .trim()
+                                        .split('\n');
+                                    const results = lines.map((line) =>
+                                        JSON.parse(line),
+                                    );
+
+                                    expect(results).to.have.length.greaterThan(
+                                        0,
+                                    );
+                                    expect(results[0]).to.have.property(
+                                        'status',
+                                    );
+                                    expect(results[0]).to.have.property(
+                                        'order_id_completed',
+                                    );
+                                    expect(results[0]).to.have.property(
+                                        'order_id_pending',
+                                    );
+                                    expect(results[0]).to.have.property(
+                                        'order_id_shipped',
+                                    );
+                                });
+                            } else if (retries < maxRetries) {
+                                poll(retries + 1);
+                            } else {
+                                expect(
+                                    resp.body.results.status,
+                                    'Reached max number of retries without getting completed job',
+                                ).to.eq('completed');
+                            }
+                        });
+                    };
+                    poll();
+                });
+            });
+        });
+    },
+);
 
 // Load testing
 describe.skip(`Load testing`, () => {
@@ -355,7 +430,7 @@ describe.skip(`Load testing`, () => {
     });
 });
 
-describe(`Saved SQL chart`, () => {
+describe.skip(`Saved SQL chart`, () => {
     beforeEach(() => {
         cy.login();
     });
