@@ -10,7 +10,6 @@ import {
     Text,
     Tooltip,
     Transition,
-    useMantineTheme,
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -26,6 +25,7 @@ import {
 import { ResizableBox } from 'react-resizable';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
@@ -53,7 +53,6 @@ const DEFAULT_SQL_LIMIT = 500;
 
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
-    const mantineTheme = useMantineTheme();
     const { showToastError } = useToaster();
 
     // state for helping highlight errors in the editor
@@ -273,6 +272,19 @@ export const ContentPanel: FC = () => {
         [activeEditorTab],
     );
 
+    const [chartVizQuery, chartSpec] = useChartViz({
+        projectUuid,
+        resultsRunner,
+        config: currentVizConfig,
+        sql,
+        limit,
+        onPivot: (d) => {
+            if (currentVizConfig && !isVizTableConfig(currentVizConfig)) {
+                handlePivotData(currentVizConfig.type, d);
+            }
+        },
+    });
+
     return (
         <Stack
             spacing="none"
@@ -427,35 +439,14 @@ export const ContentPanel: FC = () => {
                                                             >
                                                                 <ChartView
                                                                     config={c}
+                                                                    spec={
+                                                                        chartSpec
+                                                                    }
                                                                     isLoading={
-                                                                        isLoading
+                                                                        chartVizQuery.isLoading
                                                                     }
-                                                                    resultsRunner={
-                                                                        resultsRunner
-                                                                    }
-                                                                    style={{
-                                                                        height: inputSectionHeight,
-                                                                        // width: '100%',
-                                                                        flex: 1,
-                                                                        marginTop:
-                                                                            mantineTheme
-                                                                                .spacing
-                                                                                .sm,
-                                                                    }}
-                                                                    sql={sql}
-                                                                    projectUuid={
-                                                                        projectUuid
-                                                                    }
-                                                                    limit={
-                                                                        limit
-                                                                    }
-                                                                    onPivot={(
-                                                                        pivotData,
-                                                                    ) =>
-                                                                        handlePivotData(
-                                                                            c.type,
-                                                                            pivotData,
-                                                                        )
+                                                                    error={
+                                                                        chartVizQuery.error
                                                                     }
                                                                 />
                                                             </ConditionalVisibility>

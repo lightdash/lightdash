@@ -61,7 +61,9 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         };
     }
 
-    async getPivotChartData(config: VizChartLayout): Promise<PivotChartData> {
+    async getPivotedVisualizationData(
+        config: VizChartLayout,
+    ): Promise<PivotChartData> {
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
 
         // Filter dimensions, time dimensions, and metrics to match pivot config
