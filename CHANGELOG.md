@@ -1,3 +1,10 @@
+# [0.1246.0](https://github.com/lightdash/lightdash/compare/0.1245.0...0.1246.0) (2024-09-05)
+
+
+### Features
+
+* sql runner pivot table ([#11419](https://github.com/lightdash/lightdash/issues/11419)) ([d92cd61](https://github.com/lightdash/lightdash/commit/d92cd61dd18b68601ace5d1b867732db3ea8999f))
+
 # [0.1245.0](https://github.com/lightdash/lightdash/compare/0.1244.3...0.1245.0) (2024-09-05)
 
 
