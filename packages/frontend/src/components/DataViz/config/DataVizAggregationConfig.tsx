@@ -5,11 +5,11 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Select, Text } from '@mantine/core';
 import {
+    IconAsterisk,
     IconMathFunction,
     IconMathMax,
     IconMathMin,
     IconMathOff,
-    IconNumber1,
     IconSum,
     IconTrendingUp,
 } from '@tabler/icons-react';
@@ -39,8 +39,8 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
         case MetricType.MAX:
             icon = IconMathMax;
             break;
-        case 'first':
-            icon = IconNumber1;
+        case VizAggregationOptions.ANY:
+            icon = IconAsterisk;
             break;
         default:
             icon = IconMathOff;

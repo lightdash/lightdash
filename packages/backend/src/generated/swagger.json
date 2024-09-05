@@ -7301,7 +7301,7 @@
                 "type": "object"
             },
             "VizAggregationOptions": {
-                "enum": ["sum", "count", "avg", "min", "max", "first"],
+                "enum": ["sum", "count", "avg", "min", "max", "any"],
                 "type": "string"
             },
             "ApiSqlRunnerPivotQueryPayload": {

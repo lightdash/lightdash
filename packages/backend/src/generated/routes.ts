@@ -6558,7 +6558,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     VizAggregationOptions: {
         dataType: 'refEnum',
-        enums: ['sum', 'count', 'avg', 'min', 'max', 'first'],
+        enums: ['sum', 'count', 'avg', 'min', 'max', 'any'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiSqlRunnerPivotQueryPayload: {
