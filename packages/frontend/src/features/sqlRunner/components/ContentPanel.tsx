@@ -448,6 +448,10 @@ export const ContentPanel: FC = () => {
                                                                             error={
                                                                                 chartVizQuery.error
                                                                             }
+                                                                            style={{
+                                                                                height: inputSectionHeight,
+                                                                                flex: 1,
+                                                                            }}
                                                                         />
                                                                     </ConditionalVisibility>
                                                                 ),
