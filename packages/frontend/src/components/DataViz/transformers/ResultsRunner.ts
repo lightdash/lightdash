@@ -259,6 +259,10 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
         return this.columns.map((column) => column.reference);
     }
 
+    getColumnsAccessorFn(column: string) {
+        return (row: RawResultRow) => row[column];
+    }
+
     getRows() {
         return this.rows;
     }

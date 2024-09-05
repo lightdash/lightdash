@@ -1,4 +1,6 @@
 import {
+    convertColumnToResultsColumn,
+    convertToResultsColumns,
     type PivotChartData,
     type RawResultRow,
     type SemanticLayerPivot,
@@ -6,6 +8,7 @@ import {
     type VizChartLayout,
     type VizSqlColumn,
 } from '@lightdash/common';
+import { difference } from 'lodash';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
@@ -40,24 +43,83 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         this.projectUuid = projectUuid;
     }
 
+    getColumnsAccessorFn(column: string) {
+        return (row: RawResultRow) => {
+            const resultsColumns = Object.keys(row);
+
+            // Result columns casing depends on warehouse, so we need to find the correct column name
+            const mappedColumn = convertColumnToResultsColumn(
+                column,
+                resultsColumns,
+            );
+
+            if (!mappedColumn) {
+                return;
+            }
+
+            return row[mappedColumn];
+        };
+    }
+
     async getPivotChartData(config: VizChartLayout): Promise<PivotChartData> {
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
+
+        // Filter dimensions, time dimensions, and metrics to match pivot config
+        // This ensures correct aggregation for non-aggregated backend pivots (e.g., pie charts)
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid: this.projectUuid,
             query: {
                 ...this.query,
+                dimensions: this.query.dimensions.filter(
+                    (dimension) =>
+                        pivotConfig.on.includes(dimension.name) ||
+                        pivotConfig.index.includes(dimension.name),
+                ),
+                timeDimensions: this.query.timeDimensions.filter(
+                    (timeDimension) =>
+                        pivotConfig.on.includes(timeDimension.name) ||
+                        pivotConfig.index.includes(timeDimension.name),
+                ),
+                metrics: this.query.metrics.filter((metric) =>
+                    pivotConfig.values.includes(metric.name),
+                ),
+                // TODO: could this break sorting?
+                sortBy: this.query.sortBy.filter(
+                    (sortBy) =>
+                        pivotConfig.on.includes(sortBy.name) ||
+                        pivotConfig.index.includes(sortBy.name) ||
+                        pivotConfig.values.includes(sortBy.name),
+                ),
                 pivot: pivotConfig,
             },
         });
 
-        // TODO: confirm if it is correct
+        const allResultsColumns = Object.keys(pivotedResults?.[0] ?? {});
+        let indexColumn: VizChartLayout['x'] | undefined;
+
+        if (config.x) {
+            const xReference = convertColumnToResultsColumn(
+                config.x.reference,
+                allResultsColumns,
+            );
+
+            indexColumn = xReference
+                ? {
+                      ...config.x,
+                      reference: xReference,
+                  }
+                : undefined;
+        }
+
+        const columnsToRemove = convertToResultsColumns(
+            [...pivotConfig.index, ...pivotConfig.on],
+            allResultsColumns,
+        );
+
         return {
-            indexColumn: config.x,
+            indexColumn,
             results: pivotedResults ?? [],
-            valuesColumns: Object.keys(pivotedResults?.[0] ?? {}).filter(
-                (name) =>
-                    ![...pivotConfig.index, ...pivotConfig.on].includes(name),
-            ),
+            valuesColumns: difference(allResultsColumns, columnsToRemove),
         };
     }
 }
