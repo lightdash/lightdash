@@ -5,7 +5,7 @@ import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
 export const credentials: CreateBigqueryCredentials = {
     type: WarehouseTypes.BIGQUERY,
-    project: '',
+    project: 'myDatabase',
     dataset: '',
     timeoutSeconds: 0,
     priority: 'interactive',
@@ -51,12 +51,9 @@ const metadata = {
 };
 
 export const getTableResponse = {
-    getMetadata: jest.fn(() => [metadata]),
-};
-export const getDatasetResponse = {
-    id: 'mySchema',
+    id: 'myTable',
     bigQuery: { projectId: 'myDatabase' },
-    table: jest.fn(() => getTableResponse),
+    getMetadata: jest.fn(() => [metadata]),
 };
 
 export const rows: Record<string, any>[] = [
