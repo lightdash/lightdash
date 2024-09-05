@@ -1,4 +1,4 @@
-import { type SemanticLayerField } from '@lightdash/common';
+import { type SemanticLayerColumn } from '@lightdash/common';
 import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -13,10 +13,9 @@ import {
     updateFieldLabel,
 } from '../../../../components/DataViz/store/tableVisSlice';
 import { Config } from '../../../../components/VisualizationConfigs/common/Config';
-import { getDimensionTypeFromSemanticLayerFieldType } from '../../store/semanticViewerSlice';
 
-const TableVisConfiguration: FC<{ fields: SemanticLayerField[] }> = ({
-    fields,
+const TableVisConfiguration: FC<{ columns: SemanticLayerColumn[] }> = ({
+    columns,
 }) => {
     const dispatch = useVizDispatch();
 
@@ -42,8 +41,8 @@ const TableVisConfiguration: FC<{ fields: SemanticLayerField[] }> = ({
                     <Config.Heading>Column labels</Config.Heading>
 
                     {Object.keys(tableVisConfig.columns).map((reference) => {
-                        const fieldType = fields?.find(
-                            (c) => c.name === reference,
+                        const fieldType = columns?.find(
+                            (c) => c.reference === reference,
                         )?.type;
 
                         return (
@@ -53,11 +52,7 @@ const TableVisConfiguration: FC<{ fields: SemanticLayerField[] }> = ({
                                 value={tableVisConfig.columns[reference].label}
                                 icon={
                                     fieldType && (
-                                        <TableFieldIcon
-                                            fieldType={getDimensionTypeFromSemanticLayerFieldType(
-                                                fieldType,
-                                            )}
-                                        />
+                                        <TableFieldIcon fieldType={fieldType} />
                                     )
                                 }
                                 rightSection={

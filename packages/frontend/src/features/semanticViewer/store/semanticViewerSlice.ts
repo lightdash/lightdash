@@ -1,17 +1,16 @@
 import {
     assertUnreachable,
     ChartKind,
-    DimensionType,
     FieldType,
     SemanticLayerFieldType,
     SemanticLayerSortByDirection,
     type RawResultRow,
     type SemanticLayerClientInfo,
+    type SemanticLayerColumn,
     type SemanticLayerField,
     type SemanticLayerFilter,
     type SemanticLayerSortBy,
     type SemanticLayerTimeDimension,
-    type VizSqlColumn,
     type VizTableConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -95,26 +94,27 @@ const getKeyByField = (
     }
 };
 
-export function getDimensionTypeFromSemanticLayerFieldType(
-    type: SemanticLayerFieldType,
-): DimensionType {
-    switch (type) {
-        case SemanticLayerFieldType.TIME:
-            return DimensionType.TIMESTAMP;
-        case SemanticLayerFieldType.STRING:
-            return DimensionType.STRING;
-        case SemanticLayerFieldType.NUMBER:
-            return DimensionType.NUMBER;
-        case SemanticLayerFieldType.BOOLEAN:
-            return DimensionType.BOOLEAN;
-        default:
-            return assertUnreachable(type, `Unknown field type: ${type}`);
-    }
-}
+// TODO: removed but still may be needed
+// export function getDimensionTypeFromSemanticLayerFieldType(
+//     type: SemanticLayerFieldType,
+// ): DimensionType {
+//     switch (type) {
+//         case SemanticLayerFieldType.TIME:
+//             return DimensionType.TIMESTAMP;
+//         case SemanticLayerFieldType.STRING:
+//             return DimensionType.STRING;
+//         case SemanticLayerFieldType.NUMBER:
+//             return DimensionType.NUMBER;
+//         case SemanticLayerFieldType.BOOLEAN:
+//             return DimensionType.BOOLEAN;
+//         default:
+//             return assertUnreachable(type, `Unknown field type: ${type}`);
+//     }
+// }
 
 export type ResultsAndColumns = {
     results: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: SemanticLayerColumn[];
     sortBy: [];
 };
 
@@ -137,7 +137,7 @@ export interface SemanticViewerState {
     resultsTableConfig: VizTableConfig | undefined;
 
     results: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: SemanticLayerColumn[];
     fields: SemanticLayerField[];
 
     selectedDimensions: Record<string, SemanticLayerStateDimension>;
@@ -206,7 +206,7 @@ export const semanticViewerSlice = createSlice({
             state,
             action: PayloadAction<{
                 results: RawResultRow[];
-                columns: VizSqlColumn[];
+                columns: SemanticLayerColumn[];
             }>,
         ) => {
             state.results = action.payload.results || [];
@@ -288,6 +288,17 @@ export const semanticViewerSlice = createSlice({
             state.activeChartKind = action.payload;
         },
         setFields: (state, action: PayloadAction<SemanticLayerField[]>) => {
+            const columns: SemanticLayerColumn[] = action.payload.map(
+                (field) => ({
+                    reference: field.name,
+                    type: getDimensionTypeFromSemanticLayerFieldType(
+                        field.type,
+                    ),
+                    kind: field.kind,
+                }),
+            );
+
+            state.columns = columns;
             state.fields = action.payload;
         },
         addFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {

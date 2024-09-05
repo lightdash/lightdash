@@ -1,4 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
+import { type VizSqlColumn } from '../visualizations/types';
 import { type FieldType } from './field';
 
 export type SemanticLayerView = {
@@ -45,6 +46,10 @@ export type SemanticLayerField = {
     aggType?: string; // eg: count, sum
     availableGranularities: SemanticLayerTimeGranularity[];
     availableOperators: SemanticLayerStringFilterOperator[];
+};
+
+export type SemanticLayerColumn = VizSqlColumn & {
+    kind: FieldType;
 };
 
 export type SemanticLayerTimeDimension = SemanticLayerField & {

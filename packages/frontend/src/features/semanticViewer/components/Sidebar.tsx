@@ -30,7 +30,7 @@ const Sidebar: FC = () => {
     const handleExitView = () => {
         dispatch(resetState());
     };
-    const { activeSidebarTab, activeChartKind, fields } = useAppSelector(
+    const { activeSidebarTab, activeChartKind, columns } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -88,7 +88,7 @@ const Sidebar: FC = () => {
                         setSelectedChartType={(value) =>
                             dispatch(setActiveChartKind(value))
                         }
-                        fields={fields}
+                        columns={columns}
                     />
                 </Stack>
             </ScrollArea>
