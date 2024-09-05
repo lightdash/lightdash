@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# get latest docker compose file
+docker pull numidatech/lightdash:latest &&
+    CONTAINER_ID=$(docker create numidatech/lightdash:latest) &&
+    docker cp "$CONTAINER_ID:/usr/app/docker-compose.yml" docker-compose.yml &&
+    docker rm $CONTAINER_ID &&
+    # start the docker services
+    docker compose -f docker-compose.yml --env-file ./bin/.env up --detach --remove-orphans &&
+    docker system prune -af
