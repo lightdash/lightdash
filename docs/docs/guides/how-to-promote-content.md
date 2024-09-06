@@ -51,7 +51,7 @@ style={{ display: 'block', margin: '0 auto 20px auto' }}
 
 :::info
 
-You must be a `developer` and have access to the chart and space in both the `development project` and the `upstream project`. The space must also be public—promoting content in private or restricted access spaces is not supported yet.
+You must be a `developer` and have access to the chart and space in both the `development project` and the `upstream project`.
 
 :::
 
@@ -88,7 +88,7 @@ style={{ display: 'block', margin: '0 auto 20px auto' }}
 
 :::info
 
-You must be a `developer` and have access to the dashboard and space in both the `development project` and the `upstream project` as well as have access to all the charts in the dashboard. The space must also be public—promoting content in private or restricted access spaces is not supported yet.
+You must be a `developer` and have access to the dashboard and space in both the `development project` and the `upstream project` as well as have access to all the charts in the dashboard.
 
 :::
 
