@@ -48,9 +48,13 @@ const ViewSqlChart = () => {
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const { resultsTableConfig, selectedChartType, sql } = useAppSelector(
-        (state) => state.sqlRunner,
+    const resultsTableConfig = useAppSelector(
+        (state) => state.sqlRunner.resultsTableConfig,
     );
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
 
     const currentVisConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
@@ -162,6 +166,7 @@ const ViewSqlChart = () => {
 
                     {data && !isLoading && (
                         <Box
+                            h="100%"
                             sx={{
                                 position: 'relative',
                                 flex: 1,
@@ -201,12 +206,17 @@ const ViewSqlChart = () => {
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.RESULTS}
                             >
-                                <Table
-                                    resultsRunner={resultsRunner}
-                                    columnsConfig={
-                                        resultsTableConfig?.columns ?? {}
-                                    }
-                                />
+                                {resultsTableConfig?.columns && (
+                                    <Table
+                                        resultsRunner={resultsRunner}
+                                        columnsConfig={
+                                            resultsTableConfig.columns
+                                        }
+                                        flexProps={{
+                                            mah: 'calc(100vh - 250px)',
+                                        }}
+                                    />
+                                )}
                             </ConditionalVisibility>
                         </Box>
                     )}

@@ -29,10 +29,17 @@ export const Table = <T extends ResultsRunner>({
         getTableData,
         paddingTop,
         paddingBottom,
-    } = useTableDataModel({ columnsConfig, resultsRunner });
+    } = useTableDataModel({
+        config: {
+            columns: columnsConfig,
+        },
+        resultsRunner,
+    });
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
+
+    console.log({ virtualRows });
 
     return (
         <Flex
@@ -74,7 +81,7 @@ export const Table = <T extends ResultsRunner>({
                                             </Badge>
                                         )}
                                         {/* TODO: do we need to check if it's a
-                                            placeholder? */}
+                                        placeholder? */}
                                         {flexRender(
                                             header.column.columnDef.header,
                                             header.getContext(),
