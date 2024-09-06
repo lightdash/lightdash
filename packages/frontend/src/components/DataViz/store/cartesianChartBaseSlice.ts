@@ -116,16 +116,6 @@ export const cartesianChartConfigSlice = createSlice({
             config.display = config.display || {};
             config.display.yAxis = config.display.yAxis || [];
 
-            // NOTE: If there's only one y-axis, set the label on the series as well
-            if (config.fieldConfig?.y.length === 1) {
-                config.display.series = {
-                    [config.fieldConfig.y[0].reference]: {
-                        yAxisIndex: 0,
-                        label: action.payload.label,
-                    },
-                };
-            }
-
             const { index, label } = action.payload;
             if (config.display.yAxis[index] === undefined) {
                 config.display.yAxis[index] = {
@@ -195,12 +185,6 @@ export const cartesianChartConfigSlice = createSlice({
             }
 
             if (yAxisFields) {
-                // NOTE: When we add a new y axis when there's only one series, then reset the series' label
-                if (yAxisFields.length === 1 && state.config.display?.series) {
-                    state.config.display.series[
-                        yAxisFields[0].reference
-                    ].label = undefined;
-                }
                 state.config.fieldConfig.y.push({
                     reference: defaultYAxisField,
                     aggregation: VIZ_DEFAULT_AGGREGATION,
@@ -233,19 +217,6 @@ export const cartesianChartConfigSlice = createSlice({
                             }
                         },
                     );
-
-                    // NOTE: When there's only one y-axis left, set the label on the series as well
-                    if (
-                        state.config.fieldConfig.y.length === 1 &&
-                        state.config.display.yAxis
-                    ) {
-                        state.config.display.series = {
-                            [state.config.fieldConfig.y[0].reference]: {
-                                yAxisIndex: 0,
-                                label: state.config.display.yAxis[0].label,
-                            },
-                        };
-                    }
                 }
             }
         },
