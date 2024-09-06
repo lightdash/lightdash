@@ -908,13 +908,7 @@ export default class SchedulerTask {
                 scheduledTime,
                 details: { createdByUserUuid: payload.userUuid },
             },
-            async () => {
-                const { fileUrl } =
-                    await this.semanticLayerService.streamQueryIntoFile(
-                        payload,
-                    );
-                return { fileUrl };
-            },
+            async () => this.semanticLayerService.streamQueryIntoFile(payload),
         );
     }
 

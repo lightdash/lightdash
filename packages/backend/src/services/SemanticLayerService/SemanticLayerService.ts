@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    DimensionType,
     ForbiddenError,
     MissingConfigError,
     ParameterError,
@@ -11,8 +10,7 @@ import {
     SemanticLayerResultRow,
     SemanticLayerView,
     SessionUser,
-    type SemanticLayerColumnMapping,
-    type VizSqlColumn,
+    type PivotChartData,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
@@ -183,9 +181,11 @@ export class SemanticLayerService extends BaseService {
         projectUuid,
         query,
         context,
-    }: SemanticLayerQueryPayload): Promise<{
-        fileUrl: string;
-    }> {
+    }: SemanticLayerQueryPayload): Promise<
+        {
+            fileUrl: string;
+        } & Pick<PivotChartData, 'indexColumn' | 'valuesColumns'>
+    > {
         // TODO add analytics
         Logger.debug(`Streaming query into file for project ${projectUuid}`);
         const client = await this.getSemanticLayerClient(projectUuid);
@@ -201,30 +201,62 @@ export class SemanticLayerService extends BaseService {
             });
         };
 
+        let indexColumn: PivotChartData['indexColumn'];
+        let valuesColumns: PivotChartData['valuesColumns'] = [];
+
         // When pivot is present, we need to pivot the results
         // To do this we first need to fetch all the results and then pivot them
         if (query.pivot) {
             const results = [] as SemanticLayerResultRow[];
 
-            // Wait for all results to be fetched
-            await client.streamResults(projectUuid, query, async (rows) => {
-                results.push(...rows);
-            });
+            const { pivot } = query;
 
-            const columnMappings = await this.getColumnMappings(
+            // Wait for all results to be fetched, edit the query so that it only fetches the columns we need
+            await client.streamResults(
                 projectUuid,
-                query,
+                {
+                    ...query,
+                    dimensions: query.dimensions.filter(
+                        (dimension) =>
+                            pivot.index.includes(dimension.name) ||
+                            pivot.on?.reference === dimension.name,
+                    ),
+                    timeDimensions: query.timeDimensions.filter(
+                        (timeDimension) =>
+                            pivot.index.includes(timeDimension.name) ||
+                            pivot.on?.reference === timeDimension.name,
+                    ),
+                    metrics: query.metrics.filter((metric) =>
+                        pivot.values.includes(metric.name),
+                    ),
+                    sortBy: query.sortBy.filter(
+                        (sortBy) =>
+                            pivot.index.includes(sortBy.name) ||
+                            pivot.values.includes(sortBy.name) ||
+                            pivot.on?.reference === sortBy.name,
+                    ),
+                },
+                async (rows) => {
+                    results.push(...rows);
+                },
             );
 
             // Pivot results
             const pivotedResults =
                 query.pivot.index.length === 0
                     ? results
-                    : pivotResults(results, query.pivot, columnMappings);
+                    : pivotResults(results, query.pivot);
 
             streamFunctionCallback = async (writer) => {
                 pivotedResults.forEach(writer);
             };
+
+            const resultsKeys = Object.keys(pivotedResults[0] ?? {}).filter(
+                (key) => query.pivot?.on?.reference !== key,
+            );
+
+            indexColumn = query.pivot.on;
+            valuesColumns = resultsKeys;
         }
 
         const fileUrl = await this.downloadFileModel.streamFunction(
@@ -235,7 +267,7 @@ export class SemanticLayerService extends BaseService {
             this.s3Client,
         );
 
-        return { fileUrl };
+        return { fileUrl, indexColumn, valuesColumns };
     }
 
     async getSql(

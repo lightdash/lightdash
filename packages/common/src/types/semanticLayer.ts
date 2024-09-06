@@ -56,7 +56,7 @@ export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
 };
 
 export type SemanticLayerPivot = {
-    on: string[];
+    on: { reference: string; type: string } | undefined;
     index: string[];
     values: string[];
 };

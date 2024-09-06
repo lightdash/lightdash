@@ -9201,13 +9201,19 @@
                         "type": "array"
                     },
                     "on": {
-                        "items": {
-                            "type": "string"
+                        "properties": {
+                            "type": {
+                                "type": "string"
+                            },
+                            "reference": {
+                                "type": "string"
+                            }
                         },
-                        "type": "array"
+                        "required": ["type", "reference"],
+                        "type": "object"
                     }
                 },
-                "required": ["values", "index", "on"],
+                "required": ["values", "index"],
                 "type": "object"
             },
             "SemanticLayerFilterBase": {

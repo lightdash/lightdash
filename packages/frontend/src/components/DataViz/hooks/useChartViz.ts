@@ -95,6 +95,8 @@ export const useChartViz = <T extends ResultsRunner>({
 
         const transformedData = transformedDataQuery.data;
 
+        console.log(transformedData);
+
         if (
             isVizPieChartConfig(config) &&
             chartDataModel instanceof PieChartDataModel
@@ -108,12 +110,16 @@ export const useChartViz = <T extends ResultsRunner>({
             isVizCartesianChartConfig(config) &&
             chartDataModel instanceof CartesianChartDataModel
         ) {
-            return chartDataModel.getEchartsSpec(
+            const lol = chartDataModel.getEchartsSpec(
                 transformedData,
                 config.display,
                 config.type,
                 org?.data?.chartColors,
             );
+
+            console.log(lol);
+
+            return lol;
         }
     }, [chartDataModel, config, org?.data?.chartColors, transformedDataQuery]);
 

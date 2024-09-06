@@ -1,8 +1,9 @@
 import {
-    isApiSqlRunnerJobSuccessResponse,
+    isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
     type ApiJobScheduledResponse,
     type ApiSemanticLayerClientInfo,
+    type PivotChartData,
     type SemanticLayerColumnMapping,
     type SemanticLayerField,
     type SemanticLayerQuery,
@@ -100,17 +101,26 @@ const apiPostSemanticLayerRun = ({
 export const apiGetSemanticLayerQueryResults = async ({
     projectUuid,
     query,
-}: PostSemanticLayerQueryRequestParams) => {
+}: PostSemanticLayerQueryRequestParams): Promise<PivotChartData> => {
     const { jobId } = await apiPostSemanticLayerRun({ projectUuid, query });
     const job = await getSqlRunnerCompleteJob(jobId);
-    const url =
-        isApiSqlRunnerJobSuccessResponse(job) &&
-        job?.details &&
-        !isErrorDetails(job.details)
-            ? job.details.fileUrl
-            : undefined;
 
-    return getResultsFromStream<SemanticLayerResultRow>(url);
+    // TODO: either move types into common or create a new type for this
+    if (isApiSqlRunnerJobPivotQuerySuccessResponse(job)) {
+        const url =
+            job.details && !isErrorDetails(job.details)
+                ? job.details.fileUrl
+                : undefined;
+        const results = await getResultsFromStream<SemanticLayerResultRow>(url);
+
+        return {
+            results,
+            indexColumn: job.details.indexColumn,
+            valuesColumns: job.details.valuesColumns,
+        };
+    } else {
+        throw job;
+    }
 };
 
 export const apiGetSemanticLayerColumnMappings = ({
