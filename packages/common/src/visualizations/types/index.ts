@@ -9,6 +9,7 @@ export enum VizAggregationOptions {
     AVERAGE = 'avg',
     MIN = 'min',
     MAX = 'max',
+    ANY = 'any',
 }
 
 export const vizAggregationOptions = [
@@ -17,6 +18,7 @@ export const vizAggregationOptions = [
     VizAggregationOptions.AVERAGE,
     VizAggregationOptions.MIN,
     VizAggregationOptions.MAX,
+    VizAggregationOptions.ANY,
 ];
 
 export const VIZ_DEFAULT_AGGREGATION = VizAggregationOptions.COUNT;
