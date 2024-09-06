@@ -1,6 +1,3 @@
-// FIXES ts2742 issue with configureStore
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-import type * as rtk from '@reduxjs/toolkit';
 import { configureStore } from '@reduxjs/toolkit';
 import { useDispatch, useSelector } from 'react-redux';
 import { barChartConfigSlice, type BarChartActionsType } from './barChartSlice';
