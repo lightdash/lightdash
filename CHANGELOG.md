@@ -1,3 +1,10 @@
+## [0.1248.2](https://github.com/lightdash/lightdash/compare/0.1248.1...0.1248.2) (2024-09-06)
+
+
+### Bug Fixes
+
+* do not remove special chars in tooltip ([#11456](https://github.com/lightdash/lightdash/issues/11456)) ([c70b92a](https://github.com/lightdash/lightdash/commit/c70b92a3418464b55b9054e13746897d69e3e080))
+
 ## [0.1248.1](https://github.com/lightdash/lightdash/compare/0.1248.0...0.1248.1) (2024-09-06)
 
 
