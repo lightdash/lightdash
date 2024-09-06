@@ -112,6 +112,13 @@ function getDimensionTypeFromSemanticLayerFieldType(
     }
 }
 
+function getSemanticLayerFieldFromColumn(
+    state: SemanticViewerState,
+    column: string,
+) {
+    return state.fields.find((field) => field.name === column);
+}
+
 export type ResultsAndColumns = {
     results: RawResultRow[];
     columns: VizSqlColumn[];
@@ -210,6 +217,35 @@ export const semanticViewerSlice = createSlice({
             }>,
         ) => {
             state.results = action.payload.results || [];
+            const payloadColumns = action.payload.columns;
+
+            const sqlColumns: VizSqlColumn[] = payloadColumns
+                .map<VizSqlColumn | undefined>((column) => {
+                    const field = getSemanticLayerFieldFromColumn(
+                        state,
+                        column.reference,
+                    );
+
+                    if (!field) {
+                        return;
+                    }
+
+                    const dimType = getDimensionTypeFromSemanticLayerFieldType(
+                        field.type,
+                    );
+
+                    if (!dimType) {
+                        return;
+                    }
+
+                    return {
+                        reference: column.reference,
+                        type: dimType,
+                    };
+                })
+                .filter((c): c is VizSqlColumn => Boolean(c));
+
+            state.columns = sqlColumns;
         },
 
         selectField: (
@@ -288,12 +324,6 @@ export const semanticViewerSlice = createSlice({
             state.activeChartKind = action.payload;
         },
         setFields: (state, action: PayloadAction<SemanticLayerField[]>) => {
-            const sqlColumns: VizSqlColumn[] = action.payload.map((field) => ({
-                reference: field.name,
-                type: getDimensionTypeFromSemanticLayerFieldType(field.type),
-            }));
-
-            state.columns = sqlColumns;
             state.fields = action.payload;
         },
         addFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
