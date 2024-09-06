@@ -476,7 +476,7 @@ describe.skip(`Load testing`, () => {
     });
 });
 
-describe.skip(`Saved SQL chart`, () => {
+describe(`Saved SQL chart`, () => {
     beforeEach(() => {
         cy.login();
     });
