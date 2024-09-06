@@ -48,7 +48,7 @@ export type SemanticLayerField = {
 };
 
 export type SemanticLayerTimeDimension = SemanticLayerField & {
-    granularity: SemanticLayerTimeGranularity;
+    granularity?: SemanticLayerTimeGranularity;
 };
 
 export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {

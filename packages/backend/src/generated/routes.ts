@@ -8248,10 +8248,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
-                granularity: {
-                    ref: 'SemanticLayerTimeGranularity',
-                    required: true,
-                },
+                granularity: { ref: 'SemanticLayerTimeGranularity' },
             },
             validators: {},
         },
