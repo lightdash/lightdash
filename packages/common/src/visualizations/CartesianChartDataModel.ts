@@ -162,9 +162,18 @@ export class CartesianChartDataModel
                 const seriesFormat = Object.values(display?.series || {}).find(
                     (s) => s.yAxisIndex === index,
                 )?.format;
-                const seriesLabel = Object.values(display?.series || {}).find(
-                    (s) => s.yAxisIndex === index,
-                )?.label;
+
+                const singleYAxisLabel =
+                    // NOTE: When there's only one y-axis left, set the label on the series as well
+                    this.fieldConfig?.y.length === 1 &&
+                    display?.yAxis?.[0]?.label
+                        ? display.yAxis[0].label
+                        : undefined;
+                const seriesLabel =
+                    singleYAxisLabel ??
+                    Object.values(display?.series || {}).find(
+                        (s) => s.yAxisIndex === index,
+                    )?.label;
 
                 const seriesColor = Object.values(display?.series || {}).find(
                     (s) => s.yAxisIndex === index,
@@ -210,7 +219,7 @@ export class CartesianChartDataModel
                 appendToBody: true, // Similar to rendering a tooltip in a Portal
             },
             legend: {
-                show: true,
+                show: !!(transformedData.valuesColumns.length > 1),
                 type: 'scroll',
             },
             xAxis: {

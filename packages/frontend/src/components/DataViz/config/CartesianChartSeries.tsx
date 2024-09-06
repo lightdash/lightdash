@@ -69,6 +69,7 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
                                                 actions.setSeriesLabel({
                                                     label: e.target.value,
                                                     reference,
+                                                    index,
                                                 }),
                                             );
                                         }}
