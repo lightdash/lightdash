@@ -63,6 +63,7 @@ import {
     SavedChartsTableName,
     SavedChartTable,
 } from '../../database/entities/savedCharts';
+import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
@@ -252,7 +253,7 @@ export class DashboardModel {
                     dashboard_tile_uuid: uuid,
                     saved_sql_uuid: properties.savedSqlUuid,
                     hide_title: properties.hideTitle,
-                    title: properties.title ?? properties.chartName,
+                    title: properties.title,
                 })),
             );
         }
@@ -688,7 +689,12 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${DashboardTilesTableName}.tab_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
-                `${SavedChartsTableName}.name`,
+                this.database.raw(
+                    ` COALESCE(
+                        ${SavedChartsTableName}.name, 
+                        ${SavedSqlTableName}.name
+                    ) AS name`,
+                ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
                 this.database.raw(
@@ -700,7 +706,6 @@ export class DashboardModel {
                         ${DashboardTileLoomsTableName}.title,
                         ${DashboardTileMarkdownsTableName}.title,
                         ${DashboardTileSqlChartTableName}.title
-
                     ) AS title`,
                 ),
                 this.database.raw(
@@ -762,6 +767,11 @@ export class DashboardModel {
                     `${DashboardTilesTableName}.dashboard_version_id`,
                 );
             })
+            .leftJoin(
+                SavedSqlTableName,
+                `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
+                `${SavedSqlTableName}.saved_sql_uuid`,
+            )
             .leftJoin(
                 SavedChartsTableName,
                 `${DashboardTileChartTableName}.saved_chart_id`,
@@ -874,7 +884,7 @@ export class DashboardModel {
                                 type: DashboardTileTypes.SQL_CHART,
                                 properties: {
                                     ...commonProperties,
-                                    chartName: name ?? title ?? '',
+                                    chartName: name,
                                     savedSqlUuid: saved_sql_uuid,
                                 },
                             };
