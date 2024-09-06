@@ -56,11 +56,7 @@ const ChartView = memo<Props>(({ config, isLoading, error, style, spec }) => {
                 <EChartsReact
                     option={spec}
                     notMerge
-                    opts={{
-                        renderer: 'svg',
-                        width: 'auto',
-                        height: 'auto',
-                    }}
+                    opts={{ renderer: 'svg' }}
                     style={style}
                 />
             )}

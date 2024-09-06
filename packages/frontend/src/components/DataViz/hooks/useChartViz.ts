@@ -10,7 +10,7 @@ import {
     type PivotChartData,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { type ResultsRunner } from '../transformers/ResultsRunner';
 
@@ -22,7 +22,6 @@ type Args<T extends ResultsRunner> = {
     uuid?: string;
     resultsRunner: T | undefined;
     config: AllVizChartConfig | undefined;
-    onPivot?: (pivotData: PivotChartData) => void;
 };
 export const useChartViz = <T extends ResultsRunner>({
     projectUuid,
@@ -32,7 +31,6 @@ export const useChartViz = <T extends ResultsRunner>({
     uuid,
     resultsRunner,
     config,
-    onPivot,
 }: Args<T>) => {
     const org = useOrganization();
 
@@ -91,12 +89,6 @@ export const useChartViz = <T extends ResultsRunner>({
         enabled: !!chartDataModel && !!queryKey,
         keepPreviousData: true,
     });
-
-    useEffect(() => {
-        if (transformedDataQuery.data) {
-            onPivot?.(transformedDataQuery.data);
-        }
-    }, [transformedDataQuery.data, onPivot]);
 
     const chartSpec = useMemo(() => {
         if (!transformedDataQuery.isSuccess) return undefined;

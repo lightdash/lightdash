@@ -177,14 +177,26 @@ const ViewSqlChart = () => {
                             >
                                 {currentVisConfig && (
                                     <>
-                                        {isVizTableConfig(currentVisConfig) && (
-                                            <Table
-                                                resultsRunner={resultsRunner}
-                                                columnsConfig={
-                                                    currentVisConfig.columns
-                                                }
-                                            />
-                                        )}
+                                        {isVizTableConfig(currentVisConfig) &&
+                                            resultsTableConfig && (
+                                                <Table
+                                                    resultsRunner={
+                                                        resultsRunner
+                                                    }
+                                                    columnsConfig={
+                                                        // TODO: this is a temporary fix to handle the case where the columns config is not set
+                                                        // TODO: ensure columns config is sent and processed in the backend correctly
+                                                        Object.keys(
+                                                            currentVisConfig.columns,
+                                                        ).length > 0
+                                                            ? currentVisConfig.columns
+                                                            : resultsTableConfig.columns
+                                                    }
+                                                    flexProps={{
+                                                        mah: 'calc(100vh - 250px)',
+                                                    }}
+                                                />
+                                            )}
                                         {!isVizTableConfig(currentVisConfig) &&
                                             data &&
                                             params.slug &&
