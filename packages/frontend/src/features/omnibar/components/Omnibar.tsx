@@ -149,6 +149,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         ) {
             history.go(0); // force page refresh so explore page can pick up the new url params
         }
+        setQuery(undefined);
     };
 
     const hasEnteredQuery = query !== undefined && query !== '';
