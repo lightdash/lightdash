@@ -1,3 +1,10 @@
+## [0.1247.4](https://github.com/lightdash/lightdash/compare/0.1247.3...0.1247.4) (2024-09-06)
+
+
+### Bug Fixes
+
+* sql runner loop by removing unnecessary hook ([#11439](https://github.com/lightdash/lightdash/issues/11439)) ([f6f3a3f](https://github.com/lightdash/lightdash/commit/f6f3a3f13111f3036034dda45c33e583cec4428e))
+
 ## [0.1247.3](https://github.com/lightdash/lightdash/compare/0.1247.2...0.1247.3) (2024-09-06)
 
 
