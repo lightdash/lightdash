@@ -297,35 +297,40 @@ const TileFilterConfiguration: FC<Props> = ({
         [tileTargetList, isAllChecked],
     );
 
-    return tabs.length > 0 ? (
-        <Accordion defaultValue={activeTabUuid} variant="contained">
-            {tabs.map((tab, index) => (
-                <Flex align="center" gap="sm" key={index}>
-                    <Accordion.Item
-                        key={index}
-                        value={tab.uuid}
-                        style={{ flexGrow: 1 }}
-                    >
-                        <Accordion.Control
-                            fw={500}
-                            style={{ fontSize: '14px', fontWeight: 500 }}
+    const tileList =
+        tabs.length > 0 ? (
+            <Accordion defaultValue={activeTabUuid} variant="contained">
+                {tabs.map((tab, index) => (
+                    <Flex align="center" gap="sm" key={index}>
+                        <Accordion.Item
+                            key={index}
+                            value={tab.uuid}
+                            style={{ flexGrow: 1 }}
                         >
-                            {tab.name}
-                        </Accordion.Control>
-                        <Accordion.Panel>
-                            <StackSubComponent
-                                tileList={filteredTileTargetList(tab.uuid)}
-                            />
-                        </Accordion.Panel>
-                    </Accordion.Item>
-                    <SwitchToggle
-                        tileList={filteredTileTargetList(tab.uuid)}
-                        tabName={tab.name}
-                    />
-                </Flex>
-            ))}
-        </Accordion>
-    ) : (
+                            <Accordion.Control
+                                fw={500}
+                                style={{ fontSize: '14px', fontWeight: 500 }}
+                            >
+                                {tab.name}
+                            </Accordion.Control>
+                            <Accordion.Panel>
+                                <StackSubComponent
+                                    tileList={filteredTileTargetList(tab.uuid)}
+                                />
+                            </Accordion.Panel>
+                        </Accordion.Item>
+                        <SwitchToggle
+                            tileList={filteredTileTargetList(tab.uuid)}
+                            tabName={tab.name}
+                        />
+                    </Flex>
+                ))}
+            </Accordion>
+        ) : (
+            <StackSubComponent tileList={tileTargetList} />
+        );
+
+    return (
         <Stack spacing="lg">
             <Checkbox
                 size="xs"
@@ -355,7 +360,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     }
                 }}
             />
-            <StackSubComponent tileList={tileTargetList} />
+            {tileList}
         </Stack>
     );
 };
