@@ -1,3 +1,10 @@
+## [0.1247.3](https://github.com/lightdash/lightdash/compare/0.1247.2...0.1247.3) (2024-09-06)
+
+
+### Bug Fixes
+
+* clear omnibar on clicking item ([#11443](https://github.com/lightdash/lightdash/issues/11443)) ([8ad597f](https://github.com/lightdash/lightdash/commit/8ad597f482e32a539ad341ebb88f9de13e9f1ef2))
+
 ## [0.1247.2](https://github.com/lightdash/lightdash/compare/0.1247.1...0.1247.2) (2024-09-06)
 
 
