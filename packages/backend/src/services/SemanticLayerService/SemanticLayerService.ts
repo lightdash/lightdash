@@ -184,7 +184,7 @@ export class SemanticLayerService extends BaseService {
     }: SemanticLayerQueryPayload): Promise<
         {
             fileUrl: string;
-        } & Pick<PivotChartData, 'indexColumn' | 'valuesColumns'>
+        } & Pick<PivotChartData, 'indexColumn' | 'valuesColumns' | 'columns'>
     > {
         // TODO add analytics
         Logger.debug(`Streaming query into file for project ${projectUuid}`);
@@ -192,17 +192,24 @@ export class SemanticLayerService extends BaseService {
 
         this.validateQueryLimit(query);
 
+        let columns: PivotChartData['columns'] = [];
+        let indexColumn: PivotChartData['indexColumn'];
+        let valuesColumns: PivotChartData['valuesColumns'] = [];
+
         // Default stream function, just streams results into a file
         let streamFunctionCallback: (
             writer: (data: SemanticLayerResultRow) => void,
         ) => Promise<void> = async (writer) => {
             await client.streamResults(projectUuid, query, async (rows) => {
+                if (!columns.length) {
+                    columns = Object.keys(rows[0]).map((row) => ({
+                        reference: row,
+                    }));
+                }
+
                 rows.forEach(writer);
             });
         };
-
-        let indexColumn: PivotChartData['indexColumn'];
-        let valuesColumns: PivotChartData['valuesColumns'] = [];
 
         // When pivot is present, we need to pivot the results
         // To do this we first need to fetch all the results and then pivot them
@@ -251,12 +258,15 @@ export class SemanticLayerService extends BaseService {
                 pivotedResults.forEach(writer);
             };
 
-            const resultsKeys = Object.keys(pivotedResults[0] ?? {}).filter(
-                (key) => query.pivot?.on?.reference !== key,
-            );
+            const resultsColumns = Object.keys(pivotedResults[0] ?? {});
+            columns = resultsColumns.map((column) => ({
+                reference: column,
+            }));
 
             indexColumn = query.pivot.on;
-            valuesColumns = resultsKeys;
+            valuesColumns = resultsColumns.filter(
+                (key) => query.pivot?.on?.reference !== key,
+            );
         }
 
         const fileUrl = await this.downloadFileModel.streamFunction(
@@ -267,7 +277,12 @@ export class SemanticLayerService extends BaseService {
             this.s3Client,
         );
 
-        return { fileUrl, indexColumn, valuesColumns };
+        return {
+            fileUrl,
+            indexColumn,
+            valuesColumns,
+            columns,
+        };
     }
 
     async getSql(

@@ -5110,6 +5110,9 @@
                     "maximumBytesBilled": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "executionProject": {
+                        "type": "string"
                     }
                 },
                 "required": ["type", "project", "dataset"],
@@ -9112,7 +9115,7 @@
                         "$ref": "#/components/schemas/SemanticLayerTimeGranularity"
                     }
                 },
-                "required": ["name"],
+                "required": ["name", "granularity"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -9201,19 +9204,13 @@
                         "type": "array"
                     },
                     "on": {
-                        "properties": {
-                            "type": {
-                                "type": "string"
-                            },
-                            "reference": {
-                                "type": "string"
-                            }
+                        "items": {
+                            "type": "string"
                         },
-                        "required": ["type", "reference"],
-                        "type": "object"
+                        "type": "array"
                     }
                 },
-                "required": ["values", "index"],
+                "required": ["values", "index", "on"],
                 "type": "object"
             },
             "SemanticLayerFilterBase": {
@@ -9576,7 +9573,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1244.1",
+        "version": "0.1247.6",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

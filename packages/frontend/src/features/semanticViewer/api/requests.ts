@@ -117,6 +117,7 @@ export const apiGetSemanticLayerQueryResults = async ({
             results,
             indexColumn: job.details.indexColumn,
             valuesColumns: job.details.valuesColumns,
+            columns: job.details.columns,
         };
     } else {
         throw job;

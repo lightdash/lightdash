@@ -4604,6 +4604,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    executionProject: { dataType: 'string' },
                 },
                 validators: {},
             },
@@ -8248,7 +8249,10 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
-                granularity: { ref: 'SemanticLayerTimeGranularity' },
+                granularity: {
+                    ref: 'SemanticLayerTimeGranularity',
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -8353,20 +8357,8 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 on: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                type: { dataType: 'string', required: true },
-                                reference: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                            },
-                        },
-                        { dataType: 'undefined' },
-                    ],
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                     required: true,
                 },
             },
