@@ -121,24 +121,16 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
         });
     },
     sqlToString: (sql) => sql,
-    queryToColumnMappings: (query) => {
-        const dimensions = query.dimensions.map((d) => ({
-            fieldName: d.name,
-            columnName: d.name,
-        }));
+    mapResultsKeys: (key, query) => {
+        // TODO: since we currently only support one granularity per time dimension, we can just return the time dimension name as the key
+        const timeDimension = query.timeDimensions.find((td) =>
+            key.toLowerCase().includes(td.name.toLowerCase()),
+        );
 
-        const timeDimensions = query.timeDimensions.map((td) => ({
-            fieldName: td.name,
-            columnName: td.granularity
-                ? `${td.name}__${getDbtTimeGranularity(td.granularity)}`
-                : td.name,
-        }));
+        if (timeDimension) {
+            return timeDimension.name.toLowerCase();
+        }
 
-        const metrics = query.metrics.map((m) => ({
-            fieldName: m.name,
-            columnName: m.name,
-        }));
-
-        return [...dimensions, ...timeDimensions, ...metrics];
+        return key.toLowerCase();
     },
 };

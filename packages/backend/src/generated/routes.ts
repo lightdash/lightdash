@@ -8289,18 +8289,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerColumnMapping: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                columnName: { dataType: 'string', required: true },
-                fieldName: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SemanticLayerField.name-or-kind_': {
         dataType: 'refAlias',
         type: {
@@ -16869,63 +16857,6 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.querySemanticLayerFields.apply(
-                    controller,
-                    validatedArgs as any,
-                );
-                promiseHandler(controller, promise, response, 200, next);
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.post(
-        '/api/v2/projects/:projectUuid/semantic-layer/column-mappings',
-        ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
-        ...fetchMiddlewares<RequestHandler>(
-            SemanticLayerController.prototype.getColumnMappings,
-        ),
-
-        async function SemanticLayerController_getColumnMappings(
-            request: any,
-            response: any,
-            next: any,
-        ) {
-            const args = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'SemanticLayerQuery',
-                },
-            };
-
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = getValidatedArgs(args, request, response);
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<SemanticLayerController>(
-                        SemanticLayerController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                const promise = controller.getColumnMappings.apply(
                     controller,
                     validatedArgs as any,
                 );

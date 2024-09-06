@@ -95,8 +95,6 @@ export const useChartViz = <T extends ResultsRunner>({
 
         const transformedData = transformedDataQuery.data;
 
-        console.log(transformedData);
-
         if (
             isVizPieChartConfig(config) &&
             chartDataModel instanceof PieChartDataModel

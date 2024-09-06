@@ -9144,18 +9144,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "SemanticLayerColumnMapping": {
-                "properties": {
-                    "columnName": {
-                        "type": "string"
-                    },
-                    "fieldName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["columnName", "fieldName"],
-                "type": "object"
-            },
             "Pick_SemanticLayerField.name-or-kind_": {
                 "properties": {
                     "name": {

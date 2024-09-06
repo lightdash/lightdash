@@ -238,7 +238,11 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         )) {
             rowCount += rows.length;
             callback(
-                rows.map((r) => mapKeys(r, (_value, key) => key.toLowerCase())), // dbt cloud might return columns in uppercase
+                rows.map((r) =>
+                    mapKeys(r, (_value, key) =>
+                        this.transformers.mapResultsKeys(key, query),
+                    ),
+                ), // dbt cloud might return columns in uppercase
             );
         }
 
@@ -417,9 +421,5 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             dimensions,
             metrics,
         );
-    }
-
-    getColumnMappings(query: SemanticLayerQuery) {
-        return this.transformers.queryToColumnMappings(query);
     }
 }

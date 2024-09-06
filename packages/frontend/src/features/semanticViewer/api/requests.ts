@@ -4,7 +4,6 @@ import {
     type ApiJobScheduledResponse,
     type ApiSemanticLayerClientInfo,
     type PivotChartData,
-    type SemanticLayerColumnMapping,
     type SemanticLayerField,
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
@@ -123,14 +122,3 @@ export const apiGetSemanticLayerQueryResults = async ({
         throw job;
     }
 };
-
-export const apiGetSemanticLayerColumnMappings = ({
-    projectUuid,
-    query,
-}: PostSemanticLayerQueryRequestParams) =>
-    lightdashApi<SemanticLayerColumnMapping[]>({
-        version: 'v2',
-        method: 'POST',
-        url: `/projects/${projectUuid}/semantic-layer/column-mappings`,
-        body: JSON.stringify(query),
-    });

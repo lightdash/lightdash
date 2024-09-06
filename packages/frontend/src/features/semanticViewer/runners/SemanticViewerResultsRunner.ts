@@ -1,7 +1,6 @@
 import {
     type PivotChartData,
     type RawResultRow,
-    type SemanticLayerColumnMapping,
     type SemanticLayerPivot,
     type SemanticLayerQuery,
     type VizChartLayout,
@@ -34,7 +33,6 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
     }: {
         query: SemanticLayerQuery;
         projectUuid: string;
-        columnMappings: SemanticLayerColumnMapping[];
         rows: RawResultRow[];
         columns: VizSqlColumn[];
     }) {

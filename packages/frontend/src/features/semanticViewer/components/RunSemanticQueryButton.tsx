@@ -15,10 +15,7 @@ import { selectChartConfigByKind } from '../../../components/DataViz/store/selec
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import LimitButton from '../../../components/LimitButton';
 import useToaster from '../../../hooks/toaster/useToaster';
-import {
-    useSemanticLayerColumnMappings,
-    useSemanticLayerQueryResults,
-} from '../api/hooks';
+import { useSemanticLayerQueryResults } from '../api/hooks';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
@@ -60,11 +57,6 @@ export const RunSemanticQueryButton: FC = () => {
 
     const resultsData = useMemo(() => requestData?.results, [requestData]);
 
-    const { data: columnMappings } = useSemanticLayerColumnMappings(
-        projectUuid,
-        semanticQuery,
-    );
-
     useEffect(() => {
         if (!resultsData) return;
 
@@ -83,7 +75,6 @@ export const RunSemanticQueryButton: FC = () => {
             rows: resultsData,
             columns: usedColumns,
             projectUuid,
-            columnMappings: columnMappings ?? [],
         });
 
         const chartResultOptions = getChartConfigAndOptions(
@@ -102,7 +93,6 @@ export const RunSemanticQueryButton: FC = () => {
         resultsData,
         activeChartKind,
         semanticQuery,
-        columnMappings,
     ]);
 
     const handleSubmit = useCallback(

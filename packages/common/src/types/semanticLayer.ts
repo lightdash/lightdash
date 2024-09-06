@@ -77,11 +77,6 @@ export type SemanticLayerResultRow = Record<
     string | number | boolean | null
 >;
 
-export type SemanticLayerColumnMapping = {
-    fieldName: string;
-    columnName: string;
-};
-
 export interface SemanticLayerTransformer<
     ViewType,
     QueryType,
@@ -98,9 +93,7 @@ export interface SemanticLayerTransformer<
     semanticLayerQueryToQuery: (query: SemanticLayerQuery) => QueryType;
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
-    queryToColumnMappings: (
-        query: SemanticLayerQuery,
-    ) => SemanticLayerColumnMapping[];
+    mapResultsKeys: (key: string, query: SemanticLayerQuery) => string;
 }
 
 export interface SemanticLayerClientInfo {
@@ -135,9 +128,6 @@ export interface SemanticLayerClient {
     ) => Promise<number>;
     getSql: (query: SemanticLayerQuery) => Promise<string>;
     getMaxQueryLimit: () => number;
-    getColumnMappings: (
-        query: SemanticLayerQuery,
-    ) => SemanticLayerColumnMapping[];
 }
 
 export type SemanticLayerQueryPayload = {
@@ -232,43 +222,4 @@ export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
         ...andFiltersFieldNames,
         ...orFiltersFieldNames,
     ];
-}
-
-// Helper functions to convert between the column names in the query and the column names in the results this is mainly to help with case sensitivity
-
-export function convertColumnToResultsColumn(
-    column: string,
-    resultsColumns: string[],
-) {
-    return resultsColumns.find(
-        (resultCol) => resultCol.toLowerCase() === column.toLowerCase(),
-    );
-}
-
-export function convertToResultsColumns(
-    columns: string[],
-    resultsColumns: string[],
-) {
-    return columns
-        .map((value) => convertColumnToResultsColumn(value, resultsColumns))
-        .filter((value): value is string => !!value);
-}
-
-// Helper functions to find the column names in the results from the column names in the query
-
-export function mapFieldNameToResultsColumn(
-    fieldName: string,
-    mappings: SemanticLayerColumnMapping[],
-) {
-    return mappings.find((mapping) => mapping.fieldName === fieldName)
-        ?.columnName;
-}
-
-export function mapFieldNameToResultsColumns(
-    fieldNames: string[],
-    mappings: SemanticLayerColumnMapping[],
-) {
-    return fieldNames
-        .map((fieldName) => mapFieldNameToResultsColumn(fieldName, mappings))
-        .filter((value): value is string => !!value);
 }

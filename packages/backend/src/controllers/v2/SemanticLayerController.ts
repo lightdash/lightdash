@@ -2,11 +2,9 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiSemanticLayerClientInfo,
-    SemanticLayerClientInfo,
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerView,
-    type SemanticLayerColumnMapping,
 } from '@lightdash/common';
 import {
     Body,
@@ -98,27 +96,6 @@ export class SemanticLayerController extends BaseController {
             results: await this.services
                 .getSemanticLayerService()
                 .getFields(req.user!, projectUuid, view, body),
-        };
-    }
-
-    /**
-     * Get column mappings from semantic layer
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/column-mappings')
-    @OperationId('getColumnMappings')
-    async getColumnMappings(
-        @Path() projectUuid: string,
-        @Body() body: SemanticLayerQuery,
-    ): Promise<{ status: 'ok'; results: SemanticLayerColumnMapping[] }> {
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results: await this.services
-                .getSemanticLayerService()
-                .getColumnMappings(projectUuid, body),
         };
     }
 

@@ -304,9 +304,4 @@ export class SemanticLayerService extends BaseService {
         const client = await this.getSemanticLayerClient(projectUuid);
         return client.getClientInfo();
     }
-
-    async getColumnMappings(projectUuid: string, query: SemanticLayerQuery) {
-        const client = await this.getSemanticLayerClient(projectUuid);
-        return client.getColumnMappings(query);
-    }
 }
