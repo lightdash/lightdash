@@ -1,3 +1,10 @@
+## [0.1248.3](https://github.com/lightdash/lightdash/compare/0.1248.2...0.1248.3) (2024-09-06)
+
+
+### Bug Fixes
+
+* allow saving columns config on save ([#11459](https://github.com/lightdash/lightdash/issues/11459)) ([aa13a49](https://github.com/lightdash/lightdash/commit/aa13a490d33ee023d523628f22645ebe3b8cd50e))
+
 ## [0.1248.2](https://github.com/lightdash/lightdash/compare/0.1248.1...0.1248.2) (2024-09-06)
 
 
