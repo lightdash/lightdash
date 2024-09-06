@@ -108,16 +108,12 @@ export const useChartViz = <T extends ResultsRunner>({
             isVizCartesianChartConfig(config) &&
             chartDataModel instanceof CartesianChartDataModel
         ) {
-            const lol = chartDataModel.getEchartsSpec(
+            return chartDataModel.getEchartsSpec(
                 transformedData,
                 config.display,
                 config.type,
                 org?.data?.chartColors,
             );
-
-            console.log(lol);
-
-            return lol;
         }
     }, [chartDataModel, config, org?.data?.chartColors, transformedDataQuery]);
 
