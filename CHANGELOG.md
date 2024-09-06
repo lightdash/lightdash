@@ -1,3 +1,12 @@
+## [0.1247.6](https://github.com/lightdash/lightdash/compare/0.1247.5...0.1247.6) (2024-09-06)
+
+
+### Bug Fixes
+
+* duplicated table name sql runner ([#11449](https://github.com/lightdash/lightdash/issues/11449)) ([0f55f3a](https://github.com/lightdash/lightdash/commit/0f55f3a88e5311303cdc63074f2ed6f1d245ec57))
+* rename sql chart dashboard ([#11452](https://github.com/lightdash/lightdash/issues/11452)) ([4e613e2](https://github.com/lightdash/lightdash/commit/4e613e2d60e1a00f7eccb88271e0f62edfa43025))
+* screenshot wait for sql runner ([#11451](https://github.com/lightdash/lightdash/issues/11451)) ([9728b6f](https://github.com/lightdash/lightdash/commit/9728b6f0314d9f4215fff916baaea072f6167554))
+
 ## [0.1247.5](https://github.com/lightdash/lightdash/compare/0.1247.4...0.1247.5) (2024-09-06)
 
 
