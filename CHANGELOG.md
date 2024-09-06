@@ -1,3 +1,10 @@
+# [0.1248.0](https://github.com/lightdash/lightdash/compare/0.1247.6...0.1248.0) (2024-09-06)
+
+
+### Features
+
+* semantic viewer pivot table ([#11441](https://github.com/lightdash/lightdash/issues/11441)) ([48e4256](https://github.com/lightdash/lightdash/commit/48e4256d4985e0fdcd8ca15ffb97f0f00af741dc))
+
 ## [0.1247.6](https://github.com/lightdash/lightdash/compare/0.1247.5...0.1247.6) (2024-09-06)
 
 
