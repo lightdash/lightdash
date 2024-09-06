@@ -127,8 +127,9 @@ const Table: FC<{
     tables: NonNullable<TablesBySchema>[number]['tables'];
     search: string;
     activeTable: string | undefined;
+    activeSchema: string | undefined;
     database: string;
-}> = ({ schema, tables, search, activeTable, database }) => {
+}> = ({ schema, tables, search, activeTable, activeSchema, database }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const hasMatchingTable = useMemo(() => {
@@ -141,13 +142,17 @@ const Table: FC<{
     }, [tables, schema, search]);
 
     useEffect(() => {
-        if (activeTable && Object.keys(tables).includes(activeTable)) {
+        if (
+            activeTable &&
+            Object.keys(tables).includes(activeTable) &&
+            schema === activeSchema
+        ) {
             setIsExpanded(true);
         }
         if (hasMatchingTable) {
             setIsExpanded(true);
         }
-    }, [activeTable, tables, hasMatchingTable]);
+    }, [activeTable, tables, hasMatchingTable, activeSchema, schema]);
     return (
         <Stack spacing={0}>
             <UnstyledButton
@@ -174,7 +179,9 @@ const Table: FC<{
                     <TableItem
                         key={table}
                         search={search}
-                        isActive={activeTable === table}
+                        isActive={
+                            activeTable === table && schema === activeSchema
+                        }
                         table={table}
                         schema={`${schema}`}
                         database={database}
@@ -188,6 +195,9 @@ const Table: FC<{
 export const Tables: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
+    const activeSchema = useAppSelector(
+        (state) => state.sqlRunner.activeSchema,
+    );
 
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 500);
@@ -246,6 +256,7 @@ export const Tables: FC = () => {
                             tables={tables}
                             search={search}
                             activeTable={activeTable}
+                            activeSchema={activeSchema}
                             database={data.database}
                         />
                     ))}
