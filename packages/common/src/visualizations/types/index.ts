@@ -92,7 +92,7 @@ export type VizColumnConfig = {
     aggregation?: VizAggregationOptions;
 };
 
-export type VizColumnsConfig = Record<string, VizColumnConfig>;
+export type VizColumnsConfig = { [key: string]: VizColumnConfig };
 
 export type VizTableColumnsConfig = {
     columns: VizColumnsConfig;

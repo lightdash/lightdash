@@ -39,8 +39,6 @@ export const Table = <T extends ResultsRunner>({
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
-    console.log({ virtualRows });
-
     return (
         <Flex
             ref={tableWrapperRef}
