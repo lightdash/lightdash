@@ -1,3 +1,10 @@
+## [0.1247.5](https://github.com/lightdash/lightdash/compare/0.1247.4...0.1247.5) (2024-09-06)
+
+
+### Bug Fixes
+
+* first value agg ([#11420](https://github.com/lightdash/lightdash/issues/11420)) ([7043e7d](https://github.com/lightdash/lightdash/commit/7043e7dd2350a0ddc4c4c0b071511b1687f2cdc4))
+
 ## [0.1247.4](https://github.com/lightdash/lightdash/compare/0.1247.3...0.1247.4) (2024-09-06)
 
 
