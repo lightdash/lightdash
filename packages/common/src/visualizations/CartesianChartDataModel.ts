@@ -1,4 +1,9 @@
-import { CustomFormatType, Format, friendlyName } from '../types/field';
+import {
+    capitalize,
+    CustomFormatType,
+    Format,
+    friendlyName,
+} from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
 import {
@@ -186,7 +191,12 @@ export class CartesianChartDataModel
                     ],
                     type: defaultSeriesType,
                     stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
-                    name: seriesLabel || friendlyName(seriesColumn),
+                    name:
+                        seriesLabel ||
+                        capitalize(seriesColumn.toLowerCase()).replaceAll(
+                            '_',
+                            ' ',
+                        ), // similar to friendlyName, but this will preserve special characters
                     encode: {
                         x: transformedData.indexColumn?.reference,
                         y: seriesColumn,
