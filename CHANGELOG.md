@@ -1,3 +1,10 @@
+## [0.1248.1](https://github.com/lightdash/lightdash/compare/0.1248.0...0.1248.1) (2024-09-06)
+
+
+### Bug Fixes
+
+* set series labels depending on field config `y` ([#11436](https://github.com/lightdash/lightdash/issues/11436)) ([6beb0b5](https://github.com/lightdash/lightdash/commit/6beb0b5f77acf7878681374c622f0ea24ee259a5))
+
 # [0.1248.0](https://github.com/lightdash/lightdash/compare/0.1247.6...0.1248.0) (2024-09-06)
 
 
