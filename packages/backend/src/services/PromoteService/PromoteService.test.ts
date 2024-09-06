@@ -1,14 +1,12 @@
 import { DashboardTileTypes } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { PromoteService } from './PromoteService';
 import {
-    dashboardChartWithinDashboardTile,
     existingUpstreamChart,
     existingUpstreamDashboard,
     missingUpstreamChart,
@@ -17,6 +15,7 @@ import {
     promotedChartWithinDashboard,
     promotedDashboard,
     promotedDashboardWithChartWithinDashboard,
+    promotedDashboardWithNewPrivateSpace,
     user,
 } from './PromoteService.mock';
 
@@ -33,6 +32,8 @@ const spaceModel = {
     find: jest.fn(async () => [existingUpstreamChart.space]),
     getUserSpaceAccess: jest.fn(async () => []),
     createSpace: jest.fn(async () => existingUpstreamChart.space),
+    addSpaceAccess: jest.fn(async () => {}),
+    update: jest.fn(async () => {}),
 };
 const dashboardModel = {
     create: jest.fn(async () => existingUpstreamDashboard.dashboard),
@@ -492,6 +493,56 @@ describe('PromoteService promoting and mutating changes', () => {
                 },
             ],
         });
+    });
+
+    test('create private space and add user as admin', async () => {
+        const [changes] = await service.getPromotionDashboardChanges(
+            user,
+            promotedDashboardWithNewPrivateSpace,
+            missingUpstreamDashboard,
+        );
+
+        expect(changes.spaces.length).toBe(1);
+        expect(changes.spaces[0].action).toBe('create');
+        expect(changes.spaces[0].data.isPrivate).toBe(true);
+
+        await service.upsertSpaces(user, changes);
+
+        expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
+        expect(spaceModel.createSpace).toHaveBeenCalledWith(
+            'upstream-project-uuid',
+            'Private space',
+            0,
+            true,
+            'jaffle-shop',
+        );
+        expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(1);
+        expect(spaceModel.addSpaceAccess).toHaveBeenCalledWith(
+            'upstream-space-uuid',
+            'userUuid',
+            'admin',
+        );
+    });
+
+    test('update space should not affect permissions', async () => {
+        const [changes, promotedCharts] =
+            await service.getPromotionDashboardChanges(
+                user,
+                promotedDashboardWithNewPrivateSpace,
+                existingUpstreamDashboard,
+            );
+
+        expect(changes.spaces.length).toBe(1);
+        expect(changes.spaces[0].action).toBe('update');
+        expect(changes.spaces[0].data.isPrivate).toBe(false); // Existing space is not private, so it should be kept that way
+
+        await service.upsertSpaces(user, changes);
+
+        expect(spaceModel.update).toHaveBeenCalledTimes(1);
+        expect(spaceModel.update).toHaveBeenCalledWith('upstream-space-uuid', {
+            name: promotedDashboardWithNewPrivateSpace.space.name,
+        });
+        expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
     });
 
     test('return same changes if no new dashboard is created', async () => {

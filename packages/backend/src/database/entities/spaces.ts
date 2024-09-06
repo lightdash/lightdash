@@ -18,7 +18,13 @@ export type CreateDbSpace = Pick<
     'name' | 'project_id' | 'is_private' | 'created_by_user_id' | 'slug'
 >;
 
-export type SpaceTable = Knex.CompositeTableType<DbSpace, CreateDbSpace>;
+export type UpdateDbSpace = Partial<Pick<DbSpace, 'name' | 'is_private'>>;
+
+export type SpaceTable = Knex.CompositeTableType<
+    DbSpace,
+    CreateDbSpace,
+    UpdateDbSpace
+>;
 export const SpaceTableName = 'spaces';
 
 export type DbSpaceUserAccess = {
