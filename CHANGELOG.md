@@ -1,3 +1,10 @@
+## [0.1247.2](https://github.com/lightdash/lightdash/compare/0.1247.1...0.1247.2) (2024-09-06)
+
+
+### Bug Fixes
+
+* virtualize table rows in sql runner ([#11406](https://github.com/lightdash/lightdash/issues/11406)) ([af3c9a6](https://github.com/lightdash/lightdash/commit/af3c9a6e46535ef494d59e941a42f00431b90764)), closes [#11416](https://github.com/lightdash/lightdash/issues/11416)
+
 ## [0.1247.1](https://github.com/lightdash/lightdash/compare/0.1247.0...0.1247.1) (2024-09-05)
 
 
