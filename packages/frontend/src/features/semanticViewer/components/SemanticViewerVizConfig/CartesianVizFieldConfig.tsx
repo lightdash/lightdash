@@ -1,6 +1,5 @@
 import {
     DimensionType,
-    FieldType,
     type ChartKind,
     type SemanticLayerColumn,
     type VizChartLayout,
@@ -10,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { FieldReferenceSelect } from '../../../../components/DataViz/FieldReferenceSelect';
 import {
@@ -195,10 +194,10 @@ export const CartesianVizFieldConfig = ({
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useVizDispatch();
-    const indexOptions = useVizSelector((state) =>
+    const xLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getIndexLayoutOptions(state, selectedChartType),
     );
-    const valueOptions = useVizSelector((state) =>
+    const yLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getValuesLayoutOptions(
             state,
             selectedChartType,
@@ -217,31 +216,7 @@ export const CartesianVizFieldConfig = ({
         cartesianChartSelectors.getPivotLayoutOptions(state, selectedChartType),
     );
 
-    // For axis layout options, we get the available options from the
-    // viz slice, then we have to filter them with the extra info (kind)
-    // from the columns.
-    const xLayoutOptions = useMemo(
-        () =>
-            indexOptions?.filter((option) => {
-                const semanticColumn = columns.find(
-                    (column) => column.reference === option.reference,
-                );
-                return semanticColumn?.kind === FieldType.DIMENSION;
-            }),
-        [indexOptions, columns],
-    );
-
-    const yLayoutOptions = useMemo(
-        () =>
-            valueOptions?.filter((option) => {
-                const semanticColumn = columns.find(
-                    (column) => column.reference === option.reference,
-                );
-                return semanticColumn?.kind === FieldType.METRIC;
-            }),
-        [valueOptions, columns],
-    );
-
+    const yAxisFieldSelected = yAxisFields && yAxisFields?.length > 0;
     const areMoreYFieldsAvailable =
         (yLayoutOptions?.length || 0) > (yAxisFields?.length || 0);
 
@@ -270,7 +245,7 @@ export const CartesianVizFieldConfig = ({
                         ></AddButton>
                     </Config.Group>
                     {yLayoutOptions &&
-                        yAxisFields &&
+                        yAxisFieldSelected &&
                         yAxisFields.map((field, index) => (
                             <YFieldsAxisConfig
                                 key={field.reference + index}

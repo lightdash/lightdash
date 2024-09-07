@@ -75,7 +75,7 @@ export const cartesianChartConfigSlice = createSlice({
                         state.options.valuesLayoutOptions.find(
                             (option) =>
                                 option.reference === action.payload.reference,
-                        )?.aggregationOptions[0] ?? VIZ_DEFAULT_AGGREGATION;
+                        )?.aggregationOptions?.[0] ?? VIZ_DEFAULT_AGGREGATION;
                 }
             }
         },

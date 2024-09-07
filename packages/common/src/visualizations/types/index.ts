@@ -38,7 +38,7 @@ export type VizIndexLayoutOptions = {
 
 export type VizValuesLayoutOptions = {
     reference: string;
-    aggregationOptions: VizAggregationOptions[];
+    aggregationOptions?: VizAggregationOptions[];
 };
 
 export type VizPivotLayoutOptions = {
@@ -54,7 +54,7 @@ export type VizChartLayout = {
         | undefined;
     y: {
         reference: string;
-        aggregation: VizAggregationOptions;
+        aggregation?: VizAggregationOptions;
     }[];
     groupBy: { reference: string }[] | undefined;
 };
@@ -65,7 +65,7 @@ export type VizPieChartDisplay = {
 
 export type PivotChartData = {
     results: RawResultRow[];
-    indexColumn: { reference: string; type: string } | undefined;
+    indexColumn: { reference: string; type: VizIndexType } | undefined;
     valuesColumns: string[];
 };
 

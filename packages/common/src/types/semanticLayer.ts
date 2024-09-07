@@ -52,6 +52,15 @@ export type SemanticLayerColumn = VizSqlColumn & {
     kind: FieldType;
 };
 
+export const isSemanticLayerColumn = (
+    value: SemanticLayerColumn | VizSqlColumn | undefined,
+): value is SemanticLayerColumn => !!value && 'kind' in value;
+
+export const isSemanticLayerColumnArray = (
+    values: (SemanticLayerColumn | VizSqlColumn | undefined)[],
+): values is SemanticLayerColumn[] =>
+    values.length > 0 && isSemanticLayerColumn(values[0]);
+
 export type SemanticLayerTimeDimension = SemanticLayerField & {
     granularity?: SemanticLayerTimeGranularity;
 };
