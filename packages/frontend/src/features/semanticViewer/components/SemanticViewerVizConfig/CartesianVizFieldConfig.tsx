@@ -139,7 +139,7 @@ const GroupByFieldAxisConfig = ({
     const error =
         field !== undefined &&
         !groupByOptions.find((x) => x.reference === field.reference)
-            ? `Column "${field.reference}" is no available. Choose another`
+            ? `Column "${field.reference}" is not available. Choose another`
             : undefined;
     return (
         <FieldReferenceSelect
