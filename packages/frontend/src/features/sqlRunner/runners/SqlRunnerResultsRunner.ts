@@ -1,6 +1,7 @@
 import {
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
+    VIZ_DEFAULT_AGGREGATION,
     type ApiJobScheduledResponse,
     type PivotChartData,
     type RawResultRow,
@@ -91,7 +92,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
             },
             valuesColumns: config.y.map((y) => ({
                 reference: y.reference,
-                aggregation: y.aggregation,
+                aggregation: y.aggregation ?? VIZ_DEFAULT_AGGREGATION,
             })),
             groupByColumns: config.groupBy,
             limit,
