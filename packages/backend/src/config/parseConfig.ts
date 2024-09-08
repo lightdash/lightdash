@@ -467,6 +467,12 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    if (process.env.EMAIL_SMTP_HOST && process.env.EMAIL_SES_SENDER_EMAIL) {
+        console.log(
+            `WARNING: SMTP and SES email client configuration provided. SES email transport will be used.`,
+        );
+    }
+
     return {
         mode,
         security: {

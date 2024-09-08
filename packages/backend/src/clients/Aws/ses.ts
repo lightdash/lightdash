@@ -9,7 +9,7 @@ type SesClientArguments = {
 export const createSESClient = ({
     lightdashConfig,
 }: SesClientArguments): SES | undefined => {
-    if (lightdashConfig.ses?.sender.email) {
+    if (lightdashConfig.ses) {
         const sesConfig = {
             region: lightdashConfig.ses.region,
             apiVersion: '2006-03-02',
