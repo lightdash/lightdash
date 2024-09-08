@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { FieldReferenceSelect } from '../../../../components/DataViz/FieldReferenceSelect';
 import {
@@ -22,7 +22,7 @@ import { AddButton } from '../../../../components/VisualizationConfigs/common/Ad
 import { Config } from '../../../../components/VisualizationConfigs/common/Config';
 
 const YFieldsAxisConfig: FC<{
-    field: VizChartLayout['y'][number];
+    field?: VizChartLayout['y'][number];
     yLayoutOptions: VizValuesLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -49,14 +49,13 @@ const YFieldsAxisConfig: FC<{
                                 value: y.reference,
                                 label: y.reference,
                             }))}
-                            value={field.reference}
-                            error={
-                                yLayoutOptions.find(
-                                    (y) => y.reference === field.reference,
-                                ) === undefined &&
-                                `Column "${field.reference}" does not exist. Choose another`
+                            disabled={yLayoutOptions.length < 1}
+                            value={field?.reference ?? null}
+                            placeholder={
+                                yLayoutOptions.length < 1
+                                    ? 'No fields available'
+                                    : 'Select Y axis'
                             }
-                            placeholder="Select Y axis"
                             onChange={(value) => {
                                 if (!value) {
                                     dispatch(actions.removeYAxisField(index));
@@ -70,7 +69,7 @@ const YFieldsAxisConfig: FC<{
                             }}
                             fieldType={
                                 columns?.find(
-                                    (x) => x.reference === field.reference,
+                                    (x) => x.reference === field?.reference,
                                 )?.type ?? DimensionType.STRING
                             }
                         />
@@ -140,7 +139,7 @@ const GroupByFieldAxisConfig = ({
     const error =
         field !== undefined &&
         !groupByOptions.find((x) => x.reference === field.reference)
-            ? `Column "${field.reference}" does not exist. Choose another`
+            ? `Column "${field.reference}" is no available. Choose another`
             : undefined;
     return (
         <FieldReferenceSelect
@@ -156,13 +155,18 @@ const GroupByFieldAxisConfig = ({
                     </ActionIcon>
                 )
             }
+            disabled={!groupByOptions.length}
             clearable
             data={groupByOptions.map((groupBy) => ({
                 value: groupBy.reference,
                 label: groupBy.reference,
             }))}
             value={field?.reference ?? null}
-            placeholder="Select group by"
+            placeholder={
+                groupByOptions.length
+                    ? 'Select Group By'
+                    : 'No fields available'
+            }
             error={error}
             onChange={(value) => {
                 if (!value) {
@@ -197,17 +201,20 @@ export const CartesianVizFieldConfig = ({
     const xLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getIndexLayoutOptions(state, selectedChartType),
     );
-    const yLayoutOptions = useVizSelector((state) =>
-        cartesianChartSelectors.getValuesLayoutOptions(
-            state,
-            selectedChartType,
-        ),
+    const yLayoutOptions = useVizSelector(
+        (state) =>
+            cartesianChartSelectors.getValuesLayoutOptions(
+                state,
+                selectedChartType,
+            ) ?? [],
     );
     const xAxisField = useVizSelector((state) =>
         cartesianChartSelectors.getXAxisField(state, selectedChartType),
     );
-    const yAxisFields = useVizSelector((state) =>
-        cartesianChartSelectors.getYAxisFields(state, selectedChartType),
+    const yAxisFields = useVizSelector(
+        (state) =>
+            cartesianChartSelectors.getYAxisFields(state, selectedChartType) ??
+            [],
     );
     const groupByField = useVizSelector((state) =>
         cartesianChartSelectors.getGroupByField(state, selectedChartType),
@@ -216,7 +223,12 @@ export const CartesianVizFieldConfig = ({
         cartesianChartSelectors.getPivotLayoutOptions(state, selectedChartType),
     );
 
-    const yAxisFieldSelected = yAxisFields && yAxisFields?.length > 0;
+    const availableGroupByFields = useMemo(() => {
+        return groupByLayoutOptions?.filter(
+            (groupBy) => xAxisField?.reference !== groupBy.reference,
+        );
+    }, [groupByLayoutOptions, xAxisField]);
+
     const areMoreYFieldsAvailable =
         (yLayoutOptions?.length || 0) > (yAxisFields?.length || 0);
 
@@ -244,19 +256,29 @@ export const CartesianVizFieldConfig = ({
                             onClick={() => dispatch(actions.addYAxisField())}
                         ></AddButton>
                     </Config.Group>
-                    {yLayoutOptions &&
-                        yAxisFieldSelected &&
-                        yAxisFields.map((field, index) => (
-                            <YFieldsAxisConfig
-                                key={field.reference + index}
-                                field={field}
-                                yLayoutOptions={yLayoutOptions}
-                                isSingle={yAxisFields.length === 1}
-                                index={index}
-                                actions={actions}
-                                columns={columns}
-                            />
-                        ))}
+                    <YFieldsAxisConfig
+                        key={yAxisFields[0]?.reference + 0}
+                        field={yAxisFields[0]}
+                        yLayoutOptions={yLayoutOptions}
+                        isSingle={yAxisFields.length === 1}
+                        index={0}
+                        actions={actions}
+                        columns={columns}
+                    />
+                    {yAxisFields.length > 1 &&
+                        yAxisFields
+                            .slice(1)
+                            .map((field, index) => (
+                                <YFieldsAxisConfig
+                                    key={field.reference + index}
+                                    field={field}
+                                    yLayoutOptions={yLayoutOptions}
+                                    isSingle={yAxisFields.length === 1}
+                                    index={index}
+                                    actions={actions}
+                                    columns={columns}
+                                />
+                            ))}
                 </Config.Section>
             </Config>
             <Config>
@@ -265,7 +287,7 @@ export const CartesianVizFieldConfig = ({
                     <GroupByFieldAxisConfig
                         columns={columns}
                         field={groupByField}
-                        groupByOptions={groupByLayoutOptions}
+                        groupByOptions={availableGroupByFields}
                         actions={actions}
                     />
                 </Config.Section>
