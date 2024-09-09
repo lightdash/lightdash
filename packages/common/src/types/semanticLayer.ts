@@ -46,7 +46,7 @@ export type SemanticLayerField = {
     visible: boolean;
     aggType?: string; // eg: count, sum
     availableGranularities: SemanticLayerTimeGranularity[];
-    availableOperators: SemanticLayerStringFilterOperator[];
+    availableOperators: SemanticLayerFilter['operator'][];
 };
 
 export type SemanticLayerTimeDimension = SemanticLayerField & {
@@ -139,31 +139,6 @@ export type SemanticLayerQueryPayload = {
     context: 'semanticViewer';
 };
 
-export enum SemanticLayerStringFilterOperator {
-    IS = 'IS',
-    IS_NOT = 'IS NOT',
-}
-
-export type SemanticLayerFilterBase = {
-    uuid: string;
-    field: string;
-    fieldKind: FieldType; // This is mostly to help with frontend state and avoiding having to set all the fields in redux to be able to find the kind
-    fieldType: SemanticLayerFieldType;
-};
-
-export type SemanticLayerStringFilter = SemanticLayerFilterBase & {
-    operator: SemanticLayerStringFilterOperator;
-    values: string[];
-};
-
-// TODO: right now we only support string filters, this type should be a union of all filter types
-type SemanticLayerFilterTypes = SemanticLayerStringFilter;
-
-export type SemanticLayerFilter = SemanticLayerFilterTypes & {
-    and?: SemanticLayerFilter[];
-    or?: SemanticLayerFilter[];
-};
-
 // Helper functions and constants
 const SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT = 500;
 
@@ -181,49 +156,7 @@ export function getDefaultedLimit(
     );
 }
 
-export function getAvailableSemanticLayerFilterOperators(
-    fieldType: SemanticLayerFieldType,
-) {
-    switch (fieldType) {
-        case SemanticLayerFieldType.STRING:
-            return [
-                SemanticLayerStringFilterOperator.IS,
-                SemanticLayerStringFilterOperator.IS_NOT,
-            ];
-        case SemanticLayerFieldType.NUMBER:
-        case SemanticLayerFieldType.BOOLEAN:
-        case SemanticLayerFieldType.TIME:
-            return [];
-        default:
-            return assertUnreachable(
-                fieldType,
-                `Unsupported field type: ${fieldType}`,
-            );
-    }
-}
-
-export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
-    field: string;
-    fieldKind: FieldType;
-    fieldType: SemanticLayerFieldType;
-}[] {
-    const andFiltersFieldNames =
-        filter.and?.flatMap(getFilterFieldNamesRecursively) ?? [];
-    const orFiltersFieldNames =
-        filter.or?.flatMap(getFilterFieldNamesRecursively) ?? [];
-
-    return [
-        {
-            field: filter.field,
-            fieldKind: filter.fieldKind,
-            fieldType: filter.fieldType,
-        },
-        ...andFiltersFieldNames,
-        ...orFiltersFieldNames,
-    ];
-}
-
-// Semantic Layer Schedueler Job
+// Semantic Layer Scheduler Job
 
 export const semanticLayerQueryJob = 'semanticLayer';
 
@@ -267,3 +200,108 @@ export const isApiSemanticLayerJobSuccessResponse = (
     response: ApiSemanticLayerJobStatusResponse['results'] | ApiError,
 ): response is ApiSemanticLayerJobSuccessResponse['results'] =>
     response.status === SchedulerJobStatus.COMPLETED;
+
+// Semantic Layer Filters
+
+export enum SemanticLayerFilterBaseOperator {
+    IS = 'IS',
+    IS_NOT = 'IS NOT',
+}
+
+export enum SemanticLayerFilterTimeOperator {
+    IN = 'IN',
+    NOT_IN = 'NOT IN',
+}
+
+export type SemanticLayerFilterBase = {
+    uuid: string;
+    field: string;
+    fieldKind: FieldType; // This is mostly to help with frontend state and avoiding having to set all the fields in redux to be able to find the kind
+    fieldType: SemanticLayerFieldType;
+};
+
+export type SemanticLayerStringFilter = SemanticLayerFilterBase & {
+    operator: SemanticLayerFilterBaseOperator;
+    values: string[];
+};
+
+export type SemanticLayerTimeFilter = SemanticLayerFilterBase & {
+    operator: SemanticLayerFilterTimeOperator | SemanticLayerFilterBaseOperator;
+    values: string[] | [string, string];
+};
+
+// TODO: right now we only support string filters, this type should be a union of all filter types
+type SemanticLayerFilterTypes =
+    | SemanticLayerStringFilter
+    | SemanticLayerTimeFilter;
+
+export type SemanticLayerFilter = SemanticLayerFilterTypes & {
+    and?: SemanticLayerFilter[];
+    or?: SemanticLayerFilter[];
+};
+
+export function isSemanticLayerBaseOperator(
+    operator: SemanticLayerFilter['operator'],
+): operator is SemanticLayerFilterBaseOperator {
+    return (
+        operator === SemanticLayerFilterBaseOperator.IS ||
+        operator === SemanticLayerFilterBaseOperator.IS_NOT
+    );
+}
+
+export function isSemanticLayerTimeOperator(
+    operator: SemanticLayerFilter['operator'],
+): operator is SemanticLayerFilterTimeOperator {
+    return (
+        operator === SemanticLayerFilterTimeOperator.IN ||
+        operator === SemanticLayerFilterTimeOperator.NOT_IN
+    );
+}
+
+export function getAvailableSemanticLayerFilterOperators(
+    fieldType: SemanticLayerFieldType,
+) {
+    switch (fieldType) {
+        case SemanticLayerFieldType.STRING:
+            return [
+                SemanticLayerFilterBaseOperator.IS,
+                SemanticLayerFilterBaseOperator.IS_NOT,
+            ];
+        case SemanticLayerFieldType.NUMBER:
+        case SemanticLayerFieldType.BOOLEAN:
+            return [];
+        case SemanticLayerFieldType.TIME:
+            return [
+                SemanticLayerFilterTimeOperator.IN,
+                SemanticLayerFilterTimeOperator.NOT_IN,
+                SemanticLayerFilterBaseOperator.IS,
+                SemanticLayerFilterBaseOperator.IS_NOT,
+            ];
+        default:
+            return assertUnreachable(
+                fieldType,
+                `Unsupported field type: ${fieldType}`,
+            );
+    }
+}
+
+export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
+    field: string;
+    fieldKind: FieldType;
+    fieldType: SemanticLayerFieldType;
+}[] {
+    const andFiltersFieldNames =
+        filter.and?.flatMap(getFilterFieldNamesRecursively) ?? [];
+    const orFiltersFieldNames =
+        filter.or?.flatMap(getFilterFieldNamesRecursively) ?? [];
+
+    return [
+        {
+            field: filter.field,
+            fieldKind: filter.fieldKind,
+            fieldType: filter.fieldType,
+        },
+        ...andFiltersFieldNames,
+        ...orFiltersFieldNames,
+    ];
+}
