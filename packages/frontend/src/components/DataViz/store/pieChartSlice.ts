@@ -60,7 +60,7 @@ export const pieChartConfigSlice = createSlice({
                         state.options.metricFieldOptions.find(
                             (option) =>
                                 option.reference === action.payload.reference,
-                        )?.aggregationOptions[0] ?? VIZ_DEFAULT_AGGREGATION;
+                        )?.aggregationOptions?.[0] ?? VIZ_DEFAULT_AGGREGATION;
                 }
             }
         },

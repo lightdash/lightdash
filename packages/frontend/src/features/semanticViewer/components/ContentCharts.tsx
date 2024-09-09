@@ -1,4 +1,4 @@
-import { ChartKind, isVizTableConfig } from '@lightdash/common';
+import { ChartKind, FieldType, isVizTableConfig } from '@lightdash/common';
 import { Box, Tabs, useMantineTheme } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -63,7 +63,14 @@ const ContentCharts: FC = () => {
             projectUuid,
             query: semanticQuery,
             rows: chartVizQuery.data?.results ?? [],
-            columns: chartVizQuery.data?.columns ?? [],
+            columns:
+                chartVizQuery.data?.columns.map((column) => ({
+                    ...column,
+                    kind:
+                        column.type === 'number'
+                            ? FieldType.METRIC
+                            : FieldType.DIMENSION,
+                })) ?? [],
         });
     }, [
         chartVizQuery.data?.columns,

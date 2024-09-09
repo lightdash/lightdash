@@ -51,12 +51,8 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
 
 type Props = {
     options: VizValuesLayoutOptions['aggregationOptions'] | undefined;
-    aggregation:
-        | VizValuesLayoutOptions['aggregationOptions'][number]
-        | undefined;
-    onChangeAggregation: (
-        value: VizValuesLayoutOptions['aggregationOptions'][number],
-    ) => void;
+    aggregation: VizAggregationOptions | undefined;
+    onChangeAggregation: (value: VizAggregationOptions) => void;
 };
 
 const AggregationItem = forwardRef<
