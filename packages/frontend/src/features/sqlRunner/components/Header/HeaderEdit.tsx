@@ -1,3 +1,4 @@
+import { type SqlChart } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -9,7 +10,7 @@ import {
 } from '@mantine/core';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { isEqual } from 'lodash';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
@@ -38,13 +39,14 @@ export const HeaderEdit: FC = () => {
         selectChartConfigByKind(state, selectedChartType),
     );
 
-    const { mutate, isLoading, data, reset } = useUpdateSqlChartMutation(
+    const { mutate, isLoading } = useUpdateSqlChartMutation(
         savedSqlChart?.project.projectUuid || '',
         savedSqlChart?.savedSqlUuid || '',
     );
     // Store initial chart config to detect if there are any changes later on
-    const [initialSavedSqlChart, setInitialSavedSqlChart] =
-        useState(savedSqlChart);
+    const [initialSavedSqlChart, setInitialSavedSqlChart] = useState<
+        Pick<SqlChart, 'sql' | 'limit'> | undefined
+    >(savedSqlChart);
     const [initialChartConfig, setInitialChartConfig] = useState(config);
 
     const hasChanges = useMemo(() => {
@@ -56,13 +58,19 @@ export const HeaderEdit: FC = () => {
         return changedSql || changedLimit || changedConfig;
     }, [initialSavedSqlChart, initialChartConfig, sql, limit, config]);
 
-    useEffect(() => {
-        if (data) {
+    const onSave = useCallback(() => {
+        if (config && sql) {
+            mutate({
+                versionedData: {
+                    config,
+                    sql,
+                    limit,
+                },
+            });
             setInitialChartConfig(config);
-            setInitialSavedSqlChart(savedSqlChart);
-            reset();
+            setInitialSavedSqlChart({ sql, limit });
         }
-    }, [data, config, savedSqlChart, reset]);
+    }, [config, sql, mutate, limit]);
 
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
@@ -137,13 +145,7 @@ export const HeaderEdit: FC = () => {
                             loading={isLoading}
                             onClick={() => {
                                 if (config && sql) {
-                                    mutate({
-                                        versionedData: {
-                                            config,
-                                            sql,
-                                            limit,
-                                        },
-                                    });
+                                    onSave();
                                 }
                             }}
                         >
