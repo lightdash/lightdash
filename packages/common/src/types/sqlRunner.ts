@@ -4,6 +4,7 @@ import {
     type VizBaseConfig,
     type VizCartesianChartConfig,
     type VizChartConfig,
+    type VizIndexType,
     type VizPieChartConfig,
     type VizSqlColumn,
     type VizTableConfig,
@@ -29,7 +30,7 @@ type ApiSqlRunnerPivotQueryPayload = {
     indexColumn:
         | {
               reference: string;
-              type: string;
+              type: VizIndexType;
           }
         | undefined;
     valuesColumns: {
