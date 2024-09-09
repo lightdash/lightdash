@@ -44,6 +44,10 @@ export const HeaderEdit: FC = () => {
         selectChartConfigByKind(state, selectedChartType),
     );
 
+    const { mutate, isLoading, data, reset } = useUpdateSqlChartMutation(
+        savedSqlChart?.project.projectUuid || '',
+        savedSqlChart?.savedSqlUuid || '',
+    );
     // Store initial chart config to detect if there are any changes later on
     const [initialSavedSqlChart, setInitialSavedSqlChart] = useState<
         SqlChart | undefined
@@ -74,10 +78,14 @@ export const HeaderEdit: FC = () => {
             JSON.stringify(config) !== JSON.stringify(initialChartConfig)
         );
     }, [initialSavedSqlChart, initialChartConfig, sql, limit, config]);
-    const { mutate, isLoading } = useUpdateSqlChartMutation(
-        savedSqlChart?.project.projectUuid || '',
-        savedSqlChart?.savedSqlUuid || '',
-    );
+
+    useEffect(() => {
+        if (data) {
+            setInitialChartConfig(config);
+            setInitialSavedSqlChart(savedSqlChart);
+            reset();
+        }
+    }, [data, config, savedSqlChart, reset]);
 
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
@@ -159,8 +167,6 @@ export const HeaderEdit: FC = () => {
                                             limit,
                                         },
                                     });
-                                    setInitialChartConfig(config);
-                                    setInitialSavedSqlChart(savedSqlChart);
                                 }
                             }}
                         >
