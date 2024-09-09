@@ -188,7 +188,7 @@ export class SemanticLayerController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Post('/')
+    @Post('/saved')
     @OperationId('createSemanticLayerChart')
     async createSemanticLayerChart(
         @Path() projectUuid: string,
