@@ -21,6 +21,7 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine/core';
 import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
@@ -66,6 +67,9 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
     }, [itemsMap]);
 
     const totalFilterRules = getTotalFilterRules(filters);
+    const clearAllFilters = useCallback(() => {
+        setFilters({}, false);
+    }, [setFilters]);
     const invalidFilterRules = getInvalidFilterRules(fields, totalFilterRules);
     const hasInvalidFilterRules = invalidFilterRules.length > 0;
 
@@ -241,18 +245,34 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                     </Stack>
                 ))}
 
-            {isEditMode ? (
+            {isEditMode && (
                 <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
                     {!isOpen ? (
-                        <Button
-                            variant="outline"
-                            size="xs"
-                            leftIcon={<MantineIcon icon={IconPlus} />}
-                            disabled={fields.length <= 0}
-                            onClick={toggleFieldInput}
-                        >
-                            Add filter
-                        </Button>
+                        <Group>
+                            <Button
+                                variant="outline"
+                                size="xs"
+                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                disabled={fields.length <= 0}
+                                onClick={toggleFieldInput}
+                            >
+                                Add filter
+                            </Button>
+                            <Tooltip
+                                label="Clear all filters"
+                                position="bottom"
+                            >
+                                <Button
+                                    variant="outline"
+                                    size="xs"
+                                    color="red"
+                                    onClick={clearAllFilters}
+                                    disabled={totalFilterRules.length === 0}
+                                >
+                                    Clear all
+                                </Button>
+                            </Tooltip>
+                        </Group>
                     ) : (
                         <FieldSelect
                             size="xs"
@@ -275,7 +295,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                         />
                     )}
                 </Box>
-            ) : null}
+            )}
         </Stack>
     );
 };
