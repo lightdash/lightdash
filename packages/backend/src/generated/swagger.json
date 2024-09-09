@@ -9347,6 +9347,57 @@
                 ],
                 "type": "object"
             },
+            "ApiSemanticLayerCreateChart": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "slug": {
+                                "type": "string"
+                            },
+                            "savedSemanticLayerUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["slug", "savedSemanticLayerUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticLayerCreateChart": {
+                "properties": {
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/VizChartConfig"
+                    },
+                    "semanticLayerQuery": {
+                        "$ref": "#/components/schemas/SemanticLayerQuery"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "spaceUuid",
+                    "config",
+                    "semanticLayerQuery",
+                    "description",
+                    "name"
+                ],
+                "type": "object"
+            },
             "ValidationTarget": {
                 "enum": ["charts", "dashboards", "tables"],
                 "type": "string"
@@ -9588,7 +9639,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1255.1",
+        "version": "0.1255.6",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
