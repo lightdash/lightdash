@@ -5,10 +5,19 @@ import {
     DbtMetricType,
     DbtTimeGranularity,
     DbtWhereOperator,
+    isSemanticLayerExactTimeFilter,
+    isSemanticLayerRangeTimeFilter,
+    isSemanticLayerStringFilter,
+    isSemanticLayerTimeFilter,
     SemanticLayerFieldType,
     SemanticLayerFilter,
-    SemanticLayerStringFilterOperator,
+    SemanticLayerFilterBaseOperator,
+    SemanticLayerFilterRangeTimeOperator,
     SemanticLayerTimeGranularity,
+    type SemanticLayerExactTimeFilter,
+    type SemanticLayerRangeTimeFilter,
+    type SemanticLayerStringFilter,
+    type SemanticLayerTimeFilter,
 } from '@lightdash/common';
 
 export function getSemanticLayerTypeFromDbtType(
@@ -98,18 +107,18 @@ export const getDbtTimeGranularity = (
     }
 };
 
-export const getDbtFilterOperatorFromSemanticLayerOperator = (
-    operator: SemanticLayerFilter['operator'],
+const getDbtFilterOperatorFromSemanticLayerBaseOperator = (
+    operator: SemanticLayerFilterBaseOperator,
     values: SemanticLayerFilter['values'],
 ): DbtWhereOperator => {
     switch (operator) {
-        case SemanticLayerStringFilterOperator.IS:
+        case SemanticLayerFilterBaseOperator.IS:
             if (values.length > 1) {
                 return DbtWhereOperator.IN;
             }
 
             return DbtWhereOperator.EQUALS;
-        case SemanticLayerStringFilterOperator.IS_NOT:
+        case SemanticLayerFilterBaseOperator.IS_NOT:
             if (values.length > 1) {
                 return DbtWhereOperator.NOT_IN;
             }
@@ -123,7 +132,7 @@ export const getDbtFilterOperatorFromSemanticLayerOperator = (
     }
 };
 
-export const getDbtFilterValuesFromSemanticLayerFilterValues = (
+const getDbtFilterValuesFromSemanticLayerFilterValues = (
     values: SemanticLayerFilter['values'],
 ) => {
     if (values.length > 1) {
@@ -133,6 +142,52 @@ export const getDbtFilterValuesFromSemanticLayerFilterValues = (
     return `'${values[0]}'`;
 };
 
+const getStringFilterSql = (filter: SemanticLayerStringFilter) =>
+    `{{ Dimension('${
+        filter.field
+    }') }} ${getDbtFilterOperatorFromSemanticLayerBaseOperator(
+        filter.operator,
+        filter.values,
+    )} ${getDbtFilterValuesFromSemanticLayerFilterValues(filter.values)}`;
+
+const getExactTimeFilterSql = (filter: SemanticLayerExactTimeFilter) =>
+    `{{ TimeDimension('${
+        filter.field
+    }', 'day') }} ${getDbtFilterOperatorFromSemanticLayerBaseOperator(
+        filter.operator,
+        filter.values,
+    )} ${getDbtFilterValuesFromSemanticLayerFilterValues(filter.values)}`;
+
+const getRangeTimeFilterSql = (filter: SemanticLayerRangeTimeFilter) => {
+    if (filter.values.length !== 2) {
+        throw new Error('Range time filter values must have exactly 2 values');
+    }
+
+    switch (filter.operator) {
+        case SemanticLayerFilterRangeTimeOperator.BETWEEN:
+            return `{{ TimeDimension('${filter.field}', 'day') }} >= '${filter.values[0]}' AND {{ TimeDimension('${filter.field}', 'day') }} <= '${filter.values[1]}'`;
+        case SemanticLayerFilterRangeTimeOperator.NOT_BETWEEN:
+            return `{{ TimeDimension('${filter.field}', 'day') }} < '${filter.values[0]}' OR {{ TimeDimension('${filter.field}', 'day') }} > '${filter.values[1]}'`;
+        default:
+            return assertUnreachable(
+                filter.operator,
+                `Unknown semantic layer time filter operator: ${filter.operator}`,
+            );
+    }
+};
+
+const getTimeFilterSql = (filter: SemanticLayerTimeFilter) => {
+    if (isSemanticLayerExactTimeFilter(filter)) {
+        return getExactTimeFilterSql(filter);
+    }
+
+    if (isSemanticLayerRangeTimeFilter(filter)) {
+        return getRangeTimeFilterSql(filter);
+    }
+
+    throw new Error('Unsupported filter type');
+};
+
 const getDbtFilterSqlFromSemanticLayerFilter = (
     filter: SemanticLayerFilter,
 ): string => {
@@ -140,12 +195,15 @@ const getDbtFilterSqlFromSemanticLayerFilter = (
         return 'TRUE';
     }
 
-    const baseFilterSql = `{{ Dimension('${
-        filter.field
-    }') }} ${getDbtFilterOperatorFromSemanticLayerOperator(
-        filter.operator,
-        filter.values,
-    )} ${getDbtFilterValuesFromSemanticLayerFilterValues(filter.values)}`;
+    let baseFilterSql: string | undefined;
+
+    if (isSemanticLayerStringFilter(filter)) {
+        baseFilterSql = getStringFilterSql(filter);
+    } else if (isSemanticLayerTimeFilter(filter)) {
+        baseFilterSql = getTimeFilterSql(filter);
+    } else {
+        throw new Error('Unsupported filter type');
+    }
 
     const andSql = filter.and
         ?.map(getDbtFilterSqlFromSemanticLayerFilter)

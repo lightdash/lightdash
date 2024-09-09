@@ -208,9 +208,9 @@ export enum SemanticLayerFilterBaseOperator {
     IS_NOT = 'IS NOT',
 }
 
-export enum SemanticLayerFilterTimeOperator {
-    IN = 'IN',
-    NOT_IN = 'NOT IN',
+export enum SemanticLayerFilterRangeTimeOperator {
+    BETWEEN = 'BETWEEN',
+    NOT_BETWEEN = 'NOT BETWEEN',
 }
 
 export type SemanticLayerFilterBase = {
@@ -225,12 +225,20 @@ export type SemanticLayerStringFilter = SemanticLayerFilterBase & {
     values: string[];
 };
 
-export type SemanticLayerTimeFilter = SemanticLayerFilterBase & {
-    operator: SemanticLayerFilterTimeOperator | SemanticLayerFilterBaseOperator;
-    values: string[] | [string, string];
+export type SemanticLayerExactTimeFilter = SemanticLayerFilterBase & {
+    operator: SemanticLayerFilterBaseOperator;
+    values: string[];
 };
 
-// TODO: right now we only support string filters, this type should be a union of all filter types
+export type SemanticLayerRangeTimeFilter = SemanticLayerFilterBase & {
+    operator: SemanticLayerFilterRangeTimeOperator;
+    values: string[];
+};
+
+export type SemanticLayerTimeFilter =
+    | SemanticLayerExactTimeFilter
+    | SemanticLayerRangeTimeFilter;
+
 type SemanticLayerFilterTypes =
     | SemanticLayerStringFilter
     | SemanticLayerTimeFilter;
@@ -240,21 +248,45 @@ export type SemanticLayerFilter = SemanticLayerFilterTypes & {
     or?: SemanticLayerFilter[];
 };
 
-export function isSemanticLayerBaseOperator(
+export const isSemanticLayerBaseOperator = (
     operator: SemanticLayerFilter['operator'],
-): operator is SemanticLayerFilterBaseOperator {
+): operator is SemanticLayerFilterBaseOperator =>
+    operator === SemanticLayerFilterBaseOperator.IS ||
+    operator === SemanticLayerFilterBaseOperator.IS_NOT;
+
+export const isSemanticLayerRangeTimeOperator = (
+    operator: SemanticLayerFilter['operator'],
+): operator is SemanticLayerFilterRangeTimeOperator =>
+    operator === SemanticLayerFilterRangeTimeOperator.BETWEEN ||
+    operator === SemanticLayerFilterRangeTimeOperator.NOT_BETWEEN;
+
+export function isSemanticLayerStringFilter(
+    filter: Pick<SemanticLayerFilter, 'fieldType'>,
+): filter is SemanticLayerStringFilter {
+    return filter.fieldType === SemanticLayerFieldType.STRING;
+}
+
+export function isSemanticLayerTimeFilter(
+    filter: Pick<SemanticLayerFilter, 'fieldType'>,
+): filter is SemanticLayerTimeFilter {
+    return filter.fieldType === SemanticLayerFieldType.TIME;
+}
+
+export function isSemanticLayerExactTimeFilter(
+    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
+): filter is SemanticLayerExactTimeFilter {
     return (
-        operator === SemanticLayerFilterBaseOperator.IS ||
-        operator === SemanticLayerFilterBaseOperator.IS_NOT
+        isSemanticLayerTimeFilter(filter) &&
+        isSemanticLayerBaseOperator(filter.operator)
     );
 }
 
-export function isSemanticLayerTimeOperator(
-    operator: SemanticLayerFilter['operator'],
-): operator is SemanticLayerFilterTimeOperator {
+export function isSemanticLayerRangeTimeFilter(
+    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
+): filter is SemanticLayerRangeTimeFilter {
     return (
-        operator === SemanticLayerFilterTimeOperator.IN ||
-        operator === SemanticLayerFilterTimeOperator.NOT_IN
+        isSemanticLayerTimeFilter(filter) &&
+        isSemanticLayerRangeTimeOperator(filter.operator)
     );
 }
 
@@ -272,8 +304,8 @@ export function getAvailableSemanticLayerFilterOperators(
             return [];
         case SemanticLayerFieldType.TIME:
             return [
-                SemanticLayerFilterTimeOperator.IN,
-                SemanticLayerFilterTimeOperator.NOT_IN,
+                SemanticLayerFilterRangeTimeOperator.BETWEEN,
+                SemanticLayerFilterRangeTimeOperator.NOT_BETWEEN,
                 SemanticLayerFilterBaseOperator.IS,
                 SemanticLayerFilterBaseOperator.IS_NOT,
             ];

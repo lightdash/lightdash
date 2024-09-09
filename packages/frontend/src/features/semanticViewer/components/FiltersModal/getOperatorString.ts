@@ -1,7 +1,7 @@
 import {
     assertUnreachable,
     SemanticLayerFilterBaseOperator,
-    SemanticLayerFilterTimeOperator,
+    SemanticLayerFilterRangeTimeOperator,
     type SemanticLayerFilter,
 } from '@lightdash/common';
 
@@ -13,10 +13,10 @@ export default function getOperatorString(
             return 'is';
         case SemanticLayerFilterBaseOperator.IS_NOT:
             return 'is not';
-        case SemanticLayerFilterTimeOperator.IN:
-            return 'in';
-        case SemanticLayerFilterTimeOperator.NOT_IN:
-            return 'not in';
+        case SemanticLayerFilterRangeTimeOperator.BETWEEN:
+            return 'between';
+        case SemanticLayerFilterRangeTimeOperator.NOT_BETWEEN:
+            return 'not between';
         default:
             return assertUnreachable(operator, `Unknown operator: ${operator}`);
     }

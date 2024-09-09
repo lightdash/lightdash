@@ -9072,15 +9072,26 @@
                 ],
                 "type": "string"
             },
-            "SemanticLayerStringFilterOperator": {
+            "SemanticLayerFilterBaseOperator": {
                 "enum": ["IS", "IS NOT"],
+                "type": "string"
+            },
+            "SemanticLayerFilterRangeTimeOperator": {
+                "enum": ["BETWEEN", "NOT BETWEEN"],
                 "type": "string"
             },
             "SemanticLayerField": {
                 "properties": {
                     "availableOperators": {
                         "items": {
-                            "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/SemanticLayerFilterRangeTimeOperator"
+                                }
+                            ]
                         },
                         "type": "array"
                     },
@@ -9260,7 +9271,7 @@
                                 "type": "array"
                             },
                             "operator": {
-                                "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
                             }
                         },
                         "required": ["values", "operator"],
@@ -9268,8 +9279,69 @@
                     }
                 ]
             },
+            "SemanticLayerExactTimeFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "operator": {
+                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            }
+                        },
+                        "required": ["values", "operator"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerRangeTimeFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "operator": {
+                                "$ref": "#/components/schemas/SemanticLayerFilterRangeTimeOperator"
+                            }
+                        },
+                        "required": ["values", "operator"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerTimeFilter": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerExactTimeFilter"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerRangeTimeFilter"
+                    }
+                ]
+            },
             "SemanticLayerFilterTypes": {
-                "$ref": "#/components/schemas/SemanticLayerStringFilter"
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerStringFilter"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerTimeFilter"
+                    }
+                ]
             },
             "SemanticLayerFilter": {
                 "allOf": [
@@ -9588,7 +9660,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1249.0",
+        "version": "0.1250.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

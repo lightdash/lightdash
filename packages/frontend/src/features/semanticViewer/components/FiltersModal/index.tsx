@@ -1,4 +1,8 @@
 import {
+    isSemanticLayerBaseOperator,
+    isSemanticLayerRangeTimeOperator,
+} from '@lightdash/common';
+import {
     ActionIcon,
     Button,
     Flex,
@@ -127,16 +131,42 @@ const FiltersModal: FC<FiltersModalProps> = ({
                                     return;
                                 }
 
-                                dispatch(
-                                    addFilter({
-                                        uuid: uuidv4(),
-                                        field: value,
-                                        fieldKind: field.kind,
-                                        fieldType: field.type,
-                                        operator: defaultOperator,
-                                        values: [],
-                                    }),
-                                );
+                                // TODO: fix this, type checks are too verbose
+                                if (
+                                    isSemanticLayerBaseOperator(defaultOperator)
+                                ) {
+                                    dispatch(
+                                        addFilter({
+                                            uuid: uuidv4(),
+                                            field: value,
+                                            fieldKind: field.kind,
+                                            fieldType: field.type,
+                                            operator: defaultOperator,
+                                            values: [],
+                                        }),
+                                    );
+
+                                    return;
+                                }
+
+                                if (
+                                    isSemanticLayerRangeTimeOperator(
+                                        defaultOperator,
+                                    )
+                                ) {
+                                    dispatch(
+                                        addFilter({
+                                            uuid: uuidv4(),
+                                            field: value,
+                                            fieldKind: field.kind,
+                                            fieldType: field.type,
+                                            operator: defaultOperator,
+                                            values: ['', ''],
+                                        }),
+                                    );
+
+                                    return;
+                                }
                             }}
                         />
                         <ActionIcon

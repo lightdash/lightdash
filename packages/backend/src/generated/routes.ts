@@ -8210,9 +8210,14 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerStringFilterOperator: {
+    SemanticLayerFilterBaseOperator: {
         dataType: 'refEnum',
         enums: ['IS', 'IS NOT'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerFilterRangeTimeOperator: {
+        dataType: 'refEnum',
+        enums: ['BETWEEN', 'NOT BETWEEN'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerField: {
@@ -8223,8 +8228,11 @@ const models: TsoaRoute.Models = {
                 availableOperators: {
                     dataType: 'array',
                     array: {
-                        dataType: 'refEnum',
-                        ref: 'SemanticLayerStringFilterOperator',
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'SemanticLayerFilterBaseOperator' },
+                            { ref: 'SemanticLayerFilterRangeTimeOperator' },
+                        ],
                     },
                     required: true,
                 },
@@ -8394,7 +8402,7 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                         operator: {
-                            ref: 'SemanticLayerStringFilterOperator',
+                            ref: 'SemanticLayerFilterBaseOperator',
                             required: true,
                         },
                     },
@@ -8404,9 +8412,78 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerExactTimeFilter: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'SemanticLayerFilterBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        values: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        operator: {
+                            ref: 'SemanticLayerFilterBaseOperator',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerRangeTimeFilter: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'SemanticLayerFilterBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        values: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        operator: {
+                            ref: 'SemanticLayerFilterRangeTimeOperator',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerTimeFilter: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'SemanticLayerExactTimeFilter' },
+                { ref: 'SemanticLayerRangeTimeFilter' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerFilterTypes: {
         dataType: 'refAlias',
-        type: { ref: 'SemanticLayerStringFilter', validators: {} },
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'SemanticLayerStringFilter' },
+                { ref: 'SemanticLayerTimeFilter' },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerFilter: {
