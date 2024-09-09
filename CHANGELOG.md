@@ -1,3 +1,10 @@
+## [0.1250.1](https://github.com/lightdash/lightdash/compare/0.1250.0...0.1250.1) (2024-09-09)
+
+
+### Bug Fixes
+
+* check for empty rows when updating warehouse available tables ([#11474](https://github.com/lightdash/lightdash/issues/11474)) ([e6530b5](https://github.com/lightdash/lightdash/commit/e6530b5cc731deeb4aeb7d5c02e46969fed997fd)), closes [#11383](https://github.com/lightdash/lightdash/issues/11383)
+
 # [0.1250.0](https://github.com/lightdash/lightdash/compare/0.1249.0...0.1250.0) (2024-09-09)
 
 
