@@ -526,13 +526,22 @@ export const ContentPanel: FC = () => {
                             gap: 5,
                         })}
                     >
-                        <IconGripHorizontal size={12} color="gray" />
+                        <MantineIcon
+                            color="gray"
+                            icon={IconGripHorizontal}
+                            size={12}
+                        />
+
                         {showLimitText && (
                             <>
                                 <Text fz="xs" fw={400} c="gray.7">
                                     Showing first {DEFAULT_SQL_LIMIT} rows
                                 </Text>
-                                <IconGripHorizontal size={12} color="gray" />
+                                <MantineIcon
+                                    color="gray"
+                                    icon={IconGripHorizontal}
+                                    size={12}
+                                />
                             </>
                         )}
                     </Box>
