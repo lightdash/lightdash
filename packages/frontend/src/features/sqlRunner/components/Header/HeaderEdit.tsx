@@ -1,11 +1,4 @@
 import {
-    type SqlChart,
-    type VizBarChartConfig,
-    type VizLineChartConfig,
-    type VizPieChartConfig,
-    type VizTableConfig,
-} from '@lightdash/common';
-import {
     ActionIcon,
     Button,
     Group,
@@ -15,7 +8,8 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { isEqual } from 'lodash';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
@@ -49,34 +43,17 @@ export const HeaderEdit: FC = () => {
         savedSqlChart?.savedSqlUuid || '',
     );
     // Store initial chart config to detect if there are any changes later on
-    const [initialSavedSqlChart, setInitialSavedSqlChart] = useState<
-        SqlChart | undefined
-    >();
-    const [initialChartConfig, setInitialChartConfig] = useState<
-        | VizBarChartConfig
-        | VizLineChartConfig
-        | VizPieChartConfig
-        | VizTableConfig
-        | undefined
-    >();
+    const [initialSavedSqlChart, setInitialSavedSqlChart] =
+        useState(savedSqlChart);
+    const [initialChartConfig, setInitialChartConfig] = useState(config);
 
-    useEffect(() => {
-        if (savedSqlChart && initialSavedSqlChart === undefined)
-            setInitialSavedSqlChart(savedSqlChart);
-    }, [savedSqlChart, initialSavedSqlChart]);
-
-    useEffect(() => {
-        if (config && initialChartConfig === undefined)
-            setInitialChartConfig(config);
-    }, [config, initialChartConfig]);
-
-    const hasChanges = useCallback(() => {
+    const hasChanges = useMemo(() => {
         if (!initialSavedSqlChart || !initialChartConfig) return false;
-        return (
-            sql !== initialSavedSqlChart.sql ||
-            limit !== initialSavedSqlChart.limit ||
-            JSON.stringify(config) !== JSON.stringify(initialChartConfig)
-        );
+        const changedSql = sql !== initialSavedSqlChart.sql;
+        const changedLimit = limit !== initialSavedSqlChart.limit;
+        const changedConfig = !isEqual(config, initialChartConfig);
+
+        return changedSql || changedLimit || changedConfig;
     }, [initialSavedSqlChart, initialChartConfig, sql, limit, config]);
 
     useEffect(() => {
@@ -156,7 +133,7 @@ export const HeaderEdit: FC = () => {
                         <Button
                             size="xs"
                             color={'green.7'}
-                            disabled={!config || !sql || !hasChanges()}
+                            disabled={!config || !sql || !hasChanges}
                             loading={isLoading}
                             onClick={() => {
                                 if (config && sql) {
