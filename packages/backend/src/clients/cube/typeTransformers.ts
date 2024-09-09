@@ -7,7 +7,6 @@ import {
 import {
     assertUnreachable,
     isSemanticLayerRelativeTimeFilter,
-    isSemanticLayerRelativeTimeOperator,
     SemanticLayerFieldType,
     SemanticLayerFilter,
     SemanticLayerFilterBaseOperator,
