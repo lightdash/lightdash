@@ -75,10 +75,9 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         fieldOptions={availableFieldOptions}
                         allFields={fields ?? []}
                         onDelete={() => dispatch(removeFilter(filter.uuid))}
-                        onUpdate={(updatedFilter) => {
-                            console.log('updatedFilter', updatedFilter);
-                            dispatch(updateFilter(updatedFilter));
-                        }}
+                        onUpdate={(updatedFilter) =>
+                            dispatch(updateFilter(updatedFilter))
+                        }
                     />
                 ))}
                 {!isAddingFilter ? (
