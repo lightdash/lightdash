@@ -65,12 +65,14 @@ const ContentCharts: FC = () => {
             query: semanticQuery,
             rows: chartVizQuery.data?.results ?? [],
             columns: chartVizQuery.data?.columns ?? [],
+            fields: fields,
         });
     }, [
         chartVizQuery.data?.columns,
         chartVizQuery.data?.results,
         projectUuid,
         semanticQuery,
+        fields,
     ]);
 
     return (
