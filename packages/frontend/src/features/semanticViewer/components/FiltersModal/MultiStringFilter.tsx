@@ -1,6 +1,8 @@
-import type {
-    SemanticLayerField,
-    SemanticLayerFilter,
+import {
+    isSemanticLayerBaseOperator,
+    type SemanticLayerField,
+    type SemanticLayerFilter,
+    type SemanticLayerStringFilter,
 } from '@lightdash/common';
 import { Group, Select, type SelectItem } from '@mantine/core';
 import { useMemo, type FC } from 'react';
@@ -11,7 +13,7 @@ import getOperatorString from './getOperatorString';
 type MultiStringFilterProps = {
     fieldOptions: SelectItem[];
     filterField?: SemanticLayerField;
-    filter: SemanticLayerFilter;
+    filter: SemanticLayerStringFilter;
     onUpdate: (filter: SemanticLayerFilter) => void;
 };
 
@@ -63,10 +65,12 @@ const MultiStringFilter: FC<MultiStringFilterProps> = ({
                         return;
                     }
 
-                    onUpdate({
-                        ...filter,
-                        operator: value,
-                    });
+                    if (isSemanticLayerBaseOperator(value)) {
+                        onUpdate({
+                            ...filter,
+                            operator: value,
+                        });
+                    }
                 }}
             />
 

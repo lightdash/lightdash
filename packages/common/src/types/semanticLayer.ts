@@ -267,20 +267,17 @@ export const isSemanticLayerRelativeTimeOperator = (
 export function isSemanticLayerStringFilter(
     filter: SemanticLayerFilter,
 ): filter is SemanticLayerStringFilter {
-    return filter.fieldType === SemanticLayerFieldType.STRING;
-}
-
-export function isSemanticLayerTimeFilter(
-    filter: SemanticLayerFilter,
-): filter is SemanticLayerTimeFilter {
-    return filter.fieldType === SemanticLayerFieldType.TIME;
+    return (
+        filter.fieldType === SemanticLayerFieldType.STRING &&
+        isSemanticLayerBaseOperator(filter.operator)
+    );
 }
 
 export function isSemanticLayerExactTimeFilter(
     filter: SemanticLayerFilter,
 ): filter is SemanticLayerExactTimeFilter {
     return (
-        isSemanticLayerTimeFilter(filter) &&
+        filter.fieldType === SemanticLayerFieldType.TIME &&
         isSemanticLayerBaseOperator(filter.operator)
     );
 }
@@ -289,8 +286,17 @@ export function isSemanticLayerRelativeTimeFilter(
     filter: SemanticLayerFilter,
 ): filter is SemanticLayerRelativeTimeFilter {
     return (
-        isSemanticLayerTimeFilter(filter) &&
+        filter.fieldType === SemanticLayerFieldType.TIME &&
         isSemanticLayerRelativeTimeOperator(filter.operator)
+    );
+}
+
+export function isSemanticLayerTimeFilter(
+    filter: SemanticLayerFilter,
+): filter is SemanticLayerTimeFilter {
+    return (
+        isSemanticLayerExactTimeFilter(filter) ||
+        isSemanticLayerRelativeTimeFilter(filter)
     );
 }
 

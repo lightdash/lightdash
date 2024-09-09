@@ -5,20 +5,22 @@ import {
     DbtMetricType,
     DbtTimeGranularity,
     DbtWhereOperator,
+    isSemanticLayerBaseOperator,
     isSemanticLayerExactTimeFilter,
-    isSemanticLayerRangeTimeFilter,
+    isSemanticLayerRelativeTimeFilter,
     isSemanticLayerStringFilter,
     isSemanticLayerTimeFilter,
     SemanticLayerFieldType,
     SemanticLayerFilter,
     SemanticLayerFilterBaseOperator,
-    SemanticLayerFilterRangeTimeOperator,
+    SemanticLayerFilterRelativeTimeOperator,
     SemanticLayerTimeGranularity,
     type SemanticLayerExactTimeFilter,
-    type SemanticLayerRangeTimeFilter,
+    type SemanticLayerRelativeTimeFilter,
     type SemanticLayerStringFilter,
     type SemanticLayerTimeFilter,
 } from '@lightdash/common';
+import moment from 'moment';
 
 export function getSemanticLayerTypeFromDbtType(
     dbtType: DbtDimensionType | DbtMetricType,
@@ -111,6 +113,14 @@ const getDbtFilterOperatorFromSemanticLayerBaseOperator = (
     operator: SemanticLayerFilterBaseOperator,
     values: SemanticLayerFilter['values'],
 ): DbtWhereOperator => {
+    if (!isSemanticLayerBaseOperator(operator)) {
+        throw new Error(`Unsupported operator type: ${operator}`);
+    }
+
+    if (!values || values.length === 0) {
+        throw new Error(`Unsupported values: ${values}`);
+    }
+
     switch (operator) {
         case SemanticLayerFilterBaseOperator.IS:
             if (values.length > 1) {
@@ -135,6 +145,10 @@ const getDbtFilterOperatorFromSemanticLayerBaseOperator = (
 const getDbtFilterValuesFromSemanticLayerFilterValues = (
     values: SemanticLayerFilter['values'],
 ) => {
+    if (!values || values.length === 0) {
+        throw new Error(`Unsupported values: ${values}`);
+    }
+
     if (values.length > 1) {
         return `(${values.map((value) => `'${value}'`).join(', ')})`;
     }
@@ -158,16 +172,35 @@ const getExactTimeFilterSql = (filter: SemanticLayerExactTimeFilter) =>
         filter.values,
     )} ${getDbtFilterValuesFromSemanticLayerFilterValues(filter.values)}`;
 
-const getRangeTimeFilterSql = (filter: SemanticLayerRangeTimeFilter) => {
-    if (filter.values.length !== 2) {
-        throw new Error('Range time filter values must have exactly 2 values');
-    }
-
+const getRelativeTimeFilterSql = (
+    filter: SemanticLayerRelativeTimeFilter,
+    now = moment(),
+) => {
+    const today = now.format('YYYY-MM-DD');
     switch (filter.operator) {
-        case SemanticLayerFilterRangeTimeOperator.BETWEEN:
-            return `{{ TimeDimension('${filter.field}', 'day') }} >= '${filter.values[0]}' AND {{ TimeDimension('${filter.field}', 'day') }} <= '${filter.values[1]}'`;
-        case SemanticLayerFilterRangeTimeOperator.NOT_BETWEEN:
-            return `{{ TimeDimension('${filter.field}', 'day') }} < '${filter.values[0]}' OR {{ TimeDimension('${filter.field}', 'day') }} > '${filter.values[1]}'`;
+        case SemanticLayerFilterRelativeTimeOperator.IS_TODAY:
+            return `{{ TimeDimension('${filter.field}', 'day') }} = '${today}'`;
+        case SemanticLayerFilterRelativeTimeOperator.IS_YESTERDAY:
+            const yesterday = now
+                .clone()
+                .subtract(1, 'day')
+                .format('YYYY-MM-DD');
+
+            return `{{ TimeDimension('${filter.field}', 'day') }} = '${yesterday}'`;
+        case SemanticLayerFilterRelativeTimeOperator.IN_LAST_7_DAYS:
+            const sevenDaysAgo = now
+                .clone()
+                .subtract(7, 'day')
+                .format('YYYY-MM-DD');
+
+            return `{{ TimeDimension('${filter.field}', 'day') }} >= '${sevenDaysAgo}' AND {{ TimeDimension('${filter.field}', 'day') }} <= '${today}'`;
+        case SemanticLayerFilterRelativeTimeOperator.IN_LAST_30_DAYS:
+            const thirtyDaysAgo = now
+                .clone()
+                .subtract(30, 'day')
+                .format('YYYY-MM-DD');
+
+            return `{{ TimeDimension('${filter.field}', 'day') }} >= '${thirtyDaysAgo}' AND {{ TimeDimension('${filter.field}', 'day') }} <= '${today}'`;
         default:
             return assertUnreachable(
                 filter.operator,
@@ -181,8 +214,8 @@ const getTimeFilterSql = (filter: SemanticLayerTimeFilter) => {
         return getExactTimeFilterSql(filter);
     }
 
-    if (isSemanticLayerRangeTimeFilter(filter)) {
-        return getRangeTimeFilterSql(filter);
+    if (isSemanticLayerRelativeTimeFilter(filter)) {
+        return getRelativeTimeFilterSql(filter);
     }
 
     throw new Error('Unsupported filter type');
@@ -191,7 +224,7 @@ const getTimeFilterSql = (filter: SemanticLayerTimeFilter) => {
 const getDbtFilterSqlFromSemanticLayerFilter = (
     filter: SemanticLayerFilter,
 ): string => {
-    if (filter.values.length === 0) {
+    if (filter.values && filter.values.length === 0) {
         return 'TRUE';
     }
 
