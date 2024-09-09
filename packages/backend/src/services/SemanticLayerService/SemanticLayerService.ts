@@ -226,12 +226,12 @@ export class SemanticLayerService extends BaseService {
                     dimensions: query.dimensions.filter(
                         (dimension) =>
                             pivot.index.includes(dimension.name) ||
-                            pivot.on?.reference === dimension.name,
+                            pivot.on.reference === dimension.name,
                     ),
                     timeDimensions: query.timeDimensions.filter(
                         (timeDimension) =>
                             pivot.index.includes(timeDimension.name) ||
-                            pivot.on?.reference === timeDimension.name,
+                            pivot.on.reference === timeDimension.name,
                     ),
                     metrics: query.metrics.filter((metric) =>
                         pivot.values.includes(metric.name),
@@ -240,7 +240,7 @@ export class SemanticLayerService extends BaseService {
                         (sortBy) =>
                             pivot.index.includes(sortBy.name) ||
                             pivot.values.includes(sortBy.name) ||
-                            pivot.on?.reference === sortBy.name,
+                            pivot.on.reference === sortBy.name,
                     ),
                 },
                 async (rows) => {
@@ -265,7 +265,7 @@ export class SemanticLayerService extends BaseService {
 
             indexColumn = query.pivot.on;
             valuesColumns = resultsColumns.filter(
-                (key) => query.pivot?.on?.reference !== key,
+                (key) => query.pivot?.on.reference !== key,
             );
         }
 

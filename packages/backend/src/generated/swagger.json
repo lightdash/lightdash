@@ -9204,7 +9204,7 @@
                         "type": "object"
                     }
                 },
-                "required": ["values", "index"],
+                "required": ["values", "index", "on"],
                 "type": "object"
             },
             "SemanticLayerFilterBase": {

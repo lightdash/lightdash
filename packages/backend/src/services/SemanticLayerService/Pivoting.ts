@@ -8,7 +8,7 @@ export function pivotResults(
     return pl
         .DataFrame(results)
         .pivot(values, {
-            on: options.on?.reference ?? [],
+            on: options.on.reference,
             index: options.index,
         })
         .toRecords();

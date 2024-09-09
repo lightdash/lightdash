@@ -8342,20 +8342,11 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 on: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                type: { dataType: 'string', required: true },
-                                reference: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                            },
-                        },
-                        { dataType: 'undefined' },
-                    ],
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        type: { dataType: 'string', required: true },
+                        reference: { dataType: 'string', required: true },
+                    },
                     required: true,
                 },
             },

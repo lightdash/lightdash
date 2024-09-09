@@ -12,10 +12,12 @@ import { apiGetSemanticLayerQueryResults } from '../api/requests';
 const transformChartLayoutToSemanticPivot = (
     config: VizChartLayout,
 ): SemanticLayerPivot => {
+    if (!config.x) {
+        throw new Error('X is required');
+    }
+
     return {
-        on: config.x?.reference
-            ? { reference: config.x.reference, type: config.x.type }
-            : undefined,
+        on: config.x,
         index: config.groupBy?.map((groupBy) => groupBy.reference) ?? [],
         values: config.y.map((y) => y.reference),
     };
@@ -45,8 +47,6 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
     async getPivotedVisualizationData(
         config: VizChartLayout,
     ): Promise<PivotChartData> {
-        const pivotConfig = transformChartLayoutToSemanticPivot(config);
-
         if (config.x === undefined || config.y.length === 0) {
             return {
                 results: [],
@@ -55,6 +55,8 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
                 columns: [],
             };
         }
+
+        const pivotConfig = transformChartLayoutToSemanticPivot(config);
 
         // Filter dimensions, time dimensions, and metrics to match pivot config
         // This ensures correct aggregation for non-aggregated backend pivots (e.g., pie charts)
