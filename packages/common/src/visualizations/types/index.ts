@@ -65,9 +65,13 @@ export type VizPieChartDisplay = {
     isDonut?: boolean;
 };
 
+export type PivotIndexColum =
+    | { reference: string; type: VizIndexType }
+    | undefined;
+
 export type PivotChartData = {
     results: RawResultRow[];
-    indexColumn: { reference: string; type: string } | undefined;
+    indexColumn: PivotIndexColum;
     valuesColumns: string[];
     columns: VizSqlColumn[];
 };

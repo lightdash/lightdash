@@ -1,5 +1,6 @@
 import { type ApiError, type PivotChartData } from '..';
 import {
+    type PivotIndexColum,
     type VizAggregationOptions,
     type VizBaseConfig,
     type VizCartesianChartConfig,
@@ -26,12 +27,7 @@ export type SqlRunnerPayload = {
 } & SqlRunnerBody;
 
 type ApiSqlRunnerPivotQueryPayload = {
-    indexColumn:
-        | {
-              reference: string;
-              type: string;
-          }
-        | undefined;
+    indexColumn: PivotIndexColum;
     valuesColumns: {
         reference: string;
         aggregation: VizAggregationOptions;

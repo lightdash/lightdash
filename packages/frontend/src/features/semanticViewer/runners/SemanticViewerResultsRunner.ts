@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     DimensionType,
     SemanticLayerFieldType,
+    VizIndexType,
     type PivotChartData,
     type RawResultRow,
     type SemanticLayerField,
@@ -39,6 +40,21 @@ function getDimensionTypeFromSemanticLayerFieldType(
             return DimensionType.NUMBER;
         case SemanticLayerFieldType.BOOLEAN:
             return DimensionType.BOOLEAN;
+        default:
+            return assertUnreachable(type, `Unknown field type: ${type}`);
+    }
+}
+
+function getVizIndexTypeFromDimensionType(
+    type: SemanticLayerFieldType,
+): VizIndexType {
+    switch (type) {
+        case SemanticLayerFieldType.BOOLEAN:
+        case SemanticLayerFieldType.NUMBER:
+        case SemanticLayerFieldType.STRING:
+            return VizIndexType.CATEGORY;
+        case SemanticLayerFieldType.TIME:
+            return VizIndexType.TIME;
         default:
             return assertUnreachable(type, `Unknown field type: ${type}`);
     }
@@ -146,9 +162,7 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         const indexColumn = onField
             ? {
                   reference: onField.name,
-                  type: getDimensionTypeFromSemanticLayerFieldType(
-                      onField.type,
-                  ),
+                  type: getVizIndexTypeFromDimensionType(onField.type),
               }
             : undefined;
 
