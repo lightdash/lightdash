@@ -89,7 +89,6 @@ export const useChartViz = <T extends ResultsRunner>({
             }
         },
         enabled: !!chartDataModel && !!queryKey,
-        keepPreviousData: true,
     });
 
     const chartSpec = useMemo(() => {
