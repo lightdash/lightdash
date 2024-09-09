@@ -49,7 +49,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     const [isTooltipOpen, { open: openTooltip, close: closeTooltip }] =
         useDisclosure(false);
 
-    const canHaveMenu = !!cellContextMenu && hasData && !minimal;
+    const canHaveMenu = !!cellContextMenu && hasData;
     const canHaveTooltip = !!tooltipContent && !minimal;
 
     const shouldRenderMenu = canHaveMenu && isMenuOpen && elementRef.current;

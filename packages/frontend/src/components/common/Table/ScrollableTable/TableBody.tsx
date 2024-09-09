@@ -235,7 +235,8 @@ const VirtualizedTableBody: FC<{
 };
 
 const NormalTableBody: FC = () => {
-    const { table, conditionalFormattings } = useTableContext();
+    const { table, cellContextMenu, conditionalFormattings } =
+        useTableContext();
     const { rows } = table.getRowModel();
 
     return (
@@ -246,6 +247,7 @@ const NormalTableBody: FC = () => {
                     minimal
                     index={index}
                     row={row}
+                    cellContextMenu={cellContextMenu}
                     conditionalFormattings={conditionalFormattings}
                 />
             ))}
