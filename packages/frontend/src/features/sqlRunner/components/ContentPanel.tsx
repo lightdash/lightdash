@@ -367,7 +367,7 @@ export const ContentPanel: FC = () => {
                                 style={{ flex: 1 }}
                                 pt={
                                     activeEditorTab === EditorTabs.SQL
-                                        ? 'xs'
+                                        ? 'md'
                                         : 0
                                 }
                                 sx={{
