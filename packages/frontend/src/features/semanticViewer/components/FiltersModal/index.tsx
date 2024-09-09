@@ -20,6 +20,7 @@ import {
     removeFilter,
     updateFilter,
 } from '../../store/semanticViewerSlice';
+import { createFilterForOperator } from './createFilterForOperator';
 import Filter from './Filter';
 import FilterButton from './FilterButton';
 import FilterFieldSelectItem from './FilterFieldSelectItem';
@@ -127,16 +128,15 @@ const FiltersModal: FC<FiltersModalProps> = ({
                                     return;
                                 }
 
-                                dispatch(
-                                    addFilter({
-                                        uuid: uuidv4(),
-                                        field: value,
-                                        fieldKind: field.kind,
-                                        fieldType: field.type,
-                                        operator: defaultOperator,
-                                        values: [],
-                                    }),
-                                );
+                                const newFilter = createFilterForOperator({
+                                    uuid: uuidv4(),
+                                    field: value,
+                                    fieldKind: field.kind,
+                                    fieldType: field.type,
+                                    operator: defaultOperator,
+                                });
+
+                                dispatch(addFilter(newFilter));
                             }}
                         />
                         <ActionIcon

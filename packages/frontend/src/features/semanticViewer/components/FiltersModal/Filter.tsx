@@ -1,5 +1,7 @@
 import {
     assertUnreachable,
+    isSemanticLayerBaseOperator,
+    isSemanticLayerRelativeTimeOperator,
     isSemanticLayerStringFilter,
     isSemanticLayerTimeFilter,
     type SemanticLayerField,
@@ -30,6 +32,7 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { createFilterForOperator } from './createFilterForOperator';
 import FilterButton from './FilterButton';
 import MultiStringFilter from './MultiStringFilter';
 import TimeFilter from './TimeFilter';
@@ -191,12 +194,30 @@ const Filter: FC<FilterProps> = ({
                 return;
             }
 
-            onUpdate({
-                ...newFilter,
-                operator: updatedOperator,
-                fieldKind: updatedField.kind,
-                fieldType: updatedField.type,
-            });
+            const baseUpdate: Omit<SemanticLayerFilter, 'operator' | 'values'> =
+                {
+                    ...newFilter,
+                    fieldKind: updatedField.kind,
+                    fieldType: updatedField.type,
+                };
+
+            if (isSemanticLayerRelativeTimeOperator(updatedOperator)) {
+                onUpdate({
+                    ...baseUpdate,
+                    operator: updatedOperator,
+                    values: undefined,
+                });
+                return;
+            }
+
+            if (isSemanticLayerBaseOperator(updatedOperator)) {
+                onUpdate({
+                    ...baseUpdate,
+                    operator: updatedOperator,
+                    values: newFilter.values ?? [],
+                });
+                return;
+            }
         },
         [findFilterField, onUpdate],
     );
@@ -299,22 +320,17 @@ const Filter: FC<FilterProps> = ({
                 return;
             }
 
-            const newFilter: SemanticLayerFilter = {
-                uuid: uuidv4(),
-                field: fieldName,
-                fieldKind: field.kind,
-                fieldType: field.type,
-                operator: defaultOperator,
-                values: [],
-            };
-
-            // be default add to and
-            handleUpdateFilter({
-                ...filter,
-                and: [...(filter.and ?? []), newFilter],
-            });
+            handleUpdateFilter(
+                createFilterForOperator({
+                    uuid: uuidv4(),
+                    field: fieldName,
+                    fieldKind: field.kind,
+                    fieldType: field.type,
+                    operator: defaultOperator,
+                }),
+            );
         },
-        [allFields, filter, handleUpdateFilter, showToastError],
+        [allFields, handleUpdateFilter, showToastError],
     );
 
     const handleMoveFilterToAnd = useCallback(

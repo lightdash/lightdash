@@ -8212,12 +8212,17 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerFilterBaseOperator: {
         dataType: 'refEnum',
-        enums: ['IS', 'IS NOT'],
+        enums: ['IS', 'IS_NOT'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerFilterRangeTimeOperator: {
+    SemanticLayerFilterRelativeTimeOperator: {
         dataType: 'refEnum',
-        enums: ['BETWEEN', 'NOT BETWEEN'],
+        enums: [
+            'IS_TODAY',
+            'IS_YESTERDAY',
+            'IN_LAST_7_DAYS',
+            'IN_LAST_30_DAYS',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerField: {
@@ -8231,7 +8236,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { ref: 'SemanticLayerFilterBaseOperator' },
-                            { ref: 'SemanticLayerFilterRangeTimeOperator' },
+                            { ref: 'SemanticLayerFilterRelativeTimeOperator' },
                         ],
                     },
                     required: true,
@@ -8437,7 +8442,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerRangeTimeFilter: {
+    SemanticLayerRelativeTimeFilter: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
@@ -8446,13 +8451,9 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        values: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                            required: true,
-                        },
+                        values: { dataType: 'undefined', required: true },
                         operator: {
-                            ref: 'SemanticLayerFilterRangeTimeOperator',
+                            ref: 'SemanticLayerFilterRelativeTimeOperator',
                             required: true,
                         },
                     },
@@ -8468,7 +8469,7 @@ const models: TsoaRoute.Models = {
             dataType: 'union',
             subSchemas: [
                 { ref: 'SemanticLayerExactTimeFilter' },
-                { ref: 'SemanticLayerRangeTimeFilter' },
+                { ref: 'SemanticLayerRelativeTimeFilter' },
             ],
             validators: {},
         },

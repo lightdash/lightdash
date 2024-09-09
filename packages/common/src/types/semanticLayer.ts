@@ -205,12 +205,14 @@ export const isApiSemanticLayerJobSuccessResponse = (
 
 export enum SemanticLayerFilterBaseOperator {
     IS = 'IS',
-    IS_NOT = 'IS NOT',
+    IS_NOT = 'IS_NOT',
 }
 
-export enum SemanticLayerFilterRangeTimeOperator {
-    BETWEEN = 'BETWEEN',
-    NOT_BETWEEN = 'NOT BETWEEN',
+export enum SemanticLayerFilterRelativeTimeOperator {
+    IS_TODAY = 'IS_TODAY',
+    IS_YESTERDAY = 'IS_YESTERDAY',
+    IN_LAST_7_DAYS = 'IN_LAST_7_DAYS',
+    IN_LAST_30_DAYS = 'IN_LAST_30_DAYS',
 }
 
 export type SemanticLayerFilterBase = {
@@ -230,14 +232,14 @@ export type SemanticLayerExactTimeFilter = SemanticLayerFilterBase & {
     values: string[];
 };
 
-export type SemanticLayerRangeTimeFilter = SemanticLayerFilterBase & {
-    operator: SemanticLayerFilterRangeTimeOperator;
-    values: string[];
+export type SemanticLayerRelativeTimeFilter = SemanticLayerFilterBase & {
+    operator: SemanticLayerFilterRelativeTimeOperator;
+    values: undefined;
 };
 
 export type SemanticLayerTimeFilter =
     | SemanticLayerExactTimeFilter
-    | SemanticLayerRangeTimeFilter;
+    | SemanticLayerRelativeTimeFilter;
 
 type SemanticLayerFilterTypes =
     | SemanticLayerStringFilter
@@ -254,26 +256,28 @@ export const isSemanticLayerBaseOperator = (
     operator === SemanticLayerFilterBaseOperator.IS ||
     operator === SemanticLayerFilterBaseOperator.IS_NOT;
 
-export const isSemanticLayerRangeTimeOperator = (
+export const isSemanticLayerRelativeTimeOperator = (
     operator: SemanticLayerFilter['operator'],
-): operator is SemanticLayerFilterRangeTimeOperator =>
-    operator === SemanticLayerFilterRangeTimeOperator.BETWEEN ||
-    operator === SemanticLayerFilterRangeTimeOperator.NOT_BETWEEN;
+): operator is SemanticLayerFilterRelativeTimeOperator =>
+    operator === SemanticLayerFilterRelativeTimeOperator.IS_TODAY ||
+    operator === SemanticLayerFilterRelativeTimeOperator.IS_YESTERDAY ||
+    operator === SemanticLayerFilterRelativeTimeOperator.IN_LAST_7_DAYS ||
+    operator === SemanticLayerFilterRelativeTimeOperator.IN_LAST_30_DAYS;
 
 export function isSemanticLayerStringFilter(
-    filter: Pick<SemanticLayerFilter, 'fieldType'>,
+    filter: SemanticLayerFilter,
 ): filter is SemanticLayerStringFilter {
     return filter.fieldType === SemanticLayerFieldType.STRING;
 }
 
 export function isSemanticLayerTimeFilter(
-    filter: Pick<SemanticLayerFilter, 'fieldType'>,
+    filter: SemanticLayerFilter,
 ): filter is SemanticLayerTimeFilter {
     return filter.fieldType === SemanticLayerFieldType.TIME;
 }
 
 export function isSemanticLayerExactTimeFilter(
-    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
+    filter: SemanticLayerFilter,
 ): filter is SemanticLayerExactTimeFilter {
     return (
         isSemanticLayerTimeFilter(filter) &&
@@ -281,12 +285,12 @@ export function isSemanticLayerExactTimeFilter(
     );
 }
 
-export function isSemanticLayerRangeTimeFilter(
-    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
-): filter is SemanticLayerRangeTimeFilter {
+export function isSemanticLayerRelativeTimeFilter(
+    filter: SemanticLayerFilter,
+): filter is SemanticLayerRelativeTimeFilter {
     return (
         isSemanticLayerTimeFilter(filter) &&
-        isSemanticLayerRangeTimeOperator(filter.operator)
+        isSemanticLayerRelativeTimeOperator(filter.operator)
     );
 }
 
@@ -304,10 +308,12 @@ export function getAvailableSemanticLayerFilterOperators(
             return [];
         case SemanticLayerFieldType.TIME:
             return [
-                SemanticLayerFilterRangeTimeOperator.BETWEEN,
-                SemanticLayerFilterRangeTimeOperator.NOT_BETWEEN,
                 SemanticLayerFilterBaseOperator.IS,
                 SemanticLayerFilterBaseOperator.IS_NOT,
+                SemanticLayerFilterRelativeTimeOperator.IS_TODAY,
+                SemanticLayerFilterRelativeTimeOperator.IS_YESTERDAY,
+                SemanticLayerFilterRelativeTimeOperator.IN_LAST_7_DAYS,
+                SemanticLayerFilterRelativeTimeOperator.IN_LAST_30_DAYS,
             ];
         default:
             return assertUnreachable(
