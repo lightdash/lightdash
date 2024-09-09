@@ -6,11 +6,15 @@ import {
 } from '@cubejs-client/core';
 import {
     assertUnreachable,
+    isSemanticLayerRelativeTimeFilter,
+    isSemanticLayerRelativeTimeOperator,
     SemanticLayerFieldType,
     SemanticLayerFilter,
-    SemanticLayerStringFilterOperator,
+    SemanticLayerFilterBaseOperator,
+    SemanticLayerFilterRelativeTimeOperator,
     SemanticLayerTimeGranularity,
 } from '@lightdash/common';
+import moment from 'moment';
 
 export function getSemanticLayerTypeFromCubeType(
     cubeType: TCubeMemberType,
@@ -94,14 +98,44 @@ export const getCubeTimeDimensionGranularity = (
     }
 };
 
-export const getCubeFilterOperatorFromSemanticLayerFilterOperator = (
+const getCubeFilterOperatorFromSemanticLayerFilterOperator = (
     operator: SemanticLayerFilter['operator'],
 ): BinaryOperator => {
     switch (operator) {
-        case SemanticLayerStringFilterOperator.IS:
+        case SemanticLayerFilterBaseOperator.IS:
+        case SemanticLayerFilterRelativeTimeOperator.IS_TODAY:
+        case SemanticLayerFilterRelativeTimeOperator.IS_YESTERDAY:
             return 'equals';
-        case SemanticLayerStringFilterOperator.IS_NOT:
+        case SemanticLayerFilterBaseOperator.IS_NOT:
             return 'notEquals';
+        case SemanticLayerFilterRelativeTimeOperator.IN_LAST_7_DAYS:
+        case SemanticLayerFilterRelativeTimeOperator.IN_LAST_30_DAYS:
+            return 'inDateRange';
+        default:
+            return assertUnreachable(
+                operator,
+                `Unknown filter operator: ${operator}`,
+            );
+    }
+};
+
+const getCubeFilterValuesForRelativeTimeOperator = (
+    operator: SemanticLayerFilterRelativeTimeOperator,
+    now = moment(),
+): string[] => {
+    const today = now.format('YYYY-MM-DD');
+    switch (operator) {
+        case SemanticLayerFilterRelativeTimeOperator.IS_TODAY:
+            return [today];
+        case SemanticLayerFilterRelativeTimeOperator.IS_YESTERDAY:
+            const yesterday = now.subtract(1, 'day').format('YYYY-MM-DD');
+            return [yesterday];
+        case SemanticLayerFilterRelativeTimeOperator.IN_LAST_7_DAYS:
+            const sevenDaysAgo = now.subtract(7, 'day').format('YYYY-MM-DD');
+            return [sevenDaysAgo, today];
+        case SemanticLayerFilterRelativeTimeOperator.IN_LAST_30_DAYS:
+            const thirtyDaysAgo = now.subtract(30, 'day').format('YYYY-MM-DD');
+            return [thirtyDaysAgo, today];
         default:
             return assertUnreachable(
                 operator,
@@ -117,7 +151,9 @@ export const getCubeFilterFromSemanticLayerFilter = (
     operator: getCubeFilterOperatorFromSemanticLayerFilterOperator(
         filter.operator,
     ),
-    values: filter.values,
+    values: isSemanticLayerRelativeTimeFilter(filter)
+        ? getCubeFilterValuesForRelativeTimeOperator(filter.operator)
+        : filter.values,
     ...(filter.or && {
         or: filter.or.map(getCubeFilterFromSemanticLayerFilter),
     }),
