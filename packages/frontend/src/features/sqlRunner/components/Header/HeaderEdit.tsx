@@ -7,12 +7,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconArrowBackUp,
-    IconDeviceFloppy,
-    IconPencil,
-    IconTrash,
-} from '@tabler/icons-react';
+import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -113,8 +108,8 @@ export const HeaderEdit: FC = () => {
 
                     <Group spacing="md">
                         <Button
-                            variant="default"
                             size="xs"
+                            color="green.7"
                             disabled={!config || !sql}
                             loading={isLoading}
                             onClick={() => {
@@ -128,7 +123,6 @@ export const HeaderEdit: FC = () => {
                                     });
                                 }
                             }}
-                            leftIcon={<MantineIcon icon={IconDeviceFloppy} />}
                         >
                             Save
                         </Button>
@@ -137,7 +131,8 @@ export const HeaderEdit: FC = () => {
                             label="Back to view page"
                             position="bottom"
                         >
-                            <ActionIcon
+                            <Button
+                                variant="default"
                                 size="xs"
                                 onClick={() =>
                                     history.push(
@@ -145,8 +140,8 @@ export const HeaderEdit: FC = () => {
                                     )
                                 }
                             >
-                                <MantineIcon icon={IconArrowBackUp} />
-                            </ActionIcon>
+                                Cancel
+                            </Button>
                         </Tooltip>
                         <Tooltip variant="xs" label="Delete" position="bottom">
                             <ActionIcon
