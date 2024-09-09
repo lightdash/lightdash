@@ -100,7 +100,9 @@ export class WarehouseAvailableTablesModel {
                 )
                 .del();
 
-            await trx(WarehouseAvailableTablesTableName).insert(rows);
+            if (rows.length !== 0) {
+                await trx(WarehouseAvailableTablesTableName).insert(rows);
+            }
         });
     }
 
@@ -122,7 +124,9 @@ export class WarehouseAvailableTablesModel {
                     userWarehouseCredentialsUuid,
                 )
                 .del();
-            await trx(WarehouseAvailableTablesTableName).insert(rows);
+            if (rows.length !== 0) {
+                await trx(WarehouseAvailableTablesTableName).insert(rows);
+            }
         });
     }
 }
