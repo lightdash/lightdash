@@ -70,7 +70,7 @@ export type DbSavedSemanticLayerVersion = {
     saved_semantic_layer_uuid: string;
     created_at: Date;
     config: object;
-    semanticQuery: object;
+    semantic_layer_query: object;
     chart_kind: ChartKind;
     created_by_user_uuid: string;
 };
@@ -78,7 +78,7 @@ export type DbSavedSemanticLayerVersion = {
 export type InsertSavedSemanticLayerVersion = Pick<
     DbSavedSemanticLayerVersion,
     | 'saved_semantic_layer_uuid'
-    | 'semanticQuery'
+    | 'semantic_layer_query'
     | 'config'
     | 'chart_kind'
     | 'created_by_user_uuid'

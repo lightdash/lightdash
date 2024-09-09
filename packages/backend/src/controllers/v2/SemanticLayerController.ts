@@ -2,6 +2,8 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiSemanticLayerClientInfo,
+    ApiSemanticLayerCreateChart,
+    SemanticLayerCreateChart,
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerView,
@@ -22,7 +24,11 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../authentication';
 import { BaseController } from '../baseController';
 
 @Route('/api/v2/projects/{projectUuid}/semantic-layer/')
@@ -170,6 +176,31 @@ export class SemanticLayerController extends BaseController {
             results: await this.services
                 .getSemanticLayerService()
                 .getSql(req.user!, projectUuid, body),
+        };
+    }
+
+    /**
+     * Create a new semantic layer chart
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/')
+    @OperationId('createSemanticLayerChart')
+    async createSemanticLayerChart(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: SemanticLayerCreateChart,
+    ): Promise<ApiSemanticLayerCreateChart> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSemanticLayerService()
+                .createSemanticLayerChart(req.user!, projectUuid, body),
         };
     }
 }
