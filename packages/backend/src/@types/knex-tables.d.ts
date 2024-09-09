@@ -163,6 +163,11 @@ import {
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
 import {
+    SavedSemanticLayerTable,
+    SavedSemanticLayerTableName,
+    SavedSemanticLayerVersionsTable,
+} from '../database/entities/savedSemanticLayer';
+import {
     SavedSqlTable,
     SavedSqlTableName,
     SavedSqlVersionsTable,
@@ -224,6 +229,8 @@ declare module 'knex/types/tables' {
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SavedSqlTableName]: SavedSqlTable;
         [SavedSqlVersionsTableName]: SavedSqlVersionsTable;
+        [SavedSemanticLayerTableName]: SavedSemanticLayerTable;
+        [SavedSemanticLayerTableName]: SavedSemanticLayerVersionsTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
