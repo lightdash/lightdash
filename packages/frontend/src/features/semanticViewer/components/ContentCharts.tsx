@@ -98,7 +98,7 @@ const ContentCharts: FC = () => {
                         <ChartView
                             config={vizConfig}
                             spec={chartSpec}
-                            isLoading={chartVizQuery.isLoading}
+                            isLoading={chartVizQuery.isFetching}
                             error={chartVizQuery.error}
                             style={{
                                 flexGrow: 1,
