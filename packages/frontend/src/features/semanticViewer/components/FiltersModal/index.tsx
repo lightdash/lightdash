@@ -160,7 +160,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                             setDraftFilters((prev) => [...prev, newFilter]);
                         }}
                         onCancel={
-                            filters.length > 0
+                            draftFilters.length > 0
                                 ? () => setIsAddingFilter(false)
                                 : undefined
                         }
