@@ -20,12 +20,8 @@ export const barChartConfigSlice = createSlice({
 
             state.options = action.payload.options;
 
-            console.log('action.payload.config', action.payload.config);
-
             // Only set the initial config if it's not already set and the fieldConfig is present
             if (!state.config && action.payload.config.fieldConfig) {
-                console.log('------------');
-
                 state.config = action.payload.config;
             }
         });

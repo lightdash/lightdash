@@ -233,9 +233,6 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
     mergePivotChartLayout(currentConfig?: VizChartLayout) {
         const newDefaultLayout = this.defaultPivotChartLayout();
 
-        console.log('currentConfig', currentConfig);
-        console.log('newDefaultLayout', newDefaultLayout);
-
         const someFieldsMatch =
             currentConfig?.x?.reference === newDefaultLayout?.x?.reference ||
             intersectionBy(
@@ -245,8 +242,6 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
             ).length > 0;
 
         let mergedLayout = currentConfig;
-
-        console.log('someFieldsMatch', { currentConfig, someFieldsMatch });
 
         if (!currentConfig || !someFieldsMatch) {
             mergedLayout = newDefaultLayout;
