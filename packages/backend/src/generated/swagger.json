@@ -7420,7 +7420,7 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["aggregation", "reference"],
+                            "required": ["reference"],
                             "type": "object"
                         },
                         "type": "array"

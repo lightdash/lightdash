@@ -6698,10 +6698,7 @@ const models: TsoaRoute.Models = {
                     array: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
-                            aggregation: {
-                                ref: 'VizAggregationOptions',
-                                required: true,
-                            },
+                            aggregation: { ref: 'VizAggregationOptions' },
                             reference: { dataType: 'string', required: true },
                         },
                     },

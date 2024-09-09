@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DimensionType,
+    FieldType,
     SemanticLayerFieldType,
     VizIndexType,
     type PivotChartData,
@@ -10,6 +11,9 @@ import {
     type SemanticLayerQuery,
     type VizChartLayout,
     type VizColumn,
+    type VizIndexLayoutOptions,
+    type VizPivotLayoutOptions,
+    type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
@@ -86,6 +90,86 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         this.fields = fields;
     }
 
+    pivotChartOptions(): {
+        indexLayoutOptions: VizIndexLayoutOptions[];
+        valuesLayoutOptions: VizValuesLayoutOptions[];
+        pivotLayoutOptions: VizPivotLayoutOptions[];
+    } {
+        return {
+            indexLayoutOptions: this.columns.reduce((acc, column) => {
+                const field =
+                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                        this.fields,
+                        column.reference,
+                    );
+                if (field?.kind === FieldType.DIMENSION) {
+                    acc.push({
+                        reference: column.reference,
+                        type: this.getAxisType(column),
+                    });
+                }
+                return acc;
+            }, [] as VizIndexLayoutOptions[]),
+            valuesLayoutOptions: this.columns.reduce((acc, column) => {
+                const field =
+                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                        this.fields,
+                        column.reference,
+                    );
+                if (field?.kind === FieldType.METRIC) {
+                    acc.push({
+                        reference: column.reference,
+                    });
+                }
+                return acc;
+            }, [] as VizValuesLayoutOptions[]),
+            pivotLayoutOptions: this.columns.filter((column) => {
+                const field =
+                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                        this.fields,
+                        column.reference,
+                    );
+                return field?.kind === FieldType.DIMENSION;
+            }),
+        };
+    }
+
+    defaultPivotChartLayout(): VizChartLayout | undefined {
+        const xColumn = this.columns.find((column) => {
+            const field =
+                SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                    this.fields,
+                    column.reference,
+                );
+            return field?.kind === FieldType.DIMENSION;
+        });
+
+        const yColumn = this.columns.find((column) => {
+            const field =
+                SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                    this.fields,
+                    column.reference,
+                );
+            return field?.kind === FieldType.METRIC;
+        });
+        if (!xColumn || !yColumn) {
+            return;
+        }
+
+        return {
+            x: {
+                reference: xColumn.reference,
+                type: this.getAxisType(xColumn),
+            },
+            y: [
+                {
+                    reference: yColumn.reference,
+                },
+            ],
+            groupBy: [],
+        };
+    }
+
     static convertColumnsToVizColumns(
         fields: SemanticLayerField[],
         columns: string[],
@@ -97,7 +181,6 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
                         fields,
                         column,
                     );
-
                 if (!field) {
                     return;
                 }

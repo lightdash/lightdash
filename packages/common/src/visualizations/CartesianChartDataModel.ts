@@ -155,7 +155,7 @@ export class CartesianChartDataModel
 
         const shouldStack = display?.stack === true;
         /*
-// For old colors method
+        // For old colors method
         const possibleXAxisValues = transformedData.results.map((row) =>
             transformedData.indexColumn?.reference
                 ? `${row[transformedData.indexColumn.reference]}`
