@@ -4,15 +4,17 @@ import {
     isVizTableConfig,
     type DashboardSqlChartTile as DashboardSqlChartTileType,
 } from '@lightdash/common';
-import { Box, Menu } from '@mantine/core';
+import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
 import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
 import { useApp } from '../../providers/AppProvider';
+import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { useChartViz } from '../DataViz/hooks/useChartViz';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
@@ -40,24 +42,16 @@ const DashboardOptions = memo(
         isEditMode: boolean;
         projectUuid: string;
         slug: string;
-    }) => {
-        const history = useHistory();
-        return (
-            <Box>
-                <Menu.Item
-                    icon={<MantineIcon icon={IconFilePencil} />}
-                    disabled={isEditMode}
-                    onClick={() =>
-                        history.push(
-                            `/projects/${projectUuid}/sql-runner/${slug}/edit`,
-                        )
-                    }
-                >
-                    Edit SQL chart
-                </Menu.Item>
-            </Box>
-        );
-    },
+    }) => (
+        <LinkMenuItem
+            icon={<MantineIcon icon={IconFilePencil} />}
+            href={`/projects/${projectUuid}/sql-runner/${slug}/edit`}
+            disabled={isEditMode}
+            target="_blank"
+        >
+            Edit SQL chart
+        </LinkMenuItem>
+    ),
 );
 
 export const DashboardSqlChartTile: FC<Props> = ({
@@ -101,6 +95,16 @@ export const DashboardSqlChartTile: FC<Props> = ({
             }),
         [sqlRunnerChartData],
     );
+
+    const [chartVizQuery, chartSpec] = useChartViz({
+        projectUuid,
+        resultsRunner,
+        config: data?.chart.config,
+        uuid: savedSqlUuid ?? undefined,
+        sql: data?.chart.sql,
+        slug: data?.chart.slug,
+        limit: data?.chart.limit,
+    });
 
     if (isLoading) {
         return (
@@ -167,7 +171,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                     <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
                         <Table
                             resultsRunner={resultsRunner}
-                            config={data.chart.config}
+                            columnsConfig={data.chart.config.columns}
                         />
                     </Box>
                 )}
@@ -177,17 +181,14 @@ export const DashboardSqlChartTile: FC<Props> = ({
                     data.chart.config.type === ChartKind.PIE) && (
                     <ChartView
                         config={data.chart.config}
+                        spec={chartSpec}
+                        isLoading={chartVizQuery.isLoading}
+                        error={chartVizQuery.error}
                         style={{
                             minHeight: 'inherit',
                             height: '100%',
                             width: '100%',
                         }}
-                        resultsRunner={resultsRunner}
-                        isLoading={false}
-                        sql={data.chart.sql}
-                        projectUuid={projectUuid}
-                        uuid={savedSqlUuid}
-                        limit={data.chart.limit}
                     />
                 )}
         </TileBase>

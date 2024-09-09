@@ -1,7 +1,4 @@
-import {
-    type RawResultRow,
-    type VizTableColumnsConfig,
-} from '@lightdash/common';
+import { type RawResultRow, type VizColumnsConfig } from '@lightdash/common';
 import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
@@ -12,18 +9,18 @@ import {
     TABLE_HEADER_BG,
     Tr,
 } from '../../common/Table/Table.styles';
+import { useTableDataModel } from '../hooks/useTableDataModel';
 import { type ResultsRunner } from '../transformers/ResultsRunner';
-import { useTableDataModel } from '../transformers/useTableDataModel';
 
 type TableProps<T extends ResultsRunner> = {
-    config?: VizTableColumnsConfig;
+    columnsConfig: VizColumnsConfig;
     resultsRunner: T;
     flexProps?: FlexProps;
 };
 
 export const Table = <T extends ResultsRunner>({
     resultsRunner,
-    config,
+    columnsConfig,
     flexProps,
 }: TableProps<T>) => {
     const {
@@ -32,7 +29,12 @@ export const Table = <T extends ResultsRunner>({
         getTableData,
         paddingTop,
         paddingBottom,
-    } = useTableDataModel({ config, resultsRunner });
+    } = useTableDataModel({
+        config: {
+            columns: columnsConfig,
+        },
+        resultsRunner,
+    });
 
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
@@ -63,7 +65,7 @@ export const Table = <T extends ResultsRunner>({
                                     }}
                                 >
                                     <Group spacing="two">
-                                        {config?.columns[header.id]
+                                        {columnsConfig[header.id]
                                             ?.aggregation && (
                                             <Badge
                                                 size="sm"
@@ -71,13 +73,13 @@ export const Table = <T extends ResultsRunner>({
                                                 radius="xs"
                                             >
                                                 {
-                                                    config?.columns[header.id]
+                                                    columnsConfig[header.id]
                                                         ?.aggregation
                                                 }
                                             </Badge>
                                         )}
                                         {/* TODO: do we need to check if it's a
-                                            placeholder? */}
+                                        placeholder? */}
                                         {flexRender(
                                             header.column.columnDef.header,
                                             header.getContext(),

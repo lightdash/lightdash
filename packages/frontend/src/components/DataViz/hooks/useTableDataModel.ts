@@ -14,7 +14,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
-import { type ResultsRunner } from './ResultsRunner';
+import { type ResultsRunner } from '../transformers/ResultsRunner';
 
 export const useTableDataModel = <T extends ResultsRunner>({
     config,
@@ -50,11 +50,11 @@ export const useTableDataModel = <T extends ResultsRunner>({
             // react table has a bug with accessors that has dots in them
             // we found the fix here -> https://github.com/TanStack/table/issues/1671
             // do not remove the line below
-            accessorFn: (row) => row[column],
+            accessorFn: resultsRunner.getColumnsAccessorFn(column),
             header: config?.columns[column].label || column,
             cell: getValueCell,
         }));
-    }, [columns, config]);
+    }, [columns, config?.columns, resultsRunner]);
 
     const table = useReactTable({
         data: rows,

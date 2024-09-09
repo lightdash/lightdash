@@ -1,3 +1,129 @@
+## [0.1248.3](https://github.com/lightdash/lightdash/compare/0.1248.2...0.1248.3) (2024-09-06)
+
+
+### Bug Fixes
+
+* allow saving columns config on save ([#11459](https://github.com/lightdash/lightdash/issues/11459)) ([aa13a49](https://github.com/lightdash/lightdash/commit/aa13a490d33ee023d523628f22645ebe3b8cd50e))
+
+## [0.1248.2](https://github.com/lightdash/lightdash/compare/0.1248.1...0.1248.2) (2024-09-06)
+
+
+### Bug Fixes
+
+* do not remove special chars in tooltip ([#11456](https://github.com/lightdash/lightdash/issues/11456)) ([c70b92a](https://github.com/lightdash/lightdash/commit/c70b92a3418464b55b9054e13746897d69e3e080))
+
+## [0.1248.1](https://github.com/lightdash/lightdash/compare/0.1248.0...0.1248.1) (2024-09-06)
+
+
+### Bug Fixes
+
+* set series labels depending on field config `y` ([#11436](https://github.com/lightdash/lightdash/issues/11436)) ([6beb0b5](https://github.com/lightdash/lightdash/commit/6beb0b5f77acf7878681374c622f0ea24ee259a5))
+
+# [0.1248.0](https://github.com/lightdash/lightdash/compare/0.1247.6...0.1248.0) (2024-09-06)
+
+
+### Features
+
+* semantic viewer pivot table ([#11441](https://github.com/lightdash/lightdash/issues/11441)) ([48e4256](https://github.com/lightdash/lightdash/commit/48e4256d4985e0fdcd8ca15ffb97f0f00af741dc))
+
+## [0.1247.6](https://github.com/lightdash/lightdash/compare/0.1247.5...0.1247.6) (2024-09-06)
+
+
+### Bug Fixes
+
+* duplicated table name sql runner ([#11449](https://github.com/lightdash/lightdash/issues/11449)) ([0f55f3a](https://github.com/lightdash/lightdash/commit/0f55f3a88e5311303cdc63074f2ed6f1d245ec57))
+* rename sql chart dashboard ([#11452](https://github.com/lightdash/lightdash/issues/11452)) ([4e613e2](https://github.com/lightdash/lightdash/commit/4e613e2d60e1a00f7eccb88271e0f62edfa43025))
+* screenshot wait for sql runner ([#11451](https://github.com/lightdash/lightdash/issues/11451)) ([9728b6f](https://github.com/lightdash/lightdash/commit/9728b6f0314d9f4215fff916baaea072f6167554))
+
+## [0.1247.5](https://github.com/lightdash/lightdash/compare/0.1247.4...0.1247.5) (2024-09-06)
+
+
+### Bug Fixes
+
+* first value agg ([#11420](https://github.com/lightdash/lightdash/issues/11420)) ([7043e7d](https://github.com/lightdash/lightdash/commit/7043e7dd2350a0ddc4c4c0b071511b1687f2cdc4))
+
+## [0.1247.4](https://github.com/lightdash/lightdash/compare/0.1247.3...0.1247.4) (2024-09-06)
+
+
+### Bug Fixes
+
+* sql runner loop by removing unnecessary hook ([#11439](https://github.com/lightdash/lightdash/issues/11439)) ([f6f3a3f](https://github.com/lightdash/lightdash/commit/f6f3a3f13111f3036034dda45c33e583cec4428e))
+
+## [0.1247.3](https://github.com/lightdash/lightdash/compare/0.1247.2...0.1247.3) (2024-09-06)
+
+
+### Bug Fixes
+
+* clear omnibar on clicking item ([#11443](https://github.com/lightdash/lightdash/issues/11443)) ([8ad597f](https://github.com/lightdash/lightdash/commit/8ad597f482e32a539ad341ebb88f9de13e9f1ef2))
+
+## [0.1247.2](https://github.com/lightdash/lightdash/compare/0.1247.1...0.1247.2) (2024-09-06)
+
+
+### Bug Fixes
+
+* virtualize table rows in sql runner ([#11406](https://github.com/lightdash/lightdash/issues/11406)) ([af3c9a6](https://github.com/lightdash/lightdash/commit/af3c9a6e46535ef494d59e941a42f00431b90764)), closes [#11416](https://github.com/lightdash/lightdash/issues/11416)
+
+## [0.1247.1](https://github.com/lightdash/lightdash/compare/0.1247.0...0.1247.1) (2024-09-05)
+
+
+### Bug Fixes
+
+* sql runner view mode results table ([#11442](https://github.com/lightdash/lightdash/issues/11442)) ([86fad50](https://github.com/lightdash/lightdash/commit/86fad50b602e833be7a474fd4b9b923a5952b4a5))
+
+# [0.1247.0](https://github.com/lightdash/lightdash/compare/0.1246.0...0.1247.0) (2024-09-05)
+
+
+### Bug Fixes
+
+* open results table on query ([#11432](https://github.com/lightdash/lightdash/issues/11432)) ([5a7f211](https://github.com/lightdash/lightdash/commit/5a7f211f700b59ba6769c9a657208007668ddbf0))
+
+
+### Features
+
+* open edit sql chart in new tab - dashboard ([#11429](https://github.com/lightdash/lightdash/issues/11429)) ([56d9db7](https://github.com/lightdash/lightdash/commit/56d9db77301a70deaacbc6ca20c4f4b94aa63d17))
+
+# [0.1246.0](https://github.com/lightdash/lightdash/compare/0.1245.0...0.1246.0) (2024-09-05)
+
+
+### Features
+
+* sql runner pivot table ([#11419](https://github.com/lightdash/lightdash/issues/11419)) ([d92cd61](https://github.com/lightdash/lightdash/commit/d92cd61dd18b68601ace5d1b867732db3ea8999f))
+
+# [0.1245.0](https://github.com/lightdash/lightdash/compare/0.1244.3...0.1245.0) (2024-09-05)
+
+
+### Features
+
+* support Bigquery execution project ([#11374](https://github.com/lightdash/lightdash/issues/11374)) ([8c608db](https://github.com/lightdash/lightdash/commit/8c608db00e6382c5691119b8138cfad3b70e9f93))
+
+## [0.1244.3](https://github.com/lightdash/lightdash/compare/0.1244.2...0.1244.3) (2024-09-05)
+
+
+### Bug Fixes
+
+* upgrade @easyops-cn/docusaurus-search-local from 0.40.1 to 0.44.5 ([#11413](https://github.com/lightdash/lightdash/issues/11413)) ([400bf94](https://github.com/lightdash/lightdash/commit/400bf94ee03366bde692872399a03432427f8e8a))
+
+## [0.1244.2](https://github.com/lightdash/lightdash/compare/0.1244.1...0.1244.2) (2024-09-05)
+
+
+### Bug Fixes
+
+* upgrade clsx from 2.1.0 to 2.1.1 ([#11415](https://github.com/lightdash/lightdash/issues/11415)) ([c965f08](https://github.com/lightdash/lightdash/commit/c965f08d1dd8386776b931bcb75611638f659341))
+
+## [0.1244.1](https://github.com/lightdash/lightdash/compare/0.1244.0...0.1244.1) (2024-09-05)
+
+
+### Bug Fixes
+
+* result cols mapping and query when fetching pivoted results ([#11404](https://github.com/lightdash/lightdash/issues/11404)) ([593df57](https://github.com/lightdash/lightdash/commit/593df57e119bd0064734b7f9dfb13d47389c694a))
+
+# [0.1244.0](https://github.com/lightdash/lightdash/compare/0.1243.0...0.1244.0) (2024-09-05)
+
+
+### Features
+
+* fetch results on load of edit chart ([#11401](https://github.com/lightdash/lightdash/issues/11401)) ([2472903](https://github.com/lightdash/lightdash/commit/24729031857cb8e26103dd268ac7e8bd0312324b))
+
 # [0.1243.0](https://github.com/lightdash/lightdash/compare/0.1242.0...0.1243.0) (2024-09-04)
 
 

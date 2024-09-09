@@ -483,15 +483,29 @@ export class UnfurlService extends BaseService {
 
                         if (lightdashPage === LightdashPage.DASHBOARD) {
                             // Wait for the all charts to load if we are in a dashboard
-                            chartResultsPromises = chartTileUuids?.map((id) => {
-                                const responsePattern = new RegExp(
-                                    `${id}/chart-and-results`,
-                                );
+                            const exploreChartResultsPromises =
+                                chartTileUuids?.map((id) => {
+                                    const responsePattern = new RegExp(
+                                        `${id}/chart-and-results`,
+                                    );
 
-                                return page?.waitForResponse(responsePattern, {
+                                    return page?.waitForResponse(
+                                        responsePattern,
+                                        {
+                                            timeout: 60000,
+                                        },
+                                    ); // NOTE: No await here
+                                });
+                            const sqlChartResultsPromises = [
+                                page?.waitForResponse(/\/sqlRunner\/results/, {
                                     timeout: 60000,
-                                }); // NOTE: No await here
-                            });
+                                }), // NOTE: No await here
+                            ];
+
+                            chartResultsPromises = [
+                                ...(exploreChartResultsPromises || []),
+                                ...sqlChartResultsPromises,
+                            ];
                         } else if (lightdashPage === LightdashPage.CHART) {
                             // Wait for the visualization to load if we are in an saved explore page
                             const responsePattern = new RegExp(

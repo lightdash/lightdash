@@ -4604,6 +4604,7 @@ const models: TsoaRoute.Models = {
                         ],
                         required: true,
                     },
+                    executionProject: { dataType: 'string' },
                 },
                 validators: {},
             },
@@ -4822,7 +4823,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        source: { ref: 'ChartSourceType', required: true },
+                        source: { ref: 'ChartSourceType' },
                         chartKind: {
                             dataType: 'union',
                             subSchemas: [
@@ -6558,7 +6559,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     VizAggregationOptions: {
         dataType: 'refEnum',
-        enums: ['sum', 'count', 'avg', 'min', 'max'],
+        enums: ['sum', 'count', 'avg', 'min', 'max', 'any'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiSqlRunnerPivotQueryPayload: {
@@ -6884,6 +6885,32 @@ const models: TsoaRoute.Models = {
         enums: ['table'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizColumnConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                aggregation: { ref: 'VizAggregationOptions' },
+                order: { dataType: 'double' },
+                frozen: { dataType: 'boolean', required: true },
+                label: { dataType: 'string', required: true },
+                reference: { dataType: 'string', required: true },
+                visible: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizColumnsConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'VizColumnConfig' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     VizTableConfig: {
         dataType: 'refAlias',
         type: {
@@ -6893,36 +6920,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        columns: {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {},
-                            additionalProperties: {
-                                dataType: 'nestedObjectLiteral',
-                                nestedProperties: {
-                                    aggregation: {
-                                        ref: 'VizAggregationOptions',
-                                    },
-                                    order: { dataType: 'double' },
-                                    frozen: {
-                                        dataType: 'boolean',
-                                        required: true,
-                                    },
-                                    label: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                    reference: {
-                                        dataType: 'string',
-                                        required: true,
-                                    },
-                                    visible: {
-                                        dataType: 'boolean',
-                                        required: true,
-                                    },
-                                },
-                            },
-                            required: true,
-                        },
+                        columns: { ref: 'VizColumnsConfig', required: true },
                         type: { ref: 'ChartKind.TABLE', required: true },
                     },
                 },

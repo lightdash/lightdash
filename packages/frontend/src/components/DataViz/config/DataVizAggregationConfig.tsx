@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Group, Select, Text } from '@mantine/core';
 import {
+    IconAsterisk,
     IconMathFunction,
     IconMathMax,
     IconMathMin,
@@ -37,6 +38,9 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
             break;
         case MetricType.MAX:
             icon = IconMathMax;
+            break;
+        case VizAggregationOptions.ANY:
+            icon = IconAsterisk;
             break;
         default:
             icon = IconMathOff;

@@ -180,7 +180,7 @@ const Content: FC = () => {
                 <Center sx={{ flexGrow: 1 }}>
                     <SuboptimalState
                         title="No results"
-                        description="Please run the query to see results"
+                        description="Select some fields, then run the query to see results."
                     />
                 </Center>
             ) : activeEditorTab === EditorTabs.RESULTS ? (

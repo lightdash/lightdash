@@ -16,6 +16,7 @@ import { ConditionalVisibility } from '../components/common/ConditionalVisibilit
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
+import { useChartViz } from '../components/DataViz/hooks/useChartViz';
 import { setChartConfig } from '../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../components/DataViz/store/selectors';
 import ChartView from '../components/DataViz/visualizations/ChartView';
@@ -33,6 +34,7 @@ import {
     resetState,
     setProjectUuid,
     setSavedChartData,
+    setSqlRunnerResults,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 
 enum TabOption {
@@ -46,9 +48,13 @@ const ViewSqlChart = () => {
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const { resultsTableConfig, selectedChartType, sql } = useAppSelector(
-        (state) => state.sqlRunner,
+    const resultsTableConfig = useAppSelector(
+        (state) => state.sqlRunner.resultsTableConfig,
     );
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
 
     const currentVisConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
@@ -88,6 +94,21 @@ const ViewSqlChart = () => {
             }),
         [data],
     );
+
+    useEffect(() => {
+        if (!data) return;
+        dispatch(setSqlRunnerResults(data));
+    }, [data, dispatch]);
+
+    const [chartVizQuery, chartSpec] = useChartViz({
+        resultsRunner,
+        config: currentVisConfig,
+        uuid: sqlChart?.savedSqlUuid,
+        sql,
+        projectUuid,
+        slug: params.slug,
+        limit: sqlChart?.limit,
+    });
 
     return (
         <Page
@@ -145,6 +166,7 @@ const ViewSqlChart = () => {
 
                     {data && !isLoading && (
                         <Box
+                            h="100%"
                             sx={{
                                 position: 'relative',
                                 flex: 1,
@@ -155,42 +177,58 @@ const ViewSqlChart = () => {
                             >
                                 {currentVisConfig && (
                                     <>
-                                        {isVizTableConfig(currentVisConfig) && (
-                                            <Table
-                                                resultsRunner={resultsRunner}
-                                                config={currentVisConfig}
-                                            />
-                                        )}
+                                        {isVizTableConfig(currentVisConfig) &&
+                                            resultsTableConfig && (
+                                                <Table
+                                                    resultsRunner={
+                                                        resultsRunner
+                                                    }
+                                                    columnsConfig={
+                                                        // TODO: this is a temporary fix to handle the case where the columns config is not set
+                                                        // TODO: ensure columns config is sent and processed in the backend correctly
+                                                        Object.keys(
+                                                            currentVisConfig.columns,
+                                                        ).length > 0
+                                                            ? currentVisConfig.columns
+                                                            : resultsTableConfig.columns
+                                                    }
+                                                    flexProps={{
+                                                        mah: 'calc(100vh - 250px)',
+                                                    }}
+                                                />
+                                            )}
                                         {!isVizTableConfig(currentVisConfig) &&
                                             data &&
                                             params.slug &&
                                             sql && (
                                                 <ChartView
-                                                    resultsRunner={
-                                                        resultsRunner
-                                                    }
-                                                    isLoading={isLoading}
                                                     config={currentVisConfig}
-                                                    style={{
-                                                        height: '100%',
-                                                    }}
-                                                    sql={sql}
-                                                    projectUuid={projectUuid}
-                                                    slug={params.slug}
-                                                    limit={sqlChart?.limit}
+                                                    spec={chartSpec}
+                                                    isLoading={
+                                                        isLoading ||
+                                                        chartVizQuery.isLoading
+                                                    }
+                                                    error={chartVizQuery.error}
+                                                    style={{ height: '100%' }}
                                                 />
                                             )}
                                     </>
                                 )}
                             </ConditionalVisibility>
-
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.RESULTS}
                             >
-                                <Table
-                                    resultsRunner={resultsRunner}
-                                    config={resultsTableConfig}
-                                />
+                                {resultsTableConfig?.columns && (
+                                    <Table
+                                        resultsRunner={resultsRunner}
+                                        columnsConfig={
+                                            resultsTableConfig.columns
+                                        }
+                                        flexProps={{
+                                            mah: 'calc(100vh - 250px)',
+                                        }}
+                                    />
+                                )}
                             </ConditionalVisibility>
                         </Box>
                     )}

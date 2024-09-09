@@ -4,6 +4,7 @@ import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
@@ -28,10 +29,6 @@ const ContentCharts: FC = () => {
         (state) => state.semanticViewer,
     );
 
-    const vizConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
-    );
-
     const resultsRunner = useMemo(() => {
         return new SemanticViewerResultsRunner({
             query: semanticQuery,
@@ -40,6 +37,10 @@ const ContentCharts: FC = () => {
             projectUuid,
         });
     }, [columns, projectUuid, results, semanticQuery]);
+
+    const vizConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
+    );
 
     const [openPanel, setOpenPanel] = useState<TabPanel>();
 
@@ -50,6 +51,26 @@ const ContentCharts: FC = () => {
     const handleClosePanel = () => {
         setOpenPanel(undefined);
     };
+
+    const [chartVizQuery, chartSpec] = useChartViz({
+        resultsRunner,
+        config: vizConfig,
+        projectUuid,
+    });
+
+    const pivotResultsRunner = useMemo(() => {
+        return new SemanticViewerResultsRunner({
+            projectUuid,
+            query: semanticQuery,
+            rows: chartVizQuery.data?.results ?? [],
+            columns: chartVizQuery.data?.columns ?? [],
+        });
+    }, [
+        chartVizQuery.data?.columns,
+        chartVizQuery.data?.results,
+        projectUuid,
+        semanticQuery,
+    ]);
 
     return (
         <>
@@ -62,9 +83,8 @@ const ContentCharts: FC = () => {
                 >
                     {vizConfig && isVizTableConfig(vizConfig) ? (
                         <Table
-                            key={vizConfig.type}
                             resultsRunner={resultsRunner}
-                            config={vizConfig}
+                            columnsConfig={vizConfig.columns}
                             flexProps={{
                                 m: '-1px',
                                 w: '100%',
@@ -73,10 +93,10 @@ const ContentCharts: FC = () => {
                         />
                     ) : vizConfig && !isVizTableConfig(vizConfig) ? (
                         <ChartView
-                            key={vizConfig.type}
-                            resultsRunner={resultsRunner}
                             config={vizConfig}
-                            isLoading={false}
+                            spec={chartSpec}
+                            isLoading={chartVizQuery.isLoading}
+                            error={chartVizQuery.error}
                             style={{
                                 flexGrow: 1,
                                 width: '100%',
@@ -111,7 +131,22 @@ const ContentCharts: FC = () => {
                             minSize={10}
                             onCollapse={() => setOpenPanel(undefined)}
                         >
-                            table visualization goes here...
+                            <Table
+                                resultsRunner={pivotResultsRunner}
+                                columnsConfig={Object.fromEntries(
+                                    chartVizQuery.data?.columns.map((field) => [
+                                        field.reference,
+                                        {
+                                            visible: true,
+                                            reference: field.reference,
+                                            label: field.reference,
+                                            frozen: false,
+                                            // TODO: add aggregation
+                                            // aggregation?: VizAggregationOptions;
+                                        },
+                                    ]) ?? [],
+                                )}
+                            />
                         </Panel>
                     </>
                 )}

@@ -1,13 +1,9 @@
-import { BigQuery } from '@google-cloud/bigquery';
-
-import { Readable } from 'stream';
+import { Dataset } from '@google-cloud/bigquery';
 import { BigqueryWarehouseClient } from './BigqueryWarehouseClient';
 import {
     createJobResponse,
     credentials,
-    getDatasetResponse,
     getTableResponse,
-    rows,
 } from './BigqueryWarehouseClient.mock';
 import {
     config,
@@ -33,16 +29,15 @@ describe('BigqueryWarehouseClient', () => {
         ).toHaveBeenCalledTimes(1);
     });
     it('expect schema with bigquery types mapped to dimension types', async () => {
-        const getDatasetMock = jest
+        const getTableMock = jest
             .fn()
-            .mockImplementationOnce(() => getDatasetResponse);
-        BigQuery.prototype.dataset = getDatasetMock;
+            .mockImplementationOnce(() => getTableResponse);
+        Dataset.prototype.table = getTableMock;
         const warehouse = new BigqueryWarehouseClient(credentials);
         expect(await warehouse.getCatalog(config)).toEqual(
             expectedWarehouseSchema,
         );
-        expect(getDatasetMock).toHaveBeenCalledTimes(1);
-        expect(getDatasetResponse.table).toHaveBeenCalledTimes(1);
+        expect(getTableMock).toHaveBeenCalledTimes(1);
         expect(getTableResponse.getMetadata).toHaveBeenCalledTimes(1);
     });
 });

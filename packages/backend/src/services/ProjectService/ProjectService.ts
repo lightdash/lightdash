@@ -41,6 +41,7 @@ import {
     findFieldByIdInExplore,
     ForbiddenError,
     formatRows,
+    getAggregatedField,
     getDashboardFilterRulesForTables,
     getDateDimension,
     getDimensions,
@@ -95,6 +96,7 @@ import {
     UpdateProjectMember,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    VizAggregationOptions,
     VizSqlColumn,
     WarehouseCatalog,
     WarehouseClient,
@@ -2061,10 +2063,14 @@ export class ProjectService extends BaseService {
             `${q}${indexColumn.reference}${q}`,
         ];
         const groupBySelectMetrics = [
-            ...(valuesColumns ?? []).map(
-                (col) =>
-                    `${col.aggregation}(${q}${col.reference}${q}) as ${q}${col.reference}_${col.aggregation}${q}`,
-            ),
+            ...(valuesColumns ?? []).map((col) => {
+                const aggregationField = getAggregatedField(
+                    warehouseType,
+                    col.aggregation,
+                    col.reference,
+                );
+                return `${aggregationField} AS ${q}${col.reference}_${col.aggregation}${q}`;
+            }),
         ];
         const groupByQuery = `SELECT ${[
             ...new Set(groupBySelectDimensions), // Remove duplicate columns
@@ -2118,7 +2124,7 @@ export class ProjectService extends BaseService {
     }: SqlRunnerPivotQueryPayload): Promise<
         {
             fileUrl: string;
-        } & Omit<PivotChartData, 'results'>
+        } & Omit<PivotChartData, 'results' | 'columns'>
     > {
         if (!indexColumn) throw new ParameterError('Index column is required');
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -2161,7 +2167,6 @@ export class ProjectService extends BaseService {
         };
 
         const columns: VizSqlColumn[] = [];
-
         let currentRowIndex = 0;
         let currentTransformedRow: ResultRow | undefined;
         const valuesColumnReferences = new Set<string>(); // NOTE: This is used to pivot the data later with the same group by columns

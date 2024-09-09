@@ -141,6 +141,7 @@ export const cartesianChartConfigSlice = createSlice({
             action: PayloadAction<{
                 reference: string;
                 label: string;
+                index: number;
             }>,
         ) => {
             if (!config) return;
@@ -148,6 +149,7 @@ export const cartesianChartConfigSlice = createSlice({
             config.display.series = config.display.series || {};
             config.display.series[action.payload.reference] = {
                 ...config.display.series[action.payload.reference],
+                yAxisIndex: action.payload.index,
                 label: action.payload.label,
             };
         },

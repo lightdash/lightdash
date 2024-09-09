@@ -1,4 +1,9 @@
-import { CustomFormatType, Format, friendlyName } from '../types/field';
+import {
+    capitalize,
+    CustomFormatType,
+    Format,
+    friendlyName,
+} from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
 import {
@@ -113,7 +118,7 @@ export class CartesianChartDataModel
             return undefined;
         }
 
-        return this.resultsRunner.getPivotChartData(
+        return this.resultsRunner.getPivotedVisualizationData(
             layout,
             sql,
             projectUuid,
@@ -162,9 +167,18 @@ export class CartesianChartDataModel
                 const seriesFormat = Object.values(display?.series || {}).find(
                     (s) => s.yAxisIndex === index,
                 )?.format;
-                const seriesLabel = Object.values(display?.series || {}).find(
-                    (s) => s.yAxisIndex === index,
-                )?.label;
+
+                const singleYAxisLabel =
+                    // NOTE: When there's only one y-axis left, set the label on the series as well
+                    this.fieldConfig?.y.length === 1 &&
+                    display?.yAxis?.[0]?.label
+                        ? display.yAxis[0].label
+                        : undefined;
+                const seriesLabel =
+                    singleYAxisLabel ??
+                    Object.values(display?.series || {}).find(
+                        (s) => s.yAxisIndex === index,
+                    )?.label;
 
                 const seriesColor = Object.values(display?.series || {}).find(
                     (s) => s.yAxisIndex === index,
@@ -177,7 +191,12 @@ export class CartesianChartDataModel
                     ],
                     type: defaultSeriesType,
                     stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
-                    name: seriesLabel || friendlyName(seriesColumn),
+                    name:
+                        seriesLabel ||
+                        capitalize(seriesColumn.toLowerCase()).replaceAll(
+                            '_',
+                            ' ',
+                        ), // similar to friendlyName, but this will preserve special characters
                     encode: {
                         x: transformedData.indexColumn?.reference,
                         y: seriesColumn,
@@ -210,7 +229,7 @@ export class CartesianChartDataModel
                 appendToBody: true, // Similar to rendering a tooltip in a Portal
             },
             legend: {
-                show: true,
+                show: !!(transformedData.valuesColumns.length > 1),
                 type: 'scroll',
             },
             xAxis: {

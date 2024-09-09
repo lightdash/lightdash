@@ -17,6 +17,10 @@ import {
     useMemo,
     useState,
     type FC,
+    type ForwardRefExoticComponent,
+    type ForwardRefRenderFunction,
+    type PropsWithoutRef,
+    type RefAttributes,
 } from 'react';
 import { useScroll } from 'react-use';
 import {
@@ -63,23 +67,38 @@ type TableCellProps = PolymorphicComponentProps<'th' | 'td', BoxProps> & {
 };
 
 interface TableCompoundComponents {
-    Head: FC<React.PropsWithChildren<TableSectionProps>>;
-    Body: FC<React.PropsWithChildren<TableSectionProps>>;
-    Footer: FC<React.PropsWithChildren<TableSectionProps>>;
-    Row: FC<React.PropsWithChildren<TableRowProps>>;
-    Cell: FC<React.PropsWithChildren<TableCellProps>>;
-    CellHead: FC<React.PropsWithChildren<TableCellProps>>;
+    Head: ForwardRefExoticComponent<
+        PropsWithoutRef<TableSectionProps> &
+            RefAttributes<HTMLTableSectionElement>
+    >;
+    Body: ForwardRefExoticComponent<
+        PropsWithoutRef<TableSectionProps> &
+            RefAttributes<HTMLTableSectionElement>
+    >;
+    Footer: ForwardRefExoticComponent<
+        PropsWithoutRef<TableSectionProps> &
+            RefAttributes<HTMLTableSectionElement>
+    >;
+    Row: ForwardRefExoticComponent<
+        PropsWithoutRef<TableRowProps> & RefAttributes<HTMLTableRowElement>
+    >;
+    Cell: ForwardRefExoticComponent<
+        PropsWithoutRef<TableCellProps> & RefAttributes<HTMLTableCellElement>
+    >;
+    CellHead: ForwardRefExoticComponent<
+        PropsWithoutRef<TableCellProps> & RefAttributes<HTMLTableCellElement>
+    >;
 }
 
 export enum SectionType {
-    Head = 'head',
-    Body = 'body',
-    Footer = 'footer',
+    Head = 'Head',
+    Body = 'Body',
+    Footer = 'Footer',
 }
 
 export enum CellType {
-    Head = 'head',
-    Data = 'data',
+    Head = 'Head',
+    Data = 'Data',
 }
 
 type TableContextType = {
@@ -244,51 +263,59 @@ const useRowContext = () => {
     return context;
 };
 
-const SectionBase = (sectionType: SectionType) => {
-    return forwardRef<HTMLTableSectionElement, TableSectionProps>(
-        ({ children, withSticky = false, ...rest }, ref) => {
-            const { scrollPositions } = useTableContext();
-            const { cx, classes } = useTableSectionStyles({
-                withSticky,
-                sectionType,
-                scrollPositions,
-            });
+const SectionBase = (
+    sectionType: SectionType,
+): ForwardRefExoticComponent<
+    PropsWithoutRef<TableSectionProps> & RefAttributes<HTMLTableSectionElement>
+> => {
+    const SectionComponent: ForwardRefRenderFunction<
+        HTMLTableSectionElement,
+        TableSectionProps
+    > = ({ children, withSticky = false, ...rest }, ref) => {
+        const { scrollPositions } = useTableContext();
+        const { cx, classes } = useTableSectionStyles({
+            withSticky,
+            sectionType,
+            scrollPositions,
+        });
 
-            const component = useMemo(() => {
-                switch (sectionType) {
-                    case SectionType.Head:
-                        return 'thead';
-                    case SectionType.Body:
-                        return 'tbody';
-                    case SectionType.Footer:
-                        return 'tfoot';
-                    default:
-                        return assertUnreachable(
-                            sectionType,
-                            `Unknown cell type: ${sectionType}`,
-                        );
-                }
-            }, []);
+        const component = useMemo(() => {
+            switch (sectionType) {
+                case SectionType.Head:
+                    return 'thead';
+                case SectionType.Body:
+                    return 'tbody';
+                case SectionType.Footer:
+                    return 'tfoot';
+                default:
+                    return assertUnreachable(
+                        sectionType,
+                        `Unknown cell type: ${sectionType}`,
+                    );
+            }
+        }, []);
 
-            return (
-                <Box
-                    component={component}
-                    ref={ref}
-                    {...rest}
-                    className={cx(classes.root, rest.className, {
-                        [classes.withSticky]: withSticky,
-                    })}
+        return (
+            <Box
+                component={component}
+                ref={ref}
+                {...rest}
+                className={cx(classes.root, rest.className, {
+                    [classes.withSticky]: withSticky,
+                })}
+            >
+                <SectionProvider
+                    sectionType={sectionType}
+                    withSticky={withSticky}
                 >
-                    <SectionProvider
-                        sectionType={sectionType}
-                        withSticky={withSticky}
-                    >
-                        {children}
-                    </SectionProvider>
-                </Box>
-            );
-        },
-    );
+                    {children}
+                </SectionProvider>
+            </Box>
+        );
+    };
+
+    SectionComponent.displayName = `LightTable.${SectionType[sectionType]}`;
+    return forwardRef(SectionComponent);
 };
 
 const Row = forwardRef<HTMLTableRowElement, TableRowProps>(
@@ -316,163 +343,171 @@ const Row = forwardRef<HTMLTableRowElement, TableRowProps>(
     },
 );
 
-const BaseCell = (cellType: CellType) => {
-    return forwardRef<HTMLTableCellElement, TableCellProps>(
-        (
-            {
-                children,
-                withMinimalWidth = false,
-                withAlignRight = false,
-                withTooltip = false,
-                withBoldFont = false,
-                withInteractions = false,
-                withColor = false,
-                withBackground = false,
-                withMenu = false,
-                ...rest
-            },
-            ref,
-        ) => {
-            const cellId = useId();
-            const clipboard = useClipboard({ timeout: 200 });
-
-            const { selectedCell, toggleCell } = useTableContext();
-            const { index } = useRowContext();
-            const { sectionType, withSticky } = useSectionContext();
-
-            const isSelected = selectedCell === cellId;
-
-            const handleCopy = useCallback(() => {
-                clipboard.copy(children);
-            }, [clipboard, children]);
-
-            useEffect(() => {
-                const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
-                if (isSelected) {
-                    document.body.addEventListener('keydown', handleKeyDown);
-                }
-
-                return () => {
-                    document.body.removeEventListener('keydown', handleKeyDown);
-                };
-            }, [handleCopy, isSelected]);
-
-            const { cx, classes } = useTableCellStyles({
-                sectionType,
-                cellType,
-                index,
-                withColor,
-                withBackground,
-            });
-
-            const cellHasLargeContent = useMemo(() => {
-                return (
-                    sectionType === SectionType.Body &&
-                    typeof children === 'string' &&
-                    children.length > SMALL_TEXT_LENGTH
-                );
-            }, [sectionType, children]);
-
-            const component = useMemo(() => {
-                switch (cellType) {
-                    case CellType.Head:
-                        return 'th';
-                    case CellType.Data:
-                        return 'td';
-                    default:
-                        return assertUnreachable(
-                            cellType,
-                            `Unknown cell type: ${cellType}`,
-                        );
-                }
-            }, []);
-
-            const cellElement = useMemo(
-                () => (
-                    <Box
-                        component={component}
-                        ref={ref}
-                        {...rest}
-                        data-is-selected={isSelected}
-                        className={cx(classes.root, rest.className, {
-                            [classes.withSticky]: withSticky,
-                            [classes.withLargeContent]: cellHasLargeContent,
-                            [classes.withMinimalWidth]: withMinimalWidth,
-                            [classes.withAlignRight]: withAlignRight,
-                            [classes.withBoldFont]: withBoldFont,
-                            [classes.withColor]: withColor,
-                            [classes.withInteractions]: withInteractions,
-                            [classes.withBackground]: withBackground,
-                            [classes.withCopying]: clipboard.copied,
-                        })}
-                        onClick={
-                            withInteractions
-                                ? () => {
-                                      toggleCell(isSelected ? null : cellId);
-                                  }
-                                : undefined
-                        }
-                    >
-                        {children && withTooltip ? (
-                            <Tooltip
-                                position="top"
-                                disabled={isSelected}
-                                withinPortal
-                                maw={400}
-                                multiline
-                                label={withTooltip}
-                            >
-                                <Text span>{children}</Text>
-                            </Tooltip>
-                        ) : (
-                            <>{children}</>
-                        )}
-                    </Box>
-                ),
-                [
-                    component,
-                    ref,
-                    rest,
-                    cx,
-                    classes.root,
-                    classes.withSticky,
-                    classes.withLargeContent,
-                    classes.withMinimalWidth,
-                    classes.withAlignRight,
-                    classes.withBoldFont,
-                    classes.withColor,
-                    classes.withInteractions,
-                    classes.withBackground,
-                    classes.withCopying,
-                    withSticky,
-                    cellHasLargeContent,
-                    withMinimalWidth,
-                    withAlignRight,
-                    withBoldFont,
-                    withColor,
-                    withInteractions,
-                    withBackground,
-                    clipboard.copied,
-                    withTooltip,
-                    isSelected,
-                    toggleCell,
-                    cellId,
-                    children,
-                ],
-            );
-
-            return withMenu
-                ? withMenu(
-                      {
-                          isOpen: isSelected,
-                          onClose: () => toggleCell(null),
-                          onCopy: handleCopy,
-                      },
-                      () => cellElement,
-                  )
-                : cellElement;
+const BaseCell = (
+    cellType: CellType,
+): ForwardRefExoticComponent<
+    PropsWithoutRef<TableCellProps> & RefAttributes<HTMLTableCellElement>
+> => {
+    const CellComponent: ForwardRefRenderFunction<
+        HTMLTableCellElement,
+        TableCellProps
+    > = (
+        {
+            children,
+            withMinimalWidth = false,
+            withAlignRight = false,
+            withTooltip = false,
+            withBoldFont = false,
+            withInteractions = false,
+            withColor = false,
+            withBackground = false,
+            withMenu = false,
+            ...rest
         },
-    );
+        ref,
+    ) => {
+        const cellId = useId();
+        const clipboard = useClipboard({ timeout: 200 });
+
+        const { selectedCell, toggleCell } = useTableContext();
+        const { index } = useRowContext();
+        const { sectionType, withSticky } = useSectionContext();
+
+        const isSelected = selectedCell === cellId;
+
+        const handleCopy = useCallback(() => {
+            clipboard.copy(children);
+        }, [clipboard, children]);
+
+        useEffect(() => {
+            const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
+            if (isSelected) {
+                document.body.addEventListener('keydown', handleKeyDown);
+            }
+
+            return () => {
+                document.body.removeEventListener('keydown', handleKeyDown);
+            };
+        }, [handleCopy, isSelected]);
+
+        const { cx, classes } = useTableCellStyles({
+            sectionType,
+            cellType,
+            index,
+            withColor,
+            withBackground,
+        });
+
+        const cellHasLargeContent = useMemo(() => {
+            return (
+                sectionType === SectionType.Body &&
+                typeof children === 'string' &&
+                children.length > SMALL_TEXT_LENGTH
+            );
+        }, [sectionType, children]);
+
+        const component = useMemo(() => {
+            switch (cellType) {
+                case CellType.Head:
+                    return 'th';
+                case CellType.Data:
+                    return 'td';
+                default:
+                    return assertUnreachable(
+                        cellType,
+                        `Unknown cell type: ${cellType}`,
+                    );
+            }
+        }, []);
+
+        const cellElement = useMemo(
+            () => (
+                <Box
+                    component={component}
+                    ref={ref}
+                    {...rest}
+                    data-is-selected={isSelected}
+                    className={cx(classes.root, rest.className, {
+                        [classes.withSticky]: withSticky,
+                        [classes.withLargeContent]: cellHasLargeContent,
+                        [classes.withMinimalWidth]: withMinimalWidth,
+                        [classes.withAlignRight]: withAlignRight,
+                        [classes.withBoldFont]: withBoldFont,
+                        [classes.withColor]: withColor,
+                        [classes.withInteractions]: withInteractions,
+                        [classes.withBackground]: withBackground,
+                        [classes.withCopying]: clipboard.copied,
+                    })}
+                    onClick={
+                        withInteractions
+                            ? () => {
+                                  toggleCell(isSelected ? null : cellId);
+                              }
+                            : undefined
+                    }
+                >
+                    {children && withTooltip ? (
+                        <Tooltip
+                            position="top"
+                            disabled={isSelected}
+                            withinPortal
+                            maw={400}
+                            multiline
+                            label={withTooltip}
+                        >
+                            <Text span>{children}</Text>
+                        </Tooltip>
+                    ) : (
+                        <>{children}</>
+                    )}
+                </Box>
+            ),
+            [
+                component,
+                ref,
+                rest,
+                cx,
+                classes.root,
+                classes.withSticky,
+                classes.withLargeContent,
+                classes.withMinimalWidth,
+                classes.withAlignRight,
+                classes.withBoldFont,
+                classes.withColor,
+                classes.withInteractions,
+                classes.withBackground,
+                classes.withCopying,
+                withSticky,
+                cellHasLargeContent,
+                withMinimalWidth,
+                withAlignRight,
+                withBoldFont,
+                withColor,
+                withInteractions,
+                withBackground,
+                clipboard.copied,
+                withTooltip,
+                isSelected,
+                toggleCell,
+                cellId,
+                children,
+            ],
+        );
+
+        return withMenu
+            ? withMenu(
+                  {
+                      isOpen: isSelected,
+                      onClose: () => toggleCell(null),
+                      onCopy: handleCopy,
+                  },
+                  () => cellElement,
+              )
+            : cellElement;
+    };
+
+    CellComponent.displayName = `LightTable.${CellType[cellType]}`;
+    return forwardRef(CellComponent);
 };
 
 const Table = TableComponent as typeof TableComponent & TableCompoundComponents;

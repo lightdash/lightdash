@@ -247,7 +247,7 @@ const Routes: FC = () => {
                                     >
                                         <NavBar />
 
-                                        <SqlRunnerNew />
+                                        <SqlRunnerNew isEditMode />
                                     </Route>
 
                                     <Route

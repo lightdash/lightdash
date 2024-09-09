@@ -16,6 +16,7 @@ export type BigqueryServiceAccountTarget = {
     location?: string;
     maximum_bytes_billed?: number;
     timeout_seconds?: number;
+    execution_project?: string;
 };
 export const bigqueryServiceAccountSchema: JSONSchemaType<BigqueryServiceAccountTarget> =
     {
@@ -64,6 +65,10 @@ export const bigqueryServiceAccountSchema: JSONSchemaType<BigqueryServiceAccount
                 type: 'integer',
                 nullable: true,
             },
+            execution_project: {
+                type: 'string',
+                nullable: true,
+            },
         },
         required: ['type', 'project', 'dataset', 'method', 'keyfile'],
     };
@@ -108,6 +113,7 @@ export type BigqueryServiceAccountJsonTarget = {
     location?: string;
     maximum_bytes_billed?: number;
     timeout_seconds?: number;
+    execution_project?: string;
 };
 export const bigqueryServiceAccountJsonSchema: JSONSchemaType<BigqueryServiceAccountJsonTarget> =
     {
@@ -154,6 +160,10 @@ export const bigqueryServiceAccountJsonSchema: JSONSchemaType<BigqueryServiceAcc
             },
             timeout_seconds: {
                 type: 'integer',
+                nullable: true,
+            },
+            execution_project: {
+                type: 'string',
                 nullable: true,
             },
         },

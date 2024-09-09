@@ -9,6 +9,7 @@ export enum VizAggregationOptions {
     AVERAGE = 'avg',
     MIN = 'min',
     MAX = 'max',
+    ANY = 'any',
 }
 
 export const vizAggregationOptions = [
@@ -17,6 +18,7 @@ export const vizAggregationOptions = [
     VizAggregationOptions.AVERAGE,
     VizAggregationOptions.MIN,
     VizAggregationOptions.MAX,
+    VizAggregationOptions.ANY,
 ];
 
 export const VIZ_DEFAULT_AGGREGATION = VizAggregationOptions.COUNT;
@@ -67,6 +69,7 @@ export type PivotChartData = {
     results: RawResultRow[];
     indexColumn: { reference: string; type: VizIndexType } | undefined;
     valuesColumns: string[];
+    columns: VizSqlColumn[];
 };
 
 export type VizCartesianChartOptions = {
@@ -80,22 +83,24 @@ export type VizPieChartOptions = {
     metricFieldOptions: VizValuesLayoutOptions[];
 };
 
+export type VizColumnConfig = {
+    visible: boolean;
+    reference: string;
+    label: string;
+    frozen: boolean;
+    order?: number;
+    aggregation?: VizAggregationOptions;
+};
+
+export type VizColumnsConfig = { [key: string]: VizColumnConfig };
+
+export type VizTableColumnsConfig = {
+    columns: VizColumnsConfig;
+};
+
 // TODO: FIXME!! it should be a common type!
 export type VizTableOptions = {
     defaultColumnConfig: VizTableColumnsConfig['columns'] | undefined;
-};
-
-export type VizTableColumnsConfig = {
-    columns: {
-        [key: string]: {
-            visible: boolean;
-            reference: string;
-            label: string;
-            frozen: boolean;
-            order?: number;
-            aggregation?: VizAggregationOptions;
-        };
-    };
 };
 
 export type VizBaseConfig = {
@@ -133,6 +138,12 @@ export type VizTableConfig = VizBaseConfig & {
     type: ChartKind.TABLE;
     columns: VizTableColumnsConfig['columns'];
 };
+
+export type AllVizChartConfig =
+    | VizBarChartConfig
+    | VizLineChartConfig
+    | VizPieChartConfig
+    | VizTableConfig;
 
 export const isVizBarChartConfig = (
     value: VizBaseConfig | undefined,
