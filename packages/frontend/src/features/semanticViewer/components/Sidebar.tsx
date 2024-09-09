@@ -43,6 +43,19 @@ const Sidebar: FC = () => {
                 spacing="xs"
                 sx={{ flex: 1, overflow: 'hidden' }}
             >
+                <Group
+                    h="4xl"
+                    pl="sm"
+                    pr="md"
+                    bg="gray.1"
+                    sx={(theme) => ({
+                        flexShrink: 0,
+                        borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                    })}
+                >
+                    test
+                </Group>
+
                 <Title order={5} fz="sm" c="gray.6">
                     <Group spacing="xs">
                         {features.views && view && (
@@ -68,6 +81,7 @@ const Sidebar: FC = () => {
                     {!view ? <SidebarViews /> : <SidebarViewFields />}
                 </Flex>
             </Stack>
+
             <ScrollArea
                 offsetScrollbars
                 variant="primary"
