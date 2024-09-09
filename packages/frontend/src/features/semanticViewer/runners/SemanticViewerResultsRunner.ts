@@ -57,10 +57,6 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         }
 
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
-
-        // Filter dimensions, time dimensions, and metrics to match pivot config
-        // This ensures correct aggregation for non-aggregated backend pivots (e.g., pie charts)
-        // TODO: this should be moved to the backend
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid: this.projectUuid,
             query: {
