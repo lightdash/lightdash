@@ -108,7 +108,7 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
                 default:
                     return acc;
             }
-        }, []);
+        }, [] as VizValuesLayoutOptions[]);
     }
 
     pivotChartOptions(): {
