@@ -16,7 +16,11 @@ import {
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
+import {
+    IconChartHistogram,
+    IconCodeCircle,
+    IconGripHorizontal,
+} from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -505,25 +509,32 @@ export const ContentPanel: FC = () => {
                     <Box
                         hidden={hideResultsPanel}
                         component={PanelResizeHandle}
-                        bg="gray.3"
-                        h={showLimitText ? 20 : 10}
+                        bg="gray.1"
+                        h={15}
                         sx={(theme) => ({
                             transition: 'background-color 0.2s ease-in-out',
-                            '&[data-resize-handle-state="hover"]': {
-                                backgroundColor: theme.colors.gray[3],
-                            },
-                            '&[data-resize-handle-state="drag"]': {
+                            cursor: 'row-resize',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            '&:hover': {
                                 backgroundColor: theme.colors.gray[2],
                             },
+                            '&[data-resize-handle-state="drag"]': {
+                                backgroundColor: theme.colors.gray[3],
+                            },
+                            gap: 5,
                         })}
                     >
-                        {showLimitText ? (
-                            <Group position="center">
-                                <Text fz="sm" fw={500}>
+                        <IconGripHorizontal size={12} color="gray" />
+                        {showLimitText && (
+                            <>
+                                <Text fz="xs" fw={400} c="gray.7">
                                     Showing first {DEFAULT_SQL_LIMIT} rows
                                 </Text>
-                            </Group>
-                        ) : undefined}
+                                <IconGripHorizontal size={12} color="gray" />
+                            </>
+                        )}
                     </Box>
 
                     <Panel
