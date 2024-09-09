@@ -287,15 +287,20 @@ export const ContentPanel: FC = () => {
                     <Group position="apart">
                         <Group position="apart">
                             <SegmentedControl
-                                color="dark"
+                                styles={(theme) => ({
+                                    root: {
+                                        backgroundColor: theme.colors.gray[2],
+                                    },
+                                })}
                                 size="sm"
-                                radius="sm"
+                                radius="md"
                                 data={[
                                     {
                                         value: EditorTabs.SQL,
                                         label: (
-                                            <Group spacing="xs" noWrap>
+                                            <Group spacing={4} noWrap>
                                                 <MantineIcon
+                                                    color="gray.6"
                                                     icon={IconCodeCircle}
                                                 />
                                                 <Text>SQL</Text>
@@ -305,19 +310,37 @@ export const ContentPanel: FC = () => {
                                     {
                                         value: EditorTabs.VISUALIZATION,
                                         label: (
-                                            <Group spacing="xs" noWrap>
-                                                <MantineIcon
-                                                    icon={IconChartHistogram}
-                                                />
-                                                <Text>Chart</Text>
-                                            </Group>
+                                            <Tooltip
+                                                disabled={
+                                                    !!queryResults?.results
+                                                }
+                                                variant="xs"
+                                                withinPortal
+                                                label="Run a query to see the chart"
+                                            >
+                                                <Group spacing={4} noWrap>
+                                                    <MantineIcon
+                                                        color="gray.6"
+                                                        icon={
+                                                            IconChartHistogram
+                                                        }
+                                                    />
+                                                    <Text>Chart</Text>
+                                                </Group>
+                                            </Tooltip>
                                         ),
-                                        disabled: !queryResults?.results,
                                     },
                                 ]}
                                 value={activeEditorTab}
                                 onChange={(value: EditorTabs) => {
                                     if (isLoading) {
+                                        return;
+                                    }
+
+                                    if (
+                                        value === EditorTabs.VISUALIZATION &&
+                                        !queryResults?.results
+                                    ) {
                                         return;
                                     }
 
