@@ -1,4 +1,4 @@
-import { ChartKind, FieldType, isVizTableConfig } from '@lightdash/common';
+import { ChartKind, isVizTableConfig } from '@lightdash/common';
 import { Box, Tabs, useMantineTheme } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -25,7 +25,7 @@ const ContentCharts: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
-    const { results, columns, activeChartKind } = useAppSelector(
+    const { results, columns, activeChartKind, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -35,8 +35,9 @@ const ContentCharts: FC = () => {
             rows: results ?? [],
             columns: columns ?? [],
             projectUuid,
+            fields,
         });
-    }, [columns, projectUuid, results, semanticQuery]);
+    }, [columns, fields, projectUuid, results, semanticQuery]);
 
     const vizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
@@ -63,20 +64,15 @@ const ContentCharts: FC = () => {
             projectUuid,
             query: semanticQuery,
             rows: chartVizQuery.data?.results ?? [],
-            columns:
-                chartVizQuery.data?.columns.map((column) => ({
-                    ...column,
-                    kind:
-                        column.type === 'number'
-                            ? FieldType.METRIC
-                            : FieldType.DIMENSION,
-                })) ?? [],
+            columns: chartVizQuery.data?.columns ?? [],
+            fields: fields,
         });
     }, [
         chartVizQuery.data?.columns,
         chartVizQuery.data?.results,
         projectUuid,
         semanticQuery,
+        fields,
     ]);
 
     return (

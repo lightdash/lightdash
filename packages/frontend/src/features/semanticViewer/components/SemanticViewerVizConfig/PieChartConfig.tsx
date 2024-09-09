@@ -1,4 +1,4 @@
-import { DimensionType, type SemanticLayerColumn } from '@lightdash/common';
+import { DimensionType, type VizColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { FieldReferenceSelect } from '../../../../components/DataViz/FieldReferenceSelect';
 import {
@@ -11,11 +11,7 @@ import {
 } from '../../../../components/DataViz/store/pieChartSlice';
 import { Config } from '../../../../components/VisualizationConfigs/common/Config';
 
-export const PieChartConfig = ({
-    columns,
-}: {
-    columns: SemanticLayerColumn[];
-}) => {
+export const PieChartConfig = ({ columns }: { columns: VizColumn[] }) => {
     const dispatch = useVizDispatch();
 
     const groupField = useVizSelector(

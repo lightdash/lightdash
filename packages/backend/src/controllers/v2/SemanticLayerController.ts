@@ -2,7 +2,6 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiSemanticLayerClientInfo,
-    SemanticLayerClientInfo,
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerView,

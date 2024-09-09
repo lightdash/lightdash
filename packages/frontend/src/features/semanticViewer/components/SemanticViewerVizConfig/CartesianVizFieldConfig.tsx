@@ -1,8 +1,8 @@
 import {
     DimensionType,
     type ChartKind,
-    type SemanticLayerColumn,
     type VizChartLayout,
+    type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
@@ -27,7 +27,7 @@ const YFieldsAxisConfig: FC<{
     isSingle: boolean;
     index: number;
     actions: CartesianChartActionsType;
-    columns: SemanticLayerColumn[];
+    columns: VizColumn[];
 }> = ({ field, yLayoutOptions, isSingle, index, actions, columns }) => {
     const dispatch = useVizDispatch();
 
@@ -86,7 +86,7 @@ const XFieldAxisConfig = ({
     actions,
     columns,
 }: {
-    columns: SemanticLayerColumn[];
+    columns: VizColumn[];
 
     field: VizChartLayout['x'] | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
@@ -130,7 +130,7 @@ const GroupByFieldAxisConfig = ({
     actions,
     columns,
 }: {
-    columns: SemanticLayerColumn[];
+    columns: VizColumn[];
     field: undefined | { reference: string };
     groupByOptions?: VizPivotLayoutOptions[];
     actions: CartesianChartActionsType;
@@ -193,7 +193,7 @@ export const CartesianVizFieldConfig = ({
     selectedChartType,
 }: {
     selectedChartType: ChartKind;
-    columns: SemanticLayerColumn[];
+    columns: VizColumn[];
 
     actions: CartesianChartActionsType;
 }) => {

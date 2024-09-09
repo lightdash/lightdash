@@ -97,7 +97,7 @@ import {
     UserAttributeValueMap,
     UserWarehouseCredentials,
     VizAggregationOptions,
-    VizSqlColumn,
+    VizColumn,
     WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
@@ -1980,7 +1980,7 @@ export class ProjectService extends BaseService {
         context,
     }: SqlRunnerPayload): Promise<{
         fileUrl: string;
-        columns: VizSqlColumn[];
+        columns: VizColumn[];
     }> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -2009,7 +2009,7 @@ export class ProjectService extends BaseService {
             user_uuid: userUuid,
         };
 
-        const columns: VizSqlColumn[] = [];
+        const columns: VizColumn[] = [];
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
@@ -2166,7 +2166,7 @@ export class ProjectService extends BaseService {
             user_uuid: userUuid,
         };
 
-        const columns: VizSqlColumn[] = [];
+        const columns: VizColumn[] = [];
         let currentRowIndex = 0;
         let currentTransformedRow: ResultRow | undefined;
         const valuesColumnReferences = new Set<string>(); // NOTE: This is used to pivot the data later with the same group by columns

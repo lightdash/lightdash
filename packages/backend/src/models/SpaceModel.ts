@@ -1362,9 +1362,12 @@ export class SpaceModel {
             .delete();
     }
 
-    async update(spaceUuid: string, space: UpdateSpace): Promise<Space> {
+    async update(
+        spaceUuid: string,
+        space: Partial<UpdateSpace>,
+    ): Promise<Space> {
         await this.database(SpaceTableName)
-            .update<UpdateSpace>({
+            .update({
                 name: space.name,
                 is_private: space.isPrivate,
             })

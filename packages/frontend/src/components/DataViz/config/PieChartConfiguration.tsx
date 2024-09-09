@@ -1,4 +1,4 @@
-import { DimensionType, type VizSqlColumn } from '@lightdash/common';
+import { DimensionType, type VizColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
@@ -11,9 +11,9 @@ import {
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 export const PieChartConfiguration = ({
-    sqlColumns,
+    columns,
 }: {
-    sqlColumns: VizSqlColumn[];
+    columns: VizColumn[];
 }) => {
     const dispatch = useVizDispatch();
 
@@ -65,7 +65,7 @@ export const PieChartConfiguration = ({
                         `Column "${groupField}" not in SQL query`
                     }
                     fieldType={
-                        sqlColumns?.find((x) => x.reference === groupField)
+                        columns?.find((x) => x.reference === groupField)
                             ?.type ?? DimensionType.STRING
                     }
                 />
@@ -97,7 +97,7 @@ export const PieChartConfiguration = ({
                         );
                     }}
                     fieldType={
-                        sqlColumns?.find(
+                        columns?.find(
                             (x) => x.reference === aggregateField?.reference,
                         )?.type ?? DimensionType.STRING
                     }

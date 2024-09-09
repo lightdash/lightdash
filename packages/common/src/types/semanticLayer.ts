@@ -1,6 +1,7 @@
+import type { ApiError } from '..';
 import assertUnreachable from '../utils/assertUnreachable';
-import { type VizSqlColumn } from '../visualizations/types';
 import { type FieldType } from './field';
+import { SchedulerJobStatus } from './scheduler';
 
 export type SemanticLayerView = {
     name: string;
@@ -48,19 +49,6 @@ export type SemanticLayerField = {
     availableOperators: SemanticLayerStringFilterOperator[];
 };
 
-export type SemanticLayerColumn = VizSqlColumn & {
-    kind: FieldType;
-};
-
-export const isSemanticLayerColumn = (
-    value: SemanticLayerColumn | VizSqlColumn | undefined,
-): value is SemanticLayerColumn => !!value && 'kind' in value;
-
-export const isSemanticLayerColumnArray = (
-    values: (SemanticLayerColumn | VizSqlColumn | undefined)[],
-): values is SemanticLayerColumn[] =>
-    values.length > 0 && isSemanticLayerColumn(values[0]);
-
 export type SemanticLayerTimeDimension = SemanticLayerField & {
     granularity?: SemanticLayerTimeGranularity;
 };
@@ -107,6 +95,7 @@ export interface SemanticLayerTransformer<
     semanticLayerQueryToQuery: (query: SemanticLayerQuery) => QueryType;
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
+    mapResultsKeys: (key: string, query: SemanticLayerQuery) => string;
 }
 
 export interface SemanticLayerClientInfo {
@@ -176,9 +165,6 @@ export type SemanticLayerFilter = SemanticLayerFilterTypes & {
 };
 
 // Helper functions and constants
-
-export const semanticLayerQueryJob = 'semanticLayer';
-
 const SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT = 500;
 
 export const isSemanticLayerTimeDimension = (
@@ -237,22 +223,47 @@ export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
     ];
 }
 
-// Helper functions to convert between the column names in the query and the column names in the results
+// Semantic Layer Schedueler Job
 
-export function convertColumnToResultsColumn(
-    column: string,
-    resultsColumns: string[],
-) {
-    return resultsColumns.find(
-        (resultCol) => resultCol.toLowerCase() === column.toLowerCase(),
-    );
+export const semanticLayerQueryJob = 'semanticLayer';
+
+export type SemanticLayerJobStatusSuccessDetails = {
+    fileUrl: string;
+    columns: string[];
+};
+
+export type SemanticLayerJobStatusErrorDetails = {
+    error: string;
+    charNumber?: number;
+    lineNumber?: number;
+    createdByUserUuid: string;
+};
+
+export type ApiSemanticLayerJobStatusResponse = {
+    status: 'ok';
+    results: {
+        status: SchedulerJobStatus;
+        details:
+            | SemanticLayerJobStatusSuccessDetails
+            | SemanticLayerJobStatusErrorDetails;
+    };
+};
+
+export type ApiSemanticLayerJobSuccessResponse =
+    ApiSemanticLayerJobStatusResponse & {
+        results: {
+            status: SchedulerJobStatus.COMPLETED;
+            details: SemanticLayerJobStatusSuccessDetails;
+        };
+    };
+
+export function isSemanticLayerJobErrorDetails(
+    results?: ApiSemanticLayerJobStatusResponse['results']['details'],
+): results is SemanticLayerJobStatusErrorDetails {
+    return (results as SemanticLayerJobStatusErrorDetails).error !== undefined;
 }
 
-export function convertToResultsColumns(
-    columns: string[],
-    resultsColumns: string[],
-) {
-    return columns
-        .map((value) => convertColumnToResultsColumn(value, resultsColumns))
-        .filter((value): value is string => !!value);
-}
+export const isApiSemanticLayerJobSuccessResponse = (
+    response: ApiSemanticLayerJobStatusResponse['results'] | ApiError,
+): response is ApiSemanticLayerJobSuccessResponse['results'] =>
+    response.status === SchedulerJobStatus.COMPLETED;

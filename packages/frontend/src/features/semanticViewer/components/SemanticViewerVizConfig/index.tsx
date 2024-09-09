@@ -1,4 +1,4 @@
-import { ChartKind, type SemanticLayerColumn } from '@lightdash/common';
+import { ChartKind, type VizColumn } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { type FC } from 'react';
 import { VisualizationSwitcher } from '../../../../components/DataViz/VisualizationSwitcher';
@@ -11,7 +11,7 @@ import TableVisConfiguration from './TableVizConfig';
 export const SemanticViewerVizConfig: FC<{
     selectedChartType: ChartKind;
     setSelectedChartType: (chartKind: ChartKind) => void;
-    columns: SemanticLayerColumn[];
+    columns: VizColumn[];
 }> = ({ selectedChartType, setSelectedChartType, columns }) => {
     return (
         <MantineProvider inherit theme={themeOverride}>

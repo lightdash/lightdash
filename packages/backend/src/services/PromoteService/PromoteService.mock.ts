@@ -225,3 +225,12 @@ export const promotedDashboardWithChartWithinDashboard = {
         tiles: [dashboardChartWithinDashboardTile],
     },
 };
+
+export const promotedDashboardWithNewPrivateSpace = {
+    ...promotedDashboard,
+    space: {
+        ...promotedDashboard.space,
+        name: 'Private space',
+        isPrivate: true,
+    },
+};

@@ -1,3 +1,10 @@
+# [0.1249.0](https://github.com/lightdash/lightdash/compare/0.1248.3...0.1249.0) (2024-09-09)
+
+
+### Features
+
+* promote content from private spaces ([#11453](https://github.com/lightdash/lightdash/issues/11453)) ([c220083](https://github.com/lightdash/lightdash/commit/c2200837c7881fcc4a2360af29dfd91fa01846ff))
+
 ## [0.1248.3](https://github.com/lightdash/lightdash/compare/0.1248.2...0.1248.3) (2024-09-06)
 
 

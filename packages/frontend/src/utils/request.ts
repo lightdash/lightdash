@@ -1,12 +1,4 @@
-import {
-    isApiSqlRunnerJobSuccessResponse,
-    isErrorDetails,
-    SchedulerJobStatus,
-    type ApiError,
-    type ApiSqlRunnerJobStatusResponse,
-    type ApiSqlRunnerJobSuccessResponse,
-} from '@lightdash/common';
-import { getSchedulerJobStatus } from '../features/scheduler/hooks/useScheduler';
+import { type ApiError } from '@lightdash/common';
 
 // To be reused across all hooks that need to fetch SQL query results
 export const getResultsFromStream = async <T>(url: string | undefined) => {
@@ -76,40 +68,6 @@ export const getResultsFromStream = async <T>(url: string | undefined) => {
                 statusCode: 500,
                 message: e.message,
                 data: {},
-            },
-        };
-    }
-};
-
-// TODO: this + type should be named something more generic since it is reused in multiple features
-export const getSqlRunnerCompleteJob = async (
-    jobId: string,
-): Promise<ApiSqlRunnerJobSuccessResponse['results'] | ApiError> => {
-    const job = await getSchedulerJobStatus<
-        ApiSqlRunnerJobStatusResponse['results']
-    >(jobId);
-    if (
-        job.status === SchedulerJobStatus.SCHEDULED ||
-        job.status === SchedulerJobStatus.STARTED
-    ) {
-        return new Promise((resolve) => {
-            setTimeout(async () => {
-                resolve(await getSqlRunnerCompleteJob(jobId));
-            }, 1000);
-        });
-    }
-    if (isApiSqlRunnerJobSuccessResponse(job)) {
-        return job;
-    } else {
-        return <ApiError>{
-            status: SchedulerJobStatus.ERROR,
-            error: {
-                name: 'Error',
-                statusCode: 500,
-                message: isErrorDetails(job.details)
-                    ? job.details.error
-                    : 'Job failed',
-                data: isErrorDetails(job.details) ? job.details : {},
             },
         };
     }

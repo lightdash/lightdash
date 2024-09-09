@@ -1,9 +1,10 @@
 import {
     type ApiError,
+    type PivotChartData,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
+    type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
-    type SemanticLayerResultRow,
     type SemanticLayerView,
 } from '@lightdash/common';
 import {
@@ -96,12 +97,18 @@ export const useSemanticLayerSql = (
 export const useSemanticLayerQueryResults = (
     projectUuid: string,
     useMutationParams?: UseMutationOptions<
-        SemanticLayerResultRow[],
+        Pick<PivotChartData, 'results'> &
+            Pick<SemanticLayerJobStatusSuccessDetails, 'columns'>,
         ApiError,
         SemanticLayerQuery
     >,
 ) =>
-    useMutation<SemanticLayerResultRow[], ApiError, SemanticLayerQuery>({
+    useMutation<
+        Pick<PivotChartData, 'results'> &
+            Pick<SemanticLayerJobStatusSuccessDetails, 'columns'>,
+        ApiError,
+        SemanticLayerQuery
+    >({
         mutationFn: (query) =>
             apiGetSemanticLayerQueryResults({
                 projectUuid,

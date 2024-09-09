@@ -6,11 +6,10 @@ import {
     type IResultsRunner,
     type PivotChartData,
     type RawResultRow,
-    type SemanticLayerColumn,
     type VizChartLayout,
+    type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
-    type VizSqlColumn,
     type VizTableConfig,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
@@ -19,13 +18,9 @@ import { intersectionBy } from 'lodash';
 export class ResultsRunner implements IResultsRunner<VizChartLayout> {
     protected readonly rows: RawResultRow[];
 
-    // TODO: this union type is necessary unless we move to making the interface
-    // generic, but at the moment this class implements a lot of the interface, so it
-    // hard to do. Most of the SQL runner-specific logic here should go in the
-    // SQLRunnerRunner, then we can make this generic.
-    protected readonly columns: VizSqlColumn[] | SemanticLayerColumn[];
+    protected readonly columns: VizColumn[];
 
-    constructor(args: { rows: RawResultRow[]; columns: VizSqlColumn[] }) {
+    constructor(args: { rows: RawResultRow[]; columns: VizColumn[] }) {
         this.rows = args.rows;
         this.columns = args.columns;
     }
@@ -160,7 +155,7 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
         return { columns };
     }
 
-    getAxisType(column: VizSqlColumn): VizIndexType {
+    getAxisType(column: VizColumn): VizIndexType {
         if (
             column.type &&
             [DimensionType.DATE, DimensionType.TIMESTAMP].includes(column.type)
@@ -238,6 +233,9 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
     mergePivotChartLayout(currentConfig?: VizChartLayout) {
         const newDefaultLayout = this.defaultPivotChartLayout();
 
+        console.log('currentConfig', currentConfig);
+        console.log('newDefaultLayout', newDefaultLayout);
+
         const someFieldsMatch =
             currentConfig?.x?.reference === newDefaultLayout?.x?.reference ||
             intersectionBy(
@@ -247,6 +245,8 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
             ).length > 0;
 
         let mergedLayout = currentConfig;
+
+        console.log('someFieldsMatch', { currentConfig, someFieldsMatch });
 
         if (!currentConfig || !someFieldsMatch) {
             mergedLayout = newDefaultLayout;

@@ -97,7 +97,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                         setSelectedChartType={(value) =>
                             dispatch(setSelectedChartType(value))
                         }
-                        sqlColumns={sqlColumns || []}
+                        columns={sqlColumns || []}
                     />
                 </Stack>
             </ScrollArea>

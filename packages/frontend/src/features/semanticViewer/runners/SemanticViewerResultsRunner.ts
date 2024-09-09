@@ -1,51 +1,93 @@
 import {
-    convertColumnToResultsColumn,
-    convertToResultsColumns,
+    assertUnreachable,
+    DimensionType,
     FieldType,
-    isSemanticLayerColumnArray,
+    SemanticLayerFieldType,
+    VizIndexType,
     type PivotChartData,
     type RawResultRow,
-    type SemanticLayerColumn,
+    type SemanticLayerField,
     type SemanticLayerPivot,
     type SemanticLayerQuery,
     type VizChartLayout,
+    type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { difference } from 'lodash';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
 const transformChartLayoutToSemanticPivot = (
     config: VizChartLayout,
 ): SemanticLayerPivot => {
+    if (!config.x) {
+        throw new Error('X is required');
+    }
+
     return {
-        on: config.x ? [config.x.reference] : [],
+        on: [config.x.reference],
         index: config.groupBy?.map((groupBy) => groupBy.reference) ?? [],
         values: config.y.map((y) => y.reference),
     };
 };
+
+function getDimensionTypeFromSemanticLayerFieldType(
+    type: SemanticLayerFieldType,
+): DimensionType {
+    switch (type) {
+        case SemanticLayerFieldType.TIME:
+            return DimensionType.TIMESTAMP;
+        case SemanticLayerFieldType.STRING:
+            return DimensionType.STRING;
+        case SemanticLayerFieldType.NUMBER:
+            return DimensionType.NUMBER;
+        case SemanticLayerFieldType.BOOLEAN:
+            return DimensionType.BOOLEAN;
+        default:
+            return assertUnreachable(type, `Unknown field type: ${type}`);
+    }
+}
+
+function getVizIndexTypeFromDimensionType(
+    type: SemanticLayerFieldType,
+): VizIndexType {
+    switch (type) {
+        case SemanticLayerFieldType.BOOLEAN:
+        case SemanticLayerFieldType.NUMBER:
+        case SemanticLayerFieldType.STRING:
+            return VizIndexType.CATEGORY;
+        case SemanticLayerFieldType.TIME:
+            return VizIndexType.TIME;
+        default:
+            return assertUnreachable(type, `Unknown field type: ${type}`);
+    }
+}
 
 export class SemanticViewerResultsRunner extends ResultsRunner {
     private readonly query: SemanticLayerQuery;
 
     private readonly projectUuid: string;
 
+    private readonly fields: SemanticLayerField[];
+
     constructor({
         query,
         projectUuid,
+        fields,
         ...args
     }: {
         query: SemanticLayerQuery;
         projectUuid: string;
         rows: RawResultRow[];
-        columns: SemanticLayerColumn[];
+        columns: VizColumn[];
+        fields: SemanticLayerField[];
     }) {
         super(args);
 
         this.query = query;
         this.projectUuid = projectUuid;
+        this.fields = fields;
     }
 
     pivotChartOptions(): {
@@ -53,18 +95,14 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         valuesLayoutOptions: VizValuesLayoutOptions[];
         pivotLayoutOptions: VizPivotLayoutOptions[];
     } {
-        // TODO: these typechecks are unfortunate. We should use generics or clean up
-        // the hierarchy so that we don't need them.
-        if (!isSemanticLayerColumnArray(this.columns)) {
-            return {
-                indexLayoutOptions: [],
-                valuesLayoutOptions: [],
-                pivotLayoutOptions: [],
-            };
-        }
         return {
             indexLayoutOptions: this.columns.reduce((acc, column) => {
-                if (column.kind === FieldType.DIMENSION) {
+                const field =
+                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                        this.fields,
+                        column.reference,
+                    );
+                if (field?.kind === FieldType.DIMENSION) {
                     acc.push({
                         reference: column.reference,
                         type: this.getAxisType(column),
@@ -73,44 +111,56 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
                 return acc;
             }, [] as VizIndexLayoutOptions[]),
             valuesLayoutOptions: this.columns.reduce((acc, column) => {
-                if (column.kind === FieldType.METRIC) {
+                const field =
+                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                        this.fields,
+                        column.reference,
+                    );
+                if (field?.kind === FieldType.METRIC) {
                     acc.push({
                         reference: column.reference,
                     });
                 }
                 return acc;
             }, [] as VizValuesLayoutOptions[]),
-            pivotLayoutOptions: this.columns.filter(
-                (column) => column.kind === FieldType.DIMENSION,
-            ),
+            pivotLayoutOptions: this.columns.filter((column) => {
+                const field =
+                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                        this.fields,
+                        column.reference,
+                    );
+                return field?.kind === FieldType.DIMENSION;
+            }),
         };
     }
 
     defaultPivotChartLayout(): VizChartLayout | undefined {
-        // TODO: a second unfortunate typecheck. See comment in pivotChartOptions.
-        if (!isSemanticLayerColumnArray(this.columns)) {
-            return undefined;
-        }
+        const columnFields = this.columns.map((column) => {
+            return SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                this.fields,
+                column.reference,
+            );
+        });
 
-        const xColumn = this.columns.find(
-            (column) => column.kind === FieldType.DIMENSION,
-        );
+        const xColumn = columnFields.find((field) => {
+            return field?.kind === FieldType.DIMENSION;
+        });
 
-        const yColumn = this.columns.find(
-            (column) => column.kind === FieldType.METRIC,
-        );
+        const yColumn = columnFields.find((field) => {
+            return field?.kind === FieldType.METRIC;
+        });
 
         return {
             x: xColumn
                 ? {
-                      reference: xColumn.reference,
-                      type: this.getAxisType(xColumn),
+                      reference: xColumn.name,
+                      type: getVizIndexTypeFromDimensionType(xColumn.type),
                   }
                 : undefined,
             y: yColumn
                 ? [
                       {
-                          reference: yColumn.reference,
+                          reference: yColumn.name,
                       },
                   ]
                 : [],
@@ -118,88 +168,94 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         };
     }
 
-    getColumnsAccessorFn(column: string) {
-        return (row: RawResultRow) => {
-            const resultsColumns = Object.keys(row);
+    static convertColumnsToVizColumns(
+        fields: SemanticLayerField[],
+        columns: string[],
+    ): VizColumn[] {
+        return columns
+            .map<VizColumn | undefined>((column) => {
+                const field =
+                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                        fields,
+                        column,
+                    );
+                if (!field) {
+                    return;
+                }
 
-            // Result columns casing depends on warehouse, so we need to find the correct column name
-            const mappedColumn = convertColumnToResultsColumn(
-                column,
-                resultsColumns,
-            );
+                const dimType = getDimensionTypeFromSemanticLayerFieldType(
+                    field.type,
+                );
 
-            if (!mappedColumn) {
-                return;
-            }
+                return {
+                    reference: column,
+                    type: dimType,
+                };
+            })
+            .filter((c): c is VizColumn => Boolean(c));
+    }
 
-            return row[mappedColumn];
-        };
+    private static findSemanticLayerFieldFromColumn(
+        fields: SemanticLayerField[],
+        column?: string,
+    ) {
+        return column
+            ? fields.find((field) => field.name === column)
+            : undefined;
     }
 
     async getPivotedVisualizationData(
         config: VizChartLayout,
     ): Promise<PivotChartData> {
-        const pivotConfig = transformChartLayoutToSemanticPivot(config);
+        if (config.x === undefined || config.y.length === 0) {
+            return {
+                results: [],
+                indexColumn: undefined,
+                valuesColumns: [],
+                columns: [],
+            };
+        }
 
-        // Filter dimensions, time dimensions, and metrics to match pivot config
-        // This ensures correct aggregation for non-aggregated backend pivots (e.g., pie charts)
+        const pivotConfig = transformChartLayoutToSemanticPivot(config);
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid: this.projectUuid,
             query: {
                 ...this.query,
-                dimensions: this.query.dimensions.filter(
-                    (dimension) =>
-                        pivotConfig.on.includes(dimension.name) ||
-                        pivotConfig.index.includes(dimension.name),
-                ),
-                timeDimensions: this.query.timeDimensions.filter(
-                    (timeDimension) =>
-                        pivotConfig.on.includes(timeDimension.name) ||
-                        pivotConfig.index.includes(timeDimension.name),
-                ),
-                metrics: this.query.metrics.filter((metric) =>
-                    pivotConfig.values.includes(metric.name),
-                ),
-                // TODO: could this break sorting?
-                sortBy: this.query.sortBy.filter(
-                    (sortBy) =>
-                        pivotConfig.on.includes(sortBy.name) ||
-                        pivotConfig.index.includes(sortBy.name) ||
-                        pivotConfig.values.includes(sortBy.name),
-                ),
                 pivot: pivotConfig,
             },
         });
 
-        const allResultsColumns = Object.keys(pivotedResults?.[0] ?? {});
-        let indexColumn: VizChartLayout['x'] | undefined;
+        const { results, columns } = pivotedResults;
 
-        if (config.x) {
-            const xReference = convertColumnToResultsColumn(
-                config.x.reference,
-                allResultsColumns,
+        // The backend call has no knowledge of field types, so we need to map them to the correct types
+        const vizColumns: VizColumn[] =
+            SemanticViewerResultsRunner.convertColumnsToVizColumns(
+                this.fields,
+                columns,
             );
 
-            indexColumn = xReference
-                ? {
-                      ...config.x,
-                      reference: xReference,
-                  }
-                : undefined;
-        }
+        // The index column is the first column in the pivot config
+        const onField =
+            SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                this.fields,
+                pivotConfig.on[0],
+            );
+        const indexColumn = onField
+            ? {
+                  reference: onField.name,
+                  type: getVizIndexTypeFromDimensionType(onField.type),
+              }
+            : undefined;
 
-        const columnsToRemove = convertToResultsColumns(
-            [...pivotConfig.index, ...pivotConfig.on],
-            allResultsColumns,
+        const valuesColumns = pivotedResults.columns.filter(
+            (col) => !pivotConfig.on.includes(col),
         );
 
         return {
+            results,
             indexColumn,
-            results: pivotedResults ?? [],
-            valuesColumns: difference(allResultsColumns, columnsToRemove),
-            columns: allResultsColumns.map((field) => ({
-                reference: field,
-            })),
+            valuesColumns,
+            columns: vizColumns,
         };
     }
 }

@@ -1,4 +1,4 @@
-import { ChartKind, type SemanticLayerColumn } from '@lightdash/common';
+import { ChartKind, type VizColumn } from '@lightdash/common';
 import { ActionIcon, Divider, Group, Stack, Title } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -13,7 +13,7 @@ export const CartesianVizConfig = ({
     columns,
 }: {
     selectedChartType: ChartKind;
-    columns: SemanticLayerColumn[];
+    columns: VizColumn[];
 }) => {
     const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =
         useState(true);
