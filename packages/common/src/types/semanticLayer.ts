@@ -265,7 +265,7 @@ export const isSemanticLayerRelativeTimeOperator = (
     operator === SemanticLayerFilterRelativeTimeOperator.IN_LAST_30_DAYS;
 
 export function isSemanticLayerStringFilter(
-    filter: SemanticLayerFilter,
+    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
 ): filter is SemanticLayerStringFilter {
     return (
         filter.fieldType === SemanticLayerFieldType.STRING &&
@@ -274,7 +274,7 @@ export function isSemanticLayerStringFilter(
 }
 
 export function isSemanticLayerExactTimeFilter(
-    filter: SemanticLayerFilter,
+    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
 ): filter is SemanticLayerExactTimeFilter {
     return (
         filter.fieldType === SemanticLayerFieldType.TIME &&
@@ -283,7 +283,7 @@ export function isSemanticLayerExactTimeFilter(
 }
 
 export function isSemanticLayerRelativeTimeFilter(
-    filter: SemanticLayerFilter,
+    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
 ): filter is SemanticLayerRelativeTimeFilter {
     return (
         filter.fieldType === SemanticLayerFieldType.TIME &&
@@ -292,7 +292,7 @@ export function isSemanticLayerRelativeTimeFilter(
 }
 
 export function isSemanticLayerTimeFilter(
-    filter: SemanticLayerFilter,
+    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
 ): filter is SemanticLayerTimeFilter {
     return (
         isSemanticLayerExactTimeFilter(filter) ||

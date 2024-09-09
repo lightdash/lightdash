@@ -14,8 +14,8 @@ import {
     type SelectItem,
 } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-import FilterFieldSelectItem from './FilterFieldSelectItem';
-import getOperatorString from './getOperatorString';
+import FilterFieldSelectItem from '../FilterFieldSelectItem';
+import getOperatorString from '../getOperatorString';
 
 type RelativeTimeFilterProps = {
     filter: SemanticLayerRelativeTimeFilter;

@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     isSemanticLayerBaseOperator,
+    isSemanticLayerExactTimeFilter,
     isSemanticLayerRelativeTimeFilter,
     isSemanticLayerRelativeTimeOperator,
     isSemanticLayerStringFilter,
@@ -34,8 +35,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { createFilterForOperator } from './createFilterForOperator';
 import FilterButton from './FilterButton';
-import MultiStringFilter from './MultiStringFilter';
-import RelativeTimeFilter from './RelativeTimeFilter';
+import FilterInput from './FilterInput';
 
 enum AndOr {
     AND = 'and',
@@ -460,7 +460,7 @@ const Filter: FC<FilterProps> = ({
                     />
 
                     {isSemanticLayerRelativeTimeFilter(filter) ? (
-                        <RelativeTimeFilter
+                        <FilterInput.RelativeTimeFilter
                             filter={filter}
                             onUpdate={handleUpdateFilter}
                             fieldOptions={fieldOptions}
@@ -468,8 +468,9 @@ const Filter: FC<FilterProps> = ({
                         />
                     ) : null}
 
-                    {isSemanticLayerStringFilter(filter) ? (
-                        <MultiStringFilter
+                    {isSemanticLayerStringFilter(filter) ||
+                    isSemanticLayerExactTimeFilter(filter) ? (
+                        <FilterInput.MultiStringFilter
                             fieldOptions={fieldOptions}
                             filter={filter}
                             onUpdate={handleUpdateFilter}

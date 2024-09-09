@@ -1,19 +1,20 @@
 import {
     isSemanticLayerBaseOperator,
+    type SemanticLayerExactTimeFilter,
     type SemanticLayerField,
     type SemanticLayerFilter,
     type SemanticLayerStringFilter,
 } from '@lightdash/common';
 import { Group, Select, type SelectItem } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-import FilterMultiStringInput from '../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
-import FilterFieldSelectItem from './FilterFieldSelectItem';
-import getOperatorString from './getOperatorString';
+import FilterMultiStringInput from '../../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
+import FilterFieldSelectItem from '../FilterFieldSelectItem';
+import getOperatorString from '../getOperatorString';
 
 type MultiStringFilterProps = {
     fieldOptions: SelectItem[];
     filterField?: SemanticLayerField;
-    filter: SemanticLayerStringFilter;
+    filter: SemanticLayerStringFilter | SemanticLayerExactTimeFilter; // Exact time filter doesn't have a component for now
     onUpdate: (filter: SemanticLayerFilter) => void;
 };
 

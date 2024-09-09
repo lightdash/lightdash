@@ -1,6 +1,7 @@
 import {
     isSemanticLayerBaseOperator,
-    isSemanticLayerRelativeTimeOperator,
+    isSemanticLayerTimeFilter,
+    SemanticLayerFilterRelativeTimeOperator,
     type SemanticLayerFilter,
 } from '@lightdash/common';
 
@@ -17,15 +18,19 @@ export function createFilterForOperator(
 ): SemanticLayerFilter {
     const { operator, ...rest } = args;
 
-    if (isSemanticLayerRelativeTimeOperator(operator)) {
+    if (isSemanticLayerTimeFilter(args)) {
+        // TODO: since we don't have exact time filter yet, let's enforce the use of relative time filter
         return {
             ...rest,
-            operator,
+            operator: SemanticLayerFilterRelativeTimeOperator.IS_TODAY,
             values: undefined,
         };
     }
 
-    if (isSemanticLayerBaseOperator(operator)) {
+    if (
+        isSemanticLayerBaseOperator(operator) &&
+        !isSemanticLayerTimeFilter(args)
+    ) {
         return {
             ...rest,
             operator,
