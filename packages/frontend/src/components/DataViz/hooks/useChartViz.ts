@@ -71,7 +71,7 @@ export const useChartViz = <T extends ResultsRunner>({
             projectUuid,
             limit,
             JSON.stringify(config.fieldConfig),
-            additionalQueryKey,
+            ...(additionalQueryKey ?? []),
         ];
     }, [projectUuid, limit, config, additionalQueryKey]);
 
