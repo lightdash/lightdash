@@ -150,20 +150,20 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
             return field?.kind === FieldType.METRIC;
         });
 
+        if (!xColumn || !yColumn) {
+            return;
+        }
+
         return {
-            x: xColumn
-                ? {
-                      reference: xColumn.name,
-                      type: getVizIndexTypeFromDimensionType(xColumn.type),
-                  }
-                : undefined,
-            y: yColumn
-                ? [
-                      {
-                          reference: yColumn.name,
-                      },
-                  ]
-                : [],
+            x: {
+                reference: xColumn.name,
+                type: getVizIndexTypeFromDimensionType(xColumn.type),
+            },
+            y: [
+                {
+                    reference: yColumn.name,
+                },
+            ],
             groupBy: [],
         };
     }

@@ -79,6 +79,8 @@ export const RunSemanticQueryButton: FC = () => {
             fields,
         });
 
+        console.log('currentVizConfig -->', currentVizConfig);
+
         const chartResultOptions = getChartConfigAndOptions(
             resultsRunner,
             activeChartKind,
