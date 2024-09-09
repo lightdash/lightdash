@@ -18,6 +18,7 @@ import {
     setActiveChartKind,
     SidebarTabs,
 } from '../store/semanticViewerSlice';
+import * as SaveChart from './SaveChart';
 import { SemanticViewerVizConfig } from './SemanticViewerVizConfig';
 import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
@@ -30,6 +31,7 @@ const Sidebar: FC = () => {
     const handleExitView = () => {
         dispatch(resetState());
     };
+
     const { activeSidebarTab, activeChartKind, columns } = useAppSelector(
         (state) => state.semanticViewer,
     );
@@ -48,12 +50,19 @@ const Sidebar: FC = () => {
                     pl="sm"
                     pr="md"
                     bg="gray.1"
+                    spacing="xs"
+                    noWrap
                     sx={(theme) => ({
                         flexShrink: 0,
                         borderBottom: `1px solid ${theme.colors.gray[3]}`,
                     })}
                 >
-                    test
+                    {view && (
+                        <>
+                            <SaveChart.Content />
+                            <SaveChart.Modal />
+                        </>
+                    )}
                 </Group>
 
                 <Title order={5} fz="sm" c="gray.6">

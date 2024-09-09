@@ -120,7 +120,10 @@ import {
     type ApiContentResponse,
 } from './types/content';
 import { type ApiPromotionChangesResponse } from './types/promotion';
-import { type ApiSemanticLayerClientInfo } from './types/semanticLayer';
+import {
+    type ApiSemanticLayerClientInfo,
+    type ApiSemanticLayerCreateChart,
+} from './types/semanticLayer';
 import {
     type ApiCreateSqlChart,
     type ApiSqlChart,
@@ -673,7 +676,8 @@ type ApiResults =
     | ApiContentResponse['results']
     | ApiChartContentResponse['results']
     | ApiSqlRunnerJobStatusResponse['results']
-    | ApiSemanticLayerClientInfo['results'];
+    | ApiSemanticLayerClientInfo['results']
+    | ApiSemanticLayerCreateChart['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

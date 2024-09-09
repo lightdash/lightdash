@@ -1,7 +1,9 @@
 import {
     type ApiError,
+    type ApiSemanticLayerCreateChart,
     type PivotChartData,
     type SemanticLayerClientInfo,
+    type SemanticLayerCreateChart,
     type SemanticLayerField,
     type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
@@ -19,6 +21,7 @@ import {
     apiGetSemanticLayerViews,
     apiPostSemanticLayerSql,
     apiPostSemanticLayerViewFields,
+    createSemanticLayerChart,
 } from './requests';
 
 type SemanticLayerInfoParams = {
@@ -115,4 +118,21 @@ export const useSemanticLayerQueryResults = (
                 query,
             }),
         ...useMutationParams,
+    });
+
+export const useCreateSemanticLayerChartMutation = (
+    projectUuid: string,
+    mutationOptions: UseMutationOptions<
+        ApiSemanticLayerCreateChart['results'],
+        ApiError,
+        SemanticLayerCreateChart
+    > = {},
+) =>
+    useMutation<
+        ApiSemanticLayerCreateChart['results'],
+        ApiError,
+        SemanticLayerCreateChart
+    >((data) => createSemanticLayerChart(projectUuid, data), {
+        mutationKey: [projectUuid, 'semanticLayer', 'createChart'],
+        ...mutationOptions,
     });

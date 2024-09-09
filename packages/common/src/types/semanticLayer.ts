@@ -1,4 +1,4 @@
-import type { ApiError } from '..';
+import type { ApiError, VizChartConfig } from '..';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
 import { SchedulerJobStatus } from './scheduler';
@@ -267,3 +267,19 @@ export const isApiSemanticLayerJobSuccessResponse = (
     response: ApiSemanticLayerJobStatusResponse['results'] | ApiError,
 ): response is ApiSemanticLayerJobSuccessResponse['results'] =>
     response.status === SchedulerJobStatus.COMPLETED;
+
+export type SemanticLayerCreateChart = {
+    name: string;
+    description: string | null;
+    semanticLayerQuery: SemanticLayerQuery;
+    config: VizChartConfig;
+    spaceUuid: string;
+};
+
+export type ApiSemanticLayerCreateChart = {
+    status: 'ok';
+    results: {
+        semanticLayerChartUuid: string;
+        slug: string;
+    };
+};

@@ -3,7 +3,9 @@ import {
     isSemanticLayerJobErrorDetails,
     type ApiJobScheduledResponse,
     type ApiSemanticLayerClientInfo,
+    type ApiSemanticLayerCreateChart,
     type PivotChartData,
+    type SemanticLayerCreateChart,
     type SemanticLayerField,
     type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
@@ -121,3 +123,13 @@ export const apiGetSemanticLayerQueryResults = async ({
         throw job;
     }
 };
+
+export const createSemanticLayerChart = (
+    projectUuid: string,
+    payload: SemanticLayerCreateChart,
+) =>
+    lightdashApi<ApiSemanticLayerCreateChart['results']>({
+        url: `/projects/${projectUuid}/semantic-viewer/saved`,
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
