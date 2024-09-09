@@ -9,10 +9,8 @@ import {
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSqlRunnerCompleteJob } from './requestUtils';
 
 const scheduleSqlJob = async ({
     projectUuid,

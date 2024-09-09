@@ -8,10 +8,8 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSqlRunnerCompleteJob } from './requestUtils';
 import { type ResultsAndColumns } from './useSqlQueryRun';
 
 export const getSqlChartResults = async ({

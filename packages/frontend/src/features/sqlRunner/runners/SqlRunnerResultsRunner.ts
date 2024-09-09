@@ -10,10 +10,8 @@ import {
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
 
 const schedulePivotSqlJob = async ({
     projectUuid,

@@ -1,5 +1,7 @@
+import type { ApiError } from '..';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
+import { SchedulerJobStatus } from './scheduler';
 
 export type SemanticLayerView = {
     name: string;
@@ -56,7 +58,7 @@ export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
 };
 
 export type SemanticLayerPivot = {
-    on: { reference: string; type: string };
+    on: string[];
     index: string[];
     values: string[];
 };
@@ -163,9 +165,6 @@ export type SemanticLayerFilter = SemanticLayerFilterTypes & {
 };
 
 // Helper functions and constants
-
-export const semanticLayerQueryJob = 'semanticLayer';
-
 const SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT = 500;
 
 export const isSemanticLayerTimeDimension = (
@@ -223,3 +222,48 @@ export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
         ...orFiltersFieldNames,
     ];
 }
+
+// Semantic Layer Schedueler Job
+
+export const semanticLayerQueryJob = 'semanticLayer';
+
+export type SemanticLayerJobStatusSuccessDetails = {
+    fileUrl: string;
+    columns: string[];
+};
+
+export type SemanticLayerJobStatusErrorDetails = {
+    error: string;
+    charNumber?: number;
+    lineNumber?: number;
+    createdByUserUuid: string;
+};
+
+export type ApiSemanticLayerJobStatusResponse = {
+    status: 'ok';
+    results: {
+        status: SchedulerJobStatus;
+        details:
+            | SemanticLayerJobStatusSuccessDetails
+            | SemanticLayerJobStatusErrorDetails;
+    };
+};
+
+export type ApiSemanticLayerJobSuccessResponse =
+    ApiSemanticLayerJobStatusResponse & {
+        results: {
+            status: SchedulerJobStatus.COMPLETED;
+            details: SemanticLayerJobStatusSuccessDetails;
+        };
+    };
+
+export function isSemanticLayerJobErrorDetails(
+    results?: ApiSemanticLayerJobStatusResponse['results']['details'],
+): results is SemanticLayerJobStatusErrorDetails {
+    return (results as SemanticLayerJobStatusErrorDetails).error !== undefined;
+}
+
+export const isApiSemanticLayerJobSuccessResponse = (
+    response: ApiSemanticLayerJobStatusResponse['results'] | ApiError,
+): response is ApiSemanticLayerJobSuccessResponse['results'] =>
+    response.status === SchedulerJobStatus.COMPLETED;

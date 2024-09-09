@@ -9192,16 +9192,10 @@
                         "type": "array"
                     },
                     "on": {
-                        "properties": {
-                            "type": {
-                                "type": "string"
-                            },
-                            "reference": {
-                                "type": "string"
-                            }
+                        "items": {
+                            "type": "string"
                         },
-                        "required": ["type", "reference"],
-                        "type": "object"
+                        "type": "array"
                     }
                 },
                 "required": ["values", "index", "on"],

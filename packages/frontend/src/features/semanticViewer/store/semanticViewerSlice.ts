@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     ChartKind,
-    DimensionType,
     FieldType,
     SemanticLayerFieldType,
     SemanticLayerSortByDirection,
@@ -94,30 +93,6 @@ const getKeyByField = (
             );
     }
 };
-
-function getDimensionTypeFromSemanticLayerFieldType(
-    type: SemanticLayerFieldType,
-): DimensionType {
-    switch (type) {
-        case SemanticLayerFieldType.TIME:
-            return DimensionType.TIMESTAMP;
-        case SemanticLayerFieldType.STRING:
-            return DimensionType.STRING;
-        case SemanticLayerFieldType.NUMBER:
-            return DimensionType.NUMBER;
-        case SemanticLayerFieldType.BOOLEAN:
-            return DimensionType.BOOLEAN;
-        default:
-            return assertUnreachable(type, `Unknown field type: ${type}`);
-    }
-}
-
-function getSemanticLayerFieldFromColumn(
-    state: SemanticViewerState,
-    column: string,
-) {
-    return state.fields.find((field) => field.name === column);
-}
 
 export type ResultsAndColumns = {
     results: RawResultRow[];
@@ -217,35 +192,7 @@ export const semanticViewerSlice = createSlice({
             }>,
         ) => {
             state.results = action.payload.results || [];
-            const payloadColumns = action.payload.columns;
-
-            const sqlColumns: VizSqlColumn[] = payloadColumns
-                .map<VizSqlColumn | undefined>((column) => {
-                    const field = getSemanticLayerFieldFromColumn(
-                        state,
-                        column.reference,
-                    );
-
-                    if (!field) {
-                        return;
-                    }
-
-                    const dimType = getDimensionTypeFromSemanticLayerFieldType(
-                        field.type,
-                    );
-
-                    if (!dimType) {
-                        return;
-                    }
-
-                    return {
-                        reference: column.reference,
-                        type: dimType,
-                    };
-                })
-                .filter((c): c is VizSqlColumn => Boolean(c));
-
-            state.columns = sqlColumns;
+            state.columns = action.payload.columns;
         },
 
         selectField: (

@@ -1,19 +1,18 @@
 import {
-    isApiSqlRunnerJobPivotQuerySuccessResponse,
-    isErrorDetails,
+    isApiSemanticLayerJobSuccessResponse,
+    isSemanticLayerJobErrorDetails,
     type ApiJobScheduledResponse,
     type ApiSemanticLayerClientInfo,
     type PivotChartData,
     type SemanticLayerField,
+    type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
     type SemanticLayerView,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSemanticLayerCompleteJob } from './requestUtils';
 
 type GetSemanticLayerInfoRequestParams = {
     projectUuid: string;
@@ -100,22 +99,22 @@ const apiPostSemanticLayerRun = ({
 export const apiGetSemanticLayerQueryResults = async ({
     projectUuid,
     query,
-}: PostSemanticLayerQueryRequestParams): Promise<PivotChartData> => {
+}: PostSemanticLayerQueryRequestParams): Promise<
+    Pick<PivotChartData, 'results'> &
+        Pick<SemanticLayerJobStatusSuccessDetails, 'columns'>
+> => {
     const { jobId } = await apiPostSemanticLayerRun({ projectUuid, query });
-    const job = await getSqlRunnerCompleteJob(jobId);
+    const job = await getSemanticLayerCompleteJob(jobId);
 
-    // TODO: either move types into common or create a new type for this
-    if (isApiSqlRunnerJobPivotQuerySuccessResponse(job)) {
+    if (isApiSemanticLayerJobSuccessResponse(job)) {
         const url =
-            job.details && !isErrorDetails(job.details)
+            job.details && !isSemanticLayerJobErrorDetails(job.details)
                 ? job.details.fileUrl
                 : undefined;
         const results = await getResultsFromStream<SemanticLayerResultRow>(url);
 
         return {
             results,
-            indexColumn: job.details.indexColumn,
-            valuesColumns: job.details.valuesColumns,
             columns: job.details.columns,
         };
     } else {

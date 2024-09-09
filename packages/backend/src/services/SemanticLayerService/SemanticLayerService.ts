@@ -181,20 +181,17 @@ export class SemanticLayerService extends BaseService {
         projectUuid,
         query,
         context,
-    }: SemanticLayerQueryPayload): Promise<
-        {
-            fileUrl: string;
-        } & Pick<PivotChartData, 'indexColumn' | 'valuesColumns' | 'columns'>
-    > {
+    }: SemanticLayerQueryPayload): Promise<{
+        fileUrl: string;
+        columns: string[];
+    }> {
         // TODO add analytics
         Logger.debug(`Streaming query into file for project ${projectUuid}`);
         const client = await this.getSemanticLayerClient(projectUuid);
 
         this.validateQueryLimit(query);
 
-        let columns: PivotChartData['columns'] = [];
-        let indexColumn: PivotChartData['indexColumn'];
-        let valuesColumns: PivotChartData['valuesColumns'] = [];
+        let columns: string[] = [];
 
         // Default stream function, just streams results into a file
         let streamFunctionCallback: (
@@ -202,9 +199,7 @@ export class SemanticLayerService extends BaseService {
         ) => Promise<void> = async (writer) => {
             await client.streamResults(projectUuid, query, async (rows) => {
                 if (!columns.length) {
-                    columns = Object.keys(rows[0]).map((row) => ({
-                        reference: row,
-                    }));
+                    columns = Object.keys(rows[0]).map((col) => col);
                 }
 
                 rows.forEach(writer);
@@ -226,12 +221,12 @@ export class SemanticLayerService extends BaseService {
                     dimensions: query.dimensions.filter(
                         (dimension) =>
                             pivot.index.includes(dimension.name) ||
-                            pivot.on.reference === dimension.name,
+                            pivot.on.includes(dimension.name),
                     ),
                     timeDimensions: query.timeDimensions.filter(
                         (timeDimension) =>
                             pivot.index.includes(timeDimension.name) ||
-                            pivot.on.reference === timeDimension.name,
+                            pivot.on.includes(timeDimension.name),
                     ),
                     metrics: query.metrics.filter((metric) =>
                         pivot.values.includes(metric.name),
@@ -240,7 +235,7 @@ export class SemanticLayerService extends BaseService {
                         (sortBy) =>
                             pivot.index.includes(sortBy.name) ||
                             pivot.values.includes(sortBy.name) ||
-                            pivot.on.reference === sortBy.name,
+                            pivot.on.includes(sortBy.name),
                     ),
                 },
                 async (rows) => {
@@ -258,15 +253,7 @@ export class SemanticLayerService extends BaseService {
                 pivotedResults.forEach(writer);
             };
 
-            const resultsColumns = Object.keys(pivotedResults[0] ?? {});
-            columns = resultsColumns.map((column) => ({
-                reference: column,
-            }));
-
-            indexColumn = query.pivot.on;
-            valuesColumns = resultsColumns.filter(
-                (key) => query.pivot?.on.reference !== key,
-            );
+            columns = Object.keys(pivotedResults[0] ?? {});
         }
 
         const fileUrl = await this.downloadFileModel.streamFunction(
@@ -279,8 +266,6 @@ export class SemanticLayerService extends BaseService {
 
         return {
             fileUrl,
-            indexColumn,
-            valuesColumns,
             columns,
         };
     }
