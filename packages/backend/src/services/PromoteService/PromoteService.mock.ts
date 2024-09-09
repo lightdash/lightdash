@@ -5,7 +5,10 @@ import {
     DashboardChartTile,
     DashboardTileTypes,
     OrganizationMemberRole,
+    ProjectMemberRole,
     SessionUser,
+    Space,
+    SpaceMemberRole,
 } from '@lightdash/common';
 import {
     PromotedChart,
@@ -72,6 +75,43 @@ export const upstreamSpace: UpstreamChart['space'] = {
     chartCount: 0,
     dashboardCount: 0,
     slug: 'jaffle-shop',
+};
+
+export const upstreamFullSpace: Space = {
+    ...upstreamSpace,
+    queries: [],
+    dashboards: [],
+    access: [
+        {
+            userUuid: 'userUuid',
+            firstName: 'firstName',
+            lastName: 'lastName',
+            email: 'email',
+            role: SpaceMemberRole.ADMIN,
+            hasDirectAccess: true,
+            projectRole: ProjectMemberRole.VIEWER,
+            inheritedRole: OrganizationMemberRole.VIEWER,
+            inheritedFrom: 'organization',
+        },
+        {
+            userUuid: 'adminUuid',
+            firstName: 'firstName',
+            lastName: 'lastName',
+            email: 'adminemail',
+            role: SpaceMemberRole.ADMIN,
+            hasDirectAccess: false,
+            projectRole: ProjectMemberRole.ADMIN,
+            inheritedRole: undefined,
+            inheritedFrom: undefined,
+        },
+    ],
+    groupsAccess: [
+        {
+            groupUuid: 'groupUuid',
+            groupName: 'groupName',
+            spaceRole: SpaceMemberRole.ADMIN,
+        },
+    ],
 };
 
 export const promotedChart: PromotedChart = {
