@@ -1,3 +1,10 @@
+# [0.1250.0](https://github.com/lightdash/lightdash/compare/0.1249.0...0.1250.0) (2024-09-09)
+
+
+### Features
+
+* time series charts ([#11444](https://github.com/lightdash/lightdash/issues/11444)) ([17bbb97](https://github.com/lightdash/lightdash/commit/17bbb97ef84ff787d4df1f5057bb14ff64e5e11b))
+
 # [0.1249.0](https://github.com/lightdash/lightdash/compare/0.1248.3...0.1249.0) (2024-09-09)
 
 
