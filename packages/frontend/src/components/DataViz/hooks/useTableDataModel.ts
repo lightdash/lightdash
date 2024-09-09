@@ -1,7 +1,9 @@
 import {
     ChartKind,
     TableDataModel,
+    type IResultsRunner,
     type RawResultRow,
+    type VizChartLayout,
     type VizTableColumnsConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -14,9 +16,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
-import { type ResultsRunner } from '../transformers/ResultsRunner';
 
-export const useTableDataModel = <T extends ResultsRunner>({
+export const useTableDataModel = <T extends IResultsRunner<VizChartLayout>>({
     config,
     resultsRunner,
 }: {

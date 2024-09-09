@@ -7,14 +7,15 @@ import {
     isVizTableConfig,
     PieChartDataModel,
     type AllVizChartConfig,
+    type IResultsRunner,
     type PivotChartData,
+    type VizChartLayout,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
-import { type ResultsRunner } from '../transformers/ResultsRunner';
 
-type Args<T extends ResultsRunner> = {
+type Args<T extends IResultsRunner<VizChartLayout>> = {
     projectUuid?: string;
     sql?: string;
     limit?: number;
@@ -23,7 +24,7 @@ type Args<T extends ResultsRunner> = {
     resultsRunner: T | undefined;
     config: AllVizChartConfig | undefined;
 };
-export const useChartViz = <T extends ResultsRunner>({
+export const useChartViz = <T extends IResultsRunner<VizChartLayout>>({
     projectUuid,
     sql,
     limit,

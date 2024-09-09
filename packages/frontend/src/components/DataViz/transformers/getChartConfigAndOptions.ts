@@ -7,12 +7,13 @@ import {
     isVizTableConfig,
     PieChartDataModel,
     TableDataModel,
+    type IResultsRunner,
     type VizChartConfig,
+    type VizChartLayout,
 } from '@lightdash/common';
-import { type ResultsRunner } from './ResultsRunner';
 
 const getChartConfigAndOptions = (
-    resultsRunner: ResultsRunner,
+    resultsRunner: IResultsRunner<VizChartLayout>,
     chartType: ChartKind,
     currentVizConfig?: VizChartConfig,
 ) => {

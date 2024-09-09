@@ -1,4 +1,9 @@
-import { type RawResultRow, type VizColumnsConfig } from '@lightdash/common';
+import {
+    type IResultsRunner,
+    type RawResultRow,
+    type VizChartLayout,
+    type VizColumnsConfig,
+} from '@lightdash/common';
 import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
@@ -10,15 +15,14 @@ import {
     Tr,
 } from '../../common/Table/Table.styles';
 import { useTableDataModel } from '../hooks/useTableDataModel';
-import { type ResultsRunner } from '../transformers/ResultsRunner';
 
-type TableProps<T extends ResultsRunner> = {
+type TableProps<T extends IResultsRunner<VizChartLayout>> = {
     columnsConfig: VizColumnsConfig;
     resultsRunner: T;
     flexProps?: FlexProps;
 };
 
-export const Table = <T extends ResultsRunner>({
+export const Table = <T extends IResultsRunner<VizChartLayout>>({
     resultsRunner,
     columnsConfig,
     flexProps,

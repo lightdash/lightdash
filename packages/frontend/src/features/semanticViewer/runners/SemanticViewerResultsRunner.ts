@@ -4,6 +4,7 @@ import {
     FieldType,
     SemanticLayerFieldType,
     VizIndexType,
+    type IResultsRunner,
     type PivotChartData,
     type RawResultRow,
     type SemanticLayerField,
@@ -15,7 +16,7 @@ import {
     type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
+import { intersectionBy } from 'lodash';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
 const transformChartLayoutToSemanticPivot = (
@@ -64,18 +65,29 @@ function getVizIndexTypeFromDimensionType(
     }
 }
 
-export class SemanticViewerResultsRunner extends ResultsRunner {
+export class SemanticViewerResultsRunner
+    implements IResultsRunner<VizChartLayout>
+{
     private readonly query: SemanticLayerQuery;
 
     private readonly projectUuid: string;
 
     private readonly fields: SemanticLayerField[];
 
+    private readonly rows: RawResultRow[];
+
+    private readonly columns: VizColumn[];
+
+    private readonly dimensions: SemanticLayerField[];
+
+    private readonly metrics: SemanticLayerField[];
+
     constructor({
         query,
         projectUuid,
         fields,
-        ...args
+        rows,
+        columns,
     }: {
         query: SemanticLayerQuery;
         projectUuid: string;
@@ -83,11 +95,19 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         columns: VizColumn[];
         fields: SemanticLayerField[];
     }) {
-        super(args);
-
         this.query = query;
         this.projectUuid = projectUuid;
         this.fields = fields;
+        this.dimensions = fields.filter(
+            (field) => field.kind === FieldType.DIMENSION,
+        );
+        this.metrics = fields.filter(
+            (field) => field.kind === FieldType.METRIC,
+        );
+
+        this.rows = rows;
+
+        this.columns = columns;
     }
 
     pivotChartOptions(): {
@@ -96,74 +116,36 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         pivotLayoutOptions: VizPivotLayoutOptions[];
     } {
         return {
-            indexLayoutOptions: this.columns.reduce((acc, column) => {
-                const field =
-                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
-                        this.fields,
-                        column.reference,
-                    );
-                if (field?.kind === FieldType.DIMENSION) {
-                    acc.push({
-                        reference: column.reference,
-                        type: this.getAxisType(column),
-                    });
-                }
-                return acc;
-            }, [] as VizIndexLayoutOptions[]),
-            valuesLayoutOptions: this.columns.reduce((acc, column) => {
-                const field =
-                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
-                        this.fields,
-                        column.reference,
-                    );
-                if (field?.kind === FieldType.METRIC) {
-                    acc.push({
-                        reference: column.reference,
-                    });
-                }
-                return acc;
-            }, [] as VizValuesLayoutOptions[]),
-            pivotLayoutOptions: this.columns.filter((column) => {
-                const field =
-                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
-                        this.fields,
-                        column.reference,
-                    );
-                return field?.kind === FieldType.DIMENSION;
-            }),
+            indexLayoutOptions: this.dimensions.map((dimension) => ({
+                reference: dimension.name,
+                type: getVizIndexTypeFromDimensionType(dimension.type),
+            })),
+            valuesLayoutOptions: this.metrics.map((metric) => ({
+                reference: metric.name,
+            })),
+            pivotLayoutOptions: this.dimensions.map((dimension) => ({
+                reference: dimension.name,
+                type: getVizIndexTypeFromDimensionType(dimension.type),
+            })),
         };
     }
 
     defaultPivotChartLayout(): VizChartLayout | undefined {
-        const xColumn = this.columns.find((column) => {
-            const field =
-                SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
-                    this.fields,
-                    column.reference,
-                );
-            return field?.kind === FieldType.DIMENSION;
-        });
+        const xColumn = this.dimensions[0];
+        const yColumn = this.metrics[0];
 
-        const yColumn = this.columns.find((column) => {
-            const field =
-                SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
-                    this.fields,
-                    column.reference,
-                );
-            return field?.kind === FieldType.METRIC;
-        });
         if (!xColumn || !yColumn) {
             return;
         }
 
         return {
             x: {
-                reference: xColumn.reference,
-                type: this.getAxisType(xColumn),
+                reference: xColumn.name,
+                type: getVizIndexTypeFromDimensionType(xColumn.type),
             },
             y: [
                 {
-                    reference: yColumn.reference,
+                    reference: yColumn.name,
                 },
             ],
             groupBy: [],
@@ -259,5 +241,37 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
             valuesColumns,
             columns: vizColumns,
         };
+    }
+
+    mergePivotChartLayout(currentConfig?: VizChartLayout) {
+        const newDefaultLayout = this.defaultPivotChartLayout();
+
+        const someFieldsMatch =
+            currentConfig?.x?.reference === newDefaultLayout?.x?.reference ||
+            intersectionBy(
+                currentConfig?.y || [],
+                newDefaultLayout?.y || [],
+                'reference',
+            ).length > 0;
+
+        let mergedLayout = currentConfig;
+
+        if (!currentConfig || !someFieldsMatch) {
+            mergedLayout = newDefaultLayout;
+        }
+
+        return mergedLayout;
+    }
+
+    getColumns(): string[] {
+        return this.fields.map((field) => field.name);
+    }
+
+    getColumnsAccessorFn(column: string) {
+        return (row: RawResultRow) => row[column];
+    }
+
+    getRows() {
+        return this.rows;
     }
 }

@@ -1,4 +1,4 @@
-import { type DimensionType } from '../../types/field';
+import { DimensionType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
 import { type CartesianChartDisplay } from '../CartesianChartDataModel';
@@ -31,6 +31,12 @@ export type VizColumn = {
 export enum VizIndexType {
     TIME = 'time',
     CATEGORY = 'category',
+}
+
+export function getAxisType(column: VizColumn): VizIndexType {
+    return column.type === DimensionType.STRING
+        ? VizIndexType.CATEGORY
+        : VizIndexType.TIME;
 }
 
 export type VizIndexLayoutOptions = {
