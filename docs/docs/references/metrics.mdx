@@ -563,12 +563,13 @@ To use special characters such as `%!_>` in your filter value you can either put
 if you wanted to filter for subscription status of `is_subscribed` you can write the metric in one of these ways:
 
 ```yaml
-          filters:
-            - subscription_status: "is_subscribed"
+filters:
+  - subscription_status: 'is_subscribed'
 ```
+
 ```yaml
-          filters:
-            - subscription_status: is\_subscribed
+filters:
+  - subscription_status: is\_subscribed
 ```
 
 :::

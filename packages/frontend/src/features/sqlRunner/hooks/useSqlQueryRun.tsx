@@ -5,14 +5,12 @@ import {
     type ApiJobScheduledResponse,
     type RawResultRow,
     type SqlRunnerBody,
-    type VizSqlColumn,
+    type VizColumn,
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSqlRunnerCompleteJob } from './requestUtils';
 
 const scheduleSqlJob = async ({
     projectUuid,
@@ -31,7 +29,7 @@ const scheduleSqlJob = async ({
 
 export type ResultsAndColumns = {
     results: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 type UseSqlQueryRunParams = {

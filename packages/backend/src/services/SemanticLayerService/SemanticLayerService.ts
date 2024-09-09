@@ -10,6 +10,7 @@ import {
     SemanticLayerResultRow,
     SemanticLayerView,
     SessionUser,
+    type PivotChartData,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
@@ -182,6 +183,7 @@ export class SemanticLayerService extends BaseService {
         context,
     }: SemanticLayerQueryPayload): Promise<{
         fileUrl: string;
+        columns: string[];
     }> {
         // TODO add analytics
         Logger.debug(`Streaming query into file for project ${projectUuid}`);
@@ -189,11 +191,17 @@ export class SemanticLayerService extends BaseService {
 
         this.validateQueryLimit(query);
 
+        let columns: string[] = [];
+
         // Default stream function, just streams results into a file
         let streamFunctionCallback: (
             writer: (data: SemanticLayerResultRow) => void,
         ) => Promise<void> = async (writer) => {
             await client.streamResults(projectUuid, query, async (rows) => {
+                if (!columns.length) {
+                    columns = Object.keys(rows[0]).map((col) => col);
+                }
+
                 rows.forEach(writer);
             });
         };
@@ -203,10 +211,37 @@ export class SemanticLayerService extends BaseService {
         if (query.pivot) {
             const results = [] as SemanticLayerResultRow[];
 
-            // Wait for all results to be fetched
-            await client.streamResults(projectUuid, query, async (rows) => {
-                results.push(...rows);
-            });
+            const { pivot } = query;
+
+            // Wait for all results to be fetched, edit the query so that it only fetches the columns we need
+            await client.streamResults(
+                projectUuid,
+                {
+                    ...query,
+                    dimensions: query.dimensions.filter(
+                        (dimension) =>
+                            pivot.index.includes(dimension.name) ||
+                            pivot.on.includes(dimension.name),
+                    ),
+                    timeDimensions: query.timeDimensions.filter(
+                        (timeDimension) =>
+                            pivot.index.includes(timeDimension.name) ||
+                            pivot.on.includes(timeDimension.name),
+                    ),
+                    metrics: query.metrics.filter((metric) =>
+                        pivot.values.includes(metric.name),
+                    ),
+                    sortBy: query.sortBy.filter(
+                        (sortBy) =>
+                            pivot.index.includes(sortBy.name) ||
+                            pivot.values.includes(sortBy.name) ||
+                            pivot.on.includes(sortBy.name),
+                    ),
+                },
+                async (rows) => {
+                    results.push(...rows);
+                },
+            );
 
             // Pivot results
             const pivotedResults =
@@ -217,6 +252,8 @@ export class SemanticLayerService extends BaseService {
             streamFunctionCallback = async (writer) => {
                 pivotedResults.forEach(writer);
             };
+
+            columns = Object.keys(pivotedResults[0] ?? {});
         }
 
         const fileUrl = await this.downloadFileModel.streamFunction(
@@ -227,7 +264,10 @@ export class SemanticLayerService extends BaseService {
             this.s3Client,
         );
 
-        return { fileUrl };
+        return {
+            fileUrl,
+            columns,
+        };
     }
 
     async getSql(

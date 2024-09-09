@@ -1,11 +1,12 @@
 import { type ApiError, type PivotChartData } from '..';
 import {
+    type PivotIndexColum,
     type VizAggregationOptions,
     type VizBaseConfig,
     type VizCartesianChartConfig,
     type VizChartConfig,
+    type VizColumn,
     type VizPieChartConfig,
-    type VizSqlColumn,
     type VizTableConfig,
 } from '../visualizations/types';
 import { type Dashboard } from './dashboard';
@@ -26,12 +27,7 @@ export type SqlRunnerPayload = {
 } & SqlRunnerBody;
 
 type ApiSqlRunnerPivotQueryPayload = {
-    indexColumn:
-        | {
-              reference: string;
-              type: string;
-          }
-        | undefined;
+    indexColumn: PivotIndexColum;
     valuesColumns: {
         reference: string;
         aggregation: VizAggregationOptions;
@@ -59,7 +55,7 @@ export const sqlRunnerPivotQueryJob = 'sqlRunnerPivotQuery';
 
 type SqlRunnerJobStatusSuccessDetails = {
     fileUrl: string;
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 type SqlRunnerPivotQueryJobStatusSuccessDetails =

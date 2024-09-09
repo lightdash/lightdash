@@ -7,9 +7,9 @@ import {
     type PivotChartData,
     type RawResultRow,
     type VizChartLayout,
+    type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
-    type VizSqlColumn,
     type VizTableConfig,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
@@ -18,9 +18,9 @@ import { intersectionBy } from 'lodash';
 export class ResultsRunner implements IResultsRunner<VizChartLayout> {
     protected readonly rows: RawResultRow[];
 
-    protected readonly columns: VizSqlColumn[];
+    protected readonly columns: VizColumn[];
 
-    constructor(args: { rows: RawResultRow[]; columns: VizSqlColumn[] }) {
+    constructor(args: { rows: RawResultRow[]; columns: VizColumn[] }) {
         this.rows = args.rows;
         this.columns = args.columns;
     }

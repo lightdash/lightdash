@@ -67,10 +67,12 @@ export const useChartViz = <T extends ResultsRunner>({
     const transformedDataQuery = useQuery<PivotChartData | undefined, Error>({
         queryKey: queryKey!,
         queryFn: () => {
-            if (isVizTableConfig(config)) return;
+            if (isVizTableConfig(config) || !chartDataModel) {
+                return undefined;
+            }
 
             try {
-                return chartDataModel!.getTransformedData(
+                return chartDataModel.getTransformedData(
                     config?.fieldConfig,
                     sql,
                     projectUuid,

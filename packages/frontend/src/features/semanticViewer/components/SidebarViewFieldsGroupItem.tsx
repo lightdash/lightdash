@@ -121,8 +121,8 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
                                         ? selectedField.granularity ?? null
                                         : null
                                 }
-                                onChange={(granularity) =>
-                                    selectedField
+                                onChange={(granularity) => {
+                                    return selectedField
                                         ? handleUpdateTimeDimensionGranularity({
                                               ...field,
                                               ...selectedField,
@@ -131,8 +131,8 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
                                         : handleSelect({
                                               ...field,
                                               granularity,
-                                          })
-                                }
+                                          });
+                                }}
                             />
 
                             <SidebarViewFieldMenu.FieldFilterItems

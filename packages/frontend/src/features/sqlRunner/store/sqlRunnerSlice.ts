@@ -1,7 +1,7 @@
 import {
     ChartKind,
     type SqlChart,
-    type VizSqlColumn,
+    type VizColumn,
     type VizTableColumnsConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -46,7 +46,7 @@ export interface SqlRunnerState {
         };
     };
     quoteChar: string;
-    sqlColumns: VizSqlColumn[] | undefined;
+    sqlColumns: VizColumn[] | undefined;
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
 }

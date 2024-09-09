@@ -8,9 +8,9 @@ import {
 } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { useCallback, useEffect, type FC } from 'react';
+import { useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
+import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import LimitButton from '../../../components/LimitButton';
@@ -33,7 +33,7 @@ export const RunSemanticQueryButton: FC = () => {
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const { columns, limit, activeChartKind } = useAppSelector(
+    const { limit, activeChartKind, columns, results, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
     const currentVizConfig = useAppSelector((state) =>
@@ -43,7 +43,7 @@ export const RunSemanticQueryButton: FC = () => {
     const dispatch = useAppDispatch();
 
     const {
-        data: resultsData,
+        data: requestData,
         mutateAsync: runSemanticViewerQuery,
         isLoading,
     } = useSemanticLayerQueryResults(projectUuid, {
@@ -55,24 +55,28 @@ export const RunSemanticQueryButton: FC = () => {
         },
     });
 
+    const resultsData = useMemo(() => requestData?.results, [requestData]);
+    const resultsColumns = useMemo(() => requestData?.columns, [requestData]);
+
     useEffect(() => {
-        if (!resultsData) return;
+        if (!resultsColumns || !resultsData) return;
 
-        const usedColumns = columns.filter((c) =>
-            allSelectedFields.includes(c.reference),
-        );
-        dispatch(
-            setResults({
-                results: resultsData,
-                columns: usedColumns,
-            }),
-        );
+        const vizColumns =
+            SemanticViewerResultsRunner.convertColumnsToVizColumns(
+                fields,
+                resultsColumns,
+            );
 
+        dispatch(setResults({ results: resultsData, columns: vizColumns }));
+    }, [dispatch, resultsData, resultsColumns, fields]);
+
+    useEffect(() => {
         const resultsRunner = new SemanticViewerResultsRunner({
             query: semanticQuery,
-            rows: resultsData,
-            columns: usedColumns,
+            rows: results,
+            columns,
             projectUuid,
+            fields,
         });
 
         const chartResultOptions = getChartConfigAndOptions(
@@ -81,16 +85,16 @@ export const RunSemanticQueryButton: FC = () => {
             currentVizConfig,
         );
 
-        dispatch(onResults(chartResultOptions));
+        dispatch(setChartOptionsAndConfig(chartResultOptions));
     }, [
-        allSelectedFields,
+        activeChartKind,
         columns,
         currentVizConfig,
         dispatch,
         projectUuid,
-        resultsData,
-        activeChartKind,
+        results,
         semanticQuery,
+        fields,
     ]);
 
     const handleSubmit = useCallback(

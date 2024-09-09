@@ -7303,6 +7303,22 @@
                 "required": ["sql"],
                 "type": "object"
             },
+            "VizIndexType": {
+                "enum": ["time", "category"],
+                "type": "string"
+            },
+            "PivotIndexColum": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/VizIndexType"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "reference"],
+                "type": "object"
+            },
             "VizAggregationOptions": {
                 "enum": ["sum", "count", "avg", "min", "max", "any"],
                 "type": "string"
@@ -7337,19 +7353,10 @@
                         "type": "array"
                     },
                     "indexColumn": {
-                        "properties": {
-                            "type": {
-                                "type": "string"
-                            },
-                            "reference": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["type", "reference"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/PivotIndexColum"
                     }
                 },
-                "required": ["valuesColumns"],
+                "required": ["valuesColumns", "indexColumn"],
                 "type": "object"
             },
             "SqlRunnerPivotQueryBody": {
@@ -7387,10 +7394,6 @@
             },
             "ChartKind.LINE": {
                 "enum": ["line"],
-                "type": "string"
-            },
-            "VizIndexType": {
-                "enum": ["time", "category"],
                 "type": "string"
             },
             "VizChartLayout": {
@@ -9585,7 +9588,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1248.1",
+        "version": "0.1249.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

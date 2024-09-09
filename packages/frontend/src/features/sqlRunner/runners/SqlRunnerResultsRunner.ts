@@ -6,14 +6,12 @@ import {
     type RawResultRow,
     type SqlRunnerPivotQueryBody,
     type VizChartLayout,
-    type VizSqlColumn,
+    type VizColumn,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
 
 const schedulePivotSqlJob = async ({
     projectUuid,
@@ -60,7 +58,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
 
 export type SqlRunnerResultsRunnerDeps = {
     rows: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 export class SqlRunnerResultsRunner extends ResultsRunner {
@@ -99,7 +97,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
             limit,
         });
 
-        const columns: VizSqlColumn[] = [
+        const columns: VizColumn[] = [
             ...(pivotResults.indexColumn?.reference
                 ? [pivotResults.indexColumn.reference]
                 : []),

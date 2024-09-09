@@ -88,7 +88,7 @@ const Sidebar: FC = () => {
                         setSelectedChartType={(value) =>
                             dispatch(setActiveChartKind(value))
                         }
-                        sqlColumns={columns}
+                        columns={columns}
                     />
                 </Stack>
             </ScrollArea>

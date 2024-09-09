@@ -1,18 +1,18 @@
 import {
-    isApiSqlRunnerJobSuccessResponse,
-    isErrorDetails,
+    isApiSemanticLayerJobSuccessResponse,
+    isSemanticLayerJobErrorDetails,
     type ApiJobScheduledResponse,
     type ApiSemanticLayerClientInfo,
+    type PivotChartData,
     type SemanticLayerField,
+    type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
     type SemanticLayerView,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSemanticLayerCompleteJob } from './requestUtils';
 
 type GetSemanticLayerInfoRequestParams = {
     projectUuid: string;
@@ -99,15 +99,25 @@ const apiPostSemanticLayerRun = ({
 export const apiGetSemanticLayerQueryResults = async ({
     projectUuid,
     query,
-}: PostSemanticLayerQueryRequestParams) => {
+}: PostSemanticLayerQueryRequestParams): Promise<
+    Pick<PivotChartData, 'results'> &
+        Pick<SemanticLayerJobStatusSuccessDetails, 'columns'>
+> => {
     const { jobId } = await apiPostSemanticLayerRun({ projectUuid, query });
-    const job = await getSqlRunnerCompleteJob(jobId);
-    const url =
-        isApiSqlRunnerJobSuccessResponse(job) &&
-        job?.details &&
-        !isErrorDetails(job.details)
-            ? job.details.fileUrl
-            : undefined;
+    const job = await getSemanticLayerCompleteJob(jobId);
 
-    return getResultsFromStream<SemanticLayerResultRow>(url);
+    if (isApiSemanticLayerJobSuccessResponse(job)) {
+        const url =
+            job.details && !isSemanticLayerJobErrorDetails(job.details)
+                ? job.details.fileUrl
+                : undefined;
+        const results = await getResultsFromStream<SemanticLayerResultRow>(url);
+
+        return {
+            results,
+            columns: job.details.columns,
+        };
+    } else {
+        throw job;
+    }
 };
