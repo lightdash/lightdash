@@ -17,7 +17,6 @@ export const VisualizationConfigPanel: FC<{
         <MantineProvider inherit theme={themeOverride}>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Chart type</Config.Heading>
                     <VisualizationSwitcher
                         selectedChartType={selectedChartType}
                         setSelectedChartType={setSelectedChartType}
