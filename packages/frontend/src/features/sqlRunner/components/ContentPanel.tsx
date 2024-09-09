@@ -388,6 +388,11 @@ export const ContentPanel: FC = () => {
                         >
                             <Box
                                 style={{ flex: 1 }}
+                                pt={
+                                    activeEditorTab === EditorTabs.SQL
+                                        ? 'md'
+                                        : 0
+                                }
                                 sx={{
                                     position: 'absolute',
                                     overflowY: isVizTableConfig(
