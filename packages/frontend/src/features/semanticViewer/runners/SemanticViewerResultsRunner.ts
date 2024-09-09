@@ -135,19 +135,20 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
     }
 
     defaultPivotChartLayout(): VizChartLayout | undefined {
-        const columnFields = this.columns.map((column) => {
-            return SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
-                this.fields,
-                column.reference,
-            );
-        });
+        let xColumn: VizColumn | undefined;
+        let yColumn: VizColumn | undefined;
 
-        const xColumn = columnFields.find((field) => {
-            return field?.kind === FieldType.DIMENSION;
-        });
-
-        const yColumn = columnFields.find((field) => {
-            return field?.kind === FieldType.METRIC;
+        this.columns.forEach((column) => {
+            const field =
+                SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                    this.fields,
+                    column.reference,
+                );
+            if (field?.kind === FieldType.DIMENSION) {
+                xColumn = column;
+            } else if (field?.kind === FieldType.METRIC) {
+                yColumn = column;
+            }
         });
 
         if (!xColumn || !yColumn) {
@@ -156,12 +157,12 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
 
         return {
             x: {
-                reference: xColumn.name,
-                type: getVizIndexTypeFromDimensionType(xColumn.type),
+                reference: xColumn.reference,
+                type: this.getAxisType(xColumn),
             },
             y: [
                 {
-                    reference: yColumn.name,
+                    reference: yColumn.reference,
                 },
             ],
             groupBy: [],
