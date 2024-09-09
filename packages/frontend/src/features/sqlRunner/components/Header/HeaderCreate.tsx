@@ -1,7 +1,5 @@
 import { Button, Group, Paper } from '@mantine/core';
-import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -39,13 +37,12 @@ export const HeaderCreate: FC = () => {
                     </Group>
 
                     <Button
-                        variant="default"
+                        color={'green.7'}
                         size="xs"
                         disabled={!loadedColumns}
                         onClick={() => {
                             dispatch(toggleModal('saveChartModal'));
                         }}
-                        leftIcon={<MantineIcon icon={IconDeviceFloppy} />}
                     >
                         Save
                     </Button>

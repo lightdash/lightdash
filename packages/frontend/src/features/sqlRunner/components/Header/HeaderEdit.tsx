@@ -1,4 +1,11 @@
 import {
+    type SqlChart,
+    type VizBarChartConfig,
+    type VizLineChartConfig,
+    type VizPieChartConfig,
+    type VizTableConfig,
+} from '@lightdash/common';
+import {
     ActionIcon,
     Button,
     Group,
@@ -8,7 +15,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconPencil, IconTrash } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
@@ -36,6 +43,37 @@ export const HeaderEdit: FC = () => {
     const config = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
     );
+
+    // Store initial chart config to detect if there are any changes later on
+    const [initialSavedSqlChart, setInitialSavedSqlChart] = useState<
+        SqlChart | undefined
+    >();
+    const [initialChartConfig, setInitialChartConfig] = useState<
+        | VizBarChartConfig
+        | VizLineChartConfig
+        | VizPieChartConfig
+        | VizTableConfig
+        | undefined
+    >();
+
+    useEffect(() => {
+        if (savedSqlChart && initialSavedSqlChart === undefined)
+            setInitialSavedSqlChart(savedSqlChart);
+    }, [savedSqlChart, initialSavedSqlChart]);
+
+    useEffect(() => {
+        if (config && initialChartConfig === undefined)
+            setInitialChartConfig(config);
+    }, [config, initialChartConfig]);
+
+    const hasChanges = useCallback(() => {
+        if (!initialSavedSqlChart || !initialChartConfig) return false;
+        return (
+            sql !== initialSavedSqlChart.sql ||
+            limit !== initialSavedSqlChart.limit ||
+            JSON.stringify(config) !== JSON.stringify(initialChartConfig)
+        );
+    }, [initialSavedSqlChart, initialChartConfig, sql, limit, config]);
     const { mutate, isLoading } = useUpdateSqlChartMutation(
         savedSqlChart?.project.projectUuid || '',
         savedSqlChart?.savedSqlUuid || '',
@@ -109,8 +147,8 @@ export const HeaderEdit: FC = () => {
                     <Group spacing="md">
                         <Button
                             size="xs"
-                            color="green.7"
-                            disabled={!config || !sql}
+                            color={'green.7'}
+                            disabled={!config || !sql || !hasChanges()}
                             loading={isLoading}
                             onClick={() => {
                                 if (config && sql) {
@@ -121,6 +159,8 @@ export const HeaderEdit: FC = () => {
                                             limit,
                                         },
                                     });
+                                    setInitialChartConfig(config);
+                                    setInitialSavedSqlChart(savedSqlChart);
                                 }
                             }}
                         >
