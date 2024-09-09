@@ -164,7 +164,7 @@ const Table: FC<{
                 })}
             >
                 <Group noWrap spacing="two">
-                    <Text p={6} fz="sm" c="gray.7">
+                    <Text p={6} fz="sm" c="gray.8">
                         {schema}
                     </Text>
 
