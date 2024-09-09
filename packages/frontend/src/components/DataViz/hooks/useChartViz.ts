@@ -9,7 +9,7 @@ import {
     type AllVizChartConfig,
     type PivotChartData,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { type ResultsRunner } from '../transformers/ResultsRunner';
@@ -26,7 +26,7 @@ type Args<T extends ResultsRunner> = {
     // Consumers can provide additional query keys to force a re-fetch.
     // Different pages may need to refresh this query based on parameters
     // that are unused in this hook.
-    additionalQueryKey?: string;
+    additionalQueryKey?: UseQueryOptions['queryKey'];
 };
 export const useChartViz = <T extends ResultsRunner>({
     projectUuid,

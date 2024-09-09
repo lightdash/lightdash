@@ -56,10 +56,7 @@ const ContentCharts: FC = () => {
         resultsRunner,
         config: vizConfig,
         projectUuid,
-        additionalQueryKey: JSON.stringify({
-            filters,
-            sortBy,
-        }),
+        additionalQueryKey: [filters, sortBy],
     });
 
     const pivotResultsRunner = useMemo(() => {
