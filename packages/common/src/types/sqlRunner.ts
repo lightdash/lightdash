@@ -4,6 +4,7 @@ import {
     type VizBaseConfig,
     type VizCartesianChartConfig,
     type VizChartConfig,
+    type VizChartLayout,
     type VizPieChartConfig,
     type VizSqlColumn,
     type VizTableConfig,
@@ -37,6 +38,7 @@ type ApiSqlRunnerPivotQueryPayload = {
         aggregation: VizAggregationOptions;
     }[];
     groupByColumns: { reference: string }[] | undefined;
+    sortBy: VizChartLayout['sortBy'] | undefined;
 };
 
 export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &

@@ -81,7 +81,6 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
                 columns: [],
             };
         }
-
         const pivotResults = await pivotQueryFn({
             projectUuid,
             slug,
@@ -97,6 +96,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
             })),
             groupByColumns: config.groupBy,
             limit,
+            sortBy: config.sortBy,
         });
 
         const columns: VizSqlColumn[] = [

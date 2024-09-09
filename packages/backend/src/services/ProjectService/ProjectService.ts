@@ -2051,9 +2051,15 @@ export class ProjectService extends BaseService {
         indexColumn,
         valuesColumns,
         groupByColumns,
+        sortBy,
     }: Pick<
         SqlRunnerPivotQueryPayload,
-        'sql' | 'limit' | 'indexColumn' | 'valuesColumns' | 'groupByColumns'
+        | 'sql'
+        | 'limit'
+        | 'indexColumn'
+        | 'valuesColumns'
+        | 'groupByColumns'
+        | 'sortBy'
     > & { warehouseType: WarehouseTypes }): string {
         if (!indexColumn) throw new ParameterError('Index column is required');
         const q = getFieldQuoteChar(warehouseType);
@@ -2087,6 +2093,12 @@ export class ProjectService extends BaseService {
             ),
         ];
 
+        const orderBy: string = sortBy
+            ? `ORDER BY ${sortBy
+                  .map((s) => `${q}${s.reference}${q} ${s.direction}`)
+                  .join(', ')}`
+            : ``;
+
         const pivotQuery = `SELECT ${selectReferences.join(
             ', ',
         )}, dense_rank() over (order by ${q}${
@@ -2106,7 +2118,9 @@ export class ProjectService extends BaseService {
         }
 
         let sqlQuery = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery})`;
-        sqlQuery += `\nSELECT * FROM group_by_query LIMIT ${limit ?? 500} `;
+        sqlQuery += `\nSELECT * FROM group_by_query ${orderBy} LIMIT ${
+            limit ?? 500
+        } `;
 
         return sqlQuery;
     }
@@ -2121,6 +2135,7 @@ export class ProjectService extends BaseService {
         indexColumn,
         valuesColumns,
         groupByColumns,
+        sortBy,
     }: SqlRunnerPivotQueryPayload): Promise<
         {
             fileUrl: string;
@@ -2143,6 +2158,7 @@ export class ProjectService extends BaseService {
             indexColumn,
             valuesColumns,
             groupByColumns,
+            sortBy,
         });
 
         this.analytics.track({

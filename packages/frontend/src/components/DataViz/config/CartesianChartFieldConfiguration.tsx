@@ -1,5 +1,7 @@
 import {
     DimensionType,
+    SortByDirection,
+    SortByType,
     type ChartKind,
     type VizChartLayout,
     type VizIndexLayoutOptions,
@@ -7,7 +9,7 @@ import {
     type VizSqlColumn,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box } from '@mantine/core';
+import { ActionIcon, Box, Select } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -120,32 +122,77 @@ const XFieldAxisConfig = ({
     const dispatch = useVizDispatch();
 
     return (
-        <FieldReferenceSelect
-            clearable
-            data={xLayoutOptions.map((x) => ({
-                value: x.reference,
-                label: x.reference,
-            }))}
-            value={field?.reference ?? null}
-            placeholder="Select X axis"
-            onChange={(value) => {
-                if (!value) {
-                    dispatch(actions.removeXAxisField());
-                } else dispatch(actions.setXAxisReference(value));
-            }}
-            error={
-                field?.reference &&
-                xLayoutOptions.find((x) => x.reference === field.reference) ===
-                    undefined &&
-                `Column "${field.reference}" does not exist. Choose another`
-            }
-            fieldType={
-                (field?.reference &&
-                    sqlColumns?.find((x) => x.reference === field.reference)
-                        ?.type) ||
-                DimensionType.STRING
-            }
-        />
+        <>
+            <FieldReferenceSelect
+                clearable
+                data={xLayoutOptions.map((x) => ({
+                    value: x.reference,
+                    label: x.reference,
+                }))}
+                value={field?.reference ?? null}
+                placeholder="Select X axis"
+                onChange={(value) => {
+                    if (!value) {
+                        dispatch(actions.removeXAxisField());
+                    } else dispatch(actions.setXAxisReference(value));
+                }}
+                error={
+                    field?.reference &&
+                    xLayoutOptions.find(
+                        (x) => x.reference === field.reference,
+                    ) === undefined &&
+                    `Column "${field.reference}" does not exist. Choose another`
+                }
+                fieldType={
+                    (field?.reference &&
+                        sqlColumns?.find((x) => x.reference === field.reference)
+                            ?.type) ||
+                    DimensionType.STRING
+                }
+            />
+            {field?.reference && (
+                <Config.Group>
+                    <Config.Label>Sort by</Config.Label>
+                    <Select
+                        radius="md"
+                        placeholder="Select sort option"
+                        data={[
+                            {
+                                value: `${SortByType.X_AXIS}-${SortByDirection.ASC}`,
+                                label: 'Ascending axis',
+                            },
+                            {
+                                value: `${SortByType.X_AXIS}-${SortByDirection.DESC}`,
+                                label: 'Descending axis',
+                            },
+                            {
+                                value: `${SortByType.BAR_HEIGHTS}-${SortByDirection.ASC}`,
+                                label: 'Ascending bar heights',
+                            },
+                            {
+                                value: `${SortByType.BAR_HEIGHTS}-${SortByDirection.DESC}`,
+                                label: 'Descending bar heights',
+                            },
+                        ]}
+                        onChange={(value) => {
+                            if (value) {
+                                const [type, direction] = value.split('-');
+                                dispatch(
+                                    actions.setSortBy([
+                                        {
+                                            reference: field?.reference,
+                                            type: type as SortByType,
+                                            direction:
+                                                direction as SortByDirection,
+                                        },
+                                    ]),
+                                );
+                            }
+                        }}
+                    />
+                </Config.Group>
+            )}
+        </>
     );
 };
 

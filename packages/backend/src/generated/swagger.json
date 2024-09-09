@@ -7307,8 +7307,37 @@
                 "enum": ["sum", "count", "avg", "min", "max", "any"],
                 "type": "string"
             },
+            "SortByType": {
+                "enum": ["x_axis", "bar_heights"],
+                "type": "string"
+            },
+            "SortByDirection": {
+                "enum": ["asc", "desc"],
+                "type": "string"
+            },
+            "VizSortBy": {
+                "properties": {
+                    "direction": {
+                        "$ref": "#/components/schemas/SortByDirection"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/SortByType"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["direction", "reference"],
+                "type": "object"
+            },
             "ApiSqlRunnerPivotQueryPayload": {
                 "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
                     "groupByColumns": {
                         "items": {
                             "properties": {
@@ -7395,6 +7424,12 @@
             },
             "VizChartLayout": {
                 "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
                     "groupBy": {
                         "items": {
                             "properties": {
@@ -7442,6 +7477,12 @@
                 "properties": {
                     "stack": {
                         "type": "boolean"
+                    },
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
                     },
                     "legend": {
                         "properties": {
@@ -9585,7 +9626,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1248.1",
+        "version": "0.1248.3",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
