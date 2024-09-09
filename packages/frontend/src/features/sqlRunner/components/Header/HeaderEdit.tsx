@@ -1,3 +1,4 @@
+import { type SqlChart } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -7,13 +8,9 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconArrowBackUp,
-    IconDeviceFloppy,
-    IconPencil,
-    IconTrash,
-} from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
+import { IconPencil, IconTrash } from '@tabler/icons-react';
+import { isEqual } from 'lodash';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
@@ -41,10 +38,39 @@ export const HeaderEdit: FC = () => {
     const config = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
     );
+
     const { mutate, isLoading } = useUpdateSqlChartMutation(
         savedSqlChart?.project.projectUuid || '',
         savedSqlChart?.savedSqlUuid || '',
     );
+    // Store initial chart config to detect if there are any changes later on
+    const [initialSavedSqlChart, setInitialSavedSqlChart] = useState<
+        Pick<SqlChart, 'sql' | 'limit'> | undefined
+    >(savedSqlChart);
+    const [initialChartConfig, setInitialChartConfig] = useState(config);
+
+    const hasChanges = useMemo(() => {
+        if (!initialSavedSqlChart || !initialChartConfig) return false;
+        const changedSql = sql !== initialSavedSqlChart.sql;
+        const changedLimit = limit !== initialSavedSqlChart.limit;
+        const changedConfig = !isEqual(config, initialChartConfig);
+
+        return changedSql || changedLimit || changedConfig;
+    }, [initialSavedSqlChart, initialChartConfig, sql, limit, config]);
+
+    const onSave = useCallback(() => {
+        if (config && sql) {
+            mutate({
+                versionedData: {
+                    config,
+                    sql,
+                    limit,
+                },
+            });
+            setInitialChartConfig(config);
+            setInitialSavedSqlChart({ sql, limit });
+        }
+    }, [config, sql, mutate, limit]);
 
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
@@ -113,22 +139,15 @@ export const HeaderEdit: FC = () => {
 
                     <Group spacing="md">
                         <Button
-                            variant="default"
                             size="xs"
-                            disabled={!config || !sql}
+                            color={'green.7'}
+                            disabled={!config || !sql || !hasChanges}
                             loading={isLoading}
                             onClick={() => {
                                 if (config && sql) {
-                                    mutate({
-                                        versionedData: {
-                                            config,
-                                            sql,
-                                            limit,
-                                        },
-                                    });
+                                    onSave();
                                 }
                             }}
-                            leftIcon={<MantineIcon icon={IconDeviceFloppy} />}
                         >
                             Save
                         </Button>
@@ -137,7 +156,8 @@ export const HeaderEdit: FC = () => {
                             label="Back to view page"
                             position="bottom"
                         >
-                            <ActionIcon
+                            <Button
+                                variant="default"
                                 size="xs"
                                 onClick={() =>
                                     history.push(
@@ -145,8 +165,8 @@ export const HeaderEdit: FC = () => {
                                     )
                                 }
                             >
-                                <MantineIcon icon={IconArrowBackUp} />
-                            </ActionIcon>
+                                Cancel
+                            </Button>
                         </Tooltip>
                         <Tooltip variant="xs" label="Delete" position="bottom">
                             <ActionIcon

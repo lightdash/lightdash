@@ -1,6 +1,14 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Group, Paper, Stack, Title, Tooltip } from '@mantine/core';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Button,
+    Group,
+    Paper,
+    Stack,
+    Title,
+    Tooltip,
+} from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -91,22 +99,17 @@ export const HeaderView: FC = () => {
                     </Stack>
                     <Group spacing="md">
                         {canManageSqlRunner && canManageChart && (
-                            <Tooltip
-                                variant="xs"
-                                label="Edit chart"
-                                position="bottom"
+                            <Button
+                                size="xs"
+                                variant="default"
+                                onClick={() =>
+                                    history.push(
+                                        `/projects/${projectUuid}/sql-runner/${savedSqlChart.slug}/edit`,
+                                    )
+                                }
                             >
-                                <ActionIcon
-                                    size="xs"
-                                    onClick={() =>
-                                        history.push(
-                                            `/projects/${projectUuid}/sql-runner/${savedSqlChart.slug}/edit`,
-                                        )
-                                    }
-                                >
-                                    <MantineIcon icon={IconPencil} />
-                                </ActionIcon>
-                            </Tooltip>
+                                Edit chart
+                            </Button>
                         )}
                         {canManageSqlRunner && canManageChart && (
                             <Tooltip
