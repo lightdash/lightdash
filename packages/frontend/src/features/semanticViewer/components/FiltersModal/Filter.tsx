@@ -1,5 +1,7 @@
 import {
     assertUnreachable,
+    isSemanticLayerStringFilter,
+    isSemanticLayerTimeFilter,
     type SemanticLayerField,
     type SemanticLayerFilter,
 } from '@lightdash/common';
@@ -26,12 +28,11 @@ import {
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import FilterMultiStringInput from '../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import FilterButton from './FilterButton';
-import FilterFieldSelectItem from './FilterFieldSelectItem';
-import getOperatorString from './getOperatorString';
+import MultiStringFilter from './MultiStringFilter';
+import TimeFilter from './TimeFilter';
 
 enum AndOr {
     AND = 'and',
@@ -150,25 +151,6 @@ const Filter: FC<FilterProps> = ({
 }) => {
     const { showToastError } = useToaster();
     const theme = useMantineTheme();
-
-    const currentField = useMemo(() => {
-        return allFields.find((f) => f.name === filter.field);
-    }, [allFields, filter.field]);
-
-    // When field changes, reset operator to first available operator
-    const currentOperator = useMemo(() => {
-        return currentField?.availableOperators.includes(filter.operator)
-            ? filter.operator
-            : currentField?.availableOperators[0];
-    }, [currentField, filter.operator]);
-
-    const operatorsOpts = useMemo(() => {
-        return currentField?.availableOperators.map((operator) => ({
-            value: operator,
-            label: getOperatorString(operator),
-        }));
-    }, [currentField]);
-
     const [isAddingNestedFilter, setIsAddingNestedFilter] = useState(false);
 
     const nestedAndFilters = useMemo(() => {
@@ -178,6 +160,57 @@ const Filter: FC<FilterProps> = ({
     const nestedOrFilters = useMemo(() => {
         return filter.or ?? [];
     }, [filter]);
+
+    const findFilterField = useCallback(
+        (fieldName: string) => {
+            return allFields.find((f) => f.name === fieldName);
+        },
+        [allFields],
+    );
+
+    const currentField = useMemo(() => {
+        return findFilterField(filter.field);
+    }, [filter.field, findFilterField]);
+
+    // When field changes, reset operator to first available operator
+    const getFilterFieldOperator = useCallback(
+        (slFilter: SemanticLayerFilter) => {
+            const field = findFilterField(slFilter.field);
+
+            if (!field) {
+                return undefined;
+            }
+
+            return field.availableOperators.includes(slFilter.operator)
+                ? slFilter.operator
+                : field.availableOperators[0];
+        },
+        [findFilterField],
+    );
+
+    const handleUpdateFilter = useCallback(
+        (slFilter: SemanticLayerFilter) => {
+            const newField = findFilterField(slFilter.field);
+
+            if (!newField) {
+                return;
+            }
+
+            const newOperator = getFilterFieldOperator(filter);
+
+            if (!newOperator) {
+                return;
+            }
+
+            onUpdate({
+                ...slFilter,
+                operator: newOperator,
+                fieldKind: newField.kind,
+                fieldType: newField.type,
+            });
+        },
+        [filter, findFilterField, getFilterFieldOperator, onUpdate],
+    );
 
     const handleDeleteNestedFilter = useCallback(
         (uuid: string) => {
@@ -190,7 +223,7 @@ const Filter: FC<FilterProps> = ({
                 updatedAndFilters &&
                 updatedAndFilters.length < and.length
             ) {
-                onUpdate({
+                handleUpdateFilter({
                     ...filterToUpdate,
                     ...(updatedAndFilters.length > 0
                         ? { and: updatedAndFilters }
@@ -203,7 +236,7 @@ const Filter: FC<FilterProps> = ({
             const updatedOrFilters = or?.filter((f) => f.uuid !== uuid);
 
             if (or && updatedOrFilters && updatedOrFilters.length < or.length) {
-                onUpdate({
+                handleUpdateFilter({
                     ...filterToUpdate,
                     ...(updatedOrFilters.length > 0
                         ? { or: updatedOrFilters }
@@ -213,7 +246,7 @@ const Filter: FC<FilterProps> = ({
                 return;
             }
         },
-        [filter, onUpdate],
+        [filter, handleUpdateFilter],
     );
 
     const handleUpdateNestedFilter = useCallback(
@@ -223,7 +256,7 @@ const Filter: FC<FilterProps> = ({
             );
 
             if (isFilterInAnd) {
-                onUpdate({
+                handleUpdateFilter({
                     ...filter,
                     and: filter.and?.map((f) =>
                         f.uuid === updatedNestedFilter.uuid
@@ -240,7 +273,7 @@ const Filter: FC<FilterProps> = ({
             );
 
             if (isFilterInOr) {
-                onUpdate({
+                handleUpdateFilter({
                     ...filter,
                     or: filter.or?.map((f) =>
                         f.uuid === updatedNestedFilter.uuid
@@ -252,7 +285,7 @@ const Filter: FC<FilterProps> = ({
                 return;
             }
         },
-        [filter, onUpdate],
+        [filter, handleUpdateFilter],
     );
 
     const handleAddNestedFilter = useCallback(
@@ -287,9 +320,12 @@ const Filter: FC<FilterProps> = ({
             };
 
             // be default add to and
-            onUpdate({ ...filter, and: [...(filter.and ?? []), newFilter] });
+            handleUpdateFilter({
+                ...filter,
+                and: [...(filter.and ?? []), newFilter],
+            });
         },
-        [allFields, filter, onUpdate, showToastError],
+        [allFields, filter, handleUpdateFilter, showToastError],
     );
 
     const handleMoveFilterToAnd = useCallback(
@@ -312,7 +348,7 @@ const Filter: FC<FilterProps> = ({
 
             const updatedOrFilters = or?.filter((f) => f.uuid !== uuid) ?? [];
 
-            onUpdate({
+            handleUpdateFilter({
                 ...filterToUpdate,
                 ...(updatedOrFilters.length > 0
                     ? { or: updatedOrFilters }
@@ -320,7 +356,7 @@ const Filter: FC<FilterProps> = ({
                 and: [...(filter.and ?? []), nestedFilter],
             });
         },
-        [filter, onUpdate],
+        [filter, handleUpdateFilter],
     );
 
     const handleMoveFilterToOr = useCallback(
@@ -343,7 +379,7 @@ const Filter: FC<FilterProps> = ({
 
             const updatedAndFilters = and?.filter((f) => f.uuid !== uuid) ?? [];
 
-            onUpdate({
+            handleUpdateFilter({
                 ...filterToUpdate,
                 ...(updatedAndFilters.length > 0
                     ? { and: updatedAndFilters }
@@ -351,7 +387,7 @@ const Filter: FC<FilterProps> = ({
                 or: [...(filter.or ?? []), nestedFilter],
             });
         },
-        [filter, onUpdate],
+        [filter, handleUpdateFilter],
     );
 
     // This is used to move a filter within its parent group (passed down as props by parent filter to nested filters)
@@ -415,51 +451,20 @@ const Filter: FC<FilterProps> = ({
                         hasNestedFilters={hasNestedFilters}
                     />
 
-                    <Select
-                        size="xs"
-                        withinPortal
-                        style={{ flex: 5 }}
-                        data={fieldOptions}
-                        itemComponent={FilterFieldSelectItem}
-                        value={filter.field}
-                        onChange={(value) => {
-                            if (!value) {
-                                return;
-                            }
-
-                            onUpdate({ ...filter, field: value });
-                        }}
-                    />
-
-                    <Select
-                        size="xs"
-                        w={75}
-                        withinPortal
-                        data={operatorsOpts ?? []}
-                        value={currentOperator}
-                        portalProps={{
-                            color: 'red',
-                        }}
-                        onChange={(
-                            value: SemanticLayerFilter['operator'] | null,
-                        ) => {
-                            if (!value) {
-                                return;
-                            }
-
-                            onUpdate({ ...filter, operator: value });
-                        }}
-                    />
-
-                    <FilterMultiStringInput
-                        size="xs"
-                        withinPortal
-                        style={{ flex: 5 }}
-                        values={filter.values}
-                        onChange={(values) => {
-                            onUpdate({ ...filter, values });
-                        }}
-                    />
+                    {isSemanticLayerTimeFilter(filter) ? (
+                        <TimeFilter
+                            filter={filter}
+                            onUpdate={handleUpdateFilter}
+                            fieldOptions={fieldOptions}
+                        />
+                    ) : isSemanticLayerStringFilter(filter) ? (
+                        <MultiStringFilter
+                            fieldOptions={fieldOptions}
+                            filter={filter}
+                            onUpdate={handleUpdateFilter}
+                            filterField={currentField}
+                        />
+                    ) : null}
 
                     <Menu withinPortal withArrow shadow="md">
                         <Menu.Target>
