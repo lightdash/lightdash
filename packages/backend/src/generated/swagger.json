@@ -7581,13 +7581,37 @@
                 "enum": ["table"],
                 "type": "string"
             },
-            "Record_string.VizColumnConfig_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
+            "VizColumnConfig": {
+                "properties": {
+                    "aggregation": {
+                        "$ref": "#/components/schemas/VizAggregationOptions"
+                    },
+                    "order": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "frozen": {
+                        "type": "boolean"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "visible": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["frozen", "label", "reference", "visible"],
+                "type": "object"
             },
             "VizColumnsConfig": {
-                "$ref": "#/components/schemas/Record_string.VizColumnConfig_"
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/VizColumnConfig"
+                },
+                "type": "object"
             },
             "VizTableConfig": {
                 "allOf": [
@@ -9564,7 +9588,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1247.6",
+        "version": "0.1248.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

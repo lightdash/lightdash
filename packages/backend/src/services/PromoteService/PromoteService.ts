@@ -3,7 +3,6 @@ import {
     AlreadyExistsError,
     ChartSummary,
     DashboardDAO,
-    deepEqual,
     ForbiddenError,
     isChartTile,
     NotFoundError,
@@ -14,6 +13,7 @@ import {
     PromotionChanges,
     SavedChartDAO,
     SessionUser,
+    SpaceMemberRole,
     SpaceShare,
     SpaceSummary,
     UnexpectedServerError,
@@ -194,31 +194,9 @@ export class PromoteService extends BaseService {
 
     private static checkPromoteSpacePermissions(
         user: SessionUser,
-        promotedContent: PromotedChart | PromotedDashboard,
         upstreamContent: UpstreamChart | UpstreamDashboard,
-        promotedDashboard?: PromotedDashboard,
     ) {
         const { organizationUuid } = user;
-
-        if (promotedContent.space?.isPrivate) {
-            const chartName =
-                'chart' in promotedContent ? promotedContent.chart.name : '';
-            throw new ForbiddenError(
-                promotedDashboard
-                    ? `Failed to promote dashboard: this dashboard uses a chart "${chartName}" which belongs to a private space "${promotedContent.space?.name}". You cannot promote content from private spaces.`
-                    : `Failed to promote: We can't promote content on private spaces.`,
-            );
-        }
-        if (upstreamContent.space?.isPrivate) {
-            const chartName =
-                'chart' in promotedContent ? promotedContent.chart.name : '';
-            throw new ForbiddenError(
-                promotedDashboard
-                    ? `Failed to promote dashboard: this dashboard uses a chart "${chartName}" which belongs to a private space "${promotedContent.space?.name}" in the upstream project. You cannot promote content to private spaces.`
-                    : `Failed to promote: We can't promote content to private spaces.`,
-            );
-        }
-
         if (upstreamContent.space) {
             // If upstreamContent has a matching space, we check if we have access
             if (
@@ -350,12 +328,7 @@ export class PromoteService extends BaseService {
             }
         }
 
-        PromoteService.checkPromoteSpacePermissions(
-            user,
-            promotedChart,
-            upstreamChart,
-            promotedDashboard,
-        );
+        PromoteService.checkPromoteSpacePermissions(user, upstreamChart);
     }
 
     private static checkPromoteDashboardPermissions(
@@ -430,22 +403,14 @@ export class PromoteService extends BaseService {
                 );
             }
         }
-        PromoteService.checkPromoteSpacePermissions(
-            user,
-            promotedDashboard,
-            upstreamDashboard,
-        );
+        PromoteService.checkPromoteSpacePermissions(user, upstreamDashboard);
     }
 
     private static isSpaceUpdated(
         promotedSpace: Omit<SpaceSummary, 'userAccess'>,
         upstreamSpace: Omit<SpaceSummary, 'userAccess'>,
     ) {
-        if (upstreamSpace === undefined) return true;
-        return (
-            promotedSpace?.name !== upstreamSpace.name ||
-            promotedSpace?.isPrivate !== upstreamSpace.isPrivate
-        );
+        return promotedSpace.name !== upstreamSpace.name;
     }
 
     private static isDashboardUpdated(
@@ -873,21 +838,33 @@ export class PromoteService extends BaseService {
             (change) => change.action === PromotionAction.UPDATE,
         );
         const updatedSpacePromises = updatedSpaces.map((spaceChange) =>
-            this.spaceModel.update(spaceChange.data.uuid, spaceChange.data),
+            // Only update name, promotion should not change permissions
+            this.spaceModel.update(spaceChange.data.uuid, {
+                name: spaceChange.data.name,
+            }),
         );
         await Promise.all(updatedSpacePromises);
 
         const newSpaces = spaceChanges
             .filter((change) => change.action === PromotionAction.CREATE)
-            .map((spaceChange) => {
+            .map(async (spaceChange) => {
                 const { data } = spaceChange;
-                return this.spaceModel.createSpace(
+                const space = await this.spaceModel.createSpace(
                     data.projectUuid,
                     data.name,
                     user.userId,
                     data.isPrivate,
                     data.slug,
                 );
+                if (data.isPrivate) {
+                    // user who created the private space is set as a space admin by default
+                    await this.spaceModel.addSpaceAccess(
+                        space.uuid,
+                        user.userUuid,
+                        SpaceMemberRole.ADMIN,
+                    );
+                }
+                return space;
             });
         const newSpaceSummaries = await Promise.all(newSpaces);
         const newSpaceChanges = newSpaceSummaries.map((space) => {
@@ -999,7 +976,6 @@ export class PromoteService extends BaseService {
                     data: {
                         ...upstreamSpace,
                         name: promotedSpace.name,
-                        isPrivate: promotedSpace.isPrivate, // This should always be false, until we allow promoting private content
                     },
                 };
             }

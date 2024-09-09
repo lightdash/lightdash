@@ -1,3 +1,38 @@
+# [0.1249.0](https://github.com/lightdash/lightdash/compare/0.1248.3...0.1249.0) (2024-09-09)
+
+
+### Features
+
+* promote content from private spaces ([#11453](https://github.com/lightdash/lightdash/issues/11453)) ([c220083](https://github.com/lightdash/lightdash/commit/c2200837c7881fcc4a2360af29dfd91fa01846ff))
+
+## [0.1248.3](https://github.com/lightdash/lightdash/compare/0.1248.2...0.1248.3) (2024-09-06)
+
+
+### Bug Fixes
+
+* allow saving columns config on save ([#11459](https://github.com/lightdash/lightdash/issues/11459)) ([aa13a49](https://github.com/lightdash/lightdash/commit/aa13a490d33ee023d523628f22645ebe3b8cd50e))
+
+## [0.1248.2](https://github.com/lightdash/lightdash/compare/0.1248.1...0.1248.2) (2024-09-06)
+
+
+### Bug Fixes
+
+* do not remove special chars in tooltip ([#11456](https://github.com/lightdash/lightdash/issues/11456)) ([c70b92a](https://github.com/lightdash/lightdash/commit/c70b92a3418464b55b9054e13746897d69e3e080))
+
+## [0.1248.1](https://github.com/lightdash/lightdash/compare/0.1248.0...0.1248.1) (2024-09-06)
+
+
+### Bug Fixes
+
+* set series labels depending on field config `y` ([#11436](https://github.com/lightdash/lightdash/issues/11436)) ([6beb0b5](https://github.com/lightdash/lightdash/commit/6beb0b5f77acf7878681374c622f0ea24ee259a5))
+
+# [0.1248.0](https://github.com/lightdash/lightdash/compare/0.1247.6...0.1248.0) (2024-09-06)
+
+
+### Features
+
+* semantic viewer pivot table ([#11441](https://github.com/lightdash/lightdash/issues/11441)) ([48e4256](https://github.com/lightdash/lightdash/commit/48e4256d4985e0fdcd8ca15ffb97f0f00af741dc))
+
 ## [0.1247.6](https://github.com/lightdash/lightdash/compare/0.1247.5...0.1247.6) (2024-09-06)
 
 
