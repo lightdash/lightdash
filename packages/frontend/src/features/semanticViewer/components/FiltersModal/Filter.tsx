@@ -173,43 +173,32 @@ const Filter: FC<FilterProps> = ({
     }, [filter.field, findFilterField]);
 
     // When field changes, reset operator to first available operator
-    const getFilterFieldOperator = useCallback(
-        (slFilter: SemanticLayerFilter) => {
-            const field = findFilterField(slFilter.field);
-
-            if (!field) {
-                return undefined;
-            }
-
-            return field.availableOperators.includes(slFilter.operator)
-                ? slFilter.operator
-                : field.availableOperators[0];
-        },
-        [findFilterField],
-    );
-
     const handleUpdateFilter = useCallback(
-        (slFilter: SemanticLayerFilter) => {
-            const newField = findFilterField(slFilter.field);
+        (newFilter: SemanticLayerFilter) => {
+            const updatedField = findFilterField(newFilter.field);
 
-            if (!newField) {
+            if (!updatedField) {
                 return;
             }
 
-            const newOperator = getFilterFieldOperator(filter);
+            const updatedOperator = updatedField.availableOperators.includes(
+                newFilter.operator,
+            )
+                ? newFilter.operator
+                : updatedField.availableOperators[0];
 
-            if (!newOperator) {
+            if (!updatedOperator) {
                 return;
             }
 
             onUpdate({
-                ...slFilter,
-                operator: newOperator,
-                fieldKind: newField.kind,
-                fieldType: newField.type,
+                ...newFilter,
+                operator: updatedOperator,
+                fieldKind: updatedField.kind,
+                fieldType: updatedField.type,
             });
         },
-        [filter, findFilterField, getFilterFieldOperator, onUpdate],
+        [findFilterField, onUpdate],
     );
 
     const handleDeleteNestedFilter = useCallback(
