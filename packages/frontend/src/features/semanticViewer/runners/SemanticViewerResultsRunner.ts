@@ -9,7 +9,7 @@ import {
     type SemanticLayerPivot,
     type SemanticLayerQuery,
     type VizChartLayout,
-    type VizSqlColumn,
+    type VizColumn,
 } from '@lightdash/common';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
@@ -76,7 +76,7 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         query: SemanticLayerQuery;
         projectUuid: string;
         rows: RawResultRow[];
-        columns: VizSqlColumn[];
+        columns: VizColumn[];
         fields: SemanticLayerField[];
     }) {
         super(args);
@@ -86,12 +86,12 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         this.fields = fields;
     }
 
-    static convertColumnsToVizSqlColumns(
+    static convertColumnsToVizColumns(
         fields: SemanticLayerField[],
         columns: string[],
-    ): VizSqlColumn[] {
+    ): VizColumn[] {
         return columns
-            .map<VizSqlColumn | undefined>((column) => {
+            .map<VizColumn | undefined>((column) => {
                 const field =
                     SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
                         fields,
@@ -111,7 +111,7 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
                     type: dimType,
                 };
             })
-            .filter((c): c is VizSqlColumn => Boolean(c));
+            .filter((c): c is VizColumn => Boolean(c));
     }
 
     private static findSemanticLayerFieldFromColumn(
@@ -147,8 +147,8 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         const { results, columns } = pivotedResults;
 
         // The backend call has no knowledge of field types, so we need to map them to the correct types
-        const vizSqlColumns: VizSqlColumn[] =
-            SemanticViewerResultsRunner.convertColumnsToVizSqlColumns(
+        const vizColumns: VizColumn[] =
+            SemanticViewerResultsRunner.convertColumnsToVizColumns(
                 this.fields,
                 columns,
             );
@@ -174,7 +174,7 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
             results,
             indexColumn,
             valuesColumns,
-            columns: vizSqlColumns,
+            columns: vizColumns,
         };
     }
 }

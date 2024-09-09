@@ -5,7 +5,7 @@ import {
     type ApiJobScheduledResponse,
     type RawResultRow,
     type SqlRunnerBody,
-    type VizSqlColumn,
+    type VizColumn,
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -29,7 +29,7 @@ const scheduleSqlJob = async ({
 
 export type ResultsAndColumns = {
     results: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 type UseSqlQueryRunParams = {

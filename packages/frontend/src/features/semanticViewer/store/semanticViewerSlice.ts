@@ -10,7 +10,7 @@ import {
     type SemanticLayerFilter,
     type SemanticLayerSortBy,
     type SemanticLayerTimeDimension,
-    type VizSqlColumn,
+    type VizColumn,
     type VizTableConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -96,7 +96,7 @@ const getKeyByField = (
 
 export type ResultsAndColumns = {
     results: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
     sortBy: [];
 };
 
@@ -119,7 +119,7 @@ export interface SemanticViewerState {
     resultsTableConfig: VizTableConfig | undefined;
 
     results: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
     fields: SemanticLayerField[];
 
     selectedDimensions: Record<string, SemanticLayerStateDimension>;
@@ -188,7 +188,7 @@ export const semanticViewerSlice = createSlice({
             state,
             action: PayloadAction<{
                 results: RawResultRow[];
-                columns: VizSqlColumn[];
+                columns: VizColumn[];
             }>,
         ) => {
             state.results = action.payload.results || [];

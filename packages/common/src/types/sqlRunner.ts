@@ -5,8 +5,8 @@ import {
     type VizBaseConfig,
     type VizCartesianChartConfig,
     type VizChartConfig,
+    type VizColumn,
     type VizPieChartConfig,
-    type VizSqlColumn,
     type VizTableConfig,
 } from '../visualizations/types';
 import { type Dashboard } from './dashboard';
@@ -55,7 +55,7 @@ export const sqlRunnerPivotQueryJob = 'sqlRunnerPivotQuery';
 
 type SqlRunnerJobStatusSuccessDetails = {
     fileUrl: string;
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 type SqlRunnerPivotQueryJobStatusSuccessDetails =

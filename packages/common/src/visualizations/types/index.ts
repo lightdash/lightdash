@@ -23,7 +23,7 @@ export const vizAggregationOptions = [
 
 export const VIZ_DEFAULT_AGGREGATION = VizAggregationOptions.COUNT;
 
-export type VizSqlColumn = {
+export type VizColumn = {
     reference: string;
     type?: DimensionType;
 };
@@ -73,7 +73,7 @@ export type PivotChartData = {
     results: RawResultRow[];
     indexColumn: PivotIndexColum;
     valuesColumns: string[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 export type VizCartesianChartOptions = {

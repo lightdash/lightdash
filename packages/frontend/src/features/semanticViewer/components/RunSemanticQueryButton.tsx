@@ -61,13 +61,13 @@ export const RunSemanticQueryButton: FC = () => {
     useEffect(() => {
         if (!resultsColumns || !resultsData) return;
 
-        const vizSqlColumns =
-            SemanticViewerResultsRunner.convertColumnsToVizSqlColumns(
+        const vizColumns =
+            SemanticViewerResultsRunner.convertColumnsToVizColumns(
                 fields,
                 resultsColumns,
             );
 
-        dispatch(setResults({ results: resultsData, columns: vizSqlColumns }));
+        dispatch(setResults({ results: resultsData, columns: vizColumns }));
     }, [dispatch, resultsData, resultsColumns, fields]);
 
     useEffect(() => {
