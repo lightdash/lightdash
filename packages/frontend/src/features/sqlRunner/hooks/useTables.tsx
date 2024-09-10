@@ -104,7 +104,7 @@ export const useRefreshTables = ({
 }: Pick<GetTablesParams, 'projectUuid'>) => {
     const queryClient = useQueryClient();
 
-    return useMutation<ApiWarehouseCatalog, { message: string }, void>(
+     return useMutation<ApiWarehouseCatalog, ApiError>(
         () => refreshTables({ projectUuid }),
         {
             onSuccess: async () => {
