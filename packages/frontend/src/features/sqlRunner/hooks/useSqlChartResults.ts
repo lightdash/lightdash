@@ -40,7 +40,6 @@ export const getSqlChartResults = async ({
     const results = await getResultsFromStream<RawResultRow>(url);
 
     return {
-        url: url!,
         results,
         columns:
             isApiSqlRunnerJobSuccessResponse(job) &&

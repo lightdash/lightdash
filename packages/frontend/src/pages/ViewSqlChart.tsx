@@ -1,13 +1,18 @@
-import { isVizTableConfig } from '@lightdash/common';
+import { isVizTableConfig, type RawResultRow } from '@lightdash/common';
 import {
     Box,
+    Button,
     Group,
     Paper,
     SegmentedControl,
     Stack,
     Text,
 } from '@mantine/core';
-import { IconChartHistogram, IconTable } from '@tabler/icons-react';
+import {
+    IconChartHistogram,
+    IconDownload,
+    IconTable,
+} from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
@@ -32,10 +37,12 @@ import {
 } from '../features/sqlRunner/store/hooks';
 import {
     resetState,
+    setDataUrl,
     setProjectUuid,
     setSavedChartData,
     setSqlRunnerResults,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { getResultsFromStream } from '../utils/request';
 
 enum TabOption {
     CHART = 'chart',
@@ -110,6 +117,11 @@ const ViewSqlChart = () => {
         limit: sqlChart?.limit,
     });
 
+    useEffect(() => {
+        if (!chartVizQuery?.data?.url) return;
+        dispatch(setDataUrl(chartVizQuery.data.url));
+    }, [chartVizQuery, dispatch]);
+
     return (
         <Page
             title="SQL chart"
@@ -129,36 +141,75 @@ const ViewSqlChart = () => {
             >
                 <Stack h="100%">
                     <Group position="apart">
-                        <SegmentedControl
-                            color="dark"
-                            size="sm"
-                            radius="sm"
-                            disabled={isLoading}
-                            data={[
-                                {
-                                    value: TabOption.CHART,
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <MantineIcon
-                                                icon={IconChartHistogram}
-                                            />
-                                            <Text>Chart</Text>
-                                        </Group>
-                                    ),
-                                },
-                                {
-                                    value: TabOption.RESULTS,
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <MantineIcon icon={IconTable} />
-                                            <Text>Results</Text>
-                                        </Group>
-                                    ),
-                                },
-                            ]}
-                            value={activeTab}
-                            onChange={(val: TabOption) => setActiveTab(val)}
-                        />
+                        <Group position="apart">
+                            <SegmentedControl
+                                color="dark"
+                                size="sm"
+                                radius="sm"
+                                disabled={isLoading}
+                                data={[
+                                    {
+                                        value: TabOption.CHART,
+                                        label: (
+                                            <Group spacing="xs" noWrap>
+                                                <MantineIcon
+                                                    icon={IconChartHistogram}
+                                                />
+                                                <Text>Chart</Text>
+                                            </Group>
+                                        ),
+                                    },
+                                    {
+                                        value: TabOption.RESULTS,
+                                        label: (
+                                            <Group spacing="xs" noWrap>
+                                                <MantineIcon icon={IconTable} />
+                                                <Text>Results</Text>
+                                            </Group>
+                                        ),
+                                    },
+                                ]}
+                                value={activeTab}
+                                onChange={(val: TabOption) => setActiveTab(val)}
+                            />
+                        </Group>
+                        <Button
+                            leftIcon={<MantineIcon icon={IconDownload} />}
+                            variant="default"
+                            size="xs"
+                            disabled={!chartVizQuery?.data?.url}
+                            onClick={() => {
+                                if (chartVizQuery?.data?.url) {
+                                    void getResultsFromStream<RawResultRow>(
+                                        chartVizQuery.data.url,
+                                    ).then((results) => {
+                                        const csvContent = results
+                                            .map((row) =>
+                                                Object.values(row).join(','),
+                                            )
+                                            .join('\n');
+                                        const blob = new Blob([csvContent], {
+                                            type: 'text/csv;charset=utf-8;',
+                                        });
+                                        const url = URL.createObjectURL(blob);
+                                        const link =
+                                            document.createElement('a');
+                                        link.href = url;
+                                        link.setAttribute(
+                                            'download',
+                                            `${
+                                                sqlChart?.name || 'sql_results'
+                                            }.csv`,
+                                        );
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    });
+                                }
+                            }}
+                        >
+                            Download CSV
+                        </Button>
                     </Group>
 
                     {chartError && <ErrorState error={chartError.error} />}

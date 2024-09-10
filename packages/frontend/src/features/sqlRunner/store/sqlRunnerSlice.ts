@@ -105,6 +105,9 @@ export const sqlRunnerSlice = createSlice({
                 state.activeEditorTab = EditorTabs.VISUALIZATION;
             }
         },
+        setDataUrl: (state, action: PayloadAction<string>) => {
+            state.dataUrl = action.payload;
+        },
         setSqlRunnerResults: (
             state,
             action: PayloadAction<ResultsAndColumns>,
@@ -115,7 +118,6 @@ export const sqlRunnerSlice = createSlice({
             ) {
                 return;
             }
-            state.dataUrl = action.payload.url;
 
             state.sqlColumns = action.payload.columns;
             // Set the initial results table config
@@ -212,6 +214,7 @@ export const {
     setProjectUuid,
     setFetchResultsOnLoad,
     setSqlRunnerResults,
+    setDataUrl,
     updateName,
     setSql,
     setSqlLimit,
