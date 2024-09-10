@@ -227,40 +227,47 @@ const ViewSqlChart = () => {
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.RESULTS}
                             >
-                                {chartVizQuery.data && chartVizResultsRunner ? (
-                                    <Table
-                                        resultsRunner={chartVizResultsRunner}
-                                        columnsConfig={Object.fromEntries(
-                                            chartVizQuery.data.columns.map(
-                                                (field) => [
-                                                    field.reference,
-                                                    {
-                                                        visible: true,
-                                                        reference:
-                                                            field.reference,
-                                                        label: field.reference,
-                                                        frozen: false,
-                                                        // TODO: add aggregation
-                                                        // aggregation?: VizAggregationOptions;
-                                                    },
-                                                ],
-                                            ),
-                                        )}
-                                        flexProps={{
-                                            mah: 'calc(100vh - 250px)',
-                                        }}
-                                    />
-                                ) : resultsTableConfig ? (
-                                    <Table
-                                        resultsRunner={resultsRunner}
-                                        columnsConfig={
-                                            resultsTableConfig?.columns
-                                        }
-                                        flexProps={{
-                                            mah: 'calc(100vh - 250px)',
-                                        }}
-                                    />
-                                ) : null}
+                                {!isVizTableConfig(currentVisConfig) &&
+                                    chartVizQuery.data &&
+                                    chartVizResultsRunner && (
+                                        <Table
+                                            resultsRunner={
+                                                chartVizResultsRunner
+                                            }
+                                            columnsConfig={Object.fromEntries(
+                                                chartVizQuery.data.columns.map(
+                                                    (field) => [
+                                                        field.reference,
+                                                        {
+                                                            visible: true,
+                                                            reference:
+                                                                field.reference,
+                                                            label: field.reference,
+                                                            frozen: false,
+                                                            // TODO: add aggregation
+                                                            // aggregation?: VizAggregationOptions;
+                                                        },
+                                                    ],
+                                                ),
+                                            )}
+                                            flexProps={{
+                                                mah: 'calc(100vh - 250px)',
+                                            }}
+                                        />
+                                    )}
+
+                                {isVizTableConfig(currentVisConfig) &&
+                                    resultsTableConfig && (
+                                        <Table
+                                            resultsRunner={resultsRunner}
+                                            columnsConfig={
+                                                resultsTableConfig?.columns
+                                            }
+                                            flexProps={{
+                                                mah: 'calc(100vh - 250px)',
+                                            }}
+                                        />
+                                    )}
                             </ConditionalVisibility>
                         </Box>
                     )}
