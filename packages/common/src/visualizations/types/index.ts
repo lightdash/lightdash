@@ -74,6 +74,7 @@ export type PivotChartData = {
     indexColumn: PivotIndexColum;
     valuesColumns: string[];
     columns: VizColumn[];
+    dataUrl?: string;
 };
 
 export type VizCartesianChartOptions = {

@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { type RawResultRow } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -8,7 +9,12 @@ import {
     Stack,
     Title,
 } from '@mantine/core';
-import { IconDots, IconLayoutGridAdd, IconTrash } from '@tabler/icons-react';
+import {
+    IconDots,
+    IconFileTypeCsv,
+    IconLayoutGridAdd,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -17,6 +23,7 @@ import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPop
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
 import { useApp } from '../../../../providers/AppProvider';
+import { getResultsFromStream } from '../../../../utils/request';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { toggleModal } from '../../store/sqlRunnerSlice';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
@@ -32,6 +39,7 @@ export const HeaderView: FC = () => {
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
     );
+    const dataUrl = useAppSelector((state) => state.sqlRunner.dataUrl);
     const isAddToDashboard = useAppSelector(
         (state) => state.sqlRunner.modals.addToDashboard.isOpen,
     );
@@ -133,7 +141,49 @@ export const HeaderView: FC = () => {
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
-                                <Menu.Label>Manage</Menu.Label>
+                                <Menu.Item
+                                    icon={
+                                        <MantineIcon icon={IconFileTypeCsv} />
+                                    }
+                                    onClick={() => {
+                                        if (dataUrl) {
+                                            void getResultsFromStream<RawResultRow>(
+                                                dataUrl,
+                                            ).then((results) => {
+                                                const csvContent = results
+                                                    .map((row) =>
+                                                        Object.values(row).join(
+                                                            ',',
+                                                        ),
+                                                    )
+                                                    .join('\n');
+                                                const blob = new Blob(
+                                                    [csvContent],
+                                                    {
+                                                        type: 'text/csv;charset=utf-8;',
+                                                    },
+                                                );
+                                                const url =
+                                                    URL.createObjectURL(blob);
+                                                const link =
+                                                    document.createElement('a');
+                                                link.href = url;
+                                                link.setAttribute(
+                                                    'download',
+                                                    `${
+                                                        savedSqlChart.name ||
+                                                        'sql_results'
+                                                    }.csv`,
+                                                );
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                document.body.removeChild(link);
+                                            });
+                                        }
+                                    }}
+                                >
+                                    Download results
+                                </Menu.Item>
                                 <Menu.Item
                                     icon={
                                         <MantineIcon icon={IconLayoutGridAdd} />

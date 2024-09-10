@@ -28,6 +28,7 @@ const scheduleSqlJob = async ({
     });
 
 export type ResultsAndColumns = {
+    url: string;
     results: RawResultRow[];
     columns: VizColumn[];
 };
@@ -68,6 +69,7 @@ export const useSqlQueryRun = (
                 >(url);
 
                 return {
+                    url: url!,
                     results,
                     columns:
                         job.details && !isErrorDetails(job.details)

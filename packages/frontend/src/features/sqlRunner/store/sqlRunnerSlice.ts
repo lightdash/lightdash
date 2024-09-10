@@ -26,6 +26,7 @@ export interface SqlRunnerState {
     activeTable: string | undefined;
     activeSchema: string | undefined;
     savedSqlChart: SqlChart | undefined;
+    dataUrl: string | undefined;
     name: string;
     description: string;
     sql: string;
@@ -59,6 +60,7 @@ const initialState: SqlRunnerState = {
     activeTable: undefined,
     activeSchema: undefined,
     savedSqlChart: undefined,
+    dataUrl: undefined,
     name: '',
     description: '',
     sql: '',
@@ -113,6 +115,7 @@ export const sqlRunnerSlice = createSlice({
             ) {
                 return;
             }
+            state.dataUrl = action.payload.url;
 
             state.sqlColumns = action.payload.columns;
             // Set the initial results table config
