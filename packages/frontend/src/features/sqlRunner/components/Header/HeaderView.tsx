@@ -8,7 +8,6 @@ import {
     Stack,
     Title,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
 import { IconDots, IconLayoutGridAdd, IconTrash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
@@ -33,8 +32,12 @@ export const HeaderView: FC = () => {
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
     );
-    const [isAddToDashboardModalOpen, addToDashboardModalHandlers] =
-        useDisclosure();
+    const isAddToDashboard = useAppSelector(
+        (state) => state.sqlRunner.modals.addToDashboard.isOpen,
+    );
+    const onCloseAddToDashboardModal = useCallback(() => {
+        dispatch(toggleModal('addToDashboard'));
+    }, [dispatch]);
     const isDeleteModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.deleteChartModal.isOpen,
     );
@@ -135,7 +138,9 @@ export const HeaderView: FC = () => {
                                     icon={
                                         <MantineIcon icon={IconLayoutGridAdd} />
                                     }
-                                    onClick={addToDashboardModalHandlers.open}
+                                    onClick={() =>
+                                        dispatch(toggleModal('addToDashboard'))
+                                    }
                                 >
                                     Add to dashboard
                                 </Menu.Item>
@@ -171,12 +176,12 @@ export const HeaderView: FC = () => {
                 onClose={onCloseDeleteModal}
                 onSuccess={() => history.push(`/projects/${projectUuid}/home`)}
             />
-            {isAddToDashboardModalOpen && (
+            {isAddToDashboard && (
                 <AddTilesToDashboardModal
-                    isOpen={isAddToDashboardModalOpen}
+                    isOpen={true}
                     projectUuid={projectUuid}
                     savedSqlChartUuid={savedSqlChart.savedSqlUuid}
-                    onClose={addToDashboardModalHandlers.close}
+                    onClose={onCloseAddToDashboardModal}
                 />
             )}
         </>

@@ -171,19 +171,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                         name: dashboardName,
                         description: dashboardDescription,
                         spaceUuid: spaceUuid,
-                        tiles: [
-                            {
-                                uuid: uuid4(),
-                                type: DashboardTileTypes.SAVED_CHART,
-                                tabUuid: undefined,
-                                properties: {
-                                    savedChartUuid: savedChart.uuid,
-                                },
-                                ...getDefaultChartTileSize(
-                                    savedChart?.chartConfig.type,
-                                ),
-                            },
-                        ],
+                        tiles: [chartTile],
                         tabs: [],
                     });
                     onClose?.();
