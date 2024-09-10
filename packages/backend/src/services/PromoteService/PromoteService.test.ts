@@ -16,6 +16,7 @@ import {
     promotedDashboard,
     promotedDashboardWithChartWithinDashboard,
     promotedDashboardWithNewPrivateSpace,
+    upstreamFullSpace,
     user,
 } from './PromoteService.mock';
 
@@ -32,7 +33,9 @@ const spaceModel = {
     find: jest.fn(async () => [existingUpstreamChart.space]),
     getUserSpaceAccess: jest.fn(async () => []),
     createSpace: jest.fn(async () => existingUpstreamChart.space),
+    getFullSpace: jest.fn(async () => upstreamFullSpace),
     addSpaceAccess: jest.fn(async () => {}),
+    addSpaceGroupAccess: jest.fn(async () => {}),
     update: jest.fn(async () => {}),
 };
 const dashboardModel = {
@@ -462,6 +465,8 @@ describe('PromoteService promoting and mutating changes', () => {
         const newChanges = await service.upsertSpaces(user, changes);
 
         expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
+        expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
+        expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(0);
 
         expect(newChanges).toEqual({
             ...changes,
@@ -522,6 +527,7 @@ describe('PromoteService promoting and mutating changes', () => {
             'userUuid',
             'admin',
         );
+        expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(1);
     });
 
     test('update space should not affect permissions', async () => {
@@ -543,6 +549,7 @@ describe('PromoteService promoting and mutating changes', () => {
             name: promotedDashboardWithNewPrivateSpace.space.name,
         });
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
+        expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(0);
     });
 
     test('return same changes if no new dashboard is created', async () => {
