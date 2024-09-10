@@ -85,6 +85,7 @@ export async function up(knex: Knex): Promise<void> {
                     .timestamp('created_at', { useTz: false })
                     .notNullable()
                     .defaultTo(knex.fn.now());
+                table.string('semantic_layer_view').nullable();
                 table.jsonb('semantic_layer_query').defaultTo({});
                 table.jsonb('config').defaultTo({});
                 table.string('chart_kind').defaultTo(ChartKind.VERTICAL_BAR);

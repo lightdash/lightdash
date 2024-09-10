@@ -36,7 +36,7 @@ type SelectSavedSemanticLayer = Pick<
 > &
     Pick<
         DbSavedSemanticLayerVersion,
-        'semantic_layer_query' | 'config' | 'chart_kind'
+        'semantic_layer_view' | 'semantic_layer_query' | 'config' | 'chart_kind'
     > &
     Pick<DbSpace, 'space_uuid'> &
     Pick<DbProject, 'project_uuid'> &
@@ -91,6 +91,7 @@ export class SavedSemanticLayerModel {
                 : null,
 
             config: row.config as SavedSemanticLayer['config'],
+            semanticLayerView: row.semantic_layer_view,
             semanticLayerQuery:
                 row.semantic_layer_query as SavedSemanticLayer['semanticLayerQuery'],
 
@@ -179,6 +180,7 @@ export class SavedSemanticLayerModel {
                 `${SavedSemanticLayerTableName}.first_viewed_at`,
                 `${SavedSemanticLayerTableName}.last_viewed_at`,
                 `${DashboardsTableName}.name as dashboardName`,
+                `${SavedSemanticLayerVersionsTableName}.semantic_layer_view`,
                 `${SavedSemanticLayerVersionsTableName}.semantic_layer_query`,
                 `${SavedSemanticLayerVersionsTableName}.config`,
                 `${SavedSemanticLayerVersionsTableName}.chart_kind`,
@@ -258,7 +260,7 @@ export class SavedSemanticLayerModel {
         trx: Knex,
         data: Pick<
             SemanticLayerCreateChart,
-            'semanticLayerQuery' | 'config'
+            'semanticLayerView' | 'semanticLayerQuery' | 'config'
         > & {
             savedSemanticLayerUuid: string;
             userUuid: string;
@@ -273,6 +275,7 @@ export class SavedSemanticLayerModel {
             {
                 saved_semantic_layer_uuid: data.savedSemanticLayerUuid,
                 config: data.config,
+                semantic_layer_view: data.semanticLayerView,
                 semantic_layer_query: data.semanticLayerQuery,
                 chart_kind: data.config.type,
                 created_by_user_uuid: data.userUuid,
@@ -336,6 +339,7 @@ export class SavedSemanticLayerModel {
                     savedSemanticLayerUuid,
                     userUuid,
                     config: data.config,
+                    semanticLayerView: data.semanticLayerView,
                     semanticLayerQuery: data.semanticLayerQuery,
                 });
             return {

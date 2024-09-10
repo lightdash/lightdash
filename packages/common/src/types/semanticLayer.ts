@@ -284,6 +284,7 @@ export type SavedSemanticLayer = {
     description: string | null;
     slug: string;
     config: AllVizChartConfig;
+    semanticLayerView: string | null;
     semanticLayerQuery: SemanticLayerQuery;
     chartKind: ChartKind;
     createdAt: Date;
@@ -308,6 +309,7 @@ export type SavedSemanticLayer = {
 export type SemanticLayerCreateChart = {
     name: string;
     description: string | null;
+    semanticLayerView: string | null;
     semanticLayerQuery: SemanticLayerQuery;
     config: VizChartConfig;
     spaceUuid: string;

@@ -9432,6 +9432,10 @@
                     "semanticLayerQuery": {
                         "$ref": "#/components/schemas/SemanticLayerQuery"
                     },
+                    "semanticLayerView": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "description": {
                         "type": "string",
                         "nullable": true
@@ -9444,6 +9448,7 @@
                     "spaceUuid",
                     "config",
                     "semanticLayerQuery",
+                    "semanticLayerView",
                     "description",
                     "name"
                 ],
@@ -9526,6 +9531,10 @@
                     "semanticLayerQuery": {
                         "$ref": "#/components/schemas/SemanticLayerQuery"
                     },
+                    "semanticLayerView": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "config": {
                         "$ref": "#/components/schemas/AllVizChartConfig"
                     },
@@ -9557,6 +9566,7 @@
                     "createdAt",
                     "chartKind",
                     "semanticLayerQuery",
+                    "semanticLayerView",
                     "config",
                     "slug",
                     "description",

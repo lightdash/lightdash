@@ -8571,6 +8571,14 @@ const models: TsoaRoute.Models = {
                     ref: 'SemanticLayerQuery',
                     required: true,
                 },
+                semanticLayerView: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 description: {
                     dataType: 'union',
                     subSchemas: [
@@ -8649,6 +8657,14 @@ const models: TsoaRoute.Models = {
                 chartKind: { ref: 'ChartKind', required: true },
                 semanticLayerQuery: {
                     ref: 'SemanticLayerQuery',
+                    required: true,
+                },
+                semanticLayerView: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 config: { ref: 'AllVizChartConfig', required: true },
