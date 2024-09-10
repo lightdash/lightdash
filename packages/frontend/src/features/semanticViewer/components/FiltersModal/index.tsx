@@ -23,7 +23,7 @@ import {
 } from '../../store/semanticViewerSlice';
 import Filter from './Filter';
 import FilterButton from './FilterButton';
-import FilterFieldInput from './FilterFieldSelect';
+import FilterFieldSelect from './FilterFieldSelect';
 
 type FiltersModalProps = ModalProps & {
     onApply?: () => void;
@@ -107,7 +107,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         Add filter
                     </FilterButton>
                 ) : (
-                    <FilterFieldInput
+                    <FilterFieldSelect
                         availableFieldOptions={availableFieldOptions}
                         onFieldChange={(value) => {
                             setIsAddingFilter(false);
