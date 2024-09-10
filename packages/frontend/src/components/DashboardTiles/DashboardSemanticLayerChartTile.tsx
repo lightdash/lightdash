@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ChartKind,
     isVizTableConfig,
-    type DashboardSqlChartTile,
+    type DashboardSemanticLayerChartTile,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
@@ -24,7 +24,7 @@ interface Props
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
-    tile: DashboardSqlChartTile;
+    tile: DashboardSemanticLayerChartTile;
     minimal?: boolean;
 }
 
@@ -54,14 +54,14 @@ const DashboardOptions = memo(
     ),
 );
 
-const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
+const SemanticLayerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
 
     const { projectUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
-    const savedSqlUuid = tile.properties.savedSqlUuid;
+    const savedSqlUuid = tile.properties.savedSemanticLayerUuid;
     const { data, isLoading, error } = useDashboardSqlChart({
         projectUuid,
         savedSqlUuid,
@@ -168,9 +168,6 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                         <Table
                             resultsRunner={resultsRunner}
                             columnsConfig={data.chart.config.columns}
-                            flexProps={{
-                                mah: '100%',
-                            }}
                         />
                     </Box>
                 )}
@@ -194,4 +191,4 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     );
 };
 
-export default SqlChartTile;
+export default SemanticLayerChartTile;

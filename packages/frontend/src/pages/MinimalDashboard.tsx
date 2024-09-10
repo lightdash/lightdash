@@ -9,18 +9,18 @@ import { useParams } from 'react-router-dom';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
+import SemanticLayerChartTile from '../components/DashboardTiles/DashboardSemanticLayerChartTile';
+import SqlChartTile from '../components/DashboardTiles/DashboardSqlChartTile';
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
+import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import useSearchParams from '../hooks/useSearchParams';
 import { DashboardProvider } from '../providers/DashboardProvider';
+import '../styles/react-grid.css';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
 } from './Dashboard';
-
-import { DashboardSqlChartTile as SqlChartTile } from '../components/DashboardTiles/DashboardSqlChartTile';
-import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
-import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -117,6 +117,15 @@ const MinimalDashboard: FC = () => {
                             />
                         ) : tile.type === DashboardTileTypes.SQL_CHART ? (
                             <SqlChartTile
+                                key={tile.uuid}
+                                tile={tile}
+                                isEditMode={false}
+                                onDelete={() => {}}
+                                onEdit={() => {}}
+                            />
+                        ) : tile.type ===
+                          DashboardTileTypes.SEMANTIC_LAYER_CHART ? (
+                            <SemanticLayerChartTile
                                 key={tile.uuid}
                                 tile={tile}
                                 isEditMode={false}

@@ -8,6 +8,7 @@ import { type ValidationSummary } from './validation';
 export enum DashboardTileTypes {
     SAVED_CHART = 'saved_chart',
     SQL_CHART = 'sql_chart',
+    SEMANTIC_LAYER_CHART = 'semantic_layer_chart',
     MARKDOWN = 'markdown',
     LOOM = 'loom',
 }
@@ -63,6 +64,16 @@ export type DashboardSqlChartTileProperties = {
     };
 };
 
+export type DashboardSemanticLayerChartTileProperties = {
+    type: DashboardTileTypes.SEMANTIC_LAYER_CHART;
+    properties: {
+        title?: string;
+        savedSemanticLayerUuid: string | null;
+        chartName: string;
+        hideTitle?: boolean;
+    };
+};
+
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
     DashboardMarkdownTileProperties;
 export type DashboardMarkdownTile = DashboardTileBase &
@@ -82,6 +93,11 @@ export type CreateDashboardSqlChartTile = CreateDashboardTileBase &
 export type DashboardSqlChartTile = DashboardTileBase &
     DashboardSqlChartTileProperties;
 
+export type CreateDashboardSemanticLayerChartTile = CreateDashboardTileBase &
+    DashboardSemanticLayerChartTileProperties;
+export type DashboardSemanticLayerChartTile = DashboardTileBase &
+    DashboardSemanticLayerChartTileProperties;
+
 export const isChartTile = (
     tile: DashboardTileBase,
 ): tile is DashboardChartTile => tile.type === DashboardTileTypes.SAVED_CHART;
@@ -94,6 +110,7 @@ export type CreateDashboard = {
         | CreateDashboardMarkdownTile
         | CreateDashboardLoomTile
         | CreateDashboardSqlChartTile
+        | CreateDashboardSemanticLayerChartTile
     >;
     filters?: DashboardFilters;
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
@@ -105,7 +122,8 @@ export type DashboardTile =
     | DashboardChartTile
     | DashboardMarkdownTile
     | DashboardLoomTile
-    | DashboardSqlChartTile;
+    | DashboardSqlChartTile
+    | DashboardSemanticLayerChartTile;
 
 export const isDashboardChartTileType = (
     tile: DashboardTile,
@@ -122,6 +140,11 @@ export const isDashboardLoomTileType = (
 export const isDashboardSqlChartTile = (
     tile: DashboardTileBase,
 ): tile is DashboardSqlChartTile => tile.type === DashboardTileTypes.SQL_CHART;
+
+export const isDashboardSemanticLayerChartTile = (
+    tile: DashboardTileBase,
+): tile is DashboardSemanticLayerChartTile =>
+    tile.type === DashboardTileTypes.SEMANTIC_LAYER_CHART;
 
 export type DashboardTab = {
     uuid: string;

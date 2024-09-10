@@ -10,7 +10,8 @@ import { memo, type FC } from 'react';
 import ChartTile from '../DashboardTiles/DashboardChartTile';
 import LoomTile from '../DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../DashboardTiles/DashboardMarkdownTile';
-import { DashboardSqlChartTile as SqlChartTile } from '../DashboardTiles/DashboardSqlChartTile';
+import SemanticLayerChartTile from '../DashboardTiles/DashboardSemanticLayerChartTile';
+import SqlChartTile from '../DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../DashboardTiles/TileBase';
 
 const GridTile: FC<
@@ -44,6 +45,8 @@ const GridTile: FC<
             return <LoomTile {...props} tile={tile} />;
         case DashboardTileTypes.SQL_CHART:
             return <SqlChartTile {...props} tile={tile} />;
+        case DashboardTileTypes.SEMANTIC_LAYER_CHART:
+            return <SemanticLayerChartTile {...props} tile={tile} />;
         default: {
             return assertUnreachable(
                 tile,
