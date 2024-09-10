@@ -85,7 +85,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
             p="sm"
             radius="md"
         >
-            <Stack align="flex-start" spacing="sm">
+            <Stack align="flex-start" spacing="sm" data-autofocus>
                 {filters.map((filter, index) => (
                     <Filter
                         key={filter.uuid}

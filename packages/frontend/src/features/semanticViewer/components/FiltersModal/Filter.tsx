@@ -415,8 +415,8 @@ const Filter: FC<FilterProps> = ({
                     />
 
                     <FilterFieldSelect
-                        availableFieldOptions={fieldOptions}
                         value={filter.field}
+                        availableFieldOptions={fieldOptions}
                         style={{ flex: 5 }}
                         onFieldChange={(value) => {
                             if (!value) {
