@@ -1,3 +1,10 @@
+# [0.1254.0](https://github.com/lightdash/lightdash/compare/0.1253.0...0.1254.0) (2024-09-10)
+
+
+### Features
+
+* show pivoted results for non-table sql chart view ([#11511](https://github.com/lightdash/lightdash/issues/11511)) ([a8f68e1](https://github.com/lightdash/lightdash/commit/a8f68e130e04904bb30623f597c1e4eb09610f6e))
+
 # [0.1253.0](https://github.com/lightdash/lightdash/compare/0.1252.0...0.1253.0) (2024-09-10)
 
 
