@@ -13,7 +13,6 @@ import {
     PromotionChanges,
     SavedChartDAO,
     SessionUser,
-    SpaceMemberRole,
     SpaceShare,
     SpaceSummary,
     UnexpectedServerError,
@@ -857,12 +856,30 @@ export class PromoteService extends BaseService {
                     data.slug,
                 );
                 if (data.isPrivate) {
-                    // user who created the private space is set as a space admin by default
-                    await this.spaceModel.addSpaceAccess(
-                        space.uuid,
-                        user.userUuid,
-                        SpaceMemberRole.ADMIN,
-                    );
+                    const promotedSpaceWithAccess =
+                        await this.spaceModel.getFullSpace(data.uuid);
+                    const userAccessPromises = promotedSpaceWithAccess.access
+                        .filter((access) => access.hasDirectAccess)
+                        .map((userAccess) =>
+                            this.spaceModel.addSpaceAccess(
+                                space.uuid,
+                                userAccess.userUuid,
+                                userAccess.role,
+                            ),
+                        );
+                    const groupAccessPromises =
+                        promotedSpaceWithAccess.groupsAccess.map(
+                            (groupAccess) =>
+                                this.spaceModel.addSpaceGroupAccess(
+                                    space.uuid,
+                                    groupAccess.groupUuid,
+                                    groupAccess.spaceRole,
+                                ),
+                        );
+                    await Promise.all([
+                        ...userAccessPromises,
+                        ...groupAccessPromises,
+                    ]);
                 }
                 return space;
             });

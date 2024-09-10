@@ -68,7 +68,7 @@ export const Table = <T extends IResultsRunner<VizChartLayout>>({
                                         backgroundColor: TABLE_HEADER_BG,
                                     }}
                                 >
-                                    <Group spacing="two">
+                                    <Group spacing="two" fz={13}>
                                         {columnsConfig[header.id]
                                             ?.aggregation && (
                                             <Badge

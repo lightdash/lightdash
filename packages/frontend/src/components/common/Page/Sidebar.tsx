@@ -32,10 +32,14 @@ export type SidebarWidthProps = {
     maxWidth?: number;
 };
 
+export type SidebarProps = {
+    cardProps?: Omit<CardProps, 'children'>;
+};
+
 type Props = {
     isOpen?: boolean;
     containerProps?: FlexProps;
-    cardProps?: CardProps;
+    sidebarProps?: SidebarProps;
     position?: SidebarPosition;
     widthProps?: SidebarWidthProps;
     mainWidth?: number;
@@ -46,7 +50,7 @@ type Props = {
 const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     isOpen = true,
     containerProps,
-    cardProps,
+    sidebarProps,
     position = SidebarPosition.LEFT,
     widthProps = {},
     mainWidth,
@@ -111,8 +115,9 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                                 padding="lg"
                                 pb={0}
                                 w={sidebarWidth}
-                                style={style}
                                 sx={{ flexGrow: 1 }}
+                                style={style}
+                                {...sidebarProps?.cardProps}
                             >
                                 {children}
                             </Card>
@@ -126,7 +131,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                                     ? { right: -SIDEBAR_RESIZE_HANDLE_WIDTH }
                                     : { left: -SIDEBAR_RESIZE_HANDLE_WIDTH })}
                                 onMouseDown={startResizing}
-                                {...cardProps}
+                                {...sidebarProps?.cardProps}
                                 sx={(theme) => ({
                                     cursor: 'col-resize',
                                     zIndex: getDefaultZIndex('app') + 1,
