@@ -3,19 +3,16 @@ import {
     SemanticLayerFieldType,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Button,
     Flex,
-    Group,
     Modal,
-    Select,
     Stack,
+    Title,
     type ModalProps,
 } from '@mantine/core';
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectAllSelectedFieldNames } from '../../store/selectors';
@@ -26,7 +23,7 @@ import {
 } from '../../store/semanticViewerSlice';
 import Filter from './Filter';
 import FilterButton from './FilterButton';
-import FilterFieldSelectItem from './FilterFieldSelectItem';
+import FilterFieldInput from './FilterFieldSelect';
 
 type FiltersModalProps = ModalProps & {
     onApply?: () => void;
@@ -74,7 +71,17 @@ const FiltersModal: FC<FiltersModalProps> = ({
     }, [onApply, onClose]);
 
     return (
-        <Modal {...props} onClose={onClose} p="sm" radius="md">
+        <Modal
+            {...props}
+            title={
+                <Title order={5} fw={500}>
+                    Filters
+                </Title>
+            }
+            onClose={onClose}
+            p="sm"
+            radius="md"
+        >
             <Stack align="flex-start" spacing="sm">
                 {filters.map((filter, index) => (
                     <Filter
@@ -97,64 +104,45 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         Add filter
                     </FilterButton>
                 ) : (
-                    <Group spacing="xs">
-                        <Select
-                            size="xs"
-                            data={availableFieldOptions}
-                            itemComponent={FilterFieldSelectItem}
-                            placeholder="Select field"
-                            searchable
-                            withinPortal={true}
-                            onChange={(value) => {
-                                setIsAddingFilter(false);
+                    <FilterFieldInput
+                        availableFieldOptions={availableFieldOptions}
+                        onCreateFilter={(value) => {
+                            setIsAddingFilter(false);
 
-                                if (!value) {
-                                    return;
-                                }
+                            const field = fields?.find((f) => f.name === value);
 
-                                const field = fields?.find(
-                                    (f) => f.name === value,
-                                );
+                            if (!field) {
+                                showToastError({
+                                    title: 'Error',
+                                    subtitle: 'Field not found',
+                                });
+                                return;
+                            }
 
-                                if (!field) {
-                                    showToastError({
-                                        title: 'Error',
-                                        subtitle: 'Field not found',
-                                    });
-                                    return;
-                                }
+                            const defaultOperator = field.availableOperators[0];
 
-                                const defaultOperator =
-                                    field.availableOperators[0];
+                            if (!defaultOperator) {
+                                showToastError({
+                                    title: 'Error',
+                                    subtitle:
+                                        'No filter operators available for this field',
+                                });
+                                return;
+                            }
 
-                                if (!defaultOperator) {
-                                    showToastError({
-                                        title: 'Error',
-                                        subtitle:
-                                            'No filter operators available for this field',
-                                    });
-                                    return;
-                                }
-
-                                dispatch(
-                                    addFilter({
-                                        uuid: uuidv4(),
-                                        field: value,
-                                        fieldKind: field.kind,
-                                        fieldType: field.type,
-                                        operator: defaultOperator,
-                                        values: [],
-                                    }),
-                                );
-                            }}
-                        />
-                        <ActionIcon
-                            size="xs"
-                            onClick={() => setIsAddingFilter(false)}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Group>
+                            dispatch(
+                                addFilter({
+                                    uuid: uuidv4(),
+                                    field: value,
+                                    fieldKind: field.kind,
+                                    fieldType: field.type,
+                                    operator: defaultOperator,
+                                    values: [],
+                                }),
+                            );
+                        }}
+                        onCancelCreateFilter={() => setIsAddingFilter(false)}
+                    />
                 )}
                 <Flex w="100%" justify="flex-end">
                     <Button onClick={handleApply}>Apply</Button>
