@@ -251,7 +251,7 @@ export class SemanticViewerResultsRunner
     }
 
     getColumns(): string[] {
-        return this.fields.map((field) => field.name);
+        return this.availableFields.map((field) => field.name);
     }
 
     getColumnsAccessorFn(column: string) {
