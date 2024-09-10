@@ -2,7 +2,6 @@ import { ChartKind } from '@lightdash/common';
 import {
     ActionIcon,
     Group,
-    LoadingOverlay,
     ScrollArea,
     Stack,
     Title,
@@ -23,18 +22,18 @@ type Props = {
 
 export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
     const dispatch = useAppDispatch();
-
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const {
         mutate: updateTables,
-        // TODO: unify this loading with the one in TablesPanel, handle error
         isLoading,
+        error,
     } = useRefreshTables({ projectUuid });
 
     const { selectedChartType, activeSidebarTab, sqlColumns } = useAppSelector(
         (state) => state.sqlRunner,
     );
+
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
             <Group position="apart" p="sm">
@@ -75,8 +74,10 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                 }
                 sx={{ flex: 1, overflow: 'hidden' }}
             >
-                <LoadingOverlay visible={isLoading} />
-                <TablesPanel />
+                <TablesPanel
+                    isLoading={isLoading}
+                 error={error?.error.message || null}
+                />
             </Stack>
 
             <ScrollArea
