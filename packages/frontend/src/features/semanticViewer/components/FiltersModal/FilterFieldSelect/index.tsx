@@ -29,7 +29,7 @@ const LEFT_COMPONENT_WIDTH = rem(44);
  * These Selects are just to make up a mock disabled filter (creation state basically)
  * we might be able to replace this with an actual Filter component and a partial filter but for simplicity we're doing it this way for now
  */
-const FilterFieldInput: FC<FilterFieldInputProps> = ({
+const FilterFieldSelect: FC<FilterFieldInputProps> = ({
     availableFieldOptions,
     value,
     onFieldChange,
@@ -78,4 +78,4 @@ const FilterFieldInput: FC<FilterFieldInputProps> = ({
     );
 };
 
-export default FilterFieldInput;
+export default FilterFieldSelect;
