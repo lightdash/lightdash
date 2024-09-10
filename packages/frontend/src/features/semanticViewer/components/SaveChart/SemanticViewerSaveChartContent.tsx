@@ -2,21 +2,32 @@ import { Button, Input, useMantineTheme } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { selectChartConfigByKind } from '../../../../components/DataViz/store/selectors';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { selectSemanticLayerQuery } from '../../store/selectors';
 import {
     updateName,
     updateSaveModalOpen,
 } from '../../store/semanticViewerSlice';
 
-const Content: FC = () => {
+const SemanticViewerSaveChartContent: FC = () => {
     const theme = useMantineTheme();
+    const dispatch = useAppDispatch();
 
     const name = useAppSelector((state) => state.semanticViewer.name);
-    const dispatch = useAppDispatch();
+    const semanticLayerQuery = useAppSelector(selectSemanticLayerQuery);
+    const activeChartKind = useAppSelector(
+        (state) => state.semanticViewer.activeChartKind,
+    );
+    const selectedChartConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, activeChartKind),
+    );
 
     const handleOpenSaveModal = () => {
         dispatch(updateSaveModalOpen(true));
     };
+
+    const canSave = !!name && !!semanticLayerQuery && !!selectedChartConfig;
 
     return (
         <>
@@ -47,6 +58,7 @@ const Content: FC = () => {
                 leftIcon={<MantineIcon icon={IconDeviceFloppy} />}
                 variant="link"
                 color="black"
+                disabled={!canSave}
                 onClick={handleOpenSaveModal}
             >
                 Save
@@ -55,4 +67,4 @@ const Content: FC = () => {
     );
 };
 
-export default Content;
+export default SemanticViewerSaveChartContent;
