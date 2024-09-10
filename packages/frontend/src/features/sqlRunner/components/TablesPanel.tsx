@@ -1,5 +1,7 @@
 import { Box } from '@mantine/core';
+import { IconGripHorizontal } from '@tabler/icons-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../store/hooks';
 import { TableFields } from './TableFields';
 import { Tables } from './Tables';
@@ -16,6 +18,7 @@ export const TablesPanel = () => {
                 style={{
                     display: 'flex',
                     flexDirection: 'column',
+                    padding: '0px 14px',
                 }}
             >
                 <Tables />
@@ -25,18 +28,28 @@ export const TablesPanel = () => {
                 <>
                     <Box
                         component={PanelResizeHandle}
-                        bg="gray.3"
-                        h={3}
+                        bg="gray.1"
+                        h={6}
                         sx={(theme) => ({
                             transition: 'background-color 0.2s ease-in-out',
-                            '&[data-resize-handle-state="hover"]': {
-                                backgroundColor: theme.colors.gray[3],
-                            },
-                            '&[data-resize-handle-state="drag"]': {
+                            cursor: 'row-resize',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            '&:hover': {
                                 backgroundColor: theme.colors.gray[2],
                             },
+                            '&[data-resize-handle-state="drag"]': {
+                                backgroundColor: theme.colors.gray[3],
+                            },
                         })}
-                    />
+                    >
+                        <MantineIcon
+                            color="gray"
+                            icon={IconGripHorizontal}
+                            size={8}
+                        />
+                    </Box>
 
                     <Panel
                         id="sql-runner-table-fields"
@@ -45,6 +58,7 @@ export const TablesPanel = () => {
                         style={{
                             display: 'flex',
                             flexDirection: 'column',
+                            padding: '0px 14px',
                         }}
                     >
                         <TableFields />
