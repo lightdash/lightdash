@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tooltip, type MenuProps } from '@mantine/core';
 import {
+    IconCopy,
     IconDots,
     IconEdit,
     IconFilter,
@@ -22,6 +23,8 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFilters } from '../../../../../hooks/useFilters';
 import { useExplorerContext } from '../../../../../providers/ExplorerProvider';
 import { useTracking } from '../../../../../providers/TrackingProvider';
@@ -76,6 +79,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     hasDescription,
     onViewDescription,
 }) => {
+    const { showToastSuccess } = useToaster();
     const { addFilter } = useFilters();
     const { track } = useTracking();
 
@@ -91,7 +95,12 @@ const TreeSingleNodeActions: FC<Props> = ({
     const toggleCustomDimensionModal = useExplorerContext(
         (context) => context.actions.toggleCustomDimensionModal,
     );
-
+    const addAdditionalMetric = useExplorerContext(
+        (context) => context.actions.addAdditionalMetric,
+    );
+    const addAdditionalDimension = useExplorerContext(
+        (context) => context.actions.addCustomDimension,
+    );
     const customMetrics = useMemo(() => {
         if (isCustomSqlDimension(item)) {
             return getCustomMetricType(item.dimensionType);
@@ -145,6 +154,30 @@ const TreeSingleNodeActions: FC<Props> = ({
                             Edit custom metric
                         </Menu.Item>
                         <Menu.Item
+                            component="button"
+                            icon={<MantineIcon icon={IconCopy} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const newDeepCopyItem = JSON.parse(
+                                    JSON.stringify(item),
+                                );
+                                newDeepCopyItem.label =
+                                    'Copy ' + newDeepCopyItem.label;
+                                newDeepCopyItem.name =
+                                    'copy_' + newDeepCopyItem.name;
+                                newDeepCopyItem.uuid = uuidv4();
+                                addAdditionalMetric(newDeepCopyItem);
+                                track({
+                                    name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                                });
+                                showToastSuccess({
+                                    title: 'Copy of Custom metric added successfully',
+                                });
+                            }}
+                        >
+                            Duplicate custom metric
+                        </Menu.Item>
+                        <Menu.Item
                             color="red"
                             key="custommetric"
                             component="button"
@@ -190,6 +223,29 @@ const TreeSingleNodeActions: FC<Props> = ({
                             }}
                         >
                             Edit custom dimension
+                        </Menu.Item>
+                        <Menu.Item
+                            component="button"
+                            icon={<MantineIcon icon={IconCopy} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const newDeepCopyItem = JSON.parse(
+                                    JSON.stringify(item),
+                                );
+                                newDeepCopyItem.name =
+                                    'Copy ' + newDeepCopyItem.name;
+                                newDeepCopyItem.id =
+                                    'copy_' + newDeepCopyItem.id;
+                                addAdditionalDimension(newDeepCopyItem);
+                                track({
+                                    name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
+                                });
+                                showToastSuccess({
+                                    title: 'Copy of Custom Dimension added successfully',
+                                });
+                            }}
+                        >
+                            Duplicate custom dimension
                         </Menu.Item>
                         <Menu.Item
                             color="red"
