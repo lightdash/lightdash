@@ -7,7 +7,7 @@ import {
     isVizPieChartConfig,
     Organization,
     Project,
-    SavedSemanticLayer,
+    SavedSemanticViewerChart,
     SemanticLayerCreateChart,
     SessionUser,
     SpaceShare,
@@ -16,43 +16,43 @@ import {
 } from '@lightdash/common';
 import { uniq } from 'lodash';
 import {
-    CreateSemanticLayerChartVersionEvent,
+    CreateSemanticViewerChartVersionEvent,
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedSemanticLayerModel } from '../../models/SavedSemanticLayerModel';
+import { SavedSemanticViewerChartModel } from '../../models/SavedSemanticViewerChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
 
-type SavedSemanticLayerServiceArguments = {
+type SavedSemanticViewerChartServiceArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
-    savedSemanticLayerModel: SavedSemanticLayerModel;
+    savedSemanticViewerChartModel: SavedSemanticViewerChartModel;
 };
 
-export class SavedSemanticLayerService extends BaseService {
+export class SavedSemanticViewerChartService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly projectModel: ProjectModel;
 
     private readonly spaceModel: SpaceModel;
 
-    private readonly savedSemanticLayerModel: SavedSemanticLayerModel;
+    private readonly savedSemanticViewerChartModel: SavedSemanticViewerChartModel;
 
-    constructor(args: SavedSemanticLayerServiceArguments) {
+    constructor(args: SavedSemanticViewerChartServiceArguments) {
         super();
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
-        this.savedSemanticLayerModel = args.savedSemanticLayerModel;
+        this.savedSemanticViewerChartModel = args.savedSemanticViewerChartModel;
     }
 
     static getCreateVersionEventProperties(
-        config: SavedSemanticLayer['config'],
-        semanticLayerQuery: SavedSemanticLayer['semanticLayerQuery'],
+        config: SavedSemanticViewerChart['config'],
+        semanticLayerQuery: SavedSemanticViewerChart['semanticLayerQuery'],
     ): Pick<
-        CreateSemanticLayerChartVersionEvent['properties'],
+        CreateSemanticViewerChartVersionEvent['properties'],
         | 'semanticLayerQuery'
         | 'chartKind'
         | 'barChart'
@@ -143,28 +143,28 @@ export class SavedSemanticLayerService extends BaseService {
         });
     }
 
-    async getSemanticLayerChart(
+    async getSemanticViewerChart(
         user: SessionUser,
         projectUuid: string,
-        savedSemanticLayerUuid: string | undefined,
+        savedSemanticViewerChartUuid: string | undefined,
         slug?: string,
-    ): Promise<SavedSemanticLayer> {
+    ): Promise<SavedSemanticViewerChart> {
         let savedChart;
-        if (savedSemanticLayerUuid) {
-            savedChart = await this.savedSemanticLayerModel.getByUuid(
-                savedSemanticLayerUuid,
+        if (savedSemanticViewerChartUuid) {
+            savedChart = await this.savedSemanticViewerChartModel.getByUuid(
+                savedSemanticViewerChartUuid,
                 {
                     projectUuid,
                 },
             );
         } else if (slug) {
-            savedChart = await this.savedSemanticLayerModel.getBySlug(
+            savedChart = await this.savedSemanticViewerChartModel.getBySlug(
                 projectUuid,
                 slug,
             );
         } else {
             throw new Error(
-                'Either savedSemanticLayerUuid or slug must be provided',
+                'Either savedSemanticViewerChartUuid or slug must be provided',
             );
         }
         const { hasAccess: hasViewAccess, userAccess } =
@@ -174,10 +174,10 @@ export class SavedSemanticLayerService extends BaseService {
             throw new ForbiddenError("You don't have access to this chart");
         }
         this.analytics.track({
-            event: 'semantic_layer_chart.view',
+            event: 'semantic_viewer_chart.view',
             userId: user.userUuid,
             properties: {
-                chartId: savedChart.savedSemanticLayerUuid,
+                chartId: savedChart.savedSemanticViewerChartUuid,
                 projectId: savedChart.project.projectUuid,
                 organizationId: savedChart.organization.organizationUuid,
             },
@@ -191,10 +191,10 @@ export class SavedSemanticLayerService extends BaseService {
         };
     }
 
-    async createSemanticLayerChart(
+    async createSemanticViewerChart(
         user: SessionUser,
         projectUuid: string,
-        semanticLayerChart: SemanticLayerCreateChart,
+        semanticViewerChart: SemanticLayerCreateChart,
     ): Promise<ApiSemanticLayerCreateChart['results']> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -212,7 +212,7 @@ export class SavedSemanticLayerService extends BaseService {
             user,
             'create',
             {
-                spaceUuid: semanticLayerChart.spaceUuid,
+                spaceUuid: semanticViewerChart.spaceUuid,
                 projectUuid,
                 organizationUuid,
             },
@@ -223,33 +223,33 @@ export class SavedSemanticLayerService extends BaseService {
                 "You don't have permission to create this chart",
             );
         }
-        const createdChart = await this.savedSemanticLayerModel.create(
+        const createdChart = await this.savedSemanticViewerChartModel.create(
             user.userUuid,
             projectUuid,
-            semanticLayerChart,
+            semanticViewerChart,
         );
 
         this.analytics.track({
-            event: 'semantic_layer_chart.created',
+            event: 'semantic_viewer_chart.created',
             userId: user.userUuid,
             properties: {
-                chartId: createdChart.savedSemanticLayerUuid,
+                chartId: createdChart.savedSemanticViewerChartUuid,
                 projectId: projectUuid,
                 organizationId: organizationUuid,
             },
         });
 
         this.analytics.track({
-            event: 'semantic_layer_chart_version.created',
+            event: 'semantic_viewer_chart_version.created',
             userId: user.userUuid,
             properties: {
-                chartId: createdChart.savedSemanticLayerUuid,
-                versionId: createdChart.savedSemanticLayerVersionUuid,
+                chartId: createdChart.savedSemanticViewerChartUuid,
+                versionId: createdChart.savedSemanticViewerChartVersionUuid,
                 projectId: projectUuid,
                 organizationId: organizationUuid,
-                ...SavedSemanticLayerService.getCreateVersionEventProperties(
-                    semanticLayerChart.config,
-                    semanticLayerChart.semanticLayerQuery,
+                ...SavedSemanticViewerChartService.getCreateVersionEventProperties(
+                    semanticViewerChart.config,
+                    semanticViewerChart.semanticLayerQuery,
                 ),
             },
         });

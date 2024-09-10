@@ -3,7 +3,7 @@ import {
     type ApiError,
     type ApiSemanticLayerCreateChart,
     type PivotChartData,
-    type SavedSemanticLayer,
+    type SavedSemanticViewerChart,
     type SemanticLayerClientInfo,
     type SemanticLayerCreateChart,
     type SemanticLayerField,
@@ -24,9 +24,9 @@ import {
     apiGetSemanticLayerViews,
     apiPostSemanticLayerSql,
     apiPostSemanticLayerViewFields,
-    createSemanticLayerChart,
-    getSavedSemanticLayerChart,
-    getSemanticLayerChartResults,
+    createSemanticViewerChart,
+    getSavedSemanticViewerChart,
+    getSemanticViewerChartResults,
 } from './requests';
 
 type SemanticLayerInfoParams = {
@@ -125,7 +125,7 @@ export const useSemanticLayerQueryResults = (
         ...useMutationParams,
     });
 
-export const useCreateSemanticLayerChartMutation = (
+export const useCreateSemanticViewerChartMutation = (
     projectUuid: string,
     mutationOptions: UseMutationOptions<
         ApiSemanticLayerCreateChart['results'],
@@ -137,27 +137,27 @@ export const useCreateSemanticLayerChartMutation = (
         ApiSemanticLayerCreateChart['results'],
         ApiError,
         SemanticLayerCreateChart
-    >((data) => createSemanticLayerChart(projectUuid, data), {
+    >((data) => createSemanticViewerChart(projectUuid, data), {
         mutationKey: [projectUuid, 'semanticLayer', 'createChart'],
         ...mutationOptions,
     });
 
-const getDashboardSemanticLayerChartAndPossibleResults = async ({
+const getDashboardSemanticViewerChartAndPossibleResults = async ({
     projectUuid,
-    savedSemanticLayerUuid,
+    savedSemanticViewerChartUuid,
 }: {
     projectUuid: string;
-    savedSemanticLayerUuid: string;
+    savedSemanticViewerChartUuid: string;
 }): Promise<{
     resultsAndColumns: {
         results: SemanticLayerResultRow[];
         columns: string[];
     };
-    chart: SavedSemanticLayer;
+    chart: SavedSemanticViewerChart;
 }> => {
-    const chart = await getSavedSemanticLayerChart(
+    const chart = await getSavedSemanticViewerChart(
         projectUuid,
-        savedSemanticLayerUuid,
+        savedSemanticViewerChartUuid,
     );
 
     const hasResultsHandledInChart = chart.config.type !== ChartKind.TABLE;
@@ -172,16 +172,16 @@ const getDashboardSemanticLayerChartAndPossibleResults = async ({
         };
     }
 
-    const semanticLayerChartResults = await getSemanticLayerChartResults(
+    const semanticViewerChartResults = await getSemanticViewerChartResults(
         projectUuid,
-        chart.savedSemanticLayerUuid,
+        chart.savedSemanticViewerChartUuid,
     );
 
     return {
         chart,
         resultsAndColumns: {
-            results: semanticLayerChartResults.results,
-            columns: semanticLayerChartResults.columns,
+            results: semanticViewerChartResults.results,
+            columns: semanticViewerChartResults.columns,
         },
     };
 };
@@ -189,13 +189,13 @@ const getDashboardSemanticLayerChartAndPossibleResults = async ({
 /**
  * Fetches the chart and possible results of a SemanticLayer query from the Semantic Layer runner - used in Dashboards
  * If the chart is not of type ChartKind.TABLE, we return empty results & columns
- * @param savedSemanticLayerUuid - The UUID of the saved SemanticLayer query.
+ * @param savedSemanticViewerChartUuid - The UUID of the saved SemanticLayer query.
  * @param projectUuid - The UUID of the project.
  * @returns The chart and results of the semantic layer query.
  */
-export const useDashboardSemanticLayerChart = (
+export const useDashboardSemanticViewerChart = (
     projectUuid: string,
-    savedSemanticLayerUuid: string | null,
+    savedSemanticViewerChartUuid: string | null,
 ) => {
     return useQuery<
         {
@@ -203,19 +203,20 @@ export const useDashboardSemanticLayerChart = (
                 results: SemanticLayerResultRow[];
                 columns: string[];
             };
-            chart: SavedSemanticLayer;
+            chart: SavedSemanticViewerChart;
         },
         ApiError & { slug?: string }
     >(
-        [projectUuid, 'semanticLayer', 'chart', savedSemanticLayerUuid],
+        [projectUuid, 'semanticLayer', 'chart', savedSemanticViewerChartUuid],
         () => {
-            return getDashboardSemanticLayerChartAndPossibleResults({
+            return getDashboardSemanticViewerChartAndPossibleResults({
                 projectUuid,
-                savedSemanticLayerUuid: savedSemanticLayerUuid!,
+                savedSemanticViewerChartUuid: savedSemanticViewerChartUuid!,
             });
         },
         {
-            enabled: Boolean(savedSemanticLayerUuid) && Boolean(projectUuid),
+            enabled:
+                Boolean(savedSemanticViewerChartUuid) && Boolean(projectUuid),
         },
     );
 };

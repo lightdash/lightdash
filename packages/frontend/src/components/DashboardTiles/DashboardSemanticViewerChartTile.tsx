@@ -1,14 +1,14 @@
 import {
     ChartKind,
     isVizTableConfig,
-    type DashboardSemanticLayerChartTile,
+    type DashboardSemanticViewerChartTile,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-    useDashboardSemanticLayerChart,
+    useDashboardSemanticViewerChart,
     useSemanticLayerViewFields,
 } from '../../features/semanticViewer/api/hooks';
 import { SemanticViewerResultsRunner } from '../../features/semanticViewer/runners/SemanticViewerResultsRunner';
@@ -23,7 +23,7 @@ interface Props
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
-    tile: DashboardSemanticLayerChartTile;
+    tile: DashboardSemanticViewerChartTile;
     minimal?: boolean;
 }
 
@@ -35,18 +35,22 @@ interface Props
  * handle title link that goes to semantic viewer
  */
 
-const SemanticLayerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
+const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { projectUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
 
-    const savedSemanticLayerUuid = tile.properties.savedSemanticLayerUuid;
+    const savedSemanticViewerChartUuid =
+        tile.properties.savedSemanticViewerChartUuid;
     const {
         data,
         isLoading: isLoadingChart,
         error: savedError,
-    } = useDashboardSemanticLayerChart(projectUuid, savedSemanticLayerUuid);
+    } = useDashboardSemanticViewerChart(
+        projectUuid,
+        savedSemanticViewerChartUuid,
+    );
 
     const {
         data: fields,
@@ -90,7 +94,7 @@ const SemanticLayerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         projectUuid,
         resultsRunner,
         config: data?.chart.config,
-        uuid: savedSemanticLayerUuid ?? undefined,
+        uuid: savedSemanticViewerChartUuid ?? undefined,
         slug: data?.chart.slug,
     });
 
@@ -149,7 +153,7 @@ const SemanticLayerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                     </Box>
                 )}
 
-            {savedSemanticLayerUuid &&
+            {savedSemanticViewerChartUuid &&
                 (data.chart.config.type === ChartKind.VERTICAL_BAR ||
                     data.chart.config.type === ChartKind.LINE ||
                     data.chart.config.type === ChartKind.PIE) && (
@@ -169,4 +173,4 @@ const SemanticLayerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     );
 };
 
-export default SemanticLayerChartTile;
+export default SemanticViewerChartTile;

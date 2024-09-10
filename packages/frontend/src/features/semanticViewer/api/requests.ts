@@ -5,7 +5,7 @@ import {
     type ApiSemanticLayerClientInfo,
     type ApiSemanticLayerCreateChart,
     type PivotChartData,
-    type SavedSemanticLayer,
+    type SavedSemanticViewerChart,
     type SemanticLayerCreateChart,
     type SemanticLayerField,
     type SemanticLayerJobStatusSuccessDetails,
@@ -125,7 +125,7 @@ export const apiGetSemanticLayerQueryResults = async ({
     }
 };
 
-export const createSemanticLayerChart = (
+export const createSemanticViewerChart = (
     projectUuid: string,
     payload: SemanticLayerCreateChart,
 ) =>
@@ -136,18 +136,18 @@ export const createSemanticLayerChart = (
         body: JSON.stringify(payload),
     });
 
-export const getSavedSemanticLayerChart = async (
+export const getSavedSemanticViewerChart = async (
     projectUuid: string,
     uuid: string,
 ) =>
-    lightdashApi<SavedSemanticLayer>({
+    lightdashApi<SavedSemanticViewerChart>({
         version: 'v2',
         url: `/projects/${projectUuid}/semantic-layer/saved/${uuid}`,
         method: 'GET',
         body: undefined,
     });
 
-export const getSemanticLayerChartResults = async (
+export const getSemanticViewerChartResults = async (
     projectUuid: string,
     uuid: string,
 ) => {

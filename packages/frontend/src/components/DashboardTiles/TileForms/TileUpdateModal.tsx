@@ -100,7 +100,7 @@ const TileUpdateModal = <T extends Tile>({
                     {tile.type === DashboardTileTypes.SAVED_CHART ||
                     tile.type ===
                         DashboardTileTypes.SQL_CHART ? null : tile.type ===
-                      DashboardTileTypes.SEMANTIC_LAYER_CHART ? null : tile.type ===
+                      DashboardTileTypes.SEMANTIC_VIEWER_CHART ? null : tile.type ===
                       DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm
                             form={

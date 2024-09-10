@@ -25,7 +25,7 @@ import { PinnedListModel } from './PinnedListModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { SavedChartModel } from './SavedChartModel';
-import { SavedSemanticLayerModel } from './SavedSemanticLayerModel';
+import { SavedSemanticViewerChartModel } from './SavedSemanticViewerChartModel';
 import { SavedSqlModel } from './SavedSqlModel';
 import { SchedulerModel } from './SchedulerModel';
 import { SearchModel } from './SearchModel';
@@ -82,7 +82,7 @@ export type ModelManifest = {
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
-    savedSemanticLayerModel: SavedSemanticLayerModel;
+    SavedSemanticViewerChartModel: SavedSemanticViewerChartModel;
     contentModel: ContentModel;
 
     /** An implementation signature for these models are not available at this stage */
@@ -475,11 +475,11 @@ export class ModelRepository
         );
     }
 
-    public getSavedSemanticLayerModel(): SavedSemanticLayerModel {
+    public getSavedSemanticViewerChartModel(): SavedSemanticViewerChartModel {
         return this.getModel(
-            'savedSemanticLayerModel',
+            'SavedSemanticViewerChartModel',
             () =>
-                new SavedSemanticLayerModel({
+                new SavedSemanticViewerChartModel({
                     database: this.database,
                 }),
         );

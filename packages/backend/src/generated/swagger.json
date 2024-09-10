@@ -535,7 +535,7 @@
                 "enum": [
                     "saved_chart",
                     "sql_chart",
-                    "semantic_layer_chart",
+                    "semantic_viewer_chart",
                     "markdown",
                     "loom"
                 ],
@@ -745,11 +745,11 @@
                     }
                 ]
             },
-            "DashboardTileTypes.SEMANTIC_LAYER_CHART": {
-                "enum": ["semantic_layer_chart"],
+            "DashboardTileTypes.SEMANTIC_VIEWER_CHART": {
+                "enum": ["semantic_viewer_chart"],
                 "type": "string"
             },
-            "DashboardSemanticLayerChartTileProperties": {
+            "DashboardSemanticViewerChartTileProperties": {
                 "properties": {
                     "properties": {
                         "properties": {
@@ -759,7 +759,7 @@
                             "chartName": {
                                 "type": "string"
                             },
-                            "savedSemanticLayerUuid": {
+                            "savedSemanticViewerChartUuid": {
                                 "type": "string",
                                 "nullable": true
                             },
@@ -767,23 +767,26 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["chartName", "savedSemanticLayerUuid"],
+                        "required": [
+                            "chartName",
+                            "savedSemanticViewerChartUuid"
+                        ],
                         "type": "object"
                     },
                     "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes.SEMANTIC_LAYER_CHART"
+                        "$ref": "#/components/schemas/DashboardTileTypes.SEMANTIC_VIEWER_CHART"
                     }
                 },
                 "required": ["properties", "type"],
                 "type": "object"
             },
-            "DashboardSemanticLayerChartTile": {
+            "DashboardSemanticViewerChartTile": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/DashboardTileBase"
                     },
                     {
-                        "$ref": "#/components/schemas/DashboardSemanticLayerChartTileProperties"
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTileProperties"
                     }
                 ]
             },
@@ -802,7 +805,7 @@
                         "$ref": "#/components/schemas/DashboardSqlChartTile"
                     },
                     {
-                        "$ref": "#/components/schemas/DashboardSemanticLayerChartTile"
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTile"
                     }
                 ]
             },
@@ -9405,11 +9408,11 @@
                             "slug": {
                                 "type": "string"
                             },
-                            "savedSemanticLayerUuid": {
+                            "savedSemanticViewerChartUuid": {
                                 "type": "string"
                             }
                         },
-                        "required": ["slug", "savedSemanticLayerUuid"],
+                        "required": ["slug", "savedSemanticViewerChartUuid"],
                         "type": "object"
                     },
                     "status": {
@@ -9470,7 +9473,7 @@
                     }
                 ]
             },
-            "SavedSemanticLayer": {
+            "SavedSemanticViewerChart": {
                 "properties": {
                     "lastViewedAt": {
                         "type": "string",
@@ -9548,7 +9551,7 @@
                     "name": {
                         "type": "string"
                     },
-                    "savedSemanticLayerUuid": {
+                    "savedSemanticViewerChartUuid": {
                         "type": "string"
                     }
                 },
@@ -9571,14 +9574,14 @@
                     "slug",
                     "description",
                     "name",
-                    "savedSemanticLayerUuid"
+                    "savedSemanticViewerChartUuid"
                 ],
                 "type": "object"
             },
             "ApiSemanticLayerGetChart": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/SavedSemanticLayer"
+                        "$ref": "#/components/schemas/SavedSemanticViewerChart"
                     },
                     "status": {
                         "type": "string",

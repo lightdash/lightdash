@@ -7,7 +7,7 @@ import { Knex } from 'knex';
 import KnexPaginate from '../../database/pagination';
 import { dashboardContentConfiguration } from './ContentConfigurations/DashboardContentConfiguration';
 import { dbtExploreChartContentConfiguration } from './ContentConfigurations/DbtExploreChartContentConfiguration';
-import { semanticLayerChartContentConfiguration } from './ContentConfigurations/SemanticLayerChartContentConfiguration';
+import { semanticViewerChartContentConfiguration } from './ContentConfigurations/SemanticViewerChartContentConfiguration';
 import { sqlChartContentConfiguration } from './ContentConfigurations/SqlChartContentConfiguration';
 
 import { ContentFilters, SummaryContentRow } from './ContentModelTypes';
@@ -26,7 +26,7 @@ export class ContentModel {
         sqlChartContentConfiguration,
         dbtExploreChartContentConfiguration,
         dashboardContentConfiguration,
-        semanticLayerChartContentConfiguration,
+        semanticViewerChartContentConfiguration,
     ];
 
     constructor(args: { database: Knex }) {

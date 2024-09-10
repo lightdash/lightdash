@@ -190,8 +190,8 @@ export class SemanticLayerController extends BaseController {
     ])
     @SuccessResponse('200', 'Success')
     @Post('/saved')
-    @OperationId('createSemanticLayerChart')
-    async createSemanticLayerChart(
+    @OperationId('createSemanticViewerChart')
+    async createSemanticViewerChart(
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body() body: SemanticLayerCreateChart,
@@ -200,22 +200,22 @@ export class SemanticLayerController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getSavedSemanticLayerService()
-                .createSemanticLayerChart(req.user!, projectUuid, body),
+                .getSavedSemanticViewerChartService()
+                .createSemanticViewerChart(req.user!, projectUuid, body),
         };
     }
 
     /**
-     * Get a saved sql chart
+     * Get a saved semantic layer chart
      * @param projectUuid the uuid for the project
-     * @param uuid the uuid for the saved sql chart
+     * @param uuid the uuid for the saved semantic layer chart
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/saved/{uuid}')
-    @OperationId('getSavedSemanticLayerChart')
-    async getSavedSemanticLayerChart(
+    @OperationId('getSavedSemanticViewerChart')
+    async getSavedSemanticViewerChart(
         @Path() uuid: string,
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -224,19 +224,19 @@ export class SemanticLayerController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getSavedSemanticLayerService()
-                .getSemanticLayerChart(req.user!, projectUuid, uuid),
+                .getSavedSemanticViewerChartService()
+                .getSemanticViewerChart(req.user!, projectUuid, uuid),
         };
     }
 
     /**
-     * Get a saved sql chart and its results
+     * Get a saved semantic layer chart and results
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/saved/{uuid}/results-job')
-    @OperationId('getSavedSemanticLayerChartAndResults')
-    async getSavedSemanticLayerChartAndResults(
+    @OperationId('getSavedSemanticViewerChartAndResults')
+    async getSavedSemanticViewerChartAndResults(
         @Path() uuid: string,
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -246,7 +246,7 @@ export class SemanticLayerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSemanticLayerService()
-                .getSemanticLayerChartResultJob(req.user!, projectUuid, uuid),
+                .getSemanticViewerChartResultJob(req.user!, projectUuid, uuid),
         };
     }
 }

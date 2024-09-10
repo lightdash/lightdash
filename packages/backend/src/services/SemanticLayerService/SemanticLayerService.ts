@@ -20,10 +20,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SavedSemanticLayerModel } from '../../models/SavedSemanticLayerModel';
+import { SavedSemanticViewerChartModel } from '../../models/SavedSemanticViewerChartModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { SavedSemanticLayerService } from '../SavedSemanticLayerService/SavedSemanticLayerService';
+import { SavedSemanticViewerChartService } from '../SavedSemanticViewerChartService/SavedSemanticViewerChartService';
 import { pivotResults } from './Pivoting';
 
 type SearchServiceArguments = {
@@ -37,7 +37,7 @@ type SearchServiceArguments = {
     dbtCloudClient: DbtCloudGraphqlClient;
     s3Client: S3Client;
     // Services
-    savedSemanticLayerService: SavedSemanticLayerService;
+    savedSemanticViewerChartService: SavedSemanticViewerChartService;
 };
 
 export class SemanticLayerService extends BaseService {
@@ -60,7 +60,7 @@ export class SemanticLayerService extends BaseService {
 
     // Services
 
-    private readonly savedSemanticLayerService: SavedSemanticLayerService;
+    private readonly savedSemanticViewerChartService: SavedSemanticViewerChartService;
 
     constructor(args: SearchServiceArguments) {
         super();
@@ -74,7 +74,8 @@ export class SemanticLayerService extends BaseService {
         this.dbtCloudClient = args.dbtCloudClient;
         this.s3Client = args.s3Client;
         // Services
-        this.savedSemanticLayerService = args.savedSemanticLayerService;
+        this.savedSemanticViewerChartService =
+            args.savedSemanticViewerChartService;
     }
 
     private validateQueryLimit(query: SemanticLayerQuery) {
@@ -300,20 +301,20 @@ export class SemanticLayerService extends BaseService {
         return client.getClientInfo();
     }
 
-    async getSemanticLayerChartResultJob(
+    async getSemanticViewerChartResultJob(
         user: SessionUser,
         projectUuid: string,
         uuid: string,
     ): Promise<{ jobId: string }> {
         const savedChart =
-            await this.savedSemanticLayerService.getSemanticLayerChart(
+            await this.savedSemanticViewerChartService.getSemanticViewerChart(
                 user,
                 projectUuid,
                 uuid,
             );
 
         const { hasAccess: hasViewAccess } =
-            await this.savedSemanticLayerService.hasSavedChartAccess(
+            await this.savedSemanticViewerChartService.hasSavedChartAccess(
                 user,
                 'view',
                 savedChart,

@@ -92,8 +92,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         (tile.type === DashboardTileTypes.SQL_CHART &&
                             tile.properties.savedSqlUuid === uuid) ||
                         (tile.type ===
-                            DashboardTileTypes.SEMANTIC_LAYER_CHART &&
-                            tile.properties.savedSemanticLayerUuid === uuid)
+                            DashboardTileTypes.SEMANTIC_VIEWER_CHART &&
+                            tile.properties.savedSemanticViewerChartUuid ===
+                                uuid)
                     );
                 });
 
@@ -120,9 +121,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                     case ChartSourceType.SEMANTIC_LAYER:
                         return {
                             uuid: uuid4(),
-                            type: DashboardTileTypes.SEMANTIC_LAYER_CHART,
+                            type: DashboardTileTypes.SEMANTIC_VIEWER_CHART,
                             properties: {
-                                savedSemanticLayerUuid: uuid,
+                                savedSemanticViewerChartUuid: uuid,
                                 chartName: chart?.name ?? '',
                             },
                             tabUuid: undefined,

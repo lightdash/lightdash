@@ -741,8 +741,8 @@ export type CreateSqlChartVersionEvent = BaseTrack & {
     };
 };
 
-export type CreateSemanticLayerChartVersionEvent = BaseTrack & {
-    event: 'semantic_layer_chart_version.created';
+export type CreateSemanticViewerChartVersionEvent = BaseTrack & {
+    event: 'semantic_viewer_chart_version.created';
     userId: string;
     properties: {
         chartId: string;

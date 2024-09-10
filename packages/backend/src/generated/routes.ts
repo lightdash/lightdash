@@ -578,7 +578,7 @@ const models: TsoaRoute.Models = {
         enums: [
             'saved_chart',
             'sql_chart',
-            'semantic_layer_chart',
+            'semantic_viewer_chart',
             'markdown',
             'loom',
         ],
@@ -790,12 +790,12 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DashboardTileTypes.SEMANTIC_LAYER_CHART': {
+    'DashboardTileTypes.SEMANTIC_VIEWER_CHART': {
         dataType: 'refEnum',
-        enums: ['semantic_layer_chart'],
+        enums: ['semantic_viewer_chart'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardSemanticLayerChartTileProperties: {
+    DashboardSemanticViewerChartTileProperties: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -805,7 +805,7 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         hideTitle: { dataType: 'boolean' },
                         chartName: { dataType: 'string', required: true },
-                        savedSemanticLayerUuid: {
+                        savedSemanticViewerChartUuid: {
                             dataType: 'union',
                             subSchemas: [
                                 { dataType: 'string' },
@@ -818,7 +818,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 type: {
-                    ref: 'DashboardTileTypes.SEMANTIC_LAYER_CHART',
+                    ref: 'DashboardTileTypes.SEMANTIC_VIEWER_CHART',
                     required: true,
                 },
             },
@@ -826,13 +826,13 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardSemanticLayerChartTile: {
+    DashboardSemanticViewerChartTile: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
                 { ref: 'DashboardTileBase' },
-                { ref: 'DashboardSemanticLayerChartTileProperties' },
+                { ref: 'DashboardSemanticViewerChartTileProperties' },
             ],
             validators: {},
         },
@@ -847,7 +847,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'DashboardMarkdownTile' },
                 { ref: 'DashboardLoomTile' },
                 { ref: 'DashboardSqlChartTile' },
-                { ref: 'DashboardSemanticLayerChartTile' },
+                { ref: 'DashboardSemanticViewerChartTile' },
             ],
             validators: {},
         },
@@ -8547,7 +8547,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         slug: { dataType: 'string', required: true },
-                        savedSemanticLayerUuid: {
+                        savedSemanticViewerChartUuid: {
                             dataType: 'string',
                             required: true,
                         },
@@ -8607,7 +8607,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SavedSemanticLayer: {
+    SavedSemanticViewerChart: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -8678,7 +8678,10 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 name: { dataType: 'string', required: true },
-                savedSemanticLayerUuid: { dataType: 'string', required: true },
+                savedSemanticViewerChartUuid: {
+                    dataType: 'string',
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -8689,7 +8692,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'SavedSemanticLayer', required: true },
+                results: { ref: 'SavedSemanticViewerChart', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -17272,10 +17275,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v2/projects/:projectUuid/semantic-layer/saved',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
-            SemanticLayerController.prototype.createSemanticLayerChart,
+            SemanticLayerController.prototype.createSemanticViewerChart,
         ),
 
-        async function SemanticLayerController_createSemanticLayerChart(
+        async function SemanticLayerController_createSemanticViewerChart(
             request: any,
             response: any,
             next: any,
@@ -17320,7 +17323,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.createSemanticLayerChart.apply(
+                const promise = controller.createSemanticViewerChart.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -17335,10 +17338,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v2/projects/:projectUuid/semantic-layer/saved/:uuid',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
-            SemanticLayerController.prototype.getSavedSemanticLayerChart,
+            SemanticLayerController.prototype.getSavedSemanticViewerChart,
         ),
 
-        async function SemanticLayerController_getSavedSemanticLayerChart(
+        async function SemanticLayerController_getSavedSemanticViewerChart(
             request: any,
             response: any,
             next: any,
@@ -17383,7 +17386,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.getSavedSemanticLayerChart.apply(
+                const promise = controller.getSavedSemanticViewerChart.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -17399,10 +17402,10 @@ export function RegisterRoutes(app: express.Router) {
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
             SemanticLayerController.prototype
-                .getSavedSemanticLayerChartAndResults,
+                .getSavedSemanticViewerChartAndResults,
         ),
 
-        async function SemanticLayerController_getSavedSemanticLayerChartAndResults(
+        async function SemanticLayerController_getSavedSemanticViewerChartAndResults(
             request: any,
             response: any,
             next: any,
@@ -17448,7 +17451,7 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise =
-                    controller.getSavedSemanticLayerChartAndResults.apply(
+                    controller.getSavedSemanticViewerChartAndResults.apply(
                         controller,
                         validatedArgs as any,
                     );

@@ -22,7 +22,7 @@ import { PinningService } from './PinningService/PinningService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
-import { SavedSemanticLayerService } from './SavedSemanticLayerService/SavedSemanticLayerService';
+import { SavedSemanticViewerChartService } from './SavedSemanticViewerChartService/SavedSemanticViewerChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
@@ -73,7 +73,7 @@ interface ServiceManifest {
     savedSqlService: SavedSqlService;
     contentService: ContentService;
     semanticLayerService: SemanticLayerService;
-    savedSemanticLayerService: SavedSemanticLayerService;
+    savedSemanticViewerChartService: SavedSemanticViewerChartService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -682,21 +682,21 @@ export class ServiceRepository
                     dbtCloudClient: this.clients.getDbtCloudGraphqlClient(),
                     s3Client: this.clients.getS3Client(),
 
-                    savedSemanticLayerService:
-                        this.getSavedSemanticLayerService(),
+                    savedSemanticViewerChartService:
+                        this.getSavedSemanticViewerChartService(),
                 }),
         );
     }
 
-    public getSavedSemanticLayerService(): SavedSemanticLayerService {
+    public getSavedSemanticViewerChartService(): SavedSemanticViewerChartService {
         return this.getService(
-            'savedSemanticLayerService',
+            'savedSemanticViewerChartService',
             () =>
-                new SavedSemanticLayerService({
+                new SavedSemanticViewerChartService({
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
-                    savedSemanticLayerModel:
-                        this.models.getSavedSemanticLayerModel(),
+                    savedSemanticViewerChartModel:
+                        this.models.getSavedSemanticViewerChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                 }),
         );

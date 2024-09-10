@@ -23,7 +23,7 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
-import { useCreateSemanticLayerChartMutation } from '../../api/hooks';
+import { useCreateSemanticViewerChartMutation } from '../../api/hooks';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     selectSemanticLayerInfo,
@@ -91,7 +91,7 @@ const SemanticViewerSaveChartModal: FC = () => {
         isSuccess: isSaved,
         isError: isSavingError,
         error: saveError,
-    } = useCreateSemanticLayerChartMutation(projectUuid, {});
+    } = useCreateSemanticViewerChartMutation(projectUuid, {});
 
     useEffect(() => {
         if (isSaved) {

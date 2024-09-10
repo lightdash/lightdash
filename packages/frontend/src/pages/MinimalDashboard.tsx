@@ -9,7 +9,7 @@ import { useParams } from 'react-router-dom';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
-import SemanticLayerChartTile from '../components/DashboardTiles/DashboardSemanticLayerChartTile';
+import SemanticViewerChartTile from '../components/DashboardTiles/DashboardSemanticViewerChartTile';
 import SqlChartTile from '../components/DashboardTiles/DashboardSqlChartTile';
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
@@ -124,8 +124,8 @@ const MinimalDashboard: FC = () => {
                                 onEdit={() => {}}
                             />
                         ) : tile.type ===
-                          DashboardTileTypes.SEMANTIC_LAYER_CHART ? (
-                            <SemanticLayerChartTile
+                          DashboardTileTypes.SEMANTIC_VIEWER_CHART ? (
+                            <SemanticViewerChartTile
                                 key={tile.uuid}
                                 tile={tile}
                                 isEditMode={false}

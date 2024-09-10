@@ -2,22 +2,20 @@ import { Knex } from 'knex';
 
 const DashboardTilesTable = 'dashboard_tiles';
 
-// dashboard_tile_sql_charts;
-
 const DashboardTileTypesTable = 'dashboard_tile_types';
-const DashboardTileSemanticLayerChartsTable =
-    'dashboard_tile_semantic_layer_charts';
+const DashboardTileSemanticViewerChartsTable =
+    'dashboard_tile_semantic_viewer_charts';
 
-const semanticLayerChartType = 'semantic_layer_chart';
+const semanticViewerChartType = 'semantic_viewer_chart';
 
 export async function up(knex: Knex): Promise<void> {
     await knex(DashboardTileTypesTable).insert({
-        dashboard_tile_type: semanticLayerChartType,
+        dashboard_tile_type: semanticViewerChartType,
     });
 
-    if (!(await knex.schema.hasTable(DashboardTileSemanticLayerChartsTable))) {
+    if (!(await knex.schema.hasTable(DashboardTileSemanticViewerChartsTable))) {
         await knex.schema.createTable(
-            DashboardTileSemanticLayerChartsTable,
+            DashboardTileSemanticViewerChartsTable,
             (table) => {
                 table.integer('dashboard_version_id').notNullable();
                 table
@@ -26,9 +24,9 @@ export async function up(knex: Knex): Promise<void> {
                     .defaultTo(knex.raw('uuid_generate_v4()'));
 
                 table
-                    .uuid('saved_semantic_layer_uuid')
-                    .references('saved_semantic_layer_uuid')
-                    .inTable('saved_semantic_layers')
+                    .uuid('saved_semantic_viewer_chart_uuid')
+                    .references('saved_semantic_viewer_chart_uuid')
+                    .inTable('saved_semantic_viewer_charts')
                     .nullable()
                     .onDelete('CASCADE');
                 table.text('title').nullable();
@@ -43,9 +41,9 @@ export async function up(knex: Knex): Promise<void> {
 export async function down(knex: Knex): Promise<void> {
     await knex(DashboardTilesTable)
         .delete()
-        .where('type', semanticLayerChartType);
+        .where('type', semanticViewerChartType);
     await knex(DashboardTileTypesTable)
         .delete()
-        .where('dashboard_tile_type', semanticLayerChartType);
-    await knex.schema.dropTableIfExists(DashboardTileSemanticLayerChartsTable);
+        .where('dashboard_tile_type', semanticViewerChartType);
+    await knex.schema.dropTableIfExists(DashboardTileSemanticViewerChartsTable);
 }

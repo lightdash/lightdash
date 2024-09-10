@@ -278,8 +278,8 @@ export const isApiSemanticLayerJobSuccessResponse = (
 ): response is ApiSemanticLayerJobSuccessResponse['results'] =>
     response.status === SchedulerJobStatus.COMPLETED;
 
-export type SavedSemanticLayer = {
-    savedSemanticLayerUuid: string;
+export type SavedSemanticViewerChart = {
+    savedSemanticViewerChartUuid: string;
     name: string;
     description: string | null;
     slug: string;
@@ -318,12 +318,12 @@ export type SemanticLayerCreateChart = {
 export type ApiSemanticLayerCreateChart = {
     status: 'ok';
     results: {
-        savedSemanticLayerUuid: string;
+        savedSemanticViewerChartUuid: string;
         slug: string;
     };
 };
 
 export type ApiSemanticLayerGetChart = {
     status: 'ok';
-    results: SavedSemanticLayer;
+    results: SavedSemanticViewerChart;
 };

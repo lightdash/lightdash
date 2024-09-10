@@ -1,7 +1,7 @@
 import {
     generateSlug,
     NotFoundError,
-    SavedSemanticLayer,
+    SavedSemanticViewerChart,
     SpaceSummary,
     type SemanticLayerCreateChart,
 } from '@lightdash/common';
@@ -13,17 +13,17 @@ import {
 } from '../database/entities/organizations';
 import { DbProject, ProjectTableName } from '../database/entities/projects';
 import {
-    DbSavedSemanticLayer,
-    DbSavedSemanticLayerVersion,
-    SavedSemanticLayerTableName,
-    SavedSemanticLayerVersionsTableName,
-} from '../database/entities/savedSemanticLayer';
+    DbSavedSemanticViewerChart,
+    DBSavedSemanticViewerChartVersion,
+    SavedSemanticViewerChartsTableName,
+    SavedSemanticViewerChartVersionsTableName,
+} from '../database/entities/savedSemanticViewerCharts';
 import { DbSpace, SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 
-type SelectSavedSemanticLayer = Pick<
-    DbSavedSemanticLayer,
-    | 'saved_semantic_layer_uuid'
+type SelectSavedSemanticViewerChart = Pick<
+    DbSavedSemanticViewerChart,
+    | 'saved_semantic_viewer_chart_uuid'
     | 'name'
     | 'description'
     | 'slug'
@@ -35,7 +35,7 @@ type SelectSavedSemanticLayer = Pick<
     | 'last_viewed_at'
 > &
     Pick<
-        DbSavedSemanticLayerVersion,
+        DBSavedSemanticViewerChartVersion,
         'semantic_layer_view' | 'semantic_layer_query' | 'config' | 'chart_kind'
     > &
     Pick<DbSpace, 'space_uuid'> &
@@ -53,21 +53,20 @@ type SelectSavedSemanticLayer = Pick<
         last_version_updated_by_user_last_name: string | null;
     };
 
-export class SavedSemanticLayerModel {
+export class SavedSemanticViewerChartModel {
     private database: Knex;
 
     constructor(args: { database: Knex }) {
         this.database = args.database;
     }
 
-    static convertSelectSavedSemanticLayer(row: SelectSavedSemanticLayer): Omit<
-        SavedSemanticLayer,
-        'space'
-    > & {
+    static convertSelectSavedSemanticViewerChart(
+        row: SelectSavedSemanticViewerChart,
+    ): Omit<SavedSemanticViewerChart, 'space'> & {
         space: Pick<SpaceSummary, 'uuid' | 'name' | 'isPrivate'>;
     } {
         return {
-            savedSemanticLayerUuid: row.saved_semantic_layer_uuid,
+            savedSemanticViewerChartUuid: row.saved_semantic_viewer_chart_uuid,
             name: row.name,
             description: row.description,
             slug: row.slug,
@@ -90,10 +89,10 @@ export class SavedSemanticLayerModel {
                   }
                 : null,
 
-            config: row.config as SavedSemanticLayer['config'],
+            config: row.config as SavedSemanticViewerChart['config'],
             semanticLayerView: row.semantic_layer_view,
             semanticLayerQuery:
-                row.semantic_layer_query as SavedSemanticLayer['semanticLayerQuery'],
+                row.semantic_layer_query as SavedSemanticViewerChart['semanticLayerQuery'],
 
             chartKind: row.chart_kind,
             space: {
@@ -125,11 +124,11 @@ export class SavedSemanticLayerModel {
         projectUuid?: string;
     }) {
         return this.database
-            .from(SavedSemanticLayerTableName)
+            .from(SavedSemanticViewerChartsTableName)
             .leftJoin(
                 DashboardsTableName,
                 `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedSemanticLayerTableName}.dashboard_uuid`,
+                `${SavedSemanticViewerChartsTableName}.dashboard_uuid`,
             )
             .innerJoin(SpaceTableName, function spaceJoin() {
                 this.on(
@@ -139,7 +138,7 @@ export class SavedSemanticLayerModel {
                 ).orOn(
                     `${SpaceTableName}.space_uuid`,
                     '=',
-                    `${SavedSemanticLayerTableName}.space_uuid`,
+                    `${SavedSemanticViewerChartsTableName}.space_uuid`,
                 );
             })
             .innerJoin(
@@ -153,37 +152,37 @@ export class SavedSemanticLayerModel {
                 `${ProjectTableName}.organization_id`,
             )
             .innerJoin(
-                SavedSemanticLayerVersionsTableName,
-                `${SavedSemanticLayerTableName}.saved_semantic_layer_uuid`,
-                `${SavedSemanticLayerVersionsTableName}.saved_semantic_layer_uuid`,
+                SavedSemanticViewerChartVersionsTableName,
+                `${SavedSemanticViewerChartsTableName}.saved_semantic_viewer_chart_uuid`,
+                `${SavedSemanticViewerChartVersionsTableName}.saved_semantic_viewer_chart_uuid`,
             )
             .leftJoin(
                 `${UserTableName} as createdByUser`,
-                `${SavedSemanticLayerTableName}.created_by_user_uuid`,
+                `${SavedSemanticViewerChartsTableName}.created_by_user_uuid`,
                 `createdByUser.user_uuid`,
             )
             .leftJoin(
                 `${UserTableName} as updatedByUser`,
-                `${SavedSemanticLayerTableName}.last_version_updated_by_user_uuid`,
+                `${SavedSemanticViewerChartsTableName}.last_version_updated_by_user_uuid`,
                 `updatedByUser.user_uuid`,
             )
-            .select<SelectSavedSemanticLayer[]>([
+            .select<SelectSavedSemanticViewerChart[]>([
                 `${ProjectTableName}.project_uuid`,
-                `${SavedSemanticLayerTableName}.saved_semantic_layer_uuid`,
-                `${SavedSemanticLayerTableName}.name`,
-                `${SavedSemanticLayerTableName}.description`,
-                `${SavedSemanticLayerTableName}.dashboard_uuid`,
-                `${SavedSemanticLayerTableName}.created_at`,
-                `${SavedSemanticLayerTableName}.slug`,
-                `${SavedSemanticLayerTableName}.last_version_updated_at`,
-                `${SavedSemanticLayerTableName}.views_count`,
-                `${SavedSemanticLayerTableName}.first_viewed_at`,
-                `${SavedSemanticLayerTableName}.last_viewed_at`,
+                `${SavedSemanticViewerChartsTableName}.saved_semantic_viewer_chart_uuid`,
+                `${SavedSemanticViewerChartsTableName}.name`,
+                `${SavedSemanticViewerChartsTableName}.description`,
+                `${SavedSemanticViewerChartsTableName}.dashboard_uuid`,
+                `${SavedSemanticViewerChartsTableName}.created_at`,
+                `${SavedSemanticViewerChartsTableName}.slug`,
+                `${SavedSemanticViewerChartsTableName}.last_version_updated_at`,
+                `${SavedSemanticViewerChartsTableName}.views_count`,
+                `${SavedSemanticViewerChartsTableName}.first_viewed_at`,
+                `${SavedSemanticViewerChartsTableName}.last_viewed_at`,
                 `${DashboardsTableName}.name as dashboardName`,
-                `${SavedSemanticLayerVersionsTableName}.semantic_layer_view`,
-                `${SavedSemanticLayerVersionsTableName}.semantic_layer_query`,
-                `${SavedSemanticLayerVersionsTableName}.config`,
-                `${SavedSemanticLayerVersionsTableName}.chart_kind`,
+                `${SavedSemanticViewerChartVersionsTableName}.semantic_layer_view`,
+                `${SavedSemanticViewerChartVersionsTableName}.semantic_layer_query`,
+                `${SavedSemanticViewerChartVersionsTableName}.config`,
+                `${SavedSemanticViewerChartVersionsTableName}.chart_kind`,
                 `${OrganizationTableName}.organization_uuid`,
                 `createdByUser.user_uuid as created_by_user_uuid`,
                 `createdByUser.first_name as created_by_user_first_name`,
@@ -198,14 +197,14 @@ export class SavedSemanticLayerModel {
             .where((builder) => {
                 if (options.uuid) {
                     void builder.where(
-                        `${SavedSemanticLayerTableName}.saved_semantic_layer_uuid`,
+                        `${SavedSemanticViewerChartsTableName}.saved_semantic_viewer_chart_uuid`,
                         options.uuid,
                     );
                 }
 
                 if (options.slug) {
                     void builder.where(
-                        `${SavedSemanticLayerTableName}.slug`,
+                        `${SavedSemanticViewerChartsTableName}.slug`,
                         options.slug,
                     );
                 }
@@ -219,21 +218,21 @@ export class SavedSemanticLayerModel {
 
                 // Required filter to join only the latest version
                 void builder.where(
-                    `${SavedSemanticLayerVersionsTableName}.created_at`,
+                    `${SavedSemanticViewerChartVersionsTableName}.created_at`,
                     '=',
                     this.database
-                        .from(SavedSemanticLayerVersionsTableName)
+                        .from(SavedSemanticViewerChartVersionsTableName)
                         .max('created_at')
                         .where(
-                            `${SavedSemanticLayerVersionsTableName}.saved_semantic_layer_uuid`,
+                            `${SavedSemanticViewerChartVersionsTableName}.saved_semantic_viewer_chart_uuid`,
                             this.database.ref(
-                                `${SavedSemanticLayerTableName}.saved_semantic_layer_uuid`,
+                                `${SavedSemanticViewerChartsTableName}.saved_semantic_viewer_chart_uuid`,
                             ),
                         ),
                 );
             })
             .orderBy(
-                `${SavedSemanticLayerVersionsTableName}.created_at`,
+                `${SavedSemanticViewerChartVersionsTableName}.created_at`,
                 'desc',
             );
     }
@@ -244,7 +243,9 @@ export class SavedSemanticLayerModel {
         if (!result) {
             throw new NotFoundError('Saved semantic layer query not found');
         }
-        return SavedSemanticLayerModel.convertSelectSavedSemanticLayer(result);
+        return SavedSemanticViewerChartModel.convertSelectSavedSemanticViewerChart(
+            result,
+        );
     }
 
     async getByUuid(uuid: string, options: { projectUuid?: string }) {
@@ -253,7 +254,9 @@ export class SavedSemanticLayerModel {
         if (!result) {
             throw new NotFoundError('Saved semantic layer query not found');
         }
-        return SavedSemanticLayerModel.convertSelectSavedSemanticLayer(result);
+        return SavedSemanticViewerChartModel.convertSelectSavedSemanticViewerChart(
+            result,
+        );
     }
 
     static async createVersion(
@@ -262,39 +265,45 @@ export class SavedSemanticLayerModel {
             SemanticLayerCreateChart,
             'semanticLayerView' | 'semanticLayerQuery' | 'config'
         > & {
-            savedSemanticLayerUuid: string;
+            savedSemanticViewerChartUuid: string;
             userUuid: string;
         },
     ): Promise<string> {
         const [
             {
-                saved_semantic_layer_version_uuid:
-                    savedSemanticLayerVersionUuid,
+                saved_semantic_viewer_chart_version_uuid:
+                    savedSemanticViewerChartVersionUuid,
             },
-        ] = await trx(SavedSemanticLayerVersionsTableName).insert(
+        ] = await trx(SavedSemanticViewerChartVersionsTableName).insert(
             {
-                saved_semantic_layer_uuid: data.savedSemanticLayerUuid,
+                saved_semantic_viewer_chart_uuid:
+                    data.savedSemanticViewerChartUuid,
                 config: data.config,
                 semantic_layer_view: data.semanticLayerView,
                 semantic_layer_query: data.semanticLayerQuery,
                 chart_kind: data.config.type,
                 created_by_user_uuid: data.userUuid,
             },
-            ['saved_semantic_layer_version_uuid'],
+            ['saved_semantic_viewer_chart_version_uuid'],
         );
-        await trx(SavedSemanticLayerTableName)
+        await trx(SavedSemanticViewerChartsTableName)
             .update({
                 last_version_chart_kind: data.config.type,
                 last_version_updated_at: new Date(),
                 last_version_updated_by_user_uuid: data.userUuid,
             })
-            .where('saved_semantic_layer_uuid', data.savedSemanticLayerUuid);
-        return savedSemanticLayerVersionUuid;
+            .where(
+                'saved_semantic_viewer_chart_uuid',
+                data.savedSemanticViewerChartUuid,
+            );
+        return savedSemanticViewerChartVersionUuid;
     }
 
-    static async generateSavedSemanticLayerSlug(trx: Knex, name: string) {
+    static async generateSavedSemanticViewerChartSlug(trx: Knex, name: string) {
         const baseSlug = generateSlug(name);
-        const matchingSlugs: string[] = await trx(SavedSemanticLayerTableName)
+        const matchingSlugs: string[] = await trx(
+            SavedSemanticViewerChartsTableName,
+        )
             .select('slug')
             .where('slug', 'like', `${baseSlug}%`)
             .pluck('slug');
@@ -313,15 +322,19 @@ export class SavedSemanticLayerModel {
         data: SemanticLayerCreateChart,
     ): Promise<{
         slug: string;
-        savedSemanticLayerUuid: string;
-        savedSemanticLayerVersionUuid: string;
+        savedSemanticViewerChartUuid: string;
+        savedSemanticViewerChartVersionUuid: string;
     }> {
         return this.database.transaction(async (trx) => {
             const [
-                { saved_semantic_layer_uuid: savedSemanticLayerUuid, slug },
-            ] = await trx(SavedSemanticLayerTableName).insert(
                 {
-                    slug: await SavedSemanticLayerModel.generateSavedSemanticLayerSlug(
+                    saved_semantic_viewer_chart_uuid:
+                        savedSemanticViewerChartUuid,
+                    slug,
+                },
+            ] = await trx(SavedSemanticViewerChartsTableName).insert(
+                {
+                    slug: await SavedSemanticViewerChartModel.generateSavedSemanticViewerChartSlug(
                         trx,
                         data.name,
                     ),
@@ -332,11 +345,11 @@ export class SavedSemanticLayerModel {
                     space_uuid: data.spaceUuid,
                     dashboard_uuid: null,
                 },
-                ['saved_semantic_layer_uuid', 'slug'],
+                ['saved_semantic_viewer_chart_uuid', 'slug'],
             );
-            const savedSemanticLayerVersionUuid =
-                await SavedSemanticLayerModel.createVersion(trx, {
-                    savedSemanticLayerUuid,
+            const savedSemanticViewerChartVersionUuid =
+                await SavedSemanticViewerChartModel.createVersion(trx, {
+                    savedSemanticViewerChartUuid,
                     userUuid,
                     config: data.config,
                     semanticLayerView: data.semanticLayerView,
@@ -344,8 +357,8 @@ export class SavedSemanticLayerModel {
                 });
             return {
                 slug,
-                savedSemanticLayerUuid,
-                savedSemanticLayerVersionUuid,
+                savedSemanticViewerChartUuid,
+                savedSemanticViewerChartVersionUuid,
             };
         });
     }

@@ -1,19 +1,22 @@
 import { ChartKind } from '@lightdash/common';
 import { Knex } from 'knex';
 
-export const SAVED_SEMANTIC_LAYER_TABLE_NAME = 'saved_semantic_layers';
-export const SAVED_SEMANTIC_LAYER_VERSIONS_TABLE_NAME =
-    'saved_semantic_layer_versions';
+export const SAVED_SEMANTIC_VIEWER_CHARTS_TABLE_NAME =
+    'saved_semantic_viewer_charts';
+export const SAVED_SEMANTIC_VIEWER_CHART_VERSIONS_TABLE_NAME =
+    'saved_semantic_viewer_chart_versions';
 
 const customSearchConfigName = `lightdash_english_config`;
 
 export async function up(knex: Knex): Promise<void> {
-    if (!(await knex.schema.hasTable(SAVED_SEMANTIC_LAYER_TABLE_NAME))) {
+    if (
+        !(await knex.schema.hasTable(SAVED_SEMANTIC_VIEWER_CHARTS_TABLE_NAME))
+    ) {
         await knex.schema.createTable(
-            SAVED_SEMANTIC_LAYER_TABLE_NAME,
+            SAVED_SEMANTIC_VIEWER_CHARTS_TABLE_NAME,
             (table) => {
                 table
-                    .uuid('saved_semantic_layer_uuid')
+                    .uuid('saved_semantic_viewer_chart_uuid')
                     .primary()
                     .defaultTo(knex.raw('uuid_generate_v4()'));
                 table
@@ -68,17 +71,17 @@ export async function up(knex: Knex): Promise<void> {
         );
 
         await knex.schema.createTable(
-            SAVED_SEMANTIC_LAYER_VERSIONS_TABLE_NAME,
+            SAVED_SEMANTIC_VIEWER_CHART_VERSIONS_TABLE_NAME,
             (table) => {
                 table
-                    .uuid('saved_semantic_layer_version_uuid')
+                    .uuid('saved_semantic_viewer_chart_version_uuid')
                     .primary()
                     .defaultTo(knex.raw('uuid_generate_v4()'));
                 table
-                    .uuid('saved_semantic_layer_uuid')
+                    .uuid('saved_semantic_viewer_chart_uuid')
                     .notNullable()
-                    .references('saved_semantic_layer_uuid')
-                    .inTable(SAVED_SEMANTIC_LAYER_TABLE_NAME)
+                    .references('saved_semantic_viewer_chart_uuid')
+                    .inTable(SAVED_SEMANTIC_VIEWER_CHARTS_TABLE_NAME)
                     .onDelete('CASCADE')
                     .index();
                 table
@@ -99,20 +102,20 @@ export async function up(knex: Knex): Promise<void> {
         );
         // add search_vector column to
         await knex.raw(`
-            ALTER TABLE ${SAVED_SEMANTIC_LAYER_TABLE_NAME} ADD COLUMN search_vector tsvector
+            ALTER TABLE ${SAVED_SEMANTIC_VIEWER_CHARTS_TABLE_NAME} ADD COLUMN search_vector tsvector
                 GENERATED ALWAYS AS (
                 setweight(to_tsvector('${customSearchConfigName}', coalesce(name, '')), 'A') ||
                 setweight(to_tsvector('${customSearchConfigName}', coalesce(description, '')), 'B')
             ) STORED;
         `);
 
-        // create index on saved_semantic_layers search_vector column
+        // create index on saved_semantic_viewer_charts search_vector column
         await knex.schema.alterTable(
-            SAVED_SEMANTIC_LAYER_TABLE_NAME,
+            SAVED_SEMANTIC_VIEWER_CHARTS_TABLE_NAME,
             (table) => {
                 table.index(
                     'search_vector',
-                    'saved_semantic_layer_vector_idx',
+                    'saved_semantic_viewer_charts_search_vector_idx',
                     'GIN',
                 );
             },
@@ -122,7 +125,9 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
     await knex.schema.dropTableIfExists(
-        SAVED_SEMANTIC_LAYER_VERSIONS_TABLE_NAME,
+        SAVED_SEMANTIC_VIEWER_CHART_VERSIONS_TABLE_NAME,
     );
-    await knex.schema.dropTableIfExists(SAVED_SEMANTIC_LAYER_TABLE_NAME);
+    await knex.schema.dropTableIfExists(
+        SAVED_SEMANTIC_VIEWER_CHARTS_TABLE_NAME,
+    );
 }
