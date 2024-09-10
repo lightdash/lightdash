@@ -33,10 +33,17 @@ export enum VizIndexType {
     CATEGORY = 'category',
 }
 
-export function getAxisType(column: VizColumn): VizIndexType {
-    return column.type === DimensionType.STRING
-        ? VizIndexType.CATEGORY
-        : VizIndexType.TIME;
+export function getColumnAxisType(column: VizColumn): VizIndexType {
+    switch (column.type) {
+        case DimensionType.DATE:
+        case DimensionType.TIMESTAMP:
+            return VizIndexType.TIME;
+        case DimensionType.BOOLEAN:
+        case DimensionType.NUMBER:
+        case DimensionType.STRING:
+        default:
+            return VizIndexType.CATEGORY;
+    }
 }
 
 export type VizIndexLayoutOptions = {

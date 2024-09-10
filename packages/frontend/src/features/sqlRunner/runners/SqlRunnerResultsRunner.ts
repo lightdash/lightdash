@@ -1,6 +1,6 @@
 import {
     DimensionType,
-    getAxisType,
+    getColumnAxisType,
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
     VizAggregationOptions,
@@ -254,7 +254,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner<VizChartLayout> {
         }
         const x: VizChartLayout['x'] = {
             reference: xColumn.reference,
-            type: getAxisType(xColumn),
+            type: getColumnAxisType(xColumn),
         };
 
         const yColumn =
