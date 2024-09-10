@@ -1,4 +1,5 @@
 import { Box, LoadingOverlay, Text } from '@mantine/core';
+import { useEffect, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useAppSelector } from '../store/hooks';
 import { TableFields } from './TableFields';
@@ -16,6 +17,30 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
     const initialPanelSizes = [80, 20];
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
 
+    // state for controlling the "still loading" message
+    const [showLoadingMessage, setShowLoadingMessage] = useState(false);
+
+    // effect to handle loading timeout
+    useEffect(() => {
+        let timer: NodeJS.Timeout | null = null; // initialize the timer with null
+        if (isLoading) {
+            // start a timer that will display the loading message after 3 seconds
+            timer = setTimeout(() => {
+                setShowLoadingMessage(true);
+            }, 3000); // 3000ms or 3 seconds
+        } else {
+            // clear the timer and reset the loading message if loading stops
+            setShowLoadingMessage(false);
+            if (timer) {
+                clearTimeout(timer);
+            }
+        }
+        // cleanup timer on unmount or when loading stops
+        return () => {
+            if (timer) clearTimeout(timer);
+        };
+    }, [isLoading]);
+
     return (
         <Box sx={{ position: 'relative', flex: 1 }}>
             <LoadingOverlay visible={isLoading} />
@@ -23,6 +48,12 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
             {error && (
                 <Text color="red" align="center">
                     {error}
+                </Text>
+            )}
+
+            {isLoading && showLoadingMessage && (
+                <Text color="gray.9" align="center">
+                    Hang on, still loading...
                 </Text>
             )}
 
