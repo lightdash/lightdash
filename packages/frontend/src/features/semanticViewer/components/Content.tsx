@@ -59,6 +59,7 @@ const Content: FC = () => {
                 bg="gray.1"
                 sx={(theme) => ({
                     borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                    flexShrink: 0,
                 })}
             >
                 <SegmentedControl

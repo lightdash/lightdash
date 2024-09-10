@@ -105,7 +105,7 @@ export async function up(knex: Knex): Promise<void> {
             ) STORED;
         `);
 
-        // create index on saved_semantic_layer search_vector column
+        // create index on saved_semantic_layers search_vector column
         await knex.schema.alterTable(
             SAVED_SEMANTIC_LAYER_TABLE_NAME,
             (table) => {

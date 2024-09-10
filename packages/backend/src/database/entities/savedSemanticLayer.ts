@@ -1,7 +1,7 @@
 import { ChartKind } from '@lightdash/common';
 import { Knex } from 'knex';
 
-export const SavedSemanticLayerTableName = 'saved_semantic_layer';
+export const SavedSemanticLayerTableName = 'saved_semantic_layers';
 export const SavedSemanticLayerVersionsTableName =
     'saved_semantic_layer_versions';
 

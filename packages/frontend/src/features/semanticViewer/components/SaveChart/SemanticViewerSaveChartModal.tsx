@@ -17,18 +17,14 @@ import {
     SaveToSpace,
     validationSchema,
 } from '../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
+import { selectChartConfigByKind } from '../../../../components/DataViz/store/selectors';
+import useToaster from '../../../../hooks/toaster/useToaster';
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-
-import {
-    selectChartConfigByKind,
-    selectTableVisConfigState,
-} from '../../../../components/DataViz/store/selectors';
-import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCreateSemanticLayerChartMutation } from '../../api/hooks';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
@@ -54,7 +50,6 @@ const SemanticViewerSaveChartModal: FC = () => {
     const selectedChartConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, activeChartKind),
     );
-    const defaultChartConfig = useAppSelector(selectTableVisConfigState);
 
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
 
@@ -103,7 +98,7 @@ const SemanticViewerSaveChartModal: FC = () => {
         }
     }, [isSaved, handleClose]);
 
-    const { showToastApiError } = useToaster();
+    const { showToastApiError, showToastSuccess } = useToaster();
 
     useEffect(() => {
         if (isSavingError) {
@@ -114,10 +109,20 @@ const SemanticViewerSaveChartModal: FC = () => {
         }
     }, [isSavingError, saveError, showToastApiError]);
 
-    const handleOnSubmit = useCallback(async () => {
-        if (spaces.length === 0) {
-            return;
+    useEffect(() => {
+        if (isSaved) {
+            showToastSuccess({
+                title: 'Chart saved successfully',
+            });
         }
+    }, [isSaved, showToastSuccess]);
+
+    const hasConfigAndQuery = !!selectedChartConfig && !!semanticLayerQuery;
+
+    const handleOnSubmit = useCallback(async () => {
+        if (spaces.length === 0) return;
+        if (!hasConfigAndQuery) return;
+
         let newSpace = form.values.newSpaceName
             ? await createSpace({
                   name: form.values.newSpaceName,
@@ -125,17 +130,24 @@ const SemanticViewerSaveChartModal: FC = () => {
                   isPrivate: true,
               })
             : undefined;
+
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
 
-        const configToSave = selectedChartConfig ?? defaultChartConfig.config;
+        if (hasConfigAndQuery) {
+            console.log('crap', {
+                name: form.values.name,
+                description: form.values.description || '',
+                semanticLayerQuery,
+                config: selectedChartConfig,
+                spaceUuid: spaceUuid,
+            });
 
-        if (configToSave) {
             await saveChart({
                 name: form.values.name,
                 description: form.values.description || '',
                 semanticLayerQuery,
-                config: configToSave,
+                config: selectedChartConfig,
                 spaceUuid: spaceUuid,
             });
         }
@@ -145,17 +157,17 @@ const SemanticViewerSaveChartModal: FC = () => {
         handleClose();
     }, [
         spaces,
+        hasConfigAndQuery,
         form.values.newSpaceName,
         form.values.spaceUuid,
         form.values.name,
         form.values.description,
         createSpace,
-        selectedChartConfig,
-        defaultChartConfig.config,
         dispatch,
         handleClose,
         saveChart,
         semanticLayerQuery,
+        selectedChartConfig,
     ]);
 
     return (
@@ -214,11 +226,7 @@ const SemanticViewerSaveChartModal: FC = () => {
 
                     <Button
                         type="submit"
-                        // TODO: what is considered as the MINIMAL semantic layer query?
-                        disabled={
-                            !form.values.name ||
-                            !semanticLayerQuery.dimensions.length
-                        }
+                        disabled={!form.values.name || !hasConfigAndQuery}
                         loading={isSaving}
                     >
                         Save

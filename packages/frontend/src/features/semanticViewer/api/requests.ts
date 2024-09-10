@@ -129,7 +129,8 @@ export const createSemanticLayerChart = (
     payload: SemanticLayerCreateChart,
 ) =>
     lightdashApi<ApiSemanticLayerCreateChart['results']>({
-        url: `/projects/${projectUuid}/semantic-viewer/saved`,
+        version: 'v2',
+        url: `/projects/${projectUuid}/semantic-layer/saved`,
         method: 'POST',
         body: JSON.stringify(payload),
     });

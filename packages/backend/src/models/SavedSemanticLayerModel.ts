@@ -271,8 +271,9 @@ export class SavedSemanticLayerModel {
             },
         ] = await trx(SavedSemanticLayerVersionsTableName).insert(
             {
-                saved_semantic_layer_uui: data.savedSemanticLayerUuid,
+                saved_semantic_layer_uuid: data.savedSemanticLayerUuid,
                 config: data.config,
+                semantic_layer_query: data.semanticLayerQuery,
                 chart_kind: data.config.type,
                 created_by_user_uuid: data.userUuid,
             },
