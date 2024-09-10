@@ -152,17 +152,13 @@ export class SemanticViewerResultsRunner
         };
     }
 
-    static convertColumnsToVizColumns(
+    static convertColumnNamesToVizColumns(
         fields: SemanticLayerField[],
-        columns: string[],
+        columnNames: string[],
     ): VizColumn[] {
-        return columns
-            .map<VizColumn | undefined>((column) => {
-                const field =
-                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
-                        fields,
-                        column,
-                    );
+        return columnNames
+            .map<VizColumn | undefined>((columnName) => {
+                const field = fields.find((f) => f.name === columnName);
                 if (!field) {
                     return;
                 }
@@ -172,20 +168,11 @@ export class SemanticViewerResultsRunner
                 );
 
                 return {
-                    reference: column,
+                    reference: columnName,
                     type: dimType,
                 };
             })
             .filter((c): c is VizColumn => Boolean(c));
-    }
-
-    private static findSemanticLayerFieldFromColumn(
-        fields: SemanticLayerField[],
-        column?: string,
-    ) {
-        return column
-            ? fields.find((field) => field.name === column)
-            : undefined;
     }
 
     async getPivotedVisualizationData(
@@ -213,17 +200,14 @@ export class SemanticViewerResultsRunner
 
         // The backend call has no knowledge of field types, so we need to map them to the correct types
         const vizColumns: VizColumn[] =
-            SemanticViewerResultsRunner.convertColumnsToVizColumns(
+            SemanticViewerResultsRunner.convertColumnNamesToVizColumns(
                 this.fields,
                 columns,
             );
 
         // The index column is the first column in the pivot config
-        const onField =
-            SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
-                this.fields,
-                pivotConfig.on[0],
-            );
+        const onField = this.fields.find((f) => f.name === pivotConfig.on[0]);
+
         const indexColumn = onField
             ? {
                   reference: onField.name,
