@@ -48,7 +48,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
         const results = await getResultsFromStream<RawResultRow>(url);
 
         return {
-            url: url!,
+            url,
             results,
             indexColumn: job.details.indexColumn,
             valuesColumns: job.details.valuesColumns,
