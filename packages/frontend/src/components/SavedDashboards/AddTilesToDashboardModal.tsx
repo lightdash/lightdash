@@ -1,7 +1,7 @@
 import {
     DashboardTileTypes,
     getDefaultChartTileSize,
-    type DashboardChartTile,
+    type DashboardTile,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -20,8 +20,9 @@ import {
     IconLayoutDashboard,
     IconPlus,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
     appendNewTilesToBottom,
     useCreateMutation,
@@ -39,7 +40,8 @@ import MantineIcon from '../common/MantineIcon';
 interface AddTilesToDashboardModalProps {
     isOpen: boolean;
     projectUuid: string;
-    savedChartUuid: string;
+    savedChartUuid?: string;
+    savedSqlChartUuid?: string;
     onClose?: () => void;
 }
 
@@ -47,6 +49,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     isOpen,
     projectUuid,
     savedChartUuid,
+    savedSqlChartUuid,
     onClose,
 }) => {
     const [isCreatingNewDashboard, setIsCreatingNewDashboard] = useState(false);
@@ -54,7 +57,45 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         useState<boolean>(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    const { data: savedChart } = useSavedQuery({ id: savedChartUuid });
+    const { data: savedExploreChart } = useSavedQuery({ id: savedChartUuid });
+    const { data: savedSqlChart } = useSavedSqlChart({
+        projectUuid,
+        uuid: savedSqlChartUuid,
+    });
+
+    const [savedChart, chartTile] = useMemo(() => {
+        if (savedExploreChart) {
+            const tile: DashboardTile = {
+                uuid: uuid4(),
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { savedChartUuid: savedExploreChart.uuid },
+                tabUuid: undefined,
+                ...getDefaultChartTileSize(savedExploreChart.chartConfig?.type),
+            };
+
+            return [savedExploreChart, tile];
+        } else if (savedSqlChart) {
+            const chart = {
+                ...savedSqlChart,
+                uuid: savedSqlChart.savedSqlUuid,
+                spaceUuid: savedSqlChart.space.uuid,
+                chartConfig: savedSqlChart.config,
+            };
+            const tile: DashboardTile = {
+                uuid: uuid4(),
+                type: DashboardTileTypes.SQL_CHART,
+                properties: {
+                    savedSqlUuid: savedSqlChart.savedSqlUuid,
+                    chartName: savedSqlChart.name,
+                },
+                tabUuid: undefined,
+                ...getDefaultChartTileSize(savedSqlChart.config?.type),
+            };
+
+            return [chart, tile];
+        }
+        return [undefined, undefined];
+    }, [savedExploreChart, savedSqlChart]);
     const { data: dashboards, isInitialLoading: isLoadingDashboards } =
         useDashboards(
             projectUuid,
@@ -124,34 +165,13 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     });
                     spaceUuid = newSpace.uuid;
                 }
-                const newTile: DashboardChartTile = {
-                    uuid: uuid4(),
-                    type: DashboardTileTypes.SAVED_CHART,
-                    properties: {
-                        savedChartUuid: savedChart.uuid,
-                    },
-                    tabUuid: undefined,
-                    ...getDefaultChartTileSize(savedChart.chartConfig?.type),
-                };
 
                 if (isCreatingNewDashboard) {
                     await createDashboard({
                         name: dashboardName,
                         description: dashboardDescription,
                         spaceUuid: spaceUuid,
-                        tiles: [
-                            {
-                                uuid: uuid4(),
-                                type: DashboardTileTypes.SAVED_CHART,
-                                tabUuid: undefined,
-                                properties: {
-                                    savedChartUuid: savedChart.uuid,
-                                },
-                                ...getDefaultChartTileSize(
-                                    savedChart?.chartConfig.type,
-                                ),
-                            },
-                        ],
+                        tiles: [chartTile],
                         tabs: [],
                     });
                     onClose?.();
@@ -166,10 +186,10 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                         tiles: appendNewTilesToBottom(selectedDashboard.tiles, [
                             firstTab
                                 ? {
-                                      ...newTile,
+                                      ...chartTile,
                                       tabUuid: firstTab.uuid,
                                   }
-                                : newTile, // TODO: add to first tab by default, need ux to allow user select tab
+                                : chartTile, // TODO: add to first tab by default, need ux to allow user select tab
                         ]),
                         tabs: selectedDashboard.tabs,
                     });

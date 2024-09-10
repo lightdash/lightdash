@@ -44,6 +44,9 @@ export interface SqlRunnerState {
         updateChartModal: {
             isOpen: boolean;
         };
+        addToDashboard: {
+            isOpen: boolean;
+        };
     };
     quoteChar: string;
     sqlColumns: VizColumn[] | undefined;
@@ -72,6 +75,9 @@ const initialState: SqlRunnerState = {
             isOpen: false,
         },
         updateChartModal: {
+            isOpen: false,
+        },
+        addToDashboard: {
             isOpen: false,
         },
     },
