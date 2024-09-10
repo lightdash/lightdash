@@ -69,9 +69,11 @@ const FilterFieldSelect: FC<FilterFieldInputProps> = ({
                         disabled
                         data={[]}
                     ></Select>
-                    <ActionIcon size="xs" onClick={onCancel}>
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
+                    {onCancel && (
+                        <ActionIcon size="xs" onClick={onCancel}>
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    )}
                 </>
             )}
         </Group>

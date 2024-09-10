@@ -100,7 +100,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         }
                     />
                 ))}
-                {!isAddingFilter ? (
+                {Boolean(!isAddingFilter && filters.length > 0) ? (
                     <FilterButton
                         icon={IconPlus}
                         onClick={() => setIsAddingFilter(true)}
@@ -145,7 +145,11 @@ const FiltersModal: FC<FiltersModalProps> = ({
                                 }),
                             );
                         }}
-                        onCancel={() => setIsAddingFilter(false)}
+                        onCancel={
+                            filters.length > 0
+                                ? () => setIsAddingFilter(false)
+                                : undefined
+                        }
                         isCreatingFilter
                     />
                 )}
