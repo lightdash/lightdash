@@ -7,6 +7,10 @@ const createWorker = createWorkerFactory<{
     getResultsFromStream: typeof getResultsFromStream<RawResultRow>;
 }>(() => import('../../../utils/request'));
 
+/**
+ * Hook to get the results from a stream worker - used to fetch the results of a SQL query
+ * @returns The results from the stream worker
+ */
 export const useResultsFromStreamWorker = () => {
     const worker = useWorker(createWorker);
 
