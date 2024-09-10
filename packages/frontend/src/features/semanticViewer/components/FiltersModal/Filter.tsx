@@ -520,7 +520,7 @@ const Filter: FC<FilterProps> = ({
                 )}
 
                 {isAddingNestedFilter && (
-                    <Group spacing="xs" style={{ zIndex: 3 }}>
+                    <Group spacing="xs" w="100%" style={{ zIndex: 3 }}>
                         <FilterFieldSelect
                             availableFieldOptions={fieldOptions}
                             fields={allFields}
