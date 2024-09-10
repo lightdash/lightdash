@@ -69,10 +69,6 @@ export const useSqlQueryRun = (
                         ? job.details.fileUrl
                         : undefined;
 
-                if (!url) {
-                    throw new Error('No file URL provided');
-                }
-
                 const results = await getResultsFromStream(url);
 
                 return {
