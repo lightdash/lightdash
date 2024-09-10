@@ -29,8 +29,10 @@ import FilterMultiStringInput from '../../../../components/common/Filters/Filter
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import FilterButton from './FilterButton';
-import FilterFieldSelect from './FilterFieldSelect';
-import FilterFieldSelectItem from './FilterFieldSelect/FilterFieldSelectItem';
+import {
+    default as FilterFieldInput,
+    default as FilterFieldSelect,
+} from './FilterFieldSelect';
 import getOperatorString from './getOperatorString';
 
 enum AndOr {
@@ -415,14 +417,11 @@ const Filter: FC<FilterProps> = ({
                         hasNestedFilters={hasNestedFilters}
                     />
 
-                    <Select
-                        size="xs"
-                        withinPortal
-                        style={{ flex: 5 }}
-                        data={fieldOptions}
-                        itemComponent={FilterFieldSelectItem}
+                    <FilterFieldInput
+                        availableFieldOptions={fieldOptions}
                         value={filter.field}
-                        onChange={(value) => {
+                        style={{ flex: 5 }}
+                        onFieldChange={(value) => {
                             if (!value) {
                                 return;
                             }
@@ -538,14 +537,13 @@ const Filter: FC<FilterProps> = ({
                 {isAddingNestedFilter && (
                     <FilterFieldSelect
                         availableFieldOptions={fieldOptions}
-                        onCreateFilter={(fieldName) => {
+                        onFieldChange={(fieldName) => {
                             setIsAddingNestedFilter(false);
                             handleAddNestedFilter(fieldName);
                         }}
-                        onCancelCreateFilter={() =>
-                            setIsAddingNestedFilter(false)
-                        }
+                        onCancel={() => setIsAddingNestedFilter(false)}
                         hasLeftSpacing={Boolean(nestedFilterProps)}
+                        isCreatingFilter
                     />
                 )}
 

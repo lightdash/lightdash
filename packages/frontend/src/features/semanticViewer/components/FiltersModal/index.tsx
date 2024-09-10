@@ -109,7 +109,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                 ) : (
                     <FilterFieldInput
                         availableFieldOptions={availableFieldOptions}
-                        onCreateFilter={(value) => {
+                        onFieldChange={(value) => {
                             setIsAddingFilter(false);
 
                             const field = fields?.find((f) => f.name === value);
@@ -144,7 +144,8 @@ const FiltersModal: FC<FiltersModalProps> = ({
                                 }),
                             );
                         }}
-                        onCancelCreateFilter={() => setIsAddingFilter(false)}
+                        onCancel={() => setIsAddingFilter(false)}
+                        isCreatingFilter
                     />
                 )}
                 <Flex w="100%" justify="flex-end">

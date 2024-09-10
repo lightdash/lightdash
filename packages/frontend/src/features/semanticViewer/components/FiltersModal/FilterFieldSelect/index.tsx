@@ -4,6 +4,7 @@ import {
     Group,
     rem,
     Select,
+    type GroupProps,
     type SelectItem,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
@@ -13,46 +14,66 @@ import FilterFieldSelectItem from './FilterFieldSelectItem';
 
 type FilterFieldInputProps = {
     availableFieldOptions: SelectItem[];
-    onCreateFilter: (fieldName: string) => void;
-    onCancelCreateFilter: () => void;
+    onFieldChange: (fieldName: string) => void;
+    value?: string;
+    onCancel?: () => void;
     hasLeftSpacing?: boolean;
+    isCreatingFilter?: boolean;
+    style?: GroupProps['style'];
 };
 
 const LEFT_COMPONENT_WIDTH = rem(44);
 
+/**
+ * Select component for filter items
+ * These Selects are just to make up a mock disabled filter (creation state basically)
+ * we might be able to replace this with an actual Filter component and a partial filter but for simplicity we're doing it this way for now
+ */
 const FilterFieldInput: FC<FilterFieldInputProps> = ({
     availableFieldOptions,
-    onCreateFilter,
-    onCancelCreateFilter,
+    value,
+    onFieldChange,
+    onCancel,
     hasLeftSpacing,
+    isCreatingFilter,
+    style,
 }) => {
     return (
-        <Group spacing="xs" w="100%">
+        <Group spacing="xs" w="100%" style={style}>
             {hasLeftSpacing && (
                 <Box w={LEFT_COMPONENT_WIDTH} style={{ flexShrink: 0 }}></Box>
             )}
             <Select
                 style={{ flex: 5 }}
                 size="xs"
+                value={value}
                 data={availableFieldOptions}
                 itemComponent={FilterFieldSelectItem}
                 placeholder="Select field"
                 searchable
                 withinPortal={true}
-                onChange={(value) => {
-                    if (!value) {
+                onChange={(fieldName) => {
+                    if (!fieldName) {
                         return;
                     }
 
-                    onCreateFilter(value);
+                    onFieldChange(fieldName);
                 }}
             />
-            {/* These Selects are just to make up a mock disabled filter (creation state basically) */}
-            <Select size="xs" w={75} data={[]} disabled></Select>
-            <Select size="xs" style={{ flex: 5 }} disabled data={[]}></Select>
-            <ActionIcon size="xs" onClick={onCancelCreateFilter}>
-                <MantineIcon icon={IconX} />
-            </ActionIcon>
+            {isCreatingFilter && (
+                <>
+                    <Select size="xs" w={75} data={[]} disabled></Select>
+                    <Select
+                        size="xs"
+                        style={{ flex: 5 }}
+                        disabled
+                        data={[]}
+                    ></Select>
+                    <ActionIcon size="xs" onClick={onCancel}>
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </>
+            )}
         </Group>
     );
 };
