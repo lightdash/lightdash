@@ -29,10 +29,7 @@ import FilterMultiStringInput from '../../../../components/common/Filters/Filter
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import FilterButton from './FilterButton';
-import {
-    default as FilterFieldInput,
-    default as FilterFieldSelect,
-} from './FilterFieldSelect';
+import FilterFieldSelect from './FilterFieldSelect';
 import getOperatorString from './getOperatorString';
 
 enum AndOr {
@@ -417,7 +414,7 @@ const Filter: FC<FilterProps> = ({
                         hasNestedFilters={hasNestedFilters}
                     />
 
-                    <FilterFieldInput
+                    <FilterFieldSelect
                         availableFieldOptions={fieldOptions}
                         value={filter.field}
                         style={{ flex: 5 }}
