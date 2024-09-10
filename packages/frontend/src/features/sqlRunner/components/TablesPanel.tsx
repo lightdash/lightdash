@@ -1,6 +1,9 @@
 import { Box, LoadingOverlay, Text } from '@mantine/core';
 import { useTimeout } from '@mantine/hooks';
+<<<<<<< HEAD
 import { IconGripHorizontal } from '@tabler/icons-react';
+=======
+>>>>>>> f28d6a308 (used mantine timeout hook instead of implimenting my own)
 import { useEffect, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
