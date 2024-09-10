@@ -41,8 +41,6 @@ const SemanticLayerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         dashboardUuid: string;
     }>();
 
-    console.log({ tile, rest });
-
     const savedSemanticLayerUuid = tile.properties.savedSemanticLayerUuid;
     const {
         data,

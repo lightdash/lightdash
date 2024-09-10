@@ -135,14 +135,6 @@ const SemanticViewerSaveChartModal: FC = () => {
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
 
         if (hasConfigAndQuery) {
-            console.log('crap', {
-                name: form.values.name,
-                description: form.values.description || '',
-                semanticLayerQuery,
-                config: selectedChartConfig,
-                spaceUuid: spaceUuid,
-            });
-
             await saveChart({
                 name: form.values.name,
                 description: form.values.description || '',
