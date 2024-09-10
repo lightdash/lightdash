@@ -179,7 +179,7 @@ export class SavedSemanticLayerModel {
                 `${SavedSemanticLayerTableName}.first_viewed_at`,
                 `${SavedSemanticLayerTableName}.last_viewed_at`,
                 `${DashboardsTableName}.name as dashboardName`,
-                `${SavedSemanticLayerVersionsTableName}.semantic_query`,
+                `${SavedSemanticLayerVersionsTableName}.semantic_layer_query`,
                 `${SavedSemanticLayerVersionsTableName}.config`,
                 `${SavedSemanticLayerVersionsTableName}.chart_kind`,
                 `${OrganizationTableName}.organization_uuid`,

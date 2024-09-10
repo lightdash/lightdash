@@ -681,6 +681,9 @@ export class ServiceRepository
                     cubeClient: this.clients.getCubeClient(),
                     dbtCloudClient: this.clients.getDbtCloudGraphqlClient(),
                     s3Client: this.clients.getS3Client(),
+
+                    savedSemanticLayerService:
+                        this.getSavedSemanticLayerService(),
                 }),
         );
     }

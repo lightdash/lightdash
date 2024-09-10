@@ -691,6 +691,7 @@ export class DashboardModel {
                     dashboard_tile_uuid: string;
                     saved_query_uuid: string | null;
                     saved_sql_uuid: string | null;
+                    saved_semantic_layer_uuid: string | null;
                     url: string | null;
                     content: string | null;
                     hide_title: boolean | null;
@@ -864,6 +865,7 @@ export class DashboardModel {
                     dashboard_tile_uuid,
                     saved_query_uuid,
                     saved_sql_uuid,
+                    saved_semantic_layer_uuid,
                     title,
                     hide_title,
                     url,
@@ -939,7 +941,8 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     chartName: name,
-                                    savedSemanticLayerUuid: saved_sql_uuid,
+                                    savedSemanticLayerUuid:
+                                        saved_semantic_layer_uuid,
                                 },
                             };
                         default: {

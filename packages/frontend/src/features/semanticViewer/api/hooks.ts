@@ -1,12 +1,15 @@
 import {
+    ChartKind,
     type ApiError,
     type ApiSemanticLayerCreateChart,
     type PivotChartData,
+    type SavedSemanticLayer,
     type SemanticLayerClientInfo,
     type SemanticLayerCreateChart,
     type SemanticLayerField,
     type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
+    type SemanticLayerResultRow,
     type SemanticLayerView,
 } from '@lightdash/common';
 import {
@@ -22,6 +25,8 @@ import {
     apiPostSemanticLayerSql,
     apiPostSemanticLayerViewFields,
     createSemanticLayerChart,
+    getSavedSemanticLayerChart,
+    getSemanticLayerChartResults,
 } from './requests';
 
 type SemanticLayerInfoParams = {
@@ -136,3 +141,81 @@ export const useCreateSemanticLayerChartMutation = (
         mutationKey: [projectUuid, 'semanticLayer', 'createChart'],
         ...mutationOptions,
     });
+
+const getDashboardSemanticLayerChartAndPossibleResults = async ({
+    projectUuid,
+    savedSemanticLayerUuid,
+}: {
+    projectUuid: string;
+    savedSemanticLayerUuid: string;
+}): Promise<{
+    resultsAndColumns: {
+        results: SemanticLayerResultRow[];
+        columns: string[];
+    };
+    chart: SavedSemanticLayer;
+}> => {
+    const chart = await getSavedSemanticLayerChart(
+        projectUuid,
+        savedSemanticLayerUuid,
+    );
+
+    const hasResultsHandledInChart = chart.config.type !== ChartKind.TABLE;
+
+    if (hasResultsHandledInChart) {
+        return {
+            chart,
+            resultsAndColumns: {
+                results: [],
+                columns: [],
+            },
+        };
+    }
+
+    const semanticLayerChartResults = await getSemanticLayerChartResults(
+        projectUuid,
+        chart.savedSemanticLayerUuid,
+    );
+
+    return {
+        chart,
+        resultsAndColumns: {
+            results: semanticLayerChartResults.results,
+            columns: semanticLayerChartResults.columns,
+        },
+    };
+};
+
+/**
+ * Fetches the chart and possible results of a SemanticLayer query from the Semantic Layer runner - used in Dashboards
+ * If the chart is not of type ChartKind.TABLE, we return empty results & columns
+ * @param savedSemanticLayerUuid - The UUID of the saved SemanticLayer query.
+ * @param projectUuid - The UUID of the project.
+ * @returns The chart and results of the semantic layer query.
+ */
+export const useDashboardSemanticLayerChart = (
+    projectUuid: string,
+    savedSemanticLayerUuid: string | null,
+) => {
+    return useQuery<
+        {
+            resultsAndColumns: {
+                results: SemanticLayerResultRow[];
+                columns: string[];
+            };
+            chart: SavedSemanticLayer;
+        },
+        ApiError & { slug?: string }
+    >(
+        [projectUuid, 'semanticLayer', 'chart', savedSemanticLayerUuid],
+        () => {
+            return getDashboardSemanticLayerChartAndPossibleResults({
+                projectUuid,
+                savedSemanticLayerUuid: savedSemanticLayerUuid!,
+            });
+        },
+        {
+            enabled: Boolean(savedSemanticLayerUuid) && Boolean(projectUuid),
+        },
+    );
+};

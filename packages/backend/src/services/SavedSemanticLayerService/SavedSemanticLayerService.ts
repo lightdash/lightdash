@@ -125,7 +125,9 @@ export class SavedSemanticLayerService extends BaseService {
         };
     }
 
-    private async hasSavedChartAccess(
+    // TODO: this should be public but I use this service inside SemanticLayerService.... which is wrong.
+    // I think it should be combined now
+    async hasSavedChartAccess(
         user: SessionUser,
         action: 'view' | 'create' | 'update' | 'delete' | 'manage',
         savedChart: {

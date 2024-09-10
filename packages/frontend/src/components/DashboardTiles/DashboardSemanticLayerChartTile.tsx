@@ -1,18 +1,17 @@
-import { subject } from '@casl/ability';
 import {
     ChartKind,
     isVizTableConfig,
     type DashboardSemanticLayerChartTile,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
-import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
-import { memo, useMemo, type FC } from 'react';
+import { IconAlertCircle } from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
-import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
-import { useApp } from '../../providers/AppProvider';
-import LinkMenuItem from '../common/LinkMenuItem';
-import MantineIcon from '../common/MantineIcon';
+import {
+    useDashboardSemanticLayerChart,
+    useSemanticLayerViewFields,
+} from '../../features/semanticViewer/api/hooks';
+import { SemanticViewerResultsRunner } from '../../features/semanticViewer/runners/SemanticViewerResultsRunner';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { useChartViz } from '../DataViz/hooks/useChartViz';
 import ChartView from '../DataViz/visualizations/ChartView';
@@ -29,80 +28,75 @@ interface Props
 }
 
 /**
- * TODO
+ * TODO:
  * Handle minimal mode
  * handle tabs
+ * handle edit
+ * handle title link that goes to semantic viewer
  */
-const DashboardOptions = memo(
-    ({
-        isEditMode,
-        projectUuid,
-        slug,
-    }: {
-        isEditMode: boolean;
-        projectUuid: string;
-        slug: string;
-    }) => (
-        <LinkMenuItem
-            icon={<MantineIcon icon={IconFilePencil} />}
-            href={`/projects/${projectUuid}/sql-runner/${slug}/edit`}
-            disabled={isEditMode}
-            target="_blank"
-        >
-            Edit SQL chart
-        </LinkMenuItem>
-    ),
-);
 
 const SemanticLayerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
-    const { user } = useApp();
-
     const { projectUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
-    const savedSqlUuid = tile.properties.savedSemanticLayerUuid;
-    const { data, isLoading, error } = useDashboardSqlChart({
-        projectUuid,
-        savedSqlUuid,
-    });
 
-    const canManageSqlRunner = user.data?.ability?.can(
-        'manage',
-        subject('SqlRunner', {
-            organizationUuid: user.data?.organizationUuid,
+    console.log({ tile, rest });
+
+    const savedSemanticLayerUuid = tile.properties.savedSemanticLayerUuid;
+    const {
+        data,
+        isLoading: isLoadingChart,
+        error: savedError,
+    } = useDashboardSemanticLayerChart(projectUuid, savedSemanticLayerUuid);
+
+    const {
+        data: fields,
+        isLoading: isLoadingFields,
+        error: fieldsError,
+    } = useSemanticLayerViewFields(
+        {
             projectUuid,
-        }),
+            // TODO: save view...
+            view: 'users',
+            selectedFields: {
+                dimensions: data?.chart.semanticLayerQuery.dimensions ?? [],
+                timeDimensions:
+                    data?.chart.semanticLayerQuery.timeDimensions ?? [],
+                metrics: data?.chart.semanticLayerQuery.metrics ?? [],
+            },
+        },
+        { enabled: !!data },
     );
 
-    const sqlRunnerChartData = useMemo(
-        () => ({
+    const chartData = useMemo(() => {
+        return {
             results: data?.resultsAndColumns.results ?? [],
             columns: data?.resultsAndColumns.columns ?? [],
-        }),
-        [data],
-    );
+        };
+    }, [data]);
 
-    const resultsRunner = useMemo(
-        () =>
-            new SqlRunnerResultsRunner({
-                rows: sqlRunnerChartData.results,
-                columns: sqlRunnerChartData.columns,
-            }),
-        [sqlRunnerChartData],
-    );
+    const resultsRunner = useMemo(() => {
+        if (!data || !fields) return;
+
+        return new SemanticViewerResultsRunner({
+            projectUuid,
+            fields,
+            query: data.chart.semanticLayerQuery,
+            rows: chartData.results,
+            columns: [], // TODO: sqlRunnerChartData.columns,
+        });
+    }, [data, fields, projectUuid, chartData.results]);
 
     const [chartVizQuery, chartSpec] = useChartViz({
         projectUuid,
         resultsRunner,
         config: data?.chart.config,
-        uuid: savedSqlUuid ?? undefined,
-        sql: data?.chart.sql,
+        uuid: savedSemanticLayerUuid ?? undefined,
         slug: data?.chart.slug,
-        limit: data?.chart.limit,
     });
 
-    if (isLoading) {
+    if (isLoadingChart || isLoadingFields) {
         return (
             <TileBase
                 isEditMode={isEditMode}
@@ -115,29 +109,22 @@ const SemanticLayerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         );
     }
 
-    if (error !== null || !data) {
+    if (savedError !== null || fieldsError !== null || !data) {
         return (
             <TileBase
                 isEditMode={isEditMode}
                 chartName={tile.properties.chartName ?? ''}
                 tile={tile}
                 title={tile.properties.title || tile.properties.chartName || ''}
-                titleHref={`/projects/${projectUuid}/sql-runner/${error.slug}`}
                 {...rest}
-                extraMenuItems={
-                    canManageSqlRunner &&
-                    error.slug && (
-                        <DashboardOptions
-                            isEditMode={isEditMode}
-                            projectUuid={projectUuid}
-                            slug={error.slug}
-                        />
-                    )
-                }
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title={error?.error?.message || 'No data available'}
+                    title={
+                        savedError?.error?.message ??
+                        fieldsError?.error?.message ??
+                        'No data available'
+                    }
                 />
             </TileBase>
         );
@@ -147,21 +134,13 @@ const SemanticLayerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         <TileBase
             isEditMode={isEditMode}
             chartName={tile.properties.chartName ?? ''}
-            titleHref={`/projects/${projectUuid}/sql-runner/${data.chart.slug}`}
+            titleHref={`/projects/${projectUuid}/semantic-viewer/${data.chart.slug}`}
             tile={tile}
             title={tile.properties.title || tile.properties.chartName || ''}
             {...rest}
-            extraMenuItems={
-                canManageSqlRunner && (
-                    <DashboardOptions
-                        isEditMode={isEditMode}
-                        projectUuid={projectUuid}
-                        slug={data.chart.slug}
-                    />
-                )
-            }
         >
-            {data.chart.config.type === ChartKind.TABLE &&
+            {resultsRunner &&
+                data.chart.config.type === ChartKind.TABLE &&
                 isVizTableConfig(data.chart.config) && (
                     // So that the Table tile isn't cropped by the overflow
                     <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
@@ -171,7 +150,8 @@ const SemanticLayerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                         />
                     </Box>
                 )}
-            {savedSqlUuid &&
+
+            {savedSemanticLayerUuid &&
                 (data.chart.config.type === ChartKind.VERTICAL_BAR ||
                     data.chart.config.type === ChartKind.LINE ||
                     data.chart.config.type === ChartKind.PIE) && (

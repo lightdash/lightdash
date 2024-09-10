@@ -228,4 +228,25 @@ export class SemanticLayerController extends BaseController {
                 .getSemanticLayerChart(req.user!, projectUuid, uuid),
         };
     }
+
+    /**
+     * Get a saved sql chart and its results
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/saved/{uuid}/results-job')
+    @OperationId('getSavedSemanticLayerChartAndResults')
+    async getSavedSemanticLayerChartAndResults(
+        @Path() uuid: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSemanticLayerService()
+                .getSemanticLayerChartResultJob(req.user!, projectUuid, uuid),
+        };
+    }
 }
