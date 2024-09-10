@@ -1,3 +1,10 @@
+# [0.1251.0](https://github.com/lightdash/lightdash/compare/0.1250.1...0.1251.0) (2024-09-10)
+
+
+### Features
+
+* copy access when promoting new private space ([#11473](https://github.com/lightdash/lightdash/issues/11473)) ([7a99fe1](https://github.com/lightdash/lightdash/commit/7a99fe1500bbd4f7d66541be41183fb52af7d206))
+
 ## [0.1250.1](https://github.com/lightdash/lightdash/compare/0.1250.0...0.1250.1) (2024-09-09)
 
 
