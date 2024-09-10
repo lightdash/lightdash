@@ -96,7 +96,6 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
                                     size={8}
                                 />
                             </Box>
-
                             <Panel
                                 id="sql-runner-table-fields"
                                 order={2}
