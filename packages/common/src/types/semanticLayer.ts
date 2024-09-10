@@ -320,3 +320,8 @@ export type ApiSemanticLayerCreateChart = {
         slug: string;
     };
 };
+
+export type ApiSemanticLayerGetChart = {
+    status: 'ok';
+    results: SavedSemanticLayer;
+};

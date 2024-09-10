@@ -3,6 +3,7 @@ import {
     ApiJobScheduledResponse,
     ApiSemanticLayerClientInfo,
     ApiSemanticLayerCreateChart,
+    ApiSemanticLayerGetChart,
     SemanticLayerCreateChart,
     SemanticLayerField,
     SemanticLayerQuery,
@@ -201,6 +202,30 @@ export class SemanticLayerController extends BaseController {
             results: await this.services
                 .getSavedSemanticLayerService()
                 .createSemanticLayerChart(req.user!, projectUuid, body),
+        };
+    }
+
+    /**
+     * Get a saved sql chart
+     * @param projectUuid the uuid for the project
+     * @param uuid the uuid for the saved sql chart
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/saved/{uuid}')
+    @OperationId('getSavedSemanticLayerChart')
+    async getSavedSemanticLayerChart(
+        @Path() uuid: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSemanticLayerGetChart> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSemanticLayerService()
+                .getSemanticLayerChart(req.user!, projectUuid, uuid),
         };
     }
 }
