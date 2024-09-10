@@ -1,3 +1,10 @@
+# [0.1252.0](https://github.com/lightdash/lightdash/compare/0.1251.0...0.1252.0) (2024-09-10)
+
+
+### Features
+
+* loading error states for sql runner catalog ([#11491](https://github.com/lightdash/lightdash/issues/11491)) ([72976bc](https://github.com/lightdash/lightdash/commit/72976bcaef9aa695c8d498f7477a8ad05d7eeae1))
+
 # [0.1251.0](https://github.com/lightdash/lightdash/compare/0.1250.1...0.1251.0) (2024-09-10)
 
 
