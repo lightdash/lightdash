@@ -60,9 +60,12 @@ const FiltersModal: FC<FiltersModalProps> = ({
                     ? 'Results'
                     : 'Other fields',
             }))
-            .sort((a, b) =>
-                a.group === 'Results' && b.group !== 'Results' ? 0 : 1,
-            );
+            .sort((a, b) => {
+                const aValue = a.group === 'Results' ? 1 : -1;
+                const bValue = b.group === 'Results' ? 1 : -1;
+
+                return bValue - aValue;
+            });
     }, [allSelectedFieldNames, fields]);
 
     const handleApply = useCallback(() => {
