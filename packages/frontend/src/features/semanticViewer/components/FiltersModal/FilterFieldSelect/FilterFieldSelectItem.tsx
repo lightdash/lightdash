@@ -1,7 +1,7 @@
 import type { SemanticLayerField } from '@lightdash/common';
 import { Group, type GroupProps } from '@mantine/core';
 import { forwardRef } from 'react';
-import FieldIcon from '../FieldIcon';
+import FieldIcon from '../../FieldIcon';
 
 interface ItemProps extends GroupProps {
     field: SemanticLayerField;

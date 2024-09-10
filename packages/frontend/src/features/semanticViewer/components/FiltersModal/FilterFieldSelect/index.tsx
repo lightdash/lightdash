@@ -16,8 +16,8 @@ import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { createFilterForOperator } from '../createFilterForOperator';
-import FilterFieldSelectItem from '../FilterFieldSelectItem';
 import getOperatorString from '../getOperatorString';
+import FilterFieldSelectItem from './FilterFieldSelectItem';
 
 type FilterFieldSelectProps = {
     availableFieldOptions: SelectItem[];

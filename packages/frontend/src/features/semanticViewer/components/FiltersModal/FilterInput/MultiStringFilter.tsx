@@ -8,7 +8,7 @@ import {
 import { Group, Select, type SelectItem } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import FilterMultiStringInput from '../../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
-import FilterFieldSelectItem from '../FilterFieldSelectItem';
+import FilterFieldSelectItem from '../FilterFieldSelect/FilterFieldSelectItem';
 import getOperatorString from '../getOperatorString';
 
 type MultiStringFilterProps = {
