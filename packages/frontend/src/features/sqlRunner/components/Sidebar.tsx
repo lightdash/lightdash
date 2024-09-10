@@ -76,7 +76,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
             >
                 <TablesPanel
                     isLoading={isLoading}
-                 error={error?.error.message || null}
+                    error={error?.error.message || null}
                 />
             </Stack>
 
