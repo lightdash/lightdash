@@ -267,17 +267,20 @@ export const isSemanticLayerRelativeTimeOperator = (
 export function isSemanticLayerStringFilter(
     filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
 ): filter is SemanticLayerStringFilter {
-    return (
-        filter.fieldType === SemanticLayerFieldType.STRING &&
-        isSemanticLayerBaseOperator(filter.operator)
-    );
+    return filter.fieldType === SemanticLayerFieldType.STRING;
+}
+
+export function isSemanticLayerTimeFilter(
+    filter: Pick<SemanticLayerFilter, 'fieldType'>,
+): filter is SemanticLayerTimeFilter {
+    return filter.fieldType === SemanticLayerFieldType.TIME;
 }
 
 export function isSemanticLayerExactTimeFilter(
     filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
 ): filter is SemanticLayerExactTimeFilter {
     return (
-        filter.fieldType === SemanticLayerFieldType.TIME &&
+        isSemanticLayerTimeFilter(filter) &&
         isSemanticLayerBaseOperator(filter.operator)
     );
 }
@@ -286,17 +289,8 @@ export function isSemanticLayerRelativeTimeFilter(
     filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
 ): filter is SemanticLayerRelativeTimeFilter {
     return (
-        filter.fieldType === SemanticLayerFieldType.TIME &&
+        isSemanticLayerTimeFilter(filter) &&
         isSemanticLayerRelativeTimeOperator(filter.operator)
-    );
-}
-
-export function isSemanticLayerTimeFilter(
-    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
-): filter is SemanticLayerTimeFilter {
-    return (
-        isSemanticLayerExactTimeFilter(filter) ||
-        isSemanticLayerRelativeTimeFilter(filter)
     );
 }
 
@@ -314,8 +308,9 @@ export function getAvailableSemanticLayerFilterOperators(
             return [];
         case SemanticLayerFieldType.TIME:
             return [
-                SemanticLayerFilterBaseOperator.IS,
-                SemanticLayerFilterBaseOperator.IS_NOT,
+                // TODO: Omitting exact operators for now
+                // SemanticLayerFilterBaseOperator.IS,
+                // SemanticLayerFilterBaseOperator.IS_NOT,
                 SemanticLayerFilterRelativeTimeOperator.IS_TODAY,
                 SemanticLayerFilterRelativeTimeOperator.IS_YESTERDAY,
                 SemanticLayerFilterRelativeTimeOperator.IN_LAST_7_DAYS,

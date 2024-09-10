@@ -31,12 +31,10 @@ const RelativeTimeFilter: FC<RelativeTimeFilterProps> = ({
     filterField,
 }) => {
     const operatorsOpts = useMemo(() => {
-        return filterField?.availableOperators
-            .filter((op) => isSemanticLayerRelativeTimeOperator(op))
-            .map((operator) => ({
-                value: operator,
-                label: getOperatorString(operator),
-            }));
+        return filterField?.availableOperators.map((operator) => ({
+            value: operator,
+            label: getOperatorString(operator),
+        }));
     }, [filterField]);
 
     const theme = useMantineTheme();

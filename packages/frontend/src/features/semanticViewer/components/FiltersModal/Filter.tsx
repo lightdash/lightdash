@@ -14,7 +14,6 @@ import {
     Group,
     Menu,
     rem,
-    Select,
     Stack,
     Text,
     useMantineTheme,
@@ -26,15 +25,12 @@ import {
     IconPlus,
     IconRefresh,
     IconTrash,
-    IconX,
 } from '@tabler/icons-react';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import useToaster from '../../../../hooks/toaster/useToaster';
-import { createFilterForOperator } from './createFilterForOperator';
 import FilterButton from './FilterButton';
+import FilterFieldSelect from './FilterFieldSelect';
 import FilterInput from './FilterInput';
 
 enum AndOr {
@@ -152,7 +148,6 @@ const Filter: FC<FilterProps> = ({
     nestedFilterProps,
     isFirstRootFilter,
 }) => {
-    const { showToastError } = useToaster();
     const theme = useMantineTheme();
     const [isAddingNestedFilter, setIsAddingNestedFilter] = useState(false);
 
@@ -299,41 +294,13 @@ const Filter: FC<FilterProps> = ({
     );
 
     const handleAddNestedFilter = useCallback(
-        (fieldName: string) => {
-            const field = allFields?.find((f) => f.name === fieldName);
-
-            if (!field) {
-                showToastError({
-                    title: 'Error',
-                    subtitle: 'Field not found',
-                });
-                return;
-            }
-
-            const defaultOperator = field.availableOperators[0];
-
-            if (!defaultOperator) {
-                showToastError({
-                    title: 'Error',
-                    subtitle: 'No filter operators available for this field',
-                });
-                return;
-            }
-
-            const newFilter = createFilterForOperator({
-                uuid: uuidv4(),
-                field: fieldName,
-                fieldKind: field.kind,
-                fieldType: field.type,
-                operator: defaultOperator,
-            });
-
+        (newFilter: SemanticLayerFilter) => {
             handleUpdateFilter({
                 ...filter,
                 and: [...(filter.and ?? []), newFilter],
             });
         },
-        [allFields, filter, handleUpdateFilter, showToastError],
+        [filter, handleUpdateFilter],
     );
 
     const handleMoveFilterToAnd = useCallback(
@@ -554,28 +521,15 @@ const Filter: FC<FilterProps> = ({
 
                 {isAddingNestedFilter && (
                     <Group spacing="xs" style={{ zIndex: 3 }}>
-                        <Select
-                            size="xs"
-                            data={fieldOptions}
-                            placeholder="Select field"
-                            searchable
-                            withinPortal={true}
-                            onChange={(value) => {
+                        <FilterFieldSelect
+                            availableFieldOptions={fieldOptions}
+                            fields={allFields}
+                            onAddFilter={(newFilter) => {
+                                handleAddNestedFilter(newFilter);
                                 setIsAddingNestedFilter(false);
-
-                                if (!value) {
-                                    return;
-                                }
-
-                                handleAddNestedFilter(value);
                             }}
+                            onCancel={() => setIsAddingNestedFilter(false)}
                         />
-                        <ActionIcon
-                            size="xs"
-                            onClick={() => setIsAddingNestedFilter(false)}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
                     </Group>
                 )}
 
