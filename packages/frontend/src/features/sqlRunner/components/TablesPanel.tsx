@@ -20,7 +20,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
     const initialPanelSizes = [80, 20];
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
 
-    // State for controlling the "still loading" message
+    // state for controlling the "still loading" message
     const [showLoadingMessage, setShowLoadingMessage] = useState(false);
 
     const { start, clear } = useTimeout(
