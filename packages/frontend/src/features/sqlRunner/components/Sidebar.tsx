@@ -83,6 +83,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                 offsetScrollbars
                 variant="primary"
                 className="only-vertical"
+                px="sm"
                 sx={{
                     flex: 1,
                     display:
