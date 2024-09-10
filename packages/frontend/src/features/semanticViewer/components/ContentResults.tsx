@@ -20,7 +20,7 @@ enum TabPanel {
 const ContentResults: FC = () => {
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
-    const { results, columns, fields } = useAppSelector(
+    const { results, columnNames, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -40,14 +40,14 @@ const ContentResults: FC = () => {
         return new SemanticViewerResultsRunner({
             query: semanticQuery,
             rows: results ?? [],
-            columns: columns ?? [],
+            columnNames: columnNames ?? [],
             projectUuid: semanticViewerInfo.projectUuid,
             fields,
         });
     }, [
         semanticQuery,
         results,
-        columns,
+        columnNames,
         semanticViewerInfo.projectUuid,
         fields,
     ]);

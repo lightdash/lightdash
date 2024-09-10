@@ -25,7 +25,7 @@ const ContentCharts: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
-    const { results, columns, activeChartKind, fields } = useAppSelector(
+    const { results, columnNames, activeChartKind, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -33,11 +33,11 @@ const ContentCharts: FC = () => {
         return new SemanticViewerResultsRunner({
             query: semanticQuery,
             rows: results ?? [],
-            columns: columns ?? [],
+            columnNames: columnNames ?? [],
             projectUuid,
             fields,
         });
-    }, [columns, fields, projectUuid, results, semanticQuery]);
+    }, [columnNames, fields, projectUuid, results, semanticQuery]);
 
     const vizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
@@ -64,7 +64,8 @@ const ContentCharts: FC = () => {
             projectUuid,
             query: semanticQuery,
             rows: chartVizQuery.data?.results ?? [],
-            columns: chartVizQuery.data?.columns ?? [],
+            columnNames:
+                chartVizQuery.data?.columns.map((c) => c.reference) ?? [],
             fields: fields,
         });
     }, [

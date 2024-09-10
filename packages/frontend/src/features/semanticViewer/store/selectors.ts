@@ -120,20 +120,23 @@ export const selectSemanticLayerQuery = createSelector(
 );
 
 export const selectResultsTableVizConfig = createSelector(
-    [selectAllSelectedFieldNames, (s: RootState) => s.semanticViewer.columns],
-    (allSelectedFieldNames, columns): VizTableColumnsConfig => {
-        const selectedColumns = columns.filter((c) =>
-            allSelectedFieldNames.includes(c.reference),
+    [
+        selectAllSelectedFieldNames,
+        (s: RootState) => s.semanticViewer.columnNames,
+    ],
+    (allSelectedFieldNames, columnNames): VizTableColumnsConfig => {
+        const selectedColumns = columnNames.filter((c) =>
+            allSelectedFieldNames.includes(c),
         );
 
         return {
             columns: Object.fromEntries(
                 selectedColumns.map((c) => [
-                    c.reference,
+                    c,
                     {
                         visible: true,
-                        reference: c.reference,
-                        label: c.reference,
+                        reference: c,
+                        label: c,
                         frozen: false,
                     },
                 ]),

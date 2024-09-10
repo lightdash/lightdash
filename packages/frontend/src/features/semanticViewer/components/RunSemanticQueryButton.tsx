@@ -33,9 +33,8 @@ export const RunSemanticQueryButton: FC = () => {
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const { limit, activeChartKind, columns, results, fields } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const { limit, activeChartKind, columnNames, results, fields } =
+        useAppSelector((state) => state.semanticViewer);
     const currentVizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, activeChartKind),
     );
@@ -60,15 +59,16 @@ export const RunSemanticQueryButton: FC = () => {
 
     useEffect(() => {
         if (!resultsColumns || !resultsData) return;
-
-        dispatch(setResults({ results: resultsData, columns }));
-    }, [dispatch, resultsData, resultsColumns, fields, columns]);
+        dispatch(
+            setResults({ results: resultsData, columnNames: resultsColumns }),
+        );
+    }, [dispatch, resultsData, resultsColumns, fields, requestData]);
 
     useEffect(() => {
         const resultsRunner = new SemanticViewerResultsRunner({
             query: semanticQuery,
             rows: results,
-            columns,
+            columnNames,
             projectUuid,
             fields,
         });
@@ -82,7 +82,7 @@ export const RunSemanticQueryButton: FC = () => {
         dispatch(setChartOptionsAndConfig(chartResultOptions));
     }, [
         activeChartKind,
-        columns,
+        columnNames,
         currentVizConfig,
         dispatch,
         projectUuid,

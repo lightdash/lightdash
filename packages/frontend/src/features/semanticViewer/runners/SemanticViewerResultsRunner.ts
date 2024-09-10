@@ -74,9 +74,9 @@ export class SemanticViewerResultsRunner
 
     private readonly fields: SemanticLayerField[];
 
-    private readonly rows: RawResultRow[];
+    private readonly availableFields: SemanticLayerField[];
 
-    private readonly columns: VizColumn[];
+    private readonly rows: RawResultRow[];
 
     private readonly dimensions: SemanticLayerField[];
 
@@ -87,27 +87,30 @@ export class SemanticViewerResultsRunner
         projectUuid,
         fields,
         rows,
-        columns,
+        columnNames,
     }: {
         query: SemanticLayerQuery;
         projectUuid: string;
         rows: RawResultRow[];
-        columns: VizColumn[];
+        columnNames: string[];
         fields: SemanticLayerField[];
     }) {
         this.query = query;
         this.projectUuid = projectUuid;
         this.fields = fields;
-        this.dimensions = fields.filter(
-            (field) => field.kind === FieldType.DIMENSION,
-        );
-        this.metrics = fields.filter(
-            (field) => field.kind === FieldType.METRIC,
-        );
 
         this.rows = rows;
 
-        this.columns = columns;
+        this.availableFields = fields.filter((f) =>
+            columnNames.includes(f.name),
+        );
+
+        this.dimensions = this.availableFields.filter(
+            (field) => field.kind === FieldType.DIMENSION,
+        );
+        this.metrics = this.availableFields.filter(
+            (field) => field.kind === FieldType.METRIC,
+        );
     }
 
     pivotChartOptions(): {
