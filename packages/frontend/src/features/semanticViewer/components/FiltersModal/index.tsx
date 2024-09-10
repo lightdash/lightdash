@@ -85,6 +85,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
             p="sm"
             radius="md"
         >
+            {/* data-autofocus so that the focus remains inside the modal but doesn't try to focus a filter input and open the dropdown */}
             <Stack align="flex-start" spacing="sm" data-autofocus>
                 {filters.map((filter, index) => (
                     <Filter
