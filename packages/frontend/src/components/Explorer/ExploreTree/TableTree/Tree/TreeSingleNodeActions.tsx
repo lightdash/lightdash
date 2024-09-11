@@ -108,6 +108,27 @@ const TreeSingleNodeActions: FC<Props> = ({
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
 
+    const newCustomMetric = (item:AdditionalMetric) => {
+        const newDeepCopyItem = JSON.parse(
+            JSON.stringify(item),
+        );
+        let newId=uuidv4()
+        newDeepCopyItem.label =
+            'Copy ' + newDeepCopyItem.label;
+        newDeepCopyItem.uuid = newId;
+        newDeepCopyItem.name = newDeepCopyItem.name +"_"+newId;
+        addAdditionalMetric(newDeepCopyItem);
+      };
+      const newCustomDimension = (item:CustomDimension) => {
+        const newDeepCopyItem = JSON.parse(
+            JSON.stringify(item),
+        );
+        let newId=uuidv4();
+        newDeepCopyItem.name =
+            'Copy ' + newDeepCopyItem.name;
+        newDeepCopyItem.id =  newDeepCopyItem.id+"_"+newId;
+        addAdditionalDimension(newDeepCopyItem);
+      };
     return isHovered || isSelected || isOpened ? (
         <Menu
             withArrow
@@ -158,15 +179,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             icon={<MantineIcon icon={IconCopy} />}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                const newDeepCopyItem = JSON.parse(
-                                    JSON.stringify(item),
-                                );
-                                newDeepCopyItem.label =
-                                    'Copy ' + newDeepCopyItem.label;
-                                newDeepCopyItem.name =
-                                    'copy_' + newDeepCopyItem.name;
-                                newDeepCopyItem.uuid = uuidv4();
-                                addAdditionalMetric(newDeepCopyItem);
+                                newCustomMetric(item);
                                 track({
                                     name: EventName.ADD_CUSTOM_METRIC_CLICKED,
                                 });
@@ -229,14 +242,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             icon={<MantineIcon icon={IconCopy} />}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                const newDeepCopyItem = JSON.parse(
-                                    JSON.stringify(item),
-                                );
-                                newDeepCopyItem.name =
-                                    'Copy ' + newDeepCopyItem.name;
-                                newDeepCopyItem.id =
-                                    'copy_' + newDeepCopyItem.id;
-                                addAdditionalDimension(newDeepCopyItem);
+                                newCustomDimension(item);
                                 track({
                                     name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
                                 });
