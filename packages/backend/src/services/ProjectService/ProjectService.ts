@@ -1532,6 +1532,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         chartUuid: string,
         context: QueryExecutionContext,
+        queryTags?: RunQueryTags,
     ): Promise<{ rows: Record<string, any>[]; cacheMetadata: CacheMetadata }> {
         return wrapSentryTransaction(
             'getResultsForChartWithWarehouseQuery',
@@ -1552,6 +1553,7 @@ export class ProjectService extends BaseService {
                     csvLimit: undefined,
                     context,
                     chartUuid,
+                    queryTags,
                 });
             },
         );
