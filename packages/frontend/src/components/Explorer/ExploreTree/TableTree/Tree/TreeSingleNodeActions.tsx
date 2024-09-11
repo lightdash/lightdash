@@ -108,7 +108,7 @@ const TreeSingleNodeActions: FC<Props> = ({
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
 
-    const newCustomMetric = (item:AdditionalMetric) => {
+    const duplicateCustomMetric = (item:AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(
             JSON.stringify(item),
         );
@@ -119,7 +119,7 @@ const TreeSingleNodeActions: FC<Props> = ({
         newDeepCopyItem.name = newDeepCopyItem.name +"_"+newId;
         addAdditionalMetric(newDeepCopyItem);
       };
-      const newCustomDimension = (item:CustomDimension) => {
+      const duplicateCustomDimension = (item:CustomDimension) => {
         const newDeepCopyItem = JSON.parse(
             JSON.stringify(item),
         );
@@ -179,7 +179,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             icon={<MantineIcon icon={IconCopy} />}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                newCustomMetric(item);
+                                duplicateCustomMetric(item);
                                 track({
                                     name: EventName.ADD_CUSTOM_METRIC_CLICKED,
                                 });
@@ -242,7 +242,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                             icon={<MantineIcon icon={IconCopy} />}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                newCustomDimension(item);
+                                duplicateCustomDimension(item);
                                 track({
                                     name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
                                 });
