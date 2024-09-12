@@ -1,3 +1,10 @@
+## [0.1254.1](https://github.com/lightdash/lightdash/compare/0.1254.0...0.1254.1) (2024-09-12)
+
+
+### Performance Improvements
+
+* use web workers to get results from stream ([#11492](https://github.com/lightdash/lightdash/issues/11492)) ([490ca83](https://github.com/lightdash/lightdash/commit/490ca8329a9f14268132677b1b394a5d36cf6cbc))
+
 # [0.1254.0](https://github.com/lightdash/lightdash/compare/0.1253.0...0.1254.0) (2024-09-10)
 
 
