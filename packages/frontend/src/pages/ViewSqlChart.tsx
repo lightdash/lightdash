@@ -183,50 +183,60 @@ const ViewSqlChart = () => {
                                 onChange={(val: TabOption) => setActiveTab(val)}
                             />
                         </Group>
-                        <ActionIcon
-                            variant="default"
-                            disabled={!dataUrl}
-                            onClick={() => {
-                                if (dataUrl) {
-                                    void getResultsFromStream<RawResultRow>(
-                                        dataUrl,
-                                    ).then((results) => {
-                                        const columns =
-                                            chartVizQuery.data?.columns ||
-                                            data?.columns ||
-                                            [];
-                                        const columnReferences = columns.map(
-                                            (col) => col.reference,
-                                        );
-                                        const csvContent = [
-                                            columnReferences?.join(','),
-                                            ...results.map((row) =>
-                                                Object.values(row).join(','),
-                                            ),
-                                        ].join('\n');
+                        {activeTab === TabOption.RESULTS && (
+                            <ActionIcon
+                                variant="default"
+                                disabled={!dataUrl}
+                                onClick={() => {
+                                    if (dataUrl) {
+                                        void getResultsFromStream<RawResultRow>(
+                                            dataUrl,
+                                        ).then((results) => {
+                                            const columns =
+                                                chartVizQuery.data?.columns ||
+                                                data?.columns ||
+                                                [];
+                                            const columnReferences =
+                                                columns.map(
+                                                    (col) => col.reference,
+                                                );
+                                            const csvContent = [
+                                                columnReferences?.join(','),
+                                                ...results.map((row) =>
+                                                    Object.values(row).join(
+                                                        ',',
+                                                    ),
+                                                ),
+                                            ].join('\n');
 
-                                        const blob = new Blob([csvContent], {
-                                            type: 'text/csv;charset=utf-8;',
+                                            const blob = new Blob(
+                                                [csvContent],
+                                                {
+                                                    type: 'text/csv;charset=utf-8;',
+                                                },
+                                            );
+                                            const url =
+                                                URL.createObjectURL(blob);
+                                            const link =
+                                                document.createElement('a');
+                                            link.href = url;
+                                            link.setAttribute(
+                                                'download',
+                                                `${
+                                                    sqlChart?.name ||
+                                                    'sql_results'
+                                                }.csv`,
+                                            );
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
                                         });
-                                        const url = URL.createObjectURL(blob);
-                                        const link =
-                                            document.createElement('a');
-                                        link.href = url;
-                                        link.setAttribute(
-                                            'download',
-                                            `${
-                                                sqlChart?.name || 'sql_results'
-                                            }.csv`,
-                                        );
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                    });
-                                }
-                            }}
-                        >
-                            <MantineIcon icon={IconDownload} />
-                        </ActionIcon>
+                                    }
+                                }}
+                            >
+                                <MantineIcon icon={IconDownload} />
+                            </ActionIcon>
+                        )}
                     </Group>
 
                     {chartError && <ErrorState error={chartError.error} />}
