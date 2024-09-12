@@ -211,6 +211,7 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
+                url: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
@@ -254,6 +255,7 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         );
 
         return {
+            url: undefined,
             results,
             indexColumn,
             valuesColumns,
