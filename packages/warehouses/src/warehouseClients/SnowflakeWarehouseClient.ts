@@ -23,8 +23,17 @@ import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
+const assertIsSnowflakeLoggingLevel = (
+    x: string | undefined,
+): x is 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE' =>
+    x !== undefined && ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'].includes(x);
+
 // Prevent snowflake sdk from flooding the output with info logs
-configure({ logLevel: 'ERROR' });
+configure({
+    logLevel: assertIsSnowflakeLoggingLevel(process.env.SNOWFLAKE_SDK_LOG_LEVEL)
+        ? process.env.SNOWFLAKE_SDK_LOG_LEVEL
+        : 'ERROR',
+});
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
