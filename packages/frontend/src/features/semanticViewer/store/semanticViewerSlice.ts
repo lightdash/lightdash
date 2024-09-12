@@ -273,17 +273,8 @@ export const semanticViewerSlice = createSlice({
         setFields: (state, action: PayloadAction<SemanticLayerField[]>) => {
             state.fields = action.payload;
         },
-        addFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
-            state.filters.push(action.payload);
-        },
-        removeFilter: (state, action: PayloadAction<string>) => {
-            const filterIndex = state.filters.findIndex(
-                (filter) => filter.uuid === action.payload,
-            );
-
-            if (filterIndex !== -1) {
-                state.filters.splice(filterIndex, 1);
-            }
+        setFilters: (state, action: PayloadAction<SemanticLayerFilter[]>) => {
+            state.filters = action.payload;
         },
         updateFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
             const filterIndex = state.filters.findIndex(
@@ -346,9 +337,7 @@ export const {
     deselectField,
     setLimit,
     updateTimeDimensionGranularity,
-    addFilter,
-    removeFilter,
-    updateFilter,
+    setFilters,
     setIsFiltersModalOpen,
     addFilterAndOpenModal,
     updateSortBy,
