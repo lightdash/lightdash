@@ -40,6 +40,7 @@ export const getSqlChartResults = async ({
     const results = await getResultsFromStream<RawResultRow>(url);
 
     return {
+        url: url!,
         results,
         columns:
             isApiSqlRunnerJobSuccessResponse(job) &&
@@ -61,7 +62,10 @@ export const useSqlChartResults = (
     projectUuid: string,
     slug: string | undefined,
 ) => {
-    return useQuery<ResultsAndColumns | undefined, ApiError>(
+    return useQuery<
+        (ResultsAndColumns & { url: string }) | undefined,
+        ApiError
+    >(
         ['sqlChartResults', projectUuid, slug],
         () => {
             return getSqlChartResults({

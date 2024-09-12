@@ -122,6 +122,8 @@ const ViewSqlChart = () => {
         dispatch(setDataUrl(chartVizQuery.data.url));
     }, [chartVizQuery, dispatch]);
 
+    const dataUrl = chartVizQuery?.data?.url || data?.url;
+
     return (
         <Page
             title="SQL chart"
@@ -177,17 +179,26 @@ const ViewSqlChart = () => {
                             leftIcon={<MantineIcon icon={IconDownload} />}
                             variant="default"
                             size="xs"
-                            disabled={!chartVizQuery?.data?.url}
+                            disabled={!dataUrl}
                             onClick={() => {
-                                if (chartVizQuery?.data?.url) {
+                                if (dataUrl) {
                                     void getResultsFromStream<RawResultRow>(
-                                        chartVizQuery.data.url,
+                                        dataUrl,
                                     ).then((results) => {
-                                        const csvContent = results
-                                            .map((row) =>
+                                        const columns =
+                                            chartVizQuery.data?.columns ||
+                                            data?.columns ||
+                                            [];
+                                        const columnReferences = columns.map(
+                                            (col) => col.reference,
+                                        );
+                                        const csvContent = [
+                                            columnReferences?.join(','),
+                                            ...results.map((row) =>
                                                 Object.values(row).join(','),
-                                            )
-                                            .join('\n');
+                                            ),
+                                        ].join('\n');
+
                                         const blob = new Blob([csvContent], {
                                             type: 'text/csv;charset=utf-8;',
                                         });
