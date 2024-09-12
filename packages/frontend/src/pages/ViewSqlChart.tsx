@@ -1,7 +1,7 @@
 import { isVizTableConfig, type RawResultRow } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
-    Button,
     Group,
     Paper,
     SegmentedControl,
@@ -175,10 +175,8 @@ const ViewSqlChart = () => {
                                 onChange={(val: TabOption) => setActiveTab(val)}
                             />
                         </Group>
-                        <Button
-                            leftIcon={<MantineIcon icon={IconDownload} />}
+                        <ActionIcon
                             variant="default"
-                            size="xs"
                             disabled={!dataUrl}
                             onClick={() => {
                                 if (dataUrl) {
@@ -219,8 +217,8 @@ const ViewSqlChart = () => {
                                 }
                             }}
                         >
-                            Download CSV
-                        </Button>
+                            <MantineIcon icon={IconDownload} />
+                        </ActionIcon>
                     </Group>
 
                     {chartError && <ErrorState error={chartError.error} />}
