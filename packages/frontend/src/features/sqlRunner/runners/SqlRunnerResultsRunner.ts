@@ -43,7 +43,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
     if (isApiSqlRunnerJobPivotQuerySuccessResponse(job)) {
         const url =
             job.details && !isErrorDetails(job.details)
-                ? job.details.fileUrl
+                ? job.details.url
                 : undefined;
         const results = await getResultsFromStream<RawResultRow>(url);
 
