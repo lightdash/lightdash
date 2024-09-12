@@ -10,18 +10,23 @@ import {
     IconChartHistogram,
     IconTable,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { TableFieldIcon } from '../../../components/DataViz/Icons';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { useSemanticLayerQueryResults } from '../api/hooks';
+import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectAllSelectedFieldsByKind,
+    selectSemanticLayerInfo,
 } from '../store/selectors';
 import {
     EditorTabs,
     setActiveEditorTab,
+    setResults,
     updateSortBy,
 } from '../store/semanticViewerSlice';
 import ContentCharts from './ContentCharts';
@@ -31,9 +36,11 @@ import { RunSemanticQueryButton } from './RunSemanticQueryButton';
 
 const Content: FC = () => {
     const dispatch = useAppDispatch();
+    const { showToastError } = useToaster();
 
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const { results, view, activeEditorTab, sortBy } = useAppSelector(
+    const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
+    const { results, view, activeEditorTab, sortBy, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -49,6 +56,34 @@ const Content: FC = () => {
         allSelectedFieldsByKind.dimensions.length +
         allSelectedFieldsByKind.metrics.length +
         allSelectedFieldsByKind.timeDimensions.length;
+
+    const {
+        data: requestData,
+        mutateAsync: runSemanticViewerQuery,
+        isLoading,
+    } = useSemanticLayerQueryResults(projectUuid, {
+        onError: (data) => {
+            showToastError({
+                title: 'Could not fetch SQL query results',
+                subtitle: data.error.message,
+            });
+        },
+    });
+
+    const resultsData = useMemo(() => requestData?.results, [requestData]);
+    const resultsColumns = useMemo(() => requestData?.columns, [requestData]);
+
+    useEffect(() => {
+        if (!resultsColumns || !resultsData) return;
+
+        const vizColumns =
+            SemanticViewerResultsRunner.convertColumnsToVizColumns(
+                fields,
+                resultsColumns,
+            );
+
+        dispatch(setResults({ results: resultsData, columns: vizColumns }));
+    }, [dispatch, resultsData, resultsColumns, fields]);
 
     return (
         <>
@@ -101,7 +136,10 @@ const Content: FC = () => {
                     {!!view && <Filters />}
                 </Group>
 
-                <RunSemanticQueryButton />
+                <RunSemanticQueryButton
+                    onClick={runSemanticViewerQuery}
+                    isLoading={isLoading}
+                />
             </Group>
             {selectedFieldsCount > 0 && (
                 <Group
@@ -118,8 +156,8 @@ const Content: FC = () => {
                         Sort by:
                     </Text>
                     {Object.entries(allSelectedFieldsByKind).map(
-                        ([kind, fields]) =>
-                            fields.map((field) => {
+                        ([kind, selectedFields]) =>
+                            selectedFields.map((field) => {
                                 // TODO: this is annoying
                                 const normalKind =
                                     kind === 'metrics'

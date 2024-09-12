@@ -1,3 +1,4 @@
+import type { SemanticLayerQuery } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -8,14 +9,12 @@ import {
 } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useCallback, useEffect, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import LimitButton from '../../../components/LimitButton';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { useSemanticLayerQueryResults } from '../api/hooks';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
@@ -23,11 +22,18 @@ import {
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
-import { setLimit, setResults } from '../store/semanticViewerSlice';
+import { setLimit } from '../store/semanticViewerSlice';
 
-export const RunSemanticQueryButton: FC = () => {
+type RunSemanticQueryProps = {
+    onClick: (query: SemanticLayerQuery) => void;
+    isLoading?: boolean;
+};
+
+export const RunSemanticQueryButton: FC<RunSemanticQueryProps> = ({
+    onClick,
+    isLoading,
+}) => {
     const os = useOs();
-    const { showToastError } = useToaster();
 
     const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
@@ -41,34 +47,6 @@ export const RunSemanticQueryButton: FC = () => {
     );
 
     const dispatch = useAppDispatch();
-
-    const {
-        data: requestData,
-        mutateAsync: runSemanticViewerQuery,
-        isLoading,
-    } = useSemanticLayerQueryResults(projectUuid, {
-        onError: (data) => {
-            showToastError({
-                title: 'Could not fetch SQL query results',
-                subtitle: data.error.message,
-            });
-        },
-    });
-
-    const resultsData = useMemo(() => requestData?.results, [requestData]);
-    const resultsColumns = useMemo(() => requestData?.columns, [requestData]);
-
-    useEffect(() => {
-        if (!resultsColumns || !resultsData) return;
-
-        const vizColumns =
-            SemanticViewerResultsRunner.convertColumnsToVizColumns(
-                fields,
-                resultsColumns,
-            );
-
-        dispatch(setResults({ results: resultsData, columns: vizColumns }));
-    }, [dispatch, resultsData, resultsColumns, fields]);
 
     useEffect(() => {
         const resultsRunner = new SemanticViewerResultsRunner({
@@ -98,8 +76,8 @@ export const RunSemanticQueryButton: FC = () => {
     ]);
 
     const handleSubmit = useCallback(
-        () => runSemanticViewerQuery(semanticQuery),
-        [semanticQuery, runSemanticViewerQuery],
+        () => onClick(semanticQuery),
+        [semanticQuery, onClick],
     );
 
     const handleLimitChange = useCallback(
