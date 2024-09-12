@@ -200,14 +200,25 @@ const ViewSqlChart = () => {
                                                 columns.map(
                                                     (col) => col.reference,
                                                 );
+                                            console.log('results', results);
                                             const csvContent = [
                                                 columnReferences?.join(','),
                                                 ...results.map((row) =>
-                                                    Object.values(row).join(
-                                                        ',',
-                                                    ),
+                                                    columnReferences
+                                                        .map((reference) => {
+                                                            return (
+                                                                row[
+                                                                    reference
+                                                                ] || '-'
+                                                            );
+                                                        })
+                                                        .join(','),
                                                 ),
                                             ].join('\n');
+                                            console.log(
+                                                'csvContent',
+                                                csvContent,
+                                            );
 
                                             const blob = new Blob(
                                                 [csvContent],
