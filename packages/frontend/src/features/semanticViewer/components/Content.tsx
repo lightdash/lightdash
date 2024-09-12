@@ -133,7 +133,7 @@ const Content: FC = () => {
                         }}
                     />
 
-                    {!!view && <Filters />}
+                    {!!view && <Filters onApply={runSemanticViewerQuery} />}
                 </Group>
 
                 <RunSemanticQueryButton

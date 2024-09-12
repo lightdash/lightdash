@@ -2,6 +2,7 @@ import {
     FieldType as FieldKind,
     SemanticLayerFieldType,
     type SemanticLayerFilter,
+    type SemanticLayerQuery,
 } from '@lightdash/common';
 import {
     Button,
@@ -16,14 +17,17 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectAllSelectedFieldNames } from '../../store/selectors';
+import {
+    selectAllSelectedFieldNames,
+    selectSemanticLayerQuery,
+} from '../../store/selectors';
 import { setFilters } from '../../store/semanticViewerSlice';
 import Filter from './Filter';
 import FilterButton from './FilterButton';
 import FilterFieldSelect from './FilterFieldSelect';
 
 type FiltersModalProps = ModalProps & {
-    onApply?: () => void;
+    onApply?: (query: SemanticLayerQuery) => void;
 };
 
 const FiltersModal: FC<FiltersModalProps> = ({
@@ -35,6 +39,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
 
     const { filters, fields } = useAppSelector((state) => state.semanticViewer);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
+    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const [draftFilters, setDraftFilters] =
         useState<SemanticLayerFilter[]>(filters);
@@ -84,11 +89,31 @@ const FiltersModal: FC<FiltersModalProps> = ({
         setDraftFilters((prev) => prev.filter((f) => f.uuid !== uuid));
     };
 
+    const shouldRefetchResults = useMemo(() => {
+        const { dimensions, timeDimensions, metrics } = semanticQuery;
+        return (
+            dimensions.length > 0 ||
+            timeDimensions.length > 0 ||
+            metrics.length > 0
+        );
+    }, [semanticQuery]);
+
     const handleApply = useCallback(() => {
         dispatch(setFilters(draftFilters));
-        onApply?.();
+
+        if (shouldRefetchResults) {
+            onApply?.(semanticQuery);
+        }
+
         onClose?.();
-    }, [dispatch, draftFilters, onApply, onClose]);
+    }, [
+        dispatch,
+        draftFilters,
+        onApply,
+        onClose,
+        semanticQuery,
+        shouldRefetchResults,
+    ]);
 
     return (
         <Modal

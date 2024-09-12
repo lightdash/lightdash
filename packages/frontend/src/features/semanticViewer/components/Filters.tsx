@@ -1,3 +1,4 @@
+import type { SemanticLayerQuery } from '@lightdash/common';
 import { Box, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
@@ -6,7 +7,11 @@ import { setIsFiltersModalOpen } from '../store/semanticViewerSlice';
 import BadgeButton from './BadgeButton';
 import FiltersModal from './FiltersModal';
 
-const Filters: FC = () => {
+type FiltersProps = {
+    onApply?: (query: SemanticLayerQuery) => void;
+};
+
+const Filters: FC<FiltersProps> = ({ onApply }) => {
     const { filters } = useAppSelector((state) => state.semanticViewer);
     const filtersCount = useMemo(() => Object.keys(filters).length, [filters]);
 
@@ -45,6 +50,7 @@ const Filters: FC = () => {
                 opened={isFiltersModalOpen}
                 onClose={closeFiltersModal}
                 withCloseButton={false}
+                onApply={onApply}
             />
         </Box>
     );
