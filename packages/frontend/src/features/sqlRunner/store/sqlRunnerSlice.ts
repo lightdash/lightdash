@@ -26,6 +26,7 @@ export interface SqlRunnerState {
     activeTable: string | undefined;
     activeSchema: string | undefined;
     savedSqlChart: SqlChart | undefined;
+    dataUrl: string | undefined;
     name: string;
     description: string;
     sql: string;
@@ -59,6 +60,7 @@ const initialState: SqlRunnerState = {
     activeTable: undefined,
     activeSchema: undefined,
     savedSqlChart: undefined,
+    dataUrl: undefined,
     name: '',
     description: '',
     sql: '',
@@ -102,6 +104,9 @@ export const sqlRunnerSlice = createSlice({
             if (action.payload === true) {
                 state.activeEditorTab = EditorTabs.VISUALIZATION;
             }
+        },
+        setDataUrl: (state, action: PayloadAction<string>) => {
+            state.dataUrl = action.payload;
         },
         setSqlRunnerResults: (
             state,
@@ -209,6 +214,7 @@ export const {
     setProjectUuid,
     setFetchResultsOnLoad,
     setSqlRunnerResults,
+    setDataUrl,
     updateName,
     setSql,
     setSqlLimit,
