@@ -1,3 +1,10 @@
+# [0.1255.0](https://github.com/lightdash/lightdash/compare/0.1254.1...0.1255.0) (2024-09-12)
+
+
+### Features
+
+* download csv results sql chart ([#11510](https://github.com/lightdash/lightdash/issues/11510)) ([bbf6406](https://github.com/lightdash/lightdash/commit/bbf640677ad348e25b3cea588bd3d0edc8171d2d))
+
 ## [0.1254.1](https://github.com/lightdash/lightdash/compare/0.1254.0...0.1254.1) (2024-09-12)
 
 
