@@ -2122,9 +2122,7 @@ export class ProjectService extends BaseService {
         valuesColumns,
         groupByColumns,
     }: SqlRunnerPivotQueryPayload): Promise<
-        {
-            fileUrl: string;
-        } & Omit<PivotChartData, 'results' | 'columns'>
+        Omit<PivotChartData, 'results' | 'columns'>
     > {
         if (!indexColumn) throw new ParameterError('Index column is required');
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -2236,7 +2234,7 @@ export class ProjectService extends BaseService {
         await sshTunnel.disconnect();
 
         return {
-            fileUrl,
+            url: fileUrl,
             valuesColumns: groupByColumns
                 ? Array.from(valuesColumnReferences)
                 : valuesColumns.map(
