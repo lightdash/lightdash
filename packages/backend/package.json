@@ -65,7 +65,7 @@
         "express": "^4.19.2",
         "express-handlebars": "^7.1.2",
         "express-session": "^1.17.2",
-        "express-static-gzip": "^2.1.7",
+        "express-static-gzip": "^2.1.8",
         "express-winston": "^4.2.0",
         "fs-extra": "^10.0.0",
         "fuse.js": "^6.4.6",
