@@ -6,16 +6,19 @@ import {
     type VizAggregationOptions,
     type VizBarChartConfig,
     type VizCartesianChartOptions,
-    type VizChartLayout,
     type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
+export type SqlRunnerPivotChartState = {
+    defaultLayout: SqlRunnerPivotChartLayout | undefined;
+    layout: SqlRunnerPivotChartLayout | undefined;
+};
+
 export type CartesianChartState = {
-    defaultLayout: VizChartLayout | undefined;
-    config: VizBarChartConfig | VizLineChartConfig | undefined;
     options: VizCartesianChartOptions;
+    display: CartesianChartDisplay | undefined;
 };
 
 const initialState: CartesianChartState = {

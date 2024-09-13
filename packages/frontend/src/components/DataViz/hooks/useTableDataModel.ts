@@ -3,7 +3,6 @@ import {
     TableDataModel,
     type IResultsRunner,
     type RawResultRow,
-    type VizChartLayout,
     type VizTableColumnsConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -17,12 +16,12 @@ import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
 
-export const useTableDataModel = <T extends IResultsRunner<VizChartLayout>>({
+export const useTableDataModel = <TLayout>({
     config,
     resultsRunner,
 }: {
     config: VizTableColumnsConfig | undefined;
-    resultsRunner: T;
+    resultsRunner: IResultsRunner<TLayout>;
 }) => {
     const tableModel = useMemo(() => {
         // TODO: currently usage of this hook relies just on columns, change to rely on full config so we don't have to create a dummy config

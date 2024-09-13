@@ -2,7 +2,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     type CartesianChartDisplay,
     type ChartKind,
-    type VizChartLayout,
+    type SqlRunnerPivotChartLayout,
 } from '@lightdash/common';
 import { Group, Stack, TextInput, Tooltip } from '@mantine/core';
 import { IconBrush } from '@tabler/icons-react';
@@ -14,7 +14,7 @@ import { useVizDispatch, type CartesianChartActionsType } from '../store';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 
 export type ConfigurableSeries = {
-    reference: VizChartLayout['y'][number]['reference'];
+    reference: SqlRunnerPivotChartLayout['y'][number]['reference'];
     format: NonNullable<CartesianChartDisplay['series']>[number]['format'];
     label: NonNullable<CartesianChartDisplay['series']>[number]['label'];
     color: NonNullable<CartesianChartDisplay['series']>[number]['color'];

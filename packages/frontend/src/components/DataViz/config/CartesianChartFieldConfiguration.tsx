@@ -1,7 +1,6 @@
 import {
     DimensionType,
     type ChartKind,
-    type VizChartLayout,
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
@@ -10,6 +9,7 @@ import {
 import { ActionIcon, Box } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { type SqlRunnerPivotChartLayout } from '../../../features/sqlRunner/runners/SqlRunnerResultsRunner';
 import MantineIcon from '../../common/MantineIcon';
 import { AddButton } from '../../VisualizationConfigs/common/AddButton';
 import { Config } from '../../VisualizationConfigs/common/Config';
@@ -23,7 +23,7 @@ import { cartesianChartSelectors } from '../store/selectors';
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 const YFieldsAxisConfig: FC<{
-    field: VizChartLayout['y'][number];
+    field: SqlRunnerPivotChartLayout['y'][number];
     yLayoutOptions: VizValuesLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -113,7 +113,7 @@ const XFieldAxisConfig = ({
 }: {
     columns: VizColumn[];
 
-    field: VizChartLayout['x'] | undefined;
+    field: SqlRunnerPivotChartLayout['x'] | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {

@@ -10,17 +10,18 @@ import {
     type SemanticLayerField,
     type SemanticLayerPivot,
     type SemanticLayerQuery,
-    type VizChartLayout,
+    type SemanticViewerPivotChartLayout,
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { intersectionBy } from 'lodash';
+import { type SqlRunnerPivotChartLayout } from '../../sqlRunner/runners/SqlRunnerResultsRunner';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
 const transformChartLayoutToSemanticPivot = (
-    config: VizChartLayout,
+    config: SemanticViewerPivotChartLayout,
 ): SemanticLayerPivot => {
     if (!config.x) {
         throw new Error('X is required');
@@ -66,7 +67,7 @@ function getVizIndexTypeFromDimensionType(
 }
 
 export class SemanticViewerResultsRunner
-    implements IResultsRunner<VizChartLayout>
+    implements IResultsRunner<SqlRunnerPivotChartLayout>
 {
     private readonly query: SemanticLayerQuery;
 
@@ -133,7 +134,7 @@ export class SemanticViewerResultsRunner
         };
     }
 
-    defaultPivotChartLayout(): VizChartLayout | undefined {
+    defaultPivotChartLayout(): SemanticViewerPivotChartLayout | undefined {
         const xColumn = this.dimensions[0];
         const yColumn = this.metrics[0];
 
@@ -179,7 +180,7 @@ export class SemanticViewerResultsRunner
     }
 
     async getPivotedVisualizationData(
-        config: VizChartLayout,
+        config: SqlRunnerPivotChartLayout,
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
@@ -230,7 +231,7 @@ export class SemanticViewerResultsRunner
         };
     }
 
-    mergePivotChartLayout(currentConfig?: VizChartLayout) {
+    mergePivotChartLayout(currentConfig?: SqlRunnerPivotChartLayout) {
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =

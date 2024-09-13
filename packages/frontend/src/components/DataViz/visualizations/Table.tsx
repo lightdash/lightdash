@@ -1,7 +1,7 @@
 import {
     type IResultsRunner,
     type RawResultRow,
-    type VizChartLayout,
+    type SqlRunnerPivotChartLayout,
     type VizColumnsConfig,
 } from '@lightdash/common';
 import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
@@ -16,13 +16,13 @@ import {
 } from '../../common/Table/Table.styles';
 import { useTableDataModel } from '../hooks/useTableDataModel';
 
-type TableProps<T extends IResultsRunner<VizChartLayout>> = {
+type TableProps<T extends IResultsRunner<SqlRunnerPivotChartLayout>> = {
     columnsConfig: VizColumnsConfig;
     resultsRunner: T;
     flexProps?: FlexProps;
 };
 
-export const Table = <T extends IResultsRunner<VizChartLayout>>({
+export const Table = <T extends IResultsRunner<SqlRunnerPivotChartLayout>>({
     resultsRunner,
     columnsConfig,
     flexProps,

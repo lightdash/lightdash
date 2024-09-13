@@ -60,7 +60,7 @@ export type VizPivotLayoutOptions = {
     reference: string;
 };
 
-export type VizChartLayout = {
+export type SemanticViewerPivotChartLayout = {
     x:
         | {
               reference: string;
@@ -69,7 +69,6 @@ export type VizChartLayout = {
         | undefined;
     y: {
         reference: string;
-        aggregation?: VizAggregationOptions;
     }[];
     groupBy: { reference: string }[] | undefined;
 };
@@ -129,25 +128,25 @@ export type VizBaseConfig = {
 
 export type VizCartesianChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
-    fieldConfig: VizChartLayout | undefined;
+    fieldConfig: SqlRunnerPivotChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizBarChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR;
-    fieldConfig: VizChartLayout | undefined;
+    fieldConfig: SqlRunnerPivotChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizLineChartConfig = VizBaseConfig & {
     type: ChartKind.LINE;
-    fieldConfig: VizChartLayout | undefined; // PR NOTE: types are identical
+    fieldConfig: SqlRunnerPivotChartLayout | undefined; 
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizPieChartConfig = VizBaseConfig & {
     type: ChartKind.PIE;
-    fieldConfig: VizChartLayout | undefined; // PR NOTE: this will break serialization to the database (types are different)
+    fieldConfig: SqlRunnerPivotChartLayout | undefined;
     display: VizPieChartDisplay | undefined;
 };
 

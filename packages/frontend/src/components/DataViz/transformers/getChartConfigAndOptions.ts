@@ -9,11 +9,10 @@ import {
     TableDataModel,
     type IResultsRunner,
     type VizChartConfig,
-    type VizChartLayout,
 } from '@lightdash/common';
 
 const getChartConfigAndOptions = (
-    resultsRunner: IResultsRunner<VizChartLayout>,
+    resultsRunner: IResultsRunner<SqlRunnerPivotChartLayout>,
     chartType: ChartKind,
     currentVizConfig?: VizChartConfig,
 ) => {

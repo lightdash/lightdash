@@ -1,29 +1,18 @@
 import { type ChartKind } from '../types/savedCharts';
 import {
     type PivotChartData,
-    type VizChartLayout,
     type VizPieChartConfig,
     type VizPieChartDisplay,
-    type VizPieChartOptions,
 } from './types';
-import { type IChartDataModel } from './types/IChartDataModel';
 import { type IResultsRunner } from './types/IResultsRunner';
 
-export class PieChartDataModel
-    implements
-        IChartDataModel<
-            VizPieChartOptions,
-            VizPieChartConfig,
-            VizPieChartDisplay,
-            ChartKind.PIE
-        >
-{
-    private readonly resultsRunner: IResultsRunner<VizChartLayout>;
+export class PieChartDataModel<TLayout> {
+    private readonly resultsRunner: IResultsRunner<TLayout>;
 
     private readonly fieldConfig: VizPieChartConfig['fieldConfig'];
 
     constructor(args: {
-        resultsRunner: IResultsRunner<VizChartLayout>;
+        resultsRunner: IResultsRunner<TLayout>;
         fieldConfig: VizPieChartConfig['fieldConfig'] | undefined;
     }) {
         this.resultsRunner = args.resultsRunner;
@@ -57,7 +46,7 @@ export class PieChartDataModel
     }
 
     async getTransformedData(
-        layout: VizChartLayout | undefined,
+        layout: TLayout | undefined,
         sql?: string,
         projectUuid?: string,
         limit?: number,

@@ -7,12 +7,10 @@ import {
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
 import {
+    type PivotChartData,
     type VizCartesianChartConfig,
-    type VizCartesianChartOptions,
-    type VizChartLayout,
     type VizIndexType,
 } from './types';
-import { type IChartDataModel } from './types/IChartDataModel';
 import { type IResultsRunner } from './types/IResultsRunner';
 
 type CartesianChartKind = Extract<
@@ -20,23 +18,15 @@ type CartesianChartKind = Extract<
     ChartKind.LINE | ChartKind.VERTICAL_BAR
 >;
 
-export class CartesianChartDataModel
-    implements
-        IChartDataModel<
-            VizCartesianChartOptions,
-            VizCartesianChartConfig,
-            CartesianChartDisplay,
-            CartesianChartKind
-        >
-{
-    private readonly resultsRunner: IResultsRunner<VizChartLayout>;
+export class CartesianChartDataModel<TLayout> {
+    private readonly resultsRunner: IResultsRunner<TLayout>;
 
     private readonly fieldConfig: VizCartesianChartConfig['fieldConfig'];
 
     private colorMap: Map<string, string>;
 
     constructor(args: {
-        resultsRunner: IResultsRunner<VizChartLayout>;
+        resultsRunner: IResultsRunner<TLayout>;
         fieldConfig: VizCartesianChartConfig['fieldConfig'];
     }) {
         this.resultsRunner = args.resultsRunner;
@@ -107,7 +97,7 @@ export class CartesianChartDataModel
     }
 
     async getTransformedData(
-        layout: VizChartLayout | undefined,
+        layout: TLayout | undefined,
         sql?: string,
         projectUuid?: string,
         limit?: number,
@@ -139,7 +129,7 @@ export class CartesianChartDataModel
     }
 
     getEchartsSpec(
-        transformedData: Awaited<ReturnType<typeof this.getTransformedData>>,
+        transformedData: PivotChartData | undefined,
         display: CartesianChartDisplay | undefined,
         type: ChartKind,
         orgColors?: string[],

@@ -9,22 +9,21 @@ import {
     type AllVizChartConfig,
     type IResultsRunner,
     type PivotChartData,
-    type VizChartLayout,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 
-type Args<T extends IResultsRunner<VizChartLayout>> = {
+type Args<TLayout> = {
     projectUuid?: string;
     sql?: string;
     limit?: number;
     slug?: string;
     uuid?: string;
-    resultsRunner: T | undefined;
+    resultsRunner?: IResultsRunner<TLayout>;
     config: AllVizChartConfig | undefined;
 };
-export const useChartViz = <T extends IResultsRunner<VizChartLayout>>({
+export const useChartViz = <TLayout>({
     projectUuid,
     sql,
     limit,
@@ -32,7 +31,7 @@ export const useChartViz = <T extends IResultsRunner<VizChartLayout>>({
     uuid,
     resultsRunner,
     config,
-}: Args<T>) => {
+}: Args<TLayout>) => {
     const org = useOrganization();
 
     const chartDataModel = useMemo(() => {

@@ -12,7 +12,6 @@ import {
     type PivotChartData,
     type RawResultRow,
     type SqlRunnerPivotQueryBody,
-    type VizChartLayout,
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
@@ -22,6 +21,20 @@ import { intersectionBy } from 'lodash';
 import { lightdashApi } from '../../../api';
 import { getResultsFromStream } from '../../../utils/request';
 import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
+
+export type SqlRunnerPivotChartLayout = {
+    x:
+        | {
+              reference: string;
+              type: VizIndexType;
+          }
+        | undefined;
+    y: {
+        reference: string;
+        aggregation: VizAggregationOptions;
+    }[];
+    groupBy: { reference: string }[] | undefined;
+};
 
 const schedulePivotSqlJob = async ({
     projectUuid,
@@ -71,7 +84,9 @@ export type SqlRunnerResultsRunnerDeps = {
     columns: VizColumn[];
 };
 
-export class SqlRunnerResultsRunner implements IResultsRunner<VizChartLayout> {
+export class SqlRunnerResultsRunner
+    implements IResultsRunner<SqlRunnerPivotChartLayout>
+{
     protected readonly rows: RawResultRow[];
 
     protected readonly columns: VizColumn[];
@@ -83,7 +98,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner<VizChartLayout> {
 
     // args should be rows, columns, values (blocked by db migration)
     async getPivotedVisualizationData(
-        config: VizChartLayout,
+        config: SqlRunnerPivotChartLayout,
         sql: string,
         projectUuid: string,
         limit: number,
@@ -226,7 +241,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner<VizChartLayout> {
         };
     }
 
-    defaultPivotChartLayout(): VizChartLayout | undefined {
+    defaultPivotChartLayout(): SqlRunnerPivotChartLayout | undefined {
         const categoricalColumns = this.columns.filter(
             (column) => column.type === DimensionType.STRING,
         );
@@ -252,7 +267,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner<VizChartLayout> {
         if (xColumn === undefined) {
             return undefined;
         }
-        const x: VizChartLayout['x'] = {
+        const x: SqlRunnerPivotChartLayout['x'] = {
             reference: xColumn.reference,
             type: getColumnAxisType(xColumn),
         };
@@ -274,7 +289,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner<VizChartLayout> {
         if (yColumn === undefined) {
             return undefined;
         }
-        const y: VizChartLayout['y'] = [
+        const y: SqlRunnerPivotChartLayout['y'] = [
             {
                 reference: yColumn.reference,
                 aggregation:
@@ -291,7 +306,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner<VizChartLayout> {
         };
     }
 
-    mergePivotChartLayout(currentConfig?: VizChartLayout) {
+    mergePivotChartLayout(currentConfig?: SqlRunnerPivotChartLayout) {
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =

@@ -1,27 +1,14 @@
 import { type ChartKind } from '../types/savedCharts';
-import {
-    type VizChartLayout,
-    type VizTableConfig,
-    type VizTableOptions,
-} from './types';
-import { type IChartDataModel } from './types/IChartDataModel';
+import { type VizTableConfig } from './types';
 import type { IResultsRunner } from './types/IResultsRunner';
 
-export class TableDataModel
-    implements
-        IChartDataModel<
-            VizTableOptions,
-            VizTableConfig,
-            undefined,
-            ChartKind.TABLE
-        >
-{
-    private readonly resultsRunner: IResultsRunner<VizChartLayout>;
+export class TableDataModel<TLayout> {
+    private readonly resultsRunner: IResultsRunner<TLayout>;
 
     private readonly config: VizTableConfig | undefined;
 
     constructor(args: {
-        resultsRunner: IResultsRunner<VizChartLayout>;
+        resultsRunner: IResultsRunner<TLayout>;
         config: VizTableConfig | undefined;
     }) {
         this.resultsRunner = args.resultsRunner;

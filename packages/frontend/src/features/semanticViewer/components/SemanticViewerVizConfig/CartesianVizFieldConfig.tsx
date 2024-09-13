@@ -1,7 +1,7 @@
 import {
     DimensionType,
     type ChartKind,
-    type VizChartLayout,
+    type SemanticViewerPivotChartLayout,
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
@@ -22,7 +22,7 @@ import { AddButton } from '../../../../components/VisualizationConfigs/common/Ad
 import { Config } from '../../../../components/VisualizationConfigs/common/Config';
 
 const YFieldsAxisConfig: FC<{
-    field?: VizChartLayout['y'][number];
+    field?: SemanticViewerPivotChartLayout['y'][number];
     yLayoutOptions: VizValuesLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -88,11 +88,30 @@ const XFieldAxisConfig = ({
 }: {
     columns: VizColumn[];
 
-    field: VizChartLayout['x'] | undefined;
+    field: SemanticViewerPivotChartLayout['x'] | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useVizDispatch();
+    const fieldConfig = useVizSelector((state) => state.con);
+
+    const handleXAxisChange = (value: string | null) => {
+       
+        if (!value) {
+            dispatch(actions.removeXAxisField());
+        } else{
+            if (state.config?.fieldConfig) {
+                state.config.fieldConfig.x = {
+                    reference: action.payload,
+                    type:
+                        state.options.indexLayoutOptions.find(
+                            (x) => x.reference === action.payload,
+                        )?.type ?? VizIndexType.CATEGORY,
+                };
+            }
+            dispatch(actions.setXAxisReference(value))
+        };
+    }
 
     return (
         <FieldReferenceSelect
@@ -103,11 +122,7 @@ const XFieldAxisConfig = ({
             }))}
             value={field?.reference ?? null}
             placeholder="Select X axis"
-            onChange={(value) => {
-                if (!value) {
-                    dispatch(actions.removeXAxisField());
-                } else dispatch(actions.setXAxisReference(value));
-            }}
+            onChange={handleXAxisChange}
             error={
                 field?.reference &&
                 xLayoutOptions.find((x) => x.reference === field.reference) ===
