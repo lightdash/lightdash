@@ -1,3 +1,10 @@
+## [0.1255.1](https://github.com/lightdash/lightdash/compare/0.1255.0...0.1255.1) (2024-09-13)
+
+
+### Bug Fixes
+
+* unfurl sql runner ([#11535](https://github.com/lightdash/lightdash/issues/11535)) ([25f0373](https://github.com/lightdash/lightdash/commit/25f0373e856c09afafac8d506d0bc8d182b30054))
+
 # [0.1255.0](https://github.com/lightdash/lightdash/compare/0.1254.1...0.1255.0) (2024-09-12)
 
 
