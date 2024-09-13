@@ -59,13 +59,12 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     } = useSemanticLayerViewFields(
         {
             projectUuid,
-            // TODO: save view...
-            view: 'users',
+            view: data!.chart.semanticLayerView ?? '', // TODO: this should never be empty or that hook should receive a null view!
             selectedFields: {
-                dimensions: data?.chart.semanticLayerQuery.dimensions ?? [],
+                dimensions: data!.chart.semanticLayerQuery.dimensions ?? [],
                 timeDimensions:
-                    data?.chart.semanticLayerQuery.timeDimensions ?? [],
-                metrics: data?.chart.semanticLayerQuery.metrics ?? [],
+                    data!.chart.semanticLayerQuery.timeDimensions ?? [],
+                metrics: data!.chart.semanticLayerQuery.metrics ?? [],
             },
         },
         { enabled: !!data },
@@ -81,14 +80,20 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const resultsRunner = useMemo(() => {
         if (!data || !fields) return;
 
+        const vizColumns =
+            SemanticViewerResultsRunner.convertColumnsToVizColumns(
+                fields,
+                chartData.columns,
+            );
+
         return new SemanticViewerResultsRunner({
             projectUuid,
             fields,
             query: data.chart.semanticLayerQuery,
             rows: chartData.results,
-            columns: [], // TODO: sqlRunnerChartData.columns,
+            columns: vizColumns,
         });
-    }, [data, fields, projectUuid, chartData.results]);
+    }, [data, fields, chartData.columns, chartData.results, projectUuid]);
 
     const [chartVizQuery, chartSpec] = useChartViz({
         projectUuid,
