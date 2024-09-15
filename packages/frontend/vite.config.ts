@@ -4,6 +4,7 @@ import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
     plugins: [
@@ -18,6 +19,12 @@ export default defineConfig({
             forceBuildCDN: true,
             languageWorkers: ['json'],
         }),
+        VitePWA({ registerType: 'autoUpdate',  manifest: {
+            name: 'lightdash',
+            short_name: 'lightdash',
+            description: 'Self-serve BI to 10x your data team',
+            theme_color: '#ffffff',        
+          }, }),
     ],
     css: {
         transformer: 'lightningcss',
