@@ -20,8 +20,8 @@ export default defineConfig({
             languageWorkers: ['json'],
         }),
         VitePWA({ registerType: 'autoUpdate',  manifest: {
-            name: 'lightdash',
-            short_name: 'lightdash',
+            name: 'Lightdash',
+            short_name: 'Lightdash',
             description: 'Self-serve BI to 10x your data team',
             theme_color: '#ffffff',        
           }, }),
