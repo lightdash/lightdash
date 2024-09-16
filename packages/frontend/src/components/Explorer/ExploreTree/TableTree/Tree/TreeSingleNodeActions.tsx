@@ -108,27 +108,21 @@ const TreeSingleNodeActions: FC<Props> = ({
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
 
-    const duplicateCustomMetric = (item:AdditionalMetric) => {
-        const newDeepCopyItem = JSON.parse(
-            JSON.stringify(item),
-        );
-        let newId=uuidv4()
-        newDeepCopyItem.label =
-            'Copy ' + newDeepCopyItem.label;
+    const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
+        const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
+        let newId = uuidv4();
+        newDeepCopyItem.label = 'Copy ' + newDeepCopyItem.label;
         newDeepCopyItem.uuid = newId;
-        newDeepCopyItem.name = newDeepCopyItem.name +"_"+newId;
+        newDeepCopyItem.name = newDeepCopyItem.name + '_' + newId;
         addAdditionalMetric(newDeepCopyItem);
-      };
-      const duplicateCustomDimension = (item:CustomDimension) => {
-        const newDeepCopyItem = JSON.parse(
-            JSON.stringify(item),
-        );
-        let newId=uuidv4();
-        newDeepCopyItem.name =
-            'Copy ' + newDeepCopyItem.name;
-        newDeepCopyItem.id =  newDeepCopyItem.id+"_"+newId;
+    };
+    const duplicateCustomDimension = (customDimension: CustomDimension) => {
+        const newDeepCopyItem = JSON.parse(JSON.stringify(customDimension));
+        let newId = uuidv4();
+        newDeepCopyItem.name = 'Copy ' + newDeepCopyItem.name;
+        newDeepCopyItem.id = newDeepCopyItem.id + '_' + newId;
         addAdditionalDimension(newDeepCopyItem);
-      };
+    };
     return isHovered || isSelected || isOpened ? (
         <Menu
             withArrow
