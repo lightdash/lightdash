@@ -83,6 +83,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     snakeCaseName,
+    SortByDirection,
     SortField,
     SpaceQuery,
     SpaceSummary,
@@ -2107,11 +2108,16 @@ export class ProjectService extends BaseService {
                   .join(', ')}`
             : ``;
 
+        const sortDirectionForIndexColumn =
+            sortBy?.find((s) => s.reference === indexColumn.reference)
+                ?.direction === SortByDirection.DESC
+                ? 'DESC'
+                : 'ASC';
         const pivotQuery = `SELECT ${selectReferences.join(
             ', ',
         )}, dense_rank() over (order by ${q}${
             indexColumn.reference
-        }${q}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
+        }${q} ${sortDirectionForIndexColumn}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
             groupByColumns?.[0]?.reference
         }${q}) as ${q}column_index${q} FROM group_by_query`;
 
