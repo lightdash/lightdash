@@ -138,6 +138,7 @@ const CreateGroupModal: FC<
                                 })),
                             });
                         }}
+                        dropdownPosition="top"
                     />
 
                     <Button
