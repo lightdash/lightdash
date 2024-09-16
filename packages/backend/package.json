@@ -62,7 +62,7 @@
         "cronstrue": "^2.23.0",
         "csv-stringify": "^6.2.4",
         "execa": "^5.0.0",
-        "express": "^4.19.2",
+        "express": "^4.20.0",
         "express-handlebars": "^7.1.2",
         "express-session": "^1.17.2",
         "express-static-gzip": "^2.1.8",
