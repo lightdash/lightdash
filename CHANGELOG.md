@@ -1,3 +1,10 @@
+## [0.1257.2](https://github.com/lightdash/lightdash/compare/0.1257.1...0.1257.2) (2024-09-16)
+
+
+### Bug Fixes
+
+* pivot data table not displaying aggregated columns ([#11563](https://github.com/lightdash/lightdash/issues/11563)) ([a11d257](https://github.com/lightdash/lightdash/commit/a11d257391fa120fe15de90ae4dc4ce4c1c84cf8))
+
 ## [0.1257.1](https://github.com/lightdash/lightdash/compare/0.1257.0...0.1257.1) (2024-09-16)
 
 
