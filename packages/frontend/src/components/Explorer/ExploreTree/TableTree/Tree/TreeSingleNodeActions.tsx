@@ -111,16 +111,33 @@ const TreeSingleNodeActions: FC<Props> = ({
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
         let newId = uuidv4();
+        let newIdSubstring=newId.replace(/-/g, '').substring(0, 16);
+        let currentName=newDeepCopyItem.name;
+        const tildeIndex = currentName.indexOf('~$');
+        if (tildeIndex !== -1){
+            currentName= currentName.substring(0, tildeIndex + 2) + newIdSubstring;
+        }
+        else{
+            currentName=currentName + '~$' + newIdSubstring;
+        }
         newDeepCopyItem.label = 'Copy ' + newDeepCopyItem.label;
         newDeepCopyItem.uuid = newId;
-        newDeepCopyItem.name = newDeepCopyItem.name + '_' + newId;
+        newDeepCopyItem.name = currentName;
         addAdditionalMetric(newDeepCopyItem);
     };
     const duplicateCustomDimension = (customDimension: CustomDimension) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customDimension));
-        let newId = uuidv4();
+        let newIdSubstring = uuidv4().replace(/-/g, '').substring(0, 16);
+        let currentId=newDeepCopyItem.id;
+        const tildeIndex = currentId.indexOf('~$');
+        if (tildeIndex !== -1){
+            currentId= currentId.substring(0, tildeIndex + 2) + newIdSubstring;
+        }
+        else{
+            currentId=currentId + '~$' + newIdSubstring;
+        }
         newDeepCopyItem.name = 'Copy ' + newDeepCopyItem.name;
-        newDeepCopyItem.id = newDeepCopyItem.id + '_' + newId;
+        newDeepCopyItem.id = currentId;
         addAdditionalDimension(newDeepCopyItem);
     };
     return isHovered || isSelected || isOpened ? (
