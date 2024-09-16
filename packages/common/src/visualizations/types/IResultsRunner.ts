@@ -1,11 +1,11 @@
 import {
     type PivotChartData,
     type VizAggregationOptions,
-    type VizCartesianChartOptions,
     type VizIndexLayoutOptions,
     type VizIndexType,
     type VizValuesLayoutOptions,
 } from '.';
+import { type DimensionType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 
 // TODO: move these types out of here
@@ -13,7 +13,8 @@ export type SqlRunnerPivotChartLayout = {
     x:
         | {
               reference: string;
-              type: VizIndexType;
+              axisType: VizIndexType;
+              dimensionType: DimensionType;
           }
         | undefined;
     y: {
@@ -27,7 +28,8 @@ export type SemanticViewerPivotChartLayout = {
     x:
         | {
               reference: string;
-              type: VizIndexType;
+              axisType: VizIndexType;
+              dimensionType: DimensionType;
           }
         | undefined;
     y: {
@@ -41,7 +43,7 @@ export type SemanticViewerPivotChartLayout = {
     groupBy: { reference: string }[] | undefined;
 };
 
-// TODO er: maybe this shouldnt actually go here at all
+// TODO: these types should be somewhere else
 export type PivotChartLayout =
     | SqlRunnerPivotChartLayout
     | SemanticViewerPivotChartLayout;
@@ -59,17 +61,6 @@ export interface IResultsRunner {
         slug?: string,
         uuid?: string,
     ): Promise<PivotChartData>;
-
-    // MOVE SV√
-    defaultPivotChartLayout(): PivotChartLayout | undefined; // Maybe should be on the DM
-
-    // MOVE
-    mergePivotChartLayout(
-        existingConfig?: PivotChartLayout,
-    ): PivotChartLayout | undefined;
-
-    // MOVE SV√
-    pivotChartOptions(): VizCartesianChartOptions;
 
     // Sql specific?
     getColumns(): string[];

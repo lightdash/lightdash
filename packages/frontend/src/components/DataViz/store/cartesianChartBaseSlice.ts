@@ -45,7 +45,7 @@ export const cartesianChartConfigSlice = createSlice({
                     type:
                         state.options.indexLayoutOptions.find(
                             (x) => x.reference === action.payload,
-                        )?.type ?? VizIndexType.CATEGORY,
+                        )?.axisType ?? VizIndexType.CATEGORY,
                 };
             }
         },

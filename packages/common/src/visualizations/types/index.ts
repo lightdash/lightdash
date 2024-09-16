@@ -48,7 +48,8 @@ export function getColumnAxisType(column: VizColumn): VizIndexType {
 }
 
 export type VizIndexLayoutOptions = {
-    type: VizIndexType;
+    axisType: VizIndexType;
+    dimensionType: DimensionType;
     reference: string;
 };
 

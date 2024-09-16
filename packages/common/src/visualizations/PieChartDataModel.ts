@@ -20,14 +20,12 @@ export class PieChartDataModel {
         const dimensions = this.resultsRunner.getDimensions();
         const metrics = this.resultsRunner.getMetrics();
 
-        console.log('dimensions', dimensions);
-        console.log('metrics', metrics);
-
         // TODO: this could have its own type so it doesnt reference x and y
         return {
             x: {
                 reference: dimensions[0].reference,
-                type: dimensions[0].type,
+                axisType: dimensions[0].axisType,
+                dimensionType: dimensions[0].dimensionType,
             },
             y: metrics,
             groupBy: [],

@@ -2,12 +2,14 @@ import { intersectionBy } from 'lodash';
 import {
     capitalize,
     CustomFormatType,
+    DimensionType,
     Format,
     friendlyName,
 } from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
 import {
+    VizAggregationOptions,
     type PivotChartData,
     type VizCartesianChartConfig,
     type VizIndexType,
@@ -70,7 +72,6 @@ export class CartesianChartDataModel {
     }
 
     getChartOptions() {
-        // return this.resultsRunner.pivotChartOptions();
         return {
             indexLayoutOptions: this.resultsRunner.getDimensions(),
             valuesLayoutOptions: this.resultsRunner.getMetrics(),
@@ -82,23 +83,81 @@ export class CartesianChartDataModel {
         const dimensions = this.resultsRunner.getDimensions();
         const metrics = this.resultsRunner.getMetrics();
 
-        const xColumn = dimensions[0];
-        const yColumn = metrics[0];
+        // TODO: the types could be cleaned up here to have fewer 'in' checks. 
+        // This works for 
+        const categoricalColumns = [...dimensions, ...metrics].filter(
+            (column) =>
+                'dimensionType' in column &&
+                column.dimensionType === DimensionType.STRING,
+        );
+        const booleanColumns = [...dimensions, ...metrics].filter(
+            (column) =>
+                'dimensionType' in column &&
+                column.dimensionType === DimensionType.BOOLEAN,
+        );
+        const dateColumns = [...dimensions, ...metrics].filter(
+            (column) =>
+                'dimensionType' in column &&
+                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                    column.dimensionType,
+                ),
+        );
+        const numericColumns = [...dimensions, ...metrics].filter(
+            (column) =>
+                'dimensionType' in column &&
+                column.dimensionType === DimensionType.NUMBER,
+        );
 
-        if (!xColumn || !yColumn) {
+        const xColumn =
+            categoricalColumns[0] ||
+            booleanColumns[0] ||
+            dateColumns[0] ||
+            numericColumns[0] ||
+            dimensions[0];
+
+        if (xColumn === undefined) {
+            return undefined;
+        }
+        const x = {
+            reference: xColumn.reference,
+            axisType: 'axisType' in xColumn ? xColumn.axisType : undefined,
+            dimensionType:
+                'dimensionType' in xColumn ? xColumn.dimensionType : undefined,
+        };
+
+        const yColumn =
+            numericColumns.filter(
+                (column) => column.reference !== x.reference,
+            )[0] ||
+            booleanColumns.filter(
+                (column) => column.reference !== x.reference,
+            )[0] ||
+            categoricalColumns.filter(
+                (column) => column.reference !== x.reference,
+            )[0] ||
+            numericColumns[0] ||
+            booleanColumns[0] ||
+            categoricalColumns[0] ||
+            metrics[0];
+
+        if (yColumn === undefined) {
             return undefined;
         }
 
-        return {
-            x: {
-                reference: xColumn.reference,
-                type: xColumn.type,
+        const y = [
+            {
+                reference: yColumn.reference,
+                aggregation:
+                    'dimensionType' in yColumn &&
+                    yColumn.dimensionType === DimensionType.NUMBER
+                        ? VizAggregationOptions.SUM
+                        : VizAggregationOptions.COUNT,
             },
-            y: [
-                {
-                    reference: yColumn.reference,
-                },
-            ],
+        ];
+
+        return {
+            x,
+            y,
             groupBy: [],
         };
     }

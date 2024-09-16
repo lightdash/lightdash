@@ -14,7 +14,6 @@ import {
     type SqlRunnerPivotChartLayout,
     type VizColumn,
     type VizIndexLayoutOptions,
-    type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
@@ -116,7 +115,10 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
 
         return this.dimensions.map((dimension) => ({
             reference: dimension.name,
-            type: getVizIndexTypeFromDimensionType(dimension.type),
+            axisType: getVizIndexTypeFromDimensionType(dimension.type),
+            dimensionType: getDimensionTypeFromSemanticLayerFieldType(
+                dimension.type,
+            ),
         }));
     }
 
@@ -126,26 +128,6 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
         return this.metrics.map((metric) => ({
             reference: metric.name,
         }));
-    }
-
-    pivotChartOptions(): {
-        indexLayoutOptions: VizIndexLayoutOptions[];
-        valuesLayoutOptions: VizValuesLayoutOptions[];
-        pivotLayoutOptions: VizPivotLayoutOptions[];
-    } {
-        console.log('TAKE THIS OUT SV pivot chart options');
-
-        return {
-            indexLayoutOptions: [],
-            valuesLayoutOptions: [],
-            pivotLayoutOptions: [],
-        };
-    }
-
-    defaultPivotChartLayout(): SemanticViewerPivotChartLayout | undefined {
-        console.log('TAKE THIS OUT SV default pivot chart layout');
-
-        return undefined;
     }
 
     static convertColumnNamesToVizColumns(
@@ -221,12 +203,6 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
             valuesColumns,
             columns: vizColumns,
         };
-    }
-
-    mergePivotChartLayout(currentConfig?: SemanticViewerPivotChartLayout) {
-        console.log('TAKE THIS OUT SV merge pivot chart layout', currentConfig);
-
-        return undefined;
     }
 
     getColumns(): string[] {

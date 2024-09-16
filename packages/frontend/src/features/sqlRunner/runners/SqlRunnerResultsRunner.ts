@@ -105,7 +105,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
             sql,
             indexColumn: {
                 reference: config.x.reference,
-                type: config.x.type,
+                type: config.x.axisType,
             },
             valuesColumns: config.y.map((y) => ({
                 reference: y.reference,
@@ -158,13 +158,15 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
                 case DimensionType.DATE:
                     options.push({
                         reference: column.reference,
-                        type: VizIndexType.TIME,
+                        axisType: VizIndexType.TIME,
+                        dimensionType: column.type,
                     });
                     break;
                 case DimensionType.TIMESTAMP:
                     options.push({
                         reference: column.reference,
-                        type: VizIndexType.TIME,
+                        axisType: VizIndexType.TIME,
+                        dimensionType: column.type,
                     });
                     break;
                 case DimensionType.STRING:
@@ -172,7 +174,8 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
                 case DimensionType.BOOLEAN:
                     options.push({
                         reference: column.reference,
-                        type: VizIndexType.CATEGORY,
+                        axisType: VizIndexType.CATEGORY,
+                        dimensionType: column.type,
                     });
                     break;
                 default:
@@ -213,100 +216,12 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
         }, [] as VizValuesLayoutOptions[]);
     }
 
-    pivotChartOptions(): {
-        indexLayoutOptions: VizIndexLayoutOptions[];
-        valuesLayoutOptions: VizValuesLayoutOptions[];
-        pivotLayoutOptions: VizPivotLayoutOptions[];
-    } {
-        console.log('TAKE THIS OUT SQLR pivot chart options');
-
-        return {
-            indexLayoutOptions: [],
-            valuesLayoutOptions: [],
-            pivotLayoutOptions: [],
-        };
-    }
-
     getDimensions(): VizIndexLayoutOptions[] {
         return this.pivotChartIndexLayoutOptions();
     }
 
     getMetrics(): VizValuesLayoutOptions[] {
         return this.pivotChartValuesLayoutOptions();
-    }
-
-    defaultPivotChartLayout(): SqlRunnerPivotChartLayout | undefined {
-        const categoricalColumns = this.columns.filter(
-            (column) => column.type === DimensionType.STRING,
-        );
-        const booleanColumns = this.columns.filter(
-            (column) => column.type === DimensionType.BOOLEAN,
-        );
-        const dateColumns = this.columns.filter(
-            (column) =>
-                column.type &&
-                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                    column.type,
-                ),
-        );
-        const numericColumns = this.columns.filter(
-            (column) => column.type === DimensionType.NUMBER,
-        );
-
-        const xColumn =
-            categoricalColumns[0] ||
-            booleanColumns[0] ||
-            dateColumns[0] ||
-            numericColumns[0];
-        if (xColumn === undefined) {
-            return undefined;
-        }
-        const x: SqlRunnerPivotChartLayout['x'] = {
-            reference: xColumn.reference,
-            type: getColumnAxisType(xColumn),
-        };
-
-        const yColumn =
-            numericColumns.filter(
-                (column) => column.reference !== x.reference,
-            )[0] ||
-            booleanColumns.filter(
-                (column) => column.reference !== x.reference,
-            )[0] ||
-            categoricalColumns.filter(
-                (column) => column.reference !== x.reference,
-            )[0] ||
-            numericColumns[0] ||
-            booleanColumns[0] ||
-            categoricalColumns[0];
-
-        if (yColumn === undefined) {
-            return undefined;
-        }
-        const y: SqlRunnerPivotChartLayout['y'] = [
-            {
-                reference: yColumn.reference,
-                aggregation:
-                    yColumn.type === DimensionType.NUMBER
-                        ? VizAggregationOptions.SUM
-                        : VizAggregationOptions.COUNT,
-            },
-        ];
-
-        return {
-            x,
-            y,
-            groupBy: undefined,
-        };
-    }
-
-    mergePivotChartLayout(currentConfig?: SqlRunnerPivotChartLayout) {
-        console.log(
-            'REMOVE THIS. sql runner merge pivot chart layout',
-            currentConfig,
-        );
-
-        return undefined;
     }
 
     getColumns(): string[] {

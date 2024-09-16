@@ -2,6 +2,7 @@ import {
     ChartKind,
     isVizPieChartConfig,
     VIZ_DEFAULT_AGGREGATION,
+    type DimensionType,
     type SqlRunnerPivotChartLayout,
     type VizAggregationOptions,
     type VizIndexType,
@@ -38,13 +39,15 @@ export const pieChartConfigSlice = createSlice({
             { config },
             action: PayloadAction<{
                 reference: string;
-                type: VizIndexType;
+                axisType: VizIndexType;
+                dimensionType: DimensionType;
             }>,
         ) => {
             if (config?.fieldConfig?.x) {
                 config.fieldConfig.x = {
                     reference: action.payload.reference,
-                    type: action.payload.type,
+                    axisType: action.payload.axisType,
+                    dimensionType: action.payload.dimensionType,
                 };
             }
         },
