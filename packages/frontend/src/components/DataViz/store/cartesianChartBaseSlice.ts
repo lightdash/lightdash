@@ -1,15 +1,17 @@
+// This is explicit to exploring
+// Not needed when viewing a cartesian chart on a dashboard
 import {
     isFormat,
     VizIndexType,
     VIZ_DEFAULT_AGGREGATION,
     type CartesianChartDisplay,
     type VizAggregationOptions,
-    type VizBarChartConfig,
     type VizCartesianChartOptions,
-    type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+
+// SQL Runner slice
 
 export type SqlRunnerPivotChartState = {
     defaultLayout: SqlRunnerPivotChartLayout | undefined;
@@ -35,6 +37,7 @@ export const cartesianChartConfigSlice = createSlice({
     name: 'cartesianChartBaseConfig',
     initialState,
     reducers: {
+        // Just a SETTER, it sets the viz index type but should it?
         setXAxisReference: (state, action: PayloadAction<string>) => {
             if (state.config?.fieldConfig) {
                 state.config.fieldConfig.x = {
@@ -46,6 +49,8 @@ export const cartesianChartConfigSlice = createSlice({
                 };
             }
         },
+
+        // Just a SETTER
         setGroupByReference: (
             { config },
             action: PayloadAction<{
@@ -58,11 +63,15 @@ export const cartesianChartConfigSlice = createSlice({
                 ];
             }
         },
+
+        // Setter
         unsetGroupByReference: ({ config }) => {
             if (config?.fieldConfig) {
                 config.fieldConfig.groupBy = undefined;
             }
         },
+
+        // Has logic for default aggregation but it shouldn't
         setYAxisReference: (
             state,
             action: PayloadAction<{
@@ -93,6 +102,8 @@ export const cartesianChartConfigSlice = createSlice({
                 }
             }
         },
+
+        // Just a SETTER
         setYAxisAggregation: (
             { config },
             action: PayloadAction<{
@@ -108,6 +119,8 @@ export const cartesianChartConfigSlice = createSlice({
                 yAxis.aggregation = action.payload.aggregation;
             }
         },
+
+        // Just a SETTER
         setXAxisLabel: (
             { config },
             action: PayloadAction<CartesianChartDisplay['xAxis']>,
@@ -121,6 +134,8 @@ export const cartesianChartConfigSlice = createSlice({
                 config.display.xAxis = action.payload;
             }
         },
+
+        // Just a SETTER
         setYAxisLabel: (
             { config },
             action: PayloadAction<{ index: number; label: string }>,
@@ -139,6 +154,8 @@ export const cartesianChartConfigSlice = createSlice({
                 config.display.yAxis[index].label = label;
             }
         },
+
+        // Just a SETTER
         setSeriesLabel: (
             { config },
             action: PayloadAction<{
@@ -156,6 +173,8 @@ export const cartesianChartConfigSlice = createSlice({
                 label: action.payload.label,
             };
         },
+
+        // Just a SETTER
         setYAxisPosition: (
             { config },
             action: PayloadAction<{
@@ -177,6 +196,8 @@ export const cartesianChartConfigSlice = createSlice({
                 config.display.yAxis[index].position = position;
             }
         },
+
+        // Just a setter
         addYAxisField: (state) => {
             if (!state.config) return;
             if (!state.config.fieldConfig) return;
@@ -205,6 +226,8 @@ export const cartesianChartConfigSlice = createSlice({
                 });
             }
         },
+
+        // A setter
         removeYAxisField: (state, action: PayloadAction<number>) => {
             if (!state.config?.fieldConfig?.y) return;
 
@@ -234,10 +257,14 @@ export const cartesianChartConfigSlice = createSlice({
                 }
             }
         },
+
+        // SETTER
         removeXAxisField: (state) => {
             if (!state.config?.fieldConfig) return;
             delete state.config.fieldConfig.x;
         },
+
+        // SETTER
         setStacked: ({ config }, action: PayloadAction<boolean>) => {
             if (!config) return;
 

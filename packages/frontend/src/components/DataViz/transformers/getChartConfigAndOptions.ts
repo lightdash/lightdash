@@ -10,6 +10,7 @@ import {
     type IResultsRunner,
     type VizChartConfig,
 } from '@lightdash/common';
+import { type SqlRunnerPivotChartLayout } from '../../../features/sqlRunner/runners/SqlRunnerResultsRunner';
 
 const getChartConfigAndOptions = (
     resultsRunner: IResultsRunner<SqlRunnerPivotChartLayout>,
@@ -24,7 +25,6 @@ const getChartConfigAndOptions = (
 
             const pieChartDataModel = new PieChartDataModel({
                 resultsRunner,
-                fieldConfig: currentVizConfig?.fieldConfig,
             });
 
             return {
@@ -32,6 +32,7 @@ const getChartConfigAndOptions = (
                 options: pieChartDataModel.getResultOptions(),
                 config: pieChartDataModel.mergeConfig(
                     chartType,
+                    currentVizConfig?.fieldConfig,
                     currentVizConfig?.display,
                 ),
             } as const;
@@ -56,7 +57,6 @@ const getChartConfigAndOptions = (
 
             const barChartModel = new CartesianChartDataModel({
                 resultsRunner,
-                fieldConfig: currentVizConfig?.fieldConfig,
             });
 
             return {
@@ -64,6 +64,7 @@ const getChartConfigAndOptions = (
                 options: barChartModel.getResultOptions(),
                 config: barChartModel.mergeConfig(
                     chartType,
+                    currentVizConfig?.fieldConfig,
                     currentVizConfig?.display,
                 ),
             } as const;
@@ -75,7 +76,6 @@ const getChartConfigAndOptions = (
 
             const lineChartModel = new CartesianChartDataModel({
                 resultsRunner,
-                fieldConfig: currentVizConfig?.fieldConfig,
             });
 
             return {
@@ -83,6 +83,7 @@ const getChartConfigAndOptions = (
                 options: lineChartModel.getResultOptions(),
                 config: lineChartModel.mergeConfig(
                     chartType,
+                    currentVizConfig?.fieldConfig,
                     currentVizConfig?.display,
                 ),
             } as const;

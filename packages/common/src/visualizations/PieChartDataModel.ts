@@ -9,18 +9,13 @@ import { type IResultsRunner } from './types/IResultsRunner';
 export class PieChartDataModel<TLayout> {
     private readonly resultsRunner: IResultsRunner<TLayout>;
 
-    private readonly fieldConfig: VizPieChartConfig['fieldConfig'];
-
-    constructor(args: {
-        resultsRunner: IResultsRunner<TLayout>;
-        fieldConfig: VizPieChartConfig['fieldConfig'] | undefined;
-    }) {
+    constructor(args: { resultsRunner: IResultsRunner<TLayout> }) {
         this.resultsRunner = args.resultsRunner;
-        this.fieldConfig = args.fieldConfig;
     }
 
     mergeConfig(
         chartKind: ChartKind.PIE,
+        fieldConfig: TLayout,
         display: VizPieChartDisplay | undefined,
     ): VizPieChartConfig {
         return {
@@ -28,9 +23,7 @@ export class PieChartDataModel<TLayout> {
                 version: 1,
             },
             type: chartKind,
-            fieldConfig: this.resultsRunner.mergePivotChartLayout(
-                this.fieldConfig,
-            ),
+            fieldConfig: this.resultsRunner.mergePivotChartLayout(fieldConfig),
             display,
         };
     }

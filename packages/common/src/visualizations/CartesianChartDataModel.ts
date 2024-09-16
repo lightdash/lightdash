@@ -21,49 +21,8 @@ type CartesianChartKind = Extract<
 export class CartesianChartDataModel<TLayout> {
     private readonly resultsRunner: IResultsRunner<TLayout>;
 
-    private readonly fieldConfig: VizCartesianChartConfig['fieldConfig'];
-
-    private colorMap: Map<string, string>;
-
-    constructor(args: {
-        resultsRunner: IResultsRunner<TLayout>;
-        fieldConfig: VizCartesianChartConfig['fieldConfig'];
-    }) {
+    constructor(args: { resultsRunner: IResultsRunner<TLayout> }) {
         this.resultsRunner = args.resultsRunner;
-        this.fieldConfig = args.fieldConfig;
-
-        this.colorMap = new Map();
-    }
-
-    private getSeriesColor(
-        seriesIdentifier: string,
-        possibleXAxisValues: string[] | undefined,
-        orgColors?: string[],
-    ): string | undefined {
-        // Go through the possibleXAxisValues and check if the seriesIdentifier is in the value - "completed_sum(order_id)" is the identifier and "completed" is one of the possible values
-        const foundValue = possibleXAxisValues?.find((value) =>
-            seriesIdentifier.startsWith(value),
-        );
-        if (!foundValue) {
-            return undefined;
-        }
-
-        // Remove foundValue from the seriesIdentifier - "completed_sum(order_id)" becomes "sum(order_id)"
-        const genericIdentifier = seriesIdentifier.replace(
-            `${foundValue}_`,
-            '',
-        );
-
-        if (genericIdentifier && !this.colorMap.has(genericIdentifier)) {
-            const colorPalette = orgColors || ECHARTS_DEFAULT_COLORS;
-            // This code assigns a color to a series in the chart
-            const color =
-                colorPalette[
-                    this.colorMap.size % ECHARTS_DEFAULT_COLORS.length // This ensures we cycle through the colors if we have more series than colors
-                ];
-            this.colorMap.set(genericIdentifier, color);
-        }
-        return this.colorMap.get(genericIdentifier)!;
     }
 
     static getTooltipFormatter(format: Format | undefined) {
@@ -78,6 +37,7 @@ export class CartesianChartDataModel<TLayout> {
 
     mergeConfig(
         chartKind: CartesianChartKind,
+        config: TLayout | undefined,
         display: CartesianChartDisplay | undefined,
     ): VizCartesianChartConfig {
         return {
@@ -85,9 +45,7 @@ export class CartesianChartDataModel<TLayout> {
                 version: 1,
             },
             type: chartKind,
-            fieldConfig: this.resultsRunner.mergePivotChartLayout(
-                this.fieldConfig,
-            ),
+            fieldConfig: this.resultsRunner.mergePivotChartLayout(config),
             display,
         };
     }
@@ -160,7 +118,7 @@ export class CartesianChartDataModel<TLayout> {
 
                 const singleYAxisLabel =
                     // NOTE: When there's only one y-axis left, set the label on the series as well
-                    this.fieldConfig?.y.length === 1 &&
+                    transformedData.valuesColumns.length === 1 && // PR NOTE: slight change to behaviour, only set label if there's a single value column (post-pivot) we want this to be fields pre-pivot
                     display?.yAxis?.[0]?.label
                         ? display.yAxis[0].label
                         : undefined;
@@ -279,7 +237,7 @@ export class CartesianChartDataModel<TLayout> {
 export type CartesianChartDisplay = {
     xAxis?: {
         label?: string;
-        type: VizIndexType;
+        type?: VizIndexType;
     };
     yAxis?: {
         label?: string;
