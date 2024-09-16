@@ -1,3 +1,10 @@
+## [0.1257.1](https://github.com/lightdash/lightdash/compare/0.1257.0...0.1257.1) (2024-09-16)
+
+
+### Bug Fixes
+
+* semantic viewer save chart ux ([#11561](https://github.com/lightdash/lightdash/issues/11561)) ([ada01b7](https://github.com/lightdash/lightdash/commit/ada01b791fc902968ade31f9237509a1ec921ae5))
+
 # [0.1257.0](https://github.com/lightdash/lightdash/compare/0.1256.0...0.1257.0) (2024-09-16)
 
 
