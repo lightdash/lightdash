@@ -3,7 +3,10 @@ import {
     isSemanticLayerJobErrorDetails,
     type ApiJobScheduledResponse,
     type ApiSemanticLayerClientInfo,
+    type ApiSemanticLayerCreateChart,
     type PivotChartData,
+    type SavedSemanticViewerChart,
+    type SemanticLayerCreateChart,
     type SemanticLayerField,
     type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
@@ -105,6 +108,58 @@ export const apiGetSemanticLayerQueryResults = async ({
 > => {
     const { jobId } = await apiPostSemanticLayerRun({ projectUuid, query });
     const job = await getSemanticLayerCompleteJob(jobId);
+
+    if (isApiSemanticLayerJobSuccessResponse(job)) {
+        const url =
+            job.details && !isSemanticLayerJobErrorDetails(job.details)
+                ? job.details.fileUrl
+                : undefined;
+        const results = await getResultsFromStream<SemanticLayerResultRow>(url);
+
+        return {
+            results,
+            columns: job.details.columns,
+        };
+    } else {
+        throw job;
+    }
+};
+
+export const createSemanticViewerChart = (
+    projectUuid: string,
+    payload: SemanticLayerCreateChart,
+) =>
+    lightdashApi<ApiSemanticLayerCreateChart['results']>({
+        version: 'v2',
+        url: `/projects/${projectUuid}/semantic-layer/saved`,
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+
+export const getSavedSemanticViewerChart = async (
+    projectUuid: string,
+    uuid: string,
+) =>
+    lightdashApi<SavedSemanticViewerChart>({
+        version: 'v2',
+        url: `/projects/${projectUuid}/semantic-layer/saved/${uuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const getSemanticViewerChartResults = async (
+    projectUuid: string,
+    uuid: string,
+) => {
+    const scheduledJob = await lightdashApi<ApiJobScheduledResponse['results']>(
+        {
+            version: 'v2',
+            url: `/projects/${projectUuid}/semantic-layer/saved/${uuid}/results-job`,
+            method: 'GET',
+            body: undefined,
+        },
+    );
+    const job = await getSemanticLayerCompleteJob(scheduledJob.jobId);
 
     if (isApiSemanticLayerJobSuccessResponse(job)) {
         const url =
