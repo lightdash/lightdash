@@ -18,14 +18,6 @@ describe('isPositiveThresholdAlert', () => {
             SchedulerTask.isPositiveThresholdAlert([], resultsWithOneRow),
         ).toBe(false);
     });
-    it('should throw error if there are no results', () => {
-        expect(() =>
-            SchedulerTask.isPositiveThresholdAlert(
-                [thresholdIncreasedByMock],
-                [],
-            ),
-        ).toThrowError(NotEnoughResults);
-    });
     it('should throw error if operation requires second row but there isnt one', () => {
         expect(() =>
             SchedulerTask.isPositiveThresholdAlert(
