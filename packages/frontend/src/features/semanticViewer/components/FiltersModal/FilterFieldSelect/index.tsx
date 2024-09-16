@@ -1,3 +1,7 @@
+import type {
+    SemanticLayerField,
+    SemanticLayerFilter,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -10,11 +14,15 @@ import {
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import useToaster from '../../../../../hooks/toaster/useToaster';
+import { createFilterForOperator } from '../createFilterForOperator';
 import FilterFieldSelectItem from './FilterFieldSelectItem';
 
 type FilterFieldInputProps = {
-    availableFieldOptions: SelectItem[];
-    onFieldChange: (fieldName: string) => void;
+    fields: SemanticLayerField[];
+    fieldOptions: SelectItem[];
+    onNewFilter?: (newFilter: SemanticLayerFilter) => void;
+    onFieldSelect?: (selectedField: string) => void;
     value?: string;
     onCancel?: () => void;
     hasLeftSpacing?: boolean;
@@ -30,14 +38,18 @@ const LEFT_COMPONENT_WIDTH = rem(44);
  * we might be able to replace this with an actual Filter component and a partial filter but for simplicity we're doing it this way for now
  */
 const FilterFieldSelect: FC<FilterFieldInputProps> = ({
-    availableFieldOptions,
+    fields,
+    fieldOptions,
     value,
-    onFieldChange,
+    onNewFilter,
+    onFieldSelect,
     onCancel,
     hasLeftSpacing,
     isCreatingFilter,
     style,
 }) => {
+    const { showToastError } = useToaster();
+
     return (
         <Group spacing="xs" w="100%" style={style}>
             {hasLeftSpacing && (
@@ -47,17 +59,47 @@ const FilterFieldSelect: FC<FilterFieldInputProps> = ({
                 style={{ flex: 5 }}
                 size="xs"
                 value={value}
-                data={availableFieldOptions}
+                data={fieldOptions}
                 itemComponent={FilterFieldSelectItem}
                 placeholder="Select field"
                 searchable
                 withinPortal={true}
-                onChange={(fieldName) => {
-                    if (!fieldName) {
+                onChange={(selectedField) => {
+                    if (!selectedField) {
                         return;
                     }
 
-                    onFieldChange(fieldName);
+                    onFieldSelect?.(selectedField);
+
+                    const field = fields.find((f) => f.name === selectedField);
+
+                    if (!field) {
+                        showToastError({
+                            title: 'Error',
+                            subtitle: 'Field not found',
+                        });
+                        return;
+                    }
+
+                    const defaultOperator = field.availableOperators[0];
+
+                    if (!defaultOperator) {
+                        showToastError({
+                            title: 'Error',
+                            subtitle:
+                                'No filter operators available for this field',
+                        });
+                        return;
+                    }
+
+                    const newFilter = createFilterForOperator({
+                        field: selectedField,
+                        fieldKind: field.kind,
+                        fieldType: field.type,
+                        operator: defaultOperator,
+                    });
+
+                    onNewFilter?.(newFilter);
                 }}
             />
             {isCreatingFilter && (

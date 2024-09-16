@@ -8,10 +8,11 @@ import {
 import { Group, Select, type SelectItem } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import FilterMultiStringInput from '../../../../../components/common/Filters/FilterInputs/FilterMultiStringInput';
-import FilterFieldSelectItem from '../FilterFieldSelect/FilterFieldSelectItem';
+import FilterFieldSelect from '../FilterFieldSelect';
 import getOperatorString from '../getOperatorString';
 
 type MultiStringFilterProps = {
+    fields: SemanticLayerField[];
     fieldOptions: SelectItem[];
     filterField?: SemanticLayerField;
     filter: SemanticLayerStringFilter | SemanticLayerExactTimeFilter; // Exact time filter doesn't have a component for now
@@ -19,6 +20,7 @@ type MultiStringFilterProps = {
 };
 
 const MultiStringFilter: FC<MultiStringFilterProps> = ({
+    fields,
     fieldOptions,
     filter,
     onUpdate,
@@ -33,21 +35,18 @@ const MultiStringFilter: FC<MultiStringFilterProps> = ({
 
     return (
         <Group spacing="xs" w="100%" align="center" noWrap>
-            <Select
-                size="xs"
-                withinPortal
-                style={{ flex: 5 }}
-                data={fieldOptions}
-                itemComponent={FilterFieldSelectItem}
+            <FilterFieldSelect
+                fields={fields}
+                fieldOptions={fieldOptions}
                 value={filter.field}
-                onChange={(value) => {
-                    if (!value) {
+                onFieldSelect={(selectedField) => {
+                    if (!selectedField) {
                         return;
                     }
 
                     onUpdate({
                         ...filter,
-                        field: value,
+                        field: selectedField,
                     });
                 }}
             />

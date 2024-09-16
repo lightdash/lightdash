@@ -9,11 +9,9 @@ import {
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import useToaster from '../../../../hooks/toaster/useToaster';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectAllSelectedFieldNames } from '../../store/selectors';
 import { setFilters } from '../../store/semanticViewerSlice';
-import { createFilterForOperator } from './createFilterForOperator';
 import Filter from './Filter';
 import FilterButton from './FilterButton';
 import FilterFieldSelect from './FilterFieldSelect';
@@ -29,16 +27,9 @@ const FiltersModal: FC<FiltersModalProps> = ({
 }) => {
     const [isAddingFilter, setIsAddingFilter] = useState(false);
     const { filters, fields } = useAppSelector((state) => state.semanticViewer);
-    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
+    const selectedFields = useAppSelector(selectAllSelectedFieldNames);
 
-    const { showToastError } = useToaster();
-
-    const [draftFilters, setDraftFilters] =
-        useState<SemanticLayerFilter[]>(filters);
-
-    const dispatch = useAppDispatch();
-
-    const availableFieldOptions = useMemo(() => {
+    const fieldOptions = useMemo(() => {
         if (!fields) return [];
 
         return fields
@@ -47,7 +38,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                 value: f.name,
                 field: f,
                 label: f.label,
-                group: allSelectedFieldNames.includes(f.name)
+                group: selectedFields.includes(f.name)
                     ? 'Results'
                     : 'Other fields',
             }))
@@ -57,7 +48,12 @@ const FiltersModal: FC<FiltersModalProps> = ({
 
                 return bValue - aValue;
             });
-    }, [allSelectedFieldNames, fields]);
+    }, [selectedFields, fields]);
+
+    const [draftFilters, setDraftFilters] =
+        useState<SemanticLayerFilter[]>(filters);
+
+    const dispatch = useAppDispatch();
 
     const handleUpdateFilter = (updatedFilter: SemanticLayerFilter) => {
         setDraftFilters((prev) => {
@@ -97,8 +93,8 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         key={filter.uuid}
                         isFirstRootFilter={index === 0}
                         filter={filter}
-                        fieldOptions={availableFieldOptions}
-                        allFields={fields ?? []}
+                        fields={fields ?? []}
+                        fieldOptions={fieldOptions}
                         onDelete={() => handleRemoveFilter(filter.uuid)}
                         onUpdate={handleUpdateFilter}
                     />
@@ -112,40 +108,12 @@ const FiltersModal: FC<FiltersModalProps> = ({
                     </FilterButton>
                 ) : (
                     <FilterFieldSelect
-                        availableFieldOptions={availableFieldOptions}
-                        onFieldChange={(selectedField) => {
+                        fields={fields}
+                        fieldOptions={fieldOptions}
+                        isCreatingFilter
+                        hasLeftSpacing={draftFilters.length > 0}
+                        onNewFilter={(newFilter) => {
                             setIsAddingFilter(false);
-
-                            const field = fields?.find(
-                                (f) => f.name === selectedField,
-                            );
-
-                            if (!field) {
-                                showToastError({
-                                    title: 'Error',
-                                    subtitle: 'Field not found',
-                                });
-                                return;
-                            }
-
-                            const defaultOperator = field.availableOperators[0];
-
-                            if (!defaultOperator) {
-                                showToastError({
-                                    title: 'Error',
-                                    subtitle:
-                                        'No filter operators available for this field',
-                                });
-                                return;
-                            }
-
-                            const newFilter = createFilterForOperator({
-                                field: selectedField,
-                                fieldKind: field.kind,
-                                fieldType: field.type,
-                                operator: defaultOperator,
-                            });
-
                             setDraftFilters((prev) => [...prev, newFilter]);
                         }}
                         onCancel={
@@ -153,7 +121,6 @@ const FiltersModal: FC<FiltersModalProps> = ({
                                 ? () => setIsAddingFilter(false)
                                 : undefined
                         }
-                        isCreatingFilter
                     />
                 )}
                 <Flex w="100%" justify="flex-end">

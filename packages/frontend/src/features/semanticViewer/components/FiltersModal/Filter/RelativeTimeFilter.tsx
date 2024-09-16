@@ -14,10 +14,11 @@ import {
     type SelectItem,
 } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-import FilterFieldSelectItem from '../FilterFieldSelect/FilterFieldSelectItem';
+import FilterFieldSelect from '../FilterFieldSelect';
 import getOperatorString from '../getOperatorString';
 
 type RelativeTimeFilterProps = {
+    fields: SemanticLayerField[];
     filter: SemanticLayerRelativeTimeFilter;
     onUpdate: (filter: SemanticLayerFilter) => void;
     fieldOptions: SelectItem[];
@@ -25,6 +26,7 @@ type RelativeTimeFilterProps = {
 };
 
 const RelativeTimeFilter: FC<RelativeTimeFilterProps> = ({
+    fields,
     filter,
     onUpdate,
     fieldOptions,
@@ -59,14 +61,11 @@ const RelativeTimeFilter: FC<RelativeTimeFilterProps> = ({
 
     return (
         <Group spacing="xs" w="100%" align="center" noWrap>
-            <Select
-                size="xs"
-                withinPortal
-                style={{ flex: 5 }}
-                data={fieldOptions}
-                itemComponent={FilterFieldSelectItem}
+            <FilterFieldSelect
+                fields={fields}
+                fieldOptions={fieldOptions}
                 value={filter.field}
-                onChange={(value) => {
+                onFieldSelect={(value) => {
                     if (!value) {
                         return;
                     }

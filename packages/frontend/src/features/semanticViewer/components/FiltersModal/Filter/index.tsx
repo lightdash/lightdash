@@ -11,6 +11,7 @@ import {
 import {
     ActionIcon,
     Box,
+    filterProps,
     Group,
     Menu,
     rem,
@@ -28,12 +29,11 @@ import {
 } from '@tabler/icons-react';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
-import useToaster from '../../../../hooks/toaster/useToaster';
-import { createFilterForOperator } from './createFilterForOperator';
-import FilterButton from './FilterButton';
-import FilterFieldSelect from './FilterFieldSelect';
-import FilterInput from './FilterInput';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import FilterButton from '../FilterButton';
+import FilterFieldSelect from '../FilterFieldSelect';
+import MultiStringFilter from './MultiStringFilter';
+import RelativeTimeFilter from './RelativeTimeFilter';
 
 enum AndOr {
     AND = 'and',
@@ -42,8 +42,8 @@ enum AndOr {
 
 type FilterProps = Pick<StackProps, 'style'> & {
     filter: SemanticLayerFilter;
+    fields: SemanticLayerField[];
     fieldOptions: SelectItem[];
-    allFields: SemanticLayerField[];
     onDelete: () => void;
     onUpdate: (filter: SemanticLayerFilter) => void;
     nestedFilterProps?: {
@@ -143,7 +143,7 @@ const FilterLeft: FC<FilterLeftProps> = ({
 const Filter: FC<FilterProps> = ({
     filter,
     fieldOptions,
-    allFields,
+    fields,
     onDelete,
     onUpdate,
     style,
@@ -152,8 +152,6 @@ const Filter: FC<FilterProps> = ({
 }) => {
     const theme = useMantineTheme();
     const [isAddingNestedFilter, setIsAddingNestedFilter] = useState(false);
-
-    const { showToastError } = useToaster();
 
     const nestedAndFilters = useMemo(() => {
         return filter.and ?? [];
@@ -165,9 +163,9 @@ const Filter: FC<FilterProps> = ({
 
     const findFilterField = useCallback(
         (fieldName: string) => {
-            return allFields.find((f) => f.name === fieldName);
+            return fields.find((f) => f.name === fieldName);
         },
-        [allFields],
+        [fields],
     );
 
     const currentField = useMemo(() => {
@@ -431,7 +429,8 @@ const Filter: FC<FilterProps> = ({
                     />
 
                     {isSemanticLayerRelativeTimeFilter(filter) ? (
-                        <FilterInput.RelativeTimeFilter
+                        <RelativeTimeFilter
+                            fields={fields}
                             filter={filter}
                             onUpdate={handleUpdateFilter}
                             fieldOptions={fieldOptions}
@@ -441,7 +440,8 @@ const Filter: FC<FilterProps> = ({
 
                     {isSemanticLayerStringFilter(filter) ||
                     isSemanticLayerExactTimeFilter(filter) ? (
-                        <FilterInput.MultiStringFilter
+                        <MultiStringFilter
+                            fields={fields}
                             fieldOptions={fieldOptions}
                             filter={filter}
                             onUpdate={handleUpdateFilter}
@@ -490,7 +490,7 @@ const Filter: FC<FilterProps> = ({
                                 key={nestedFilter.uuid}
                                 filter={nestedFilter}
                                 fieldOptions={fieldOptions}
-                                allFields={allFields}
+                                fields={fields}
                                 nestedFilterProps={{
                                     currentGroup: AndOr.AND,
                                     moveSelfInParent: handleNestedFilterMove,
@@ -508,7 +508,7 @@ const Filter: FC<FilterProps> = ({
                                 key={nestedFilter.uuid}
                                 filter={nestedFilter}
                                 fieldOptions={fieldOptions}
-                                allFields={allFields}
+                                fields={fields}
                                 nestedFilterProps={{
                                     currentGroup: AndOr.OR,
                                     moveSelfInParent: handleNestedFilterMove,
@@ -526,40 +526,13 @@ const Filter: FC<FilterProps> = ({
                 {isAddingNestedFilter && (
                     <Group spacing="xs" w="100%" style={{ zIndex: 3 }}>
                         <FilterFieldSelect
-                            availableFieldOptions={fieldOptions}
-                            onFieldChange={(selectedField) => {
-                                setIsAddingNestedFilter(false);
-
-                                const field = allFields.find(
-                                    (f) => f.name === selectedField,
-                                );
-
-                                if (!field) {
-                                    showToastError({
-                                        title: 'Error',
-                                        subtitle: 'Field not found',
-                                    });
-                                    return;
-                                }
-
-                                const defaultOperator =
-                                    field.availableOperators[0];
-
-                                if (!defaultOperator) {
-                                    showToastError({
-                                        title: 'Error',
-                                        subtitle:
-                                            'No filter operators available for this field',
-                                    });
-                                    return;
-                                }
-
-                                const newFilter = createFilterForOperator({
-                                    field: selectedField,
-                                    fieldKind: field.kind,
-                                    fieldType: field.type,
-                                    operator: defaultOperator,
-                                });
+                            fields={fields}
+                            fieldOptions={fieldOptions}
+                            isCreatingFilter
+                            hasLeftSpacing={
+                                hasNestedFilters || Boolean(filterProps)
+                            }
+                            onNewFilter={(newFilter) => {
                                 handleAddNestedFilter(newFilter);
                                 setIsAddingNestedFilter(false);
                             }}
