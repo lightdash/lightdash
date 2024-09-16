@@ -13,12 +13,8 @@ export enum VizAggregationOptions {
 }
 
 export enum SortByDirection {
-    ASC = 'asc',
-    DESC = 'desc',
-}
-export enum SortByType {
-    X_AXIS = 'x_axis',
-    BAR_HEIGHTS = 'bar_heights',
+    ASC = 'ASC',
+    DESC = 'DESC',
 }
 
 export const vizAggregationOptions = [
@@ -58,7 +54,6 @@ export type VizPivotLayoutOptions = {
 
 export type VizSortBy = {
     reference: string;
-    type?: SortByType;
     direction: SortByDirection;
 };
 export type VizChartLayout = {

@@ -1,7 +1,6 @@
 import {
     DimensionType,
     SortByDirection,
-    SortByType,
     type ChartKind,
     type VizChartLayout,
     type VizColumn,
@@ -158,32 +157,22 @@ const XFieldAxisConfig = ({
                         placeholder="Select sort option"
                         data={[
                             {
-                                value: `${SortByType.X_AXIS}-${SortByDirection.ASC}`,
-                                label: 'Ascending axis',
+                                value: SortByDirection.ASC,
+                                label: 'Ascending',
                             },
                             {
-                                value: `${SortByType.X_AXIS}-${SortByDirection.DESC}`,
-                                label: 'Descending axis',
-                            } /*,
-                            {
-                                value: `${SortByType.BAR_HEIGHTS}-${SortByDirection.ASC}`,
-                                label: 'Ascending bar heights',
+                                value: SortByDirection.DESC,
+                                label: 'Descending',
                             },
-                            {
-                                value: `${SortByType.BAR_HEIGHTS}-${SortByDirection.DESC}`,
-                                label: 'Descending bar heights',
-                            },*/,
                         ]}
                         onChange={(value) => {
                             if (value) {
-                                const [type, direction] = value.split('-');
+                                const direction = value as SortByDirection;
                                 dispatch(
                                     actions.setSortBy([
                                         {
                                             reference: field?.reference,
-                                            type: type as SortByType,
-                                            direction:
-                                                direction as SortByDirection,
+                                            direction,
                                         },
                                     ]),
                                 );
