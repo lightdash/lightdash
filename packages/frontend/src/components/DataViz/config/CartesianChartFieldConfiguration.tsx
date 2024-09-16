@@ -164,7 +164,7 @@ const XFieldAxisConfig = ({
                             {
                                 value: `${SortByType.X_AXIS}-${SortByDirection.DESC}`,
                                 label: 'Descending axis',
-                            },
+                            } /*,
                             {
                                 value: `${SortByType.BAR_HEIGHTS}-${SortByDirection.ASC}`,
                                 label: 'Ascending bar heights',
@@ -172,7 +172,7 @@ const XFieldAxisConfig = ({
                             {
                                 value: `${SortByType.BAR_HEIGHTS}-${SortByDirection.DESC}`,
                                 label: 'Descending bar heights',
-                            },
+                            },*/,
                         ]}
                         onChange={(value) => {
                             if (value) {
