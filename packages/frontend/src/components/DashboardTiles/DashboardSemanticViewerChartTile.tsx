@@ -59,12 +59,12 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     } = useSemanticLayerViewFields(
         {
             projectUuid,
-            view: data!.chart.semanticLayerView ?? '', // TODO: this should never be empty or that hook should receive a null view!
+            view: data?.chart.semanticLayerView ?? '', // TODO: this should never be empty or that hook should receive a null view!
             selectedFields: {
-                dimensions: data!.chart.semanticLayerQuery.dimensions ?? [],
+                dimensions: data?.chart.semanticLayerQuery.dimensions ?? [],
                 timeDimensions:
-                    data!.chart.semanticLayerQuery.timeDimensions ?? [],
-                metrics: data!.chart.semanticLayerQuery.metrics ?? [],
+                    data?.chart.semanticLayerQuery.timeDimensions ?? [],
+                metrics: data?.chart.semanticLayerQuery.metrics ?? [],
             },
         },
         { enabled: !!data },
