@@ -1,3 +1,11 @@
+## [0.1255.3](https://github.com/lightdash/lightdash/compare/0.1255.2...0.1255.3) (2024-09-16)
+
+
+### Bug Fixes
+
+* changed dropdown position to top ([#11520](https://github.com/lightdash/lightdash/issues/11520)) ([888bb7a](https://github.com/lightdash/lightdash/commit/888bb7ac50405189aa15b781863a980e447f5a91))
+* show minimal table cell context menu ([#11466](https://github.com/lightdash/lightdash/issues/11466)) ([3e871da](https://github.com/lightdash/lightdash/commit/3e871da9a4091c7a2fa703442df960bde1cd0d43))
+
 ## [0.1255.2](https://github.com/lightdash/lightdash/compare/0.1255.1...0.1255.2) (2024-09-16)
 
 
