@@ -11,7 +11,10 @@ import {
     type VizCartesianChartConfig,
     type VizIndexType,
 } from './types';
-import { type IResultsRunner } from './types/IResultsRunner';
+import {
+    type IResultsRunner,
+    type PivotChartLayout,
+} from './types/IResultsRunner';
 
 type CartesianChartKind = Extract<
     ChartKind,
@@ -19,9 +22,9 @@ type CartesianChartKind = Extract<
 >;
 
 export class CartesianChartDataModel<TLayout> {
-    private readonly resultsRunner: IResultsRunner<TLayout>;
+    private readonly resultsRunner: IResultsRunner;
 
-    constructor(args: { resultsRunner: IResultsRunner<TLayout> }) {
+    constructor(args: { resultsRunner: IResultsRunner }) {
         this.resultsRunner = args.resultsRunner;
     }
 
@@ -37,7 +40,7 @@ export class CartesianChartDataModel<TLayout> {
 
     mergeConfig(
         chartKind: CartesianChartKind,
-        config: TLayout | undefined,
+        config: PivotChartLayout,
         display: CartesianChartDisplay | undefined,
     ): VizCartesianChartConfig {
         return {

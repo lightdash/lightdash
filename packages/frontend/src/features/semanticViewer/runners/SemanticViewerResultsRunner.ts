@@ -11,13 +11,13 @@ import {
     type SemanticLayerPivot,
     type SemanticLayerQuery,
     type SemanticViewerPivotChartLayout,
+    type SqlRunnerPivotChartLayout,
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { intersectionBy } from 'lodash';
-import { type SqlRunnerPivotChartLayout } from '../../sqlRunner/runners/SqlRunnerResultsRunner';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
 const transformChartLayoutToSemanticPivot = (
@@ -66,9 +66,7 @@ function getVizIndexTypeFromDimensionType(
     }
 }
 
-export class SemanticViewerResultsRunner
-    implements IResultsRunner<SqlRunnerPivotChartLayout>
-{
+export class SemanticViewerResultsRunner implements IResultsRunner {
     private readonly query: SemanticLayerQuery;
 
     private readonly projectUuid: string;
@@ -231,7 +229,7 @@ export class SemanticViewerResultsRunner
         };
     }
 
-    mergePivotChartLayout(currentConfig?: SqlRunnerPivotChartLayout) {
+    mergePivotChartLayout(currentConfig?: SemanticViewerPivotChartLayout) {
         const newDefaultLayout = this.defaultPivotChartLayout();
 
         const someFieldsMatch =

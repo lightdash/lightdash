@@ -11,6 +11,7 @@ import {
     type IResultsRunner,
     type PivotChartData,
     type RawResultRow,
+    type SqlRunnerPivotChartLayout,
     type SqlRunnerPivotQueryBody,
     type VizColumn,
     type VizIndexLayoutOptions,
@@ -21,20 +22,6 @@ import { intersectionBy } from 'lodash';
 import { lightdashApi } from '../../../api';
 import { getResultsFromStream } from '../../../utils/request';
 import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
-
-export type SqlRunnerPivotChartLayout = {
-    x:
-        | {
-              reference: string;
-              type: VizIndexType;
-          }
-        | undefined;
-    y: {
-        reference: string;
-        aggregation: VizAggregationOptions;
-    }[];
-    groupBy: { reference: string }[] | undefined;
-};
 
 const schedulePivotSqlJob = async ({
     projectUuid,
@@ -84,9 +71,7 @@ export type SqlRunnerResultsRunnerDeps = {
     columns: VizColumn[];
 };
 
-export class SqlRunnerResultsRunner
-    implements IResultsRunner<SqlRunnerPivotChartLayout>
-{
+export class SqlRunnerResultsRunner implements IResultsRunner {
     protected readonly rows: RawResultRow[];
 
     protected readonly columns: VizColumn[];

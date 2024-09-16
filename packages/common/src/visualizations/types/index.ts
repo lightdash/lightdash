@@ -2,6 +2,7 @@ import { DimensionType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
 import { type CartesianChartDisplay } from '../CartesianChartDataModel';
+import { type PivotChartLayout } from './IResultsRunner';
 
 export enum VizAggregationOptions {
     SUM = 'sum',
@@ -60,19 +61,6 @@ export type VizPivotLayoutOptions = {
     reference: string;
 };
 
-export type SemanticViewerPivotChartLayout = {
-    x:
-        | {
-              reference: string;
-              type: VizIndexType;
-          }
-        | undefined;
-    y: {
-        reference: string;
-    }[];
-    groupBy: { reference: string }[] | undefined;
-};
-
 export type VizPieChartDisplay = {
     isDonut?: boolean;
 };
@@ -128,25 +116,25 @@ export type VizBaseConfig = {
 
 export type VizCartesianChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
-    fieldConfig: SqlRunnerPivotChartLayout | undefined;
+    fieldConfig: PivotChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizBarChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR;
-    fieldConfig: SqlRunnerPivotChartLayout | undefined;
+    fieldConfig: PivotChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizLineChartConfig = VizBaseConfig & {
     type: ChartKind.LINE;
-    fieldConfig: SqlRunnerPivotChartLayout | undefined; 
+    fieldConfig: PivotChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizPieChartConfig = VizBaseConfig & {
     type: ChartKind.PIE;
-    fieldConfig: SqlRunnerPivotChartLayout | undefined;
+    fieldConfig: PivotChartLayout | undefined;
     display: VizPieChartDisplay | undefined;
 };
 

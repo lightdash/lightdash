@@ -1,12 +1,51 @@
-import { type PivotChartData, type VizCartesianChartOptions } from '.';
+import {
+    type PivotChartData,
+    type VizAggregationOptions,
+    type VizCartesianChartOptions,
+    type VizIndexType,
+} from '.';
 import { type RawResultRow } from '../../types/results';
 
-export interface IResultsRunner<TPivotChartLayout> {
+// TODO: move these types out of here
+export type SqlRunnerPivotChartLayout = {
+    x:
+        | {
+              reference: string;
+              type: VizIndexType;
+          }
+        | undefined;
+    y: {
+        reference: string;
+        aggregation: VizAggregationOptions;
+    }[];
+    groupBy: { reference: string }[] | undefined;
+};
+
+export type SemanticViewerPivotChartLayout = {
+    x:
+        | {
+              reference: string;
+              type: VizIndexType;
+          }
+        | undefined;
+    y: {
+        reference: string;
+    }[];
+    groupBy: { reference: string }[] | undefined;
+};
+
+// TODO er: maybe this shouldnt actually go here at all
+export type PivotChartLayout =
+    | SqlRunnerPivotChartLayout
+    | SemanticViewerPivotChartLayout;
+
+export interface IResultsRunner {
     // Includes bar, chart, line, pie, scatter, and table v1(?)
 
     // Why does this have so many parameters not relevant to the runner?
+    // Can this operate on almost no params?
     getPivotedVisualizationData(
-        config: TPivotChartLayout,
+        config: PivotChartLayout,
         sql?: string,
         projectUuid?: string,
         limit?: number,
@@ -14,11 +53,11 @@ export interface IResultsRunner<TPivotChartLayout> {
         uuid?: string,
     ): Promise<PivotChartData>;
 
-    defaultPivotChartLayout(): TPivotChartLayout | undefined;
+    defaultPivotChartLayout(): PivotChartLayout | undefined; // Maybe should be on the DM
 
     mergePivotChartLayout(
-        existingConfig?: TPivotChartLayout,
-    ): TPivotChartLayout | undefined;
+        existingConfig?: PivotChartLayout,
+    ): PivotChartLayout | undefined;
 
     pivotChartOptions(): VizCartesianChartOptions;
 
