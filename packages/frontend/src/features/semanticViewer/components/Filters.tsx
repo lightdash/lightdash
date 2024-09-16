@@ -40,12 +40,14 @@ const Filters: FC = () => {
                 </Button>
             )}
 
-            <FiltersModal
-                size="xl"
-                opened={isFiltersModalOpen}
-                onClose={closeFiltersModal}
-                withCloseButton={false}
-            />
+            {/* Controlling the modal opening via conditional rendering so that draft filters are kept up to date and we don't have to deal with that state update */}
+            {isFiltersModalOpen && (
+                <FiltersModal
+                    size="xl"
+                    onClose={closeFiltersModal}
+                    withCloseButton={false}
+                />
+            )}
         </Box>
     );
 };

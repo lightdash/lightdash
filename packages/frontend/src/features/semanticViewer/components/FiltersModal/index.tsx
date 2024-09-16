@@ -16,7 +16,7 @@ import Filter from './Filter';
 import FilterButton from './FilterButton';
 import FilterFieldSelect from './FilterFieldSelect';
 
-type FiltersModalProps = ModalProps & {
+type FiltersModalProps = Omit<ModalProps, 'opened'> & {
     onApply?: () => void;
 };
 
@@ -79,6 +79,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
     return (
         <Modal
             {...props}
+            opened
             title={
                 <Title order={5} fw={500}>
                     Filters
