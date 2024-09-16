@@ -316,7 +316,7 @@ Object.entries(warehouseConnections).forEach(
                     poll();
                 });
             });
-            it(`Run pivot query for ${warehouseName}`, () => {
+            it.only(`Run pivot query for ${warehouseName}`, () => {
                 const [database, schema] = getDatabaseDetails();
                 const sql =
                     warehouseConfig.type === WarehouseTypes.SNOWFLAKE

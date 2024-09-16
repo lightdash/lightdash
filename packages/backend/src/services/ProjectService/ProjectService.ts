@@ -2234,7 +2234,7 @@ export class ProjectService extends BaseService {
         await sshTunnel.disconnect();
 
         return {
-            url: fileUrl,
+            fileUrl,
             valuesColumns: groupByColumns
                 ? Array.from(valuesColumnReferences)
                 : valuesColumns.map(
