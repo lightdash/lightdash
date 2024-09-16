@@ -248,7 +248,7 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
             {isEditMode && (
                 <Box bg="white" pos="relative" style={{ zIndex: 2 }}>
                     {!isOpen ? (
-                        <Group>
+                        <Group align="center" position="apart" sx={{ flex: 1 }}>
                             <Button
                                 variant="outline"
                                 size="xs"
@@ -258,20 +258,22 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                             >
                                 Add filter
                             </Button>
-                            <Tooltip
-                                label="Clear all filters"
-                                position="bottom"
-                            >
-                                <Button
-                                    variant="outline"
-                                    size="xs"
-                                    color="red"
-                                    onClick={clearAllFilters}
-                                    disabled={totalFilterRules.length === 0}
+                            {totalFilterRules.length > 0 && (
+                                <Tooltip
+                                    label="Clear all filters"
+                                    position="bottom"
                                 >
-                                    Clear all
-                                </Button>
-                            </Tooltip>
+                                    <Button
+                                        variant="light"
+                                        size="xs"
+                                        color="gray"
+                                        onClick={clearAllFilters}
+                                        disabled={totalFilterRules.length === 0}
+                                    >
+                                        Clear all
+                                    </Button>
+                                </Tooltip>
+                            )}
                         </Group>
                     ) : (
                         <FieldSelect
