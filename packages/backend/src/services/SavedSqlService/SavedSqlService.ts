@@ -15,6 +15,7 @@ import {
     SqlChart,
     SqlRunnerPivotQueryBody,
     UpdateSqlChart,
+    VIZ_DEFAULT_AGGREGATION,
 } from '@lightdash/common';
 import { uniq } from 'lodash';
 import {
@@ -78,7 +79,7 @@ export class SavedSqlService extends BaseService {
                       yAxisCount: (config.fieldConfig?.y ?? []).length,
                       aggregationTypes: uniq(
                           (config.fieldConfig?.y ?? []).map(
-                              (y) => y.aggregation,
+                              (y) => y.aggregation ?? VIZ_DEFAULT_AGGREGATION,
                           ),
                       ),
                   }
@@ -89,7 +90,7 @@ export class SavedSqlService extends BaseService {
                       yAxisCount: (config.fieldConfig?.y ?? []).length,
                       aggregationTypes: uniq(
                           (config.fieldConfig?.y ?? []).map(
-                              (y) => y.aggregation,
+                              (y) => y.aggregation ?? VIZ_DEFAULT_AGGREGATION,
                           ),
                       ),
                   }

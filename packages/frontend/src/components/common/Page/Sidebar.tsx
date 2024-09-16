@@ -1,11 +1,9 @@
 import {
     Box,
-    Card,
     Flex,
     getDefaultZIndex,
-    Stack,
+    Paper,
     Transition,
-    type CardProps,
     type FlexProps,
     type MantineTransition,
 } from '@mantine/core';
@@ -35,9 +33,9 @@ export type SidebarWidthProps = {
 type Props = {
     isOpen?: boolean;
     containerProps?: FlexProps;
-    cardProps?: CardProps;
     position?: SidebarPosition;
     widthProps?: SidebarWidthProps;
+    noSidebarPadding?: boolean;
     mainWidth?: number;
     onResizeStart?: () => void;
     onResizeEnd?: () => void;
@@ -46,11 +44,11 @@ type Props = {
 const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     isOpen = true,
     containerProps,
-    cardProps,
     position = SidebarPosition.LEFT,
     widthProps = {},
     mainWidth,
     children,
+    noSidebarPadding,
     onResizeStart,
     onResizeEnd,
 }) => {
@@ -103,19 +101,21 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                 >
                     {(style) => (
                         <>
-                            <Card
-                                component={Stack}
-                                display="flex"
-                                radius="unset"
+                            <Paper
                                 shadow="lg"
-                                padding="lg"
+                                p={noSidebarPadding ? undefined : 'lg'}
                                 pb={0}
                                 w={sidebarWidth}
                                 style={style}
-                                sx={{ flexGrow: 1 }}
+                                sx={{
+                                    display: 'flex',
+                                    flexGrow: 1,
+                                    flexDirection: 'column',
+                                    overflowY: 'auto',
+                                }}
                             >
                                 {children}
-                            </Card>
+                            </Paper>
 
                             <Box
                                 h="100%"
@@ -126,7 +126,6 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                                     ? { right: -SIDEBAR_RESIZE_HANDLE_WIDTH }
                                     : { left: -SIDEBAR_RESIZE_HANDLE_WIDTH })}
                                 onMouseDown={startResizing}
-                                {...cardProps}
                                 sx={(theme) => ({
                                     cursor: 'col-resize',
                                     zIndex: getDefaultZIndex('app') + 1,

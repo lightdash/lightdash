@@ -1,4 +1,14 @@
-import type { ApiError } from '..';
+import type {
+    AllVizChartConfig,
+    ApiError,
+    ChartKind,
+    Dashboard,
+    LightdashUser,
+    Organization,
+    Project,
+    SpaceSummary,
+    VizChartConfig,
+} from '..';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
 import { SchedulerJobStatus } from './scheduler';
@@ -344,3 +354,52 @@ export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
         ...orFiltersFieldNames,
     ];
 }
+export type SavedSemanticViewerChart = {
+    savedSemanticViewerChartUuid: string;
+    name: string;
+    description: string | null;
+    slug: string;
+    config: AllVizChartConfig;
+    semanticLayerView: string | null;
+    semanticLayerQuery: SemanticLayerQuery;
+    chartKind: ChartKind;
+    createdAt: Date;
+    createdBy: Pick<
+        LightdashUser,
+        'userUuid' | 'firstName' | 'lastName'
+    > | null;
+    lastUpdatedAt: Date;
+    lastUpdatedBy: Pick<
+        LightdashUser,
+        'userUuid' | 'firstName' | 'lastName'
+    > | null;
+    space: Pick<SpaceSummary, 'uuid' | 'name' | 'isPrivate' | 'userAccess'>;
+    dashboard: Pick<Dashboard, 'uuid' | 'name'> | null;
+    project: Pick<Project, 'projectUuid'>;
+    organization: Pick<Organization, 'organizationUuid'>;
+    views: number;
+    firstViewedAt: Date;
+    lastViewedAt: Date;
+};
+
+export type SemanticLayerCreateChart = {
+    name: string;
+    description: string | null;
+    semanticLayerView: string | null;
+    semanticLayerQuery: SemanticLayerQuery;
+    config: VizChartConfig;
+    spaceUuid: string;
+};
+
+export type ApiSemanticLayerCreateChart = {
+    status: 'ok';
+    results: {
+        savedSemanticViewerChartUuid: string;
+        slug: string;
+    };
+};
+
+export type ApiSemanticLayerGetChart = {
+    status: 'ok';
+    results: SavedSemanticViewerChart;
+};

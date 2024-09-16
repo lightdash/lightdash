@@ -1,10 +1,15 @@
 import {
+    ChartKind,
     type ApiError,
+    type ApiSemanticLayerCreateChart,
     type PivotChartData,
+    type SavedSemanticViewerChart,
     type SemanticLayerClientInfo,
+    type SemanticLayerCreateChart,
     type SemanticLayerField,
     type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
+    type SemanticLayerResultRow,
     type SemanticLayerView,
 } from '@lightdash/common';
 import {
@@ -19,6 +24,9 @@ import {
     apiGetSemanticLayerViews,
     apiPostSemanticLayerSql,
     apiPostSemanticLayerViewFields,
+    createSemanticViewerChart,
+    getSavedSemanticViewerChart,
+    getSemanticViewerChartResults,
 } from './requests';
 
 type SemanticLayerInfoParams = {
@@ -116,3 +124,99 @@ export const useSemanticLayerQueryResults = (
             }),
         ...useMutationParams,
     });
+
+export const useCreateSemanticViewerChartMutation = (
+    projectUuid: string,
+    mutationOptions: UseMutationOptions<
+        ApiSemanticLayerCreateChart['results'],
+        ApiError,
+        SemanticLayerCreateChart
+    > = {},
+) =>
+    useMutation<
+        ApiSemanticLayerCreateChart['results'],
+        ApiError,
+        SemanticLayerCreateChart
+    >((data) => createSemanticViewerChart(projectUuid, data), {
+        mutationKey: [projectUuid, 'semanticLayer', 'createChart'],
+        ...mutationOptions,
+    });
+
+const getDashboardSemanticViewerChartAndPossibleResults = async ({
+    projectUuid,
+    savedSemanticViewerChartUuid,
+}: {
+    projectUuid: string;
+    savedSemanticViewerChartUuid: string;
+}): Promise<{
+    resultsAndColumns: {
+        results: SemanticLayerResultRow[];
+        columns: string[];
+    };
+    chart: SavedSemanticViewerChart;
+}> => {
+    const chart = await getSavedSemanticViewerChart(
+        projectUuid,
+        savedSemanticViewerChartUuid,
+    );
+
+    const hasResultsHandledInChart = chart.config.type !== ChartKind.TABLE;
+
+    if (hasResultsHandledInChart) {
+        return {
+            chart,
+            resultsAndColumns: {
+                results: [],
+                columns: [],
+            },
+        };
+    }
+
+    const semanticViewerChartResults = await getSemanticViewerChartResults(
+        projectUuid,
+        chart.savedSemanticViewerChartUuid,
+    );
+
+    return {
+        chart,
+        resultsAndColumns: {
+            results: semanticViewerChartResults.results,
+            columns: semanticViewerChartResults.columns,
+        },
+    };
+};
+
+/**
+ * Fetches the chart and possible results of a SemanticLayer query from the Semantic Layer runner - used in Dashboards
+ * If the chart is not of type ChartKind.TABLE, we return empty results & columns
+ * @param savedSemanticViewerChartUuid - The UUID of the saved SemanticLayer query.
+ * @param projectUuid - The UUID of the project.
+ * @returns The chart and results of the semantic layer query.
+ */
+export const useDashboardSemanticViewerChart = (
+    projectUuid: string,
+    savedSemanticViewerChartUuid: string | null,
+) => {
+    return useQuery<
+        {
+            resultsAndColumns: {
+                results: SemanticLayerResultRow[];
+                columns: string[];
+            };
+            chart: SavedSemanticViewerChart;
+        },
+        ApiError & { slug?: string }
+    >(
+        [projectUuid, 'semanticLayer', 'chart', savedSemanticViewerChartUuid],
+        () => {
+            return getDashboardSemanticViewerChartAndPossibleResults({
+                projectUuid,
+                savedSemanticViewerChartUuid: savedSemanticViewerChartUuid!,
+            });
+        },
+        {
+            enabled:
+                Boolean(savedSemanticViewerChartUuid) && Boolean(projectUuid),
+        },
+    );
+};

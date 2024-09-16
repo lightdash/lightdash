@@ -11,7 +11,6 @@ import {
 import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectSemanticLayerInfo } from '../store/selectors';
 import {
@@ -19,6 +18,8 @@ import {
     setActiveChartKind,
     SidebarTabs,
 } from '../store/semanticViewerSlice';
+import * as SaveChart from './SaveChart';
+import { SemanticViewerVizConfig } from './SemanticViewerVizConfig';
 import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
 
@@ -30,12 +31,33 @@ const Sidebar: FC = () => {
     const handleExitView = () => {
         dispatch(resetState());
     };
+
     const { activeSidebarTab, activeChartKind, columns } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
+            <Group
+                h="4xl"
+                pl="sm"
+                pr="md"
+                bg="gray.1"
+                spacing="xs"
+                noWrap
+                sx={(theme) => ({
+                    flexShrink: 0,
+                    borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                })}
+            >
+                {view && (
+                    <>
+                        <SaveChart.Content />
+                        <SaveChart.Modal />
+                    </>
+                )}
+            </Group>
+
             <Stack
                 display={
                     activeSidebarTab === SidebarTabs.TABLES ? 'inherit' : 'none'
@@ -43,7 +65,7 @@ const Sidebar: FC = () => {
                 spacing="xs"
                 sx={{ flex: 1, overflow: 'hidden' }}
             >
-                <Title order={5} fz="sm" c="gray.6">
+                <Title order={5} fz="sm" c="gray.6" px="sm">
                     <Group spacing="xs">
                         {features.views && view && (
                             <Tooltip
@@ -64,10 +86,13 @@ const Sidebar: FC = () => {
                 <Flex
                     direction="column"
                     sx={{ flexGrow: 1, overflowY: 'auto' }}
+                    px="sm"
+                    pt="xxs"
                 >
                     {!view ? <SidebarViews /> : <SidebarViewFields />}
                 </Flex>
             </Stack>
+
             <ScrollArea
                 offsetScrollbars
                 variant="primary"
@@ -80,8 +105,8 @@ const Sidebar: FC = () => {
                             : 'none',
                 }}
             >
-                <Stack sx={{ flex: 1, overflow: 'hidden' }}>
-                    <VisualizationConfigPanel
+                <Stack sx={{ flex: 1, overflow: 'hidden' }} px="sm" pt="xxs">
+                    <SemanticViewerVizConfig
                         selectedChartType={
                             activeChartKind ?? ChartKind.VERTICAL_BAR
                         }

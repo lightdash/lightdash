@@ -53,8 +53,9 @@ const SemanticViewerPageWithStore = () => {
         <Page
             title="Semantic Viewer"
             withFullHeight
-            withSidebarBorder
             noContentPadding
+            withSidebarBorder
+            noSidebarPadding
             sidebar={<SemanticViewer.Sidebar />}
         >
             <SemanticViewer.Content />

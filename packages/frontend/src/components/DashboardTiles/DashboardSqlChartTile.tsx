@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ChartKind,
     isVizTableConfig,
-    type DashboardSqlChartTile as DashboardSqlChartTileType,
+    type DashboardSqlChartTile,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
@@ -24,7 +24,7 @@ interface Props
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
-    tile: DashboardSqlChartTileType;
+    tile: DashboardSqlChartTile;
     minimal?: boolean;
 }
 
@@ -54,11 +54,7 @@ const DashboardOptions = memo(
     ),
 );
 
-export const DashboardSqlChartTile: FC<Props> = ({
-    tile,
-    isEditMode,
-    ...rest
-}) => {
+const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
 
     const { projectUuid } = useParams<{
@@ -172,6 +168,9 @@ export const DashboardSqlChartTile: FC<Props> = ({
                         <Table
                             resultsRunner={resultsRunner}
                             columnsConfig={data.chart.config.columns}
+                            flexProps={{
+                                mah: '100%',
+                            }}
                         />
                     </Box>
                 )}
@@ -194,3 +193,5 @@ export const DashboardSqlChartTile: FC<Props> = ({
         </TileBase>
     );
 };
+
+export default SqlChartTile;

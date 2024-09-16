@@ -25,9 +25,8 @@ const ContentCharts: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
-    const { results, columns, activeChartKind, fields } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const { results, columns, activeChartKind, fields, sortBy, filters } =
+        useAppSelector((state) => state.semanticViewer);
 
     const resultsRunner = useMemo(() => {
         return new SemanticViewerResultsRunner({
@@ -57,6 +56,7 @@ const ContentCharts: FC = () => {
         resultsRunner,
         config: vizConfig,
         projectUuid,
+        additionalQueryKey: [filters, sortBy],
     });
 
     const pivotResultsRunner = useMemo(() => {
@@ -98,7 +98,7 @@ const ContentCharts: FC = () => {
                         <ChartView
                             config={vizConfig}
                             spec={chartSpec}
-                            isLoading={chartVizQuery.isLoading}
+                            isLoading={chartVizQuery.isFetching}
                             error={chartVizQuery.error}
                             style={{
                                 flexGrow: 1,

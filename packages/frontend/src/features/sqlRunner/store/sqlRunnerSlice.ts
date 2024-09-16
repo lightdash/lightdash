@@ -26,6 +26,7 @@ export interface SqlRunnerState {
     activeTable: string | undefined;
     activeSchema: string | undefined;
     savedSqlChart: SqlChart | undefined;
+    fileUrl: string | undefined;
     name: string;
     description: string;
     sql: string;
@@ -44,6 +45,9 @@ export interface SqlRunnerState {
         updateChartModal: {
             isOpen: boolean;
         };
+        addToDashboard: {
+            isOpen: boolean;
+        };
     };
     quoteChar: string;
     sqlColumns: VizColumn[] | undefined;
@@ -56,6 +60,7 @@ const initialState: SqlRunnerState = {
     activeTable: undefined,
     activeSchema: undefined,
     savedSqlChart: undefined,
+    fileUrl: undefined,
     name: '',
     description: '',
     sql: '',
@@ -72,6 +77,9 @@ const initialState: SqlRunnerState = {
             isOpen: false,
         },
         updateChartModal: {
+            isOpen: false,
+        },
+        addToDashboard: {
             isOpen: false,
         },
     },
@@ -96,6 +104,9 @@ export const sqlRunnerSlice = createSlice({
             if (action.payload === true) {
                 state.activeEditorTab = EditorTabs.VISUALIZATION;
             }
+        },
+        setFileUrl: (state, action: PayloadAction<string>) => {
+            state.fileUrl = action.payload;
         },
         setSqlRunnerResults: (
             state,
@@ -203,6 +214,7 @@ export const {
     setProjectUuid,
     setFetchResultsOnLoad,
     setSqlRunnerResults,
+    setFileUrl,
     updateName,
     setSql,
     setSqlLimit,

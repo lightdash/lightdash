@@ -112,6 +112,9 @@ export interface SemanticViewerState {
 
     view: string | undefined;
 
+    name: string;
+    saveModalOpen: boolean;
+
     activeEditorTab: EditorTabs;
     activeSidebarTab: SidebarTabs;
     activeChartKind: ChartKind;
@@ -141,6 +144,9 @@ const initialState: SemanticViewerState = {
     info: undefined,
 
     view: undefined,
+
+    name: '',
+    saveModalOpen: false,
 
     activeEditorTab: EditorTabs.RESULTS,
     activeSidebarTab: SidebarTabs.TABLES,
@@ -180,6 +186,9 @@ export const semanticViewerSlice = createSlice({
             action: PayloadAction<SemanticViewerState['info']>,
         ) => {
             state.info = action.payload;
+        },
+        updateName: (state, action: PayloadAction<string>) => {
+            state.name = action.payload;
         },
         enterView: (state, action: PayloadAction<string>) => {
             state.view = action.payload;
@@ -273,17 +282,8 @@ export const semanticViewerSlice = createSlice({
         setFields: (state, action: PayloadAction<SemanticLayerField[]>) => {
             state.fields = action.payload;
         },
-        addFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
-            state.filters.push(action.payload);
-        },
-        removeFilter: (state, action: PayloadAction<string>) => {
-            const filterIndex = state.filters.findIndex(
-                (filter) => filter.uuid === action.payload,
-            );
-
-            if (filterIndex !== -1) {
-                state.filters.splice(filterIndex, 1);
-            }
+        setFilters: (state, action: PayloadAction<SemanticLayerFilter[]>) => {
+            state.filters = action.payload;
         },
         updateFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
             const filterIndex = state.filters.findIndex(
@@ -330,6 +330,10 @@ export const semanticViewerSlice = createSlice({
                 state.sortBy = [];
             }
         },
+
+        updateSaveModalOpen: (state, action: PayloadAction<boolean>) => {
+            state.saveModalOpen = action.payload;
+        },
     },
 });
 
@@ -338,6 +342,8 @@ export const {
     setSemanticLayerInfo,
     setSemanticLayerStatus,
     enterView,
+    updateName,
+    updateSaveModalOpen,
     setResults,
     setActiveEditorTab,
     setActiveChartKind,
@@ -346,9 +352,7 @@ export const {
     deselectField,
     setLimit,
     updateTimeDimensionGranularity,
-    addFilter,
-    removeFilter,
-    updateFilter,
+    setFilters,
     setIsFiltersModalOpen,
     addFilterAndOpenModal,
     updateSortBy,

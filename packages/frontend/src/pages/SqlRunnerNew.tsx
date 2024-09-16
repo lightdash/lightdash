@@ -81,9 +81,10 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
             header={<Header mode={params.slug ? 'edit' : 'create'} />}
             isSidebarOpen={isLeftSidebarOpen}
             sidebar={<Sidebar setSidebarOpen={setLeftSidebarOpen} />}
+            noSidebarPadding
         >
             <Group
-                align={'stretch'}
+                align="stretch"
                 grow
                 spacing="none"
                 p={0}

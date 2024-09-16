@@ -3,9 +3,9 @@ import {
     isSemanticLayerRelativeTimeOperator,
     type SemanticLayerFilter,
 } from '@lightdash/common';
+import { v4 as uuidV4 } from 'uuid';
 
 type FilterBaseArgs = {
-    uuid: string;
     field: string;
     fieldKind: SemanticLayerFilter['fieldKind'];
     fieldType: SemanticLayerFilter['fieldType'];
@@ -16,10 +16,12 @@ export function createFilterForOperator(
     args: FilterBaseArgs,
 ): SemanticLayerFilter {
     const { operator, ...rest } = args;
+    const uuid = uuidV4();
 
     if (isSemanticLayerRelativeTimeOperator(operator)) {
         return {
             ...rest,
+            uuid,
             operator,
             values: undefined,
         };
@@ -28,6 +30,7 @@ export function createFilterForOperator(
     if (isSemanticLayerBaseOperator(operator)) {
         return {
             ...rest,
+            uuid,
             operator,
             values: [],
         };

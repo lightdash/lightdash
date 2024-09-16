@@ -63,6 +63,7 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
+    LightdashError,
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
@@ -600,9 +601,16 @@ export class ProjectService extends BaseService {
         };
 
         await this.jobModel.create(job);
-        doAsyncWork().catch((e) =>
-            this.logger.error(`Error running background job: ${e}`),
-        );
+        doAsyncWork().catch((e) => {
+            if (!(e instanceof LightdashError)) {
+                Sentry.captureException(e);
+            }
+            this.logger.error(
+                `Error running background job:${
+                    e instanceof Error ? e.stack : e
+                }`,
+            );
+        });
         return {
             jobUuid: job.jobUuid,
         };
@@ -2122,9 +2130,7 @@ export class ProjectService extends BaseService {
         valuesColumns,
         groupByColumns,
     }: SqlRunnerPivotQueryPayload): Promise<
-        {
-            fileUrl: string;
-        } & Omit<PivotChartData, 'results' | 'columns'>
+        Omit<PivotChartData, 'results' | 'columns'>
     > {
         if (!indexColumn) throw new ParameterError('Index column is required');
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -2710,7 +2716,14 @@ export class ProjectService extends BaseService {
         };
         await this.projectModel
             .tryAcquireProjectLock(projectUuid, onLockAcquired, onLockFailed)
-            .catch((e) => this.logger.error(`Background job failed: ${e}`));
+            .catch((e) => {
+                if (!(e instanceof LightdashError)) {
+                    Sentry.captureException(e);
+                }
+                this.logger.error(
+                    `Background job failed:${e instanceof Error ? e.stack : e}`,
+                );
+            });
     }
 
     async getAllExploresSummary(

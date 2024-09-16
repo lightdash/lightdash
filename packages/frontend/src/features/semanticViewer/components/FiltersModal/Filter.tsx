@@ -29,6 +29,8 @@ import {
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import useToaster from '../../../../hooks/toaster/useToaster';
+import { createFilterForOperator } from './createFilterForOperator';
 import FilterButton from './FilterButton';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterInput from './FilterInput';
@@ -150,6 +152,8 @@ const Filter: FC<FilterProps> = ({
 }) => {
     const theme = useMantineTheme();
     const [isAddingNestedFilter, setIsAddingNestedFilter] = useState(false);
+
+    const { showToastError } = useToaster();
 
     const nestedAndFilters = useMemo(() => {
         return filter.and ?? [];
@@ -523,8 +527,39 @@ const Filter: FC<FilterProps> = ({
                     <Group spacing="xs" w="100%" style={{ zIndex: 3 }}>
                         <FilterFieldSelect
                             availableFieldOptions={fieldOptions}
-                            fields={allFields}
-                            onAddFilter={(newFilter) => {
+                            onFieldChange={(selectedField) => {
+                                setIsAddingNestedFilter(false);
+
+                                const field = allFields.find(
+                                    (f) => f.name === selectedField,
+                                );
+
+                                if (!field) {
+                                    showToastError({
+                                        title: 'Error',
+                                        subtitle: 'Field not found',
+                                    });
+                                    return;
+                                }
+
+                                const defaultOperator =
+                                    field.availableOperators[0];
+
+                                if (!defaultOperator) {
+                                    showToastError({
+                                        title: 'Error',
+                                        subtitle:
+                                            'No filter operators available for this field',
+                                    });
+                                    return;
+                                }
+
+                                const newFilter = createFilterForOperator({
+                                    field: selectedField,
+                                    fieldKind: field.kind,
+                                    fieldType: field.type,
+                                    operator: defaultOperator,
+                                });
                                 handleAddNestedFilter(newFilter);
                                 setIsAddingNestedFilter(false);
                             }}

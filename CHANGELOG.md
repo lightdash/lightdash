@@ -1,3 +1,102 @@
+# [0.1256.0](https://github.com/lightdash/lightdash/compare/0.1255.6...0.1256.0) (2024-09-16)
+
+
+### Features
+
+* save semantic viewer charts and add in the dashboards ([#11485](https://github.com/lightdash/lightdash/issues/11485)) ([e02ff01](https://github.com/lightdash/lightdash/commit/e02ff01487fc5d5ce436f675286929343a9feef9))
+
+## [0.1255.6](https://github.com/lightdash/lightdash/compare/0.1255.5...0.1255.6) (2024-09-16)
+
+
+### Bug Fixes
+
+* update yarn lock after [#11525](https://github.com/lightdash/lightdash/issues/11525) ([#11547](https://github.com/lightdash/lightdash/issues/11547)) ([e6cff78](https://github.com/lightdash/lightdash/commit/e6cff780c66cfd2ca1daa0f316bbcef7a95cf822))
+
+## [0.1255.5](https://github.com/lightdash/lightdash/compare/0.1255.4...0.1255.5) (2024-09-16)
+
+
+### Bug Fixes
+
+* time dimension granularity ([#11549](https://github.com/lightdash/lightdash/issues/11549)) ([a02784d](https://github.com/lightdash/lightdash/commit/a02784d56cdf42d3324456c2ac0cfa6a70d15f44))
+
+## [0.1255.4](https://github.com/lightdash/lightdash/compare/0.1255.3...0.1255.4) (2024-09-16)
+
+
+### Bug Fixes
+
+* packages/backend/package.json to reduce vulnerabilities ([#11525](https://github.com/lightdash/lightdash/issues/11525)) ([166ebfc](https://github.com/lightdash/lightdash/commit/166ebfc6f6618b7f239a39f9f95a0cb041ea8fa9))
+
+## [0.1255.3](https://github.com/lightdash/lightdash/compare/0.1255.2...0.1255.3) (2024-09-16)
+
+
+### Bug Fixes
+
+* changed dropdown position to top ([#11520](https://github.com/lightdash/lightdash/issues/11520)) ([888bb7a](https://github.com/lightdash/lightdash/commit/888bb7ac50405189aa15b781863a980e447f5a91))
+* show minimal table cell context menu ([#11466](https://github.com/lightdash/lightdash/issues/11466)) ([3e871da](https://github.com/lightdash/lightdash/commit/3e871da9a4091c7a2fa703442df960bde1cd0d43))
+
+## [0.1255.2](https://github.com/lightdash/lightdash/compare/0.1255.1...0.1255.2) (2024-09-16)
+
+
+### Bug Fixes
+
+* [Snyk] Security upgrade express-static-gzip from 2.1.7 to 2.1.8 ([#11534](https://github.com/lightdash/lightdash/issues/11534)) ([ac19743](https://github.com/lightdash/lightdash/commit/ac197430ea5689b61a8af91e337c46db59a98e69))
+
+## [0.1255.1](https://github.com/lightdash/lightdash/compare/0.1255.0...0.1255.1) (2024-09-13)
+
+
+### Bug Fixes
+
+* unfurl sql runner ([#11535](https://github.com/lightdash/lightdash/issues/11535)) ([25f0373](https://github.com/lightdash/lightdash/commit/25f0373e856c09afafac8d506d0bc8d182b30054))
+
+# [0.1255.0](https://github.com/lightdash/lightdash/compare/0.1254.1...0.1255.0) (2024-09-12)
+
+
+### Features
+
+* download csv results sql chart ([#11510](https://github.com/lightdash/lightdash/issues/11510)) ([bbf6406](https://github.com/lightdash/lightdash/commit/bbf640677ad348e25b3cea588bd3d0edc8171d2d))
+
+## [0.1254.1](https://github.com/lightdash/lightdash/compare/0.1254.0...0.1254.1) (2024-09-12)
+
+
+### Performance Improvements
+
+* use web workers to get results from stream ([#11492](https://github.com/lightdash/lightdash/issues/11492)) ([490ca83](https://github.com/lightdash/lightdash/commit/490ca8329a9f14268132677b1b394a5d36cf6cbc))
+
+# [0.1254.0](https://github.com/lightdash/lightdash/compare/0.1253.0...0.1254.0) (2024-09-10)
+
+
+### Features
+
+* show pivoted results for non-table sql chart view ([#11511](https://github.com/lightdash/lightdash/issues/11511)) ([a8f68e1](https://github.com/lightdash/lightdash/commit/a8f68e130e04904bb30623f597c1e4eb09610f6e))
+
+# [0.1253.0](https://github.com/lightdash/lightdash/compare/0.1252.0...0.1253.0) (2024-09-10)
+
+
+### Features
+
+* add sql chart to dashboard ([#11487](https://github.com/lightdash/lightdash/issues/11487)) ([20e6cfb](https://github.com/lightdash/lightdash/commit/20e6cfbadb72d6a8e82baac47f80b5f34d75b85f))
+
+# [0.1252.0](https://github.com/lightdash/lightdash/compare/0.1251.0...0.1252.0) (2024-09-10)
+
+
+### Features
+
+* loading error states for sql runner catalog ([#11491](https://github.com/lightdash/lightdash/issues/11491)) ([72976bc](https://github.com/lightdash/lightdash/commit/72976bcaef9aa695c8d498f7477a8ad05d7eeae1))
+
+# [0.1251.0](https://github.com/lightdash/lightdash/compare/0.1250.1...0.1251.0) (2024-09-10)
+
+
+### Features
+
+* copy access when promoting new private space ([#11473](https://github.com/lightdash/lightdash/issues/11473)) ([7a99fe1](https://github.com/lightdash/lightdash/commit/7a99fe1500bbd4f7d66541be41183fb52af7d206))
+
+## [0.1250.1](https://github.com/lightdash/lightdash/compare/0.1250.0...0.1250.1) (2024-09-09)
+
+
+### Bug Fixes
+
+* check for empty rows when updating warehouse available tables ([#11474](https://github.com/lightdash/lightdash/issues/11474)) ([e6530b5](https://github.com/lightdash/lightdash/commit/e6530b5cc731deeb4aeb7d5c02e46969fed997fd)), closes [#11383](https://github.com/lightdash/lightdash/issues/11383)
+
 # [0.1250.0](https://github.com/lightdash/lightdash/compare/0.1249.0...0.1250.0) (2024-09-09)
 
 

@@ -1,6 +1,7 @@
 import {
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
+    VIZ_DEFAULT_AGGREGATION,
     type ApiJobScheduledResponse,
     type PivotChartData,
     type RawResultRow,
@@ -47,6 +48,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
         const results = await getResultsFromStream<RawResultRow>(url);
 
         return {
+            fileUrl: url,
             results,
             indexColumn: job.details.indexColumn,
             valuesColumns: job.details.valuesColumns,
@@ -73,6 +75,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
+                fileUrl: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
@@ -91,7 +94,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
             },
             valuesColumns: config.y.map((y) => ({
                 reference: y.reference,
-                aggregation: y.aggregation,
+                aggregation: y.aggregation ?? VIZ_DEFAULT_AGGREGATION,
             })),
             groupByColumns: config.groupBy,
             limit,
@@ -107,6 +110,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
         }));
 
         return {
+            fileUrl: pivotResults.fileUrl,
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,
             valuesColumns: pivotResults.valuesColumns,
