@@ -41,6 +41,10 @@ export enum DbtWhereOperator {
     NOT_IN = 'NOT IN',
     EQUALS = '=',
     NOT_EQUALS = '!=',
+    GTE = '>=',
+    GT = '>',
+    LTE = '<=',
+    LT = '<',
 }
 
 export type DbtGraphQLMetricInput = {

@@ -218,11 +218,11 @@ export enum SemanticLayerFilterBaseOperator {
     IS_NOT = 'IS_NOT',
 }
 
-export enum SemanticLayerFilterRelativeTimeOperator {
-    IS_TODAY = 'IS_TODAY',
-    IS_YESTERDAY = 'IS_YESTERDAY',
-    IN_LAST_7_DAYS = 'IN_LAST_7_DAYS',
-    IN_LAST_30_DAYS = 'IN_LAST_30_DAYS',
+export enum SemanticLayerFilterRelativeTimeValue {
+    TODAY = 'TODAY',
+    YESTERDAY = 'YESTERDAY',
+    LAST_7_DAYS = 'LAST_7_DAYS',
+    LAST_30_DAYS = 'LAST_30_DAYS',
 }
 
 export type SemanticLayerFilterBase = {
@@ -243,8 +243,9 @@ export type SemanticLayerExactTimeFilter = SemanticLayerFilterBase & {
 };
 
 export type SemanticLayerRelativeTimeFilter = SemanticLayerFilterBase & {
-    operator: SemanticLayerFilterRelativeTimeOperator;
+    operator: SemanticLayerFilterBaseOperator;
     values: undefined;
+    relativeTime: SemanticLayerFilterRelativeTimeValue;
 };
 
 export type SemanticLayerTimeFilter =
@@ -266,14 +267,6 @@ export const isSemanticLayerBaseOperator = (
     operator === SemanticLayerFilterBaseOperator.IS ||
     operator === SemanticLayerFilterBaseOperator.IS_NOT;
 
-export const isSemanticLayerRelativeTimeOperator = (
-    operator: SemanticLayerFilter['operator'],
-): operator is SemanticLayerFilterRelativeTimeOperator =>
-    operator === SemanticLayerFilterRelativeTimeOperator.IS_TODAY ||
-    operator === SemanticLayerFilterRelativeTimeOperator.IS_YESTERDAY ||
-    operator === SemanticLayerFilterRelativeTimeOperator.IN_LAST_7_DAYS ||
-    operator === SemanticLayerFilterRelativeTimeOperator.IN_LAST_30_DAYS;
-
 export function isSemanticLayerStringFilter(
     filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
 ): filter is SemanticLayerStringFilter {
@@ -286,21 +279,33 @@ export function isSemanticLayerTimeFilter(
     return filter.fieldType === SemanticLayerFieldType.TIME;
 }
 
-export function isSemanticLayerExactTimeFilter(
-    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
-): filter is SemanticLayerExactTimeFilter {
+export function isSemanticLayerRelativeTimeValue(
+    value: string,
+): value is SemanticLayerFilterRelativeTimeValue {
     return (
-        isSemanticLayerTimeFilter(filter) &&
-        isSemanticLayerBaseOperator(filter.operator)
+        value === SemanticLayerFilterRelativeTimeValue.TODAY ||
+        value === SemanticLayerFilterRelativeTimeValue.YESTERDAY ||
+        value === SemanticLayerFilterRelativeTimeValue.LAST_7_DAYS ||
+        value === SemanticLayerFilterRelativeTimeValue.LAST_30_DAYS
     );
 }
 
 export function isSemanticLayerRelativeTimeFilter(
-    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
+    filter: SemanticLayerFilter,
 ): filter is SemanticLayerRelativeTimeFilter {
     return (
         isSemanticLayerTimeFilter(filter) &&
-        isSemanticLayerRelativeTimeOperator(filter.operator)
+        'relativeTime' in filter &&
+        isSemanticLayerRelativeTimeValue(filter.relativeTime)
+    );
+}
+
+export function isSemanticLayerExactTimeFilter(
+    filter: SemanticLayerFilter,
+): filter is SemanticLayerExactTimeFilter {
+    return (
+        isSemanticLayerTimeFilter(filter) &&
+        !isSemanticLayerRelativeTimeFilter(filter)
     );
 }
 
@@ -319,12 +324,8 @@ export function getAvailableSemanticLayerFilterOperators(
         case SemanticLayerFieldType.TIME:
             return [
                 // TODO: Omitting exact operators for now
-                // SemanticLayerFilterBaseOperator.IS,
-                // SemanticLayerFilterBaseOperator.IS_NOT,
-                SemanticLayerFilterRelativeTimeOperator.IS_TODAY,
-                SemanticLayerFilterRelativeTimeOperator.IS_YESTERDAY,
-                SemanticLayerFilterRelativeTimeOperator.IN_LAST_7_DAYS,
-                SemanticLayerFilterRelativeTimeOperator.IN_LAST_30_DAYS,
+                SemanticLayerFilterBaseOperator.IS,
+                SemanticLayerFilterBaseOperator.IS_NOT,
             ];
         default:
             return assertUnreachable(

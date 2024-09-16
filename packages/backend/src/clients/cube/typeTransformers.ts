@@ -10,7 +10,7 @@ import {
     SemanticLayerFieldType,
     SemanticLayerFilter,
     SemanticLayerFilterBaseOperator,
-    SemanticLayerFilterRelativeTimeOperator,
+    SemanticLayerFilterRelativeTimeValue,
     SemanticLayerTimeGranularity,
 } from '@lightdash/common';
 import moment from 'moment';
@@ -97,19 +97,36 @@ export const getCubeTimeDimensionGranularity = (
     }
 };
 
-const getCubeFilterOperatorFromSemanticLayerFilterOperator = (
-    operator: SemanticLayerFilter['operator'],
+const getCubeFilterOperatorForSemanticLayerFilter = (
+    filter: SemanticLayerFilter,
 ): BinaryOperator => {
+    const { operator, values } = filter;
+
     switch (operator) {
         case SemanticLayerFilterBaseOperator.IS:
-        case SemanticLayerFilterRelativeTimeOperator.IS_TODAY:
-        case SemanticLayerFilterRelativeTimeOperator.IS_YESTERDAY:
+            if (
+                isSemanticLayerRelativeTimeFilter(filter) &&
+                (filter.relativeTime ===
+                    SemanticLayerFilterRelativeTimeValue.LAST_30_DAYS ||
+                    filter.relativeTime ===
+                        SemanticLayerFilterRelativeTimeValue.LAST_7_DAYS)
+            ) {
+                return 'inDateRange';
+            }
+
             return 'equals';
         case SemanticLayerFilterBaseOperator.IS_NOT:
+            if (
+                isSemanticLayerRelativeTimeFilter(filter) &&
+                (filter.relativeTime ===
+                    SemanticLayerFilterRelativeTimeValue.LAST_30_DAYS ||
+                    filter.relativeTime ===
+                        SemanticLayerFilterRelativeTimeValue.LAST_7_DAYS)
+            ) {
+                return 'notInDateRange';
+            }
+
             return 'notEquals';
-        case SemanticLayerFilterRelativeTimeOperator.IN_LAST_7_DAYS:
-        case SemanticLayerFilterRelativeTimeOperator.IN_LAST_30_DAYS:
-            return 'inDateRange';
         default:
             return assertUnreachable(
                 operator,
@@ -118,27 +135,27 @@ const getCubeFilterOperatorFromSemanticLayerFilterOperator = (
     }
 };
 
-const getCubeFilterValuesForRelativeTimeOperator = (
-    operator: SemanticLayerFilterRelativeTimeOperator,
+const getCubeValuesForRelativeTimeValue = (
+    value: SemanticLayerFilterRelativeTimeValue,
     now = moment(),
 ): string[] => {
     const today = now.format('YYYY-MM-DD');
-    switch (operator) {
-        case SemanticLayerFilterRelativeTimeOperator.IS_TODAY:
+    switch (value) {
+        case SemanticLayerFilterRelativeTimeValue.TODAY:
             return [today];
-        case SemanticLayerFilterRelativeTimeOperator.IS_YESTERDAY:
+        case SemanticLayerFilterRelativeTimeValue.YESTERDAY:
             const yesterday = now.subtract(1, 'day').format('YYYY-MM-DD');
             return [yesterday];
-        case SemanticLayerFilterRelativeTimeOperator.IN_LAST_7_DAYS:
+        case SemanticLayerFilterRelativeTimeValue.LAST_7_DAYS:
             const sevenDaysAgo = now.subtract(7, 'day').format('YYYY-MM-DD');
             return [sevenDaysAgo, today];
-        case SemanticLayerFilterRelativeTimeOperator.IN_LAST_30_DAYS:
+        case SemanticLayerFilterRelativeTimeValue.LAST_30_DAYS:
             const thirtyDaysAgo = now.subtract(30, 'day').format('YYYY-MM-DD');
             return [thirtyDaysAgo, today];
         default:
             return assertUnreachable(
-                operator,
-                `Unknown filter operator: ${operator}`,
+                value,
+                `Unknown relative time value: ${value}`,
             );
     }
 };
@@ -147,11 +164,9 @@ export const getCubeFilterFromSemanticLayerFilter = (
     filter: SemanticLayerFilter,
 ): Filter => ({
     member: filter.field,
-    operator: getCubeFilterOperatorFromSemanticLayerFilterOperator(
-        filter.operator,
-    ),
+    operator: getCubeFilterOperatorForSemanticLayerFilter(filter),
     values: isSemanticLayerRelativeTimeFilter(filter)
-        ? getCubeFilterValuesForRelativeTimeOperator(filter.operator)
+        ? getCubeValuesForRelativeTimeValue(filter.relativeTime)
         : filter.values,
     ...(filter.or && {
         or: filter.or.map(getCubeFilterFromSemanticLayerFilter),

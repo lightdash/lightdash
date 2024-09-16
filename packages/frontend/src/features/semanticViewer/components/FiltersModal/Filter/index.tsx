@@ -1,17 +1,14 @@
 import {
     assertUnreachable,
-    isSemanticLayerBaseOperator,
-    isSemanticLayerExactTimeFilter,
     isSemanticLayerRelativeTimeFilter,
-    isSemanticLayerRelativeTimeOperator,
     isSemanticLayerStringFilter,
+    isSemanticLayerTimeFilter,
     type SemanticLayerField,
     type SemanticLayerFilter,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
-    filterProps,
     Group,
     Menu,
     rem,
@@ -33,7 +30,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import FilterButton from '../FilterButton';
 import FilterFieldSelect from '../FilterFieldSelect';
 import MultiStringFilter from './MultiStringFilter';
-import RelativeTimeFilter from './RelativeTimeFilter';
+import TimeFilter from './TimeFilter';
 
 enum AndOr {
     AND = 'and',
@@ -191,30 +188,19 @@ const Filter: FC<FilterProps> = ({
                 return;
             }
 
-            const baseUpdate: Omit<SemanticLayerFilter, 'operator' | 'values'> =
-                {
-                    ...updatedFilter,
-                    fieldKind: updatedField.kind,
-                    fieldType: updatedField.type,
-                };
+            const baseUpdate: Omit<SemanticLayerFilter, 'operator'> = {
+                ...updatedFilter,
+                fieldKind: updatedField.kind,
+                fieldType: updatedField.type,
+            };
 
-            if (isSemanticLayerRelativeTimeOperator(updatedOperator)) {
-                onUpdate({
-                    ...baseUpdate,
-                    operator: updatedOperator,
-                    values: undefined,
-                });
-                return;
-            }
-
-            if (isSemanticLayerBaseOperator(updatedOperator)) {
-                onUpdate({
-                    ...baseUpdate,
-                    operator: updatedOperator,
-                    values: updatedFilter.values ?? [],
-                });
-                return;
-            }
+            onUpdate({
+                ...baseUpdate,
+                ...(isSemanticLayerRelativeTimeFilter(updatedFilter)
+                    ? { relativeTime: updatedFilter.relativeTime }
+                    : { values: updatedFilter.values }),
+                operator: updatedOperator,
+            });
         },
         [findFilterField, onUpdate],
     );
@@ -428,8 +414,8 @@ const Filter: FC<FilterProps> = ({
                         hasNestedFilters={hasNestedFilters}
                     />
 
-                    {isSemanticLayerRelativeTimeFilter(filter) ? (
-                        <RelativeTimeFilter
+                    {isSemanticLayerTimeFilter(filter) ? (
+                        <TimeFilter
                             fields={fields}
                             filter={filter}
                             onUpdate={handleUpdateFilter}
@@ -438,8 +424,7 @@ const Filter: FC<FilterProps> = ({
                         />
                     ) : null}
 
-                    {isSemanticLayerStringFilter(filter) ||
-                    isSemanticLayerExactTimeFilter(filter) ? (
+                    {isSemanticLayerStringFilter(filter) ? (
                         <MultiStringFilter
                             fields={fields}
                             fieldOptions={fieldOptions}
@@ -529,9 +514,7 @@ const Filter: FC<FilterProps> = ({
                             fields={fields}
                             fieldOptions={fieldOptions}
                             isCreatingFilter
-                            hasLeftSpacing={
-                                hasNestedFilters || Boolean(filterProps)
-                            }
+                            hasLeftSpacing={currentNestingLevel !== 0}
                             onNewFilter={(newFilter) => {
                                 handleAddNestedFilter(newFilter);
                                 setIsAddingNestedFilter(false);

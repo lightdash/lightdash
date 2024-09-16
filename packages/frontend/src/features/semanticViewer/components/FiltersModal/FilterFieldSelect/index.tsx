@@ -56,7 +56,8 @@ const FilterFieldSelect: FC<FilterFieldInputProps> = ({
                 <Box w={LEFT_COMPONENT_WIDTH} style={{ flexShrink: 0 }}></Box>
             )}
             <Select
-                style={{ flex: 5 }}
+                w={isCreatingFilter ? undefined : '100%'}
+                style={isCreatingFilter ? { flex: 5 } : undefined}
                 size="xs"
                 value={value}
                 data={fieldOptions}

@@ -9130,27 +9130,11 @@
                 "enum": ["IS", "IS_NOT"],
                 "type": "string"
             },
-            "SemanticLayerFilterRelativeTimeOperator": {
-                "enum": [
-                    "IS_TODAY",
-                    "IS_YESTERDAY",
-                    "IN_LAST_7_DAYS",
-                    "IN_LAST_30_DAYS"
-                ],
-                "type": "string"
-            },
             "SemanticLayerField": {
                 "properties": {
                     "availableOperators": {
                         "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/SemanticLayerFilterRelativeTimeOperator"
-                                }
-                            ]
+                            "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
                         },
                         "type": "array"
                     },
@@ -9360,6 +9344,10 @@
                     }
                 ]
             },
+            "SemanticLayerFilterRelativeTimeValue": {
+                "enum": ["TODAY", "YESTERDAY", "LAST_7_DAYS", "LAST_30_DAYS"],
+                "type": "string"
+            },
             "SemanticLayerRelativeTimeFilter": {
                 "allOf": [
                     {
@@ -9367,12 +9355,15 @@
                     },
                     {
                         "properties": {
+                            "relativeTime": {
+                                "$ref": "#/components/schemas/SemanticLayerFilterRelativeTimeValue"
+                            },
                             "values": {},
                             "operator": {
-                                "$ref": "#/components/schemas/SemanticLayerFilterRelativeTimeOperator"
+                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
                             }
                         },
-                        "required": ["operator"],
+                        "required": ["relativeTime", "operator"],
                         "type": "object"
                     }
                 ]

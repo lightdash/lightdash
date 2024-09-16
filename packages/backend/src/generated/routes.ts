@@ -8267,16 +8267,6 @@ const models: TsoaRoute.Models = {
         enums: ['IS', 'IS_NOT'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerFilterRelativeTimeOperator: {
-        dataType: 'refEnum',
-        enums: [
-            'IS_TODAY',
-            'IS_YESTERDAY',
-            'IN_LAST_7_DAYS',
-            'IN_LAST_30_DAYS',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerField: {
         dataType: 'refAlias',
         type: {
@@ -8285,11 +8275,8 @@ const models: TsoaRoute.Models = {
                 availableOperators: {
                     dataType: 'array',
                     array: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'SemanticLayerFilterBaseOperator' },
-                            { ref: 'SemanticLayerFilterRelativeTimeOperator' },
-                        ],
+                        dataType: 'refEnum',
+                        ref: 'SemanticLayerFilterBaseOperator',
                     },
                     required: true,
                 },
@@ -8494,6 +8481,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerFilterRelativeTimeValue: {
+        dataType: 'refEnum',
+        enums: ['TODAY', 'YESTERDAY', 'LAST_7_DAYS', 'LAST_30_DAYS'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerRelativeTimeFilter: {
         dataType: 'refAlias',
         type: {
@@ -8503,9 +8495,13 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        relativeTime: {
+                            ref: 'SemanticLayerFilterRelativeTimeValue',
+                            required: true,
+                        },
                         values: { dataType: 'undefined', required: true },
                         operator: {
-                            ref: 'SemanticLayerFilterRelativeTimeOperator',
+                            ref: 'SemanticLayerFilterBaseOperator',
                             required: true,
                         },
                     },

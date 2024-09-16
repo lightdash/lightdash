@@ -111,7 +111,6 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         fields={fields}
                         fieldOptions={fieldOptions}
                         isCreatingFilter
-                        hasLeftSpacing={draftFilters.length > 0}
                         onNewFilter={(newFilter) => {
                             setIsAddingFilter(false);
                             setDraftFilters((prev) => [...prev, newFilter]);

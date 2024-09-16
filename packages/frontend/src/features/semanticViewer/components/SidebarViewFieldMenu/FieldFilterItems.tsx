@@ -2,7 +2,6 @@ import { type SemanticLayerField } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { useAppDispatch } from '../../store/hooks';
 import { addFilterAndOpenModal } from '../../store/semanticViewerSlice';
 import { createFilterForOperator } from '../FiltersModal/createFilterForOperator';
@@ -16,7 +15,6 @@ const FieldFilterItems: FC<Props> = ({ field }) => {
 
     const handleAddFilter = useCallback(() => {
         const newFilter = createFilterForOperator({
-            uuid: uuidv4(),
             field: field.name,
             fieldKind: field.kind,
             fieldType: field.type,

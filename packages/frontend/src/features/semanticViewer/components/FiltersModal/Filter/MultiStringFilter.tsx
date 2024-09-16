@@ -1,6 +1,5 @@
 import {
     isSemanticLayerBaseOperator,
-    type SemanticLayerExactTimeFilter,
     type SemanticLayerField,
     type SemanticLayerFilter,
     type SemanticLayerStringFilter,
@@ -15,7 +14,7 @@ type MultiStringFilterProps = {
     fields: SemanticLayerField[];
     fieldOptions: SelectItem[];
     filterField?: SemanticLayerField;
-    filter: SemanticLayerStringFilter | SemanticLayerExactTimeFilter; // Exact time filter doesn't have a component for now
+    filter: SemanticLayerStringFilter; // Exact time filter doesn't have a component for now
     onUpdate: (filter: SemanticLayerFilter) => void;
 };
 
@@ -36,6 +35,7 @@ const MultiStringFilter: FC<MultiStringFilterProps> = ({
     return (
         <Group spacing="xs" w="100%" align="center" noWrap>
             <FilterFieldSelect
+                style={{ flex: 5 }}
                 fields={fields}
                 fieldOptions={fieldOptions}
                 value={filter.field}
@@ -57,9 +57,6 @@ const MultiStringFilter: FC<MultiStringFilterProps> = ({
                 withinPortal
                 data={operatorsOpts ?? []}
                 value={filter.operator}
-                portalProps={{
-                    color: 'red',
-                }}
                 onChange={(value: SemanticLayerFilter['operator'] | null) => {
                     if (!value) {
                         return;
