@@ -73,6 +73,7 @@ export const RunSemanticQueryButton: FC = () => {
             fields,
         });
 
+        // TODO: can this just be a getChart datamodel factory
         const chartResultOptions = getChartConfigAndOptions(
             resultsRunner,
             activeChartKind,

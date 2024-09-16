@@ -4,42 +4,67 @@ import {
     type VizPieChartConfig,
     type VizPieChartDisplay,
 } from './types';
-import { type IResultsRunner } from './types/IResultsRunner';
+import {
+    type IResultsRunner,
+    type PivotChartLayout,
+} from './types/IResultsRunner';
 
-export class PieChartDataModel<TLayout> {
-    private readonly resultsRunner: IResultsRunner<TLayout>;
+export class PieChartDataModel {
+    private readonly resultsRunner: IResultsRunner;
 
-    constructor(args: { resultsRunner: IResultsRunner<TLayout> }) {
+    constructor(args: { resultsRunner: IResultsRunner }) {
         this.resultsRunner = args.resultsRunner;
+    }
+
+    getDefaultLayout(): PivotChartLayout | undefined {
+        const dimensions = this.resultsRunner.getDimensions();
+        const metrics = this.resultsRunner.getMetrics();
+
+        console.log('dimensions', dimensions);
+        console.log('metrics', metrics);
+
+        // TODO: this could have its own type so it doesnt reference x and y
+        return {
+            x: {
+                reference: dimensions[0].reference,
+                type: dimensions[0].type,
+            },
+            y: metrics,
+            groupBy: [],
+        };
     }
 
     mergeConfig(
         chartKind: ChartKind.PIE,
-        fieldConfig: TLayout,
+        fieldConfig: PivotChartLayout,
         display: VizPieChartDisplay | undefined,
     ): VizPieChartConfig {
+        const newDefaultLayout = this.getDefaultLayout();
+
+        const mergedLayout =
+            newDefaultLayout?.x?.reference === fieldConfig?.x?.reference
+                ? fieldConfig
+                : newDefaultLayout;
+
         return {
             metadata: {
                 version: 1,
             },
             type: chartKind,
-            fieldConfig: this.resultsRunner.mergePivotChartLayout(fieldConfig),
+            fieldConfig: mergedLayout,
             display,
         };
     }
 
     getResultOptions() {
-        const { indexLayoutOptions, valuesLayoutOptions } =
-            this.resultsRunner.pivotChartOptions();
-
         return {
-            groupFieldOptions: indexLayoutOptions,
-            metricFieldOptions: valuesLayoutOptions,
+            groupFieldOptions: this.resultsRunner.getDimensions(),
+            metricFieldOptions: this.resultsRunner.getMetrics(),
         };
     }
 
     async getTransformedData(
-        layout: TLayout | undefined,
+        layout: PivotChartLayout | undefined,
         sql?: string,
         projectUuid?: string,
         limit?: number,

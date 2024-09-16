@@ -1,3 +1,4 @@
+import { intersectionBy } from 'lodash';
 import {
     capitalize,
     CustomFormatType,
@@ -21,7 +22,7 @@ type CartesianChartKind = Extract<
     ChartKind.LINE | ChartKind.VERTICAL_BAR
 >;
 
-export class CartesianChartDataModel<TLayout> {
+export class CartesianChartDataModel {
     private readonly resultsRunner: IResultsRunner;
 
     constructor(args: { resultsRunner: IResultsRunner }) {
@@ -40,25 +41,70 @@ export class CartesianChartDataModel<TLayout> {
 
     mergeConfig(
         chartKind: CartesianChartKind,
-        config: PivotChartLayout,
+        existingLayout: PivotChartLayout,
         display: CartesianChartDisplay | undefined,
     ): VizCartesianChartConfig {
+        const newDefaultLayout = this.getDefaultLayout();
+
+        const someFieldsMatch =
+            existingLayout?.x?.reference === newDefaultLayout?.x?.reference ||
+            intersectionBy(
+                existingLayout?.y || [],
+                newDefaultLayout?.y || [],
+                'reference',
+            ).length > 0;
+
+        let mergedLayout: PivotChartLayout | undefined = existingLayout;
+
+        if (!existingLayout || !someFieldsMatch) {
+            mergedLayout = newDefaultLayout;
+        }
         return {
             metadata: {
                 version: 1,
             },
             type: chartKind,
-            fieldConfig: this.resultsRunner.mergePivotChartLayout(config),
+            fieldConfig: mergedLayout,
             display,
         };
     }
 
-    getResultOptions() {
-        return this.resultsRunner.pivotChartOptions();
+    getChartOptions() {
+        // return this.resultsRunner.pivotChartOptions();
+        return {
+            indexLayoutOptions: this.resultsRunner.getDimensions(),
+            valuesLayoutOptions: this.resultsRunner.getMetrics(),
+            pivotLayoutOptions: this.resultsRunner.getDimensions(),
+        };
+    }
+
+    getDefaultLayout(): PivotChartLayout | undefined {
+        const dimensions = this.resultsRunner.getDimensions();
+        const metrics = this.resultsRunner.getMetrics();
+
+        const xColumn = dimensions[0];
+        const yColumn = metrics[0];
+
+        if (!xColumn || !yColumn) {
+            return undefined;
+        }
+
+        return {
+            x: {
+                reference: xColumn.reference,
+                type: xColumn.type,
+            },
+            y: [
+                {
+                    reference: yColumn.reference,
+                },
+            ],
+            groupBy: [],
+        };
     }
 
     async getTransformedData(
-        layout: TLayout | undefined,
+        layout: PivotChartLayout | undefined,
         sql?: string,
         projectUuid?: string,
         limit?: number,

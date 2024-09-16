@@ -2,7 +2,9 @@ import {
     type PivotChartData,
     type VizAggregationOptions,
     type VizCartesianChartOptions,
+    type VizIndexLayoutOptions,
     type VizIndexType,
+    type VizValuesLayoutOptions,
 } from '.';
 import { type RawResultRow } from '../../types/results';
 
@@ -31,6 +33,11 @@ export type SemanticViewerPivotChartLayout = {
     y: {
         reference: string;
     }[];
+    customMetrics?: {
+        metricReference: string;
+        dimensionReference: string;
+        aggregation: VizAggregationOptions;
+    }[];
     groupBy: { reference: string }[] | undefined;
 };
 
@@ -53,12 +60,15 @@ export interface IResultsRunner {
         uuid?: string,
     ): Promise<PivotChartData>;
 
+    // MOVE SV√
     defaultPivotChartLayout(): PivotChartLayout | undefined; // Maybe should be on the DM
 
+    // MOVE
     mergePivotChartLayout(
         existingConfig?: PivotChartLayout,
     ): PivotChartLayout | undefined;
 
+    // MOVE SV√
     pivotChartOptions(): VizCartesianChartOptions;
 
     // Sql specific?
@@ -70,6 +80,9 @@ export interface IResultsRunner {
     ): (row: RawResultRow) => RawResultRow[string];
 
     getRows(): RawResultRow[];
+
+    getDimensions(): VizIndexLayoutOptions[];
+    getMetrics(): VizValuesLayoutOptions[];
 
     // TODO: other runner types
     // getPivotTableData() // includes subtotalling etc.

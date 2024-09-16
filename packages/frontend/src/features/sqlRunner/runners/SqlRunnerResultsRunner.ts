@@ -18,7 +18,6 @@ import {
     type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { intersectionBy } from 'lodash';
 import { lightdashApi } from '../../../api';
 import { getResultsFromStream } from '../../../utils/request';
 import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
@@ -219,11 +218,21 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
         valuesLayoutOptions: VizValuesLayoutOptions[];
         pivotLayoutOptions: VizPivotLayoutOptions[];
     } {
+        console.log('TAKE THIS OUT SQLR pivot chart options');
+
         return {
-            indexLayoutOptions: this.pivotChartIndexLayoutOptions(),
-            valuesLayoutOptions: this.pivotChartValuesLayoutOptions(),
-            pivotLayoutOptions: this.pivotChartLayoutOptions(),
+            indexLayoutOptions: [],
+            valuesLayoutOptions: [],
+            pivotLayoutOptions: [],
         };
+    }
+
+    getDimensions(): VizIndexLayoutOptions[] {
+        return this.pivotChartIndexLayoutOptions();
+    }
+
+    getMetrics(): VizValuesLayoutOptions[] {
+        return this.pivotChartValuesLayoutOptions();
     }
 
     defaultPivotChartLayout(): SqlRunnerPivotChartLayout | undefined {
@@ -292,23 +301,12 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
     }
 
     mergePivotChartLayout(currentConfig?: SqlRunnerPivotChartLayout) {
-        const newDefaultLayout = this.defaultPivotChartLayout();
+        console.log(
+            'REMOVE THIS. sql runner merge pivot chart layout',
+            currentConfig,
+        );
 
-        const someFieldsMatch =
-            currentConfig?.x?.reference === newDefaultLayout?.x?.reference ||
-            intersectionBy(
-                currentConfig?.y || [],
-                newDefaultLayout?.y || [],
-                'reference',
-            ).length > 0;
-
-        let mergedLayout = currentConfig;
-
-        if (!currentConfig || !someFieldsMatch) {
-            mergedLayout = newDefaultLayout;
-        }
-
-        return mergedLayout;
+        return undefined;
     }
 
     getColumns(): string[] {

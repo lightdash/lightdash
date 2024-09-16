@@ -17,7 +17,6 @@ import {
     type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { intersectionBy } from 'lodash';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
 const transformChartLayoutToSemanticPivot = (
@@ -112,46 +111,41 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
         );
     }
 
+    getDimensions(): VizIndexLayoutOptions[] {
+        console.log('SV get dimensions');
+
+        return this.dimensions.map((dimension) => ({
+            reference: dimension.name,
+            type: getVizIndexTypeFromDimensionType(dimension.type),
+        }));
+    }
+
+    getMetrics(): VizValuesLayoutOptions[] {
+        console.log('SV get metrics');
+
+        return this.metrics.map((metric) => ({
+            reference: metric.name,
+        }));
+    }
+
     pivotChartOptions(): {
         indexLayoutOptions: VizIndexLayoutOptions[];
         valuesLayoutOptions: VizValuesLayoutOptions[];
         pivotLayoutOptions: VizPivotLayoutOptions[];
     } {
+        console.log('TAKE THIS OUT SV pivot chart options');
+
         return {
-            indexLayoutOptions: this.dimensions.map((dimension) => ({
-                reference: dimension.name,
-                type: getVizIndexTypeFromDimensionType(dimension.type),
-            })),
-            valuesLayoutOptions: this.metrics.map((metric) => ({
-                reference: metric.name,
-            })),
-            pivotLayoutOptions: this.dimensions.map((dimension) => ({
-                reference: dimension.name,
-                type: getVizIndexTypeFromDimensionType(dimension.type),
-            })),
+            indexLayoutOptions: [],
+            valuesLayoutOptions: [],
+            pivotLayoutOptions: [],
         };
     }
 
     defaultPivotChartLayout(): SemanticViewerPivotChartLayout | undefined {
-        const xColumn = this.dimensions[0];
-        const yColumn = this.metrics[0];
+        console.log('TAKE THIS OUT SV default pivot chart layout');
 
-        if (!xColumn || !yColumn) {
-            return;
-        }
-
-        return {
-            x: {
-                reference: xColumn.name,
-                type: getVizIndexTypeFromDimensionType(xColumn.type),
-            },
-            y: [
-                {
-                    reference: yColumn.name,
-                },
-            ],
-            groupBy: [],
-        };
+        return undefined;
     }
 
     static convertColumnNamesToVizColumns(
@@ -230,23 +224,9 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
     }
 
     mergePivotChartLayout(currentConfig?: SemanticViewerPivotChartLayout) {
-        const newDefaultLayout = this.defaultPivotChartLayout();
+        console.log('TAKE THIS OUT SV merge pivot chart layout', currentConfig);
 
-        const someFieldsMatch =
-            currentConfig?.x?.reference === newDefaultLayout?.x?.reference ||
-            intersectionBy(
-                currentConfig?.y || [],
-                newDefaultLayout?.y || [],
-                'reference',
-            ).length > 0;
-
-        let mergedLayout = currentConfig;
-
-        if (!currentConfig || !someFieldsMatch) {
-            mergedLayout = newDefaultLayout;
-        }
-
-        return mergedLayout;
+        return undefined;
     }
 
     getColumns(): string[] {

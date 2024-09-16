@@ -10,10 +10,9 @@ import {
     type IResultsRunner,
     type VizChartConfig,
 } from '@lightdash/common';
-import { type SqlRunnerPivotChartLayout } from '../../../features/sqlRunner/runners/SqlRunnerResultsRunner';
 
 const getChartConfigAndOptions = (
-    resultsRunner: IResultsRunner<SqlRunnerPivotChartLayout>,
+    resultsRunner: IResultsRunner,
     chartType: ChartKind,
     currentVizConfig?: VizChartConfig,
 ) => {
@@ -61,7 +60,7 @@ const getChartConfigAndOptions = (
 
             return {
                 type: chartType,
-                options: barChartModel.getResultOptions(),
+                options: barChartModel.getChartOptions(),
                 config: barChartModel.mergeConfig(
                     chartType,
                     currentVizConfig?.fieldConfig,
@@ -80,7 +79,7 @@ const getChartConfigAndOptions = (
 
             return {
                 type: chartType,
-                options: lineChartModel.getResultOptions(),
+                options: lineChartModel.getChartOptions(),
                 config: lineChartModel.mergeConfig(
                     chartType,
                     currentVizConfig?.fieldConfig,

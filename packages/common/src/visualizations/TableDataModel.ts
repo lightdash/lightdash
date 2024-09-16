@@ -2,13 +2,13 @@ import { type ChartKind } from '../types/savedCharts';
 import { type VizTableConfig } from './types';
 import type { IResultsRunner } from './types/IResultsRunner';
 
-export class TableDataModel<TLayout> {
-    private readonly resultsRunner: IResultsRunner<TLayout>;
+export class TableDataModel {
+    private readonly resultsRunner: IResultsRunner;
 
     private readonly config: VizTableConfig | undefined;
 
     constructor(args: {
-        resultsRunner: IResultsRunner<TLayout>;
+        resultsRunner: IResultsRunner;
         config: VizTableConfig | undefined;
     }) {
         this.resultsRunner = args.resultsRunner;
