@@ -1,3 +1,10 @@
+# [0.1256.0](https://github.com/lightdash/lightdash/compare/0.1255.6...0.1256.0) (2024-09-16)
+
+
+### Features
+
+* save semantic viewer charts and add in the dashboards ([#11485](https://github.com/lightdash/lightdash/issues/11485)) ([e02ff01](https://github.com/lightdash/lightdash/commit/e02ff01487fc5d5ce436f675286929343a9feef9))
+
 ## [0.1255.6](https://github.com/lightdash/lightdash/compare/0.1255.5...0.1255.6) (2024-09-16)
 
 
