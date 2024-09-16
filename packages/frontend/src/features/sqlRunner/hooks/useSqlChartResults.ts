@@ -43,7 +43,7 @@ export const getSqlChartResults = async ({
     const results = await getResultsFromStream(url);
 
     return {
-        url: url!,
+        fileUrl: url!,
         results,
         columns:
             isApiSqlRunnerJobSuccessResponse(job) &&
@@ -67,7 +67,7 @@ export const useSqlChartResults = (
 ) => {
     const { getResultsFromStream } = useResultsFromStreamWorker();
     return useQuery<
-        (ResultsAndColumns & { url: string }) | undefined,
+        (ResultsAndColumns & { fileUrl: string }) | undefined,
         ApiError
     >(
         ['sqlChartResults', projectUuid, slug],

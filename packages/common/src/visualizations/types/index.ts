@@ -70,7 +70,7 @@ export type PivotIndexColum =
     | undefined;
 
 export type PivotChartData = {
-    url: string | undefined;
+    fileUrl: string | undefined;
     results: RawResultRow[];
     indexColumn: PivotIndexColum;
     valuesColumns: string[];

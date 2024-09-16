@@ -43,12 +43,12 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
     if (isApiSqlRunnerJobPivotQuerySuccessResponse(job)) {
         const url =
             job.details && !isErrorDetails(job.details)
-                ? job.details.url
+                ? job.details.fileUrl
                 : undefined;
         const results = await getResultsFromStream<RawResultRow>(url);
 
         return {
-            url,
+            fileUrl: url,
             results,
             indexColumn: job.details.indexColumn,
             valuesColumns: job.details.valuesColumns,
@@ -75,7 +75,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
-                url: undefined,
+                fileUrl: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
@@ -110,7 +110,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
         }));
 
         return {
-            url: pivotResults.url,
+            fileUrl: pivotResults.fileUrl,
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,
             valuesColumns: pivotResults.valuesColumns,
