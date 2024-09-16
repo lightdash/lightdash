@@ -1,3 +1,10 @@
+## [0.1255.2](https://github.com/lightdash/lightdash/compare/0.1255.1...0.1255.2) (2024-09-16)
+
+
+### Bug Fixes
+
+* [Snyk] Security upgrade express-static-gzip from 2.1.7 to 2.1.8 ([#11534](https://github.com/lightdash/lightdash/issues/11534)) ([ac19743](https://github.com/lightdash/lightdash/commit/ac197430ea5689b61a8af91e337c46db59a98e69))
+
 ## [0.1255.1](https://github.com/lightdash/lightdash/compare/0.1255.0...0.1255.1) (2024-09-13)
 
 
