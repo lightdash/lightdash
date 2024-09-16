@@ -1,8 +1,5 @@
 import { ChartKind, type VizColumn } from '@lightdash/common';
-import { ActionIcon, Divider, Group, Stack, Title } from '@mantine/core';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useState } from 'react';
-import MantineIcon from '../../common/MantineIcon';
+import { Stack, Tabs } from '@mantine/core';
 import { barChartConfigSlice } from '../store/barChartSlice';
 import { lineChartConfigSlice } from '../store/lineChartSlice';
 import { CartesianChartFieldConfiguration } from './CartesianChartFieldConfiguration';
@@ -15,10 +12,6 @@ export const CartesianChartConfig = ({
     selectedChartType: ChartKind;
     columns: VizColumn[];
 }) => {
-    const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =
-        useState(true);
-    const [isStylingOpen, setIsStylingOpen] = useState(false);
-
     const actions =
         selectedChartType === ChartKind.LINE
             ? lineChartConfigSlice.actions
@@ -32,56 +25,27 @@ export const CartesianChartConfig = ({
 
     return (
         <Stack spacing="xs" mb="lg">
-            <Group spacing="xs">
-                <Title order={5} fz="sm" c="gray.9">
-                    Data
-                </Title>
-                <ActionIcon>
-                    <MantineIcon
-                        onClick={() =>
-                            setIsFieldConfigurationOpen(
-                                !isFieldConfigurationOpen,
-                            )
-                        }
-                        icon={
-                            isFieldConfigurationOpen
-                                ? IconChevronDown
-                                : IconChevronRight
-                        }
+            <Tabs color="gray" defaultValue="data" keepMounted>
+                <Tabs.List>
+                    <Tabs.Tab value="data">Data</Tabs.Tab>
+                    <Tabs.Tab value="styling">Styling</Tabs.Tab>
+                </Tabs.List>
+
+                <Tabs.Panel value="data" pt="xs">
+                    <CartesianChartFieldConfiguration
+                        actions={actions}
+                        columns={columns}
+                        selectedChartType={selectedChartType}
                     />
-                </ActionIcon>
-            </Group>
+                </Tabs.Panel>
 
-            {isFieldConfigurationOpen && (
-                <CartesianChartFieldConfiguration
-                    actions={actions}
-                    columns={columns}
-                    selectedChartType={selectedChartType}
-                />
-            )}
-
-            <Divider my="sm" />
-
-            <Group spacing="xs">
-                <Title order={5} fz="sm" c="gray.9">
-                    Styling
-                </Title>
-                <ActionIcon>
-                    <MantineIcon
-                        onClick={() => setIsStylingOpen(!isStylingOpen)}
-                        icon={
-                            isStylingOpen ? IconChevronDown : IconChevronRight
-                        }
+                <Tabs.Panel value="styling" pt="xs">
+                    <CartesianChartStyling
+                        actions={actions}
+                        selectedChartType={selectedChartType}
                     />
-                </ActionIcon>
-            </Group>
-
-            {isStylingOpen && (
-                <CartesianChartStyling
-                    actions={actions}
-                    selectedChartType={selectedChartType}
-                />
-            )}
+                </Tabs.Panel>
+            </Tabs>
         </Stack>
     );
 };

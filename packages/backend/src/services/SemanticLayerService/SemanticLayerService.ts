@@ -20,8 +20,10 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { SavedSemanticViewerChartModel } from '../../models/SavedSemanticViewerChartModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
+import { SavedSemanticViewerChartService } from '../SavedSemanticViewerChartService/SavedSemanticViewerChartService';
 import { pivotResults } from './Pivoting';
 
 type SearchServiceArguments = {
@@ -34,6 +36,8 @@ type SearchServiceArguments = {
     cubeClient: CubeClient;
     dbtCloudClient: DbtCloudGraphqlClient;
     s3Client: S3Client;
+    // Services
+    savedSemanticViewerChartService: SavedSemanticViewerChartService;
 };
 
 export class SemanticLayerService extends BaseService {
@@ -54,6 +58,10 @@ export class SemanticLayerService extends BaseService {
 
     private readonly s3Client: S3Client;
 
+    // Services
+
+    private readonly savedSemanticViewerChartService: SavedSemanticViewerChartService;
+
     constructor(args: SearchServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -65,6 +73,9 @@ export class SemanticLayerService extends BaseService {
         this.cubeClient = args.cubeClient;
         this.dbtCloudClient = args.dbtCloudClient;
         this.s3Client = args.s3Client;
+        // Services
+        this.savedSemanticViewerChartService =
+            args.savedSemanticViewerChartService;
     }
 
     private validateQueryLimit(query: SemanticLayerQuery) {
@@ -288,5 +299,40 @@ export class SemanticLayerService extends BaseService {
         await this.checkCanViewProject(user, projectUuid);
         const client = await this.getSemanticLayerClient(projectUuid);
         return client.getClientInfo();
+    }
+
+    async getSemanticViewerChartResultJob(
+        user: SessionUser,
+        projectUuid: string,
+        uuid: string,
+    ): Promise<{ jobId: string }> {
+        const savedChart =
+            await this.savedSemanticViewerChartService.getSemanticViewerChart(
+                user,
+                projectUuid,
+                uuid,
+            );
+
+        const { hasAccess: hasViewAccess } =
+            await this.savedSemanticViewerChartService.hasSavedChartAccess(
+                user,
+                'view',
+                savedChart,
+            );
+
+        if (!hasViewAccess) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
+
+        const jobId = await this.schedulerClient.semanticLayerStreamingResults({
+            context: 'semanticViewer',
+            projectUuid,
+            query: savedChart.semanticLayerQuery,
+            userUuid: user.userUuid,
+        });
+
+        return {
+            jobId,
+        };
     }
 }

@@ -1,3 +1,39 @@
+## [0.1255.6](https://github.com/lightdash/lightdash/compare/0.1255.5...0.1255.6) (2024-09-16)
+
+
+### Bug Fixes
+
+* update yarn lock after [#11525](https://github.com/lightdash/lightdash/issues/11525) ([#11547](https://github.com/lightdash/lightdash/issues/11547)) ([e6cff78](https://github.com/lightdash/lightdash/commit/e6cff780c66cfd2ca1daa0f316bbcef7a95cf822))
+
+## [0.1255.5](https://github.com/lightdash/lightdash/compare/0.1255.4...0.1255.5) (2024-09-16)
+
+
+### Bug Fixes
+
+* time dimension granularity ([#11549](https://github.com/lightdash/lightdash/issues/11549)) ([a02784d](https://github.com/lightdash/lightdash/commit/a02784d56cdf42d3324456c2ac0cfa6a70d15f44))
+
+## [0.1255.4](https://github.com/lightdash/lightdash/compare/0.1255.3...0.1255.4) (2024-09-16)
+
+
+### Bug Fixes
+
+* packages/backend/package.json to reduce vulnerabilities ([#11525](https://github.com/lightdash/lightdash/issues/11525)) ([166ebfc](https://github.com/lightdash/lightdash/commit/166ebfc6f6618b7f239a39f9f95a0cb041ea8fa9))
+
+## [0.1255.3](https://github.com/lightdash/lightdash/compare/0.1255.2...0.1255.3) (2024-09-16)
+
+
+### Bug Fixes
+
+* changed dropdown position to top ([#11520](https://github.com/lightdash/lightdash/issues/11520)) ([888bb7a](https://github.com/lightdash/lightdash/commit/888bb7ac50405189aa15b781863a980e447f5a91))
+* show minimal table cell context menu ([#11466](https://github.com/lightdash/lightdash/issues/11466)) ([3e871da](https://github.com/lightdash/lightdash/commit/3e871da9a4091c7a2fa703442df960bde1cd0d43))
+
+## [0.1255.2](https://github.com/lightdash/lightdash/compare/0.1255.1...0.1255.2) (2024-09-16)
+
+
+### Bug Fixes
+
+* [Snyk] Security upgrade express-static-gzip from 2.1.7 to 2.1.8 ([#11534](https://github.com/lightdash/lightdash/issues/11534)) ([ac19743](https://github.com/lightdash/lightdash/commit/ac197430ea5689b61a8af91e337c46db59a98e69))
+
 ## [0.1255.1](https://github.com/lightdash/lightdash/compare/0.1255.0...0.1255.1) (2024-09-13)
 
 

@@ -37,7 +37,7 @@ import {
 } from '../features/sqlRunner/store/hooks';
 import {
     resetState,
-    setDataUrl,
+    setFileUrl,
     setProjectUuid,
     setSavedChartData,
     setSqlRunnerResults,
@@ -118,11 +118,11 @@ const ViewSqlChart = () => {
     });
 
     useEffect(() => {
-        if (!chartVizQuery?.data?.url) return;
-        dispatch(setDataUrl(chartVizQuery.data.url));
+        if (!chartVizQuery?.data?.fileUrl) return;
+        dispatch(setFileUrl(chartVizQuery.data.fileUrl));
     }, [chartVizQuery, dispatch]);
 
-    const dataUrl = chartVizQuery?.data?.url || data?.url;
+    const fileUrl = chartVizQuery?.data?.fileUrl || data?.fileUrl;
     const chartVizResultsRunner = useMemo(() => {
         if (!chartVizQuery.data) return;
 
@@ -186,11 +186,11 @@ const ViewSqlChart = () => {
                         {activeTab === TabOption.RESULTS && (
                             <ActionIcon
                                 variant="default"
-                                disabled={!dataUrl}
+                                disabled={!fileUrl}
                                 onClick={() => {
-                                    if (dataUrl) {
+                                    if (fileUrl) {
                                         void getResultsFromStream<RawResultRow>(
-                                            dataUrl,
+                                            fileUrl,
                                         ).then((results) => {
                                             const columns =
                                                 chartVizQuery.data?.columns ||

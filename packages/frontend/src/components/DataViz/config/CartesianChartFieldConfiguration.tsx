@@ -8,7 +8,7 @@ import {
     type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box, Select } from '@mantine/core';
+import { ActionIcon, Box, Select, Stack } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -277,7 +277,7 @@ export const CartesianChartFieldConfiguration = ({
     );
 
     return (
-        <>
+        <Stack spacing="sm">
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis`}</Config.Heading>
@@ -325,6 +325,6 @@ export const CartesianChartFieldConfiguration = ({
                     />
                 </Config.Section>
             </Config>
-        </>
+        </Stack>
     );
 };
