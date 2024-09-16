@@ -57,6 +57,7 @@ import {
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
+import { DownloadCsvButton } from './DownloadCsvButton';
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 
 const DEFAULT_SQL_LIMIT = 500;
@@ -66,7 +67,9 @@ export const ContentPanel: FC = () => {
     const { showToastError } = useToaster();
     const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
     const resultsPanelRef = useRef<ImperativePanelHandle>(null);
-
+    const savedSqlChart = useAppSelector(
+        (state) => state.sqlRunner.savedSqlChart,
+    );
     // state for helping highlight errors in the editor
     const [hightlightError, setHightlightError] = useState<
         MonacoHighlightChar | undefined
@@ -264,6 +267,9 @@ export const ContentPanel: FC = () => {
         limit,
     });
 
+    const chartFileUrl = chartVizQuery?.data?.fileUrl;
+    const resultsFileUrl = queryResults?.fileUrl;
+
     const chartVizResultsRunner = useMemo(() => {
         if (!chartVizQuery.data) return;
 
@@ -352,19 +358,33 @@ export const ContentPanel: FC = () => {
                                 }}
                             />
                         </Group>
-
-                        <RunSqlQueryButton
-                            isLoading={isLoading}
-                            disabled={!sql}
-                            onSubmit={() => handleRunQuery()}
-                            {...(canSetSqlLimit
-                                ? {
-                                      onLimitChange: (l) =>
-                                          dispatch(setSqlLimit(l)),
-                                      limit,
-                                  }
-                                : {})}
-                        />
+                        <Group>
+                            <RunSqlQueryButton
+                                isLoading={isLoading}
+                                disabled={!sql}
+                                onSubmit={() => handleRunQuery()}
+                                {...(canSetSqlLimit
+                                    ? {
+                                          onLimitChange: (l) =>
+                                              dispatch(setSqlLimit(l)),
+                                          limit,
+                                      }
+                                    : {})}
+                            />
+                            {activeEditorTab === EditorTabs.VISUALIZATION ? (
+                                <DownloadCsvButton
+                                    fileUrl={chartFileUrl}
+                                    columns={chartVizQuery?.data?.columns ?? []}
+                                    chartName={savedSqlChart?.name}
+                                />
+                            ) : (
+                                <DownloadCsvButton
+                                    fileUrl={resultsFileUrl}
+                                    columns={queryResults?.columns ?? []}
+                                    chartName={savedSqlChart?.name}
+                                />
+                            )}
+                        </Group>
                     </Group>
                 </Paper>
 
