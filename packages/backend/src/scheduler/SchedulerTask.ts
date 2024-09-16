@@ -1297,24 +1297,16 @@ export default class SchedulerTask {
         const { fieldId, operator, value: thresholdValue } = thresholds[0];
 
         const getValue = (resultIdx: number) => {
-            // Case 1: No rows available (resultIdx === 0)
-            if (resultIdx === 0 && results.length === 0) {
+            if (results.length === 0) {
                 throw new NotEnoughResults(
-                    `Threshold alert error: Query returned no rows, but at least one row is required.`,
-                );
-            }
-
-            // Case 2: One row available but increase/decrease comparison needs two rows
-            if (resultIdx === 1 && results.length === 1) {
-                throw new NotEnoughResults(
-                    `Threshold alert error: Query returned only 1 row, but 2 rows are needed for increase/decrease comparison.`,
+                    `Threshold alert error: Query returned no rows.`,
                 );
             }
 
             // If we are trying to access beyond available rows, throw a general error
             if (resultIdx >= results.length) {
                 throw new NotEnoughResults(
-                    `Threshold alert error: Can't find enough results for threshold evaluation.`,
+                    `Threshold alert error: Expected at least ${resultIdx} rows, but only ${results.length} row(s) were returned.`,
                 );
             }
 
