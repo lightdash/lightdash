@@ -8,7 +8,6 @@ import {
     isSemanticLayerBaseOperator,
     isSemanticLayerExactTimeFilter,
     isSemanticLayerRelativeTimeFilter,
-    isSemanticLayerRelativeTimeValue,
     isSemanticLayerStringFilter,
     isSemanticLayerTimeFilter,
     SemanticLayerFieldType,
