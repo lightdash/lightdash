@@ -172,6 +172,9 @@ export const DashboardSqlChartTile: FC<Props> = ({
                         <Table
                             resultsRunner={resultsRunner}
                             columnsConfig={data.chart.config.columns}
+                            flexProps={{
+                                mah: '100%',
+                            }}
                         />
                     </Box>
                 )}

@@ -4,22 +4,23 @@ import {
     isErrorDetails,
     type ApiError,
     type ApiJobScheduledResponse,
-    type RawResultRow,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getSqlRunnerCompleteJob } from './requestUtils';
+import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { type ResultsAndColumns } from './useSqlQueryRun';
 
 export const getSqlChartResults = async ({
     projectUuid,
     slug,
+    getResultsFromStream,
 }: {
     projectUuid: string;
     slug: string;
+    getResultsFromStream: ReturnType<
+        typeof useResultsFromStreamWorker
+    >['getResultsFromStream'];
 }) => {
     const scheduledJob = await lightdashApi<ApiJobScheduledResponse['results']>(
         {
@@ -39,9 +40,10 @@ export const getSqlChartResults = async ({
         !isErrorDetails(job.details)
             ? job.details.fileUrl
             : undefined;
-    const results = await getResultsFromStream<RawResultRow>(url);
+    const results = await getResultsFromStream(url);
 
     return {
+        url: url!,
         results,
         columns:
             isApiSqlRunnerJobSuccessResponse(job) &&
@@ -63,12 +65,17 @@ export const useSqlChartResults = (
     projectUuid: string,
     slug: string | undefined,
 ) => {
-    return useQuery<ResultsAndColumns | undefined, ApiError>(
+    const { getResultsFromStream } = useResultsFromStreamWorker();
+    return useQuery<
+        (ResultsAndColumns & { url: string }) | undefined,
+        ApiError
+    >(
         ['sqlChartResults', projectUuid, slug],
         () => {
             return getSqlChartResults({
                 projectUuid,
                 slug: slug!,
+                getResultsFromStream,
             });
         },
         {

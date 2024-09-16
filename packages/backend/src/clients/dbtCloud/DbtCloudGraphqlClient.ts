@@ -20,6 +20,7 @@ import {
     SemanticLayerView,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
+import { mapKeys } from 'lodash';
 import { URL } from 'url';
 import { LightdashConfig } from '../../config/parseConfig';
 import { dbtCloudTransfomers } from './transformer';
@@ -236,7 +237,13 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             createQueryResponse.queryId,
         )) {
             rowCount += rows.length;
-            callback(rows);
+            callback(
+                rows.map((r) =>
+                    mapKeys(r, (_value, key) =>
+                        this.transformers.mapResultsKeys(key, query),
+                    ),
+                ), // dbt cloud might return columns in uppercase
+            );
         }
 
         return rowCount;

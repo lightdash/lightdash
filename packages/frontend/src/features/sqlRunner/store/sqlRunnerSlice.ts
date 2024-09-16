@@ -1,7 +1,7 @@
 import {
     ChartKind,
     type SqlChart,
-    type VizSqlColumn,
+    type VizColumn,
     type VizTableColumnsConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -26,6 +26,7 @@ export interface SqlRunnerState {
     activeTable: string | undefined;
     activeSchema: string | undefined;
     savedSqlChart: SqlChart | undefined;
+    dataUrl: string | undefined;
     name: string;
     description: string;
     sql: string;
@@ -44,9 +45,12 @@ export interface SqlRunnerState {
         updateChartModal: {
             isOpen: boolean;
         };
+        addToDashboard: {
+            isOpen: boolean;
+        };
     };
     quoteChar: string;
-    sqlColumns: VizSqlColumn[] | undefined;
+    sqlColumns: VizColumn[] | undefined;
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
 }
@@ -56,6 +60,7 @@ const initialState: SqlRunnerState = {
     activeTable: undefined,
     activeSchema: undefined,
     savedSqlChart: undefined,
+    dataUrl: undefined,
     name: '',
     description: '',
     sql: '',
@@ -72,6 +77,9 @@ const initialState: SqlRunnerState = {
             isOpen: false,
         },
         updateChartModal: {
+            isOpen: false,
+        },
+        addToDashboard: {
             isOpen: false,
         },
     },
@@ -96,6 +104,9 @@ export const sqlRunnerSlice = createSlice({
             if (action.payload === true) {
                 state.activeEditorTab = EditorTabs.VISUALIZATION;
             }
+        },
+        setDataUrl: (state, action: PayloadAction<string>) => {
+            state.dataUrl = action.payload;
         },
         setSqlRunnerResults: (
             state,
@@ -203,6 +214,7 @@ export const {
     setProjectUuid,
     setFetchResultsOnLoad,
     setSqlRunnerResults,
+    setDataUrl,
     updateName,
     setSql,
     setSqlLimit,

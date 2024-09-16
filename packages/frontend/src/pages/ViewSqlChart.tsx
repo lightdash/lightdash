@@ -1,5 +1,6 @@
-import { isVizTableConfig } from '@lightdash/common';
+import { isVizTableConfig, type RawResultRow } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Group,
     Paper,
@@ -7,7 +8,11 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { IconChartHistogram, IconTable } from '@tabler/icons-react';
+import {
+    IconChartHistogram,
+    IconDownload,
+    IconTable,
+} from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
@@ -32,10 +37,12 @@ import {
 } from '../features/sqlRunner/store/hooks';
 import {
     resetState,
+    setDataUrl,
     setProjectUuid,
     setSavedChartData,
     setSqlRunnerResults,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { getResultsFromStream } from '../utils/request';
 
 enum TabOption {
     CHART = 'chart',
@@ -110,6 +117,21 @@ const ViewSqlChart = () => {
         limit: sqlChart?.limit,
     });
 
+    useEffect(() => {
+        if (!chartVizQuery?.data?.url) return;
+        dispatch(setDataUrl(chartVizQuery.data.url));
+    }, [chartVizQuery, dispatch]);
+
+    const dataUrl = chartVizQuery?.data?.url || data?.url;
+    const chartVizResultsRunner = useMemo(() => {
+        if (!chartVizQuery.data) return;
+
+        return new SqlRunnerResultsRunner({
+            rows: chartVizQuery.data.results,
+            columns: chartVizQuery.data.columns,
+        });
+    }, [chartVizQuery.data]);
+
     return (
         <Page
             title="SQL chart"
@@ -129,36 +151,98 @@ const ViewSqlChart = () => {
             >
                 <Stack h="100%">
                     <Group position="apart">
-                        <SegmentedControl
-                            color="dark"
-                            size="sm"
-                            radius="sm"
-                            disabled={isLoading}
-                            data={[
-                                {
-                                    value: TabOption.CHART,
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <MantineIcon
-                                                icon={IconChartHistogram}
-                                            />
-                                            <Text>Chart</Text>
-                                        </Group>
-                                    ),
-                                },
-                                {
-                                    value: TabOption.RESULTS,
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <MantineIcon icon={IconTable} />
-                                            <Text>Results</Text>
-                                        </Group>
-                                    ),
-                                },
-                            ]}
-                            value={activeTab}
-                            onChange={(val: TabOption) => setActiveTab(val)}
-                        />
+                        <Group position="apart">
+                            <SegmentedControl
+                                color="dark"
+                                size="sm"
+                                radius="sm"
+                                disabled={isLoading}
+                                data={[
+                                    {
+                                        value: TabOption.CHART,
+                                        label: (
+                                            <Group spacing="xs" noWrap>
+                                                <MantineIcon
+                                                    icon={IconChartHistogram}
+                                                />
+                                                <Text>Chart</Text>
+                                            </Group>
+                                        ),
+                                    },
+                                    {
+                                        value: TabOption.RESULTS,
+                                        label: (
+                                            <Group spacing="xs" noWrap>
+                                                <MantineIcon icon={IconTable} />
+                                                <Text>Results</Text>
+                                            </Group>
+                                        ),
+                                    },
+                                ]}
+                                value={activeTab}
+                                onChange={(val: TabOption) => setActiveTab(val)}
+                            />
+                        </Group>
+                        {activeTab === TabOption.RESULTS && (
+                            <ActionIcon
+                                variant="default"
+                                disabled={!dataUrl}
+                                onClick={() => {
+                                    if (dataUrl) {
+                                        void getResultsFromStream<RawResultRow>(
+                                            dataUrl,
+                                        ).then((results) => {
+                                            const columns =
+                                                chartVizQuery.data?.columns ||
+                                                data?.columns ||
+                                                [];
+                                            const columnReferences =
+                                                columns.map(
+                                                    (col) => col.reference,
+                                                );
+                                            const csvContent = [
+                                                columnReferences?.join(','),
+                                                ...results.map((row) =>
+                                                    columnReferences
+                                                        .map((reference) => {
+                                                            return (
+                                                                row[
+                                                                    reference
+                                                                ] || '-'
+                                                            );
+                                                        })
+                                                        .join(','),
+                                                ),
+                                            ].join('\n');
+
+                                            const blob = new Blob(
+                                                [csvContent],
+                                                {
+                                                    type: 'text/csv;charset=utf-8;',
+                                                },
+                                            );
+                                            const url =
+                                                URL.createObjectURL(blob);
+                                            const link =
+                                                document.createElement('a');
+                                            link.href = url;
+                                            link.setAttribute(
+                                                'download',
+                                                `${
+                                                    sqlChart?.name ||
+                                                    'sql_results'
+                                                }.csv`,
+                                            );
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
+                                        });
+                                    }
+                                }}
+                            >
+                                <MantineIcon icon={IconDownload} />
+                            </ActionIcon>
+                        )}
                     </Group>
 
                     {chartError && <ErrorState error={chartError.error} />}
@@ -218,17 +302,47 @@ const ViewSqlChart = () => {
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.RESULTS}
                             >
-                                {resultsTableConfig?.columns && (
-                                    <Table
-                                        resultsRunner={resultsRunner}
-                                        columnsConfig={
-                                            resultsTableConfig.columns
-                                        }
-                                        flexProps={{
-                                            mah: 'calc(100vh - 250px)',
-                                        }}
-                                    />
-                                )}
+                                {!isVizTableConfig(currentVisConfig) &&
+                                    chartVizQuery.data &&
+                                    chartVizResultsRunner && (
+                                        <Table
+                                            resultsRunner={
+                                                chartVizResultsRunner
+                                            }
+                                            columnsConfig={Object.fromEntries(
+                                                chartVizQuery.data.columns.map(
+                                                    (field) => [
+                                                        field.reference,
+                                                        {
+                                                            visible: true,
+                                                            reference:
+                                                                field.reference,
+                                                            label: field.reference,
+                                                            frozen: false,
+                                                            // TODO: add aggregation
+                                                            // aggregation?: VizAggregationOptions;
+                                                        },
+                                                    ],
+                                                ),
+                                            )}
+                                            flexProps={{
+                                                mah: 'calc(100vh - 250px)',
+                                            }}
+                                        />
+                                    )}
+
+                                {isVizTableConfig(currentVisConfig) &&
+                                    resultsTableConfig && (
+                                        <Table
+                                            resultsRunner={resultsRunner}
+                                            columnsConfig={
+                                                resultsTableConfig?.columns
+                                            }
+                                            flexProps={{
+                                                mah: 'calc(100vh - 250px)',
+                                            }}
+                                        />
+                                    )}
                             </ConditionalVisibility>
                         </Box>
                     )}

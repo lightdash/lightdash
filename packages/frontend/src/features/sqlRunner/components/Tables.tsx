@@ -59,8 +59,7 @@ const TableItem: FC<TableItemProps> = memo(
                     w="100%"
                     p={4}
                     sx={(theme) => ({
-                        fontWeight: 500,
-                        fontSize: 13,
+                        fontSize: 14,
                         borderRadius: theme.radius.sm,
                         color: isActive ? 'gray.8' : 'gray.7',
                         flex: 1,
@@ -165,7 +164,7 @@ const Table: FC<{
                 })}
             >
                 <Group noWrap spacing="two">
-                    <Text p={6} fw={700} fz="md" c="gray.7">
+                    <Text p={6} fz="sm" c="gray.8">
                         {schema}
                     </Text>
 

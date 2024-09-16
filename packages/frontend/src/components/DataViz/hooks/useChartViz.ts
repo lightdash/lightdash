@@ -9,7 +9,7 @@ import {
     type AllVizChartConfig,
     type PivotChartData,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { type ResultsRunner } from '../transformers/ResultsRunner';
@@ -22,6 +22,11 @@ type Args<T extends ResultsRunner> = {
     uuid?: string;
     resultsRunner: T | undefined;
     config: AllVizChartConfig | undefined;
+
+    // Consumers can provide additional query keys to force a re-fetch.
+    // Different pages may need to refresh this query based on parameters
+    // that are unused in this hook.
+    additionalQueryKey?: UseQueryOptions['queryKey'];
 };
 export const useChartViz = <T extends ResultsRunner>({
     projectUuid,
@@ -31,6 +36,7 @@ export const useChartViz = <T extends ResultsRunner>({
     uuid,
     resultsRunner,
     config,
+    additionalQueryKey,
 }: Args<T>) => {
     const org = useOrganization();
 
@@ -61,16 +67,23 @@ export const useChartViz = <T extends ResultsRunner>({
         if (!config) return undefined;
         if (isVizTableConfig(config)) return undefined;
 
-        return [projectUuid, limit, JSON.stringify(config.fieldConfig)];
-    }, [projectUuid, limit, config]);
+        return [
+            projectUuid,
+            limit,
+            JSON.stringify(config.fieldConfig),
+            ...(additionalQueryKey ?? []),
+        ];
+    }, [projectUuid, limit, config, additionalQueryKey]);
 
     const transformedDataQuery = useQuery<PivotChartData | undefined, Error>({
         queryKey: queryKey!,
         queryFn: () => {
-            if (isVizTableConfig(config)) return;
+            if (isVizTableConfig(config) || !chartDataModel) {
+                return undefined;
+            }
 
             try {
-                return chartDataModel!.getTransformedData(
+                return chartDataModel.getTransformedData(
                     config?.fieldConfig,
                     sql,
                     projectUuid,

@@ -5,14 +5,12 @@ import {
     type ApiJobScheduledResponse,
     type RawResultRow,
     type SqlRunnerBody,
-    type VizSqlColumn,
+    type VizColumn,
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getSqlRunnerCompleteJob } from './requestUtils';
+import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 
 const scheduleSqlJob = async ({
     projectUuid,
@@ -31,7 +29,7 @@ const scheduleSqlJob = async ({
 
 export type ResultsAndColumns = {
     results: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 type UseSqlQueryRunParams = {
@@ -50,8 +48,13 @@ export const useSqlQueryRun = (
         ApiError,
         UseSqlQueryRunParams
     >,
-) =>
-    useMutation<ResultsAndColumns | undefined, ApiError, UseSqlQueryRunParams>(
+) => {
+    const { getResultsFromStream } = useResultsFromStreamWorker();
+    return useMutation<
+        ResultsAndColumns | undefined,
+        ApiError,
+        UseSqlQueryRunParams
+    >(
         async ({ sql, limit }) => {
             const scheduledJob = await scheduleSqlJob({
                 projectUuid,
@@ -65,9 +68,8 @@ export const useSqlQueryRun = (
                     job.details && !isErrorDetails(job.details)
                         ? job.details.fileUrl
                         : undefined;
-                const results = await getResultsFromStream<
-                    ResultsAndColumns['results'][number]
-                >(url);
+
+                const results = await getResultsFromStream(url);
 
                 return {
                     results,
@@ -85,3 +87,4 @@ export const useSqlQueryRun = (
             ...useMutationOptions,
         },
     );
+};

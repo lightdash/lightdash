@@ -104,14 +104,16 @@ export const useRefreshTables = ({
 }: Pick<GetTablesParams, 'projectUuid'>) => {
     const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: () => refreshTables({ projectUuid }),
-        onSuccess: async () => {
-            await queryClient.invalidateQueries([
-                'sqlRunner',
-                'tables',
-                projectUuid,
-            ]);
+    return useMutation<ApiWarehouseCatalog, ApiError>(
+        () => refreshTables({ projectUuid }),
+        {
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'sqlRunner',
+                    'tables',
+                    projectUuid,
+                ]);
+            },
         },
-    });
+    );
 };

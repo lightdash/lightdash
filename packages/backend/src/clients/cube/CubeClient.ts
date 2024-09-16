@@ -7,6 +7,7 @@ import {
     SemanticLayerQuery,
     SemanticLayerResultRow,
 } from '@lightdash/common';
+import { mapKeys } from 'lodash';
 import { LightdashConfig } from '../../config/parseConfig';
 import { cubeTransfomers } from './transformer';
 import { getCubeTimeDimensionGranularity } from './typeTransformers';
@@ -148,7 +149,13 @@ export default class CubeClient implements SemanticLayerClient {
             offset,
         });
 
-        return this.transformers.resultsToResultRows(resultSet);
+        const resultRows = this.transformers.resultsToResultRows(resultSet);
+
+        return resultRows.map((resultRow) =>
+            mapKeys(resultRow, (_value, key) =>
+                this.transformers.mapResultsKeys(key, query),
+            ),
+        );
     }
 
     private async *getResultsGenerator(

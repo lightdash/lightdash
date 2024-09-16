@@ -1,4 +1,4 @@
-import { ChartKind, type VizSqlColumn } from '@lightdash/common';
+import { ChartKind, type VizColumn } from '@lightdash/common';
 import { ActionIcon, Divider, Group, Stack, Title } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -10,10 +10,10 @@ import { CartesianChartStyling } from './CartesianChartStyling';
 
 export const CartesianChartConfig = ({
     selectedChartType,
-    sqlColumns,
+    columns,
 }: {
     selectedChartType: ChartKind;
-    sqlColumns: VizSqlColumn[];
+    columns: VizColumn[];
 }) => {
     const [isFieldConfigurationOpen, setIsFieldConfigurationOpen] =
         useState(true);
@@ -55,7 +55,7 @@ export const CartesianChartConfig = ({
             {isFieldConfigurationOpen && (
                 <CartesianChartFieldConfiguration
                     actions={actions}
-                    sqlColumns={sqlColumns}
+                    columns={columns}
                     selectedChartType={selectedChartType}
                 />
             )}

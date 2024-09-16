@@ -1,4 +1,8 @@
-import { FieldType, SemanticLayerSortByDirection } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    SemanticLayerSortByDirection,
+} from '@lightdash/common';
 import { Button, Center, Group, SegmentedControl, Text } from '@mantine/core';
 import {
     IconArrowDown,
@@ -9,6 +13,7 @@ import {
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { TableFieldIcon } from '../../../components/DataViz/Icons';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
@@ -133,14 +138,19 @@ const Content: FC = () => {
                                         variant={
                                             sortDirection ? 'filled' : 'outline'
                                         }
+                                        leftIcon={
+                                            <TableFieldIcon
+                                                fieldType={
+                                                    kind === 'metrics'
+                                                        ? DimensionType.NUMBER
+                                                        : DimensionType.STRING
+                                                }
+                                            />
+                                        }
                                         size="sm"
                                         mr="xs"
                                         mb="xs"
-                                        color={
-                                            kind === 'metrics'
-                                                ? 'orange'
-                                                : 'blue'
-                                        }
+                                        color="gray"
                                         compact
                                         onClick={() =>
                                             handleAddSortBy(

@@ -1,19 +1,18 @@
 import {
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
+    VIZ_DEFAULT_AGGREGATION,
     type ApiJobScheduledResponse,
     type PivotChartData,
     type RawResultRow,
     type SqlRunnerPivotQueryBody,
     type VizChartLayout,
-    type VizSqlColumn,
+    type VizColumn,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
 
 const schedulePivotSqlJob = async ({
     projectUuid,
@@ -44,11 +43,12 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
     if (isApiSqlRunnerJobPivotQuerySuccessResponse(job)) {
         const url =
             job.details && !isErrorDetails(job.details)
-                ? job.details.fileUrl
+                ? job.details.url
                 : undefined;
         const results = await getResultsFromStream<RawResultRow>(url);
 
         return {
+            url,
             results,
             indexColumn: job.details.indexColumn,
             valuesColumns: job.details.valuesColumns,
@@ -60,7 +60,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
 
 export type SqlRunnerResultsRunnerDeps = {
     rows: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 export class SqlRunnerResultsRunner extends ResultsRunner {
@@ -75,6 +75,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
+                url: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
@@ -92,14 +93,14 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
             },
             valuesColumns: config.y.map((y) => ({
                 reference: y.reference,
-                aggregation: y.aggregation,
+                aggregation: y.aggregation ?? VIZ_DEFAULT_AGGREGATION,
             })),
             groupByColumns: config.groupBy,
             limit,
             sortBy: config.sortBy,
         });
 
-        const columns: VizSqlColumn[] = [
+        const columns: VizColumn[] = [
             ...(pivotResults.indexColumn?.reference
                 ? [pivotResults.indexColumn.reference]
                 : []),
@@ -109,6 +110,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
         }));
 
         return {
+            url: pivotResults.url,
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,
             valuesColumns: pivotResults.valuesColumns,

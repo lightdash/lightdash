@@ -28,12 +28,14 @@ type ChartTypeConfig = {
     };
 };
 
-type ResultsPayload = {
+type ChartOptionsAndConfig = {
     [K in keyof ChartTypeConfig]: { type: K } & ChartTypeConfig[K];
 }[keyof ChartTypeConfig];
 
 type ChartConfig = ChartTypeConfig[keyof ChartTypeConfig]['config'];
 
-export const onResults = createAction<ResultsPayload>('chart/onResults');
+export const setChartOptionsAndConfig = createAction<ChartOptionsAndConfig>(
+    'chart/setChartOptionsAndConfig',
+);
 
 export const setChartConfig = createAction<ChartConfig>('chart/setChartConfig');

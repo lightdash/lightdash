@@ -121,4 +121,16 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
         });
     },
     sqlToString: (sql) => sql,
+    mapResultsKeys: (key, query) => {
+        // TODO: since we currently only support one granularity per time dimension, we can just return the time dimension name as the key
+        const timeDimension = query.timeDimensions.find((td) =>
+            key.toLowerCase().includes(td.name.toLowerCase()),
+        );
+
+        if (timeDimension) {
+            return timeDimension.name.toLowerCase();
+        }
+
+        return key.toLowerCase();
+    },
 };

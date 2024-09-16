@@ -32,7 +32,7 @@ export const vizAggregationOptions = [
 
 export const VIZ_DEFAULT_AGGREGATION = VizAggregationOptions.COUNT;
 
-export type VizSqlColumn = {
+export type VizColumn = {
     reference: string;
     type?: DimensionType;
 };
@@ -49,7 +49,7 @@ export type VizIndexLayoutOptions = {
 
 export type VizValuesLayoutOptions = {
     reference: string;
-    aggregationOptions: VizAggregationOptions[];
+    aggregationOptions?: VizAggregationOptions[];
 };
 
 export type VizPivotLayoutOptions = {
@@ -70,7 +70,7 @@ export type VizChartLayout = {
         | undefined;
     y: {
         reference: string;
-        aggregation: VizAggregationOptions;
+        aggregation?: VizAggregationOptions;
     }[];
     groupBy: { reference: string }[] | undefined;
     sortBy?: VizSortBy[];
@@ -80,11 +80,16 @@ export type VizPieChartDisplay = {
     isDonut?: boolean;
 };
 
+export type PivotIndexColum =
+    | { reference: string; type: VizIndexType }
+    | undefined;
+
 export type PivotChartData = {
+    url: string | undefined;
     results: RawResultRow[];
-    indexColumn: { reference: string; type: string } | undefined;
+    indexColumn: PivotIndexColum;
     valuesColumns: string[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 export type VizCartesianChartOptions = {

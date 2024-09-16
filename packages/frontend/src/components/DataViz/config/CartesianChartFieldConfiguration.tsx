@@ -4,9 +4,9 @@ import {
     SortByType,
     type ChartKind,
     type VizChartLayout,
+    type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
-    type VizSqlColumn,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { ActionIcon, Box, Select } from '@mantine/core';
@@ -30,8 +30,8 @@ const YFieldsAxisConfig: FC<{
     isSingle: boolean;
     index: number;
     actions: CartesianChartActionsType;
-    sqlColumns: VizSqlColumn[];
-}> = ({ field, yLayoutOptions, isSingle, index, actions, sqlColumns }) => {
+    columns: VizColumn[];
+}> = ({ field, yLayoutOptions, isSingle, index, actions, columns }) => {
     const dispatch = useVizDispatch();
 
     return (
@@ -72,7 +72,7 @@ const YFieldsAxisConfig: FC<{
                                     );
                             }}
                             fieldType={
-                                sqlColumns?.find(
+                                columns?.find(
                                     (x) => x.reference === field.reference,
                                 )?.type ?? DimensionType.STRING
                             }
@@ -111,9 +111,9 @@ const XFieldAxisConfig = ({
     field,
     xLayoutOptions,
     actions,
-    sqlColumns,
+    columns,
 }: {
-    sqlColumns: VizSqlColumn[];
+    columns: VizColumn[];
 
     field: VizChartLayout['x'] | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
@@ -145,7 +145,7 @@ const XFieldAxisConfig = ({
                 }
                 fieldType={
                     (field?.reference &&
-                        sqlColumns?.find((x) => x.reference === field.reference)
+                        columns?.find((x) => x.reference === field.reference)
                             ?.type) ||
                     DimensionType.STRING
                 }
@@ -200,9 +200,9 @@ const GroupByFieldAxisConfig = ({
     field,
     groupByOptions = [],
     actions,
-    sqlColumns,
+    columns,
 }: {
-    sqlColumns: VizSqlColumn[];
+    columns: VizColumn[];
     field: undefined | { reference: string };
     groupByOptions?: VizPivotLayoutOptions[];
     actions: CartesianChartActionsType;
@@ -247,20 +247,20 @@ const GroupByFieldAxisConfig = ({
                 }
             }}
             fieldType={
-                sqlColumns?.find((x) => x.reference === field?.reference)
-                    ?.type ?? DimensionType.STRING
+                columns?.find((x) => x.reference === field?.reference)?.type ??
+                DimensionType.STRING
             }
         />
     );
 };
 
 export const CartesianChartFieldConfiguration = ({
-    sqlColumns,
+    columns,
     actions,
     selectedChartType,
 }: {
     selectedChartType: ChartKind;
-    sqlColumns: VizSqlColumn[];
+    columns: VizColumn[];
 
     actions: CartesianChartActionsType;
 }) => {
@@ -294,7 +294,7 @@ export const CartesianChartFieldConfiguration = ({
                     <Config.Heading>{`X-axis`}</Config.Heading>
                     {xLayoutOptions && (
                         <XFieldAxisConfig
-                            sqlColumns={sqlColumns}
+                            columns={columns}
                             field={xAxisField}
                             xLayoutOptions={xLayoutOptions}
                             actions={actions}
@@ -320,7 +320,7 @@ export const CartesianChartFieldConfiguration = ({
                                 isSingle={yAxisFields.length === 1}
                                 index={index}
                                 actions={actions}
-                                sqlColumns={sqlColumns}
+                                columns={columns}
                             />
                         ))}
                 </Config.Section>
@@ -329,7 +329,7 @@ export const CartesianChartFieldConfiguration = ({
                 <Config.Section>
                     <Config.Heading>Group by</Config.Heading>
                     <GroupByFieldAxisConfig
-                        sqlColumns={sqlColumns}
+                        columns={columns}
                         field={groupByField}
                         groupByOptions={groupByLayoutOptions}
                         actions={actions}

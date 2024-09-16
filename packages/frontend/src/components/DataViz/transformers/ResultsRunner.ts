@@ -7,9 +7,9 @@ import {
     type PivotChartData,
     type RawResultRow,
     type VizChartLayout,
+    type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
-    type VizSqlColumn,
     type VizTableConfig,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
@@ -18,9 +18,9 @@ import { intersectionBy } from 'lodash';
 export class ResultsRunner implements IResultsRunner<VizChartLayout> {
     protected readonly rows: RawResultRow[];
 
-    protected readonly columns: VizSqlColumn[];
+    protected readonly columns: VizColumn[];
 
-    constructor(args: { rows: RawResultRow[]; columns: VizSqlColumn[] }) {
+    constructor(args: { rows: RawResultRow[]; columns: VizColumn[] }) {
         this.rows = args.rows;
         this.columns = args.columns;
     }
@@ -103,7 +103,7 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
                 default:
                     return acc;
             }
-        }, []);
+        }, [] as VizValuesLayoutOptions[]);
     }
 
     pivotChartOptions(): {
@@ -155,6 +155,16 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
         return { columns };
     }
 
+    getAxisType(column: VizColumn): VizIndexType {
+        if (
+            column.type &&
+            [DimensionType.DATE, DimensionType.TIMESTAMP].includes(column.type)
+        ) {
+            return VizIndexType.TIME;
+        }
+        return VizIndexType.CATEGORY;
+    }
+
     defaultPivotChartLayout(): VizChartLayout | undefined {
         const categoricalColumns = this.columns.filter(
             (column) => column.type === DimensionType.STRING,
@@ -183,13 +193,7 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
         }
         const x: VizChartLayout['x'] = {
             reference: xColumn.reference,
-            type:
-                xColumn.type &&
-                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
-                    xColumn.type,
-                )
-                    ? VizIndexType.TIME
-                    : VizIndexType.CATEGORY,
+            type: this.getAxisType(xColumn),
         };
 
         const yColumn =

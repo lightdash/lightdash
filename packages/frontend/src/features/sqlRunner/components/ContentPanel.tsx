@@ -16,7 +16,11 @@ import {
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
+import {
+    IconChartHistogram,
+    IconCodeCircle,
+    IconGripHorizontal,
+} from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -34,7 +38,7 @@ import {
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
-import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
+import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
@@ -186,7 +190,7 @@ export const ContentPanel: FC = () => {
             currentVizConfig,
         );
 
-        dispatch(onResults(chartResultOptions));
+        dispatch(setChartOptionsAndConfig(chartResultOptions));
     }, [
         resultsRunner,
         dispatch,
@@ -287,15 +291,20 @@ export const ContentPanel: FC = () => {
                     <Group position="apart">
                         <Group position="apart">
                             <SegmentedControl
-                                color="dark"
+                                styles={(theme) => ({
+                                    root: {
+                                        backgroundColor: theme.colors.gray[2],
+                                    },
+                                })}
                                 size="sm"
-                                radius="sm"
+                                radius="md"
                                 data={[
                                     {
                                         value: EditorTabs.SQL,
                                         label: (
-                                            <Group spacing="xs" noWrap>
+                                            <Group spacing={4} noWrap>
                                                 <MantineIcon
+                                                    color="gray.6"
                                                     icon={IconCodeCircle}
                                                 />
                                                 <Text>SQL</Text>
@@ -305,19 +314,37 @@ export const ContentPanel: FC = () => {
                                     {
                                         value: EditorTabs.VISUALIZATION,
                                         label: (
-                                            <Group spacing="xs" noWrap>
-                                                <MantineIcon
-                                                    icon={IconChartHistogram}
-                                                />
-                                                <Text>Chart</Text>
-                                            </Group>
+                                            <Tooltip
+                                                disabled={
+                                                    !!queryResults?.results
+                                                }
+                                                variant="xs"
+                                                withinPortal
+                                                label="Run a query to see the chart"
+                                            >
+                                                <Group spacing={4} noWrap>
+                                                    <MantineIcon
+                                                        color="gray.6"
+                                                        icon={
+                                                            IconChartHistogram
+                                                        }
+                                                    />
+                                                    <Text>Chart</Text>
+                                                </Group>
+                                            </Tooltip>
                                         ),
-                                        disabled: !queryResults?.results,
                                     },
                                 ]}
                                 value={activeEditorTab}
                                 onChange={(value: EditorTabs) => {
                                     if (isLoading) {
+                                        return;
+                                    }
+
+                                    if (
+                                        value === EditorTabs.VISUALIZATION &&
+                                        !queryResults?.results
+                                    ) {
                                         return;
                                     }
 
@@ -365,6 +392,11 @@ export const ContentPanel: FC = () => {
                         >
                             <Box
                                 style={{ flex: 1 }}
+                                pt={
+                                    activeEditorTab === EditorTabs.SQL
+                                        ? 'md'
+                                        : 0
+                                }
                                 sx={{
                                     position: 'absolute',
                                     overflowY: isVizTableConfig(
@@ -505,25 +537,41 @@ export const ContentPanel: FC = () => {
                     <Box
                         hidden={hideResultsPanel}
                         component={PanelResizeHandle}
-                        bg="gray.3"
-                        h={showLimitText ? 20 : 10}
+                        bg="gray.1"
+                        h={15}
                         sx={(theme) => ({
                             transition: 'background-color 0.2s ease-in-out',
-                            '&[data-resize-handle-state="hover"]': {
-                                backgroundColor: theme.colors.gray[3],
-                            },
-                            '&[data-resize-handle-state="drag"]': {
+                            cursor: 'row-resize',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            '&:hover': {
                                 backgroundColor: theme.colors.gray[2],
                             },
+                            '&[data-resize-handle-state="drag"]': {
+                                backgroundColor: theme.colors.gray[3],
+                            },
+                            gap: 5,
                         })}
                     >
-                        {showLimitText ? (
-                            <Group position="center">
-                                <Text fz="sm" fw={500}>
+                        <MantineIcon
+                            color="gray"
+                            icon={IconGripHorizontal}
+                            size={12}
+                        />
+
+                        {showLimitText && (
+                            <>
+                                <Text fz="xs" fw={400} c="gray.7">
                                     Showing first {DEFAULT_SQL_LIMIT} rows
                                 </Text>
-                            </Group>
-                        ) : undefined}
+                                <MantineIcon
+                                    color="gray"
+                                    icon={IconGripHorizontal}
+                                    size={12}
+                                />
+                            </>
+                        )}
                     </Box>
 
                     <Panel

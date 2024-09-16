@@ -25,9 +25,8 @@ const ContentCharts: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
-    const { results, columns, activeChartKind } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const { results, columns, activeChartKind, fields, sortBy, filters } =
+        useAppSelector((state) => state.semanticViewer);
 
     const resultsRunner = useMemo(() => {
         return new SemanticViewerResultsRunner({
@@ -35,8 +34,9 @@ const ContentCharts: FC = () => {
             rows: results ?? [],
             columns: columns ?? [],
             projectUuid,
+            fields,
         });
-    }, [columns, projectUuid, results, semanticQuery]);
+    }, [columns, fields, projectUuid, results, semanticQuery]);
 
     const vizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
@@ -56,6 +56,7 @@ const ContentCharts: FC = () => {
         resultsRunner,
         config: vizConfig,
         projectUuid,
+        additionalQueryKey: [filters, sortBy],
     });
 
     const pivotResultsRunner = useMemo(() => {
@@ -64,12 +65,14 @@ const ContentCharts: FC = () => {
             query: semanticQuery,
             rows: chartVizQuery.data?.results ?? [],
             columns: chartVizQuery.data?.columns ?? [],
+            fields: fields,
         });
     }, [
         chartVizQuery.data?.columns,
         chartVizQuery.data?.results,
         projectUuid,
         semanticQuery,
+        fields,
     ]);
 
     return (
@@ -95,7 +98,7 @@ const ContentCharts: FC = () => {
                         <ChartView
                             config={vizConfig}
                             spec={chartSpec}
-                            isLoading={chartVizQuery.isLoading}
+                            isLoading={chartVizQuery.isFetching}
                             error={chartVizQuery.error}
                             style={{
                                 flexGrow: 1,

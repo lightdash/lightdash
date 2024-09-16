@@ -49,7 +49,7 @@ import {
     ThresholdOptions,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
-    VizSqlColumn,
+    VizColumn,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -908,13 +908,7 @@ export default class SchedulerTask {
                 scheduledTime,
                 details: { createdByUserUuid: payload.userUuid },
             },
-            async () => {
-                const { fileUrl } =
-                    await this.semanticLayerService.streamQueryIntoFile(
-                        payload,
-                    );
-                return { fileUrl };
-            },
+            async () => this.semanticLayerService.streamQueryIntoFile(payload),
         );
     }
 
@@ -923,7 +917,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: SqlRunnerPayload,
     ) {
-        await this.logWrapper<string | VizSqlColumn[]>(
+        await this.logWrapper<string | VizColumn[]>(
             {
                 task: sqlRunnerJob,
                 jobId,

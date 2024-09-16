@@ -24,7 +24,7 @@ describe('Space', () => {
         cy.contains('Total order amount').click();
         cy.contains('Status').click();
         cy.contains('Save chart').click();
-        cy.contains('Enter a memorable name for your chart');
+        cy.contains('Chart name');
 
         cy.get('.mantine-Modal-body').find('button').should('be.disabled');
         cy.contains('Select a space to save the chart directly to'); // Wait until it finishes loading, otherwise the input will be cleared
