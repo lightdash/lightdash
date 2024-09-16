@@ -27,7 +27,7 @@ const SemanticViewerSaveChartContent: FC = () => {
         dispatch(updateSaveModalOpen(true));
     };
 
-    const canSave = !!name && !!semanticLayerQuery && !!selectedChartConfig;
+    const canSave = !!semanticLayerQuery && !!selectedChartConfig;
 
     return (
         <>
