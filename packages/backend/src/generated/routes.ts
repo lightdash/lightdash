@@ -6838,7 +6838,7 @@ const models: TsoaRoute.Models = {
                 xAxis: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        type: { ref: 'VizIndexType', required: true },
+                        type: { ref: 'VizIndexType' },
                         label: { dataType: 'string' },
                     },
                 },
