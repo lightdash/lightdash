@@ -1,5 +1,6 @@
 import { snakeCaseName } from '@lightdash/common';
 import {
+    Accordion,
     Button,
     Group,
     Modal,
@@ -9,7 +10,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconWand } from '@tabler/icons-react';
+import { IconInfoCircle, IconSparkles } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -63,8 +64,8 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
             keepMounted={false}
             title={
                 <Group spacing="xs">
-                    <MantineIcon icon={IconWand} size="lg" color="gray.7" />
-                    <Text fw={500}>Save explore</Text>
+                    <MantineIcon icon={IconSparkles} size="lg" color="gray.7" />
+                    <Text fw={500}>Create custom explore</Text>
                 </Group>
             }
             styles={(theme) => ({
@@ -73,9 +74,31 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
             })}
         >
             <form onSubmit={form.onSubmit(handleSubmit)}>
+                <Accordion variant="separated" radius="md" m="xs">
+                    <Accordion.Item value="custom-explores">
+                        <Accordion.Control
+                            icon={
+                                <MantineIcon icon={IconInfoCircle} size={16} />
+                            }
+                        >
+                            <Text fz="sm" fw="500">
+                                What are custom explores?
+                            </Text>
+                        </Accordion.Control>
+                        <Accordion.Panel>
+                            <Text fz="xs">
+                                Custom explores are a way to save a query that
+                                you can reuse later when 'Querying from tables'.
+                                You can use them to save time when you and your
+                                organization want to run the same query again.
+                            </Text>
+                        </Accordion.Panel>
+                    </Accordion.Item>
+                </Accordion>
                 <Stack p="md">
                     <Stack spacing="xs">
                         <TextInput
+                            radius="md"
                             label="Name"
                             required
                             {...form.getInputProps('name')}
@@ -83,19 +106,13 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
                     </Stack>
                 </Stack>
 
-                <Group
-                    position="right"
-                    w="100%"
-                    sx={(theme) => ({
-                        borderTop: `1px solid ${theme.colors.gray[4]}`,
-                        bottom: 0,
-                        padding: theme.spacing.md,
-                    })}
-                >
+                <Group position="right" w="100%" p="md">
                     <Button
+                        color="gray.7"
                         onClick={onClose}
                         variant="outline"
                         disabled={isLoading}
+                        size="xs"
                     >
                         Cancel
                     </Button>
@@ -104,8 +121,9 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
                         type="submit"
                         disabled={!form.values.name || !sql}
                         loading={isLoading}
+                        size="xs"
                     >
-                        Create explore
+                        Create
                     </Button>
                 </Group>
             </form>

@@ -9,6 +9,7 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    friendlyName,
     generateSlug,
     isExploreError,
     NotExistsError,
@@ -1833,10 +1834,10 @@ export class ProjectModel {
         const toAddToCached: Explore = {
             name,
             tags: [],
-            label: name,
+            label: friendlyName(name),
             tables: translatedToExplore.tables,
             baseTable: name,
-            groupLabel: name,
+            groupLabel: 'Custom explores',
             joinedTables: [],
             targetDatabase: SupportedDbtAdapter.POSTGRES,
         };

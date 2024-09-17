@@ -1,6 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Button, Group, Paper, Tooltip } from '@mantine/core';
-import { IconWand } from '@tabler/icons-react';
+import { IconSparkles } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
@@ -66,7 +66,7 @@ export const HeaderCreate: FC = () => {
                                     leftIcon={
                                         <MantineIcon
                                             size={12}
-                                            icon={IconWand}
+                                            icon={IconSparkles}
                                         />
                                     }
                                     onClick={() => {
@@ -78,7 +78,7 @@ export const HeaderCreate: FC = () => {
                                     }}
                                     disabled={!loadedColumns}
                                 >
-                                    Save explore
+                                    Create custom explore
                                 </Button>
                             </Tooltip>
                         )}
