@@ -165,18 +165,15 @@ const XFieldAxisConfig = ({
                                 label: 'Descending',
                             },
                         ]}
-                        onChange={(value) => {
-                            if (value) {
-                                const direction = value as SortByDirection;
-                                dispatch(
-                                    actions.setSortBy([
-                                        {
-                                            reference: field?.reference,
-                                            direction,
-                                        },
-                                    ]),
-                                );
-                            }
+                        onChange={(direction: SortByDirection) => {
+                            dispatch(
+                                actions.setSortBy([
+                                    {
+                                        reference: field?.reference,
+                                        direction,
+                                    },
+                                ]),
+                            );
                         }}
                     />
                 </Config.Group>
