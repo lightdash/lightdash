@@ -1,17 +1,23 @@
+import { FieldType } from '@lightdash/common';
 import { Box, Tabs, Text } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { Table } from '../../../components/DataViz/visualizations/Table';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
-import { useAppSelector } from '../store/hooks';
 import {
+    Table,
+    type THConfig,
+} from '../../../components/DataViz/visualizations/Table';
+import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import {
+    selectAllSelectedFieldsByKind,
     selectResultsTableVizConfig,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
+import { updateSortBy } from '../store/semanticViewerSlice';
 import SqlViewer from './SqlViewer';
 
 enum TabPanel {
@@ -19,11 +25,14 @@ enum TabPanel {
 }
 
 const ContentResults: FC = () => {
+    const dispatch = useAppDispatch();
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
-    const { results, columns, fields } = useAppSelector(
+    const { results, columns, fields, sortBy } = useAppSelector(
         (state) => state.semanticViewer,
     );
+
+    const selectedFieldsByKind = useAppSelector(selectAllSelectedFieldsByKind);
 
     const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
 
@@ -53,6 +62,51 @@ const ContentResults: FC = () => {
         fields,
     ]);
 
+    const thConfig = useMemo(() => {
+        console.log({ sortBy });
+        const allSelectedFields = [
+            ...selectedFieldsByKind.dimensions.map((d) => ({
+                ...d,
+                kind: FieldType.DIMENSION,
+            })),
+            ...selectedFieldsByKind.timeDimensions.map((d) => ({
+                ...d,
+                kind: FieldType.DIMENSION,
+            })),
+            ...selectedFieldsByKind.metrics.map((m) => ({
+                ...m,
+                kind: FieldType.METRIC,
+            })),
+        ];
+
+        return allSelectedFields.reduce<THConfig>((acc, field) => {
+            const sortDirection = sortBy.find(
+                (s) => s.name === field.name && s.kind === field.kind,
+            )?.direction;
+
+            return {
+                ...acc,
+                [field.name]: {
+                    sortDirection,
+                    kind: field.kind,
+                    onClick: () =>
+                        dispatch(
+                            updateSortBy({
+                                name: field.name,
+                                kind: field.kind,
+                            }),
+                        ),
+                },
+            };
+        }, {});
+    }, [
+        dispatch,
+        selectedFieldsByKind.dimensions,
+        selectedFieldsByKind.metrics,
+        selectedFieldsByKind.timeDimensions,
+        sortBy,
+    ]);
+
     return (
         <>
             <PanelGroup direction="vertical">
@@ -69,6 +123,7 @@ const ContentResults: FC = () => {
                             flexProps={{
                                 m: '-1px',
                             }}
+                            thConfig={thConfig}
                         />
                     ) : (
                         <SuboptimalState
