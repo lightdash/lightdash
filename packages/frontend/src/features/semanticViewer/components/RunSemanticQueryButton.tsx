@@ -36,9 +36,15 @@ export const RunSemanticQueryButton: FC<Props> = (buttonGroupProps) => {
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const { limit, activeChartKind, columns, results, fields } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const {
+        limit,
+        activeChartKind,
+        columns,
+        results,
+        fields,
+        sortBy,
+        filters,
+    } = useAppSelector((state) => state.semanticViewer);
     const currentVizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, activeChartKind),
     );
@@ -104,6 +110,11 @@ export const RunSemanticQueryButton: FC<Props> = (buttonGroupProps) => {
         () => runSemanticViewerQuery(semanticQuery),
         [semanticQuery, runSemanticViewerQuery],
     );
+
+    // TODO: Don't really like this approach... should probably move the submit function and everything related to that hook to the outside
+    useEffect(() => {
+        handleSubmit().catch((e) => console.error(e));
+    }, [sortBy, filters, handleSubmit]);
 
     const handleLimitChange = useCallback(
         (newLimit: number) => dispatch(setLimit(newLimit)),
