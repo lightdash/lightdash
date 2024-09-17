@@ -371,7 +371,8 @@ export const ContentPanel: FC = () => {
                                       }
                                     : {})}
                             />
-                            {activeEditorTab === EditorTabs.VISUALIZATION ? (
+                            {activeEditorTab === EditorTabs.VISUALIZATION &&
+                            !isVizTableConfig(currentVizConfig) ? (
                                 <DownloadCsvButton
                                     fileUrl={chartFileUrl}
                                     columns={chartVizQuery?.data?.columns ?? []}
