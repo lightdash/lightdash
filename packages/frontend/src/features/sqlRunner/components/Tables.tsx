@@ -1,3 +1,4 @@
+import { PartitionType, type PartitionColumn } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -35,10 +36,31 @@ interface TableItemProps extends BoxProps {
     schema: string;
     database: string;
     isActive: boolean;
+    partitionColumn: PartitionColumn | undefined;
 }
 
+const partitionFilter = (partitionColumn: PartitionColumn | undefined) => {
+    if (partitionColumn) {
+        const hint =
+            partitionColumn.partitionType === PartitionType.DATE
+                ? `This table has a date partition on this field of ${partitionColumn.type.toLowerCase()} granularity`
+                : `This table has a range partition on this field from ${partitionColumn.range.start} to ${partitionColumn.range.end} with an interval of ${partitionColumn.range.interval}`;
+
+        return `\nWHERE ${partitionColumn.field} = <add value> -- ${hint}`;
+    }
+    return '';
+};
+
 const TableItem: FC<TableItemProps> = memo(
-    ({ table, search, schema, database, isActive, ...rest }) => {
+    ({
+        table,
+        search,
+        schema,
+        database,
+        isActive,
+        partitionColumn,
+        ...rest
+    }) => {
         const { ref: hoverRef, hovered } = useHover();
         const { ref: truncatedRef, isTruncated } =
             useIsTruncated<HTMLDivElement>();
@@ -51,7 +73,13 @@ const TableItem: FC<TableItemProps> = memo(
                 <UnstyledButton
                     onClick={() => {
                         if (!sql || sql.match(/SELECT \* FROM (.+)/)) {
-                            dispatch(setSql(`SELECT * FROM ${quotedTable}`));
+                            dispatch(
+                                setSql(
+                                    `SELECT * FROM ${quotedTable} ${partitionFilter(
+                                        partitionColumn,
+                                    )}`,
+                                ),
+                            );
                         }
 
                         dispatch(toggleActiveTable({ table, schema }));
@@ -184,6 +212,7 @@ const Table: FC<{
                         table={table}
                         schema={`${schema}`}
                         database={database}
+                        partitionColumn={tables[table].partitionColumn}
                         ml="sm"
                     />
                 ))}

@@ -7288,12 +7288,70 @@
                 "required": ["spaceRole", "groupUuid"],
                 "type": "object"
             },
-            "WarehouseTableSchema": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/DimensionType"
+            "PartitionColumnDate": {
+                "properties": {
+                    "field": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    }
                 },
+                "required": ["field", "type"],
                 "type": "object"
+            },
+            "PartitionColumnRange": {
+                "properties": {
+                    "range": {
+                        "properties": {
+                            "interval": {
+                                "type": "string"
+                            },
+                            "end": {
+                                "type": "string"
+                            },
+                            "start": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["interval", "end", "start"],
+                        "type": "object"
+                    },
+                    "field": {
+                        "type": "string"
+                    }
+                },
+                "required": ["range", "field"],
+                "type": "object"
+            },
+            "PartitionColumn": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/PartitionColumnDate"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PartitionColumnRange"
+                    }
+                ]
+            },
+            "WarehouseTableSchema": {
+                "allOf": [
+                    {
+                        "properties": {},
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/DimensionType"
+                        },
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "partitionColumn": {
+                                "$ref": "#/components/schemas/PartitionColumn"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "WarehouseCatalog": {
                 "properties": {},
@@ -9832,7 +9890,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1255.6",
+        "version": "0.1257.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

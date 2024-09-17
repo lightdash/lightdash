@@ -12,6 +12,8 @@ import {
     DimensionType,
     Metric,
     MetricType,
+    PartitionColumn,
+    PartitionType,
     SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
@@ -294,13 +296,30 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         const datasetTablesResponses = await Promise.all(
             datasets.map((d) => d.getTables()),
         );
-        return datasetTablesResponses.flatMap(([tables]) =>
-            tables.map((t) => ({
-                database: t.bigQuery.projectId,
-                schema: t.dataset.id!,
-                table: t.id!,
-            })),
+        const tablesWithPartitions = await Promise.all(
+            datasetTablesResponses.flatMap(([tables]) =>
+                tables.map(async (t) => {
+                    const [metadata] = await t.getMetadata();
+                    const partitionColumn: PartitionColumn =
+                        metadata.timePartitioning || metadata.rangePartitioning
+                            ? {
+                                  partitionType: metadata.timePartitioning
+                                      ? PartitionType.DATE
+                                      : PartitionType.RANGE,
+                                  ...metadata.timePartitioning,
+                                  ...metadata.rangePartitioning,
+                              }
+                            : undefined;
+                    return {
+                        database: t.bigQuery.projectId,
+                        schema: t.dataset.id!,
+                        table: t.id!,
+                        partitionColumn,
+                    };
+                }),
+            ),
         );
+        return tablesWithPartitions;
     }
 
     async getFields(
