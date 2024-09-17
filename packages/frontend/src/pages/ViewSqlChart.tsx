@@ -1,6 +1,5 @@
-import { isVizTableConfig, type RawResultRow } from '@lightdash/common';
+import { isVizTableConfig } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Group,
     Paper,
@@ -8,11 +7,7 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import {
-    IconChartHistogram,
-    IconDownload,
-    IconTable,
-} from '@tabler/icons-react';
+import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
@@ -26,6 +21,7 @@ import { setChartConfig } from '../components/DataViz/store/actions/commonChartA
 import { selectChartConfigByKind } from '../components/DataViz/store/selectors';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
+import { DownloadCsvButton } from '../features/sqlRunner/components/DownloadCsvButton';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlChartResults } from '../features/sqlRunner/hooks/useSqlChartResults';
@@ -42,7 +38,6 @@ import {
     setSavedChartData,
     setSqlRunnerResults,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
-import { getResultsFromStream } from '../utils/request';
 
 enum TabOption {
     CHART = 'chart',
@@ -184,69 +179,15 @@ const ViewSqlChart = () => {
                             />
                         </Group>
                         {activeTab === TabOption.RESULTS && (
-                            <ActionIcon
-                                variant="default"
-                                disabled={!fileUrl}
-                                onClick={() => {
-                                    if (fileUrl) {
-                                        void getResultsFromStream<RawResultRow>(
-                                            fileUrl,
-                                        ).then((results) => {
-                                            const columns =
-                                                chartVizQuery.data?.columns ||
-                                                data?.columns ||
-                                                [];
-                                            const columnReferences =
-                                                columns.map(
-                                                    (col) => col.reference,
-                                                );
-                                            console.log('results', results);
-                                            const csvContent = [
-                                                columnReferences?.join(','),
-                                                ...results.map((row) =>
-                                                    columnReferences
-                                                        .map((reference) => {
-                                                            return (
-                                                                row[
-                                                                    reference
-                                                                ] || '-'
-                                                            );
-                                                        })
-                                                        .join(','),
-                                                ),
-                                            ].join('\n');
-                                            console.log(
-                                                'csvContent',
-                                                csvContent,
-                                            );
-
-                                            const blob = new Blob(
-                                                [csvContent],
-                                                {
-                                                    type: 'text/csv;charset=utf-8;',
-                                                },
-                                            );
-                                            const url =
-                                                URL.createObjectURL(blob);
-                                            const link =
-                                                document.createElement('a');
-                                            link.href = url;
-                                            link.setAttribute(
-                                                'download',
-                                                `${
-                                                    sqlChart?.name ||
-                                                    'sql_results'
-                                                }.csv`,
-                                            );
-                                            document.body.appendChild(link);
-                                            link.click();
-                                            document.body.removeChild(link);
-                                        });
-                                    }
-                                }}
-                            >
-                                <MantineIcon icon={IconDownload} />
-                            </ActionIcon>
+                            <DownloadCsvButton
+                                fileUrl={fileUrl}
+                                columns={
+                                    chartVizQuery.data?.columns ||
+                                    data?.columns ||
+                                    []
+                                }
+                                chartName={sqlChart?.name}
+                            />
                         )}
                     </Group>
 

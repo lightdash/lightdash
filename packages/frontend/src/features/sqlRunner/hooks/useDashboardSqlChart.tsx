@@ -27,6 +27,7 @@ const getDashboardSqlChartAndPossibleResults = async ({
         return {
             chart,
             resultsAndColumns: {
+                fileUrl: undefined,
                 results: [],
                 columns: [],
             },
@@ -42,6 +43,7 @@ const getDashboardSqlChartAndPossibleResults = async ({
     return {
         chart,
         resultsAndColumns: {
+            fileUrl: resultsTest.fileUrl,
             results: resultsTest.results,
             columns: resultsTest.columns,
         },
