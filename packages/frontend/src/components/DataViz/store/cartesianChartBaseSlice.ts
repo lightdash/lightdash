@@ -233,6 +233,14 @@ export const cartesianChartConfigSlice = createSlice({
             if (!state.config?.fieldConfig) return;
             delete state.config.fieldConfig.x;
         },
+        setSortBy: (
+            { config },
+            action: PayloadAction<VizChartLayout['sortBy']>,
+        ) => {
+            if (!config?.fieldConfig) return;
+            config.fieldConfig.sortBy = action.payload;
+        },
+
         setStacked: ({ config }, action: PayloadAction<boolean>) => {
             if (!config) return;
 

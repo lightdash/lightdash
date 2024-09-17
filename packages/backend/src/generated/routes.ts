@@ -6640,11 +6640,39 @@ const models: TsoaRoute.Models = {
         enums: ['sum', 'count', 'avg', 'min', 'max', 'any'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SortByDirection: {
+        dataType: 'refEnum',
+        enums: ['ASC', 'DESC'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizSortBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                direction: { ref: 'SortByDirection', required: true },
+                reference: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiSqlRunnerPivotQueryPayload: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                sortBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'VizSortBy' },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
                 groupByColumns: {
                     dataType: 'union',
                     subSchemas: [
@@ -6729,6 +6757,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                sortBy: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'VizSortBy' },
+                },
                 groupBy: {
                     dataType: 'union',
                     subSchemas: [

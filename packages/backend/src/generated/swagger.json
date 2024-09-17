@@ -7377,8 +7377,30 @@
                 "enum": ["sum", "count", "avg", "min", "max", "any"],
                 "type": "string"
             },
+            "SortByDirection": {
+                "enum": ["ASC", "DESC"],
+                "type": "string"
+            },
+            "VizSortBy": {
+                "properties": {
+                    "direction": {
+                        "$ref": "#/components/schemas/SortByDirection"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["direction", "reference"],
+                "type": "object"
+            },
             "ApiSqlRunnerPivotQueryPayload": {
                 "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
                     "groupByColumns": {
                         "items": {
                             "properties": {
@@ -7452,6 +7474,12 @@
             },
             "VizChartLayout": {
                 "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
                     "groupBy": {
                         "items": {
                             "properties": {
