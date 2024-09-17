@@ -1,5 +1,7 @@
 import { Button, Group, Paper } from '@mantine/core';
+import { IconWand } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -7,6 +9,7 @@ import {
     toggleModal,
     updateName,
 } from '../../store/sqlRunnerSlice';
+import { SaveCustomExploreModal } from '../SaveCustomExploreModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 
 export const HeaderCreate: FC = () => {
@@ -16,8 +19,14 @@ export const HeaderCreate: FC = () => {
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
+    const isSaveCustomExploreModalOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.saveCustomExploreModal.isOpen,
+    );
     const onCloseSaveModal = useCallback(() => {
         dispatch(toggleModal('saveChartModal'));
+    }, [dispatch]);
+    const onCloseSaveCustomExploreModal = useCallback(() => {
+        dispatch(toggleModal('saveCustomExploreModal'));
     }, [dispatch]);
 
     return (
@@ -36,22 +45,42 @@ export const HeaderCreate: FC = () => {
                         />
                     </Group>
 
-                    <Button
-                        color={'green.7'}
-                        size="xs"
-                        disabled={!loadedColumns}
-                        onClick={() => {
-                            dispatch(toggleModal('saveChartModal'));
-                        }}
-                    >
-                        Save
-                    </Button>
+                    <Group>
+                        <Button
+                            color="indigo.6"
+                            variant="light"
+                            size="xs"
+                            leftIcon={<MantineIcon icon={IconWand} />}
+                            onClick={() => {
+                                dispatch(toggleModal('saveCustomExploreModal'));
+                            }}
+                            disabled={!loadedColumns}
+                        >
+                            Save as Custom Explore
+                        </Button>
+
+                        <Button
+                            color={'green.7'}
+                            size="xs"
+                            disabled={!loadedColumns}
+                            onClick={() => {
+                                dispatch(toggleModal('saveChartModal'));
+                            }}
+                        >
+                            Save
+                        </Button>
+                    </Group>
                 </Group>
             </Paper>
             <SaveSqlChartModal
                 key={`${isSaveModalOpen}-saveChartModal`}
                 opened={isSaveModalOpen}
                 onClose={onCloseSaveModal}
+            />
+            <SaveCustomExploreModal
+                key={`${isSaveCustomExploreModalOpen}-saveCustomExploreModal`}
+                opened={isSaveCustomExploreModalOpen}
+                onClose={onCloseSaveCustomExploreModal}
             />
         </>
     );
