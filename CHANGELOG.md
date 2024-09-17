@@ -1,3 +1,16 @@
+# [0.1260.0](https://github.com/lightdash/lightdash/compare/0.1259.1...0.1260.0) (2024-09-17)
+
+
+### Bug Fixes
+
+* semantic viewer chart dashboard tile title ([#11571](https://github.com/lightdash/lightdash/issues/11571)) ([9a08282](https://github.com/lightdash/lightdash/commit/9a082826536ea840b06fedd7471ba0f2ddb9e95c))
+* semantic viewer minor changes ([#11572](https://github.com/lightdash/lightdash/issues/11572)) ([531c63f](https://github.com/lightdash/lightdash/commit/531c63f55f1861e47e51ff4ce4b2bc71a6e965fe))
+
+
+### Features
+
+* add sql view even when there are no results ([#11575](https://github.com/lightdash/lightdash/issues/11575)) ([af2140a](https://github.com/lightdash/lightdash/commit/af2140a2dba12cd587d5839abf2c8a3d05844eb1))
+
 ## [0.1259.1](https://github.com/lightdash/lightdash/compare/0.1259.0...0.1259.1) (2024-09-17)
 
 
