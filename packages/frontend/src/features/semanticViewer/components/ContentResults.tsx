@@ -56,13 +56,13 @@ const ContentResults: FC = () => {
     return (
         <>
             <PanelGroup direction="vertical">
-                {results.length > 0 ? (
-                    <Panel
-                        id="semantic-viewer-panel-results"
-                        order={1}
-                        minSize={30}
-                        style={{ display: 'flex' }}
-                    >
+                <Panel
+                    id="semantic-viewer-panel-results"
+                    order={1}
+                    minSize={30}
+                    style={{ display: 'flex' }}
+                >
+                    {results.length > 0 ? (
                         <Table
                             resultsRunner={resultsRunner}
                             columnsConfig={resultsTableVizConfig.columns}
@@ -70,15 +70,13 @@ const ContentResults: FC = () => {
                                 m: '-1px',
                             }}
                         />
-                    </Panel>
-                ) : (
-                    <Panel order={1} minSize={30} style={{ display: 'flex' }}>
+                    ) : (
                         <SuboptimalState
                             title="No results"
                             description="Select fields and adjust filters to see results."
                         />
-                    </Panel>
-                )}
+                    )}
+                </Panel>
 
                 {openPanel === TabPanel.SQL && (
                     <>
