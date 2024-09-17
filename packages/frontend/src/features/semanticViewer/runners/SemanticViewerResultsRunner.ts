@@ -215,10 +215,20 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         }
 
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
+
+        // ! When there is pivotConfig.index (group by) then we cannot sort by anything other than pivotConfig.on (X field) -> this is because the results don't include those columns
+        const pivotSorts =
+            pivotConfig.index.length > 0
+                ? this.query.sortBy.filter((s) =>
+                      pivotConfig.on.includes(s.name),
+                  )
+                : this.query.sortBy;
+
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid: this.projectUuid,
             query: {
                 ...this.query,
+                sortBy: pivotSorts,
                 pivot: pivotConfig,
             },
         });
