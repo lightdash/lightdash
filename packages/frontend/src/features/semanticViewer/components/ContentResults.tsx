@@ -3,6 +3,7 @@ import { IconCodeCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
@@ -55,20 +56,29 @@ const ContentResults: FC = () => {
     return (
         <>
             <PanelGroup direction="vertical">
-                <Panel
-                    id="semantic-viewer-panel-results"
-                    order={1}
-                    minSize={30}
-                    style={{ display: 'flex' }}
-                >
-                    <Table
-                        resultsRunner={resultsRunner}
-                        columnsConfig={resultsTableVizConfig.columns}
-                        flexProps={{
-                            m: '-1px',
-                        }}
-                    />
-                </Panel>
+                {results.length > 0 ? (
+                    <Panel
+                        id="semantic-viewer-panel-results"
+                        order={1}
+                        minSize={30}
+                        style={{ display: 'flex' }}
+                    >
+                        <Table
+                            resultsRunner={resultsRunner}
+                            columnsConfig={resultsTableVizConfig.columns}
+                            flexProps={{
+                                m: '-1px',
+                            }}
+                        />
+                    </Panel>
+                ) : (
+                    <Panel order={1} minSize={30} style={{ display: 'flex' }}>
+                        <SuboptimalState
+                            title="No results"
+                            description="Select fields and adjust filters to see results."
+                        />
+                    </Panel>
+                )}
 
                 {openPanel === TabPanel.SQL && (
                     <>

@@ -25,7 +25,6 @@ import {
     updateSortBy,
 } from '../store/semanticViewerSlice';
 import ContentCharts from './ContentCharts';
-import ContentNoResults from './ContentNoResults';
 import ContentResults from './ContentResults';
 import Filters from './Filters';
 import { RunSemanticQueryButton } from './RunSemanticQueryButton';
@@ -193,8 +192,6 @@ const Content: FC = () => {
                         description="Please select a field from the sidebar to start building a query"
                     />
                 </Center>
-            ) : results.length === 0 ? (
-                <ContentNoResults />
             ) : activeEditorTab === EditorTabs.RESULTS ? (
                 <ContentResults />
             ) : activeEditorTab === EditorTabs.VISUALIZATION ? (
