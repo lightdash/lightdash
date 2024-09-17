@@ -7288,6 +7288,10 @@
                 "required": ["spaceRole", "groupUuid"],
                 "type": "object"
             },
+            "PartitionType.DATE": {
+                "enum": ["DATE"],
+                "type": "string"
+            },
             "PartitionColumnDate": {
                 "properties": {
                     "field": {
@@ -7295,10 +7299,17 @@
                     },
                     "type": {
                         "type": "string"
+                    },
+                    "partitionType": {
+                        "$ref": "#/components/schemas/PartitionType.DATE"
                     }
                 },
-                "required": ["field", "type"],
+                "required": ["field", "type", "partitionType"],
                 "type": "object"
+            },
+            "PartitionType.RANGE": {
+                "enum": ["RANGE"],
+                "type": "string"
             },
             "PartitionColumnRange": {
                 "properties": {
@@ -7319,9 +7330,12 @@
                     },
                     "field": {
                         "type": "string"
+                    },
+                    "partitionType": {
+                        "$ref": "#/components/schemas/PartitionType.RANGE"
                     }
                 },
-                "required": ["range", "field"],
+                "required": ["range", "field", "partitionType"],
                 "type": "object"
             },
             "PartitionColumn": {
@@ -7334,33 +7348,19 @@
                     }
                 ]
             },
-            "WarehouseTableSchema": {
-                "allOf": [
-                    {
-                        "properties": {},
-                        "additionalProperties": {
-                            "$ref": "#/components/schemas/DimensionType"
-                        },
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "partitionColumn": {
-                                "$ref": "#/components/schemas/PartitionColumn"
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
-            "WarehouseCatalog": {
+            "WarehouseTablesCatalog": {
                 "properties": {},
                 "additionalProperties": {
                     "properties": {},
                     "additionalProperties": {
                         "properties": {},
                         "additionalProperties": {
-                            "$ref": "#/components/schemas/WarehouseTableSchema"
+                            "properties": {
+                                "partitionColumn": {
+                                    "$ref": "#/components/schemas/PartitionColumn"
+                                }
+                            },
+                            "type": "object"
                         },
                         "type": "object"
                     },
@@ -7368,10 +7368,10 @@
                 },
                 "type": "object"
             },
-            "ApiWarehouseCatalog": {
+            "ApiWarehouseTablesCatalog": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/WarehouseCatalog"
+                        "$ref": "#/components/schemas/WarehouseTablesCatalog"
                     },
                     "status": {
                         "type": "string",
@@ -7380,6 +7380,13 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "WarehouseTableSchema": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DimensionType"
+                },
                 "type": "object"
             },
             "ApiWarehouseTableFields": {

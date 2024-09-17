@@ -6546,6 +6546,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PartitionType.DATE': {
+        dataType: 'refEnum',
+        enums: ['DATE'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PartitionColumnDate: {
         dataType: 'refAlias',
         type: {
@@ -6553,9 +6558,15 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 field: { dataType: 'string', required: true },
                 type: { dataType: 'string', required: true },
+                partitionType: { ref: 'PartitionType.DATE', required: true },
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PartitionType.RANGE': {
+        dataType: 'refEnum',
+        enums: ['RANGE'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PartitionColumnRange: {
@@ -6573,6 +6584,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 field: { dataType: 'string', required: true },
+                partitionType: { ref: 'PartitionType.RANGE', required: true },
             },
             validators: {},
         },
@@ -6590,28 +6602,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    WarehouseTableSchema: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: { ref: 'DimensionType' },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        partitionColumn: { ref: 'PartitionColumn' },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    WarehouseCatalog: {
+    WarehouseTablesCatalog: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6622,21 +6613,36 @@ const models: TsoaRoute.Models = {
                 additionalProperties: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {},
-                    additionalProperties: { ref: 'WarehouseTableSchema' },
+                    additionalProperties: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            partitionColumn: { ref: 'PartitionColumn' },
+                        },
+                    },
                 },
             },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiWarehouseCatalog: {
+    ApiWarehouseTablesCatalog: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'WarehouseCatalog', required: true },
+                results: { ref: 'WarehouseTablesCatalog', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WarehouseTableSchema: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DimensionType' },
             validators: {},
         },
     },
