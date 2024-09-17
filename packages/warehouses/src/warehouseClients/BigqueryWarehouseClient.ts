@@ -296,30 +296,49 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         const datasetTablesResponses = await Promise.all(
             datasets.map((d) => d.getTables()),
         );
-        const tablesWithPartitions = await Promise.all(
-            datasetTablesResponses.flatMap(([tables]) =>
-                tables.map(async (t) => {
-                    const [metadata] = await t.getMetadata();
-                    const partitionColumn: PartitionColumn =
-                        metadata.timePartitioning || metadata.rangePartitioning
-                            ? {
-                                  partitionType: metadata.timePartitioning
-                                      ? PartitionType.DATE
-                                      : PartitionType.RANGE,
-                                  ...metadata.timePartitioning,
-                                  ...metadata.rangePartitioning,
-                              }
-                            : undefined;
-                    return {
-                        database: t.bigQuery.projectId,
-                        schema: t.dataset.id!,
-                        table: t.id!,
-                        partitionColumn,
-                    };
-                }),
-            ),
+
+        const datasetMetadata = await Promise.all(
+            datasets.map(async (dataset) => {
+                const [rows] = await this.client.query(`
+                    SELECT table_name, column_name, data_type
+                    FROM \`${dataset.id}.INFORMATION_SCHEMA.COLUMNS\`
+                    WHERE is_partitioning_column = "YES"
+                `);
+                return {
+                    datasetId: dataset.id,
+                    partitionColumns: rows,
+                };
+            }),
         );
-        return tablesWithPartitions;
+
+        return datasetTablesResponses.flatMap(([tables]) =>
+            tables.map((t) => {
+                const datasetPartitionInfo = datasetMetadata.find(
+                    (d) => d.datasetId === t.dataset.id,
+                );
+                const tablePartitionInfo =
+                    datasetPartitionInfo?.partitionColumns.find(
+                        (pc) => pc.table_name === t.id,
+                    );
+                const partitionColumn: PartitionColumn | undefined =
+                    tablePartitionInfo
+                        ? {
+                              field: tablePartitionInfo.column_name,
+                              partitionType:
+                                  tablePartitionInfo.data_type === 'INT64'
+                                      ? PartitionType.RANGE
+                                      : PartitionType.DATE,
+                          }
+                        : undefined;
+
+                return {
+                    database: t.bigQuery.projectId,
+                    schema: t.dataset.id!,
+                    table: t.id!,
+                    partitionColumn,
+                };
+            }),
+        );
     }
 
     async getFields(

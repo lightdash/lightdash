@@ -123,14 +123,8 @@ export enum PartitionType {
     DATE = 'DATE',
     RANGE = 'RANGE',
 }
-export type PartitionColumnDate = {
-    partitionType: PartitionType.DATE;
-    type: string;
+
+export type PartitionColumn = {
+    partitionType: PartitionType;
     field: string;
 };
-export type PartitionColumnRange = {
-    partitionType: PartitionType.RANGE;
-    field: string;
-    range: { start: string; end: string; interval: string };
-};
-export type PartitionColumn = PartitionColumnDate | PartitionColumnRange;

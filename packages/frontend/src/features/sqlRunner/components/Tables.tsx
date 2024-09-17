@@ -23,6 +23,7 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -43,10 +44,15 @@ const partitionFilter = (partitionColumn: PartitionColumn | undefined) => {
     if (partitionColumn) {
         const hint =
             partitionColumn.partitionType === PartitionType.DATE
-                ? `This table has a date partition on this field of ${partitionColumn.type.toLowerCase()} granularity`
-                : `This table has a range partition on this field from ${partitionColumn.range.start} to ${partitionColumn.range.end} with an interval of ${partitionColumn.range.interval}`;
+                ? `This table has a date partition on this field`
+                : `This table has a range partition on this field`;
 
-        return `\nWHERE ${partitionColumn.field} = <add value> -- ${hint}`;
+        const defaultValue =
+            partitionColumn.partitionType === PartitionType.DATE
+                ? `'${dayjs().format('YYYY-MM-DD')}'` // Default to today's date
+                : `0`;
+
+        return `\nWHERE ${partitionColumn.field} = ${defaultValue} -- ${hint}`;
     }
     return '';
 };
