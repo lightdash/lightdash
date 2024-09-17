@@ -10,9 +10,10 @@ import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
 import {
     VizAggregationOptions,
+    VizIndexType,
     type PivotChartData,
     type VizCartesianChartConfig,
-    type VizIndexType,
+    type VizCartesianChartOptions,
 } from './types';
 import {
     type IResultsRunner,
@@ -71,7 +72,7 @@ export class CartesianChartDataModel {
         };
     }
 
-    getChartOptions() {
+    getChartOptions(): VizCartesianChartOptions {
         return {
             indexLayoutOptions: this.resultsRunner.getPivotQueryDimensions(),
             valuesLayoutOptions: {
@@ -88,7 +89,6 @@ export class CartesianChartDataModel {
         const metrics = this.resultsRunner.getMetrics();
 
         // TODO: the types could be cleaned up here to have fewer 'in' checks.
-        // This works for
         const categoricalColumns = [...dimensions, ...metrics].filter(
             (column) =>
                 'dimensionType' in column &&
@@ -124,9 +124,14 @@ export class CartesianChartDataModel {
         }
         const x = {
             reference: xColumn.reference,
-            axisType: 'axisType' in xColumn ? xColumn.axisType : undefined,
+            axisType:
+                'axisType' in xColumn
+                    ? xColumn.axisType
+                    : VizIndexType.CATEGORY,
             dimensionType:
-                'dimensionType' in xColumn ? xColumn.dimensionType : undefined,
+                'dimensionType' in xColumn
+                    ? xColumn.dimensionType
+                    : DimensionType.STRING,
         };
 
         const yColumn =

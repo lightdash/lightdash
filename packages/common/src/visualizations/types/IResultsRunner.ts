@@ -5,7 +5,7 @@ import {
     type VizIndexType,
     type VizValuesLayoutOptions,
 } from '.';
-import { type DimensionType } from '../../types/field';
+import { type DimensionType, type MetricType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 
 // TODO: move these types out of here
@@ -76,13 +76,9 @@ export interface IResultsRunner {
 
     getMetrics(): VizValuesLayoutOptions[];
 
-    getPivotQueryDimensions(): {
-        reference: string;
-        aggregations?: [];
-        dimensionType: DimensionType;
-    }[];
+    getPivotQueryDimensions(): VizIndexLayoutOptions[];
 
-    getPivotQueryMetrics(): { reference: string; metricType: DimensionType }[];
+    getPivotQueryMetrics(): { reference: string; metricType: MetricType }[];
 
     // TODO: other runner types
     // getPivotTableData() // includes subtotalling etc.

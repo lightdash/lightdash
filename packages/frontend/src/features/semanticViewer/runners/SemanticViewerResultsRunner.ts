@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     DimensionType,
     FieldType,
+    MetricType,
     SemanticLayerFieldType,
     VizIndexType,
     type IResultsRunner,
@@ -111,8 +112,6 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
     }
 
     getDimensions(): VizIndexLayoutOptions[] {
-        console.log('SV get dimensions');
-
         return this.dimensions.map((dimension) => ({
             reference: dimension.name,
             axisType: getVizIndexTypeFromDimensionType(dimension.type),
@@ -123,10 +122,26 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
     }
 
     getMetrics(): VizValuesLayoutOptions[] {
-        console.log('SV get metrics');
-
         return this.metrics.map((metric) => ({
             reference: metric.name,
+            metricType: metric.aggType || MetricType.COUNT,
+        }));
+    }
+
+    getPivotQueryDimensions(): VizIndexLayoutOptions[] {
+        return this.dimensions.map((dimension) => ({
+            reference: dimension.name,
+            axisType: getVizIndexTypeFromDimensionType(dimension.type),
+            dimensionType: getDimensionTypeFromSemanticLayerFieldType(
+                dimension.type,
+            ),
+        }));
+    }
+
+    getPivotQueryMetrics(): VizValuesLayoutOptions[] {
+        return this.metrics.map((metric) => ({
+            reference: metric.name,
+            metricType: metric.aggType || MetricType.COUNT,
         }));
     }
 

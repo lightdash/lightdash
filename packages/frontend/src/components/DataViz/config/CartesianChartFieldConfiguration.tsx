@@ -227,6 +227,7 @@ export const CartesianChartFieldConfiguration = ({
             selectedChartType,
         ),
     );
+
     const xAxisField = useVizSelector((state) =>
         cartesianChartSelectors.getXAxisField(state, selectedChartType),
     );
@@ -269,7 +270,7 @@ export const CartesianChartFieldConfiguration = ({
                             <YFieldsAxisConfig
                                 key={field.reference + index}
                                 field={field}
-                                yLayoutOptions={yLayoutOptions}
+                                yLayoutOptions={yLayoutOptions.customAggregations}
                                 isSingle={yAxisFields.length === 1}
                                 index={index}
                                 actions={actions}

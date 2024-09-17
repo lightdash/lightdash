@@ -1,4 +1,4 @@
-import type { ApiError } from '..';
+import type { ApiError, MetricType } from '..';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
 import { SchedulerJobStatus } from './scheduler';
@@ -44,7 +44,7 @@ export type SemanticLayerField = {
     kind: FieldType;
     description?: string;
     visible: boolean;
-    aggType?: string; // eg: count, sum
+    aggType?: MetricType;
     availableGranularities: SemanticLayerTimeGranularity[];
     availableOperators: SemanticLayerStringFilterOperator[];
 };

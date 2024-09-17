@@ -1,4 +1,4 @@
-import { DimensionType } from '../../types/field';
+import { DimensionType, type MetricType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
 import { type CartesianChartDisplay } from '../CartesianChartDataModel';
@@ -50,11 +50,13 @@ export function getColumnAxisType(column: VizColumn): VizIndexType {
 export type VizIndexLayoutOptions = {
     axisType: VizIndexType;
     dimensionType: DimensionType;
+    aggregationOptions?: VizAggregationOptions[];
     reference: string;
 };
 
 export type VizValuesLayoutOptions = {
     reference: string;
+    metricType: MetricType;
     aggregationOptions?: VizAggregationOptions[];
 };
 
@@ -79,7 +81,10 @@ export type PivotChartData = {
 
 export type VizCartesianChartOptions = {
     indexLayoutOptions: VizIndexLayoutOptions[];
-    valuesLayoutOptions: VizValuesLayoutOptions[];
+    valuesLayoutOptions: {
+        preAggregated: VizValuesLayoutOptions[];
+        customAggregations: VizIndexLayoutOptions[];
+    };
     pivotLayoutOptions: VizPivotLayoutOptions[];
 };
 

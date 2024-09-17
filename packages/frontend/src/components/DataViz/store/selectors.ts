@@ -70,7 +70,7 @@ const getIndexLayoutOptions = createSelector(
 
 const getValuesLayoutOptions = createSelector(
     [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
-    (chartState) => chartState?.options?.valuesLayoutOptions,
+    (chartState) => chartState?.options.valuesLayoutOptions,
 );
 
 const getXAxisField = createSelector(

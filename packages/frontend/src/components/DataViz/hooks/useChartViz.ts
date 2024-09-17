@@ -14,16 +14,16 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 
-type Args<TLayout> = {
+type Args = {
     projectUuid?: string;
     sql?: string;
     limit?: number;
     slug?: string;
     uuid?: string;
-    resultsRunner?: IResultsRunner<TLayout>;
+    resultsRunner?: IResultsRunner;
     config: AllVizChartConfig | undefined;
 };
-export const useChartViz = <TLayout>({
+export const useChartViz = ({
     projectUuid,
     sql,
     limit,
@@ -31,7 +31,7 @@ export const useChartViz = <TLayout>({
     uuid,
     resultsRunner,
     config,
-}: Args<TLayout>) => {
+}: Args) => {
     const org = useOrganization();
 
     const chartDataModel = useMemo(() => {

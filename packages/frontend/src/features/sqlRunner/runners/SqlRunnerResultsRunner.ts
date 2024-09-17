@@ -1,6 +1,5 @@
 import {
     DimensionType,
-    getColumnAxisType,
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
     VizAggregationOptions,
@@ -111,7 +110,10 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
                 reference: y.reference,
                 aggregation: y.aggregation ?? VIZ_DEFAULT_AGGREGATION,
             })),
-            groupByColumns: config.groupBy,
+            groupByColumns:
+                config.groupBy && config.groupBy.length > 0
+                    ? config.groupBy
+                    : undefined,
             limit,
         });
 
@@ -221,6 +223,14 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
     }
 
     getMetrics(): VizValuesLayoutOptions[] {
+        return this.pivotChartValuesLayoutOptions();
+    }
+
+    getPivotQueryDimensions(): VizIndexLayoutOptions[] {
+        return this.pivotChartIndexLayoutOptions();
+    }
+
+    getPivotQueryMetrics(): VizValuesLayoutOptions[] {
         return this.pivotChartValuesLayoutOptions();
     }
 

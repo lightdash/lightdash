@@ -96,10 +96,9 @@ const XFieldAxisConfig = ({
     const fieldConfig = useVizSelector((state) => state.con);
 
     const handleXAxisChange = (value: string | null) => {
-       
         if (!value) {
             dispatch(actions.removeXAxisField());
-        } else{
+        } else {
             if (state.config?.fieldConfig) {
                 state.config.fieldConfig.x = {
                     reference: action.payload,
@@ -109,9 +108,9 @@ const XFieldAxisConfig = ({
                         )?.type ?? VizIndexType.CATEGORY,
                 };
             }
-            dispatch(actions.setXAxisReference(value))
-        };
-    }
+            dispatch(actions.setXAxisReference(value));
+        }
+    };
 
     return (
         <FieldReferenceSelect
@@ -216,13 +215,21 @@ export const CartesianVizFieldConfig = ({
     const xLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getIndexLayoutOptions(state, selectedChartType),
     );
-    const yLayoutOptions = useVizSelector(
-        (state) =>
-            cartesianChartSelectors.getValuesLayoutOptions(
-                state,
-                selectedChartType,
-            ) ?? [],
+    const allValuesLayoutOptions = useVizSelector((state) =>
+        cartesianChartSelectors.getValuesLayoutOptions(
+            state,
+            selectedChartType,
+        ),
     );
+
+    // For now we only support pre-aggregated values in the semantic viewer
+    const yLayoutOptions = useMemo(() => {
+        if (!allValuesLayoutOptions) {
+            return [];
+        }
+        return allValuesLayoutOptions.preAggregated;
+    }, [allValuesLayoutOptions]);
+
     const xAxisField = useVizSelector((state) =>
         cartesianChartSelectors.getXAxisField(state, selectedChartType),
     );
@@ -280,7 +287,7 @@ export const CartesianVizFieldConfig = ({
                         actions={actions}
                         columns={columns}
                     />
-                    {yAxisFields.length > 1 &&
+                    {/* {yAxisFields.length > 1 &&
                         yAxisFields
                             .slice(1)
                             .map((field, index) => (
@@ -293,7 +300,7 @@ export const CartesianVizFieldConfig = ({
                                     actions={actions}
                                     columns={columns}
                                 />
-                            ))}
+                            ))} */}
                 </Config.Section>
             </Config>
             <Config>

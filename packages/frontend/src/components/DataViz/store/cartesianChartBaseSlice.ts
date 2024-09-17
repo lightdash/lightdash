@@ -28,7 +28,7 @@ const initialState: CartesianChartState = {
     config: undefined,
     options: {
         indexLayoutOptions: [],
-        valuesLayoutOptions: [],
+        valuesLayoutOptions: { preAggregated: [], customAggregations: [] },
         pivotLayoutOptions: [],
     },
 };
@@ -81,22 +81,27 @@ export const cartesianChartConfigSlice = createSlice({
         ) => {
             if (state.config?.fieldConfig?.y) {
                 const yAxis = state.config.fieldConfig.y[action.payload.index];
+
+                let matchingOption =
+                    state.options.valuesLayoutOptions.preAggregated.find(
+                        (option) =>
+                            option.reference === action.payload.reference,
+                    ) ??
+                    state.options.valuesLayoutOptions.customAggregations.find(
+                        (option) =>
+                            option.reference === action.payload.reference,
+                    );
+
                 if (yAxis) {
                     yAxis.reference = action.payload.reference;
                     yAxis.aggregation =
-                        state.options.valuesLayoutOptions.find(
-                            (option) =>
-                                option.reference === action.payload.reference,
-                        )?.aggregationOptions?.[0] ?? VIZ_DEFAULT_AGGREGATION;
+                        matchingOption?.aggregationOptions?.[0] ??
+                        VIZ_DEFAULT_AGGREGATION;
                 } else {
                     state.config.fieldConfig.y.push({
                         reference: action.payload.reference,
                         aggregation:
-                            state.options.valuesLayoutOptions.find(
-                                (option) =>
-                                    option.reference ===
-                                    action.payload.reference,
-                            )?.aggregationOptions?.[0] ??
+                            matchingOption?.aggregationOptions?.[0] ??
                             VIZ_DEFAULT_AGGREGATION,
                     });
                 }
