@@ -77,7 +77,7 @@ jobs:
           # Set the PR deployment url
           config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
         env:
-          DEBUG: @cypress/github-action
+          DEBUG: '@cypress/github-action'
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
           CYPRESS_PGPASSWORD: ${{secrets.PGPASSWORD}}
           CYPRESS_DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
@@ -163,7 +163,7 @@ jobs:
           # Set the PR deployment url
           config: 'baseUrl=${{needs.prepare-preview.outputs.url}},specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx}'
         env:
-          DEBUG: @cypress/github-action
+          DEBUG: '@cypress/github-action'
           SPLIT: ${{ strategy.job-total }}
           SPLIT_INDEX: ${{ strategy.job-index }}
           CYPRESS_PGHOST: ${{secrets.PGHOST}}
@@ -235,7 +235,7 @@ jobs:
           # Set the PR deployment url
           config: 'baseUrl=${{needs.prepare-preview.outputs.url}}'
         env:
-          DEBUG: @cypress/github-action
+          DEBUG: '@cypress/github-action'
           TZ: ${{ matrix.timezone }}
           CYPRESS_TZ: ${{ matrix.timezone }}
 
