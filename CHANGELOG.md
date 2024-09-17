@@ -1,3 +1,10 @@
+## [0.1260.1](https://github.com/lightdash/lightdash/compare/0.1260.0...0.1260.1) (2024-09-17)
+
+
+### Bug Fixes
+
+* use isFetching to display loading state ([#11580](https://github.com/lightdash/lightdash/issues/11580)) ([df0015b](https://github.com/lightdash/lightdash/commit/df0015b0d5ebe8c8e3e8e3b10ccc0f0ece67ad9f))
+
 # [0.1260.0](https://github.com/lightdash/lightdash/compare/0.1259.1...0.1260.0) (2024-09-17)
 
 
