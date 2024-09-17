@@ -299,15 +299,26 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
         const datasetMetadata = await Promise.all(
             datasets.map(async (dataset) => {
-                const [rows] = await this.client.query(`
-                    SELECT table_name, column_name, data_type
-                    FROM \`${dataset.id}.INFORMATION_SCHEMA.COLUMNS\`
-                    WHERE is_partitioning_column = "YES"
-                `);
-                return {
-                    datasetId: dataset.id,
-                    partitionColumns: rows,
-                };
+                try {
+                    const [rows] = await this.client.query(`
+                        SELECT table_name, column_name, data_type
+                        FROM \`${dataset.id}.INFORMATION_SCHEMA.COLUMNS\`
+                        WHERE is_partitioning_column = "YES"
+                    `);
+                    return {
+                        datasetId: dataset.id,
+                        partitionColumns: rows,
+                    };
+                } catch (error) {
+                    console.error(
+                        `Error fetching partition info for dataset ${dataset.id}:`,
+                        error,
+                    );
+                    return {
+                        datasetId: dataset.id,
+                        partitionColumns: [],
+                    };
+                }
             }),
         );
 
