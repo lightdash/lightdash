@@ -1,3 +1,10 @@
+# [0.1259.0](https://github.com/lightdash/lightdash/compare/0.1258.0...0.1259.0) (2024-09-17)
+
+
+### Features
+
+* download csv results sql runner edit mode ([#11566](https://github.com/lightdash/lightdash/issues/11566)) ([53e7caa](https://github.com/lightdash/lightdash/commit/53e7caa0ca7f12e1d64078da256ec115c9ca43dd))
+
 # [0.1258.0](https://github.com/lightdash/lightdash/compare/0.1257.3...0.1258.0) (2024-09-17)
 
 
