@@ -1,3 +1,10 @@
+# [0.1258.0](https://github.com/lightdash/lightdash/compare/0.1257.3...0.1258.0) (2024-09-17)
+
+
+### Features
+
+* allow for two levels of filter groups ([#11564](https://github.com/lightdash/lightdash/issues/11564)) ([108ec4e](https://github.com/lightdash/lightdash/commit/108ec4eda5b6e72a9783dc084a59c90ce6fb709b))
+
 ## [0.1257.3](https://github.com/lightdash/lightdash/compare/0.1257.2...0.1257.3) (2024-09-17)
 
 
