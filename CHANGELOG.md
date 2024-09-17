@@ -1,3 +1,11 @@
+# [0.1261.0](https://github.com/lightdash/lightdash/compare/0.1260.1...0.1261.0) (2024-09-17)
+
+
+### Features
+
+* add sorting to pivot query ([#11464](https://github.com/lightdash/lightdash/issues/11464)) ([e2218c9](https://github.com/lightdash/lightdash/commit/e2218c9245edb3a571aaa7bcc46bfb1d22547259))
+* enable saving sql runner model ([#11578](https://github.com/lightdash/lightdash/issues/11578)) ([873d095](https://github.com/lightdash/lightdash/commit/873d095fb86d51b6f09b01371bf7a30cf33d2bc2))
+
 ## [0.1260.1](https://github.com/lightdash/lightdash/compare/0.1260.0...0.1260.1) (2024-09-17)
 
 
