@@ -44,13 +44,11 @@ export const useChartViz = ({
             case ChartKind.PIE:
                 return new PieChartDataModel({
                     resultsRunner,
-                    fieldConfig: config.fieldConfig,
                 });
             case ChartKind.VERTICAL_BAR:
             case ChartKind.LINE:
                 return new CartesianChartDataModel({
                     resultsRunner,
-                    fieldConfig: config.fieldConfig,
                 });
             default:
                 return;

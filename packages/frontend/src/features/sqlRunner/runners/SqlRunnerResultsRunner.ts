@@ -2,6 +2,7 @@ import {
     DimensionType,
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
+    MetricType,
     VizAggregationOptions,
     vizAggregationOptions,
     VizIndexType,
@@ -196,6 +197,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
                         {
                             reference: column.reference,
                             aggregationOptions: vizAggregationOptions,
+                            metricType: MetricType.NUMBER,
                         },
                     ];
 
@@ -209,6 +211,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
                                 (option) =>
                                     option === VizAggregationOptions.COUNT,
                             ),
+                            metricType: MetricType.COUNT,
                         },
                     ];
 

@@ -270,7 +270,9 @@ export const CartesianChartFieldConfiguration = ({
                             <YFieldsAxisConfig
                                 key={field.reference + index}
                                 field={field}
-                                yLayoutOptions={yLayoutOptions.customAggregations}
+                                yLayoutOptions={
+                                    yLayoutOptions.customAggregations
+                                }
                                 isSingle={yAxisFields.length === 1}
                                 index={index}
                                 actions={actions}

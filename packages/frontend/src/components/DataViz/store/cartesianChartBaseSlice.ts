@@ -5,22 +5,19 @@ import {
     VizIndexType,
     VIZ_DEFAULT_AGGREGATION,
     type CartesianChartDisplay,
+    type PivotChartLayout,
     type VizAggregationOptions,
+    type VizBarChartConfig,
     type VizCartesianChartOptions,
+    type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
-// SQL Runner slice
-
-export type SqlRunnerPivotChartState = {
-    defaultLayout: SqlRunnerPivotChartLayout | undefined;
-    layout: SqlRunnerPivotChartLayout | undefined;
-};
-
 export type CartesianChartState = {
+    defaultLayout: PivotChartLayout | undefined;
+    config: VizBarChartConfig | VizLineChartConfig | undefined;
     options: VizCartesianChartOptions;
-    display: CartesianChartDisplay | undefined;
 };
 
 const initialState: CartesianChartState = {
@@ -42,7 +39,7 @@ export const cartesianChartConfigSlice = createSlice({
             if (state.config?.fieldConfig) {
                 state.config.fieldConfig.x = {
                     reference: action.payload,
-                    type:
+                    axisType:
                         state.options.indexLayoutOptions.find(
                             (x) => x.reference === action.payload,
                         )?.axisType ?? VizIndexType.CATEGORY,

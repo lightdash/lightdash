@@ -93,21 +93,11 @@ const XFieldAxisConfig = ({
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useVizDispatch();
-    const fieldConfig = useVizSelector((state) => state.con);
 
     const handleXAxisChange = (value: string | null) => {
         if (!value) {
             dispatch(actions.removeXAxisField());
         } else {
-            if (state.config?.fieldConfig) {
-                state.config.fieldConfig.x = {
-                    reference: action.payload,
-                    type:
-                        state.options.indexLayoutOptions.find(
-                            (x) => x.reference === action.payload,
-                        )?.type ?? VizIndexType.CATEGORY,
-                };
-            }
             dispatch(actions.setXAxisReference(value));
         }
     };

@@ -44,7 +44,7 @@ export class CartesianChartDataModel {
 
     mergeConfig(
         chartKind: CartesianChartKind,
-        existingLayout: PivotChartLayout,
+        existingLayout: PivotChartLayout | undefined,
         display: CartesianChartDisplay | undefined,
     ): VizCartesianChartConfig {
         const newDefaultLayout = this.getDefaultLayout();
@@ -203,6 +203,7 @@ export class CartesianChartDataModel {
         return color;
     }
 
+    // eslint-disable-next-line class-methods-use-this
     getEchartsSpec(
         transformedData: PivotChartData | undefined,
         display: CartesianChartDisplay | undefined,

@@ -34,7 +34,7 @@ export class PieChartDataModel {
 
     mergeConfig(
         chartKind: ChartKind.PIE,
-        fieldConfig: PivotChartLayout,
+        fieldConfig: PivotChartLayout | undefined,
         display: VizPieChartDisplay | undefined,
     ): VizPieChartConfig {
         const newDefaultLayout = this.getDefaultLayout();
