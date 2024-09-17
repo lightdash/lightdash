@@ -76,10 +76,10 @@ export const Table = <T extends ResultsRunner>({
                         {headerGroups.map((headerGroup) =>
                             headerGroup.headers.map((header) => {
                                 const headerOnClick =
-                                    thSortConfig?.[header.id].onClick;
+                                    thSortConfig?.[header.id]?.onClick;
 
                                 const sortDirection =
-                                    thSortConfig?.[header.id].sortDirection;
+                                    thSortConfig?.[header.id]?.sortDirection;
 
                                 return (
                                     <th
