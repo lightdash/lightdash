@@ -4,6 +4,7 @@ databases:
   - name: jaffle_db_pg_13
     ipAllowList: []
     postgresMajorVersion: 13
+    plan: standard
 
 services:
   - type: pserv
