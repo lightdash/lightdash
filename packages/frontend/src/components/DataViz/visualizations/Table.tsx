@@ -19,7 +19,7 @@ import {
 import { useTableDataModel } from '../hooks/useTableDataModel';
 import { type ResultsRunner } from '../transformers/ResultsRunner';
 
-export type THConfig = {
+export type THSortConfig = {
     [fieldName: string]: {
         onClick: () => void;
         sortDirection: SemanticLayerSortByDirection | undefined;
@@ -31,14 +31,14 @@ type TableProps<T extends ResultsRunner> = {
     columnsConfig: VizColumnsConfig;
     resultsRunner: T;
     flexProps?: FlexProps;
-    thConfig?: THConfig;
+    thSortConfig?: THSortConfig;
 };
 
 export const Table = <T extends ResultsRunner>({
     resultsRunner,
     columnsConfig,
     flexProps,
-    thConfig,
+    thSortConfig,
 }: TableProps<T>) => {
     const {
         tableWrapperRef,
@@ -76,10 +76,10 @@ export const Table = <T extends ResultsRunner>({
                         {headerGroups.map((headerGroup) =>
                             headerGroup.headers.map((header) => {
                                 const headerOnClick =
-                                    thConfig?.[header.id].onClick;
+                                    thSortConfig?.[header.id].onClick;
 
                                 const sortDirection =
-                                    thConfig?.[header.id].sortDirection;
+                                    thSortConfig?.[header.id].sortDirection;
 
                                 return (
                                     <th

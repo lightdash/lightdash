@@ -1,4 +1,4 @@
-import { FieldType } from '@lightdash/common';
+import { FieldType as FieldKind } from '@lightdash/common';
 import { Box, Tabs, Text } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -7,7 +7,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import {
     Table,
-    type THConfig,
+    type THSortConfig,
 } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -28,13 +28,11 @@ const ContentResults: FC = () => {
     const dispatch = useAppDispatch();
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
+    const selectedFieldsByKind = useAppSelector(selectAllSelectedFieldsByKind);
+    const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
     const { results, columns, fields, sortBy } = useAppSelector(
         (state) => state.semanticViewer,
     );
-
-    const selectedFieldsByKind = useAppSelector(selectAllSelectedFieldsByKind);
-
-    const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
 
     const [openPanel, setOpenPanel] = useState<TabPanel>();
 
@@ -62,23 +60,23 @@ const ContentResults: FC = () => {
         fields,
     ]);
 
-    const thConfig = useMemo(() => {
+    const thSortConfig = useMemo(() => {
         const allSelectedFields = [
             ...selectedFieldsByKind.dimensions.map((d) => ({
                 ...d,
-                kind: FieldType.DIMENSION,
+                kind: FieldKind.DIMENSION,
             })),
             ...selectedFieldsByKind.timeDimensions.map((d) => ({
                 ...d,
-                kind: FieldType.DIMENSION,
+                kind: FieldKind.DIMENSION,
             })),
             ...selectedFieldsByKind.metrics.map((m) => ({
                 ...m,
-                kind: FieldType.METRIC,
+                kind: FieldKind.METRIC,
             })),
         ];
 
-        return allSelectedFields.reduce<THConfig>((acc, field) => {
+        return allSelectedFields.reduce<THSortConfig>((acc, field) => {
             const sortDirection = sortBy.find(
                 (s) => s.name === field.name && s.kind === field.kind,
             )?.direction;
@@ -122,7 +120,7 @@ const ContentResults: FC = () => {
                             flexProps={{
                                 m: '-1px',
                             }}
-                            thConfig={thConfig}
+                            thSortConfig={thSortConfig}
                         />
                     ) : (
                         <SuboptimalState

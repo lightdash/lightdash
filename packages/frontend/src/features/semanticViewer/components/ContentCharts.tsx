@@ -1,4 +1,8 @@
-import { ChartKind, isVizTableConfig } from '@lightdash/common';
+import {
+    ChartKind,
+    FieldType as FieldKind,
+    isVizTableConfig,
+} from '@lightdash/common';
 import { Box, Tabs, useMantineTheme } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -7,13 +11,18 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
-import { Table } from '../../../components/DataViz/visualizations/Table';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
-import { useAppSelector } from '../store/hooks';
 import {
+    Table,
+    type THSortConfig,
+} from '../../../components/DataViz/visualizations/Table';
+import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import {
+    selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
+import { updateSortBy } from '../store/semanticViewerSlice';
 
 enum TabPanel {
     VISUALIZATION_TABLE = 'VISUALIZATION_TABLE',
@@ -21,10 +30,11 @@ enum TabPanel {
 
 const ContentCharts: FC = () => {
     const mantineTheme = useMantineTheme();
+    const dispatch = useAppDispatch();
 
+    const selectedFieldsByKind = useAppSelector(selectAllSelectedFieldsByKind);
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
-
     const { results, columns, activeChartKind, fields, sortBy, filters } =
         useAppSelector((state) => state.semanticViewer);
 
@@ -75,6 +85,50 @@ const ContentCharts: FC = () => {
         fields,
     ]);
 
+    const thSortConfig = useMemo(() => {
+        const allSelectedFields = [
+            ...selectedFieldsByKind.dimensions.map((d) => ({
+                ...d,
+                kind: FieldKind.DIMENSION,
+            })),
+            ...selectedFieldsByKind.timeDimensions.map((d) => ({
+                ...d,
+                kind: FieldKind.DIMENSION,
+            })),
+            ...selectedFieldsByKind.metrics.map((m) => ({
+                ...m,
+                kind: FieldKind.METRIC,
+            })),
+        ];
+
+        return allSelectedFields.reduce<THSortConfig>((acc, field) => {
+            const sortDirection = sortBy.find(
+                (s) => s.name === field.name && s.kind === field.kind,
+            )?.direction;
+
+            return {
+                ...acc,
+                [field.name]: {
+                    sortDirection,
+                    kind: field.kind,
+                    onClick: () =>
+                        dispatch(
+                            updateSortBy({
+                                name: field.name,
+                                kind: field.kind,
+                            }),
+                        ),
+                },
+            };
+        }, {});
+    }, [
+        dispatch,
+        selectedFieldsByKind.dimensions,
+        selectedFieldsByKind.metrics,
+        selectedFieldsByKind.timeDimensions,
+        sortBy,
+    ]);
+
     return (
         <>
             <PanelGroup direction="vertical">
@@ -92,6 +146,7 @@ const ContentCharts: FC = () => {
                         <Table
                             resultsRunner={resultsRunner}
                             columnsConfig={vizConfig.columns}
+                            thSortConfig={thSortConfig}
                             flexProps={{
                                 m: '-1px',
                                 w: '100%',
@@ -113,50 +168,55 @@ const ContentCharts: FC = () => {
                     ) : null}
                 </Panel>
 
-                {openPanel === TabPanel.VISUALIZATION_TABLE && (
-                    <>
-                        <Box
-                            component={PanelResizeHandle}
-                            bg="gray.2"
-                            h="xs"
-                            sx={(theme) => ({
-                                transition: 'background-color 0.2s ease-in-out',
-                                '&[data-resize-handle-state="hover"]': {
-                                    backgroundColor: theme.colors.gray[3],
-                                },
-                                '&[data-resize-handle-state="drag"]': {
-                                    backgroundColor: theme.colors.gray[4],
-                                },
-                            })}
-                        />
-
-                        <Panel
-                            id={`semantic-viewer-panel-tab-${TabPanel.VISUALIZATION_TABLE}`}
-                            collapsible
-                            order={2}
-                            defaultSize={25}
-                            minSize={10}
-                            onCollapse={() => setOpenPanel(undefined)}
-                        >
-                            <Table
-                                resultsRunner={pivotResultsRunner}
-                                columnsConfig={Object.fromEntries(
-                                    chartVizQuery.data?.columns.map((field) => [
-                                        field.reference,
-                                        {
-                                            visible: true,
-                                            reference: field.reference,
-                                            label: field.reference,
-                                            frozen: false,
-                                            // TODO: add aggregation
-                                            // aggregation?: VizAggregationOptions;
-                                        },
-                                    ]) ?? [],
-                                )}
+                {openPanel === TabPanel.VISUALIZATION_TABLE &&
+                    !isVizTableConfig(vizConfig) && (
+                        <>
+                            <Box
+                                component={PanelResizeHandle}
+                                bg="gray.2"
+                                h="xs"
+                                sx={(theme) => ({
+                                    transition:
+                                        'background-color 0.2s ease-in-out',
+                                    '&[data-resize-handle-state="hover"]': {
+                                        backgroundColor: theme.colors.gray[3],
+                                    },
+                                    '&[data-resize-handle-state="drag"]': {
+                                        backgroundColor: theme.colors.gray[4],
+                                    },
+                                })}
                             />
-                        </Panel>
-                    </>
-                )}
+
+                            <Panel
+                                id={`semantic-viewer-panel-tab-${TabPanel.VISUALIZATION_TABLE}`}
+                                collapsible
+                                order={2}
+                                defaultSize={25}
+                                minSize={10}
+                                onCollapse={() => setOpenPanel(undefined)}
+                            >
+                                <Table
+                                    resultsRunner={pivotResultsRunner}
+                                    thSortConfig={thSortConfig}
+                                    columnsConfig={Object.fromEntries(
+                                        chartVizQuery.data?.columns.map(
+                                            (field) => [
+                                                field.reference,
+                                                {
+                                                    visible: true,
+                                                    reference: field.reference,
+                                                    label: field.reference,
+                                                    frozen: false,
+                                                    // TODO: add aggregation
+                                                    // aggregation?: VizAggregationOptions;
+                                                },
+                                            ],
+                                        ) ?? [],
+                                    )}
+                                />
+                            </Panel>
+                        </>
+                    )}
             </PanelGroup>
 
             {activeChartKind !== ChartKind.TABLE ? (
