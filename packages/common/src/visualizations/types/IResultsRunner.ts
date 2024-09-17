@@ -73,7 +73,16 @@ export interface IResultsRunner {
     getRows(): RawResultRow[];
 
     getDimensions(): VizIndexLayoutOptions[];
+
     getMetrics(): VizValuesLayoutOptions[];
+
+    getPivotQueryDimensions(): {
+        reference: string;
+        aggregations?: [];
+        dimensionType: DimensionType;
+    }[];
+
+    getPivotQueryMetrics(): { reference: string; metricType: DimensionType }[];
 
     // TODO: other runner types
     // getPivotTableData() // includes subtotalling etc.

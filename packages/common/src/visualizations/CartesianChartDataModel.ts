@@ -73,9 +73,13 @@ export class CartesianChartDataModel {
 
     getChartOptions() {
         return {
-            indexLayoutOptions: this.resultsRunner.getDimensions(),
-            valuesLayoutOptions: this.resultsRunner.getMetrics(),
-            pivotLayoutOptions: this.resultsRunner.getDimensions(),
+            indexLayoutOptions: this.resultsRunner.getPivotQueryDimensions(),
+            valuesLayoutOptions: {
+                preAggregated: this.resultsRunner.getPivotQueryMetrics(),
+                customAggregations:
+                    this.resultsRunner.getPivotQueryDimensions(),
+            },
+            pivotLayoutOptions: this.resultsRunner.getPivotQueryDimensions(),
         };
     }
 
@@ -83,8 +87,8 @@ export class CartesianChartDataModel {
         const dimensions = this.resultsRunner.getDimensions();
         const metrics = this.resultsRunner.getMetrics();
 
-        // TODO: the types could be cleaned up here to have fewer 'in' checks. 
-        // This works for 
+        // TODO: the types could be cleaned up here to have fewer 'in' checks.
+        // This works for
         const categoricalColumns = [...dimensions, ...metrics].filter(
             (column) =>
                 'dimensionType' in column &&
