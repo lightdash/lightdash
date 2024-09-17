@@ -236,7 +236,7 @@ const ViewSqlChart = () => {
                                                     spec={chartSpec}
                                                     isLoading={
                                                         isLoading ||
-                                                        chartVizQuery.isLoading
+                                                        chartVizQuery.isFetching
                                                     }
                                                     error={chartVizQuery.error}
                                                     style={{ height: '100%' }}

@@ -493,7 +493,7 @@ export const ContentPanel: FC = () => {
                                                                                 chartSpec
                                                                             }
                                                                             isLoading={
-                                                                                chartVizQuery.isLoading
+                                                                                chartVizQuery.isFetching
                                                                             }
                                                                             error={
                                                                                 chartVizQuery.error
