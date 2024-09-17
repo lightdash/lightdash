@@ -17,8 +17,8 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
 export enum EditorTabs {
-    RESULTS = 'results',
-    VISUALIZATION = 'visualization',
+    QUERY = 'query',
+    VIZ = 'viz',
 }
 
 export enum SidebarTabs {
@@ -148,7 +148,7 @@ const initialState: SemanticViewerState = {
     name: '',
     saveModalOpen: false,
 
-    activeEditorTab: EditorTabs.RESULTS,
+    activeEditorTab: EditorTabs.QUERY,
     activeSidebarTab: SidebarTabs.TABLES,
     activeChartKind: ChartKind.VERTICAL_BAR,
 
@@ -253,10 +253,10 @@ export const semanticViewerSlice = createSlice({
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
 
-            if (action.payload === EditorTabs.RESULTS) {
+            if (action.payload === EditorTabs.QUERY) {
                 state.activeSidebarTab = SidebarTabs.TABLES;
             }
-            if (action.payload === EditorTabs.VISUALIZATION) {
+            if (action.payload === EditorTabs.VIZ) {
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
             }
         },

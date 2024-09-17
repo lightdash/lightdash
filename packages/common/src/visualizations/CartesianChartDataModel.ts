@@ -289,7 +289,7 @@ export class CartesianChartDataModel
 export type CartesianChartDisplay = {
     xAxis?: {
         label?: string;
-        type: VizIndexType;
+        type?: VizIndexType;
     };
     yAxis?: {
         label?: string;
