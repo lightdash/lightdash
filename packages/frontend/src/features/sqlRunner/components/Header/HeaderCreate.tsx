@@ -1,8 +1,10 @@
-import { Button, Group, Paper } from '@mantine/core';
+import { FeatureFlags } from '@lightdash/common';
+import { Button, Group, Paper, Tooltip } from '@mantine/core';
 import { IconWand } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
+import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     DEFAULT_NAME,
@@ -13,6 +15,9 @@ import { SaveCustomExploreModal } from '../SaveCustomExploreModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 
 export const HeaderCreate: FC = () => {
+    const isSaveCustomExploreFromSqlRunnerEnabled = useFeatureFlagEnabled(
+        FeatureFlags.SaveCustomExploreFromSqlRunner,
+    );
     const dispatch = useAppDispatch();
     const name = useAppSelector((state) => state.sqlRunner.name);
     const loadedColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
@@ -46,18 +51,37 @@ export const HeaderCreate: FC = () => {
                     </Group>
 
                     <Group>
-                        <Button
-                            color="indigo.6"
-                            variant="light"
-                            size="xs"
-                            leftIcon={<MantineIcon icon={IconWand} />}
-                            onClick={() => {
-                                dispatch(toggleModal('saveCustomExploreModal'));
-                            }}
-                            disabled={!loadedColumns}
-                        >
-                            Save as Custom Explore
-                        </Button>
+                        {isSaveCustomExploreFromSqlRunnerEnabled && (
+                            <Tooltip
+                                label="You can save your query as a custom explore for future use"
+                                position="bottom"
+                                withArrow
+                                variant="xs"
+                            >
+                                <Button
+                                    radius="md"
+                                    color="indigo.6"
+                                    variant="light"
+                                    size="xs"
+                                    leftIcon={
+                                        <MantineIcon
+                                            size={12}
+                                            icon={IconWand}
+                                        />
+                                    }
+                                    onClick={() => {
+                                        dispatch(
+                                            toggleModal(
+                                                'saveCustomExploreModal',
+                                            ),
+                                        );
+                                    }}
+                                    disabled={!loadedColumns}
+                                >
+                                    Save explore
+                                </Button>
+                            </Tooltip>
+                        )}
 
                         <Button
                             color={'green.7'}

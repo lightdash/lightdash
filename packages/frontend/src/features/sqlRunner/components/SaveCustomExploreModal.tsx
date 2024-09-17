@@ -9,7 +9,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconChartBar } from '@tabler/icons-react';
+import { IconWand } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -63,8 +63,8 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
             keepMounted={false}
             title={
                 <Group spacing="xs">
-                    <MantineIcon icon={IconChartBar} size="lg" color="gray.7" />
-                    <Text fw={500}>Save custom explore</Text>
+                    <MantineIcon icon={IconWand} size="lg" color="gray.7" />
+                    <Text fw={500}>Save explore</Text>
                 </Group>
             }
             styles={(theme) => ({
@@ -76,7 +76,7 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
                 <Stack p="md">
                     <Stack spacing="xs">
                         <TextInput
-                            label="Custom explore name"
+                            label="Name"
                             required
                             {...form.getInputProps('name')}
                         />
@@ -105,7 +105,7 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
                         disabled={!form.values.name || !sql}
                         loading={isLoading}
                     >
-                        Create Custom Explore
+                        Create explore
                     </Button>
                 </Group>
             </form>
