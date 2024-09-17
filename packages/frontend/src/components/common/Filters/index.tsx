@@ -199,7 +199,6 @@ const FiltersForm: FC<Props> = ({ filters, setFilters, isEditMode }) => {
                                 isEditMode={isEditMode}
                                 onChange={updateFiltersFromGroup}
                                 onDelete={() => setFilters({}, true)}
-                                allowConvertToGroup
                             />
                         )}
                     </>
