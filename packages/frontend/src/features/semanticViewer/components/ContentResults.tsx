@@ -63,7 +63,6 @@ const ContentResults: FC = () => {
     ]);
 
     const thConfig = useMemo(() => {
-        console.log({ sortBy });
         const allSelectedFields = [
             ...selectedFieldsByKind.dimensions.map((d) => ({
                 ...d,
