@@ -189,11 +189,11 @@ const Content: FC = () => {
                         description="Please select a view from the sidebar to start building a query"
                     />
                 </Center>
-            ) : results.length === 0 ? (
+            ) : selectedFieldsCount === 0 ? (
                 <Center sx={{ flexGrow: 1 }}>
                     <SuboptimalState
-                        title="No results"
-                        description="Select fields and adjust filters to see results."
+                        title="Select a field"
+                        description="Please select a field from the sidebar to start building a query"
                     />
                 </Center>
             ) : activeEditorTab === EditorTabs.QUERY ? (
