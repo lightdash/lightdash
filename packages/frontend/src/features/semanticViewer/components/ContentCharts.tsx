@@ -82,7 +82,11 @@ const ContentCharts: FC = () => {
                     id="semantic-viewer-panel-charts"
                     order={1}
                     minSize={30}
-                    style={{ display: 'flex', flexDirection: 'column' }}
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        position: 'relative',
+                    }}
                 >
                     {vizConfig && isVizTableConfig(vizConfig) ? (
                         <Table
