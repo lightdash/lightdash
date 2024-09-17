@@ -126,6 +126,7 @@ import {
     type ApiSemanticLayerGetChart,
 } from './types/semanticLayer';
 import {
+    type ApiCreateCustomExplore,
     type ApiCreateSqlChart,
     type ApiSqlChart,
     type ApiSqlRunnerJobStatusResponse,
@@ -218,6 +219,7 @@ export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertToDbt';
+export * from './utils/customExplore';
 export * from './utils/email';
 export * from './utils/fields';
 export * from './utils/filters';
@@ -679,7 +681,8 @@ type ApiResults =
     | ApiSqlRunnerJobStatusResponse['results']
     | ApiSemanticLayerClientInfo['results']
     | ApiSemanticLayerCreateChart['results']
-    | ApiSemanticLayerGetChart['results'];
+    | ApiSemanticLayerGetChart['results']
+    | ApiCreateCustomExplore['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

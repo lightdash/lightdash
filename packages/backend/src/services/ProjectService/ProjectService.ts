@@ -14,6 +14,7 @@ import {
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
+    CreateCustomExplorePayload,
     CreateDbtCloudIntegration,
     createDimensionWithGranularity,
     CreateJob,
@@ -4376,5 +4377,22 @@ export class ProjectService extends BaseService {
 
             return metrics;
         }, []);
+    }
+
+    async createCustomExplore(
+        user: SessionUser,
+        projectUuid: string,
+        payload: CreateCustomExplorePayload,
+    ) {
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+        );
+        const explore = await this.projectModel.createCustomExplore(
+            projectUuid,
+            payload,
+            warehouseClient,
+        );
+        return explore;
     }
 }

@@ -1,4 +1,4 @@
-import { type ApiError, type PivotChartData } from '..';
+import { type ApiError, type Explore, type PivotChartData } from '..';
 import {
     type PivotIndexColum,
     type VizAggregationOptions,
@@ -189,4 +189,15 @@ export type ApiUpdateSqlChart = {
         savedSqlUuid: string;
         savedSqlVersionUuid: string | null;
     };
+};
+
+export type ApiCreateCustomExplore = {
+    status: 'ok';
+    results: Pick<Explore, 'name'>;
+};
+
+export type CreateCustomExplorePayload = {
+    name: string;
+    sql: string;
+    columns: VizColumn[];
 };

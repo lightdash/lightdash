@@ -8086,6 +8086,60 @@
                 },
                 "type": "object"
             },
+            "Pick_Explore.name_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiCreateCustomExplore": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Pick_Explore.name_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "VizColumn": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reference"],
+                "type": "object"
+            },
+            "CreateCustomExplorePayload": {
+                "properties": {
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizColumn"
+                        },
+                        "type": "array"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["columns", "sql", "name"],
+                "type": "object"
+            },
             "Pick_SshKeyPair.publicKey_": {
                 "properties": {
                     "publicKey": {
@@ -9860,7 +9914,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1255.6",
+        "version": "0.1256.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
