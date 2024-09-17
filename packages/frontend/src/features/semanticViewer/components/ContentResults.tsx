@@ -74,15 +74,15 @@ const ContentResults: FC = () => {
                     <>
                         <Box
                             component={PanelResizeHandle}
-                            bg="gray.3"
-                            h="two"
+                            bg="gray.2"
+                            h="xs"
                             sx={(theme) => ({
                                 transition: 'background-color 0.2s ease-in-out',
                                 '&[data-resize-handle-state="hover"]': {
-                                    backgroundColor: theme.colors.gray[5],
+                                    backgroundColor: theme.colors.gray[3],
                                 },
                                 '&[data-resize-handle-state="drag"]': {
-                                    backgroundColor: theme.colors.gray[8],
+                                    backgroundColor: theme.colors.gray[4],
                                 },
                             })}
                         />
