@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -32,7 +31,6 @@ export const useCreateCustomExplore = ({
 }: {
     projectUuid: string;
 }) => {
-    const history = useHistory();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
         ApiCreateCustomExplore['results'],
@@ -49,8 +47,9 @@ export const useCreateCustomExplore = ({
                     children: 'Query from new explore',
                     icon: IconArrowRight,
                     onClick: () => {
-                        history.push(
+                        window.open(
                             `/projects/${projectUuid}/tables/${data.name}`,
+                            '_blank',
                         );
                     },
                 },
