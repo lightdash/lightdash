@@ -1,3 +1,10 @@
+## [0.1259.1](https://github.com/lightdash/lightdash/compare/0.1259.0...0.1259.1) (2024-09-17)
+
+
+### Bug Fixes
+
+* upgrade posthog frontend ([#11577](https://github.com/lightdash/lightdash/issues/11577)) ([4cbbe1b](https://github.com/lightdash/lightdash/commit/4cbbe1b480babc4761af1bdd4d807b43a68da2ad))
+
 # [0.1259.0](https://github.com/lightdash/lightdash/compare/0.1258.0...0.1259.0) (2024-09-17)
 
 
