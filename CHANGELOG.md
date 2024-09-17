@@ -1,3 +1,10 @@
+## [0.1257.3](https://github.com/lightdash/lightdash/compare/0.1257.2...0.1257.3) (2024-09-17)
+
+
+### Bug Fixes
+
+* pivot on empty results throwing an error ([#11569](https://github.com/lightdash/lightdash/issues/11569)) ([ea6c05a](https://github.com/lightdash/lightdash/commit/ea6c05a24631c26dfbf7d1daeb232651e691f719))
+
 ## [0.1257.2](https://github.com/lightdash/lightdash/compare/0.1257.1...0.1257.2) (2024-09-16)
 
 
