@@ -1,6 +1,7 @@
 import {
     DimensionType,
     type ChartKind,
+    type SqlRunnerPivotChartLayout,
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
@@ -9,7 +10,6 @@ import {
 import { ActionIcon, Box } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { type SqlRunnerPivotChartLayout } from '../../../features/sqlRunner/runners/SqlRunnerResultsRunner';
 import MantineIcon from '../../common/MantineIcon';
 import { AddButton } from '../../VisualizationConfigs/common/AddButton';
 import { Config } from '../../VisualizationConfigs/common/Config';

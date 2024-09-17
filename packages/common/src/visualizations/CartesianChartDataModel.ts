@@ -144,9 +144,6 @@ export class CartesianChartDataModel {
             categoricalColumns.filter(
                 (column) => column.reference !== x.reference,
             )[0] ||
-            numericColumns[0] ||
-            booleanColumns[0] ||
-            categoricalColumns[0] ||
             metrics[0];
 
         if (yColumn === undefined) {
