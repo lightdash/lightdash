@@ -32,6 +32,7 @@ export interface SqlRunnerState {
     description: string;
     sql: string;
     successfulSqlQueries: WithHistory<string | undefined>;
+    hasUnrunChanges: boolean;
     limit: number;
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
@@ -70,6 +71,7 @@ const initialState: SqlRunnerState = {
     description: '',
     sql: '',
     successfulSqlQueries: withHistory(undefined),
+    hasUnrunChanges: false,
     limit: 500,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
@@ -158,6 +160,7 @@ export const sqlRunnerSlice = createSlice({
                     payload: state.sql,
                     type: 'sql',
                 });
+                state.hasUnrunChanges = false;
             }
         },
         updateName: (state, action: PayloadAction<string>) => {
@@ -165,6 +168,9 @@ export const sqlRunnerSlice = createSlice({
         },
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
+
+            state.hasUnrunChanges =
+                action.payload !== state.successfulSqlQueries.current;
         },
         setSqlLimit: (state, action: PayloadAction<number>) => {
             state.limit = action.payload;

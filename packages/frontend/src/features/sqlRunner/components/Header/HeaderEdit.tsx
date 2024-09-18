@@ -8,7 +8,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconArrowBack, IconPencil, IconTrash } from '@tabler/icons-react';
 import { isEqual } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
@@ -30,8 +30,11 @@ export const HeaderEdit: FC = () => {
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
     );
-    const { sql, selectedChartType } = useAppSelector(
-        (state) => state.sqlRunner,
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+    const sqlToSave = useAppSelector(
+        (state) => state.sqlRunner.successfulSqlQueries.current,
     );
     const limit = useAppSelector((state) => state.sqlRunner.limit);
 
@@ -51,26 +54,26 @@ export const HeaderEdit: FC = () => {
 
     const hasChanges = useMemo(() => {
         if (!initialSavedSqlChart || !initialChartConfig) return false;
-        const changedSql = sql !== initialSavedSqlChart.sql;
+        const changedSql = sqlToSave !== initialSavedSqlChart.sql;
         const changedLimit = limit !== initialSavedSqlChart.limit;
         const changedConfig = !isEqual(config, initialChartConfig);
 
         return changedSql || changedLimit || changedConfig;
-    }, [initialSavedSqlChart, initialChartConfig, sql, limit, config]);
+    }, [initialSavedSqlChart, initialChartConfig, sqlToSave, limit, config]);
 
     const onSave = useCallback(() => {
-        if (config && sql) {
+        if (config && sqlToSave) {
             mutate({
                 versionedData: {
                     config,
-                    sql,
+                    sql: sqlToSave,
                     limit,
                 },
             });
             setInitialChartConfig(config);
-            setInitialSavedSqlChart({ sql, limit });
+            setInitialSavedSqlChart({ sql: sqlToSave, limit });
         }
-    }, [config, sql, mutate, limit]);
+    }, [config, sqlToSave, mutate, limit]);
 
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
@@ -141,10 +144,10 @@ export const HeaderEdit: FC = () => {
                         <Button
                             size="xs"
                             color={'green.7'}
-                            disabled={!config || !sql || !hasChanges}
+                            disabled={!config || !sqlToSave || !hasChanges}
                             loading={isLoading}
                             onClick={() => {
-                                if (config && sql) {
+                                if (config && sqlToSave) {
                                     onSave();
                                 }
                             }}
@@ -156,17 +159,17 @@ export const HeaderEdit: FC = () => {
                             label="Back to view page"
                             position="bottom"
                         >
-                            <Button
+                            <ActionIcon
                                 variant="default"
-                                size="xs"
+                                size="md"
                                 onClick={() =>
                                     history.push(
                                         `/projects/${savedSqlChart.project.projectUuid}/sql-runner/${savedSqlChart.slug}`,
                                     )
                                 }
                             >
-                                Cancel
-                            </Button>
+                                <MantineIcon icon={IconArrowBack} />
+                            </ActionIcon>
                         </Tooltip>
                         <Tooltip variant="xs" label="Delete" position="bottom">
                             <ActionIcon

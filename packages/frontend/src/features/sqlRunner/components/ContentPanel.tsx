@@ -280,6 +280,10 @@ export const ContentPanel: FC = () => {
         });
     }, [chartVizQuery.data]);
 
+    const hasUnrunChanges = useAppSelector(
+        (state) => state.sqlRunner.hasUnrunChanges,
+    );
+
     return (
         <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
             <Tooltip.Group>
@@ -309,13 +313,32 @@ export const ContentPanel: FC = () => {
                                     {
                                         value: EditorTabs.SQL,
                                         label: (
-                                            <Group spacing={4} noWrap>
-                                                <MantineIcon
-                                                    color="gray.6"
-                                                    icon={IconCodeCircle}
-                                                />
-                                                <Text>SQL</Text>
-                                            </Group>
+                                            <Tooltip
+                                                disabled={!hasUnrunChanges}
+                                                variant="xs"
+                                                withinPortal
+                                                label="There are unsaved changes to the SQL query. Run the query to apply them."
+                                            >
+                                                <Group spacing={4} noWrap>
+                                                    <MantineIcon
+                                                        color={
+                                                            hasUnrunChanges
+                                                                ? 'yellow.7'
+                                                                : 'gray.6'
+                                                        }
+                                                        icon={IconCodeCircle}
+                                                    />
+                                                    <Text
+                                                        color={
+                                                            hasUnrunChanges
+                                                                ? 'yellow.7'
+                                                                : 'gray.6'
+                                                        }
+                                                    >
+                                                        SQL
+                                                    </Text>
+                                                </Group>
+                                            </Tooltip>
                                         ),
                                     },
                                     {

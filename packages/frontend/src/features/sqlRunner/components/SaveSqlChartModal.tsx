@@ -1,4 +1,5 @@
 import {
+    Box,
     Button,
     Group,
     Modal,
@@ -9,7 +10,13 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconChartBar } from '@tabler/icons-react';
+import { Editor } from '@monaco-editor/react';
+import {
+    IconAlertTriangle,
+    IconChartBar,
+    IconChevronDown,
+    IconChevronRight,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { type z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -19,17 +26,82 @@ import {
     validationSchema,
 } from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import {
+    selectChartConfigByKind,
+    selectTableVisConfigState,
+} from '../../../components/DataViz/store/selectors';
+import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-
-import {
-    selectChartConfigByKind,
-    selectTableVisConfigState,
-} from '../../../components/DataViz/store/selectors';
 import { updateName } from '../store/sqlRunnerSlice';
+
+const PreviousSqlQueryAlert: FC = () => {
+    const [isCodeExpanded, setIsCodeExpanded] = useState(false);
+    const sqlToSave = useAppSelector(
+        (state) => state.sqlRunner.successfulSqlQueries.current,
+    );
+    return (
+        <Box
+            m="sm"
+            sx={(theme) => ({
+                border: `1px solid ${theme.colors.gray[3]}`,
+                borderRadius: theme.radius.md,
+                overflow: 'hidden',
+            })}
+        >
+            <Button
+                color="yellow.8"
+                w="100%"
+                variant="light"
+                onClick={() => {
+                    setIsCodeExpanded((prev) => !prev);
+                }}
+            >
+                <Group spacing="xs">
+                    <MantineIcon icon={IconAlertTriangle} color="yellow.6" />
+                    <Text fz="xs" fw={500}>
+                        Your chart will be saved with the last successful query.
+                    </Text>
+
+                    <MantineIcon
+                        icon={
+                            isCodeExpanded ? IconChevronDown : IconChevronRight
+                        }
+                    />
+                </Group>
+            </Button>
+
+            {isCodeExpanded && (
+                <Box
+                    sx={(theme) => ({
+                        borderTop: `1px solid ${theme.colors.gray[3]}`,
+                    })}
+                >
+                    <Editor
+                        height={200}
+                        width={400}
+                        language="sql"
+                        value={sqlToSave}
+                        options={{
+                            readOnly: true,
+                            minimap: { enabled: false },
+                            scrollBeyondLastLine: false,
+                            contextmenu: false,
+                            lineNumbers: 'off',
+                            glyphMargin: false,
+                            lineDecorationsWidth: 0,
+                            revealHorizontalRightPadding: 0,
+                            roundedSelection: false,
+                        }}
+                        theme="lightdash"
+                    />
+                </Box>
+            )}
+        </Box>
+    );
+};
 
 type FormValues = z.infer<typeof validationSchema>;
 
@@ -146,6 +218,10 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         limit,
     ]);
 
+    const hasUnrunChanges = useAppSelector(
+        (state) => state.sqlRunner.hasUnrunChanges,
+    );
+
     return (
         <Modal
             opened={opened}
@@ -162,8 +238,9 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
                 body: { padding: 0 },
             })}
         >
+            {hasUnrunChanges && <PreviousSqlQueryAlert />}
             <form onSubmit={form.onSubmit(handleOnSubmit)}>
-                <Stack p="md">
+                <Stack p="md" pt={hasUnrunChanges ? 0 : 'md'}>
                     <Stack spacing="xs">
                         <TextInput
                             label="Chart name"
