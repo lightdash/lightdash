@@ -44,7 +44,7 @@ export type SemanticLayerField = {
     kind: FieldType;
     description?: string;
     visible: boolean;
-    aggType?: MetricType;
+    aggType?: MetricType; // TODO: currently not populated, we should get this on the backend
     availableGranularities: SemanticLayerTimeGranularity[];
     availableOperators: SemanticLayerStringFilterOperator[];
 };

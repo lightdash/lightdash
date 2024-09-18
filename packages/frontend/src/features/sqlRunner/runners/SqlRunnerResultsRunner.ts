@@ -14,6 +14,7 @@ import {
     type SqlRunnerPivotChartLayout,
     type SqlRunnerPivotQueryBody,
     type VizColumn,
+    type VizCustomMetricLayoutOptions,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
@@ -188,37 +189,46 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
         return options;
     }
 
-    pivotChartValuesLayoutOptions(): VizValuesLayoutOptions[] {
-        return this.columns.reduce<VizValuesLayoutOptions[]>((acc, column) => {
-            switch (column.type) {
-                case DimensionType.NUMBER:
-                    return [
-                        ...acc,
-                        {
-                            reference: column.reference,
-                            aggregationOptions: vizAggregationOptions,
-                            metricType: MetricType.NUMBER,
-                        },
-                    ];
+    pivotChartValuesLayoutOptions(): VizCustomMetricLayoutOptions[] {
+        return this.columns.reduce<VizCustomMetricLayoutOptions[]>(
+            (acc, column) => {
+                switch (column.type) {
+                    case DimensionType.NUMBER:
+                        return [
+                            ...acc,
+                            {
+                                reference: column.reference,
+                                aggregationOptions: vizAggregationOptions,
+                                metricType: MetricType.NUMBER,
+                                dimensionType: DimensionType.NUMBER,
+                                axisType: VizIndexType.CATEGORY,
+                            },
+                        ];
 
-                case DimensionType.STRING:
-                case DimensionType.BOOLEAN:
-                    return [
-                        ...acc,
-                        {
-                            reference: column.reference,
-                            aggregationOptions: vizAggregationOptions.filter(
-                                (option) =>
-                                    option === VizAggregationOptions.COUNT,
-                            ),
-                            metricType: MetricType.COUNT,
-                        },
-                    ];
+                    case DimensionType.STRING:
+                    case DimensionType.BOOLEAN:
+                        return [
+                            ...acc,
+                            {
+                                reference: column.reference,
+                                aggregationOptions:
+                                    vizAggregationOptions.filter(
+                                        (option) =>
+                                            option ===
+                                            VizAggregationOptions.COUNT,
+                                    ),
+                                metricType: MetricType.COUNT,
+                                dimensionType: column.type,
+                                axisType: VizIndexType.CATEGORY,
+                            },
+                        ];
 
-                default:
-                    return acc;
-            }
-        }, [] as VizValuesLayoutOptions[]);
+                    default:
+                        return acc;
+                }
+            },
+            [] as VizCustomMetricLayoutOptions[],
+        );
     }
 
     getDimensions(): VizIndexLayoutOptions[] {
@@ -234,6 +244,11 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
     }
 
     getPivotQueryMetrics(): VizValuesLayoutOptions[] {
+        // SQL Runner doesn't support pre-aggregated metrics
+        return [];
+    }
+
+    getPivotQueryCustomMetrics(): VizCustomMetricLayoutOptions[] {
         return this.pivotChartValuesLayoutOptions();
     }
 

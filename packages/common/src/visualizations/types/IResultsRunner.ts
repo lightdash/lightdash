@@ -1,11 +1,12 @@
 import {
     type PivotChartData,
     type VizAggregationOptions,
+    type VizCustomMetricLayoutOptions,
     type VizIndexLayoutOptions,
     type VizIndexType,
     type VizValuesLayoutOptions,
 } from '.';
-import { type DimensionType, type MetricType } from '../../types/field';
+import { type DimensionType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 
 // TODO: move these types out of here
@@ -74,13 +75,15 @@ export interface IResultsRunner {
 
     getRows(): RawResultRow[];
 
+    // TODO getDimensions and getMetrics should be removed when the new ones work
     getDimensions(): VizIndexLayoutOptions[];
-
     getMetrics(): VizValuesLayoutOptions[];
 
     getPivotQueryDimensions(): VizIndexLayoutOptions[];
 
-    getPivotQueryMetrics(): { reference: string; metricType: MetricType }[];
+    getPivotQueryMetrics(): VizValuesLayoutOptions[];
+
+    getPivotQueryCustomMetrics(): VizCustomMetricLayoutOptions[];
 
     // TODO: other runner types
     // getPivotTableData() // includes subtotalling etc.

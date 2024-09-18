@@ -78,7 +78,7 @@ export class CartesianChartDataModel {
             valuesLayoutOptions: {
                 preAggregated: this.resultsRunner.getPivotQueryMetrics(),
                 customAggregations:
-                    this.resultsRunner.getPivotQueryDimensions(),
+                    this.resultsRunner.getPivotQueryCustomMetrics(),
             },
             pivotLayoutOptions: this.resultsRunner.getPivotQueryDimensions(),
         };

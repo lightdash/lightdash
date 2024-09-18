@@ -14,6 +14,7 @@ import {
     type SemanticViewerPivotChartLayout,
     type SqlRunnerPivotChartLayout,
     type VizColumn,
+    type VizCustomMetricLayoutOptions,
     type VizIndexLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
@@ -142,7 +143,13 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
         return this.metrics.map((metric) => ({
             reference: metric.name,
             metricType: metric.aggType || MetricType.COUNT,
+            aggregationOptions: [],
         }));
+    }
+
+    getPivotQueryCustomMetrics(): VizCustomMetricLayoutOptions[] {
+        // No custom metrics for semantic layer yet
+        return [];
     }
 
     static convertColumnNamesToVizColumns(

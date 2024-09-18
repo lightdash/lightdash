@@ -56,8 +56,13 @@ export type VizIndexLayoutOptions = {
 
 export type VizValuesLayoutOptions = {
     reference: string;
-    metricType: MetricType;
+    metricType: MetricType; // Currently not available in Semantic viewer API
     aggregationOptions?: VizAggregationOptions[];
+};
+
+// A custom metric is a dimension + aggregation type
+export type VizCustomMetricLayoutOptions = VizIndexLayoutOptions & {
+    metricType: MetricType;
 };
 
 export type VizPivotLayoutOptions = {
@@ -83,7 +88,7 @@ export type VizCartesianChartOptions = {
     indexLayoutOptions: VizIndexLayoutOptions[];
     valuesLayoutOptions: {
         preAggregated: VizValuesLayoutOptions[];
-        customAggregations: VizIndexLayoutOptions[];
+        customAggregations: VizCustomMetricLayoutOptions[];
     };
     pivotLayoutOptions: VizPivotLayoutOptions[];
 };

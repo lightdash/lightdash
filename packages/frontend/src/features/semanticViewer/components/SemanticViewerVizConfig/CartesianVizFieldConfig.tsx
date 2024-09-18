@@ -277,7 +277,7 @@ export const CartesianVizFieldConfig = ({
                         actions={actions}
                         columns={columns}
                     />
-                    {/* {yAxisFields.length > 1 &&
+                    {yAxisFields.length > 1 &&
                         yAxisFields
                             .slice(1)
                             .map((field, index) => (
@@ -290,7 +290,7 @@ export const CartesianVizFieldConfig = ({
                                     actions={actions}
                                     columns={columns}
                                 />
-                            ))} */}
+                            ))}
                 </Config.Section>
             </Config>
             <Config>

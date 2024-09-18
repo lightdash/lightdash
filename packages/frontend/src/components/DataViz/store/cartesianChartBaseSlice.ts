@@ -1,9 +1,7 @@
 // This is explicit to exploring
 // Not needed when viewing a cartesian chart on a dashboard
 import {
-    DimensionType,
     isFormat,
-    VizIndexType,
     VIZ_DEFAULT_AGGREGATION,
     type CartesianChartDisplay,
     type PivotChartLayout,
@@ -37,20 +35,14 @@ export const cartesianChartConfigSlice = createSlice({
     reducers: {
         // Just a SETTER, it sets the viz index type but should it?
         setXAxisReference: (state, action: PayloadAction<string>) => {
-            if (state.config?.fieldConfig) {
-                state.config.fieldConfig.x = {
-                    reference: action.payload,
-                    // TODO: these lookups are awkward and we shouldn't be
-                    // defaulting values here.
-                    dimensionType:
-                        state.options.indexLayoutOptions.find(
-                            (x) => x.reference === action.payload,
-                        )?.dimensionType ?? DimensionType.STRING,
-                    axisType:
-                        state.options.indexLayoutOptions.find(
-                            (x) => x.reference === action.payload,
-                        )?.axisType ?? VizIndexType.CATEGORY,
-                };
+            const xField = state.options.indexLayoutOptions.find(
+                (x) => x.reference === action.payload,
+            );
+
+            // NOTE: now setting a field instead of just a reference.
+            // Should we be only storing references here?
+            if (state.config?.fieldConfig && xField) {
+                state.config.fieldConfig.x = xField;
             }
         },
 
@@ -208,33 +200,32 @@ export const cartesianChartConfigSlice = createSlice({
 
         // Just a setter
         addYAxisField: (state) => {
-            if (!state.config) return;
-            if (!state.config.fieldConfig) return;
+            if (!state?.config?.fieldConfig) return;
 
             const allOptions = [
                 ...state.options.valuesLayoutOptions.preAggregated,
                 ...state.options.valuesLayoutOptions.customAggregations,
             ];
 
+            const yAxisFields = state.config.fieldConfig.y;
             const yAxisFieldsAvailable = allOptions.filter(
                 (option) =>
-                    !state.config?.fieldConfig?.y
+                    !yAxisFields
                         .map((y) => y.reference)
                         .includes(option.reference),
             );
-            const yAxisFields = state.config.fieldConfig.y;
 
-            let defaultYAxisField: string | undefined;
+            let defaultYAxisField;
 
             if (yAxisFieldsAvailable.length > 0) {
-                defaultYAxisField = yAxisFieldsAvailable[0].reference;
+                defaultYAxisField = yAxisFieldsAvailable[0];
             } else {
-                defaultYAxisField = state.config.fieldConfig.y[0].reference;
+                defaultYAxisField = state.config.fieldConfig.y[0];
             }
 
             if (yAxisFields) {
                 state.config.fieldConfig.y.push({
-                    reference: defaultYAxisField,
+                    reference: defaultYAxisField.reference,
                     aggregation: VIZ_DEFAULT_AGGREGATION,
                 });
             }
