@@ -1,6 +1,5 @@
 import type {
     AllVizChartConfig,
-    ApiError,
     ChartKind,
     Dashboard,
     LightdashUser,
@@ -11,7 +10,7 @@ import type {
 } from '..';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
-import { SchedulerJobStatus } from './scheduler';
+import { type SchedulerJobStatus } from './scheduler';
 
 export type SemanticLayerView = {
     name: string;
@@ -177,19 +176,28 @@ export type SemanticLayerJobStatusSuccessDetails = {
 
 export type SemanticLayerJobStatusErrorDetails = {
     error: string;
-    charNumber?: number;
-    lineNumber?: number;
     createdByUserUuid: string;
 };
 
 export type ApiSemanticLayerJobStatusResponse = {
     status: 'ok';
-    results: {
-        status: SchedulerJobStatus;
-        details:
-            | SemanticLayerJobStatusSuccessDetails
-            | SemanticLayerJobStatusErrorDetails;
-    };
+    results:
+        | {
+              status: SchedulerJobStatus.SCHEDULED;
+              details?: undefined;
+          }
+        | {
+              status: SchedulerJobStatus.STARTED;
+              details?: undefined;
+          }
+        | {
+              status: SchedulerJobStatus.COMPLETED;
+              details: SemanticLayerJobStatusSuccessDetails;
+          }
+        | {
+              status: SchedulerJobStatus.ERROR;
+              details: SemanticLayerJobStatusErrorDetails;
+          };
 };
 
 export type ApiSemanticLayerJobSuccessResponse =
@@ -199,17 +207,6 @@ export type ApiSemanticLayerJobSuccessResponse =
             details: SemanticLayerJobStatusSuccessDetails;
         };
     };
-
-export function isSemanticLayerJobErrorDetails(
-    results?: ApiSemanticLayerJobStatusResponse['results']['details'],
-): results is SemanticLayerJobStatusErrorDetails {
-    return (results as SemanticLayerJobStatusErrorDetails).error !== undefined;
-}
-
-export const isApiSemanticLayerJobSuccessResponse = (
-    response: ApiSemanticLayerJobStatusResponse['results'] | ApiError,
-): response is ApiSemanticLayerJobSuccessResponse['results'] =>
-    response.status === SchedulerJobStatus.COMPLETED;
 
 // Semantic Layer Filters
 
