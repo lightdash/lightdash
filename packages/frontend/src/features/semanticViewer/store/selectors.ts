@@ -40,6 +40,24 @@ export const selectAllSelectedFieldsByKind = createSelector(
     }),
 );
 
+export const selectAllSelectedFields = createSelector(
+    [selectAllSelectedFieldsByKind],
+    (selectedFieldsByKind) => ({
+        ...selectedFieldsByKind.dimensions.map((d) => ({
+            ...d,
+            kind: FieldKind.DIMENSION,
+        })),
+        ...selectedFieldsByKind.timeDimensions.map((d) => ({
+            ...d,
+            kind: FieldKind.DIMENSION,
+        })),
+        ...selectedFieldsByKind.metrics.map((m) => ({
+            ...m,
+            kind: FieldKind.METRIC,
+        })),
+    }),
+);
+
 export const getSelectedField = (name: string) =>
     createSelector(
         [

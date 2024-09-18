@@ -1,8 +1,4 @@
-import {
-    ChartKind,
-    FieldType as FieldKind,
-    isVizTableConfig,
-} from '@lightdash/common';
+import { ChartKind, isVizTableConfig } from '@lightdash/common';
 import { Box, Tabs, useMantineTheme } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -18,7 +14,7 @@ import {
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
-    selectAllSelectedFieldsByKind,
+    selectAllSelectedFields,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
@@ -32,7 +28,7 @@ const ContentCharts: FC = () => {
     const mantineTheme = useMantineTheme();
     const dispatch = useAppDispatch();
 
-    const selectedFieldsByKind = useAppSelector(selectAllSelectedFieldsByKind);
+    const allSelectedFields = useAppSelector(selectAllSelectedFields);
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const { results, columns, activeChartKind, fields, sortBy, filters } =
@@ -86,21 +82,6 @@ const ContentCharts: FC = () => {
     ]);
 
     const thSortConfig = useMemo(() => {
-        const allSelectedFields = [
-            ...selectedFieldsByKind.dimensions.map((d) => ({
-                ...d,
-                kind: FieldKind.DIMENSION,
-            })),
-            ...selectedFieldsByKind.timeDimensions.map((d) => ({
-                ...d,
-                kind: FieldKind.DIMENSION,
-            })),
-            ...selectedFieldsByKind.metrics.map((m) => ({
-                ...m,
-                kind: FieldKind.METRIC,
-            })),
-        ];
-
         return allSelectedFields.reduce<THSortConfig>((acc, field) => {
             const sortDirection = sortBy.find(
                 (s) => s.name === field.name && s.kind === field.kind,
@@ -121,13 +102,7 @@ const ContentCharts: FC = () => {
                 },
             };
         }, {});
-    }, [
-        dispatch,
-        selectedFieldsByKind.dimensions,
-        selectedFieldsByKind.metrics,
-        selectedFieldsByKind.timeDimensions,
-        sortBy,
-    ]);
+    }, [allSelectedFields, dispatch, sortBy]);
 
     return (
         <>
