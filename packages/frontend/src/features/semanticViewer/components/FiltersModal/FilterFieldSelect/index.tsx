@@ -21,7 +21,7 @@ import FilterFieldSelectItem from './FilterFieldSelectItem';
 type FilterFieldInputProps = {
     fields: SemanticLayerField[];
     fieldOptions: SelectItem[];
-    onNewFilter?: (newFilter: SemanticLayerFilter) => void;
+    onCreate?: (newFilter: SemanticLayerFilter) => void;
     onFieldSelect?: (selectedField: string) => void;
     value?: string;
     onCancel?: () => void;
@@ -41,7 +41,7 @@ const FilterFieldSelect: FC<FilterFieldInputProps> = ({
     fields,
     fieldOptions,
     value,
-    onNewFilter,
+    onCreate,
     onFieldSelect,
     onCancel,
     hasLeftSpacing,
@@ -100,7 +100,7 @@ const FilterFieldSelect: FC<FilterFieldInputProps> = ({
                         operator: defaultOperator,
                     });
 
-                    onNewFilter?.(newFilter);
+                    onCreate?.(newFilter);
                 }}
             />
             {isCreatingFilter && (

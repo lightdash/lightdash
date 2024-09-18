@@ -515,7 +515,7 @@ const Filter: FC<FilterProps> = ({
                             fieldOptions={fieldOptions}
                             isCreatingFilter
                             hasLeftSpacing={currentNestingLevel !== 0}
-                            onNewFilter={(newFilter) => {
+                            onCreate={(newFilter) => {
                                 handleAddNestedFilter(newFilter);
                                 setIsAddingNestedFilter(false);
                             }}

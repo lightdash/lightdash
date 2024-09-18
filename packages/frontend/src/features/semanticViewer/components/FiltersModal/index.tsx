@@ -112,7 +112,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         fields={fields}
                         fieldOptions={fieldOptions}
                         isCreatingFilter
-                        onNewFilter={(newFilter) => {
+                        onCreate={(newFilter) => {
                             setIsAddingFilter(false);
                             setDraftFilters((prev) => [...prev, newFilter]);
                         }}
