@@ -2,9 +2,9 @@ import {
     assertUnreachable,
     DimensionType,
     FieldType,
-    MetricType,
     SemanticLayerFieldType,
     VizIndexType,
+    VIZ_DEFAULT_AGGREGATION,
     type IResultsRunner,
     type PivotChartData,
     type RawResultRow,
@@ -125,7 +125,7 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
     getMetrics(): VizValuesLayoutOptions[] {
         return this.metrics.map((metric) => ({
             reference: metric.name,
-            metricType: metric.aggType || MetricType.COUNT,
+            aggregation: metric.aggType || VIZ_DEFAULT_AGGREGATION,
         }));
     }
 
@@ -142,7 +142,7 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
     getPivotQueryMetrics(): VizValuesLayoutOptions[] {
         return this.metrics.map((metric) => ({
             reference: metric.name,
-            metricType: metric.aggType || MetricType.COUNT,
+            aggregation: metric.aggType || VIZ_DEFAULT_AGGREGATION,
             aggregationOptions: [],
         }));
     }

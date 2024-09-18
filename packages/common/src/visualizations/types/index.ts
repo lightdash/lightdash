@@ -1,4 +1,4 @@
-import { DimensionType, type MetricType } from '../../types/field';
+import { DimensionType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
 import { type CartesianChartDisplay } from '../CartesianChartDataModel';
@@ -56,13 +56,13 @@ export type VizIndexLayoutOptions = {
 
 export type VizValuesLayoutOptions = {
     reference: string;
-    metricType: MetricType; // Currently not available in Semantic viewer API
+    aggregation: VizAggregationOptions; // Currently not available in Semantic viewer API
     aggregationOptions?: VizAggregationOptions[];
 };
 
 // A custom metric is a dimension + aggregation type
 export type VizCustomMetricLayoutOptions = VizIndexLayoutOptions & {
-    metricType: MetricType;
+    aggregation: VizAggregationOptions;
 };
 
 export type VizPivotLayoutOptions = {

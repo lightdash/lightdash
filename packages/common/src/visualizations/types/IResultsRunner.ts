@@ -35,12 +35,6 @@ export type SemanticViewerPivotChartLayout = {
         | undefined;
     y: {
         reference: string;
-        // TODO: this makes types easier, but isn't needed in semantic viewer
-        aggregation: VizAggregationOptions;
-    }[];
-    customMetrics?: {
-        metricReference: string;
-        dimensionReference: string;
         aggregation: VizAggregationOptions;
     }[];
     groupBy: { reference: string }[] | undefined;

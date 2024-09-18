@@ -17,18 +17,25 @@ export class PieChartDataModel {
     }
 
     getDefaultLayout(): PivotChartLayout | undefined {
-        const dimensions = this.resultsRunner.getDimensions();
-        const metrics = this.resultsRunner.getPivotQueryMetrics();
+        const {
+            groupFieldOptions,
+            metricFieldOptions,
+            customMetricFieldOptions,
+        } = this.getResultOptions();
 
-        // TODO: this could have its own type so it doesnt reference x and y
+        const metricField =
+            metricFieldOptions[0] ?? customMetricFieldOptions[0];
+
+        // TODO: this should have its own type so it doesnt reference x and y
         return {
-            x: {
-                reference: dimensions[0].reference,
-                axisType: dimensions[0].axisType,
-                dimensionType: dimensions[0].dimensionType,
-            },
-            y: metrics,
-            groupBy: [],
+            x: groupFieldOptions[0],
+            y: [
+                {
+                    reference: metricField.reference,
+                    aggregation: metricField.aggregation,
+                },
+            ],
+            groupBy: [groupFieldOptions[0]] ?? [],
         };
     }
 
@@ -56,8 +63,10 @@ export class PieChartDataModel {
 
     getResultOptions() {
         return {
-            groupFieldOptions: this.resultsRunner.getDimensions(),
-            metricFieldOptions: this.resultsRunner.getMetrics(),
+            groupFieldOptions: this.resultsRunner.getPivotQueryDimensions(),
+            metricFieldOptions: this.resultsRunner.getPivotQueryMetrics(),
+            customMetricFieldOptions:
+                this.resultsRunner.getPivotQueryCustomMetrics(),
         };
     }
 

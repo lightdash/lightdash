@@ -58,8 +58,6 @@ const getChartConfigAndOptions = (
                 resultsRunner,
             });
 
-            console.log('barChartModel', barChartModel.getChartOptions());
-
             return {
                 type: chartType,
                 options: barChartModel.getChartOptions(),

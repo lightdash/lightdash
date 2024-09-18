@@ -1,4 +1,4 @@
-import type { ApiError, MetricType } from '..';
+import type { ApiError, VizAggregationOptions } from '..';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
 import { SchedulerJobStatus } from './scheduler';
@@ -44,7 +44,7 @@ export type SemanticLayerField = {
     kind: FieldType;
     description?: string;
     visible: boolean;
-    aggType?: MetricType; // TODO: currently not populated, we should get this on the backend
+    aggType?: VizAggregationOptions; // TODO: currently not populated, we should get this on the backend
     availableGranularities: SemanticLayerTimeGranularity[];
     availableOperators: SemanticLayerStringFilterOperator[];
 };
