@@ -1,4 +1,4 @@
-import { type ApiError } from '@lightdash/common';
+import { InvalidUser, type ApiError } from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
@@ -62,6 +62,10 @@ const useQueryError = ({
                             title: 'Unknown validation error',
                             subtitle: JSON.stringify(error),
                         });
+                    }
+                } else if (error.name === InvalidUser.name) {
+                    if (window.location.pathname !== '/login') {
+                        window.location.href = '/login';
                     }
                 } else {
                     showToastApiError({
