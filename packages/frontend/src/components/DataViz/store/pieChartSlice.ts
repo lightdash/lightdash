@@ -11,6 +11,7 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import {
+    resetChartState,
     setChartConfig,
     setChartOptionsAndConfig,
 } from './actions/commonChartActions';
@@ -101,6 +102,7 @@ export const pieChartConfigSlice = createSlice({
                 state.config = action.payload;
             }
         });
+        builder.addCase(resetChartState, () => initialState);
     },
 });
 export const { setGroupFieldIds, setYAxisReference, setYAxisAggregation } =

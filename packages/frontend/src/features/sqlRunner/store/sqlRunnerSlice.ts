@@ -99,9 +99,7 @@ export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
     reducers: {
-        resetState: () => {
-            return initialState;
-        },
+        resetState: () => initialState,
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },

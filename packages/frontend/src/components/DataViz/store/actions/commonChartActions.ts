@@ -39,3 +39,5 @@ export const setChartOptionsAndConfig = createAction<ChartOptionsAndConfig>(
 );
 
 export const setChartConfig = createAction<ChartConfig>('chart/setChartConfig');
+
+export const resetChartState = createAction('chart/resetState');
