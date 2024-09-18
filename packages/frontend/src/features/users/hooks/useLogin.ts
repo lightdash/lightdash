@@ -1,4 +1,5 @@
 import {
+    InvalidUser,
     type ApiError,
     type LightdashUser,
     type LoginOptions,
@@ -39,7 +40,10 @@ export const useFetchLoginOptions = ({
         retry: false,
         onError: (result) => {
             setErrorResponse(result);
-            if (window.location.pathname === '/login') {
+            if (
+                result.error.name === InvalidUser.name &&
+                window.location.pathname === '/login'
+            ) {
                 showToastError({
                     title: 'Your login has expired',
                     subtitle: 'Please log in again to continue.',
