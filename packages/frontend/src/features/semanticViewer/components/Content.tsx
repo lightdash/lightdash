@@ -112,17 +112,17 @@ const Content: FC = () => {
         fields,
     ]);
 
-    const runSemanticLayerQuery = useCallback(
+    const handleRunSemanticLayerQuery = useCallback(
         () => runSemanticViewerQuery(semanticQuery),
         [semanticQuery, runSemanticViewerQuery],
     );
 
     useEffect(() => {
         if (shouldFetchResults) {
-            runSemanticLayerQuery().catch(console.error); // ! There's already a toast when this errors, just log to console
+            handleRunSemanticLayerQuery().catch(console.error); // ! There's already a toast when this errors, just log to console
             dispatch(setShouldFetchResults(false));
         }
-    }, [runSemanticLayerQuery, shouldFetchResults, dispatch]);
+    }, [handleRunSemanticLayerQuery, shouldFetchResults, dispatch]);
 
     return (
         <>
@@ -178,7 +178,7 @@ const Content: FC = () => {
 
                 <RunSemanticQueryButton
                     ml="auto"
-                    onClick={runSemanticLayerQuery}
+                    onClick={handleRunSemanticLayerQuery}
                     isLoading={isRunningSemanticLayerQuery}
                     maxQueryLimit={config.maxQueryLimit}
                 />
