@@ -18,7 +18,7 @@ export class PieChartDataModel {
 
     getDefaultLayout(): PivotChartLayout | undefined {
         const dimensions = this.resultsRunner.getDimensions();
-        const metrics = this.resultsRunner.getMetrics();
+        const metrics = this.resultsRunner.getPivotQueryMetrics();
 
         // TODO: this could have its own type so it doesnt reference x and y
         return {

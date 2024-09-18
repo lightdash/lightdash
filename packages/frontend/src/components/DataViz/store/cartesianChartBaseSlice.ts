@@ -1,6 +1,7 @@
 // This is explicit to exploring
 // Not needed when viewing a cartesian chart on a dashboard
 import {
+    DimensionType,
     isFormat,
     VizIndexType,
     VIZ_DEFAULT_AGGREGATION,
@@ -39,6 +40,12 @@ export const cartesianChartConfigSlice = createSlice({
             if (state.config?.fieldConfig) {
                 state.config.fieldConfig.x = {
                     reference: action.payload,
+                    // TODO: these lookups are awkward and we shouldn't be
+                    // defaulting values here.
+                    dimensionType:
+                        state.options.indexLayoutOptions.find(
+                            (x) => x.reference === action.payload,
+                        )?.dimensionType ?? DimensionType.STRING,
                     axisType:
                         state.options.indexLayoutOptions.find(
                             (x) => x.reference === action.payload,
@@ -204,13 +211,17 @@ export const cartesianChartConfigSlice = createSlice({
             if (!state.config) return;
             if (!state.config.fieldConfig) return;
 
-            const yAxisFieldsAvailable =
-                state.options.valuesLayoutOptions.filter(
-                    (option) =>
-                        !state.config?.fieldConfig?.y
-                            .map((y) => y.reference)
-                            .includes(option.reference),
-                );
+            const allOptions = [
+                ...state.options.valuesLayoutOptions.preAggregated,
+                ...state.options.valuesLayoutOptions.customAggregations,
+            ];
+
+            const yAxisFieldsAvailable = allOptions.filter(
+                (option) =>
+                    !state.config?.fieldConfig?.y
+                        .map((y) => y.reference)
+                        .includes(option.reference),
+            );
             const yAxisFields = state.config.fieldConfig.y;
 
             let defaultYAxisField: string | undefined;

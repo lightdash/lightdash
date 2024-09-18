@@ -5,7 +5,6 @@ import {
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
-    type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { ActionIcon, Box } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
@@ -24,7 +23,7 @@ import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 const YFieldsAxisConfig: FC<{
     field: SqlRunnerPivotChartLayout['y'][number];
-    yLayoutOptions: VizValuesLayoutOptions[];
+    yLayoutOptions: VizIndexLayoutOptions[];
     isSingle: boolean;
     index: number;
     actions: CartesianChartActionsType;
