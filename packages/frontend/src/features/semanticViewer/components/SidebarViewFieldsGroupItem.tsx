@@ -90,6 +90,9 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
             component="a"
             disabled={!field.visible}
             active={!!selectedField}
+            py={0}
+            pl="xs"
+            pr="xxs"
             h={28}
             color={getNavbarColorByFieldKind(field.kind)}
             sx={(theme) => ({
@@ -97,25 +100,81 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
             })}
             icon={<FieldIcon field={field} size="md" />}
             rightSection={
-                selectedField ||
-                hovered ||
-                isFiltersMenuOpen ||
-                isDateGranularityMenuOpen ? (
-                    <Group spacing="two">
-                        {selectedField &&
-                        isSemanticLayerStateTimeDimension(selectedField) &&
-                        selectedField.granularity ? (
-                            <Badge variant="outline" size="xs" bg="white">
-                                {selectedField.granularity}
-                            </Badge>
-                        ) : null}
+                <>
+                    {selectedField &&
+                    isSemanticLayerStateTimeDimension(selectedField) &&
+                    selectedField.granularity ? (
+                        <Badge variant="outline" size="xs" bg="white" mr="xxs">
+                            {selectedField.granularity}
+                        </Badge>
+                    ) : null}
 
-                        {field.type === SemanticLayerFieldType.TIME && (
+                    {hovered ||
+                    isFiltersMenuOpen ||
+                    isDateGranularityMenuOpen ? (
+                        <Group spacing={0}>
+                            {field.type === SemanticLayerFieldType.TIME && (
+                                <Menu
+                                    {...commonMenuProps}
+                                    opened={isDateGranularityMenuOpen}
+                                    onOpen={dateGranularityMenuActions.open}
+                                    onClose={dateGranularityMenuActions.close}
+                                >
+                                    <Menu.Target>
+                                        <ActionIcon
+                                            component="div"
+                                            variant="transparent"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                e.preventDefault();
+                                            }}
+                                        >
+                                            <MantineIcon
+                                                icon={IconClock}
+                                                color="gray"
+                                                size="md"
+                                            />
+                                        </ActionIcon>
+                                    </Menu.Target>
+
+                                    <Menu.Dropdown>
+                                        <SidebarViewFieldMenu.FieldTimeGranularityItems
+                                            availableGranularities={
+                                                field.availableGranularities
+                                            }
+                                            value={
+                                                selectedField &&
+                                                isSemanticLayerStateTimeDimension(
+                                                    selectedField,
+                                                )
+                                                    ? selectedField.granularity ??
+                                                      null
+                                                    : null
+                                            }
+                                            onChange={(granularity) => {
+                                                return selectedField
+                                                    ? handleUpdateTimeDimensionGranularity(
+                                                          {
+                                                              ...field,
+                                                              ...selectedField,
+                                                              granularity,
+                                                          },
+                                                      )
+                                                    : handleSelect({
+                                                          ...field,
+                                                          granularity,
+                                                      });
+                                            }}
+                                        />
+                                    </Menu.Dropdown>
+                                </Menu>
+                            )}
+
                             <Menu
                                 {...commonMenuProps}
-                                opened={isDateGranularityMenuOpen}
-                                onOpen={dateGranularityMenuActions.open}
-                                onClose={dateGranularityMenuActions.close}
+                                opened={isFiltersMenuOpen}
+                                onOpen={filterMenuActions.open}
+                                onClose={filterMenuActions.close}
                             >
                                 <Menu.Target>
                                     <ActionIcon
@@ -127,7 +186,7 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
                                         }}
                                     >
                                         <MantineIcon
-                                            icon={IconClock}
+                                            icon={IconDots}
                                             color="gray"
                                             size="md"
                                         />
@@ -135,69 +194,14 @@ const SidebarViewFieldGroupItem: FC<SidebarViewFieldGroupItemProps> = ({
                                 </Menu.Target>
 
                                 <Menu.Dropdown>
-                                    <SidebarViewFieldMenu.FieldTimeGranularityItems
-                                        availableGranularities={
-                                            field.availableGranularities
-                                        }
-                                        value={
-                                            selectedField &&
-                                            isSemanticLayerStateTimeDimension(
-                                                selectedField,
-                                            )
-                                                ? selectedField.granularity ??
-                                                  null
-                                                : null
-                                        }
-                                        onChange={(granularity) => {
-                                            return selectedField
-                                                ? handleUpdateTimeDimensionGranularity(
-                                                      {
-                                                          ...field,
-                                                          ...selectedField,
-                                                          granularity,
-                                                      },
-                                                  )
-                                                : handleSelect({
-                                                      ...field,
-                                                      granularity,
-                                                  });
-                                        }}
+                                    <SidebarViewFieldMenu.FieldFilterItems
+                                        field={field}
                                     />
                                 </Menu.Dropdown>
                             </Menu>
-                        )}
-
-                        <Menu
-                            {...commonMenuProps}
-                            opened={isFiltersMenuOpen}
-                            onOpen={filterMenuActions.open}
-                            onClose={filterMenuActions.close}
-                        >
-                            <Menu.Target>
-                                <ActionIcon
-                                    component="div"
-                                    variant="transparent"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                    }}
-                                >
-                                    <MantineIcon
-                                        icon={IconDots}
-                                        color="gray"
-                                        size="md"
-                                    />
-                                </ActionIcon>
-                            </Menu.Target>
-
-                            <Menu.Dropdown>
-                                <SidebarViewFieldMenu.FieldFilterItems
-                                    field={field}
-                                />
-                            </Menu.Dropdown>
-                        </Menu>
-                    </Group>
-                ) : null
+                        </Group>
+                    ) : null}
+                </>
             }
             onClick={() =>
                 !!selectedField ? handleDeselect(field) : handleSelect(field)
