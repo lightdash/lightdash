@@ -8,8 +8,9 @@ import {
     TextInput,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { useDisclosure } from '@mantine/hooks';
 import { IconChartBar } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, type FC } from 'react';
 import { type z } from 'zod';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import {
@@ -38,13 +39,12 @@ type FormValues = z.infer<typeof validationSchema>;
 
 const SemanticViewerSaveChartModal: FC = () => {
     const dispatch = useAppDispatch();
+    const [opened, { close }] = useDisclosure(true);
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const name = useAppSelector((state) => state.semanticViewer.name);
     const view = useAppSelector((state) => state.semanticViewer.view);
     const semanticLayerQuery = useAppSelector(selectSemanticLayerQuery);
-    const isSavedModalOpen = useAppSelector(
-        (state) => state.semanticViewer.saveModalOpen,
-    );
+
     const activeChartKind = useAppSelector(
         (state) => state.semanticViewer.activeChartKind,
     );
@@ -52,38 +52,34 @@ const SemanticViewerSaveChartModal: FC = () => {
         selectChartConfigByKind(state, activeChartKind),
     );
 
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
+    const spacesQuery = useSpaceSummaries(projectUuid, true);
 
     const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
 
-    const [isFormPopulated, setIsFormPopulated] = useState(false);
-
     const form = useForm<FormValues>({
-        initialValues: {
-            name: '',
-            description: '',
-            spaceUuid: '',
-            newSpaceName: '',
-            saveDestination: SaveDestination.Space,
-        },
         validate: zodResolver(validationSchema),
     });
 
     const handleClose = useCallback(() => {
-        dispatch(updateSaveModalOpen(false));
-    }, [dispatch]);
+        close();
+
+        setTimeout(() => {
+            dispatch(updateSaveModalOpen(false));
+        }, 300);
+    }, [close, dispatch]);
 
     useEffect(() => {
-        if (!isFormPopulated) {
-            if (name) {
-                form.setFieldValue('name', name);
-            }
-            if (spaces.length > 0) {
-                form.setFieldValue('spaceUuid', spaces[0].uuid);
-            }
-            setIsFormPopulated(true);
+        if (spacesQuery.isSuccess && !form.initialized) {
+            form.initialize({
+                name,
+                description: '',
+                newSpaceName: '',
+                saveDestination: SaveDestination.Space,
+                spaceUuid: spacesQuery.data[0]?.uuid,
+            });
         }
-    }, [name, form, spaces, isFormPopulated]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [spacesQuery]);
 
     const {
         mutateAsync: saveChart,
@@ -121,7 +117,7 @@ const SemanticViewerSaveChartModal: FC = () => {
     const hasConfigAndQuery = !!selectedChartConfig && !!semanticLayerQuery;
 
     const handleOnSubmit = useCallback(async () => {
-        if (spaces.length === 0) return;
+        if (!spacesQuery.isSuccess) return;
         if (!hasConfigAndQuery) return;
 
         let newSpace = form.values.newSpaceName
@@ -133,7 +129,7 @@ const SemanticViewerSaveChartModal: FC = () => {
             : undefined;
 
         const spaceUuid =
-            newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
+            newSpace?.uuid || form.values.spaceUuid || spacesQuery.data[0].uuid;
 
         if (hasConfigAndQuery) {
             await saveChart({
@@ -150,7 +146,8 @@ const SemanticViewerSaveChartModal: FC = () => {
 
         handleClose();
     }, [
-        spaces,
+        spacesQuery.isSuccess,
+        spacesQuery.data,
         hasConfigAndQuery,
         form.values.newSpaceName,
         form.values.spaceUuid,
@@ -167,7 +164,7 @@ const SemanticViewerSaveChartModal: FC = () => {
 
     return (
         <Modal
-            opened={isSavedModalOpen}
+            opened={opened}
             onClose={handleClose}
             keepMounted={false}
             title={
@@ -197,7 +194,7 @@ const SemanticViewerSaveChartModal: FC = () => {
                     </Stack>
                     <SaveToSpace
                         form={form}
-                        spaces={spaces}
+                        spaces={spacesQuery.data}
                         projectUuid={projectUuid}
                     />
                 </Stack>

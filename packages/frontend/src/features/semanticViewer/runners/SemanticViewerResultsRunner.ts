@@ -174,27 +174,22 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         fields: SemanticLayerField[],
         columns: string[],
     ): VizColumn[] {
-        return columns
-            .map<VizColumn | undefined>((column) => {
-                const field =
-                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
-                        fields,
-                        column,
-                    );
-                if (!field) {
-                    return;
-                }
-
-                const dimType = getDimensionTypeFromSemanticLayerFieldType(
-                    field.type,
+        return columns.map<VizColumn>((column) => {
+            const field =
+                SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                    fields,
+                    column,
                 );
 
-                return {
-                    reference: column,
-                    type: dimType,
-                };
-            })
-            .filter((c): c is VizColumn => Boolean(c));
+            const dimType = getDimensionTypeFromSemanticLayerFieldType(
+                field?.type ?? SemanticLayerFieldType.STRING,
+            );
+
+            return {
+                reference: column,
+                type: dimType,
+            };
+        });
     }
 
     private static findSemanticLayerFieldFromColumn(

@@ -12,6 +12,11 @@ export enum VizAggregationOptions {
     ANY = 'any',
 }
 
+export enum SortByDirection {
+    ASC = 'ASC',
+    DESC = 'DESC',
+}
+
 export const vizAggregationOptions = [
     VizAggregationOptions.SUM,
     VizAggregationOptions.COUNT,
@@ -47,6 +52,10 @@ export type VizPivotLayoutOptions = {
     reference: string;
 };
 
+export type VizSortBy = {
+    reference: string;
+    direction: SortByDirection;
+};
 export type VizChartLayout = {
     x:
         | {
@@ -59,6 +68,7 @@ export type VizChartLayout = {
         aggregation?: VizAggregationOptions;
     }[];
     groupBy: { reference: string }[] | undefined;
+    sortBy?: VizSortBy[];
 };
 
 export type VizPieChartDisplay = {

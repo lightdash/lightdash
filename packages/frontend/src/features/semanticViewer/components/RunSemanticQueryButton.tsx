@@ -146,7 +146,7 @@ export const RunSemanticQueryButton: FC<Props> = (buttonGroupProps) => {
                         )}`,
                     })}
                 >
-                    {`Run query ${limit ? `(${limit})` : ''}`}
+                    Run query ({limit ?? config.maxQueryLimit})
                 </Button>
             </Tooltip>
 

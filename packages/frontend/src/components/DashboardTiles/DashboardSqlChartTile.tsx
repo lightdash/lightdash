@@ -181,7 +181,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                     <ChartView
                         config={data.chart.config}
                         spec={chartSpec}
-                        isLoading={chartVizQuery.isLoading}
+                        isLoading={chartVizQuery.isFetching}
                         error={chartVizQuery.error}
                         style={{
                             minHeight: 'inherit',

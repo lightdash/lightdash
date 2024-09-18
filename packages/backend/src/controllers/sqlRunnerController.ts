@@ -1,4 +1,5 @@
 import {
+    ApiCreateCustomExplore,
     ApiCreateSqlChart,
     ApiErrorPayload,
     ApiJobScheduledResponse,
@@ -7,6 +8,7 @@ import {
     ApiUpdateSqlChart,
     ApiWarehouseCatalog,
     ApiWarehouseTableFields,
+    CreateCustomExplorePayload,
     CreateSqlChart,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
@@ -361,6 +363,40 @@ export class SqlRunnerController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Create a custom explore
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('create-custom-explore')
+    @OperationId('createCustomExplore')
+    async createCustomExplore(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateCustomExplorePayload,
+    ): Promise<ApiCreateCustomExplore> {
+        this.setStatus(200);
+        const { name, sql, columns } = body;
+
+        const exploreName = await this.services
+            .getProjectService()
+            .createCustomExplore(req.user!, projectUuid, {
+                name,
+                sql,
+                columns,
+            });
+
+        return {
+            status: 'ok',
+            results: exploreName,
         };
     }
 }

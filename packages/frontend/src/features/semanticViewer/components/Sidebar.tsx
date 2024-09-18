@@ -25,7 +25,9 @@ import SidebarViews from './SidebarViews';
 
 const Sidebar: FC = () => {
     const { features } = useAppSelector(selectSemanticLayerInfo);
-    const { view } = useAppSelector((state) => state.semanticViewer);
+    const { view, saveModalOpen } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
     const dispatch = useAppDispatch();
 
     const handleExitView = () => {
@@ -53,7 +55,7 @@ const Sidebar: FC = () => {
                 {view && (
                     <>
                         <SaveChart.Content />
-                        <SaveChart.Modal />
+                        {saveModalOpen && <SaveChart.Modal />}
                     </>
                 )}
             </Group>

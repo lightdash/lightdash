@@ -107,16 +107,14 @@ export const cartesianChartConfigSlice = createSlice({
         },
         setXAxisLabel: (
             { config },
-            action: PayloadAction<CartesianChartDisplay['xAxis']>,
+            action: PayloadAction<
+                Pick<Required<CartesianChartDisplay>['xAxis'], 'label'>
+            >,
         ) => {
             if (!config) return;
-            if (!config.display) {
-                config.display = {
-                    xAxis: action.payload,
-                };
-            } else {
-                config.display.xAxis = action.payload;
-            }
+            if (!config.display) config.display = {};
+            if (!config.display.xAxis) config.display.xAxis = {};
+            config.display.xAxis.label = action.payload.label;
         },
         setYAxisLabel: (
             { config },
@@ -235,6 +233,14 @@ export const cartesianChartConfigSlice = createSlice({
             if (!state.config?.fieldConfig) return;
             delete state.config.fieldConfig.x;
         },
+        setSortBy: (
+            { config },
+            action: PayloadAction<VizChartLayout['sortBy']>,
+        ) => {
+            if (!config?.fieldConfig) return;
+            config.fieldConfig.sortBy = action.payload;
+        },
+
         setStacked: ({ config }, action: PayloadAction<boolean>) => {
             if (!config) return;
 
