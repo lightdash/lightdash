@@ -51,6 +51,9 @@ export interface SqlRunnerState {
         saveCustomExploreModal: {
             isOpen: boolean;
         };
+        chartErrorsAlert: {
+            isOpen: boolean;
+        };
     };
     quoteChar: string;
     sqlColumns: VizColumn[] | undefined;
@@ -86,6 +89,9 @@ const initialState: SqlRunnerState = {
             isOpen: false,
         },
         saveCustomExploreModal: {
+            isOpen: false,
+        },
+        chartErrorsAlert: {
             isOpen: false,
         },
     },

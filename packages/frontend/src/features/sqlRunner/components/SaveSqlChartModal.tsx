@@ -19,16 +19,15 @@ import {
     validationSchema,
 } from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import {
+    selectChartConfigByKind,
+    selectTableVisConfigState,
+} from '../../../components/DataViz/store/selectors';
+import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-
-import {
-    selectChartConfigByKind,
-    selectTableVisConfigState,
-} from '../../../components/DataViz/store/selectors';
 import { updateName } from '../store/sqlRunnerSlice';
 
 type FormValues = z.infer<typeof validationSchema>;
