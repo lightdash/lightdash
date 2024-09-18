@@ -1,3 +1,10 @@
+## [0.1261.2](https://github.com/lightdash/lightdash/compare/0.1261.1...0.1261.2) (2024-09-18)
+
+
+### Bug Fixes
+
+* add ts-node as dev dependency for backend ([#11602](https://github.com/lightdash/lightdash/issues/11602)) ([a97578c](https://github.com/lightdash/lightdash/commit/a97578c74f934f9f5bd628fb81790a4659bf9dc5))
+
 ## [0.1261.1](https://github.com/lightdash/lightdash/compare/0.1261.0...0.1261.1) (2024-09-18)
 
 
