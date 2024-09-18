@@ -1,3 +1,4 @@
+import { DimensionType } from '../types/field';
 import { type ChartKind } from '../types/savedCharts';
 import {
     type PivotChartData,
@@ -23,19 +24,61 @@ export class PieChartDataModel {
             customMetricFieldOptions,
         } = this.getResultOptions();
 
-        const metricField =
-            metricFieldOptions[0] ?? customMetricFieldOptions[0];
+        const categoricalFields = groupFieldOptions.filter(
+            (field) => field.dimensionType === DimensionType.STRING,
+        );
+        const booleanFields = groupFieldOptions.filter(
+            (field) => field.dimensionType === DimensionType.BOOLEAN,
+        );
+        const dateFields = groupFieldOptions.filter(
+            (field) =>
+                field.dimensionType &&
+                [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                    field.dimensionType,
+                ),
+        );
+        const numericFields = groupFieldOptions.filter(
+            (field) => field.dimensionType === DimensionType.NUMBER,
+        );
+
+        const groupField =
+            categoricalFields[0] ||
+            booleanFields[0] ||
+            dateFields[0] ||
+            numericFields[0];
+        if (groupField === undefined) {
+            return undefined;
+        }
+
+        const group = {
+            reference: groupField.reference,
+            dimensionType: groupField.dimensionType,
+            axisType: groupField.axisType,
+        };
+
+        const metricFields = [
+            ...metricFieldOptions,
+            ...customMetricFieldOptions,
+        ];
+
+        const metricField = metricFields.filter(
+            (field) => field.reference !== group.reference,
+        )[0];
+
+        if (metricField === undefined) {
+            return undefined;
+        }
 
         // TODO: this should have its own type so it doesnt reference x and y
         return {
-            x: groupFieldOptions[0],
+            x: group,
             y: [
                 {
                     reference: metricField.reference,
                     aggregation: metricField.aggregation,
                 },
             ],
-            groupBy: [groupFieldOptions[0]] ?? [],
+            groupBy: [],
         };
     }
 

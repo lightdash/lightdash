@@ -96,6 +96,7 @@ export type VizCartesianChartOptions = {
 export type VizPieChartOptions = {
     groupFieldOptions: VizIndexLayoutOptions[];
     metricFieldOptions: VizValuesLayoutOptions[];
+    customMetricFieldOptions: VizCustomMetricLayoutOptions[];
 };
 
 export type VizColumnConfig = {

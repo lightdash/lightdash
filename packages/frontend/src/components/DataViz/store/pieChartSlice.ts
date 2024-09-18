@@ -28,6 +28,7 @@ const initialState: PieChartState = {
     options: {
         groupFieldOptions: [],
         metricFieldOptions: [],
+        customMetricFieldOptions: [],
     },
 };
 
