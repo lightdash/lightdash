@@ -10,7 +10,11 @@ export interface WithHistory<T> {
     past: HistoryItem<NonNullable<T>>[];
 }
 
-export const createHistoryReducer = <T>(maxHistoryItems: number = 5) => {
+const DEFAULT_MAX_HISTORY_ITEMS = 10;
+
+export const createHistoryReducer = <T>(
+    maxHistoryItems: number = DEFAULT_MAX_HISTORY_ITEMS,
+) => {
     return {
         addToHistory: (state: WithHistory<T>, action: PayloadAction<T>) => {
             const newItem: HistoryItem<NonNullable<T>> = {
