@@ -21,7 +21,7 @@ import { type ResultsRunner } from '../transformers/ResultsRunner';
 
 export type THSortConfig = {
     [fieldName: string]: {
-        onClick: () => void;
+        handleClick: () => void;
         sortDirection: SemanticLayerSortByDirection | undefined;
         kind: FieldType;
     };
@@ -75,8 +75,8 @@ export const Table = <T extends ResultsRunner>({
                     <tr>
                         {headerGroups.map((headerGroup) =>
                             headerGroup.headers.map((header) => {
-                                const headerOnClick =
-                                    thSortConfig?.[header.id]?.onClick;
+                                const handleHeaderClick =
+                                    thSortConfig?.[header.id]?.handleClick;
 
                                 const sortDirection =
                                     thSortConfig?.[header.id]?.sortDirection;
@@ -84,9 +84,9 @@ export const Table = <T extends ResultsRunner>({
                                 return (
                                     <th
                                         key={header.id}
-                                        onClick={headerOnClick}
+                                        onClick={handleHeaderClick}
                                         style={
-                                            headerOnClick
+                                            handleHeaderClick
                                                 ? {
                                                       cursor: 'pointer',
                                                       backgroundColor:
@@ -119,16 +119,17 @@ export const Table = <T extends ResultsRunner>({
                                                 header.getContext(),
                                             )}
 
-                                            {headerOnClick && sortDirection && (
-                                                <MantineIcon
-                                                    icon={
-                                                        sortDirection ===
-                                                        SemanticLayerSortByDirection.ASC
-                                                            ? IconArrowUp
-                                                            : IconArrowDown
-                                                    }
-                                                ></MantineIcon>
-                                            )}
+                                            {handleHeaderClick &&
+                                                sortDirection && (
+                                                    <MantineIcon
+                                                        icon={
+                                                            sortDirection ===
+                                                            SemanticLayerSortByDirection.ASC
+                                                                ? IconArrowUp
+                                                                : IconArrowDown
+                                                        }
+                                                    ></MantineIcon>
+                                                )}
                                         </Group>
                                     </th>
                                 );

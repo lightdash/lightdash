@@ -92,7 +92,7 @@ const ContentCharts: FC = () => {
                 [field.name]: {
                     sortDirection,
                     kind: field.kind,
-                    onClick: () =>
+                    handleClick: () =>
                         dispatch(
                             updateSortBy({
                                 name: field.name,
