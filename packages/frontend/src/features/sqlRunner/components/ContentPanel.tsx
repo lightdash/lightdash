@@ -59,6 +59,7 @@ import {
 } from '../store/sqlRunnerSlice';
 import { DownloadCsvButton } from './DownloadCsvButton';
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
+import { SqlQueryHistorySelect } from './SqlQueryHistorySelect';
 
 const DEFAULT_SQL_LIMIT = 500;
 
@@ -358,7 +359,10 @@ export const ContentPanel: FC = () => {
                                 }}
                             />
                         </Group>
-                        <Group>
+                        <Group spacing="xs">
+                            {activeEditorTab === EditorTabs.SQL && (
+                                <SqlQueryHistorySelect />
+                            )}
                             <RunSqlQueryButton
                                 isLoading={isLoading}
                                 disabled={!sql}
