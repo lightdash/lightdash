@@ -2,6 +2,7 @@ import {
     type ChartKind,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
+    type VizConfigErrors,
     type VizPieChartConfig,
     type VizPieChartOptions,
     type VizTableConfig,
@@ -13,18 +14,22 @@ type ChartTypeConfig = {
     [ChartKind.VERTICAL_BAR]: {
         options: VizCartesianChartOptions;
         config: VizCartesianChartConfig;
+        errors: VizConfigErrors | undefined;
     };
     [ChartKind.LINE]: {
         options: VizCartesianChartOptions;
         config: VizCartesianChartConfig;
+        errors: VizConfigErrors | undefined;
     };
     [ChartKind.PIE]: {
         options: VizPieChartOptions;
         config: VizPieChartConfig;
+        errors: VizConfigErrors | undefined;
     };
     [ChartKind.TABLE]: {
         options: VizTableOptions;
         config: VizTableConfig;
+        errors: undefined;
     };
 };
 

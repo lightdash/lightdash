@@ -4,6 +4,7 @@ import {
     VIZ_DEFAULT_AGGREGATION,
     type VizAggregationOptions,
     type VizChartLayout,
+    type VizConfigErrors,
     type VizIndexType,
     type VizPieChartConfig,
     type VizPieChartOptions,
@@ -19,6 +20,7 @@ export type PieChartState = {
     defaultFieldConfig: VizChartLayout | undefined;
     config: VizPieChartConfig | undefined;
     options: VizPieChartOptions;
+    errors: VizConfigErrors | undefined;
 };
 
 const initialState: PieChartState = {
@@ -28,6 +30,7 @@ const initialState: PieChartState = {
         groupFieldOptions: [],
         metricFieldOptions: [],
     },
+    errors: undefined,
 };
 
 export const pieChartConfigSlice = createSlice({
