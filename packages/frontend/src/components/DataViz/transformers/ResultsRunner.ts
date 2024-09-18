@@ -8,6 +8,7 @@ import {
     type RawResultRow,
     type VizChartLayout,
     type VizColumn,
+    type VizConfigErrors,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizTableConfig,
@@ -103,7 +104,7 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
                 default:
                     return acc;
             }
-        }, [] as VizValuesLayoutOptions[]);
+        }, []);
     }
 
     pivotChartOptions(): {
@@ -115,6 +116,74 @@ export class ResultsRunner implements IResultsRunner<VizChartLayout> {
             indexLayoutOptions: this.pivotChartIndexLayoutOptions(),
             valuesLayoutOptions: this.pivotChartValuesLayoutOptions(),
             pivotLayoutOptions: this.pivotChartLayoutOptions(),
+        };
+    }
+
+    getPivotChartLayoutErrors(config: VizChartLayout | undefined) {
+        const { indexLayoutOptions, valuesLayoutOptions, pivotLayoutOptions } =
+            this.pivotChartOptions();
+
+        const indexFieldError = Boolean(
+            config?.x?.reference &&
+                indexLayoutOptions.find(
+                    (x) => x.reference === config?.x?.reference,
+                ) === undefined,
+        );
+
+        const valuesFieldError = Boolean(
+            config?.y?.some(
+                (yField) =>
+                    yField.reference &&
+                    valuesLayoutOptions.find(
+                        (y) => y.reference === yField.reference,
+                    ) === undefined,
+            ),
+        );
+        const groupByFieldError = Boolean(
+            config?.groupBy?.some(
+                (groupByField) =>
+                    groupByField.reference &&
+                    pivotLayoutOptions.find(
+                        (x) => x.reference === groupByField.reference,
+                    ) === undefined,
+            ),
+        );
+
+        if (!indexFieldError && !valuesFieldError && !groupByFieldError) {
+            return undefined;
+        }
+
+        return {
+            ...(indexFieldError &&
+                config?.x?.reference && {
+                    indexFieldError: {
+                        reference: config.x.reference,
+                    },
+                }),
+            ...(valuesFieldError &&
+                config?.y?.map((y) => y.reference) && {
+                    valuesFieldError: {
+                        references: config?.y.reduce<
+                            NonNullable<
+                                VizConfigErrors['valuesFieldError']
+                            >['references']
+                        >((acc, y) => {
+                            const valuesLayoutOption = valuesLayoutOptions.find(
+                                (v) => v.reference === y.reference,
+                            );
+                            if (!valuesLayoutOption) {
+                                acc.push(y.reference);
+                            }
+                            return acc;
+                        }, []),
+                    },
+                }),
+            ...(groupByFieldError &&
+                config?.groupBy?.map((gb) => gb.reference) && {
+                    groupByFieldError: {
+                        references: config.groupBy.map((gb) => gb.reference),
+                    },
+                }),
         };
     }
 

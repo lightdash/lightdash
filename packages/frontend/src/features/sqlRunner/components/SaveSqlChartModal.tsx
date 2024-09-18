@@ -1,7 +1,10 @@
 import {
+    Alert,
+    Box,
     Button,
     Group,
     Modal,
+    ScrollArea,
     Stack,
     Text,
     Textarea,
@@ -9,7 +12,13 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconChartBar } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconAlertTriangle,
+    IconChartBar,
+    IconChevronDown,
+    IconChevronRight,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { type z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -25,11 +34,18 @@ import {
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
+import { Prism } from '@mantine/prism';
 import {
+    cartesianChartSelectors,
     selectChartConfigByKind,
     selectTableVisConfigState,
 } from '../../../components/DataViz/store/selectors';
-import { updateName } from '../store/sqlRunnerSlice';
+import {
+    EditorTabs,
+    setActiveEditorTab,
+    toggleModal,
+    updateName,
+} from '../store/sqlRunnerSlice';
 
 type FormValues = z.infer<typeof validationSchema>;
 
@@ -76,7 +92,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         }
     }, [name, form, description, spaces, isFormPopulated]);
 
-    const { sql, selectedChartType } = useAppSelector(
+    const { selectedChartType, lastSuccessfulSql } = useAppSelector(
         (state) => state.sqlRunner,
     );
     const limit = useAppSelector((state) => state.sqlRunner.limit);
@@ -113,11 +129,11 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
 
         const configToSave = selectedChartConfig ?? defaultChartConfig.config;
 
-        if (configToSave && sql) {
+        if (configToSave && lastSuccessfulSql) {
             await createSavedSqlChart({
                 name: form.values.name,
                 description: form.values.description || '',
-                sql,
+                sql: lastSuccessfulSql,
                 limit,
                 config: configToSave,
                 spaceUuid: spaceUuid,
@@ -136,12 +152,23 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         createSpace,
         selectedChartConfig,
         defaultChartConfig.config,
-        sql,
+        lastSuccessfulSql,
         dispatch,
         onClose,
         createSavedSqlChart,
         limit,
     ]);
+
+    const hasErrors = useAppSelector(
+        (state) =>
+            !!cartesianChartSelectors.getErrors(state, selectedChartType),
+    );
+
+    const hasUnrunChanges = useAppSelector(
+        (state) => state.sqlRunner.hasUnrunChanges,
+    );
+
+    const [isCodeExpanded, setIsCodeExpanded] = useState(false);
 
     return (
         <Modal
@@ -159,53 +186,139 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
                 body: { padding: 0 },
             })}
         >
-            <form onSubmit={form.onSubmit(handleOnSubmit)}>
-                <Stack p="md">
+            {hasUnrunChanges && lastSuccessfulSql && !hasErrors && (
+                <Box m="md">
+                    <Button
+                        color="yellow.6"
+                        w="100%"
+                        variant="subtle"
+                        onClick={() => {
+                            setIsCodeExpanded((prev) => !prev);
+                        }}
+                    >
+                        <Group spacing="xs">
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="yellow.6"
+                            />
+                            <Text fz="xs" fw={500}>
+                                Your chart will be saved with the last
+                                successful query.
+                            </Text>
+
+                            <MantineIcon
+                                icon={
+                                    isCodeExpanded
+                                        ? IconChevronDown
+                                        : IconChevronRight
+                                }
+                            />
+                        </Group>
+                    </Button>
+
+                    {isCodeExpanded && (
+                        <ScrollArea mah="200px">
+                            <Prism
+                                language="sql"
+                                styles={{
+                                    copy: { right: 0 },
+                                    code: { fontSize: 11 },
+                                }}
+                                scrollAreaComponent="div"
+                            >
+                                {lastSuccessfulSql}
+                            </Prism>
+                        </ScrollArea>
+                    )}
+                </Box>
+            )}
+
+            {hasErrors ? (
+                <Alert
+                    icon={<MantineIcon icon={IconAlertCircle} color="red" />}
+                    color="red"
+                    title="Fix errors before saving"
+                    m="md"
+                >
                     <Stack spacing="xs">
-                        <TextInput
-                            label="Chart name"
-                            placeholder="eg. How many weekly active users do we have?"
-                            required
-                            {...form.getInputProps('name')}
-                        />
-                        <Textarea
-                            label="Description"
-                            {...form.getInputProps('description')}
+                        <Text fw={500} size="xs">
+                            You have errors in your chart configuration. Please
+                            fix the errors and try again.
+                        </Text>
+                        <Button
+                            ml="auto"
+                            size="xs"
+                            compact
+                            variant="default"
+                            onClick={() => {
+                                dispatch(toggleModal('saveChartModal'));
+                                dispatch(
+                                    setActiveEditorTab(
+                                        EditorTabs.VISUALIZATION,
+                                    ),
+                                );
+                            }}
+                        >
+                            Fix errors
+                        </Button>
+                    </Stack>
+                </Alert>
+            ) : (
+                <form onSubmit={form.onSubmit(handleOnSubmit)}>
+                    <Stack
+                        p="md"
+                        pt={hasUnrunChanges && lastSuccessfulSql ? 0 : 'md'}
+                    >
+                        <Stack spacing="xs">
+                            <TextInput
+                                label="Chart name"
+                                placeholder="eg. How many weekly active users do we have?"
+                                required
+                                {...form.getInputProps('name')}
+                            />
+                            <Textarea
+                                label="Description"
+                                {...form.getInputProps('description')}
+                            />
+                        </Stack>
+                        <SaveToSpace
+                            form={form}
+                            spaces={spaces}
+                            projectUuid={projectUuid}
                         />
                     </Stack>
-                    <SaveToSpace
-                        form={form}
-                        spaces={spaces}
-                        projectUuid={projectUuid}
-                    />
-                </Stack>
 
-                <Group
-                    position="right"
-                    w="100%"
-                    sx={(theme) => ({
-                        borderTop: `1px solid ${theme.colors.gray[4]}`,
-                        bottom: 0,
-                        padding: theme.spacing.md,
-                    })}
-                >
-                    <Button
-                        onClick={onClose}
-                        variant="outline"
-                        disabled={isCreatingSavedSqlChart}
+                    <Group
+                        position="right"
+                        w="100%"
+                        sx={(theme) => ({
+                            borderTop: `1px solid ${theme.colors.gray[4]}`,
+                            bottom: 0,
+                            padding: theme.spacing.md,
+                        })}
                     >
-                        Cancel
-                    </Button>
+                        <Button
+                            onClick={onClose}
+                            variant="outline"
+                            disabled={isCreatingSavedSqlChart}
+                        >
+                            Cancel
+                        </Button>
 
-                    <Button
-                        type="submit"
-                        disabled={!form.values.name || !sql}
-                        loading={isCreatingSavedSqlChart}
-                    >
-                        Save
-                    </Button>
-                </Group>
-            </form>
+                        <Button
+                            type="submit"
+                            disabled={
+                                !form.values.name ||
+                                !lastSuccessfulSql ||
+                                hasErrors
+                            }
+                            loading={isCreatingSavedSqlChart}
+                        >
+                            Save
+                        </Button>
+                    </Group>
+                </form>
+            )}
         </Modal>
     );
 };

@@ -4,6 +4,7 @@ import {
     type ChartKind,
     type VizChartLayout,
     type VizColumn,
+    type VizConfigErrors,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
     type VizValuesLayoutOptions,
@@ -30,7 +31,10 @@ const YFieldsAxisConfig: FC<{
     index: number;
     actions: CartesianChartActionsType;
     columns: VizColumn[];
-}> = ({ field, yLayoutOptions, isSingle, index, actions, columns }) => {
+    error:
+        | NonNullable<VizConfigErrors['valuesFieldError']>['references'][number]
+        | undefined;
+}> = ({ field, yLayoutOptions, isSingle, index, actions, columns, error }) => {
     const dispatch = useVizDispatch();
 
     return (
@@ -53,10 +57,8 @@ const YFieldsAxisConfig: FC<{
                             }))}
                             value={field.reference}
                             error={
-                                yLayoutOptions.find(
-                                    (y) => y.reference === field.reference,
-                                ) === undefined &&
-                                `Column "${field.reference}" does not exist. Choose another`
+                                !!error &&
+                                `Column "${error}" does not exist. Choose another`
                             }
                             placeholder="Select Y axis"
                             onChange={(value) => {
@@ -111,12 +113,13 @@ const XFieldAxisConfig = ({
     xLayoutOptions,
     actions,
     columns,
+    error,
 }: {
     columns: VizColumn[];
-
     field: VizChartLayout['x'] | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
+    error: VizConfigErrors['indexFieldError'];
 }) => {
     const dispatch = useVizDispatch();
 
@@ -136,11 +139,8 @@ const XFieldAxisConfig = ({
                     } else dispatch(actions.setXAxisReference(value));
                 }}
                 error={
-                    field?.reference &&
-                    xLayoutOptions.find(
-                        (x) => x.reference === field.reference,
-                    ) === undefined &&
-                    `Column "${field.reference}" does not exist. Choose another`
+                    error &&
+                    `Column "${error.reference}" does not exist. Choose another`
                 }
                 fieldType={
                     (field?.reference &&
@@ -187,23 +187,23 @@ const GroupByFieldAxisConfig = ({
     groupByOptions = [],
     actions,
     columns,
+    error,
 }: {
     columns: VizColumn[];
     field: undefined | { reference: string };
     groupByOptions?: VizPivotLayoutOptions[];
     actions: CartesianChartActionsType;
+    error: VizConfigErrors['groupByFieldError'];
 }) => {
     const dispatch = useVizDispatch();
-    const error =
-        field !== undefined &&
-        !groupByOptions.find((x) => x.reference === field.reference)
-            ? `Column "${field.reference}" does not exist. Choose another`
-            : undefined;
+    const groupByError = error?.references[0]
+        ? `Column "${error.references[0]}" does not exist. Choose another`
+        : undefined;
     return (
         <FieldReferenceSelect
             rightSection={
                 // When the field is deleted, the error state prevents the clear button from showing
-                error && (
+                groupByError && (
                     <ActionIcon
                         onClick={() =>
                             dispatch(actions.unsetGroupByReference())
@@ -220,7 +220,7 @@ const GroupByFieldAxisConfig = ({
             }))}
             value={field?.reference ?? null}
             placeholder="Select group by"
-            error={error}
+            error={groupByError}
             onChange={(value) => {
                 if (!value) {
                     dispatch(actions.unsetGroupByReference());
@@ -273,6 +273,12 @@ export const CartesianChartFieldConfiguration = ({
         cartesianChartSelectors.getPivotLayoutOptions(state, selectedChartType),
     );
 
+    const errors = useVizSelector((state) =>
+        cartesianChartSelectors.getErrors(state, selectedChartType),
+    );
+
+    console.log({ errors });
+
     return (
         <Stack spacing="sm">
             <Config>
@@ -284,6 +290,7 @@ export const CartesianChartFieldConfiguration = ({
                             field={xAxisField}
                             xLayoutOptions={xLayoutOptions}
                             actions={actions}
+                            error={errors?.indexFieldError}
                         />
                     )}
                 </Config.Section>
@@ -307,6 +314,10 @@ export const CartesianChartFieldConfiguration = ({
                                 index={index}
                                 actions={actions}
                                 columns={columns}
+                                error={errors?.valuesFieldError?.references.find(
+                                    (reference) =>
+                                        reference === field.reference,
+                                )}
                             />
                         ))}
                 </Config.Section>
@@ -319,6 +330,7 @@ export const CartesianChartFieldConfiguration = ({
                         field={groupByField}
                         groupByOptions={groupByLayoutOptions}
                         actions={actions}
+                        error={errors?.groupByFieldError}
                     />
                 </Config.Section>
             </Config>

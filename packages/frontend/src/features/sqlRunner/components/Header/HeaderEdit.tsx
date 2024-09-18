@@ -30,7 +30,7 @@ export const HeaderEdit: FC = () => {
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
     );
-    const { sql, selectedChartType } = useAppSelector(
+    const { selectedChartType, lastSuccessfulSql } = useAppSelector(
         (state) => state.sqlRunner,
     );
     const limit = useAppSelector((state) => state.sqlRunner.limit);
@@ -51,26 +51,32 @@ export const HeaderEdit: FC = () => {
 
     const hasChanges = useMemo(() => {
         if (!initialSavedSqlChart || !initialChartConfig) return false;
-        const changedSql = sql !== initialSavedSqlChart.sql;
+        const changedSql = lastSuccessfulSql !== initialSavedSqlChart.sql;
         const changedLimit = limit !== initialSavedSqlChart.limit;
         const changedConfig = !isEqual(config, initialChartConfig);
 
         return changedSql || changedLimit || changedConfig;
-    }, [initialSavedSqlChart, initialChartConfig, sql, limit, config]);
+    }, [
+        initialSavedSqlChart,
+        initialChartConfig,
+        lastSuccessfulSql,
+        limit,
+        config,
+    ]);
 
     const onSave = useCallback(() => {
-        if (config && sql) {
+        if (config && lastSuccessfulSql) {
             mutate({
                 versionedData: {
                     config,
-                    sql,
+                    sql: lastSuccessfulSql,
                     limit,
                 },
             });
             setInitialChartConfig(config);
-            setInitialSavedSqlChart({ sql, limit });
+            setInitialSavedSqlChart({ sql: lastSuccessfulSql, limit });
         }
-    }, [config, sql, mutate, limit]);
+    }, [config, lastSuccessfulSql, mutate, limit]);
 
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
@@ -141,10 +147,12 @@ export const HeaderEdit: FC = () => {
                         <Button
                             size="xs"
                             color={'green.7'}
-                            disabled={!config || !sql || !hasChanges}
+                            disabled={
+                                !config || !lastSuccessfulSql || !hasChanges
+                            }
                             loading={isLoading}
                             onClick={() => {
-                                if (config && sql) {
+                                if (config && lastSuccessfulSql) {
                                     onSave();
                                 }
                             }}

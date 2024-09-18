@@ -84,7 +84,7 @@ export const HeaderCreate: FC = () => {
                         )}
 
                         <Button
-                            color={'green.7'}
+                            variant="default"
                             size="xs"
                             disabled={!loadedColumns}
                             onClick={() => {

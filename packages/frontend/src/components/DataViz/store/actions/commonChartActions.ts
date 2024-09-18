@@ -2,6 +2,7 @@ import {
     type ChartKind,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
+    type VizConfigErrors,
     type VizPieChartConfig,
     type VizPieChartOptions,
     type VizTableConfig,
@@ -13,10 +14,12 @@ type ChartTypeConfig = {
     [ChartKind.VERTICAL_BAR]: {
         options: VizCartesianChartOptions;
         config: VizCartesianChartConfig;
+        errors: VizConfigErrors | undefined;
     };
     [ChartKind.LINE]: {
         options: VizCartesianChartOptions;
         config: VizCartesianChartConfig;
+        errors: VizConfigErrors | undefined;
     };
     [ChartKind.PIE]: {
         options: VizPieChartOptions;
@@ -39,3 +42,5 @@ export const setChartOptionsAndConfig = createAction<ChartOptionsAndConfig>(
 );
 
 export const setChartConfig = createAction<ChartConfig>('chart/setChartConfig');
+
+export const resetChartState = createAction('chart/resetState');

@@ -30,6 +30,7 @@ export interface SqlRunnerState {
     name: string;
     description: string;
     sql: string;
+    lastSuccessfulSql: string | undefined;
     limit: number;
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
@@ -56,6 +57,7 @@ export interface SqlRunnerState {
     sqlColumns: VizColumn[] | undefined;
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
+    hasUnrunChanges: boolean;
 }
 
 const initialState: SqlRunnerState = {
@@ -67,6 +69,7 @@ const initialState: SqlRunnerState = {
     name: '',
     description: '',
     sql: '',
+    lastSuccessfulSql: undefined,
     limit: 500,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
@@ -93,15 +96,14 @@ const initialState: SqlRunnerState = {
     sqlColumns: undefined,
     activeConfigs: [ChartKind.VERTICAL_BAR],
     fetchResultsOnLoad: false,
+    hasUnrunChanges: false,
 };
 
 export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
     reducers: {
-        resetState: () => {
-            return initialState;
-        },
+        resetState: () => initialState,
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
@@ -147,12 +149,21 @@ export const sqlRunnerSlice = createSlice({
             state.resultsTableConfig = {
                 columns,
             };
+
+            state.lastSuccessfulSql = state.sql;
+            state.hasUnrunChanges = false;
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
         },
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
+            if (action.payload !== state.lastSuccessfulSql) {
+                state.hasUnrunChanges = true;
+            }
+        },
+        setLastSuccessfulSql: (state, action: PayloadAction<string>) => {
+            state.lastSuccessfulSql = action.payload;
         },
         setSqlLimit: (state, action: PayloadAction<number>) => {
             state.limit = action.payload;
