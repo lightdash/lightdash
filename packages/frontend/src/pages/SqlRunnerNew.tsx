@@ -8,7 +8,10 @@ import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-import { setChartConfig } from '../components/DataViz/store/actions/commonChartActions';
+import {
+    resetChartState,
+    setChartConfig,
+} from '../components/DataViz/store/actions/commonChartActions';
 import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
@@ -38,6 +41,7 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
 
     useUnmount(() => {
         dispatch(resetState());
+        dispatch(resetChartState());
     });
 
     useEffect(() => {

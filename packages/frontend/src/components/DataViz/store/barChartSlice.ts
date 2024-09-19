@@ -1,6 +1,7 @@
 import { ChartKind, isVizBarChartConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import {
+    resetChartState,
     setChartConfig,
     setChartOptionsAndConfig,
 } from './actions/commonChartActions';
@@ -30,6 +31,9 @@ export const barChartConfigSlice = createSlice({
                 state.config = action.payload;
             }
         });
+        builder.addCase(resetChartState, () =>
+            cartesianChartConfigSlice.getInitialState(),
+        );
     },
 });
 
