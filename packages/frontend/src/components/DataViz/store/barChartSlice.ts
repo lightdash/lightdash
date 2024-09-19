@@ -25,6 +25,8 @@ export const barChartConfigSlice = createSlice({
             if (!state.config && action.payload.config.fieldConfig) {
                 state.config = action.payload.config;
             }
+
+            state.errors = action.payload.errors;
         });
         builder.addCase(setChartConfig, (state, action) => {
             if (isVizBarChartConfig(action.payload)) {
