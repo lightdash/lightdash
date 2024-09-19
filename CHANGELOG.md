@@ -1,3 +1,11 @@
+# [0.1263.0](https://github.com/lightdash/lightdash/compare/0.1262.0...0.1263.0) (2024-09-19)
+
+
+### Features
+
+* display chart errors on save/edit if invalid ([#11600](https://github.com/lightdash/lightdash/issues/11600)) ([33cc86f](https://github.com/lightdash/lightdash/commit/33cc86f8de0c861563cc7243f514465f99b77f4f))
+* store last successful sql queries ([#11605](https://github.com/lightdash/lightdash/issues/11605)) ([ad3deaf](https://github.com/lightdash/lightdash/commit/ad3deaf991e959f982fd710ef898725686e29ad8))
+
 # [0.1262.0](https://github.com/lightdash/lightdash/compare/0.1261.3...0.1262.0) (2024-09-19)
 
 
