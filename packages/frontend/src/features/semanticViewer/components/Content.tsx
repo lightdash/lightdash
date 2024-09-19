@@ -1,6 +1,6 @@
 import { Center, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
@@ -20,7 +20,6 @@ import {
     EditorTabs,
     setActiveEditorTab,
     setResults,
-    setShouldFetchResults,
 } from '../store/semanticViewerSlice';
 import ContentCharts from './ContentCharts';
 import ContentResults from './ContentResults';
@@ -34,15 +33,10 @@ const Content: FC = () => {
     const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const {
-        results,
-        view,
-        activeEditorTab,
-        columns,
-        fields,
-        activeChartKind,
-        shouldFetchResults,
-    } = useAppSelector((state) => state.semanticViewer);
+    const { results, view, activeEditorTab, columns, fields, activeChartKind } =
+        useAppSelector((state) => state.semanticViewer);
+    const [hasClickedRunQueryButton, setHasClickedRunQueryButton] =
+        useState(false);
 
     const currentVizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, activeChartKind),
@@ -59,16 +53,27 @@ const Content: FC = () => {
 
     const {
         data: requestData,
-        mutateAsync: runSemanticViewerQuery,
-        isLoading: isRunningSemanticLayerQuery,
-    } = useSemanticLayerQueryResults(projectUuid, {
-        onError: (data) => {
-            showToastError({
-                title: 'Could not fetch SQL query results',
-                subtitle: data.error.message,
-            });
+        refetch: runSemanticViewerQuery,
+        isFetching: isRunningSemanticLayerQuery,
+    } = useSemanticLayerQueryResults(
+        {
+            projectUuid,
+            query: semanticQuery,
         },
-    });
+        {
+            enabled:
+                hasClickedRunQueryButton &&
+                (semanticQuery.dimensions.length > 0 ||
+                    semanticQuery.timeDimensions.length > 0 ||
+                    semanticQuery.metrics.length > 0),
+            onError: (data) => {
+                showToastError({
+                    title: 'Could not fetch SQL query results',
+                    subtitle: data.error.message,
+                });
+            },
+        },
+    );
 
     const resultsData = useMemo(() => requestData?.results, [requestData]);
     const resultsColumns = useMemo(() => requestData?.columns, [requestData]);
@@ -112,17 +117,10 @@ const Content: FC = () => {
         fields,
     ]);
 
-    const handleRunSemanticLayerQuery = useCallback(
-        () => runSemanticViewerQuery(semanticQuery),
-        [semanticQuery, runSemanticViewerQuery],
-    );
-
-    useEffect(() => {
-        if (shouldFetchResults) {
-            handleRunSemanticLayerQuery().catch(console.error); // ! There's already a toast when this errors, just log to console
-            dispatch(setShouldFetchResults(false));
-        }
-    }, [handleRunSemanticLayerQuery, shouldFetchResults, dispatch]);
+    const handleRunSemanticLayerQuery = useCallback(async () => {
+        await runSemanticViewerQuery();
+        setHasClickedRunQueryButton(true);
+    }, [runSemanticViewerQuery]);
 
     return (
         <>

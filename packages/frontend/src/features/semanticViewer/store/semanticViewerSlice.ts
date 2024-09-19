@@ -136,8 +136,6 @@ export interface SemanticViewerState {
     filters: SemanticLayerFilter[];
 
     isFiltersModalOpen: boolean;
-
-    shouldFetchResults: boolean;
 }
 
 const initialState: SemanticViewerState = {
@@ -168,7 +166,6 @@ const initialState: SemanticViewerState = {
     sortBy: [],
     filters: [],
     isFiltersModalOpen: false,
-    shouldFetchResults: false,
 };
 
 export const semanticViewerSlice = createSlice({
@@ -287,7 +284,6 @@ export const semanticViewerSlice = createSlice({
         },
         setFilters: (state, action: PayloadAction<SemanticLayerFilter[]>) => {
             state.filters = action.payload;
-            state.shouldFetchResults = true;
         },
         updateFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
             const filterIndex = state.filters.findIndex(
@@ -338,14 +334,9 @@ export const semanticViewerSlice = createSlice({
             } else {
                 state.sortBy = [];
             }
-
-            state.shouldFetchResults = true;
         },
         updateSaveModalOpen: (state, action: PayloadAction<boolean>) => {
             state.saveModalOpen = action.payload;
-        },
-        setShouldFetchResults: (state, action: PayloadAction<boolean>) => {
-            state.shouldFetchResults = action.payload;
         },
     },
 });
@@ -369,5 +360,4 @@ export const {
     setIsFiltersModalOpen,
     addFilterAndOpenModal,
     updateSortBy,
-    setShouldFetchResults,
 } = semanticViewerSlice.actions;
