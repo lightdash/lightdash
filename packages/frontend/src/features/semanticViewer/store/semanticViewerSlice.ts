@@ -307,12 +307,17 @@ export const semanticViewerSlice = createSlice({
 
         updateSortBy: (
             state,
-            action: PayloadAction<{ name: string; kind: FieldType }>,
+            action: PayloadAction<{
+                name: string;
+                kind: FieldType;
+            }>,
         ) => {
             const { name, kind } = action.payload;
+
             const existing = state.sortBy.find(
                 (sort) => sort.name === name && sort.kind === kind,
             );
+
             if (!existing) {
                 state.sortBy = [
                     {
@@ -330,7 +335,6 @@ export const semanticViewerSlice = createSlice({
                 state.sortBy = [];
             }
         },
-
         updateSaveModalOpen: (state, action: PayloadAction<boolean>) => {
             state.saveModalOpen = action.payload;
         },
