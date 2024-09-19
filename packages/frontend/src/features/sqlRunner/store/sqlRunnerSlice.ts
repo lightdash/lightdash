@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { format } from 'sql-formatter';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
 
@@ -19,6 +20,16 @@ export enum SidebarTabs {
     TABLES = 'tables',
     VISUALIZATION = 'visualization',
 }
+
+/**
+ * Normalizes the SQL by removing all whitespace and formatting it consistently - helpful for comparing two SQL queries
+ * @param sql
+ * @returns formatted SQL
+ */
+const normalizeSQL = (sql: string): string =>
+    format(sql, {
+        language: 'sql',
+    });
 
 export const DEFAULT_NAME = 'Untitled SQL Query';
 
@@ -106,7 +117,10 @@ const initialState: SqlRunnerState = {
     fetchResultsOnLoad: false,
 };
 
-const sqlHistoryReducer = createHistoryReducer<string | undefined>(5);
+const sqlHistoryReducer = createHistoryReducer<string | undefined>({
+    maxHistoryItems: 5,
+    compareFunc: (a, b) => normalizeSQL(a || '') !== normalizeSQL(b || ''),
+});
 
 export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
@@ -173,8 +187,11 @@ export const sqlRunnerSlice = createSlice({
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
 
-            state.hasUnrunChanges =
-                action.payload !== state.successfulSqlQueries.current;
+            const normalizedNewSql = normalizeSQL(action.payload);
+            const normalizedCurrentSql = normalizeSQL(
+                state.successfulSqlQueries.current || '',
+            );
+            state.hasUnrunChanges = normalizedNewSql !== normalizedCurrentSql;
         },
         setSqlLimit: (state, action: PayloadAction<number>) => {
             state.limit = action.payload;
