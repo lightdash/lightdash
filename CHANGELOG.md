@@ -1,3 +1,10 @@
+## [0.1265.1](https://github.com/lightdash/lightdash/compare/0.1265.0...0.1265.1) (2024-09-19)
+
+
+### Bug Fixes
+
+* fix invalid user redirection ([#11603](https://github.com/lightdash/lightdash/issues/11603)) ([4516d3f](https://github.com/lightdash/lightdash/commit/4516d3f1c7dd9ac297b50025cb1a474a3bcad947))
+
 # [0.1265.0](https://github.com/lightdash/lightdash/compare/0.1264.0...0.1265.0) (2024-09-19)
 
 
