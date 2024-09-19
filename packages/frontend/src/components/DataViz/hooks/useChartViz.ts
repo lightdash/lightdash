@@ -99,7 +99,7 @@ export const useChartViz = <T extends ResultsRunner>({
                 }
             }
         },
-        enabled: !!chartDataModel && !!queryKey,
+        enabled: !!chartDataModel && !!queryKey && !!projectUuid,
         keepPreviousData: true,
     });
 
