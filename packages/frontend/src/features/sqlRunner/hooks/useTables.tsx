@@ -15,7 +15,7 @@ export type GetTablesParams = {
 const fetchTables = async ({
     projectUuid,
 }: Pick<GetTablesParams, 'projectUuid'>) =>
-    lightdashApi<ApiWarehouseCatalog>({
+    lightdashApi<ApiWarehouseTablesCatalog>({
         url: `/projects/${projectUuid}/sqlRunner/tables`,
         method: 'GET',
         body: undefined,
@@ -24,7 +24,7 @@ const fetchTables = async ({
 const refreshTables = async ({
     projectUuid,
 }: Pick<GetTablesParams, 'projectUuid'>) =>
-    lightdashApi<ApiWarehouseCatalog>({
+    lightdashApi<ApiWarehouseTablesCatalog>({
         url: `/projects/${projectUuid}/sqlRunner/refresh-catalog`,
         method: 'POST',
         body: undefined,
@@ -39,7 +39,7 @@ export type TablesBySchema =
 
 export const useTables = ({ projectUuid, search }: GetTablesParams) => {
     return useQuery<
-        ApiWarehouseCatalog,
+        ApiWarehouseTablesCatalog,
         ApiError,
         { database: string; tablesBySchema: TablesBySchema } | undefined
     >({
@@ -108,7 +108,7 @@ export const useRefreshTables = ({
 }: Pick<GetTablesParams, 'projectUuid'>) => {
     const queryClient = useQueryClient();
 
-    return useMutation<ApiWarehouseCatalog, ApiError>(
+    return useMutation<ApiWarehouseTablesCatalog, ApiError>(
         () => refreshTables({ projectUuid }),
         {
             onSuccess: async () => {
