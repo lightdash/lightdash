@@ -180,6 +180,7 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
+                fileUrl: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
@@ -220,6 +221,7 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
         );
 
         return {
+            fileUrl: undefined,
             results,
             indexColumn,
             valuesColumns,

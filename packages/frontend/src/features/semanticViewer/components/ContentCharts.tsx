@@ -25,9 +25,8 @@ const ContentCharts: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
-    const { results, columnNames, activeChartKind, fields } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
+    const { results, columnNames, activeChartKind, fields, sortBy, filters } =
+        useAppSelector((state) => state.semanticViewer);
 
     const resultsRunner = useMemo(() => {
         return new SemanticViewerResultsRunner({
@@ -57,6 +56,7 @@ const ContentCharts: FC = () => {
         resultsRunner,
         config: vizConfig,
         projectUuid,
+        additionalQueryKey: [filters, sortBy],
     });
 
     const pivotResultsRunner = useMemo(() => {
@@ -83,7 +83,11 @@ const ContentCharts: FC = () => {
                     id="semantic-viewer-panel-charts"
                     order={1}
                     minSize={30}
-                    style={{ display: 'flex', flexDirection: 'column' }}
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        position: 'relative',
+                    }}
                 >
                     {vizConfig && isVizTableConfig(vizConfig) ? (
                         <Table
@@ -114,15 +118,15 @@ const ContentCharts: FC = () => {
                     <>
                         <Box
                             component={PanelResizeHandle}
-                            bg="gray.3"
-                            h="two"
+                            bg="gray.2"
+                            h="xs"
                             sx={(theme) => ({
                                 transition: 'background-color 0.2s ease-in-out',
                                 '&[data-resize-handle-state="hover"]': {
-                                    backgroundColor: theme.colors.gray[5],
+                                    backgroundColor: theme.colors.gray[3],
                                 },
                                 '&[data-resize-handle-state="drag"]': {
-                                    backgroundColor: theme.colors.gray[8],
+                                    backgroundColor: theme.colors.gray[4],
                                 },
                             })}
                         />
@@ -177,7 +181,7 @@ const ContentCharts: FC = () => {
                             px="lg"
                             icon={<MantineIcon icon={IconTable} />}
                         >
-                            Visualization Data
+                            Results
                         </Tabs.Tab>
                     </Tabs.List>
                 </Tabs>

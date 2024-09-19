@@ -80,9 +80,7 @@ const SidebarViewFields = () => {
             view,
             selectedFields: usedFields,
         },
-        {
-            keepPreviousData: true,
-        },
+        { keepPreviousData: true },
     );
 
     useEffect(() => {

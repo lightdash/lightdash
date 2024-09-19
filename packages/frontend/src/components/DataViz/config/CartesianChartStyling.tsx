@@ -1,7 +1,6 @@
 import {
     ECHARTS_DEFAULT_COLORS,
     friendlyName,
-    VizIndexType,
     type ChartKind,
 } from '@lightdash/common';
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
@@ -135,7 +134,6 @@ export const CartesianChartStyling = ({
                             dispatch(
                                 actions.setXAxisLabel({
                                     label: e.target.value,
-                                    type: VizIndexType.CATEGORY,
                                 }),
                             )
                         }

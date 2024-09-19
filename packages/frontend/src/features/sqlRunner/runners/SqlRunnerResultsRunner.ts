@@ -56,6 +56,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
         const results = await getResultsFromStream<RawResultRow>(url);
 
         return {
+            fileUrl: url,
             results,
             indexColumn: job.details.indexColumn,
             valuesColumns: job.details.valuesColumns,
@@ -91,13 +92,13 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
+                fileUrl: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
                 columns: [],
             };
         }
-
         const pivotResults = await pivotQueryFn({
             projectUuid,
             slug,
@@ -116,6 +117,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
                     ? config.groupBy
                     : undefined,
             limit,
+            sortBy: config.sortBy,
         });
 
         const columns: VizColumn[] = [
@@ -128,6 +130,7 @@ export class SqlRunnerResultsRunner implements IResultsRunner {
         }));
 
         return {
+            fileUrl: pivotResults.fileUrl,
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,
             valuesColumns: pivotResults.valuesColumns,

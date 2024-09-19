@@ -13,6 +13,11 @@ export enum VizAggregationOptions {
     ANY = 'any',
 }
 
+export enum SortByDirection {
+    ASC = 'ASC',
+    DESC = 'DESC',
+}
+
 export const vizAggregationOptions = [
     VizAggregationOptions.SUM,
     VizAggregationOptions.COUNT,
@@ -69,6 +74,25 @@ export type VizPivotLayoutOptions = {
     reference: string;
 };
 
+export type VizSortBy = {
+    reference: string;
+    direction: SortByDirection;
+};
+export type VizChartLayout = {
+    x:
+        | {
+              reference: string;
+              type: VizIndexType;
+          }
+        | undefined;
+    y: {
+        reference: string;
+        aggregation?: VizAggregationOptions;
+    }[];
+    groupBy: { reference: string }[] | undefined;
+    sortBy?: VizSortBy[];
+};
+
 export type VizPieChartDisplay = {
     isDonut?: boolean;
 };
@@ -78,6 +102,7 @@ export type PivotIndexColum =
     | undefined;
 
 export type PivotChartData = {
+    fileUrl: string | undefined;
     results: RawResultRow[];
     indexColumn: PivotIndexColum;
     valuesColumns: string[];

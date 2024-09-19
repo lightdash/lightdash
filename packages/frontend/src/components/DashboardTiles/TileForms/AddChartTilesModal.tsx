@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     ChartKind,
     ChartSourceType,
     DashboardTileTypes,
@@ -89,7 +90,11 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         (tile.type === DashboardTileTypes.SAVED_CHART &&
                             tile.properties.savedChartUuid === uuid) ||
                         (tile.type === DashboardTileTypes.SQL_CHART &&
-                            tile.properties.savedSqlUuid === uuid)
+                            tile.properties.savedSqlUuid === uuid) ||
+                        (tile.type ===
+                            DashboardTileTypes.SEMANTIC_VIEWER_CHART &&
+                            tile.properties.savedSemanticViewerChartUuid ===
+                                uuid)
                     );
                 });
 
@@ -110,29 +115,52 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         onAddTiles(
             savedChartsUuids.map((uuid) => {
                 const chart = savedQueries?.find((c) => c.uuid === uuid);
-                const isSqlChart = chart?.source === ChartSourceType.SQL;
-                if (isSqlChart) {
-                    return {
-                        uuid: uuid4(),
-                        type: DashboardTileTypes.SQL_CHART,
-                        properties: {
-                            savedSqlUuid: uuid,
-                            chartName: chart?.name ?? '',
-                        },
-                        tabUuid: undefined,
-                        ...defaultTileSize,
-                    };
+                const sourceType = chart?.source;
+
+                switch (sourceType) {
+                    case ChartSourceType.SEMANTIC_LAYER:
+                        return {
+                            uuid: uuid4(),
+                            type: DashboardTileTypes.SEMANTIC_VIEWER_CHART,
+                            properties: {
+                                savedSemanticViewerChartUuid: uuid,
+                                chartName: chart?.name ?? '',
+                            },
+                            tabUuid: undefined,
+                            ...defaultTileSize,
+                        };
+
+                    case ChartSourceType.SQL:
+                        return {
+                            uuid: uuid4(),
+                            type: DashboardTileTypes.SQL_CHART,
+                            properties: {
+                                savedSqlUuid: uuid,
+                                chartName: chart?.name ?? '',
+                            },
+                            tabUuid: undefined,
+                            ...defaultTileSize,
+                        };
+
+                    case undefined:
+                    case ChartSourceType.DBT_EXPLORE:
+                        return {
+                            uuid: uuid4(),
+                            type: DashboardTileTypes.SAVED_CHART,
+                            properties: {
+                                savedChartUuid: uuid,
+                                chartName: chart?.name ?? '',
+                            },
+                            tabUuid: undefined,
+                            ...defaultTileSize,
+                        };
+
+                    default:
+                        return assertUnreachable(
+                            sourceType,
+                            `Unknown chart source type: ${sourceType}`,
+                        );
                 }
-                return {
-                    uuid: uuid4(),
-                    type: DashboardTileTypes.SAVED_CHART,
-                    properties: {
-                        savedChartUuid: uuid,
-                        chartName: chart?.name ?? '',
-                    },
-                    tabUuid: undefined,
-                    ...defaultTileSize,
-                };
             }),
         );
         onClose();

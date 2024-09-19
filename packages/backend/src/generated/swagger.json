@@ -532,7 +532,13 @@
                 "type": "object"
             },
             "DashboardTileTypes": {
-                "enum": ["saved_chart", "sql_chart", "markdown", "loom"],
+                "enum": [
+                    "saved_chart",
+                    "sql_chart",
+                    "semantic_viewer_chart",
+                    "markdown",
+                    "loom"
+                ],
                 "type": "string"
             },
             "Required_CreateDashboardTileBase_": {
@@ -739,6 +745,51 @@
                     }
                 ]
             },
+            "DashboardTileTypes.SEMANTIC_VIEWER_CHART": {
+                "enum": ["semantic_viewer_chart"],
+                "type": "string"
+            },
+            "DashboardSemanticViewerChartTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "chartName": {
+                                "type": "string"
+                            },
+                            "savedSemanticViewerChartUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "chartName",
+                            "savedSemanticViewerChartUuid"
+                        ],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.SEMANTIC_VIEWER_CHART"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardSemanticViewerChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTileProperties"
+                    }
+                ]
+            },
             "DashboardTile": {
                 "anyOf": [
                     {
@@ -752,6 +803,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardSqlChartTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTile"
                     }
                 ]
             },
@@ -4345,7 +4399,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ChartSourceType": {
-                "enum": ["dbt_explore", "sql"],
+                "enum": ["dbt_explore", "sql", "semantic_layer"],
                 "type": "string"
             },
             "ResourceViewChartItem": {
@@ -7323,8 +7377,30 @@
                 "enum": ["sum", "count", "avg", "min", "max", "any"],
                 "type": "string"
             },
+            "SortByDirection": {
+                "enum": ["ASC", "DESC"],
+                "type": "string"
+            },
+            "VizSortBy": {
+                "properties": {
+                    "direction": {
+                        "$ref": "#/components/schemas/SortByDirection"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["direction", "reference"],
+                "type": "object"
+            },
             "ApiSqlRunnerPivotQueryPayload": {
                 "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
                     "groupByColumns": {
                         "items": {
                             "properties": {
@@ -7398,6 +7474,12 @@
             },
             "VizChartLayout": {
                 "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
                     "groupBy": {
                         "items": {
                             "properties": {
@@ -7508,7 +7590,6 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["type"],
                         "type": "object"
                     }
                 },
@@ -8003,6 +8084,60 @@
                         "$ref": "#/components/schemas/UpdateUnversionedSqlChart"
                     }
                 },
+                "type": "object"
+            },
+            "Pick_Explore.name_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiCreateCustomExplore": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Pick_Explore.name_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "VizColumn": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reference"],
+                "type": "object"
+            },
+            "CreateCustomExplorePayload": {
+                "properties": {
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizColumn"
+                        },
+                        "type": "array"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["columns", "sql", "name"],
                 "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
@@ -9347,6 +9482,197 @@
                 ],
                 "type": "object"
             },
+            "ApiSemanticLayerCreateChart": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "slug": {
+                                "type": "string"
+                            },
+                            "savedSemanticViewerChartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["slug", "savedSemanticViewerChartUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticLayerCreateChart": {
+                "properties": {
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/VizChartConfig"
+                    },
+                    "semanticLayerQuery": {
+                        "$ref": "#/components/schemas/SemanticLayerQuery"
+                    },
+                    "semanticLayerView": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "spaceUuid",
+                    "config",
+                    "semanticLayerQuery",
+                    "semanticLayerView",
+                    "description",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "AllVizChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBarChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizLineChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizPieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizTableConfig"
+                    }
+                ]
+            },
+            "SavedSemanticViewerChart": {
+                "properties": {
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "organization": {
+                        "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
+                    },
+                    "project": {
+                        "$ref": "#/components/schemas/Pick_Project.projectUuid_"
+                    },
+                    "dashboard": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "space": {
+                        "$ref": "#/components/schemas/Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_"
+                    },
+                    "lastUpdatedBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "semanticLayerQuery": {
+                        "$ref": "#/components/schemas/SemanticLayerQuery"
+                    },
+                    "semanticLayerView": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/AllVizChartConfig"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "savedSemanticViewerChartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "lastViewedAt",
+                    "firstViewedAt",
+                    "views",
+                    "organization",
+                    "project",
+                    "dashboard",
+                    "space",
+                    "lastUpdatedBy",
+                    "lastUpdatedAt",
+                    "createdBy",
+                    "createdAt",
+                    "chartKind",
+                    "semanticLayerQuery",
+                    "semanticLayerView",
+                    "config",
+                    "slug",
+                    "description",
+                    "name",
+                    "savedSemanticViewerChartUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSemanticLayerGetChart": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SavedSemanticViewerChart"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ValidationTarget": {
                 "enum": ["charts", "dashboards", "tables"],
                 "type": "string"
@@ -9588,7 +9914,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1249.0",
+        "version": "0.1256.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

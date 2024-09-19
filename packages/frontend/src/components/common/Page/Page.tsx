@@ -12,11 +12,7 @@ import { SectionName } from '../../../types/Events';
 import AboutFooter, { FOOTER_HEIGHT, FOOTER_MARGIN } from '../../AboutFooter';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../../NavBar';
 import { PAGE_HEADER_HEIGHT } from './PageHeader';
-import Sidebar, {
-    SidebarPosition,
-    type SidebarProps,
-    type SidebarWidthProps,
-} from './Sidebar';
+import Sidebar, { SidebarPosition, type SidebarWidthProps } from './Sidebar';
 
 type StyleProps = {
     withCenteredContent?: boolean;
@@ -35,6 +31,7 @@ type StyleProps = {
     flexContent?: boolean;
     hasBanner?: boolean;
     noContentPadding?: boolean;
+    noSidebarPadding?: boolean;
     isSidebarResizing?: boolean;
 };
 
@@ -175,14 +172,12 @@ type Props = {
     isRightSidebarOpen?: boolean;
     rightSidebarWidthProps?: SidebarWidthProps;
     header?: React.ReactNode;
-    sidebarProps?: SidebarProps;
 } & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
 
 const Page: FC<React.PropsWithChildren<Props>> = ({
     title,
     header,
     sidebar,
-    sidebarProps,
     isSidebarOpen = true,
     rightSidebar,
     isRightSidebarOpen = false,
@@ -199,6 +194,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     withSidebarFooter = false,
     withSidebarBorder = false,
     noContentPadding = false,
+    noSidebarPadding = false,
     flexContent = false,
 
     children,
@@ -254,10 +250,10 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             <Box className={classes.root}>
                 {sidebar ? (
                     <Sidebar
+                        noSidebarPadding={noSidebarPadding}
                         isOpen={isSidebarOpen}
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}
-                        sidebarProps={sidebarProps}
                     >
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             {sidebar}
@@ -276,10 +272,11 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
                 {rightSidebar ? (
                     <Sidebar
-                        isOpen={isRightSidebarOpen}
-                        position={SidebarPosition.RIGHT}
+                        noSidebarPadding={noSidebarPadding}
                         widthProps={rightSidebarWidthProps}
                         mainWidth={mainWidth}
+                        isOpen={isRightSidebarOpen}
+                        position={SidebarPosition.RIGHT}
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}
                     >

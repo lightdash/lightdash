@@ -4,6 +4,7 @@ import { type FC } from 'react';
 import { useSemanticLayerSql } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
 import {
+    selectAllSelectedFieldNames,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
@@ -11,11 +12,11 @@ import {
 const SqlViewer: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
-    const { results } = useAppSelector((state) => state.semanticViewer);
+    const selectedFields = useAppSelector(selectAllSelectedFieldNames);
 
     const sql = useSemanticLayerSql(
         { projectUuid, query: semanticQuery },
-        { keepPreviousData: true, enabled: results.length !== 0 },
+        { keepPreviousData: true, enabled: selectedFields.length !== 0 },
     );
 
     if (sql.isError) {

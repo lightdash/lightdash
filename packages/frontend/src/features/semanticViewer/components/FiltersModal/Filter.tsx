@@ -21,7 +21,6 @@ import {
     IconPlus,
     IconRefresh,
     IconTrash,
-    IconX,
 } from '@tabler/icons-react';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -30,7 +29,7 @@ import FilterMultiStringInput from '../../../../components/common/Filters/Filter
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import FilterButton from './FilterButton';
-import FilterFieldSelectItem from './FilterFieldSelectItem';
+import FilterFieldSelect from './FilterFieldSelect';
 import getOperatorString from './getOperatorString';
 
 enum AndOr {
@@ -415,14 +414,11 @@ const Filter: FC<FilterProps> = ({
                         hasNestedFilters={hasNestedFilters}
                     />
 
-                    <Select
-                        size="xs"
-                        withinPortal
-                        style={{ flex: 5 }}
-                        data={fieldOptions}
-                        itemComponent={FilterFieldSelectItem}
+                    <FilterFieldSelect
                         value={filter.field}
-                        onChange={(value) => {
+                        availableFieldOptions={fieldOptions}
+                        style={{ flex: 5 }}
+                        onFieldChange={(value) => {
                             if (!value) {
                                 return;
                             }
@@ -536,30 +532,16 @@ const Filter: FC<FilterProps> = ({
                 )}
 
                 {isAddingNestedFilter && (
-                    <Group spacing="xs" style={{ zIndex: 3 }}>
-                        <Select
-                            size="xs"
-                            data={fieldOptions}
-                            placeholder="Select field"
-                            searchable
-                            withinPortal={true}
-                            onChange={(value) => {
-                                setIsAddingNestedFilter(false);
-
-                                if (!value) {
-                                    return;
-                                }
-
-                                handleAddNestedFilter(value);
-                            }}
-                        />
-                        <ActionIcon
-                            size="xs"
-                            onClick={() => setIsAddingNestedFilter(false)}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Group>
+                    <FilterFieldSelect
+                        availableFieldOptions={fieldOptions}
+                        onFieldChange={(fieldName) => {
+                            setIsAddingNestedFilter(false);
+                            handleAddNestedFilter(fieldName);
+                        }}
+                        onCancel={() => setIsAddingNestedFilter(false)}
+                        hasLeftSpacing={Boolean(nestedFilterProps)}
+                        isCreatingFilter
+                    />
                 )}
 
                 {hasNestedFilters ? (
