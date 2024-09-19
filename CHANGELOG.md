@@ -1,3 +1,15 @@
+# [0.1262.0](https://github.com/lightdash/lightdash/compare/0.1261.3...0.1262.0) (2024-09-19)
+
+
+### Bug Fixes
+
+* total count pagination bug ([#11608](https://github.com/lightdash/lightdash/issues/11608)) ([b0c5296](https://github.com/lightdash/lightdash/commit/b0c52967f22974c70a13bacdf0e3ffea668c57a5))
+
+
+### Features
+
+* time granularity label and separate menu ([#11584](https://github.com/lightdash/lightdash/issues/11584)) ([47006ef](https://github.com/lightdash/lightdash/commit/47006ef77270c059b7f5ed8f038d9ee2afff3ec1))
+
 ## [0.1261.3](https://github.com/lightdash/lightdash/compare/0.1261.2...0.1261.3) (2024-09-19)
 
 
