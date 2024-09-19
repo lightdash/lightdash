@@ -331,7 +331,7 @@ export const ContentPanel: FC = () => {
                                                     disabled={!hasUnrunChanges}
                                                     variant="xs"
                                                     withinPortal
-                                                    label="There are unsaved changes to the SQL query. Run the query to apply them."
+                                                    label="You haven't run this query yet."
                                                 >
                                                     <Group spacing={4} noWrap>
                                                         <MantineIcon
