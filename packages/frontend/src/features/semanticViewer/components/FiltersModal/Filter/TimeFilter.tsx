@@ -100,7 +100,7 @@ const RelativeTimeFilter: FC<RelativeTimeFilterProps> = ({
             {isSemanticLayerRelativeTimeFilter(filter) && (
                 <Select
                     size="xs"
-                    value={filter.relativeTime}
+                    value={filter.values.relativeTime}
                     data={relativeTimeOpts}
                     style={{ flex: 5 }}
                     withinPortal
@@ -112,8 +112,9 @@ const RelativeTimeFilter: FC<RelativeTimeFilterProps> = ({
                         if (isSemanticLayerRelativeTimeValue(value)) {
                             onUpdate({
                                 ...filter,
-                                values: undefined,
-                                relativeTime: value,
+                                values: {
+                                    relativeTime: value,
+                                },
                             });
                             return;
                         }

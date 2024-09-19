@@ -1,8 +1,8 @@
 import {
     assertUnreachable,
-    isSemanticLayerRelativeTimeFilter,
     isSemanticLayerStringFilter,
     isSemanticLayerTimeFilter,
+    SemanticLayerFilterRelativeTimeValue,
     type SemanticLayerField,
     type SemanticLayerFilter,
 } from '@lightdash/common';
@@ -188,21 +188,46 @@ const Filter: FC<FilterProps> = ({
                 return;
             }
 
-            const baseUpdate: Omit<SemanticLayerFilter, 'operator'> = {
+            const hasFieldTypeChanged =
+                updatedField.type !== filter.fieldType ||
+                updatedField.kind !== filter.fieldKind;
+
+            if (!hasFieldTypeChanged) {
+                onUpdate({
+                    ...updatedFilter,
+                    operator: updatedOperator,
+                });
+                return;
+            }
+
+            // ! reset values when field type changes
+
+            // update field kind & type
+            const baseUpdate = {
                 ...updatedFilter,
                 fieldKind: updatedField.kind,
                 fieldType: updatedField.type,
+                operator: updatedOperator,
             };
+
+            if (isSemanticLayerTimeFilter(baseUpdate)) {
+                onUpdate({
+                    ...baseUpdate,
+
+                    values: {
+                        relativeTime:
+                            SemanticLayerFilterRelativeTimeValue.TODAY,
+                    },
+                });
+                return;
+            }
 
             onUpdate({
                 ...baseUpdate,
-                ...(isSemanticLayerRelativeTimeFilter(updatedFilter)
-                    ? { relativeTime: updatedFilter.relativeTime }
-                    : { values: updatedFilter.values }),
-                operator: updatedOperator,
+                values: [],
             });
         },
-        [findFilterField, onUpdate],
+        [filter.fieldKind, filter.fieldType, findFilterField, onUpdate],
     );
 
     const handleDeleteNestedFilter = useCallback(

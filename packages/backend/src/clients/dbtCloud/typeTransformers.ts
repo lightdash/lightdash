@@ -109,62 +109,79 @@ export const getDbtTimeGranularity = (
     }
 };
 
-const getDbtFilterValuesFromSemanticLayerFilterValues = (
-    values: SemanticLayerFilter['values'],
+const getSimpleDbtValuesFromSemanticLayerFilter = (
+    filter: SemanticLayerFilter,
 ) => {
-    if (!values || values.length === 0) {
-        throw new Error(`Unsupported values: ${values}`);
+    if (isSemanticLayerExactTimeFilter(filter)) {
+        return `'${filter.values.time}'`;
     }
 
-    if (values.length > 1) {
-        return `(${values.map((value) => `'${value}'`).join(', ')})`;
+    if (
+        isSemanticLayerRelativeTimeFilter(filter) ||
+        !filter.values ||
+        filter.values.length === 0
+    ) {
+        throw new Error(`Unsupported values: ${filter.values}`);
     }
 
-    return `'${values[0]}'`;
+    if (filter.values.length > 1) {
+        return `(${filter.values.map((value) => `'${value}'`).join(', ')})`;
+    }
+
+    return `'${filter.values[0]}'`;
 };
 
-const getSimpleDbtOperatorForSemanticLayerBaseOperator = (
-    operator: SemanticLayerFilterBaseOperator,
-    values: SemanticLayerFilter['values'],
+const getSimpleDbtOperator = (
+    filter: SemanticLayerFilter,
 ): DbtWhereOperator => {
-    if (!isSemanticLayerBaseOperator(operator)) {
-        throw new Error(`Unsupported operator type: ${operator}`);
+    if (!isSemanticLayerBaseOperator(filter.operator)) {
+        throw new Error(`Unsupported operator type: ${filter.operator}`);
     }
 
-    if (!values) {
-        throw new Error(`Unsupported values for simple operator: ${values}`);
+    if (isSemanticLayerRelativeTimeFilter(filter) || !filter.values) {
+        throw new Error(
+            `Unsupported values for simple operator: ${filter.values}`,
+        );
     }
 
-    switch (operator) {
+    switch (filter.operator) {
         case SemanticLayerFilterBaseOperator.IS:
-            if (values.length > 1) {
+            if (
+                !isSemanticLayerExactTimeFilter(filter) &&
+                filter.values.length > 1
+            ) {
                 return DbtWhereOperator.IN;
             }
 
             return DbtWhereOperator.EQUALS;
         case SemanticLayerFilterBaseOperator.IS_NOT:
-            if (values.length > 1) {
+            if (
+                !isSemanticLayerExactTimeFilter(filter) &&
+                filter.values.length > 1
+            ) {
                 return DbtWhereOperator.NOT_IN;
             }
 
             return DbtWhereOperator.NOT_EQUALS;
         default:
             return assertUnreachable(
-                operator,
-                `Unknown semantic layer filter operator: ${operator}`,
+                filter.operator,
+                `Unknown semantic layer filter operator: ${filter.operator}`,
             );
     }
 };
 
-const getRelativeTimeOperators = (
-    operator: SemanticLayerFilterBaseOperator,
-    value: SemanticLayerFilterRelativeTimeValue,
+const getRelativeTimeDbtOperators = (
+    filter: SemanticLayerRelativeTimeFilter,
 ): [DbtWhereOperator, DbtWhereOperator | undefined] => {
+    const { operator, values } = filter;
+    const { relativeTime } = values;
+
     switch (operator) {
         case SemanticLayerFilterBaseOperator.IS:
             if (
-                value === SemanticLayerFilterRelativeTimeValue.TODAY ||
-                value === SemanticLayerFilterRelativeTimeValue.YESTERDAY
+                relativeTime === SemanticLayerFilterRelativeTimeValue.TODAY ||
+                relativeTime === SemanticLayerFilterRelativeTimeValue.YESTERDAY
             ) {
                 return [DbtWhereOperator.EQUALS, undefined];
             }
@@ -172,8 +189,8 @@ const getRelativeTimeOperators = (
             return [DbtWhereOperator.GTE, DbtWhereOperator.LTE];
         case SemanticLayerFilterBaseOperator.IS_NOT:
             if (
-                value === SemanticLayerFilterRelativeTimeValue.TODAY ||
-                value === SemanticLayerFilterRelativeTimeValue.YESTERDAY
+                relativeTime === SemanticLayerFilterRelativeTimeValue.TODAY ||
+                relativeTime === SemanticLayerFilterRelativeTimeValue.YESTERDAY
             ) {
                 return [DbtWhereOperator.NOT_EQUALS, undefined];
             }
@@ -188,67 +205,58 @@ const getRelativeTimeOperators = (
 };
 
 const getStringFilterSql = (filter: SemanticLayerStringFilter) =>
-    `{{ Dimension('${
-        filter.fieldRef
-    }') }} ${getSimpleDbtOperatorForSemanticLayerBaseOperator(
-        filter.operator,
-        filter.values,
-    )} ${getDbtFilterValuesFromSemanticLayerFilterValues(filter.values)}`;
+    `{{ Dimension('${filter.fieldRef}') }} ${getSimpleDbtOperator(
+        filter,
+    )} ${getSimpleDbtValuesFromSemanticLayerFilter(filter)}`;
 
 const getExactTimeFilterSql = (filter: SemanticLayerExactTimeFilter) =>
-    `{{ TimeDimension('${
-        filter.fieldRef
-    }', 'day') }} ${getSimpleDbtOperatorForSemanticLayerBaseOperator(
-        filter.operator,
-        filter.values,
-    )} ${getDbtFilterValuesFromSemanticLayerFilterValues(filter.values)}`;
+    `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${getSimpleDbtOperator(
+        filter,
+    )} ${getSimpleDbtValuesFromSemanticLayerFilter(filter)}`;
 
 const getRelativeTimeFilterSql = (
     filter: SemanticLayerRelativeTimeFilter,
     now = moment(),
 ) => {
     const today = now.format('YYYY-MM-DD');
-    const operators = getRelativeTimeOperators(
-        filter.operator,
-        filter.relativeTime,
-    );
+    const dbtOperators = getRelativeTimeDbtOperators(filter);
 
-    switch (filter.relativeTime) {
+    switch (filter.values.relativeTime) {
         case SemanticLayerFilterRelativeTimeValue.TODAY:
-            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${today}'`;
+            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${dbtOperators[0]} '${today}'`;
         case SemanticLayerFilterRelativeTimeValue.YESTERDAY:
             const yesterday = now
                 .clone()
                 .subtract(1, 'day')
                 .format('YYYY-MM-DD');
 
-            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${yesterday}'`;
+            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${dbtOperators[0]} '${yesterday}'`;
         case SemanticLayerFilterRelativeTimeValue.LAST_7_DAYS:
             const sevenDaysAgo = now
                 .clone()
                 .subtract(7, 'day')
                 .format('YYYY-MM-DD');
 
-            if (operators[1]) {
-                return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${sevenDaysAgo}' AND {{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[1]} '${today}'`;
+            if (dbtOperators[1]) {
+                return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${dbtOperators[0]} '${sevenDaysAgo}' AND {{ TimeDimension('${filter.fieldRef}', 'day') }} ${dbtOperators[1]} '${today}'`;
             }
 
-            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${sevenDaysAgo}'`;
+            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${dbtOperators[0]} '${sevenDaysAgo}'`;
         case SemanticLayerFilterRelativeTimeValue.LAST_30_DAYS:
             const thirtyDaysAgo = now
                 .clone()
                 .subtract(30, 'day')
                 .format('YYYY-MM-DD');
 
-            if (operators[1]) {
-                return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${thirtyDaysAgo}' AND {{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[1]} '${today}'`;
+            if (dbtOperators[1]) {
+                return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${dbtOperators[0]} '${thirtyDaysAgo}' AND {{ TimeDimension('${filter.fieldRef}', 'day') }} ${dbtOperators[1]} '${today}'`;
             }
 
-            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${thirtyDaysAgo}'`;
+            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${dbtOperators[0]} '${thirtyDaysAgo}'`;
         default:
             return assertUnreachable(
-                filter.relativeTime,
-                `Unknown semantic layer relative time value: ${filter.relativeTime}`,
+                filter.values.relativeTime,
+                `Unknown semantic layer relative time value: ${filter.values.relativeTime}`,
             );
     }
 };
@@ -268,7 +276,11 @@ const getTimeFilterSql = (filter: SemanticLayerTimeFilter) => {
 const getDbtFilterSqlFromSemanticLayerFilter = (
     filter: SemanticLayerFilter,
 ): string => {
-    if (filter.values && filter.values.length === 0) {
+    if (
+        !isSemanticLayerTimeFilter(filter) &&
+        filter.values &&
+        filter.values.length === 0
+    ) {
         return 'TRUE';
     }
 

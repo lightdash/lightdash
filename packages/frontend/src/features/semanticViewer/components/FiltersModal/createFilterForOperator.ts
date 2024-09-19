@@ -22,8 +22,9 @@ export function createFilterForOperator(
             ...rest,
             uuid,
             operator,
-            values: undefined,
-            relativeTime: SemanticLayerFilterRelativeTimeValue.TODAY,
+            values: {
+                relativeTime: SemanticLayerFilterRelativeTimeValue.TODAY,
+            },
         };
     }
 

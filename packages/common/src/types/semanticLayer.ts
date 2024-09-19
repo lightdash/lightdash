@@ -236,13 +236,12 @@ export type SemanticLayerStringFilter = SemanticLayerFilterBase & {
 
 export type SemanticLayerExactTimeFilter = SemanticLayerFilterBase & {
     operator: SemanticLayerFilterBaseOperator;
-    values: string[];
+    values: { time: string };
 };
 
 export type SemanticLayerRelativeTimeFilter = SemanticLayerFilterBase & {
     operator: SemanticLayerFilterBaseOperator;
-    values: undefined;
-    relativeTime: SemanticLayerFilterRelativeTimeValue;
+    values: { relativeTime: SemanticLayerFilterRelativeTimeValue };
 };
 
 export type SemanticLayerTimeFilter =
@@ -288,22 +287,19 @@ export function isSemanticLayerRelativeTimeValue(
 }
 
 export function isSemanticLayerRelativeTimeFilter(
-    filter: SemanticLayerFilter,
+    filter: Pick<SemanticLayerFilter, 'fieldType' | 'values'>,
 ): filter is SemanticLayerRelativeTimeFilter {
     return (
         isSemanticLayerTimeFilter(filter) &&
-        'relativeTime' in filter &&
-        isSemanticLayerRelativeTimeValue(filter.relativeTime)
+        'relativeTime' in filter.values &&
+        isSemanticLayerRelativeTimeValue(filter.values.relativeTime)
     );
 }
 
 export function isSemanticLayerExactTimeFilter(
-    filter: SemanticLayerFilter,
+    filter: Pick<SemanticLayerFilter, 'fieldType' | 'values'>,
 ): filter is SemanticLayerExactTimeFilter {
-    return (
-        isSemanticLayerTimeFilter(filter) &&
-        !isSemanticLayerRelativeTimeFilter(filter)
-    );
+    return isSemanticLayerTimeFilter(filter) && 'time' in filter.values;
 }
 
 export function getAvailableSemanticLayerFilterOperators(
@@ -320,7 +316,6 @@ export function getAvailableSemanticLayerFilterOperators(
             return [];
         case SemanticLayerFieldType.TIME:
             return [
-                // TODO: Omitting exact operators for now
                 SemanticLayerFilterBaseOperator.IS,
                 SemanticLayerFilterBaseOperator.IS_NOT,
             ];
