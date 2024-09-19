@@ -3,6 +3,7 @@ import {
     ActionIcon,
     Button,
     Group,
+    HoverCard,
     Paper,
     Stack,
     Title,
@@ -30,6 +31,7 @@ import {
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
+import { SqlQueryBeforeSaveAlert } from '../SqlQueryBeforeSaveAlert';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
 
 export const HeaderEdit: FC = () => {
@@ -43,6 +45,9 @@ export const HeaderEdit: FC = () => {
     );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
+    const hasUnrunChanges = useAppSelector(
+        (state) => state.sqlRunner.hasUnrunChanges,
+    );
 
     const config = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
@@ -169,15 +174,23 @@ export const HeaderEdit: FC = () => {
                     </Stack>
 
                     <Group spacing="md">
-                        <Button
-                            size="xs"
-                            color={'green.7'}
-                            disabled={!config || !sql || !hasChanges}
-                            loading={isLoading}
-                            onClick={onSaveClick}
-                        >
-                            Save
-                        </Button>
+                        <HoverCard disabled={!hasUnrunChanges} withArrow>
+                            <HoverCard.Target>
+                                <Button
+                                    size="xs"
+                                    color={'green.7'}
+                                    disabled={!config || !sql || !hasChanges}
+                                    loading={isLoading}
+                                    onClick={onSaveClick}
+                                >
+                                    Save
+                                </Button>
+                            </HoverCard.Target>
+                            <HoverCard.Dropdown p={0} bg="yellow.0">
+                                <SqlQueryBeforeSaveAlert />
+                            </HoverCard.Dropdown>
+                        </HoverCard>
+
                         <Tooltip
                             variant="xs"
                             label="Back to view page"
