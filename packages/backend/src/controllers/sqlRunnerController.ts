@@ -6,8 +6,8 @@ import {
     ApiSqlChart,
     ApiSuccessEmpty,
     ApiUpdateSqlChart,
-    ApiWarehouseCatalog,
     ApiWarehouseTableFields,
+    ApiWarehouseTablesCatalog,
     CreateCustomExplorePayload,
     CreateSqlChart,
     SqlRunnerBody,
@@ -55,7 +55,7 @@ export class SqlRunnerController extends BaseController {
     async getTables(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiWarehouseCatalog> {
+    ): Promise<ApiWarehouseTablesCatalog> {
         this.setStatus(200);
         return {
             status: 'ok',

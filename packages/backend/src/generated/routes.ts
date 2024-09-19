@@ -6546,17 +6546,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    WarehouseTableSchema: {
+    PartitionType: {
+        dataType: 'refEnum',
+        enums: ['DATE', 'RANGE'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PartitionColumn: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { ref: 'DimensionType' },
+            nestedProperties: {
+                field: { dataType: 'string', required: true },
+                partitionType: { ref: 'PartitionType', required: true },
+            },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    WarehouseCatalog: {
+    WarehouseTablesCatalog: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6567,21 +6574,36 @@ const models: TsoaRoute.Models = {
                 additionalProperties: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {},
-                    additionalProperties: { ref: 'WarehouseTableSchema' },
+                    additionalProperties: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            partitionColumn: { ref: 'PartitionColumn' },
+                        },
+                    },
                 },
             },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiWarehouseCatalog: {
+    ApiWarehouseTablesCatalog: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'WarehouseCatalog', required: true },
+                results: { ref: 'WarehouseTablesCatalog', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WarehouseTableSchema: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DimensionType' },
             validators: {},
         },
     },

@@ -7288,21 +7288,35 @@
                 "required": ["spaceRole", "groupUuid"],
                 "type": "object"
             },
-            "WarehouseTableSchema": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/DimensionType"
+            "PartitionType": {
+                "enum": ["DATE", "RANGE"],
+                "type": "string"
+            },
+            "PartitionColumn": {
+                "properties": {
+                    "field": {
+                        "type": "string"
+                    },
+                    "partitionType": {
+                        "$ref": "#/components/schemas/PartitionType"
+                    }
                 },
+                "required": ["field", "partitionType"],
                 "type": "object"
             },
-            "WarehouseCatalog": {
+            "WarehouseTablesCatalog": {
                 "properties": {},
                 "additionalProperties": {
                     "properties": {},
                     "additionalProperties": {
                         "properties": {},
                         "additionalProperties": {
-                            "$ref": "#/components/schemas/WarehouseTableSchema"
+                            "properties": {
+                                "partitionColumn": {
+                                    "$ref": "#/components/schemas/PartitionColumn"
+                                }
+                            },
+                            "type": "object"
                         },
                         "type": "object"
                     },
@@ -7310,10 +7324,10 @@
                 },
                 "type": "object"
             },
-            "ApiWarehouseCatalog": {
+            "ApiWarehouseTablesCatalog": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/WarehouseCatalog"
+                        "$ref": "#/components/schemas/WarehouseTablesCatalog"
                     },
                     "status": {
                         "type": "string",
@@ -7322,6 +7336,13 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "WarehouseTableSchema": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DimensionType"
+                },
                 "type": "object"
             },
             "ApiWarehouseTableFields": {
@@ -9914,7 +9935,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1256.0",
+        "version": "0.1263.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
