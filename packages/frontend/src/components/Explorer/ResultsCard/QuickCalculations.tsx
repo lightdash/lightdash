@@ -3,11 +3,11 @@ import {
     CustomFormatType,
     getFieldQuoteChar,
     MetricType,
+    WarehouseTypes,
     type CustomFormat,
     type Metric,
     type SortField,
     type TableCalculation,
-    type WarehouseTypes,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { type FC } from 'react';
@@ -96,7 +96,8 @@ const getSqlForQuickCalculation = (
     warehouseType: WarehouseTypes | undefined,
 ) => {
     const fieldQuoteChar = getFieldQuoteChar(warehouseType);
-
+    const floatType =
+        warehouseType === WarehouseTypes.BIGQUERY ? 'FLOAT64' : 'FLOAT';
     const orderSql = (reverseSorting: boolean = false) =>
         sorts.length > 0
             ? `ORDER BY ${sorts
@@ -114,19 +115,22 @@ const getSqlForQuickCalculation = (
     switch (quickCalculation) {
         case QuickCalculation.PERCENT_CHANGE_FROM_PREVIOUS:
             return `(
-              \${${fieldReference}} / NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql(
+               CAST( \${${fieldReference}} AS ${floatType}) / 
+               CAST(NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql(
                 true,
-            )}) ,0)
+            )}) ,0)  AS ${floatType}) 
             ) - 1`;
         case QuickCalculation.PERCENT_OF_PREVIOUS_VALUE:
             return `(
-              \${${fieldReference}} / NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql(
+              CAST(\${${fieldReference}} AS ${floatType}) / 
+              CAST(NULLIF(LAG(\${${fieldReference}}) OVER(${orderSql(
                 true,
-            )}),0)
+            )}),0) AS ${floatType}) 
             )`;
         case QuickCalculation.PERCENT_OF_COLUMN_TOTAL:
             return `(
-              \${${fieldReference}} / NULLIF(SUM(\${${fieldReference}}) OVER(),0) 
+              CAST(\${${fieldReference}} AS ${floatType}) / 
+              CAST(NULLIF(SUM(\${${fieldReference}}) OVER(),0) AS ${floatType}) 
             )`;
         case QuickCalculation.RANK_IN_COLUMN:
             return `RANK() OVER(ORDER BY \${${fieldReference}} ASC)`;
