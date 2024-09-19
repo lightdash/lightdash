@@ -1,5 +1,4 @@
 import {
-    Box,
     Button,
     Group,
     Modal,
@@ -10,13 +9,8 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { Editor } from '@monaco-editor/react';
-import {
-    IconAlertTriangle,
-    IconChartBar,
-    IconChevronDown,
-    IconChevronRight,
-} from '@tabler/icons-react';
+import { IconChartBar } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { type z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -34,80 +28,21 @@ import {
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
+import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { updateName } from '../store/sqlRunnerSlice';
-
-const PreviousSqlQueryAlert: FC = () => {
-    const [isCodeExpanded, setIsCodeExpanded] = useState(false);
-    const sqlToSave = useAppSelector(
-        (state) => state.sqlRunner.successfulSqlQueries.current,
-    );
-    return (
-        <Box
-            m="sm"
-            sx={(theme) => ({
-                border: `1px solid ${theme.colors.gray[3]}`,
-                borderRadius: theme.radius.md,
-                overflow: 'hidden',
-            })}
-        >
-            <Button
-                color="yellow.8"
-                w="100%"
-                variant="light"
-                onClick={() => {
-                    setIsCodeExpanded((prev) => !prev);
-                }}
-            >
-                <Group spacing="xs">
-                    <MantineIcon icon={IconAlertTriangle} color="yellow.6" />
-                    <Text fz="xs" fw={500}>
-                        Your chart will be saved with the last successful query.
-                    </Text>
-
-                    <MantineIcon
-                        icon={
-                            isCodeExpanded ? IconChevronDown : IconChevronRight
-                        }
-                    />
-                </Group>
-            </Button>
-
-            {isCodeExpanded && (
-                <Box
-                    sx={(theme) => ({
-                        borderTop: `1px solid ${theme.colors.gray[3]}`,
-                    })}
-                >
-                    <Editor
-                        height={200}
-                        width={400}
-                        language="sql"
-                        value={sqlToSave}
-                        options={{
-                            readOnly: true,
-                            minimap: { enabled: false },
-                            scrollBeyondLastLine: false,
-                            contextmenu: false,
-                            lineNumbers: 'off',
-                            glyphMargin: false,
-                            lineDecorationsWidth: 0,
-                            revealHorizontalRightPadding: 0,
-                            roundedSelection: false,
-                        }}
-                        theme="lightdash"
-                    />
-                </Box>
-            )}
-        </Box>
-    );
-};
+import { SqlQueryBeforeSaveAlert } from './SqlQueryBeforeSaveAlert';
 
 type FormValues = z.infer<typeof validationSchema>;
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
 export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
+    const hasUnrunChanges = useAppSelector(
+        (state) => state.sqlRunner.hasUnrunChanges,
+    );
+    const [showWarning, setShowWarning] = useState(hasUnrunChanges);
+
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
@@ -151,9 +86,12 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
+
     const sqlToSave = useAppSelector(
         (state) => state.sqlRunner.successfulSqlQueries.current,
     );
+    const unsavedSql = useAppSelector((state) => state.sqlRunner.sql);
+
     const limit = useAppSelector((state) => state.sqlRunner.limit);
     const selectedChartConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
@@ -217,9 +155,75 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         createSavedSqlChart,
         limit,
     ]);
+    const { mutateAsync: runSqlQuery } = useSqlQueryRun(projectUuid);
 
-    const hasUnrunChanges = useAppSelector(
-        (state) => state.sqlRunner.hasUnrunChanges,
+    const handleUse = async (value: 'unsaved' | 'previous') => {
+        if (value === 'unsaved' && unsavedSql) {
+            // run sql query
+            await runSqlQuery({
+                sql: unsavedSql,
+                limit,
+            });
+            setShowWarning(false);
+        } else if (value === 'previous') {
+            setShowWarning(false);
+        }
+    };
+
+    const renderWarning = () => (
+        <Stack p="md">
+            <SqlQueryBeforeSaveAlert onUse={handleUse} />
+        </Stack>
+    );
+
+    const renderSaveForm = () => (
+        <form onSubmit={form.onSubmit(handleOnSubmit)}>
+            <Stack p="md" pt={hasUnrunChanges ? 0 : 'md'}>
+                <Stack spacing="xs">
+                    <TextInput
+                        label="Chart name"
+                        placeholder="eg. How many weekly active users do we have?"
+                        required
+                        {...form.getInputProps('name')}
+                    />
+                    <Textarea
+                        label="Description"
+                        {...form.getInputProps('description')}
+                    />
+                </Stack>
+                <SaveToSpace
+                    form={form}
+                    spaces={spaces}
+                    projectUuid={projectUuid}
+                />
+            </Stack>
+
+            <Group
+                position="right"
+                w="100%"
+                sx={(theme) => ({
+                    borderTop: `1px solid ${theme.colors.gray[4]}`,
+                    bottom: 0,
+                    padding: theme.spacing.md,
+                })}
+            >
+                <Button
+                    onClick={onClose}
+                    variant="outline"
+                    disabled={isCreatingSavedSqlChart}
+                >
+                    Cancel
+                </Button>
+
+                <Button
+                    type="submit"
+                    disabled={!form.values.name || !sqlToSave}
+                    loading={isCreatingSavedSqlChart}
+                >
+                    Save
+                </Button>
+            </Group>
+        </form>
     );
 
     return (
@@ -230,7 +234,11 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
             title={
                 <Group spacing="xs">
                     <MantineIcon icon={IconChartBar} size="lg" color="gray.7" />
-                    <Text fw={500}>Save chart</Text>
+                    <Text fw={500}>
+                        {showWarning
+                            ? 'You have unsaved changes'
+                            : 'Save Chart'}
+                    </Text>
                 </Group>
             }
             styles={(theme) => ({
@@ -238,54 +246,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
                 body: { padding: 0 },
             })}
         >
-            {hasUnrunChanges && <PreviousSqlQueryAlert />}
-            <form onSubmit={form.onSubmit(handleOnSubmit)}>
-                <Stack p="md" pt={hasUnrunChanges ? 0 : 'md'}>
-                    <Stack spacing="xs">
-                        <TextInput
-                            label="Chart name"
-                            placeholder="eg. How many weekly active users do we have?"
-                            required
-                            {...form.getInputProps('name')}
-                        />
-                        <Textarea
-                            label="Description"
-                            {...form.getInputProps('description')}
-                        />
-                    </Stack>
-                    <SaveToSpace
-                        form={form}
-                        spaces={spaces}
-                        projectUuid={projectUuid}
-                    />
-                </Stack>
-
-                <Group
-                    position="right"
-                    w="100%"
-                    sx={(theme) => ({
-                        borderTop: `1px solid ${theme.colors.gray[4]}`,
-                        bottom: 0,
-                        padding: theme.spacing.md,
-                    })}
-                >
-                    <Button
-                        onClick={onClose}
-                        variant="outline"
-                        disabled={isCreatingSavedSqlChart}
-                    >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        type="submit"
-                        disabled={!form.values.name || !sqlToSave}
-                        loading={isCreatingSavedSqlChart}
-                    >
-                        Save
-                    </Button>
-                </Group>
-            </form>
+            {showWarning ? renderWarning() : renderSaveForm()}
         </Modal>
     );
 };
