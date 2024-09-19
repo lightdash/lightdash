@@ -1,4 +1,8 @@
-import { type ApiError, type ApiWarehouseCatalog } from '@lightdash/common';
+import {
+    type ApiError,
+    type ApiWarehouseCatalog,
+    type ApiWarehouseTablesCatalog,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../../../api';
@@ -29,7 +33,7 @@ const refreshTables = async ({
 export type TablesBySchema =
     | {
           schema: keyof ApiWarehouseCatalog['results'][0];
-          tables: ApiWarehouseCatalog['results'][0]['tables'];
+          tables: ApiWarehouseTablesCatalog['results'][0]['tables'];
       }[]
     | undefined;
 
