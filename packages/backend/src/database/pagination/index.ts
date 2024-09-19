@@ -23,13 +23,13 @@ export default class KnexPaginate {
             }
 
             const offset = (page - 1) * pageSize;
-            const totalRecordsCountPromise = query
-                .clone()
-                .clear('select')
-                .clear('group')
-                .clear('order')
-                .count<{ count: string }[]>()
-                .first();
+            const totalRecordsCountPromise = query.client.raw(
+                `
+                WITH count_cte AS (?)
+                SELECT count(*) FROM count_cte
+            `,
+                [query.clone().clear('limit').clear('offset')],
+            );
             const dataPromise = query.clone().offset(offset).limit(pageSize);
             const [count, data] = await Promise.all([
                 totalRecordsCountPromise,
