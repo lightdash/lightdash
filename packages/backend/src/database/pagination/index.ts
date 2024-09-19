@@ -26,24 +26,24 @@ export default class KnexPaginate {
             const totalRecordsCountPromise = query.client.raw(
                 `
                 WITH count_cte AS (?)
-                SELECT count(*) FROM count_cte
+                SELECT count(*) as count FROM count_cte
             `,
                 [query.clone().clear('limit').clear('offset')],
             );
             const dataPromise = query.clone().offset(offset).limit(pageSize);
-            const [count, data] = await Promise.all([
+            const [countData, data] = await Promise.all([
                 totalRecordsCountPromise,
                 dataPromise,
             ]);
+
+            const count = Number(countData?.rows?.[0]?.count) || 0;
 
             return {
                 data: data as TResult,
                 pagination: {
                     page,
                     pageSize,
-                    totalPageCount: Math.ceil(
-                        (Number(count?.count) || 0) / pageSize,
-                    ),
+                    totalPageCount: Math.ceil(count / pageSize),
                 },
             };
         }
