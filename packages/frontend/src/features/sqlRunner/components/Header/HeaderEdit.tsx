@@ -15,11 +15,19 @@ import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
-import { selectChartConfigByKind } from '../../../../components/DataViz/store/selectors';
+import {
+    cartesianChartSelectors,
+    selectChartConfigByKind,
+} from '../../../../components/DataViz/store/selectors';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { useUpdateSqlChartMutation } from '../../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { toggleModal } from '../../store/sqlRunnerSlice';
+import {
+    EditorTabs,
+    setActiveEditorTab,
+    toggleModal,
+} from '../../store/sqlRunnerSlice';
+import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
@@ -90,6 +98,28 @@ export const HeaderEdit: FC = () => {
     const onCloseUpdateModal = useCallback(() => {
         dispatch(toggleModal('updateChartModal'));
     }, [dispatch]);
+    const isChartErrorsAlertOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.chartErrorsAlert.isOpen,
+    );
+    const onCloseChartErrorsAlert = useCallback(() => {
+        dispatch(toggleModal('chartErrorsAlert'));
+    }, [dispatch]);
+    const onFixButtonClick = useCallback(() => {
+        dispatch(toggleModal('chartErrorsAlert'));
+        dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
+    }, [dispatch]);
+
+    const hasErrors = useAppSelector(
+        (state) =>
+            !!cartesianChartSelectors.getErrors(state, selectedChartType),
+    );
+    const onSaveClick = useCallback(() => {
+        if (hasErrors) {
+            dispatch(toggleModal('chartErrorsAlert'));
+        } else if (config && sql) {
+            onSave();
+        }
+    }, [hasErrors, config, sql, dispatch, onSave]);
 
     if (!savedSqlChart) {
         return null;
@@ -143,11 +173,7 @@ export const HeaderEdit: FC = () => {
                             color={'green.7'}
                             disabled={!config || !sql || !hasChanges}
                             loading={isLoading}
-                            onClick={() => {
-                                if (config && sql) {
-                                    onSave();
-                                }
-                            }}
+                            onClick={onSaveClick}
                         >
                             Save
                         </Button>
@@ -206,6 +232,12 @@ export const HeaderEdit: FC = () => {
                         `/projects/${savedSqlChart.project.projectUuid}/home`,
                     )
                 }
+            />
+
+            <ChartErrorsAlert
+                opened={isChartErrorsAlertOpen}
+                onClose={onCloseChartErrorsAlert}
+                onFixButtonClick={onFixButtonClick}
             />
         </>
     );

@@ -6,6 +6,7 @@ import {
 import {
     Box,
     Group,
+    Indicator,
     LoadingOverlay,
     Paper,
     SegmentedControl,
@@ -39,7 +40,10 @@ import { ConditionalVisibility } from '../../../components/common/ConditionalVis
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
-import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import {
+    cartesianChartSelectors,
+    selectChartConfigByKind,
+} from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
@@ -59,6 +63,7 @@ import {
 } from '../store/sqlRunnerSlice';
 import { DownloadCsvButton } from './DownloadCsvButton';
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
+import { SqlQueryHistory } from './SqlQueryHistory';
 
 const DEFAULT_SQL_LIMIT = 500;
 
@@ -279,6 +284,11 @@ export const ContentPanel: FC = () => {
         });
     }, [chartVizQuery.data]);
 
+    const hasErrors = useAppSelector(
+        (state) =>
+            !!cartesianChartSelectors.getErrors(state, selectedChartType),
+    );
+
     return (
         <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
             <Tooltip.Group>
@@ -296,69 +306,80 @@ export const ContentPanel: FC = () => {
                 >
                     <Group position="apart">
                         <Group position="apart">
-                            <SegmentedControl
-                                styles={(theme) => ({
-                                    root: {
-                                        backgroundColor: theme.colors.gray[2],
-                                    },
-                                })}
-                                size="sm"
-                                radius="md"
-                                data={[
-                                    {
-                                        value: EditorTabs.SQL,
-                                        label: (
-                                            <Group spacing={4} noWrap>
-                                                <MantineIcon
-                                                    color="gray.6"
-                                                    icon={IconCodeCircle}
-                                                />
-                                                <Text>SQL</Text>
-                                            </Group>
-                                        ),
-                                    },
-                                    {
-                                        value: EditorTabs.VISUALIZATION,
-                                        label: (
-                                            <Tooltip
-                                                disabled={
-                                                    !!queryResults?.results
-                                                }
-                                                variant="xs"
-                                                withinPortal
-                                                label="Run a query to see the chart"
-                                            >
+                            <Indicator
+                                color="red.6"
+                                offset={10}
+                                disabled={!hasErrors}
+                            >
+                                <SegmentedControl
+                                    styles={(theme) => ({
+                                        root: {
+                                            backgroundColor:
+                                                theme.colors.gray[2],
+                                        },
+                                    })}
+                                    size="sm"
+                                    radius="md"
+                                    data={[
+                                        {
+                                            value: EditorTabs.SQL,
+                                            label: (
                                                 <Group spacing={4} noWrap>
                                                     <MantineIcon
                                                         color="gray.6"
-                                                        icon={
-                                                            IconChartHistogram
-                                                        }
+                                                        icon={IconCodeCircle}
                                                     />
-                                                    <Text>Chart</Text>
+                                                    <Text>SQL</Text>
                                                 </Group>
-                                            </Tooltip>
-                                        ),
-                                    },
-                                ]}
-                                value={activeEditorTab}
-                                onChange={(value: EditorTabs) => {
-                                    if (isLoading) {
-                                        return;
-                                    }
+                                            ),
+                                        },
+                                        {
+                                            value: EditorTabs.VISUALIZATION,
+                                            label: (
+                                                <Tooltip
+                                                    disabled={
+                                                        !!queryResults?.results
+                                                    }
+                                                    variant="xs"
+                                                    withinPortal
+                                                    label="Run a query to see the chart"
+                                                >
+                                                    <Group spacing={4} noWrap>
+                                                        <MantineIcon
+                                                            color="gray.6"
+                                                            icon={
+                                                                IconChartHistogram
+                                                            }
+                                                        />
+                                                        <Text>Chart</Text>
+                                                    </Group>
+                                                </Tooltip>
+                                            ),
+                                        },
+                                    ]}
+                                    value={activeEditorTab}
+                                    onChange={(value: EditorTabs) => {
+                                        if (isLoading) {
+                                            return;
+                                        }
 
-                                    if (
-                                        value === EditorTabs.VISUALIZATION &&
-                                        !queryResults?.results
-                                    ) {
-                                        return;
-                                    }
+                                        if (
+                                            value ===
+                                                EditorTabs.VISUALIZATION &&
+                                            !queryResults?.results
+                                        ) {
+                                            return;
+                                        }
 
-                                    dispatch(setActiveEditorTab(value));
-                                }}
-                            />
+                                        dispatch(setActiveEditorTab(value));
+                                    }}
+                                />
+                            </Indicator>
                         </Group>
-                        <Group>
+                        <Group spacing="xs">
+                            {activeEditorTab === EditorTabs.SQL && (
+                                <SqlQueryHistory />
+                            )}
                             <RunSqlQueryButton
                                 isLoading={isLoading}
                                 disabled={!sql}

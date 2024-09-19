@@ -188,3 +188,22 @@ export type VizChartConfig =
     | VizLineChartConfig
     | VizPieChartConfig
     | VizTableConfig;
+
+export type VizConfigErrors = {
+    indexFieldError?: {
+        reference: string;
+    };
+    valuesFieldError?: {
+        references: string[];
+    };
+    groupByFieldError?: {
+        references: string[];
+    };
+};
+
+// TODO: this can probably go in VizTableColumnsConfig
+export type VizTableHeaderSortConfig = {
+    [fieldName: string]: {
+        direction: SortByDirection | undefined;
+    };
+};

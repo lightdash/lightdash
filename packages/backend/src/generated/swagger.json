@@ -7288,21 +7288,35 @@
                 "required": ["spaceRole", "groupUuid"],
                 "type": "object"
             },
-            "WarehouseTableSchema": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/DimensionType"
+            "PartitionType": {
+                "enum": ["DATE", "RANGE"],
+                "type": "string"
+            },
+            "PartitionColumn": {
+                "properties": {
+                    "field": {
+                        "type": "string"
+                    },
+                    "partitionType": {
+                        "$ref": "#/components/schemas/PartitionType"
+                    }
                 },
+                "required": ["field", "partitionType"],
                 "type": "object"
             },
-            "WarehouseCatalog": {
+            "WarehouseTablesCatalog": {
                 "properties": {},
                 "additionalProperties": {
                     "properties": {},
                     "additionalProperties": {
                         "properties": {},
                         "additionalProperties": {
-                            "$ref": "#/components/schemas/WarehouseTableSchema"
+                            "properties": {
+                                "partitionColumn": {
+                                    "$ref": "#/components/schemas/PartitionColumn"
+                                }
+                            },
+                            "type": "object"
                         },
                         "type": "object"
                     },
@@ -7310,10 +7324,10 @@
                 },
                 "type": "object"
             },
-            "ApiWarehouseCatalog": {
+            "ApiWarehouseTablesCatalog": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/WarehouseCatalog"
+                        "$ref": "#/components/schemas/WarehouseTablesCatalog"
                     },
                     "status": {
                         "type": "string",
@@ -7322,6 +7336,13 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "WarehouseTableSchema": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DimensionType"
+                },
                 "type": "object"
             },
             "ApiWarehouseTableFields": {
@@ -9207,15 +9228,15 @@
                 ],
                 "type": "string"
             },
-            "SemanticLayerFilterBaseOperator": {
-                "enum": ["IS", "IS_NOT"],
+            "SemanticLayerStringFilterOperator": {
+                "enum": ["IS", "IS NOT"],
                 "type": "string"
             },
             "SemanticLayerField": {
                 "properties": {
                     "availableOperators": {
                         "items": {
-                            "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
                         },
                         "type": "array"
                     },
@@ -9371,14 +9392,14 @@
                     "fieldKind": {
                         "$ref": "#/components/schemas/FieldType"
                     },
-                    "fieldRef": {
+                    "field": {
                         "type": "string"
                     },
                     "uuid": {
                         "type": "string"
                     }
                 },
-                "required": ["fieldType", "fieldKind", "fieldRef", "uuid"],
+                "required": ["fieldType", "fieldKind", "field", "uuid"],
                 "type": "object"
             },
             "SemanticLayerStringFilter": {
@@ -9395,79 +9416,16 @@
                                 "type": "array"
                             },
                             "operator": {
-                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                                "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
                             }
                         },
                         "required": ["values", "operator"],
                         "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerExactTimeFilter": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
-                    },
-                    {
-                        "properties": {
-                            "values": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "operator": {
-                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
-                            }
-                        },
-                        "required": ["values", "operator"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerFilterRelativeTimeValue": {
-                "enum": ["TODAY", "YESTERDAY", "LAST_7_DAYS", "LAST_30_DAYS"],
-                "type": "string"
-            },
-            "SemanticLayerRelativeTimeFilter": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
-                    },
-                    {
-                        "properties": {
-                            "relativeTime": {
-                                "$ref": "#/components/schemas/SemanticLayerFilterRelativeTimeValue"
-                            },
-                            "values": {},
-                            "operator": {
-                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
-                            }
-                        },
-                        "required": ["relativeTime", "operator"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerTimeFilter": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerExactTimeFilter"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerRelativeTimeFilter"
                     }
                 ]
             },
             "SemanticLayerFilterTypes": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerStringFilter"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerTimeFilter"
-                    }
-                ]
+                "$ref": "#/components/schemas/SemanticLayerStringFilter"
             },
             "SemanticLayerFilter": {
                 "allOf": [
@@ -9977,7 +9935,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1261.0",
+        "version": "0.1265.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

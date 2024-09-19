@@ -18,14 +18,17 @@ enum TabPanel {
     SQL = 'SQL',
 }
 
-const ContentResults: FC = () => {
+type ContentResultsProps = {
+    onTableHeaderClick: (fieldName: string) => void;
+};
+
+const ContentResults: FC<ContentResultsProps> = ({ onTableHeaderClick }) => {
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
+    const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
     const { results, columns, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
-
-    const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
 
     const [openPanel, setOpenPanel] = useState<TabPanel>();
 
@@ -53,6 +56,10 @@ const ContentResults: FC = () => {
         fields,
     ]);
 
+    const thSortConfig = useMemo(() => {
+        return resultsRunner.getTableHeaderSortConfig();
+    }, [resultsRunner]);
+
     return (
         <>
             <PanelGroup direction="vertical">
@@ -66,6 +73,8 @@ const ContentResults: FC = () => {
                         <Table
                             resultsRunner={resultsRunner}
                             columnsConfig={resultsTableVizConfig.columns}
+                            thSortConfig={thSortConfig}
+                            onTHClick={onTableHeaderClick}
                             flexProps={{
                                 m: '-1px',
                             }}

@@ -17,7 +17,10 @@ import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import { useChartViz } from '../components/DataViz/hooks/useChartViz';
-import { setChartConfig } from '../components/DataViz/store/actions/commonChartActions';
+import {
+    resetChartState,
+    setChartConfig,
+} from '../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../components/DataViz/store/selectors';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
@@ -73,6 +76,7 @@ const ViewSqlChart = () => {
 
     useUnmount(() => {
         dispatch(resetState());
+        dispatch(resetChartState());
     });
 
     useEffect(() => {

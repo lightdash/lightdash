@@ -19,16 +19,15 @@ import {
     validationSchema,
 } from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import {
+    selectChartConfigByKind,
+    selectTableVisConfigState,
+} from '../../../components/DataViz/store/selectors';
+import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../hooks/useSpaces';
 import { useCreateSqlChartMutation } from '../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-
-import {
-    selectChartConfigByKind,
-    selectTableVisConfigState,
-} from '../../../components/DataViz/store/selectors';
 import { updateName } from '../store/sqlRunnerSlice';
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -76,8 +75,11 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         }
     }, [name, form, description, spaces, isFormPopulated]);
 
-    const { sql, selectedChartType } = useAppSelector(
-        (state) => state.sqlRunner,
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
+    );
+    const sqlToSave = useAppSelector(
+        (state) => state.sqlRunner.successfulSqlQueries.current,
     );
     const limit = useAppSelector((state) => state.sqlRunner.limit);
     const selectedChartConfig = useAppSelector((state) =>
@@ -113,11 +115,11 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
 
         const configToSave = selectedChartConfig ?? defaultChartConfig.config;
 
-        if (configToSave && sql) {
+        if (configToSave && sqlToSave) {
             await createSavedSqlChart({
                 name: form.values.name,
                 description: form.values.description || '',
-                sql,
+                sql: sqlToSave,
                 limit,
                 config: configToSave,
                 spaceUuid: spaceUuid,
@@ -136,7 +138,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         createSpace,
         selectedChartConfig,
         defaultChartConfig.config,
-        sql,
+        sqlToSave,
         dispatch,
         onClose,
         createSavedSqlChart,
@@ -199,7 +201,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Button
                         type="submit"
-                        disabled={!form.values.name || !sql}
+                        disabled={!form.values.name || !sqlToSave}
                         loading={isCreatingSavedSqlChart}
                     >
                         Save

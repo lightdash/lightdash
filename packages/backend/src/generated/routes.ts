@@ -6546,17 +6546,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    WarehouseTableSchema: {
+    PartitionType: {
+        dataType: 'refEnum',
+        enums: ['DATE', 'RANGE'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PartitionColumn: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { ref: 'DimensionType' },
+            nestedProperties: {
+                field: { dataType: 'string', required: true },
+                partitionType: { ref: 'PartitionType', required: true },
+            },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    WarehouseCatalog: {
+    WarehouseTablesCatalog: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6567,21 +6574,36 @@ const models: TsoaRoute.Models = {
                 additionalProperties: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {},
-                    additionalProperties: { ref: 'WarehouseTableSchema' },
+                    additionalProperties: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            partitionColumn: { ref: 'PartitionColumn' },
+                        },
+                    },
                 },
             },
             validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiWarehouseCatalog: {
+    ApiWarehouseTablesCatalog: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'WarehouseCatalog', required: true },
+                results: { ref: 'WarehouseTablesCatalog', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WarehouseTableSchema: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DimensionType' },
             validators: {},
         },
     },
@@ -8344,9 +8366,9 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerFilterBaseOperator: {
+    SemanticLayerStringFilterOperator: {
         dataType: 'refEnum',
-        enums: ['IS', 'IS_NOT'],
+        enums: ['IS', 'IS NOT'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerField: {
@@ -8358,7 +8380,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refEnum',
-                        ref: 'SemanticLayerFilterBaseOperator',
+                        ref: 'SemanticLayerStringFilterOperator',
                     },
                     required: true,
                 },
@@ -8506,7 +8528,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 fieldType: { ref: 'SemanticLayerFieldType', required: true },
                 fieldKind: { ref: 'FieldType', required: true },
-                fieldRef: { dataType: 'string', required: true },
+                field: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -8528,78 +8550,11 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                         operator: {
-                            ref: 'SemanticLayerFilterBaseOperator',
+                            ref: 'SemanticLayerStringFilterOperator',
                             required: true,
                         },
                     },
                 },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerExactTimeFilter: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'SemanticLayerFilterBase' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        values: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                            required: true,
-                        },
-                        operator: {
-                            ref: 'SemanticLayerFilterBaseOperator',
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerFilterRelativeTimeValue: {
-        dataType: 'refEnum',
-        enums: ['TODAY', 'YESTERDAY', 'LAST_7_DAYS', 'LAST_30_DAYS'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerRelativeTimeFilter: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'SemanticLayerFilterBase' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        relativeTime: {
-                            ref: 'SemanticLayerFilterRelativeTimeValue',
-                            required: true,
-                        },
-                        values: { dataType: 'undefined', required: true },
-                        operator: {
-                            ref: 'SemanticLayerFilterBaseOperator',
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerTimeFilter: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'SemanticLayerExactTimeFilter' },
-                { ref: 'SemanticLayerRelativeTimeFilter' },
             ],
             validators: {},
         },
@@ -8607,14 +8562,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerFilterTypes: {
         dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'SemanticLayerStringFilter' },
-                { ref: 'SemanticLayerTimeFilter' },
-            ],
-            validators: {},
-        },
+        type: { ref: 'SemanticLayerStringFilter', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerFilter: {
