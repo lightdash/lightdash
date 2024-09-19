@@ -106,6 +106,10 @@ export class CartesianChartDataModel
         return this.resultsRunner.pivotChartOptions();
     }
 
+    getConfigErrors() {
+        return this.resultsRunner.getPivotChartLayoutErrors(this.fieldConfig);
+    }
+
     async getTransformedData(
         layout: VizChartLayout | undefined,
         sql?: string,

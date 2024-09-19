@@ -10,7 +10,6 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { type z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -86,10 +85,8 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
 
-    const sqlToSave = useAppSelector(
-        (state) => state.sqlRunner.successfulSqlQueries.current,
-    );
     const unsavedSql = useAppSelector((state) => state.sqlRunner.sql);
 
     const limit = useAppSelector((state) => state.sqlRunner.limit);
@@ -126,11 +123,11 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
 
         const configToSave = selectedChartConfig ?? defaultChartConfig.config;
 
-        if (configToSave && sqlToSave) {
+        if (configToSave && sql) {
             await createSavedSqlChart({
                 name: form.values.name,
                 description: form.values.description || '',
-                sql: sqlToSave,
+                sql,
                 limit,
                 config: configToSave,
                 spaceUuid: spaceUuid,
@@ -149,7 +146,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         createSpace,
         selectedChartConfig,
         defaultChartConfig.config,
-        sqlToSave,
+        sql,
         dispatch,
         onClose,
         createSavedSqlChart,
@@ -217,7 +214,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
 
                 <Button
                     type="submit"
-                    disabled={!form.values.name || !sqlToSave}
+                    disabled={!form.values.name || !sql}
                     loading={isCreatingSavedSqlChart}
                 >
                     Save
@@ -247,6 +244,53 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
             })}
         >
             {showWarning ? renderWarning() : renderSaveForm()}
+            <form onSubmit={form.onSubmit(handleOnSubmit)}>
+                <Stack p="md">
+                    <Stack spacing="xs">
+                        <TextInput
+                            label="Chart name"
+                            placeholder="eg. How many weekly active users do we have?"
+                            required
+                            {...form.getInputProps('name')}
+                        />
+                        <Textarea
+                            label="Description"
+                            {...form.getInputProps('description')}
+                        />
+                    </Stack>
+                    <SaveToSpace
+                        form={form}
+                        spaces={spaces}
+                        projectUuid={projectUuid}
+                    />
+                </Stack>
+
+                <Group
+                    position="right"
+                    w="100%"
+                    sx={(theme) => ({
+                        borderTop: `1px solid ${theme.colors.gray[4]}`,
+                        bottom: 0,
+                        padding: theme.spacing.md,
+                    })}
+                >
+                    <Button
+                        onClick={onClose}
+                        variant="outline"
+                        disabled={isCreatingSavedSqlChart}
+                    >
+                        Cancel
+                    </Button>
+
+                    <Button
+                        type="submit"
+                        disabled={!form.values.name || !sql}
+                        loading={isCreatingSavedSqlChart}
+                    >
+                        Save
+                    </Button>
+                </Group>
+            </form>
         </Modal>
     );
 };

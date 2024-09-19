@@ -1,21 +1,26 @@
 import {
-    Badge,
-    Button,
+    ActionIcon,
     Group,
     HoverCard,
     Popover,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { useClipboard, useHover } from '@mantine/hooks';
+import { useHover } from '@mantine/hooks';
 import { Editor } from '@monaco-editor/react';
-import { IconCheck, IconClock } from '@tabler/icons-react';
+import {
+    IconClock,
+    IconCornerDownLeft,
+    IconHistory,
+} from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import { useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setSql } from '../store/sqlRunnerSlice';
 
 type Props = {
     sql: string;
@@ -24,9 +29,8 @@ type Props = {
 };
 
 const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
-    const { copy, copied } = useClipboard({
-        timeout: 500,
-    });
+    const dispatch = useAppDispatch();
+
     const { hovered, ref: hoverRef } = useHover<HTMLButtonElement>();
     const timeAgo = useTimeAgo(new Date(timestamp));
 
@@ -45,36 +49,28 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             },
                         })}
                         onClick={() => {
-                            copy(sql);
+                            dispatch(setSql(sql));
                         }}
                     >
                         <Group spacing="xs" lh={1} noWrap>
                             <MantineIcon
-                                icon={copied ? IconCheck : IconClock}
+                                icon={hovered ? IconCornerDownLeft : IconClock}
                                 color="gray"
                             />
                             <Text
                                 fz="xs"
                                 fw={500}
                                 w={150}
-                                color={
-                                    copied
-                                        ? 'green.5'
-                                        : hovered
-                                        ? 'indigo.7'
-                                        : 'gray.8'
-                                }
+                                color={hovered ? 'indigo.7' : 'gray.8'}
                             >
-                                {copied
-                                    ? 'Copied to clipboard'
-                                    : hovered
-                                    ? 'Click to copy'
+                                {hovered
+                                    ? 'Open in query editor'
                                     : formattedDate}
                             </Text>
                         </Group>
                     </UnstyledButton>
                 </HoverCard.Target>
-                <HoverCard.Dropdown maw={400} sx={{ overflow: 'hidden' }}>
+                <HoverCard.Dropdown maw={600} sx={{ overflow: 'scroll' }}>
                     <Group position="apart">
                         <Text
                             fz="xs"
@@ -125,17 +121,11 @@ export const SqlQueryHistory: FC = () => {
     return (
         <Popover withinPortal>
             <Popover.Target>
-                <Button
-                    size="xs"
-                    variant="default"
-                    leftIcon={
-                        <Badge size="xs" radius="xl">
-                            {sqlPastHistory.length}
-                        </Badge>
-                    }
-                >
-                    SQL Query history
-                </Button>
+                <Tooltip variant="xs" label="SQL Query history">
+                    <ActionIcon variant="default" size={32}>
+                        <MantineIcon icon={IconHistory} />
+                    </ActionIcon>
+                </Tooltip>
             </Popover.Target>
             <Popover.Dropdown p={0}>
                 <Stack spacing="one">

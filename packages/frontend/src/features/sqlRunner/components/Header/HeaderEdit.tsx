@@ -15,11 +15,19 @@ import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
-import { selectChartConfigByKind } from '../../../../components/DataViz/store/selectors';
+import {
+    cartesianChartSelectors,
+    selectChartConfigByKind,
+} from '../../../../components/DataViz/store/selectors';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { useUpdateSqlChartMutation } from '../../hooks/useSavedSqlCharts';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { toggleModal } from '../../store/sqlRunnerSlice';
+import {
+    EditorTabs,
+    setActiveEditorTab,
+    toggleModal,
+} from '../../store/sqlRunnerSlice';
+import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
@@ -33,9 +41,7 @@ export const HeaderEdit: FC = () => {
     const selectedChartType = useAppSelector(
         (state) => state.sqlRunner.selectedChartType,
     );
-    const sqlToSave = useAppSelector(
-        (state) => state.sqlRunner.successfulSqlQueries.current,
-    );
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
 
     const config = useAppSelector((state) =>
@@ -54,26 +60,26 @@ export const HeaderEdit: FC = () => {
 
     const hasChanges = useMemo(() => {
         if (!initialSavedSqlChart || !initialChartConfig) return false;
-        const changedSql = sqlToSave !== initialSavedSqlChart.sql;
+        const changedSql = sql !== initialSavedSqlChart.sql;
         const changedLimit = limit !== initialSavedSqlChart.limit;
         const changedConfig = !isEqual(config, initialChartConfig);
 
         return changedSql || changedLimit || changedConfig;
-    }, [initialSavedSqlChart, initialChartConfig, sqlToSave, limit, config]);
+    }, [initialSavedSqlChart, initialChartConfig, sql, limit, config]);
 
     const onSave = useCallback(() => {
-        if (config && sqlToSave) {
+        if (config && sql) {
             mutate({
                 versionedData: {
                     config,
-                    sql: sqlToSave,
+                    sql,
                     limit,
                 },
             });
             setInitialChartConfig(config);
-            setInitialSavedSqlChart({ sql: sqlToSave, limit });
+            setInitialSavedSqlChart({ sql, limit });
         }
-    }, [config, sqlToSave, mutate, limit]);
+    }, [config, sql, mutate, limit]);
 
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
@@ -93,6 +99,28 @@ export const HeaderEdit: FC = () => {
     const onCloseUpdateModal = useCallback(() => {
         dispatch(toggleModal('updateChartModal'));
     }, [dispatch]);
+    const isChartErrorsAlertOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.chartErrorsAlert.isOpen,
+    );
+    const onCloseChartErrorsAlert = useCallback(() => {
+        dispatch(toggleModal('chartErrorsAlert'));
+    }, [dispatch]);
+    const onFixButtonClick = useCallback(() => {
+        dispatch(toggleModal('chartErrorsAlert'));
+        dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
+    }, [dispatch]);
+
+    const hasErrors = useAppSelector(
+        (state) =>
+            !!cartesianChartSelectors.getErrors(state, selectedChartType),
+    );
+    const onSaveClick = useCallback(() => {
+        if (hasErrors) {
+            dispatch(toggleModal('chartErrorsAlert'));
+        } else if (config && sql) {
+            onSave();
+        }
+    }, [hasErrors, config, sql, dispatch, onSave]);
 
     if (!savedSqlChart) {
         return null;
@@ -144,13 +172,9 @@ export const HeaderEdit: FC = () => {
                         <Button
                             size="xs"
                             color={'green.7'}
-                            disabled={!config || !sqlToSave || !hasChanges}
+                            disabled={!config || !sql || !hasChanges}
                             loading={isLoading}
-                            onClick={() => {
-                                if (config && sqlToSave) {
-                                    onSave();
-                                }
-                            }}
+                            onClick={onSaveClick}
                         >
                             Save
                         </Button>
@@ -209,6 +233,12 @@ export const HeaderEdit: FC = () => {
                         `/projects/${savedSqlChart.project.projectUuid}/home`,
                     )
                 }
+            />
+
+            <ChartErrorsAlert
+                opened={isChartErrorsAlertOpen}
+                onClose={onCloseChartErrorsAlert}
+                onFixButtonClick={onFixButtonClick}
             />
         </>
     );

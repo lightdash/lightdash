@@ -1,3 +1,30 @@
+# [0.1263.0](https://github.com/lightdash/lightdash/compare/0.1262.0...0.1263.0) (2024-09-19)
+
+
+### Features
+
+* display chart errors on save/edit if invalid ([#11600](https://github.com/lightdash/lightdash/issues/11600)) ([33cc86f](https://github.com/lightdash/lightdash/commit/33cc86f8de0c861563cc7243f514465f99b77f4f))
+* store last successful sql queries ([#11605](https://github.com/lightdash/lightdash/issues/11605)) ([ad3deaf](https://github.com/lightdash/lightdash/commit/ad3deaf991e959f982fd710ef898725686e29ad8))
+
+# [0.1262.0](https://github.com/lightdash/lightdash/compare/0.1261.3...0.1262.0) (2024-09-19)
+
+
+### Bug Fixes
+
+* total count pagination bug ([#11608](https://github.com/lightdash/lightdash/issues/11608)) ([b0c5296](https://github.com/lightdash/lightdash/commit/b0c52967f22974c70a13bacdf0e3ffea668c57a5))
+
+
+### Features
+
+* time granularity label and separate menu ([#11584](https://github.com/lightdash/lightdash/issues/11584)) ([47006ef](https://github.com/lightdash/lightdash/commit/47006ef77270c059b7f5ed8f038d9ee2afff3ec1))
+
+## [0.1261.3](https://github.com/lightdash/lightdash/compare/0.1261.2...0.1261.3) (2024-09-19)
+
+
+### Bug Fixes
+
+* reset chart configs on unmount of create and view ([#11596](https://github.com/lightdash/lightdash/issues/11596)) ([07c21a5](https://github.com/lightdash/lightdash/commit/07c21a5d9d5e637fa8008b6ecadd8fcdbb10d56a))
+
 ## [0.1261.2](https://github.com/lightdash/lightdash/compare/0.1261.1...0.1261.2) (2024-09-18)
 
 

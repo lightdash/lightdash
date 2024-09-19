@@ -54,6 +54,9 @@ export interface SqlRunnerState {
         saveCustomExploreModal: {
             isOpen: boolean;
         };
+        chartErrorsAlert: {
+            isOpen: boolean;
+        };
     };
     quoteChar: string;
     sqlColumns: VizColumn[] | undefined;
@@ -93,6 +96,9 @@ const initialState: SqlRunnerState = {
         saveCustomExploreModal: {
             isOpen: false,
         },
+        chartErrorsAlert: {
+            isOpen: false,
+        },
     },
     quoteChar: '"',
     sqlColumns: undefined,
@@ -106,9 +112,7 @@ export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
     reducers: {
-        resetState: () => {
-            return initialState;
-        },
+        resetState: () => initialState,
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
