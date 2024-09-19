@@ -8,12 +8,9 @@ import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
-import {
-    selectSemanticLayerInfo,
-    selectSemanticLayerQuery,
-} from '../store/selectors';
+import { selectSemanticLayerInfo } from '../store/selectors';
 
 enum TabPanel {
     VISUALIZATION_TABLE = 'VISUALIZATION_TABLE',
@@ -23,21 +20,19 @@ const ContentCharts: FC = () => {
     const mantineTheme = useMantineTheme();
 
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
-    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const { results, columnNames, activeChartKind, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
     const resultsRunner = useMemo(() => {
-        return new SemanticViewerResultsRunner({
-            query: semanticQuery,
+        return new SemanticViewerResultsRunnerFrontend({
             rows: results ?? [],
             columnNames: columnNames ?? [],
-            projectUuid,
             fields,
+            projectUuid,
         });
-    }, [columnNames, fields, projectUuid, results, semanticQuery]);
+    }, [columnNames, fields, projectUuid, results]);
 
     const vizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
@@ -60,19 +55,17 @@ const ContentCharts: FC = () => {
     });
 
     const pivotResultsRunner = useMemo(() => {
-        return new SemanticViewerResultsRunner({
-            projectUuid,
-            query: semanticQuery,
+        return new SemanticViewerResultsRunnerFrontend({
             rows: chartVizQuery.data?.results ?? [],
             columnNames:
                 chartVizQuery.data?.columns.map((c) => c.reference) ?? [],
             fields: fields,
+            projectUuid,
         });
     }, [
         chartVizQuery.data?.columns,
         chartVizQuery.data?.results,
         projectUuid,
-        semanticQuery,
         fields,
     ]);
 

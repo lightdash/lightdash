@@ -49,7 +49,7 @@ import {
     useSqlQueryRun,
     type ResultsAndColumns,
 } from '../hooks/useSqlQueryRun';
-import { SqlRunnerResultsRunner } from '../runners/SqlRunnerResultsRunner';
+import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
@@ -166,7 +166,7 @@ export const ContentPanel: FC = () => {
     const resultsRunner = useMemo(() => {
         if (!queryResults) return;
 
-        return new SqlRunnerResultsRunner({
+        return new SqlRunnerResultsRunnerFrontend({
             rows: queryResults.results,
             columns: queryResults.columns,
         });
@@ -267,7 +267,7 @@ export const ContentPanel: FC = () => {
     const chartVizResultsRunner = useMemo(() => {
         if (!chartVizQuery.data) return;
 
-        return new SqlRunnerResultsRunner({
+        return new SqlRunnerResultsRunnerFrontend({
             rows: chartVizQuery.data.results,
             columns: chartVizQuery.data.columns,
         });

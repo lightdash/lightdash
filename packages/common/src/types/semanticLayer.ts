@@ -72,6 +72,9 @@ export type SemanticLayerQuery = {
     timezone?: string;
     pivot?: SemanticLayerPivot;
     filters: SemanticLayerFilter[];
+    customMetrics?: (Pick<SemanticLayerField, 'name' | 'aggType'> & {
+        baseDimension?: string;
+    })[];
 };
 
 export type SemanticLayerResultRow = Record<

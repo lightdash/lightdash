@@ -3,16 +3,15 @@ import {
     DimensionType,
     FieldType,
     SemanticLayerFieldType,
+    VizAggregationOptions,
     VizIndexType,
     VIZ_DEFAULT_AGGREGATION,
     type IResultsRunner,
     type PivotChartData,
     type RawResultRow,
+    type RunPivotQuery,
     type SemanticLayerField,
-    type SemanticLayerPivot,
     type SemanticLayerQuery,
-    type SemanticViewerPivotChartLayout,
-    type SqlRunnerPivotChartLayout,
     type VizColumn,
     type VizCustomMetricLayoutOptions,
     type VizIndexLayoutOptions,
@@ -20,20 +19,7 @@ import {
 } from '@lightdash/common';
 import { apiGetSemanticLayerQueryResults } from '../api/requests';
 
-const transformChartLayoutToSemanticPivot = (
-    config: SemanticViewerPivotChartLayout,
-): SemanticLayerPivot => {
-    if (!config.x) {
-        throw new Error('X is required');
-    }
-
-    return {
-        on: [config.x.reference],
-        index: config.groupBy?.map((groupBy) => groupBy.reference) ?? [],
-        values: config.y.map((y) => y.reference),
-    };
-};
-
+// not useful - semantic layer field type should be source of truth
 function getDimensionTypeFromSemanticLayerFieldType(
     type: SemanticLayerFieldType,
 ): DimensionType {
@@ -51,9 +37,10 @@ function getDimensionTypeFromSemanticLayerFieldType(
     }
 }
 
-function getVizIndexTypeFromDimensionType(
+// Useful but belongs on chart model
+export const getVizIndexTypeFromSemanticLayerFieldType = (
     type: SemanticLayerFieldType,
-): VizIndexType {
+): VizIndexType => {
     switch (type) {
         case SemanticLayerFieldType.BOOLEAN:
         case SemanticLayerFieldType.NUMBER:
@@ -64,15 +51,74 @@ function getVizIndexTypeFromDimensionType(
         default:
             return assertUnreachable(type, `Unknown field type: ${type}`);
     }
-}
+};
 
-export class SemanticViewerResultsRunner implements IResultsRunner {
-    private readonly query: SemanticLayerQuery;
+const convertColumnNamesToVizColumns = (
+    fields: SemanticLayerField[],
+    columnNames: string[],
+): VizColumn[] => {
+    return columnNames
+        .map<VizColumn | undefined>((columnName) => {
+            const field = fields.find((f) => f.name === columnName);
+            if (!field) {
+                return;
+            }
 
-    private readonly projectUuid: string;
+            const dimType = getDimensionTypeFromSemanticLayerFieldType(
+                field.type,
+            );
 
-    private readonly fields: SemanticLayerField[];
+            return {
+                reference: columnName,
+                type: dimType,
+            };
+        })
+        .filter((c): c is VizColumn => Boolean(c));
+};
 
+// This fields dependency should be fixed by fixing the API for semantic layer
+export const getPivotQueryFunctionForSemanticViewer = (
+    projectUuid: string,
+    fields: SemanticLayerField[],
+): RunPivotQuery => {
+    return async (query: SemanticLayerQuery) => {
+        const pivotedResults = await apiGetSemanticLayerQueryResults({
+            projectUuid,
+            query,
+        });
+
+        const { results, columns } = pivotedResults;
+
+        // The backend call has no knowledge of field types, so we need to map them to the correct types
+        const vizColumns: VizColumn[] = convertColumnNamesToVizColumns(
+            fields,
+            columns,
+        );
+
+        // The index column is the first column in the pivot config
+        const onField = fields.find((f) => f.name === query.pivot?.on[0]);
+
+        const indexColumn = onField
+            ? {
+                  reference: onField.name,
+                  type: getVizIndexTypeFromSemanticLayerFieldType(onField.type),
+              }
+            : undefined;
+
+        const valuesColumns = pivotedResults.columns.filter(
+            (col) => !query.pivot?.on.includes(col),
+        );
+
+        return {
+            results,
+            indexColumn,
+            valuesColumns,
+            columns: vizColumns,
+        };
+    };
+};
+
+export class BaseResultsRunner implements IResultsRunner {
     private readonly availableFields: SemanticLayerField[];
 
     private readonly rows: RawResultRow[];
@@ -81,22 +127,20 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
 
     private readonly metrics: SemanticLayerField[];
 
+    private readonly runPivotQuery: RunPivotQuery;
+
     constructor({
-        query,
-        projectUuid,
         fields,
         rows,
         columnNames,
+        runPivotQuery,
     }: {
-        query: SemanticLayerQuery;
-        projectUuid: string;
         rows: RawResultRow[];
         columnNames: string[];
         fields: SemanticLayerField[];
+        runPivotQuery: RunPivotQuery;
     }) {
-        this.query = query;
-        this.projectUuid = projectUuid;
-        this.fields = fields;
+        this.runPivotQuery = runPivotQuery;
 
         this.rows = rows;
 
@@ -112,73 +156,10 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
         );
     }
 
-    getDimensions(): VizIndexLayoutOptions[] {
-        return this.dimensions.map((dimension) => ({
-            reference: dimension.name,
-            axisType: getVizIndexTypeFromDimensionType(dimension.type),
-            dimensionType: getDimensionTypeFromSemanticLayerFieldType(
-                dimension.type,
-            ),
-        }));
-    }
-
-    getMetrics(): VizValuesLayoutOptions[] {
-        return this.metrics.map((metric) => ({
-            reference: metric.name,
-            aggregation: metric.aggType || VIZ_DEFAULT_AGGREGATION,
-        }));
-    }
-
-    getPivotQueryDimensions(): VizIndexLayoutOptions[] {
-        return this.dimensions.map((dimension) => ({
-            reference: dimension.name,
-            axisType: getVizIndexTypeFromDimensionType(dimension.type),
-            dimensionType: getDimensionTypeFromSemanticLayerFieldType(
-                dimension.type,
-            ),
-        }));
-    }
-
-    getPivotQueryMetrics(): VizValuesLayoutOptions[] {
-        return this.metrics.map((metric) => ({
-            reference: metric.name,
-            aggregation: metric.aggType || VIZ_DEFAULT_AGGREGATION,
-            aggregationOptions: [],
-        }));
-    }
-
-    getPivotQueryCustomMetrics(): VizCustomMetricLayoutOptions[] {
-        // No custom metrics for semantic layer yet
-        return [];
-    }
-
-    static convertColumnNamesToVizColumns(
-        fields: SemanticLayerField[],
-        columnNames: string[],
-    ): VizColumn[] {
-        return columnNames
-            .map<VizColumn | undefined>((columnName) => {
-                const field = fields.find((f) => f.name === columnName);
-                if (!field) {
-                    return;
-                }
-
-                const dimType = getDimensionTypeFromSemanticLayerFieldType(
-                    field.type,
-                );
-
-                return {
-                    reference: columnName,
-                    type: dimType,
-                };
-            })
-            .filter((c): c is VizColumn => Boolean(c));
-    }
-
     async getPivotedVisualizationData(
-        config: SqlRunnerPivotChartLayout,
+        query: SemanticLayerQuery,
     ): Promise<PivotChartData> {
-        if (config.x === undefined || config.y.length === 0) {
+        if (!!query.pivot?.index.length || !!query.pivot?.values.length) {
             return {
                 results: [],
                 indexColumn: undefined,
@@ -186,45 +167,87 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
                 columns: [],
             };
         }
+        return this.runPivotQuery(query);
+    }
 
-        const pivotConfig = transformChartLayoutToSemanticPivot(config);
-        const pivotedResults = await apiGetSemanticLayerQueryResults({
-            projectUuid: this.projectUuid,
-            query: {
-                ...this.query,
-                pivot: pivotConfig,
+    getPivotQueryDimensions(): VizIndexLayoutOptions[] {
+        // the same as pivotChartIndexLayoutOptions
+        return this.dimensions.map((dimension) => ({
+            reference: dimension.name,
+            axisType: getVizIndexTypeFromSemanticLayerFieldType(dimension.type),
+            dimensionType: getDimensionTypeFromSemanticLayerFieldType(
+                dimension.type,
+            ),
+        }));
+    }
+
+    getPivotQueryMetrics(): VizValuesLayoutOptions[] {
+        // returns empty for sql runner because there's no metrics
+        return this.metrics.map((metric) => ({
+            reference: metric.name,
+            aggregation: metric.aggType || VIZ_DEFAULT_AGGREGATION,
+        }));
+    }
+
+    getPivotQueryCustomMetrics(): VizCustomMetricLayoutOptions[] {
+        // this will return custom metrics for both runners but we don't have to use them on semantic viewer
+        return this.availableFields.reduce<VizCustomMetricLayoutOptions[]>(
+            (acc, field) => {
+                if (field.kind === FieldType.METRIC) {
+                    return acc;
+                }
+                // TODO: can be greatly simplified
+                switch (field.type) {
+                    case SemanticLayerFieldType.BOOLEAN:
+                    case SemanticLayerFieldType.STRING:
+                        return [
+                            ...acc,
+                            {
+                                reference: field.name,
+                                aggregationOptions: [
+                                    VizAggregationOptions.ANY,
+                                    VizAggregationOptions.COUNT,
+                                ],
+                                dimensionType:
+                                    getDimensionTypeFromSemanticLayerFieldType(
+                                        field.type,
+                                    ),
+                                axisType: VizIndexType.CATEGORY,
+                                aggregation: VizAggregationOptions.AVERAGE, // WHY IS THIS NEEDED
+                            },
+                        ];
+                    case SemanticLayerFieldType.NUMBER:
+                        return [
+                            ...acc,
+                            {
+                                reference: field.name,
+                                aggregationOptions: [
+                                    VizAggregationOptions.AVERAGE,
+                                    VizAggregationOptions.SUM,
+                                    VizAggregationOptions.MIN,
+                                    VizAggregationOptions.MAX,
+                                    VizAggregationOptions.ANY,
+                                    VizAggregationOptions.COUNT,
+                                ],
+                                dimensionType:
+                                    getDimensionTypeFromSemanticLayerFieldType(
+                                        field.type,
+                                    ),
+                                axisType: VizIndexType.CATEGORY,
+                                aggregation: VizAggregationOptions.AVERAGE, // WHY IS THIS NEEDED
+                            },
+                        ];
+                    case SemanticLayerFieldType.TIME:
+                        return acc;
+                    default:
+                        return assertUnreachable(
+                            field.type,
+                            `Unknown field type: ${field.type}`,
+                        );
+                }
             },
-        });
-
-        const { results, columns } = pivotedResults;
-
-        // The backend call has no knowledge of field types, so we need to map them to the correct types
-        const vizColumns: VizColumn[] =
-            SemanticViewerResultsRunner.convertColumnNamesToVizColumns(
-                this.fields,
-                columns,
-            );
-
-        // The index column is the first column in the pivot config
-        const onField = this.fields.find((f) => f.name === pivotConfig.on[0]);
-
-        const indexColumn = onField
-            ? {
-                  reference: onField.name,
-                  type: getVizIndexTypeFromDimensionType(onField.type),
-              }
-            : undefined;
-
-        const valuesColumns = pivotedResults.columns.filter(
-            (col) => !pivotConfig.on.includes(col),
+            [],
         );
-
-        return {
-            results,
-            indexColumn,
-            valuesColumns,
-            columns: vizColumns,
-        };
     }
 
     getColumns(): string[] {
@@ -237,5 +260,29 @@ export class SemanticViewerResultsRunner implements IResultsRunner {
 
     getRows() {
         return this.rows;
+    }
+}
+
+export class SemanticViewerResultsRunnerFrontend extends BaseResultsRunner {
+    constructor({
+        fields,
+        rows,
+        columnNames,
+        projectUuid,
+    }: {
+        rows: RawResultRow[];
+        columnNames: string[];
+        fields: SemanticLayerField[];
+        projectUuid: string;
+    }) {
+        super({
+            rows,
+            columnNames,
+            fields,
+            runPivotQuery: getPivotQueryFunctionForSemanticViewer(
+                projectUuid,
+                fields,
+            ),
+        });
     }
 }

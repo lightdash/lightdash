@@ -4,12 +4,11 @@ import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Table } from '../../../components/DataViz/visualizations/Table';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 import {
     selectResultsTableVizConfig,
     selectSemanticLayerInfo,
-    selectSemanticLayerQuery,
 } from '../store/selectors';
 import SqlViewer from './SqlViewer';
 
@@ -19,7 +18,6 @@ enum TabPanel {
 
 const ContentResults: FC = () => {
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
-    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const { results, columnNames, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
@@ -37,20 +35,13 @@ const ContentResults: FC = () => {
     };
 
     const resultsRunner = useMemo(() => {
-        return new SemanticViewerResultsRunner({
-            query: semanticQuery,
+        return new SemanticViewerResultsRunnerFrontend({
             rows: results ?? [],
             columnNames: columnNames ?? [],
-            projectUuid: semanticViewerInfo.projectUuid,
             fields,
+            projectUuid: semanticViewerInfo.projectUuid,
         });
-    }, [
-        semanticQuery,
-        results,
-        columnNames,
-        semanticViewerInfo.projectUuid,
-        fields,
-    ]);
+    }, [results, columnNames, semanticViewerInfo.projectUuid, fields]);
 
     return (
         <>

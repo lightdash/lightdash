@@ -7,6 +7,7 @@ import {
     friendlyName,
 } from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
+import { type SemanticLayerQuery } from '../types/semanticLayer';
 import { applyCustomFormat } from '../utils/formatting';
 import {
     VizAggregationOptions,
@@ -85,8 +86,8 @@ export class CartesianChartDataModel {
     }
 
     getDefaultLayout(): PivotChartLayout | undefined {
-        const dimensions = this.resultsRunner.getDimensions();
-        const metrics = this.resultsRunner.getMetrics();
+        const dimensions = this.resultsRunner.getPivotQueryDimensions();
+        const metrics = this.resultsRunner.getPivotQueryMetrics();
 
         // TODO: the types could be cleaned up here to have fewer 'in' checks.
         const categoricalColumns = [...dimensions, ...metrics].filter(
@@ -168,26 +169,12 @@ export class CartesianChartDataModel {
         };
     }
 
-    async getTransformedData(
-        layout: PivotChartLayout | undefined,
-        sql?: string,
-        projectUuid?: string,
-        limit?: number,
-        slug?: string,
-        uuid?: string,
-    ) {
-        if (!layout) {
+    async getTransformedData(query?: SemanticLayerQuery) {
+        if (!query) {
             return undefined;
         }
 
-        return this.resultsRunner.getPivotedVisualizationData(
-            layout,
-            sql,
-            projectUuid,
-            limit,
-            slug,
-            uuid,
-        );
+        return this.resultsRunner.getPivotedVisualizationData(query);
     }
 
     static getDefaultColor(index: number, orgColors?: string[]) {

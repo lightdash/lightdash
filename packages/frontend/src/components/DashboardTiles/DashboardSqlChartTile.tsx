@@ -9,7 +9,7 @@ import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
-import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
+import { SqlRunnerResultsRunnerFrontend } from '../../features/sqlRunner/runners/SqlRunnerResultsRunnerFrontend';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -89,7 +89,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
 
     const resultsRunner = useMemo(
         () =>
-            new SqlRunnerResultsRunner({
+            new SqlRunnerResultsRunnerFrontend({
                 rows: sqlRunnerChartData.results,
                 columns: sqlRunnerChartData.columns,
             }),

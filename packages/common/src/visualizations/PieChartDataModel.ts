@@ -1,5 +1,6 @@
 import { DimensionType } from '../types/field';
 import { type ChartKind } from '../types/savedCharts';
+import { type SemanticLayerQuery } from '../types/semanticLayer';
 import {
     type PivotChartData,
     type VizPieChartConfig,
@@ -114,20 +115,12 @@ export class PieChartDataModel {
     }
 
     async getTransformedData(
-        layout: PivotChartLayout | undefined,
-        sql?: string,
-        projectUuid?: string,
-        limit?: number,
+        query?: SemanticLayerQuery,
     ): Promise<PivotChartData | undefined> {
-        if (!layout) {
+        if (!query) {
             return undefined;
         }
-        return this.resultsRunner.getPivotedVisualizationData(
-            layout,
-            sql,
-            projectUuid,
-            limit,
-        );
+        return this.resultsRunner.getPivotedVisualizationData(query);
     }
 
     getEchartsSpec(

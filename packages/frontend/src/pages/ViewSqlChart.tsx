@@ -24,7 +24,7 @@ import { Table } from '../components/DataViz/visualizations/Table';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlChartResults } from '../features/sqlRunner/hooks/useSqlChartResults';
-import { SqlRunnerResultsRunner } from '../features/sqlRunner/runners/SqlRunnerResultsRunner';
+import { SqlRunnerResultsRunnerFrontend } from '../features/sqlRunner/runners/SqlRunnerResultsRunnerFrontend';
 import { store } from '../features/sqlRunner/store';
 import {
     useAppDispatch,
@@ -88,7 +88,7 @@ const ViewSqlChart = () => {
 
     const resultsRunner = useMemo(
         () =>
-            new SqlRunnerResultsRunner({
+            new SqlRunnerResultsRunnerFrontend({
                 rows: data?.results ?? [],
                 columns: data?.columns ?? [],
             }),

@@ -8,6 +8,7 @@ import {
 } from '.';
 import { type DimensionType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
+import { type SemanticLayerQuery } from '../../types/semanticLayer';
 
 // TODO: move these types out of here
 export type SqlRunnerPivotChartLayout = {
@@ -45,18 +46,17 @@ export type PivotChartLayout =
     | SqlRunnerPivotChartLayout
     | SemanticViewerPivotChartLayout;
 
+export type RunPivotQuery = (
+    query: SemanticLayerQuery,
+) => Promise<PivotChartData>;
+
 export interface IResultsRunner {
     // Includes bar, chart, line, pie, scatter, and table v1(?)
 
     // Why does this have so many parameters not relevant to the runner?
     // Can this operate on almost no params?
     getPivotedVisualizationData(
-        config: PivotChartLayout,
-        sql?: string,
-        projectUuid?: string,
-        limit?: number,
-        slug?: string,
-        uuid?: string,
+        query: SemanticLayerQuery,
     ): Promise<PivotChartData>;
 
     // Sql specific?
@@ -68,10 +68,6 @@ export interface IResultsRunner {
     ): (row: RawResultRow) => RawResultRow[string];
 
     getRows(): RawResultRow[];
-
-    // TODO getDimensions and getMetrics should be removed when the new ones work
-    getDimensions(): VizIndexLayoutOptions[];
-    getMetrics(): VizValuesLayoutOptions[];
 
     getPivotQueryDimensions(): VizIndexLayoutOptions[];
 

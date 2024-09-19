@@ -16,7 +16,7 @@ import getChartConfigAndOptions from '../../../components/DataViz/transformers/g
 import LimitButton from '../../../components/LimitButton';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
@@ -65,12 +65,11 @@ export const RunSemanticQueryButton: FC = () => {
     }, [dispatch, resultsData, resultsColumns, fields, requestData]);
 
     useEffect(() => {
-        const resultsRunner = new SemanticViewerResultsRunner({
-            query: semanticQuery,
+        const resultsRunner = new SemanticViewerResultsRunnerFrontend({
             rows: results,
             columnNames,
-            projectUuid,
             fields,
+            projectUuid,
         });
 
         // TODO: can this just be a getChart datamodel factory
