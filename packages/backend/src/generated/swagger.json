@@ -7472,7 +7472,7 @@
                 "enum": ["line"],
                 "type": "string"
             },
-            "VizChartLayout": {
+            "SqlRunnerPivotChartLayout": {
                 "properties": {
                     "sortBy": {
                         "items": {
@@ -7502,26 +7502,93 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["reference"],
+                            "required": ["aggregation", "reference"],
                             "type": "object"
                         },
                         "type": "array"
                     },
                     "x": {
                         "properties": {
-                            "type": {
+                            "dimensionType": {
+                                "$ref": "#/components/schemas/DimensionType"
+                            },
+                            "axisType": {
                                 "$ref": "#/components/schemas/VizIndexType"
                             },
                             "reference": {
                                 "type": "string"
                             }
                         },
-                        "required": ["type", "reference"],
+                        "required": ["dimensionType", "axisType", "reference"],
                         "type": "object"
                     }
                 },
                 "required": ["y"],
                 "type": "object"
+            },
+            "SemanticViewerPivotChartLayout": {
+                "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
+                    "groupBy": {
+                        "items": {
+                            "properties": {
+                                "reference": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["reference"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "y": {
+                        "items": {
+                            "properties": {
+                                "aggregation": {
+                                    "$ref": "#/components/schemas/VizAggregationOptions"
+                                },
+                                "reference": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["aggregation", "reference"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "x": {
+                        "properties": {
+                            "dimensionType": {
+                                "$ref": "#/components/schemas/DimensionType"
+                            },
+                            "axisType": {
+                                "$ref": "#/components/schemas/VizIndexType"
+                            },
+                            "reference": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["dimensionType", "axisType", "reference"],
+                        "type": "object"
+                    }
+                },
+                "required": ["y"],
+                "type": "object"
+            },
+            "PivotChartLayout": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlRunnerPivotChartLayout"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SemanticViewerPivotChartLayout"
+                    }
+                ]
             },
             "CartesianChartDisplay": {
                 "properties": {
@@ -7606,7 +7673,7 @@
                                 "$ref": "#/components/schemas/CartesianChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "anyOf": [
@@ -7647,7 +7714,7 @@
                                 "$ref": "#/components/schemas/VizPieChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.PIE"
@@ -7937,7 +8004,7 @@
                                 "$ref": "#/components/schemas/CartesianChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
@@ -7959,7 +8026,7 @@
                                 "$ref": "#/components/schemas/CartesianChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.LINE"
@@ -9226,7 +9293,7 @@
                         "type": "array"
                     },
                     "aggType": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/VizAggregationOptions"
                     },
                     "visible": {
                         "type": "boolean"
@@ -9914,7 +9981,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1256.0",
+        "version": "0.1261.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

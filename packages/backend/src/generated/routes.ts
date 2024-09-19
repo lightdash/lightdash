@@ -6752,7 +6752,7 @@ const models: TsoaRoute.Models = {
         enums: ['line'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizChartLayout: {
+    SqlRunnerPivotChartLayout: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6785,7 +6785,10 @@ const models: TsoaRoute.Models = {
                     array: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
-                            aggregation: { ref: 'VizAggregationOptions' },
+                            aggregation: {
+                                ref: 'VizAggregationOptions',
+                                required: true,
+                            },
                             reference: { dataType: 'string', required: true },
                         },
                     },
@@ -6797,7 +6800,14 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
-                                type: { ref: 'VizIndexType', required: true },
+                                dimensionType: {
+                                    ref: 'DimensionType',
+                                    required: true,
+                                },
+                                axisType: {
+                                    ref: 'VizIndexType',
+                                    required: true,
+                                },
                                 reference: {
                                     dataType: 'string',
                                     required: true,
@@ -6809,6 +6819,89 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticViewerPivotChartLayout: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                sortBy: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'VizSortBy' },
+                },
+                groupBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    reference: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                y: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            aggregation: {
+                                ref: 'VizAggregationOptions',
+                                required: true,
+                            },
+                            reference: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                x: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                dimensionType: {
+                                    ref: 'DimensionType',
+                                    required: true,
+                                },
+                                axisType: {
+                                    ref: 'VizIndexType',
+                                    required: true,
+                                },
+                                reference: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PivotChartLayout: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'SqlRunnerPivotChartLayout' },
+                { ref: 'SemanticViewerPivotChartLayout' },
+            ],
             validators: {},
         },
     },
@@ -6899,7 +6992,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizChartLayout' },
+                                { ref: 'PivotChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -6953,7 +7046,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizChartLayout' },
+                                { ref: 'PivotChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -7202,7 +7295,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizChartLayout' },
+                                { ref: 'PivotChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -7235,7 +7328,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizChartLayout' },
+                                { ref: 'PivotChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -8370,7 +8463,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
-                aggType: { dataType: 'string' },
+                aggType: { ref: 'VizAggregationOptions' },
                 visible: { dataType: 'boolean', required: true },
                 description: { dataType: 'string' },
                 kind: { ref: 'FieldType', required: true },

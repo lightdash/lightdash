@@ -1,11 +1,15 @@
-import { type ApiError, type Explore, type PivotChartData } from '..';
+import {
+    type ApiError,
+    type Explore,
+    type PivotChartData,
+    type PivotChartLayout,
+} from '..';
 import {
     type PivotIndexColum,
     type VizAggregationOptions,
     type VizBaseConfig,
     type VizCartesianChartConfig,
     type VizChartConfig,
-    type VizChartLayout,
     type VizColumn,
     type VizPieChartConfig,
     type VizTableConfig,
@@ -34,7 +38,7 @@ type ApiSqlRunnerPivotQueryPayload = {
         aggregation: VizAggregationOptions;
     }[];
     groupByColumns: { reference: string }[] | undefined;
-    sortBy: VizChartLayout['sortBy'] | undefined;
+    sortBy: PivotChartLayout['sortBy'] | undefined;
 };
 
 export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &

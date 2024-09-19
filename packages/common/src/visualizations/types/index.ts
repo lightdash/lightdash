@@ -78,20 +78,6 @@ export type VizSortBy = {
     reference: string;
     direction: SortByDirection;
 };
-export type VizChartLayout = {
-    x:
-        | {
-              reference: string;
-              type: VizIndexType;
-          }
-        | undefined;
-    y: {
-        reference: string;
-        aggregation?: VizAggregationOptions;
-    }[];
-    groupBy: { reference: string }[] | undefined;
-    sortBy?: VizSortBy[];
-};
 
 export type VizPieChartDisplay = {
     isDonut?: boolean;
