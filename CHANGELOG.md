@@ -1,3 +1,10 @@
+# [0.1264.0](https://github.com/lightdash/lightdash/compare/0.1263.0...0.1264.0) (2024-09-19)
+
+
+### Features
+
+* add partitioning bigquery sql runner ([#11576](https://github.com/lightdash/lightdash/issues/11576)) ([2fd1513](https://github.com/lightdash/lightdash/commit/2fd15131d5b08a9b8be4b86229d9c619b7d462e5))
+
 # [0.1263.0](https://github.com/lightdash/lightdash/compare/0.1262.0...0.1263.0) (2024-09-19)
 
 
