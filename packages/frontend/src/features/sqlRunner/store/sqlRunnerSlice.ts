@@ -8,6 +8,7 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
+import { createHistoryReducer, withHistory, type WithHistory } from './history';
 
 export enum EditorTabs {
     SQL = 'SQL',
@@ -30,6 +31,7 @@ export interface SqlRunnerState {
     name: string;
     description: string;
     sql: string;
+    successfulSqlQueries: WithHistory<string | undefined>;
     limit: number;
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
@@ -48,6 +50,12 @@ export interface SqlRunnerState {
         addToDashboard: {
             isOpen: boolean;
         };
+        saveCustomExploreModal: {
+            isOpen: boolean;
+        };
+        chartErrorsAlert: {
+            isOpen: boolean;
+        };
     };
     quoteChar: string;
     sqlColumns: VizColumn[] | undefined;
@@ -64,6 +72,7 @@ const initialState: SqlRunnerState = {
     name: '',
     description: '',
     sql: '',
+    successfulSqlQueries: withHistory(undefined),
     limit: 500,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
@@ -82,6 +91,12 @@ const initialState: SqlRunnerState = {
         addToDashboard: {
             isOpen: false,
         },
+        saveCustomExploreModal: {
+            isOpen: false,
+        },
+        chartErrorsAlert: {
+            isOpen: false,
+        },
     },
     quoteChar: '"',
     sqlColumns: undefined,
@@ -89,13 +104,13 @@ const initialState: SqlRunnerState = {
     fetchResultsOnLoad: false,
 };
 
+const sqlHistoryReducer = createHistoryReducer<string | undefined>(5);
+
 export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
     reducers: {
-        resetState: () => {
-            return initialState;
-        },
+        resetState: () => initialState,
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
@@ -141,6 +156,13 @@ export const sqlRunnerSlice = createSlice({
             state.resultsTableConfig = {
                 columns,
             };
+
+            if (!!state.sql) {
+                sqlHistoryReducer.addToHistory(state.successfulSqlQueries, {
+                    payload: state.sql,
+                    type: 'sql',
+                });
+            }
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;

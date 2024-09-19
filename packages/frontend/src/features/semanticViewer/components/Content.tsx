@@ -8,7 +8,7 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconChartHistogram,
-    IconTable,
+    IconCodeCircle,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -63,21 +63,25 @@ const Content: FC = () => {
                 })}
             >
                 <SegmentedControl
-                    color="dark"
+                    styles={(theme) => ({
+                        root: {
+                            backgroundColor: theme.colors.gray[2],
+                        },
+                    })}
                     size="sm"
-                    radius="sm"
+                    radius="md"
                     data={[
                         {
-                            value: EditorTabs.RESULTS,
+                            value: EditorTabs.QUERY,
                             label: (
                                 <Group spacing="xs" noWrap>
-                                    <MantineIcon icon={IconTable} />
-                                    <Text>Results</Text>
+                                    <MantineIcon icon={IconCodeCircle} />
+                                    <Text>Query</Text>
                                 </Group>
                             ),
                         },
                         {
-                            value: EditorTabs.VISUALIZATION,
+                            value: EditorTabs.VIZ,
                             label: (
                                 <Group spacing="xs" noWrap>
                                     <MantineIcon icon={IconChartHistogram} />
@@ -185,16 +189,16 @@ const Content: FC = () => {
                         description="Please select a view from the sidebar to start building a query"
                     />
                 </Center>
-            ) : results.length === 0 ? (
+            ) : selectedFieldsCount === 0 ? (
                 <Center sx={{ flexGrow: 1 }}>
                     <SuboptimalState
-                        title="No results"
-                        description="Select some fields, then run the query to see results."
+                        title="Select a field"
+                        description="Please select a field from the sidebar to start building a query"
                     />
                 </Center>
-            ) : activeEditorTab === EditorTabs.RESULTS ? (
+            ) : activeEditorTab === EditorTabs.QUERY ? (
                 <ContentResults />
-            ) : activeEditorTab === EditorTabs.VISUALIZATION ? (
+            ) : activeEditorTab === EditorTabs.VIZ ? (
                 <ContentCharts />
             ) : null}
         </>

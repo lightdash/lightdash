@@ -715,7 +715,8 @@ export class DashboardModel {
                 this.database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.name,
-                        ${SavedSqlTableName}.name
+                        ${SavedSqlTableName}.name,
+                        ${SavedSemanticViewerChartsTableName}.name
                     ) AS name`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,

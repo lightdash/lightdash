@@ -70,7 +70,7 @@ export const useChartViz = <T extends ResultsRunner>({
         return [
             projectUuid,
             limit,
-            JSON.stringify(config.fieldConfig),
+            config.fieldConfig,
             ...(additionalQueryKey ?? []),
         ];
     }, [projectUuid, limit, config, additionalQueryKey]);
@@ -99,7 +99,7 @@ export const useChartViz = <T extends ResultsRunner>({
                 }
             }
         },
-        enabled: !!chartDataModel && !!queryKey,
+        enabled: !!chartDataModel && !!queryKey && !!projectUuid,
         keepPreviousData: true,
     });
 
