@@ -10,6 +10,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconArrowBack, IconPencil, IconTrash } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { isEqual } from 'lodash';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
@@ -35,8 +36,10 @@ import { SqlQueryBeforeSaveAlert } from '../SqlQueryBeforeSaveAlert';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
 
 export const HeaderEdit: FC = () => {
+    const queryClient = useQueryClient();
     const history = useHistory();
     const dispatch = useAppDispatch();
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
     );
@@ -127,6 +130,20 @@ export const HeaderEdit: FC = () => {
         }
     }, [hasErrors, config, sql, dispatch, onSave]);
 
+    const handleGoBackToViewPage = useCallback(async () => {
+        await queryClient.resetQueries({
+            queryKey: [
+                'sqlRunner',
+                'savedSqlChart',
+                projectUuid,
+                savedSqlChart?.slug,
+            ],
+        });
+        history.push(
+            `/projects/${projectUuid}/sql-runner/${savedSqlChart?.slug}`,
+        );
+    }, [queryClient, history, savedSqlChart, projectUuid]);
+
     if (!savedSqlChart) {
         return null;
     }
@@ -199,11 +216,7 @@ export const HeaderEdit: FC = () => {
                             <ActionIcon
                                 variant="default"
                                 size="md"
-                                onClick={() =>
-                                    history.push(
-                                        `/projects/${savedSqlChart.project.projectUuid}/sql-runner/${savedSqlChart.slug}`,
-                                    )
-                                }
+                                onClick={handleGoBackToViewPage}
                             >
                                 <MantineIcon icon={IconArrowBack} />
                             </ActionIcon>
