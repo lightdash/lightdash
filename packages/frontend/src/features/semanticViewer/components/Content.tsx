@@ -12,7 +12,7 @@ import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRun
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
-    selectAllSelectedFieldsByKind,
+    selectAllSelectedFields,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
@@ -20,6 +20,7 @@ import {
     EditorTabs,
     setActiveEditorTab,
     setResults,
+    updateSortBy,
 } from '../store/semanticViewerSlice';
 import ContentCharts from './ContentCharts';
 import ContentResults from './ContentResults';
@@ -42,14 +43,7 @@ const Content: FC = () => {
         selectChartConfigByKind(state, activeChartKind),
     );
 
-    const allSelectedFieldsByKind = useAppSelector(
-        selectAllSelectedFieldsByKind,
-    );
-
-    const selectedFieldsCount =
-        allSelectedFieldsByKind.dimensions.length +
-        allSelectedFieldsByKind.metrics.length +
-        allSelectedFieldsByKind.timeDimensions.length;
+    const allSelectedFields = useAppSelector(selectAllSelectedFields);
 
     const {
         data: requestData,
@@ -122,6 +116,19 @@ const Content: FC = () => {
         setHasClickedRunQueryButton(true);
     }, [runSemanticViewerQuery]);
 
+    const handleSortField = useCallback(
+        (fieldName: string) => {
+            const fieldToUpdate = allSelectedFields.find(
+                (f) => f.name === fieldName,
+            );
+
+            if (fieldToUpdate) {
+                dispatch(updateSortBy(fieldToUpdate));
+            }
+        },
+        [allSelectedFields, dispatch],
+    );
+
     return (
         <>
             <Group
@@ -188,7 +195,7 @@ const Content: FC = () => {
                         description="Please select a view from the sidebar to start building a query"
                     />
                 </Center>
-            ) : selectedFieldsCount === 0 ? (
+            ) : allSelectedFields.length === 0 ? (
                 <Center sx={{ flexGrow: 1 }}>
                     <SuboptimalState
                         title="Select a field"
@@ -196,9 +203,9 @@ const Content: FC = () => {
                     />
                 </Center>
             ) : activeEditorTab === EditorTabs.QUERY ? (
-                <ContentResults />
+                <ContentResults onTableHeaderClick={handleSortField} />
             ) : activeEditorTab === EditorTabs.VIZ ? (
-                <ContentCharts />
+                <ContentCharts onTableHeaderClick={handleSortField} />
             ) : null}
         </>
     );

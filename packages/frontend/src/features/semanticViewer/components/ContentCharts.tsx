@@ -7,28 +7,24 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
-import {
-    Table,
-    type THSortConfig,
-} from '../../../components/DataViz/visualizations/Table';
+import { Table } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppSelector } from '../store/hooks';
 import {
-    selectAllSelectedFields,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
-import { updateSortBy } from '../store/semanticViewerSlice';
 
 enum TabPanel {
     VISUALIZATION_TABLE = 'VISUALIZATION_TABLE',
 }
 
-const ContentCharts: FC = () => {
-    const mantineTheme = useMantineTheme();
-    const dispatch = useAppDispatch();
+type ContentChartsProps = {
+    onTableHeaderClick: (fieldName: string) => void;
+};
 
-    const allSelectedFields = useAppSelector(selectAllSelectedFields);
+const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
+    const mantineTheme = useMantineTheme();
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const { results, columns, activeChartKind, fields, sortBy, filters } =
@@ -82,27 +78,8 @@ const ContentCharts: FC = () => {
     ]);
 
     const thSortConfig = useMemo(() => {
-        return allSelectedFields.reduce<THSortConfig>((acc, field) => {
-            const sortDirection = sortBy.find(
-                (s) => s.name === field.name && s.kind === field.kind,
-            )?.direction;
-
-            return {
-                ...acc,
-                [field.name]: {
-                    sortDirection,
-                    kind: field.kind,
-                    handleClick: () =>
-                        dispatch(
-                            updateSortBy({
-                                name: field.name,
-                                kind: field.kind,
-                            }),
-                        ),
-                },
-            };
-        }, {});
-    }, [allSelectedFields, dispatch, sortBy]);
+        return resultsRunner.getTableHeaderSortConfig();
+    }, [resultsRunner]);
 
     return (
         <>
@@ -122,6 +99,7 @@ const ContentCharts: FC = () => {
                             resultsRunner={resultsRunner}
                             columnsConfig={vizConfig.columns}
                             thSortConfig={thSortConfig}
+                            onTHClick={onTableHeaderClick}
                             flexProps={{
                                 m: '-1px',
                                 w: '100%',

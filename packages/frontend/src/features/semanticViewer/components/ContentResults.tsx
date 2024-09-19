@@ -4,32 +4,29 @@ import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import {
-    Table,
-    type THSortConfig,
-} from '../../../components/DataViz/visualizations/Table';
+import { Table } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppSelector } from '../store/hooks';
 import {
-    selectAllSelectedFields,
     selectResultsTableVizConfig,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
-import { updateSortBy } from '../store/semanticViewerSlice';
 import SqlViewer from './SqlViewer';
 
 enum TabPanel {
     SQL = 'SQL',
 }
 
-const ContentResults: FC = () => {
-    const dispatch = useAppDispatch();
+type ContentResultsProps = {
+    onTableHeaderClick: (fieldName: string) => void;
+};
+
+const ContentResults: FC<ContentResultsProps> = ({ onTableHeaderClick }) => {
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
-    const allSelectedFields = useAppSelector(selectAllSelectedFields);
     const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
-    const { results, columns, fields, sortBy } = useAppSelector(
+    const { results, columns, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -60,27 +57,8 @@ const ContentResults: FC = () => {
     ]);
 
     const thSortConfig = useMemo(() => {
-        return allSelectedFields.reduce<THSortConfig>((acc, field) => {
-            const sortDirection = sortBy.find(
-                (s) => s.name === field.name && s.kind === field.kind,
-            )?.direction;
-
-            return {
-                ...acc,
-                [field.name]: {
-                    sortDirection,
-                    kind: field.kind,
-                    handleClick: () =>
-                        dispatch(
-                            updateSortBy({
-                                name: field.name,
-                                kind: field.kind,
-                            }),
-                        ),
-                },
-            };
-        }, {});
-    }, [allSelectedFields, dispatch, sortBy]);
+        return resultsRunner.getTableHeaderSortConfig();
+    }, [resultsRunner]);
 
     return (
         <>
@@ -95,10 +73,11 @@ const ContentResults: FC = () => {
                         <Table
                             resultsRunner={resultsRunner}
                             columnsConfig={resultsTableVizConfig.columns}
+                            thSortConfig={thSortConfig}
+                            onTHClick={onTableHeaderClick}
                             flexProps={{
                                 m: '-1px',
                             }}
-                            thSortConfig={thSortConfig}
                         />
                     ) : (
                         <SuboptimalState

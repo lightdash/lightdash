@@ -1,8 +1,8 @@
 import {
-    SemanticLayerSortByDirection,
-    type FieldType,
+    SortByDirection,
     type RawResultRow,
     type VizColumnsConfig,
+    type VizTableHeaderSortConfig,
 } from '@lightdash/common';
 import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
@@ -19,19 +19,12 @@ import {
 import { useTableDataModel } from '../hooks/useTableDataModel';
 import { type ResultsRunner } from '../transformers/ResultsRunner';
 
-export type THSortConfig = {
-    [fieldName: string]: {
-        handleClick: () => void;
-        sortDirection: SemanticLayerSortByDirection | undefined;
-        kind: FieldType;
-    };
-};
-
 type TableProps<T extends ResultsRunner> = {
     columnsConfig: VizColumnsConfig;
     resultsRunner: T;
     flexProps?: FlexProps;
-    thSortConfig?: THSortConfig;
+    thSortConfig?: VizTableHeaderSortConfig;
+    onTHClick?: (fieldName: string) => void;
 };
 
 export const Table = <T extends ResultsRunner>({
@@ -39,6 +32,7 @@ export const Table = <T extends ResultsRunner>({
     columnsConfig,
     flexProps,
     thSortConfig,
+    onTHClick,
 }: TableProps<T>) => {
     const {
         tableWrapperRef,
@@ -75,18 +69,18 @@ export const Table = <T extends ResultsRunner>({
                     <tr>
                         {headerGroups.map((headerGroup) =>
                             headerGroup.headers.map((header) => {
-                                const handleHeaderClick =
-                                    thSortConfig?.[header.id]?.handleClick;
-
-                                const sortDirection =
-                                    thSortConfig?.[header.id]?.sortDirection;
+                                const sortConfig = thSortConfig?.[header.id];
+                                const onClick =
+                                    sortConfig && onTHClick
+                                        ? () => onTHClick(header.id)
+                                        : undefined;
 
                                 return (
                                     <th
                                         key={header.id}
-                                        onClick={handleHeaderClick}
+                                        onClick={onClick}
                                         style={
-                                            handleHeaderClick
+                                            onClick
                                                 ? {
                                                       cursor: 'pointer',
                                                       backgroundColor:
@@ -119,12 +113,12 @@ export const Table = <T extends ResultsRunner>({
                                                 header.getContext(),
                                             )}
 
-                                            {handleHeaderClick &&
-                                                sortDirection && (
+                                            {onClick &&
+                                                sortConfig?.direction && (
                                                     <MantineIcon
                                                         icon={
-                                                            sortDirection ===
-                                                            SemanticLayerSortByDirection.ASC
+                                                            sortConfig.direction ===
+                                                            SortByDirection.ASC
                                                                 ? IconArrowUp
                                                                 : IconArrowDown
                                                         }

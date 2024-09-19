@@ -3,6 +3,8 @@ import {
     DimensionType,
     FieldType,
     SemanticLayerFieldType,
+    SemanticLayerSortByDirection,
+    SortByDirection,
     VizIndexType,
     type PivotChartData,
     type RawResultRow,
@@ -13,6 +15,7 @@ import {
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
+    type VizTableHeaderSortConfig,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
@@ -266,5 +269,42 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
             valuesColumns,
             columns: vizColumns,
         };
+    }
+
+    private transformSemanticLayerSort(
+        sortDirection?: SemanticLayerSortByDirection,
+    ) {
+        if (!sortDirection) {
+            return;
+        }
+
+        switch (sortDirection) {
+            case SemanticLayerSortByDirection.ASC:
+                return SortByDirection.ASC;
+            case SemanticLayerSortByDirection.DESC:
+                return SortByDirection.DESC;
+            default:
+                return assertUnreachable(
+                    sortDirection,
+                    `Unknown sort direction: ${sortDirection}`,
+                );
+        }
+    }
+
+    getTableHeaderSortConfig(): VizTableHeaderSortConfig {
+        return this.columns.reduce<VizTableHeaderSortConfig>((acc, col) => {
+            const sortBy = this.query.sortBy.find(
+                (sort) => sort.name === col.reference,
+            );
+
+            return {
+                ...acc,
+                [col.reference]: {
+                    direction: this.transformSemanticLayerSort(
+                        sortBy?.direction,
+                    ),
+                },
+            };
+        }, {});
     }
 }
