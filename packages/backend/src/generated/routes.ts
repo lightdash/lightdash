@@ -8506,7 +8506,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 fieldType: { ref: 'SemanticLayerFieldType', required: true },
                 fieldKind: { ref: 'FieldType', required: true },
-                field: { dataType: 'string', required: true },
+                fieldRef: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
             },
             validators: {},

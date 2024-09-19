@@ -163,7 +163,7 @@ const getCubeValuesForRelativeTimeValue = (
 export const getCubeFilterFromSemanticLayerFilter = (
     filter: SemanticLayerFilter,
 ): Filter => ({
-    member: filter.field,
+    member: filter.fieldRef,
     operator: getCubeFilterOperatorForSemanticLayerFilter(filter),
     values: isSemanticLayerRelativeTimeFilter(filter)
         ? getCubeValuesForRelativeTimeValue(filter.relativeTime)

@@ -166,13 +166,13 @@ const Filter: FC<FilterProps> = ({
     );
 
     const currentField = useMemo(() => {
-        return findFilterField(filter.field);
-    }, [filter.field, findFilterField]);
+        return findFilterField(filter.fieldRef);
+    }, [filter.fieldRef, findFilterField]);
 
     // When field changes, reset operator to first available operator - this is done at the parent filter level
     const handleUpdateFilter = useCallback(
         (updatedFilter: SemanticLayerFilter) => {
-            const updatedField = findFilterField(updatedFilter.field);
+            const updatedField = findFilterField(updatedFilter.fieldRef);
 
             if (!updatedField) {
                 return;

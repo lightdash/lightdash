@@ -224,7 +224,7 @@ export enum SemanticLayerFilterRelativeTimeValue {
 
 export type SemanticLayerFilterBase = {
     uuid: string;
-    field: string;
+    fieldRef: string;
     fieldKind: FieldType; // This is mostly to help with frontend state and avoiding having to set all the fields in redux to be able to find the kind
     fieldType: SemanticLayerFieldType;
 };
@@ -332,19 +332,17 @@ export function getAvailableSemanticLayerFilterOperators(
     }
 }
 
-export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
-    field: string;
-    fieldKind: FieldType;
-    fieldType: SemanticLayerFieldType;
-}[] {
+export function getFlattenedFilterFieldProps(
+    filter: SemanticLayerFilter,
+): Pick<SemanticLayerFilter, 'fieldRef' | 'fieldKind' | 'fieldType'>[] {
     const andFiltersFieldNames =
-        filter.and?.flatMap(getFilterFieldNamesRecursively) ?? [];
+        filter.and?.flatMap(getFlattenedFilterFieldProps) ?? [];
     const orFiltersFieldNames =
-        filter.or?.flatMap(getFilterFieldNamesRecursively) ?? [];
+        filter.or?.flatMap(getFlattenedFilterFieldProps) ?? [];
 
     return [
         {
-            field: filter.field,
+            fieldRef: filter.fieldRef,
             fieldKind: filter.fieldKind,
             fieldType: filter.fieldType,
         },

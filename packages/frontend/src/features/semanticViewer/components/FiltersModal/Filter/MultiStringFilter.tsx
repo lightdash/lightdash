@@ -38,7 +38,7 @@ const MultiStringFilter: FC<MultiStringFilterProps> = ({
                 style={{ flex: 5 }}
                 fields={fields}
                 fieldOptions={fieldOptions}
-                value={filter.field}
+                value={filter.fieldRef}
                 onFieldSelect={(selectedField) => {
                     if (!selectedField) {
                         return;
@@ -46,7 +46,7 @@ const MultiStringFilter: FC<MultiStringFilterProps> = ({
 
                     onUpdate({
                         ...filter,
-                        field: selectedField,
+                        fieldRef: selectedField,
                     });
                 }}
             />

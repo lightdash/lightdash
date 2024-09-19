@@ -15,7 +15,7 @@ const FieldFilterItems: FC<Props> = ({ field }) => {
 
     const handleAddFilter = useCallback(() => {
         const newFilter = createFilterForOperator({
-            field: field.name,
+            fieldRef: field.name,
             fieldKind: field.kind,
             fieldType: field.type,
             operator: field.availableOperators[0],

@@ -94,7 +94,7 @@ const FilterFieldSelect: FC<FilterFieldInputProps> = ({
                     }
 
                     const newFilter = createFilterForOperator({
-                        field: selectedField,
+                        fieldRef: selectedField,
                         fieldKind: field.kind,
                         fieldType: field.type,
                         operator: defaultOperator,

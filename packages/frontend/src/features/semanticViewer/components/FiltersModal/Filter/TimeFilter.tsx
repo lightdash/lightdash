@@ -64,7 +64,7 @@ const RelativeTimeFilter: FC<RelativeTimeFilterProps> = ({
                 style={{ flex: 5 }}
                 fields={fields}
                 fieldOptions={fieldOptions}
-                value={filter.field}
+                value={filter.fieldRef}
                 onFieldSelect={(value) => {
                     if (!value) {
                         return;
@@ -72,7 +72,7 @@ const RelativeTimeFilter: FC<RelativeTimeFilterProps> = ({
 
                     onUpdate({
                         ...filter,
-                        field: value,
+                        fieldRef: value,
                     });
                 }}
             />

@@ -189,7 +189,7 @@ const getRelativeTimeOperators = (
 
 const getStringFilterSql = (filter: SemanticLayerStringFilter) =>
     `{{ Dimension('${
-        filter.field
+        filter.fieldRef
     }') }} ${getSimpleDbtOperatorForSemanticLayerBaseOperator(
         filter.operator,
         filter.values,
@@ -197,7 +197,7 @@ const getStringFilterSql = (filter: SemanticLayerStringFilter) =>
 
 const getExactTimeFilterSql = (filter: SemanticLayerExactTimeFilter) =>
     `{{ TimeDimension('${
-        filter.field
+        filter.fieldRef
     }', 'day') }} ${getSimpleDbtOperatorForSemanticLayerBaseOperator(
         filter.operator,
         filter.values,
@@ -215,14 +215,14 @@ const getRelativeTimeFilterSql = (
 
     switch (filter.relativeTime) {
         case SemanticLayerFilterRelativeTimeValue.TODAY:
-            return `{{ TimeDimension('${filter.field}', 'day') }} ${operators[0]} '${today}'`;
+            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${today}'`;
         case SemanticLayerFilterRelativeTimeValue.YESTERDAY:
             const yesterday = now
                 .clone()
                 .subtract(1, 'day')
                 .format('YYYY-MM-DD');
 
-            return `{{ TimeDimension('${filter.field}', 'day') }} ${operators[0]} '${yesterday}'`;
+            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${yesterday}'`;
         case SemanticLayerFilterRelativeTimeValue.LAST_7_DAYS:
             const sevenDaysAgo = now
                 .clone()
@@ -230,10 +230,10 @@ const getRelativeTimeFilterSql = (
                 .format('YYYY-MM-DD');
 
             if (operators[1]) {
-                return `{{ TimeDimension('${filter.field}', 'day') }} ${operators[0]} '${sevenDaysAgo}' AND {{ TimeDimension('${filter.field}', 'day') }} ${operators[1]} '${today}'`;
+                return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${sevenDaysAgo}' AND {{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[1]} '${today}'`;
             }
 
-            return `{{ TimeDimension('${filter.field}', 'day') }} ${operators[0]} '${sevenDaysAgo}'`;
+            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${sevenDaysAgo}'`;
         case SemanticLayerFilterRelativeTimeValue.LAST_30_DAYS:
             const thirtyDaysAgo = now
                 .clone()
@@ -241,10 +241,10 @@ const getRelativeTimeFilterSql = (
                 .format('YYYY-MM-DD');
 
             if (operators[1]) {
-                return `{{ TimeDimension('${filter.field}', 'day') }} ${operators[0]} '${thirtyDaysAgo}' AND {{ TimeDimension('${filter.field}', 'day') }} ${operators[1]} '${today}'`;
+                return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${thirtyDaysAgo}' AND {{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[1]} '${today}'`;
             }
 
-            return `{{ TimeDimension('${filter.field}', 'day') }} ${operators[0]} '${thirtyDaysAgo}'`;
+            return `{{ TimeDimension('${filter.fieldRef}', 'day') }} ${operators[0]} '${thirtyDaysAgo}'`;
         default:
             return assertUnreachable(
                 filter.relativeTime,

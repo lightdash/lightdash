@@ -6,12 +6,10 @@ import {
 } from '@lightdash/common';
 import { v4 as uuidV4 } from 'uuid';
 
-type FilterBaseArgs = {
-    field: string;
-    fieldKind: SemanticLayerFilter['fieldKind'];
-    fieldType: SemanticLayerFilter['fieldType'];
-    operator: SemanticLayerFilter['operator'];
-};
+type FilterBaseArgs = Pick<
+    SemanticLayerFilter,
+    'fieldRef' | 'fieldKind' | 'fieldType' | 'operator'
+>;
 
 export function createFilterForOperator(
     args: FilterBaseArgs,
