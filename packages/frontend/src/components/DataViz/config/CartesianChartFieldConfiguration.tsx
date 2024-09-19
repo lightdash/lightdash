@@ -1,12 +1,13 @@
 import {
     DimensionType,
+    SortByDirection,
     type ChartKind,
     type SqlRunnerPivotChartLayout,
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box } from '@mantine/core';
+import { ActionIcon, Box, Select, Stack } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -119,32 +120,64 @@ const XFieldAxisConfig = ({
     const dispatch = useVizDispatch();
 
     return (
-        <FieldReferenceSelect
-            clearable
-            data={xLayoutOptions.map((x) => ({
-                value: x.reference,
-                label: x.reference,
-            }))}
-            value={field?.reference ?? null}
-            placeholder="Select X axis"
-            onChange={(value) => {
-                if (!value) {
-                    dispatch(actions.removeXAxisField());
-                } else dispatch(actions.setXAxisReference(value));
-            }}
-            error={
-                field?.reference &&
-                xLayoutOptions.find((x) => x.reference === field.reference) ===
-                    undefined &&
-                `Column "${field.reference}" does not exist. Choose another`
-            }
-            fieldType={
-                (field?.reference &&
-                    columns?.find((x) => x.reference === field.reference)
-                        ?.type) ||
-                DimensionType.STRING
-            }
-        />
+        <>
+            <FieldReferenceSelect
+                clearable
+                data={xLayoutOptions.map((x) => ({
+                    value: x.reference,
+                    label: x.reference,
+                }))}
+                value={field?.reference ?? null}
+                placeholder="Select X axis"
+                onChange={(value) => {
+                    if (!value) {
+                        dispatch(actions.removeXAxisField());
+                    } else dispatch(actions.setXAxisReference(value));
+                }}
+                error={
+                    field?.reference &&
+                    xLayoutOptions.find(
+                        (x) => x.reference === field.reference,
+                    ) === undefined &&
+                    `Column "${field.reference}" does not exist. Choose another`
+                }
+                fieldType={
+                    (field?.reference &&
+                        columns?.find((x) => x.reference === field.reference)
+                            ?.type) ||
+                    DimensionType.STRING
+                }
+            />
+            {field?.reference && (
+                <Config.Group>
+                    <Config.Label>Sort by</Config.Label>
+                    <Select
+                        radius="md"
+                        placeholder="Select sort option"
+                        data={[
+                            {
+                                value: SortByDirection.ASC,
+                                label: 'Ascending',
+                            },
+                            {
+                                value: SortByDirection.DESC,
+                                label: 'Descending',
+                            },
+                        ]}
+                        onChange={(direction: SortByDirection) => {
+                            dispatch(
+                                actions.setSortBy([
+                                    {
+                                        reference: field?.reference,
+                                        direction,
+                                    },
+                                ]),
+                            );
+                        }}
+                    />
+                </Config.Group>
+            )}
+        </>
     );
 };
 
@@ -241,7 +274,7 @@ export const CartesianChartFieldConfiguration = ({
     );
 
     return (
-        <>
+        <Stack spacing="sm">
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis`}</Config.Heading>
@@ -291,6 +324,6 @@ export const CartesianChartFieldConfiguration = ({
                     />
                 </Config.Section>
             </Config>
-        </>
+        </Stack>
     );
 };

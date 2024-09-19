@@ -276,7 +276,16 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                 <AddTilesToDashboardModal
                     isOpen
                     projectUuid={projectUuid}
-                    savedChartUuid={action.item.data.uuid}
+                    savedSqlChartUuid={
+                        action.item.data.source === ChartSourceType.SQL
+                            ? action.item.data.uuid
+                            : undefined
+                    }
+                    savedChartUuid={
+                        action.item.data.source === ChartSourceType.DBT_EXPLORE
+                            ? action.item.data.uuid
+                            : undefined
+                    }
                     onClose={handleReset}
                 />
             );

@@ -1,5 +1,7 @@
 import {
     AlreadyExistsError,
+    createCustomExplore,
+    CreateCustomExplorePayload,
     CreateDbtCloudIntegration,
     CreateProject,
     CreateWarehouseCredentials,
@@ -7,6 +9,7 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
+    friendlyName,
     generateSlug,
     isExploreError,
     NotExistsError,
@@ -21,11 +24,13 @@ import {
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
     SpaceSummary,
+    SupportedDbtAdapter,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
+    WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -1801,5 +1806,61 @@ export class ProjectModel {
     // eslint-disable-next-line class-methods-use-this
     getWarehouseClientFromCredentials(credentials: CreateWarehouseCredentials) {
         return warehouseClientFromCredentials(credentials);
+    }
+
+    async createCustomExplore(
+        projectUuid: string,
+        { name, sql, columns }: CreateCustomExplorePayload,
+        warehouseClient: WarehouseClient,
+    ): Promise<Pick<Explore, 'name'>> {
+        const translatedToExplore = createCustomExplore(
+            name,
+            sql,
+            columns,
+            warehouseClient,
+        );
+
+        // insert into cached_explore
+        await this.database(CachedExploreTableName)
+            .insert({
+                project_uuid: projectUuid,
+                name: translatedToExplore.name,
+                table_names: Object.keys(translatedToExplore.tables || {}),
+                explore: JSON.stringify(translatedToExplore),
+            })
+            .onConflict(['project_uuid', 'name'])
+            .merge()
+            .returning(['name', 'cached_explore_uuid']);
+        const toAddToCached: Explore = {
+            name,
+            tags: [],
+            label: friendlyName(name),
+            tables: translatedToExplore.tables,
+            baseTable: name,
+            groupLabel: 'Custom explores',
+            joinedTables: [],
+            targetDatabase: SupportedDbtAdapter.POSTGRES,
+        };
+
+        // append to cached_explores
+        await this.database(CachedExploresTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                explores: this.database.raw(
+                    `
+                CASE
+                    WHEN explores IS NULL THEN ?::jsonb
+                    ELSE explores || ?::jsonb
+                END
+            `,
+                    [
+                        JSON.stringify([toAddToCached]),
+                        JSON.stringify([toAddToCached]),
+                    ],
+                ),
+            })
+            .returning('*');
+
+        return { name };
     }
 }

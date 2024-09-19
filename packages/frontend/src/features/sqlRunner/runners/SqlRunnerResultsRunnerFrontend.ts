@@ -15,6 +15,7 @@ import {
     type SemanticLayerQuery,
     type SqlRunnerPivotQueryBody,
     type VizColumn,
+    type VizSortBy,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 import { getResultsFromStream } from '../../../utils/request';
@@ -61,6 +62,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
             results,
             indexColumn: job.details.indexColumn,
             valuesColumns: job.details.valuesColumns,
+            fileUrl: url,
         };
     } else {
         throw job;
@@ -133,6 +135,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
     slug,
     uuid,
     limit,
+    sortBy,
     sql,
     fields,
 }: {
@@ -141,6 +144,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
     uuid?: string;
     limit: number;
     sql: string;
+    sortBy?: VizSortBy[];
     fields: SemanticLayerField[];
 }): RunPivotQuery => {
     return async (query: SemanticLayerQuery) => {
@@ -151,6 +155,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
                 indexColumn: undefined,
                 valuesColumns: [],
                 columns: [],
+                fileUrl: undefined,
             };
         }
         const { indexColumn, valuesColumns, groupByColumns } =
@@ -164,6 +169,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
             valuesColumns,
             groupByColumns,
             limit,
+            sortBy,
         });
 
         const columns: VizColumn[] = [
@@ -176,6 +182,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
         }));
 
         return {
+            fileUrl: pivotResults.fileUrl,
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,
             valuesColumns: pivotResults.valuesColumns,

@@ -57,6 +57,7 @@ import {
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
+import { DownloadCsvButton } from './DownloadCsvButton';
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 
 const DEFAULT_SQL_LIMIT = 500;
@@ -66,7 +67,9 @@ export const ContentPanel: FC = () => {
     const { showToastError } = useToaster();
     const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
     const resultsPanelRef = useRef<ImperativePanelHandle>(null);
-
+    const savedSqlChart = useAppSelector(
+        (state) => state.sqlRunner.savedSqlChart,
+    );
     // state for helping highlight errors in the editor
     const [hightlightError, setHightlightError] = useState<
         MonacoHighlightChar | undefined
@@ -169,8 +172,11 @@ export const ContentPanel: FC = () => {
         return new SqlRunnerResultsRunnerFrontend({
             rows: queryResults.results,
             columns: queryResults.columns,
+            projectUuid,
+            limit,
+            sql,
         });
-    }, [queryResults]);
+    }, [queryResults, projectUuid, limit, sql]);
 
     useEffect(() => {
         if (queryResults && panelSizes[1] === 0) {
@@ -256,13 +262,16 @@ export const ContentPanel: FC = () => {
         [activeEditorTab],
     );
 
+    // TODO: this needs to pass the semantic layer query
     const [chartVizQuery, chartSpec] = useChartViz({
         projectUuid,
         resultsRunner,
         config: currentVizConfig,
         sql,
-        limit,
     });
+
+    const chartFileUrl = chartVizQuery?.data?.fileUrl;
+    const resultsFileUrl = queryResults?.fileUrl;
 
     const chartVizResultsRunner = useMemo(() => {
         if (!chartVizQuery.data) return;
@@ -270,8 +279,11 @@ export const ContentPanel: FC = () => {
         return new SqlRunnerResultsRunnerFrontend({
             rows: chartVizQuery.data.results,
             columns: chartVizQuery.data.columns,
+            projectUuid,
+            limit,
+            sql,
         });
-    }, [chartVizQuery.data]);
+    }, [chartVizQuery.data, projectUuid, limit, sql]);
 
     return (
         <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
@@ -352,19 +364,34 @@ export const ContentPanel: FC = () => {
                                 }}
                             />
                         </Group>
-
-                        <RunSqlQueryButton
-                            isLoading={isLoading}
-                            disabled={!sql}
-                            onSubmit={() => handleRunQuery()}
-                            {...(canSetSqlLimit
-                                ? {
-                                      onLimitChange: (l) =>
-                                          dispatch(setSqlLimit(l)),
-                                      limit,
-                                  }
-                                : {})}
-                        />
+                        <Group>
+                            <RunSqlQueryButton
+                                isLoading={isLoading}
+                                disabled={!sql}
+                                onSubmit={() => handleRunQuery()}
+                                {...(canSetSqlLimit
+                                    ? {
+                                          onLimitChange: (l) =>
+                                              dispatch(setSqlLimit(l)),
+                                          limit,
+                                      }
+                                    : {})}
+                            />
+                            {activeEditorTab === EditorTabs.VISUALIZATION &&
+                            !isVizTableConfig(currentVizConfig) ? (
+                                <DownloadCsvButton
+                                    fileUrl={chartFileUrl}
+                                    columns={chartVizQuery?.data?.columns ?? []}
+                                    chartName={savedSqlChart?.name}
+                                />
+                            ) : (
+                                <DownloadCsvButton
+                                    fileUrl={resultsFileUrl}
+                                    columns={queryResults?.columns ?? []}
+                                    chartName={savedSqlChart?.name}
+                                />
+                            )}
+                        </Group>
                     </Group>
                 </Paper>
 
@@ -472,7 +499,7 @@ export const ContentPanel: FC = () => {
                                                                                 chartSpec
                                                                             }
                                                                             isLoading={
-                                                                                chartVizQuery.isLoading
+                                                                                chartVizQuery.isFetching
                                                                             }
                                                                             error={
                                                                                 chartVizQuery.error

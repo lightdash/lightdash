@@ -9,8 +9,9 @@ import {
     type AllVizChartConfig,
     type IResultsRunner,
     type PivotChartData,
+    type SemanticLayerQuery,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 
@@ -22,6 +23,11 @@ type Args = {
     uuid?: string;
     resultsRunner?: IResultsRunner;
     config: AllVizChartConfig | undefined;
+    semanticLayerQuery?: SemanticLayerQuery;
+    // Consumers can provide additional query keys to force a re-fetch.
+    // Different pages may need to refresh this query based on parameters
+    // that are unused in this hook.
+    additionalQueryKey?: UseQueryOptions['queryKey'];
 };
 export const useChartViz = ({
     projectUuid,
@@ -31,6 +37,8 @@ export const useChartViz = ({
     uuid,
     resultsRunner,
     config,
+    semanticLayerQuery,
+    additionalQueryKey,
 }: Args) => {
     const org = useOrganization();
 
@@ -59,8 +67,13 @@ export const useChartViz = ({
         if (!config) return undefined;
         if (isVizTableConfig(config)) return undefined;
 
-        return [projectUuid, limit, JSON.stringify(config.fieldConfig)];
-    }, [projectUuid, limit, config]);
+        return [
+            projectUuid,
+            limit,
+            JSON.stringify(config.fieldConfig),
+            ...(additionalQueryKey ?? []),
+        ];
+    }, [projectUuid, limit, config, additionalQueryKey]);
 
     const transformedDataQuery = useQuery<PivotChartData | undefined, Error>({
         queryKey: queryKey!,
@@ -70,14 +83,7 @@ export const useChartViz = ({
             }
 
             try {
-                return chartDataModel.getTransformedData(
-                    config?.fieldConfig,
-                    sql,
-                    projectUuid,
-                    limit,
-                    slug,
-                    uuid,
-                );
+                return chartDataModel.getTransformedData(semanticLayerQuery);
             } catch (e) {
                 if (isApiError(e)) {
                     throw e.error;

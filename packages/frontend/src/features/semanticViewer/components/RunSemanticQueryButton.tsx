@@ -5,6 +5,7 @@ import {
     MantineProvider,
     Text,
     Tooltip,
+    type ButtonGroupProps,
 } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
@@ -25,7 +26,9 @@ import {
 } from '../store/selectors';
 import { setLimit, setResults } from '../store/semanticViewerSlice';
 
-export const RunSemanticQueryButton: FC = () => {
+type Props = ButtonGroupProps;
+
+export const RunSemanticQueryButton: FC<Props> = (buttonGroupProps) => {
     const os = useOs();
     const { showToastError } = useToaster();
 
@@ -102,7 +105,7 @@ export const RunSemanticQueryButton: FC = () => {
     );
 
     return (
-        <Button.Group>
+        <Button.Group {...buttonGroupProps}>
             <Tooltip
                 label={
                     <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
@@ -137,7 +140,7 @@ export const RunSemanticQueryButton: FC = () => {
                         )}`,
                     })}
                 >
-                    {`Run query ${limit ? `(${limit})` : ''}`}
+                    Run query ({limit ?? config.maxQueryLimit})
                 </Button>
             </Tooltip>
 

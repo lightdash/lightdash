@@ -1,4 +1,9 @@
-import { type ApiError, type PivotChartData } from '..';
+import {
+    type ApiError,
+    type Explore,
+    type PivotChartData,
+    type PivotChartLayout,
+} from '..';
 import {
     type PivotIndexColum,
     type VizAggregationOptions,
@@ -33,6 +38,7 @@ type ApiSqlRunnerPivotQueryPayload = {
         aggregation: VizAggregationOptions;
     }[];
     groupByColumns: { reference: string }[] | undefined;
+    sortBy: PivotChartLayout['sortBy'] | undefined;
 };
 
 export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
@@ -187,4 +193,15 @@ export type ApiUpdateSqlChart = {
         savedSqlUuid: string;
         savedSqlVersionUuid: string | null;
     };
+};
+
+export type ApiCreateCustomExplore = {
+    status: 'ok';
+    results: Pick<Explore, 'name'>;
+};
+
+export type CreateCustomExplorePayload = {
+    name: string;
+    sql: string;
+    columns: VizColumn[];
 };

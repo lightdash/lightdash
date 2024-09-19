@@ -14,6 +14,7 @@ import {
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
+    CreateCustomExplorePayload,
     CreateDbtCloudIntegration,
     createDimensionWithGranularity,
     CreateJob,
@@ -63,6 +64,7 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
+    LightdashError,
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
@@ -82,6 +84,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     snakeCaseName,
+    SortByDirection,
     SortField,
     SpaceQuery,
     SpaceSummary,
@@ -600,9 +603,16 @@ export class ProjectService extends BaseService {
         };
 
         await this.jobModel.create(job);
-        doAsyncWork().catch((e) =>
-            this.logger.error(`Error running background job: ${e}`),
-        );
+        doAsyncWork().catch((e) => {
+            if (!(e instanceof LightdashError)) {
+                Sentry.captureException(e);
+            }
+            this.logger.error(
+                `Error running background job:${
+                    e instanceof Error ? e.stack : e
+                }`,
+            );
+        });
         return {
             jobUuid: job.jobUuid,
         };
@@ -2051,9 +2061,15 @@ export class ProjectService extends BaseService {
         indexColumn,
         valuesColumns,
         groupByColumns,
+        sortBy,
     }: Pick<
         SqlRunnerPivotQueryPayload,
-        'sql' | 'limit' | 'indexColumn' | 'valuesColumns' | 'groupByColumns'
+        | 'sql'
+        | 'limit'
+        | 'indexColumn'
+        | 'valuesColumns'
+        | 'groupByColumns'
+        | 'sortBy'
     > & { warehouseType: WarehouseTypes }): string {
         if (!indexColumn) throw new ParameterError('Index column is required');
         const q = getFieldQuoteChar(warehouseType);
@@ -2087,11 +2103,22 @@ export class ProjectService extends BaseService {
             ),
         ];
 
+        const orderBy: string = sortBy
+            ? `ORDER BY ${sortBy
+                  .map((s) => `${q}${s.reference}${q} ${s.direction}`)
+                  .join(', ')}`
+            : ``;
+
+        const sortDirectionForIndexColumn =
+            sortBy?.find((s) => s.reference === indexColumn.reference)
+                ?.direction === SortByDirection.DESC
+                ? 'DESC'
+                : 'ASC';
         const pivotQuery = `SELECT ${selectReferences.join(
             ', ',
         )}, dense_rank() over (order by ${q}${
             indexColumn.reference
-        }${q}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
+        }${q} ${sortDirectionForIndexColumn}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
             groupByColumns?.[0]?.reference
         }${q}) as ${q}column_index${q} FROM group_by_query`;
 
@@ -2106,7 +2133,9 @@ export class ProjectService extends BaseService {
         }
 
         let sqlQuery = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery})`;
-        sqlQuery += `\nSELECT * FROM group_by_query LIMIT ${limit ?? 500} `;
+        sqlQuery += `\nSELECT * FROM group_by_query ${orderBy} LIMIT ${
+            limit ?? 500
+        } `;
 
         return sqlQuery;
     }
@@ -2121,10 +2150,9 @@ export class ProjectService extends BaseService {
         indexColumn,
         valuesColumns,
         groupByColumns,
+        sortBy,
     }: SqlRunnerPivotQueryPayload): Promise<
-        {
-            fileUrl: string;
-        } & Omit<PivotChartData, 'results' | 'columns'>
+        Omit<PivotChartData, 'results' | 'columns'>
     > {
         if (!indexColumn) throw new ParameterError('Index column is required');
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -2143,6 +2171,7 @@ export class ProjectService extends BaseService {
             indexColumn,
             valuesColumns,
             groupByColumns,
+            sortBy,
         });
 
         this.analytics.track({
@@ -2710,7 +2739,14 @@ export class ProjectService extends BaseService {
         };
         await this.projectModel
             .tryAcquireProjectLock(projectUuid, onLockAcquired, onLockFailed)
-            .catch((e) => this.logger.error(`Background job failed: ${e}`));
+            .catch((e) => {
+                if (!(e instanceof LightdashError)) {
+                    Sentry.captureException(e);
+                }
+                this.logger.error(
+                    `Background job failed:${e instanceof Error ? e.stack : e}`,
+                );
+            });
     }
 
     async getAllExploresSummary(
@@ -4341,5 +4377,22 @@ export class ProjectService extends BaseService {
 
             return metrics;
         }, []);
+    }
+
+    async createCustomExplore(
+        user: SessionUser,
+        projectUuid: string,
+        payload: CreateCustomExplorePayload,
+    ) {
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+        );
+        const explore = await this.projectModel.createCustomExplore(
+            projectUuid,
+            payload,
+            warehouseClient,
+        );
+        return explore;
     }
 }

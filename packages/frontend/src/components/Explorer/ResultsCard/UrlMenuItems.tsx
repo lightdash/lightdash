@@ -25,8 +25,9 @@ const UrlMenuItem: FC<{
     itemIdsInRow: string[];
     value: ResultValue;
     row: Record<string, Record<string, ResultValue>>;
-}> = ({ urlConfig, itemsMap, itemIdsInRow, value, row }) => {
-    const { track } = useTracking();
+    showError?: boolean;
+}> = ({ urlConfig, itemsMap, itemIdsInRow, value, row, showError = true }) => {
+    const tracking = useTracking(true);
     const [url, renderError] = useMemo(() => {
         let parsedUrl: string | undefined = undefined;
         let errorMessage: string | undefined = undefined;
@@ -74,7 +75,9 @@ const UrlMenuItem: FC<{
         return errorMessage;
     }, [itemIdsInRow, itemsMap, urlConfig]);
     const error: string | undefined = validationError || renderError;
-
+    if (!showError && error) {
+        return null;
+    }
     return (
         <Tooltip
             withinPortal
@@ -96,7 +99,7 @@ const UrlMenuItem: FC<{
                     }
                     disabled={!url}
                     onClick={() => {
-                        track({
+                        tracking?.track({
                             name: EventName.GO_TO_LINK_CLICKED,
                         });
                         window.open(url, '_blank');
@@ -113,7 +116,8 @@ const UrlMenuItems: FC<{
     urls: FieldUrl[] | undefined;
     cell: Cell<ResultRow, ResultRow[0]>;
     itemsMap?: Record<string, Field | TableCalculation>;
-}> = ({ urls, cell, itemsMap }) => {
+    showErrors?: boolean;
+}> = ({ urls, cell, itemsMap, showErrors }) => {
     const value: ResultValue = cell.getValue()?.value || {};
     const [itemIdsInRow, rowData] = useMemo(() => {
         const itemIds: string[] = [];
@@ -147,6 +151,7 @@ const UrlMenuItems: FC<{
                     itemIdsInRow={itemIdsInRow}
                     row={rowData}
                     value={value}
+                    showError={showErrors}
                 />
             ))}
         </>

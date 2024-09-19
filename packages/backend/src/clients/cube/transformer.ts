@@ -8,6 +8,7 @@ import {
     TCubeMeasure,
     TimeDimensionGranularity,
     TQueryOrderArray,
+    type TimeDimension,
 } from '@cubejs-client/core';
 import {
     assertUnreachable,
@@ -135,18 +136,34 @@ export const cubeTransfomers: SemanticLayerTransformer<
             getCubeQueryOrder(sort.direction),
         ]);
 
+        const timeDimensions = query.timeDimensions.reduce<{
+            withoutGranularity: string[];
+            withGranularity: TimeDimension[];
+        }>(
+            (acc, td) => {
+                if (td.granularity) {
+                    acc.withGranularity.push({
+                        dimension: td.name,
+                        granularity: getCubeTimeDimensionGranularity(
+                            td.granularity,
+                        ),
+                    });
+                } else {
+                    acc.withoutGranularity.push(td.name);
+                }
+
+                return acc;
+            },
+            { withoutGranularity: [], withGranularity: [] },
+        );
+
         return {
             measures: query.metrics.map((m) => m.name),
             dimensions: [
                 ...query.dimensions.map((d) => d.name),
-                ...query.timeDimensions.map((td) => td.name),
+                ...timeDimensions.withoutGranularity, // time dimensions without granularity should go on dimensions in the cube query, otherwise they won't show up in the results
             ],
-            timeDimensions: query.timeDimensions.map((td) => ({
-                dimension: td.name,
-                granularity:
-                    td.granularity &&
-                    getCubeTimeDimensionGranularity(td.granularity),
-            })),
+            timeDimensions: timeDimensions.withGranularity,
             order: order.length > 0 ? order : undefined, // if order is empty array cube doesn't apply any order which could break partial results https://cube.dev/docs/product/apis-integrations/rest-api/query-format
             filters: query.filters.map(getCubeFilterFromSemanticLayerFilter),
             timezone: query.timezone,

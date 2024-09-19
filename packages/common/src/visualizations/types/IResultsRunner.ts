@@ -4,6 +4,7 @@ import {
     type VizCustomMetricLayoutOptions,
     type VizIndexLayoutOptions,
     type VizIndexType,
+    type VizSortBy,
     type VizValuesLayoutOptions,
 } from '.';
 import { type DimensionType } from '../../types/field';
@@ -24,6 +25,7 @@ export type SqlRunnerPivotChartLayout = {
         aggregation: VizAggregationOptions;
     }[];
     groupBy: { reference: string }[] | undefined;
+    sortBy?: VizSortBy[];
 };
 
 export type SemanticViewerPivotChartLayout = {
@@ -39,6 +41,7 @@ export type SemanticViewerPivotChartLayout = {
         aggregation: VizAggregationOptions;
     }[];
     groupBy: { reference: string }[] | undefined;
+    sortBy?: VizSortBy[];
 };
 
 // TODO: these types should be somewhere else

@@ -87,7 +87,7 @@ export const getPivotQueryFunctionForSemanticViewer = (
             query,
         });
 
-        const { results, columns } = pivotedResults;
+        const { results, columns, fileUrl } = pivotedResults;
 
         // The backend call has no knowledge of field types, so we need to map them to the correct types
         const vizColumns: VizColumn[] = convertColumnNamesToVizColumns(
@@ -114,6 +114,7 @@ export const getPivotQueryFunctionForSemanticViewer = (
             indexColumn,
             valuesColumns,
             columns: vizColumns,
+            fileUrl,
         };
     };
 };
@@ -161,6 +162,7 @@ export class BaseResultsRunner implements IResultsRunner {
     ): Promise<PivotChartData> {
         if (!!query.pivot?.index.length || !!query.pivot?.values.length) {
             return {
+                fileUrl: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],

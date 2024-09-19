@@ -1,5 +1,6 @@
 import { ChartKind, type ApiError, type SqlChart } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
 import { getSqlChartResults } from './useSqlChartResults';
 import { type ResultsAndColumns } from './useSqlQueryRun';
@@ -7,9 +8,13 @@ import { type ResultsAndColumns } from './useSqlQueryRun';
 const getDashboardSqlChartAndPossibleResults = async ({
     projectUuid,
     savedSqlUuid,
+    getResultsFromStream,
 }: {
     projectUuid: string;
     savedSqlUuid: string;
+    getResultsFromStream: ReturnType<
+        typeof useResultsFromStreamWorker
+    >['getResultsFromStream'];
 }): Promise<{ resultsAndColumns: ResultsAndColumns; chart: SqlChart }> => {
     const chart = await fetchSavedSqlChart({
         projectUuid,
@@ -22,6 +27,7 @@ const getDashboardSqlChartAndPossibleResults = async ({
         return {
             chart,
             resultsAndColumns: {
+                fileUrl: undefined,
                 results: [],
                 columns: [],
             },
@@ -31,11 +37,13 @@ const getDashboardSqlChartAndPossibleResults = async ({
     const resultsTest = await getSqlChartResults({
         projectUuid,
         slug: chart.slug,
+        getResultsFromStream,
     });
 
     return {
         chart,
         resultsAndColumns: {
+            fileUrl: resultsTest.fileUrl,
             results: resultsTest.results,
             columns: resultsTest.columns,
         },
@@ -56,6 +64,7 @@ export const useDashboardSqlChart = ({
     savedSqlUuid: string | null;
     projectUuid: string;
 }) => {
+    const { getResultsFromStream } = useResultsFromStreamWorker();
     return useQuery<
         { resultsAndColumns: ResultsAndColumns; chart: SqlChart },
         ApiError & { slug?: string }
@@ -65,6 +74,7 @@ export const useDashboardSqlChart = ({
             return getDashboardSqlChartAndPossibleResults({
                 projectUuid,
                 savedSqlUuid: savedSqlUuid!,
+                getResultsFromStream,
             });
         },
         {
