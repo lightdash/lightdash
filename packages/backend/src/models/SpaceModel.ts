@@ -63,6 +63,7 @@ import {
 import { UserTableName } from '../database/entities/users';
 import { DbValidationTable } from '../database/entities/validation';
 import { wrapSentryTransaction } from '../utils';
+import { generateUniqueSlug } from '../utils/SlugUtils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
 type SpaceModelArguments = {
@@ -1326,34 +1327,36 @@ export class SpaceModel {
         isPrivate: boolean,
         slug: string,
     ): Promise<Space> {
-        const [project] = await this.database('projects')
-            .select('project_id')
-            .where('project_uuid', projectUuid);
+        return this.database.transaction(async (trx) => {
+            const [project] = await trx('projects')
+                .select('project_id')
+                .where('project_uuid', projectUuid);
 
-        const [space] = await this.database(SpaceTableName)
-            .insert({
-                project_id: project.project_id,
-                is_private: isPrivate,
-                name,
-                created_by_user_id: userId,
-                slug,
-            })
-            .returning('*');
+            const [space] = await trx(SpaceTableName)
+                .insert({
+                    project_id: project.project_id,
+                    is_private: isPrivate,
+                    name,
+                    created_by_user_id: userId,
+                    slug: await generateUniqueSlug(trx, SpaceTableName, slug),
+                })
+                .returning('*');
 
-        return {
-            organizationUuid: space.organization_uuid,
-            name: space.name,
-            queries: [],
-            isPrivate: space.is_private,
-            uuid: space.space_uuid,
-            projectUuid,
-            dashboards: [],
-            access: [],
-            groupsAccess: [],
-            pinnedListUuid: null,
-            pinnedListOrder: null,
-            slug: space.slug,
-        };
+            return {
+                organizationUuid: space.organization_uuid,
+                name: space.name,
+                queries: [],
+                isPrivate: space.is_private,
+                uuid: space.space_uuid,
+                projectUuid,
+                dashboards: [],
+                access: [],
+                groupsAccess: [],
+                pinnedListUuid: null,
+                pinnedListOrder: null,
+                slug: space.slug,
+            };
+        });
     }
 
     async deleteSpace(spaceUuid: string): Promise<void> {

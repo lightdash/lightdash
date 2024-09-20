@@ -20,6 +20,7 @@ import {
 } from '../database/entities/savedSemanticViewerCharts';
 import { DbSpace, SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import { generateUniqueSlug } from '../utils/SlugUtils';
 
 type SelectSavedSemanticViewerChart = Pick<
     DbSavedSemanticViewerChart,
@@ -299,23 +300,6 @@ export class SavedSemanticViewerChartModel {
         return savedSemanticViewerChartVersionUuid;
     }
 
-    static async generateSavedSemanticViewerChartSlug(trx: Knex, name: string) {
-        const baseSlug = generateSlug(name);
-        const matchingSlugs: string[] = await trx(
-            SavedSemanticViewerChartsTableName,
-        )
-            .select('slug')
-            .where('slug', 'like', `${baseSlug}%`)
-            .pluck('slug');
-        let slug = generateSlug(name);
-        let inc = 0;
-        while (matchingSlugs.includes(slug)) {
-            inc += 1;
-            slug = `${baseSlug}-${inc}`; // generate new slug with number suffix
-        }
-        return slug;
-    }
-
     async create(
         userUuid: string,
         projectUuid: string,
@@ -334,8 +318,9 @@ export class SavedSemanticViewerChartModel {
                 },
             ] = await trx(SavedSemanticViewerChartsTableName).insert(
                 {
-                    slug: await SavedSemanticViewerChartModel.generateSavedSemanticViewerChartSlug(
+                    slug: await generateUniqueSlug(
                         trx,
+                        SavedSemanticViewerChartsTableName,
                         data.name,
                     ),
                     name: data.name,

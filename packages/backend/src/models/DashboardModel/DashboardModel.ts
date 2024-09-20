@@ -72,6 +72,7 @@ import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
+import { generateUniqueSlug } from '../../utils/SlugUtils';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 
@@ -976,6 +977,13 @@ export class DashboardModel {
         };
     }
 
+    /*
+    This utility method wraps the slug generation functionality for testing purposes
+    */
+    static async generateUniqueSlug(trx: Knex, slug: string): Promise<string> {
+        return generateUniqueSlug(trx, DashboardsTableName, slug);
+    }
+
     async create(
         spaceUuid: string,
         dashboard: CreateDashboard & { slug: string },
@@ -996,7 +1004,10 @@ export class DashboardModel {
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
-                    slug: dashboard.slug,
+                    slug: await DashboardModel.generateUniqueSlug(
+                        trx,
+                        dashboard.slug,
+                    ),
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
 

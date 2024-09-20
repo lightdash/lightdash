@@ -115,7 +115,10 @@ export class PieChartDataModel {
         };
     }
 
-    getConfigErrors(config: PivotChartLayout) {
+    getConfigErrors(config?: PivotChartLayout) {
+        if (!config) {
+            return undefined;
+        }
         const {
             groupFieldOptions,
             metricFieldOptions,

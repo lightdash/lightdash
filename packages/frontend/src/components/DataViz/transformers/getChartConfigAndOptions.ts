@@ -26,15 +26,19 @@ const getChartConfigAndOptions = (
                 resultsRunner,
             });
 
+            const pieConfig = pieChartDataModel.mergeConfig(
+                chartType,
+                currentVizConfig?.fieldConfig,
+                currentVizConfig?.display,
+            );
+
             return {
                 type: chartType,
                 options: pieChartDataModel.getResultOptions(),
-                config: pieChartDataModel.mergeConfig(
-                    chartType,
-                    currentVizConfig?.fieldConfig,
-                    currentVizConfig?.display,
+                config: pieConfig,
+                errors: pieChartDataModel.getConfigErrors(
+                    pieConfig.fieldConfig,
                 ),
-                errors: pieChartDataModel.getConfigErrors(),
             } as const;
         case ChartKind.TABLE:
             if (currentVizConfig && !isVizTableConfig(currentVizConfig)) {
@@ -60,15 +64,18 @@ const getChartConfigAndOptions = (
                 resultsRunner,
             });
 
+            const barConfig = barChartModel.mergeConfig(
+                chartType,
+                currentVizConfig?.fieldConfig,
+                currentVizConfig?.display,
+            );
+
             return {
                 type: chartType,
                 options: barChartModel.getChartOptions(),
-                config: barChartModel.mergeConfig(
-                    chartType,
-                    currentVizConfig?.fieldConfig,
-                    currentVizConfig?.display,
-                ),
-                errors: barChartModel.getConfigErrors(),
+                config: barConfig,
+
+                errors: barChartModel.getConfigErrors(barConfig.fieldConfig),
             } as const;
 
         case ChartKind.LINE:
@@ -80,15 +87,17 @@ const getChartConfigAndOptions = (
                 resultsRunner,
             });
 
+            const lineConfig = lineChartModel.mergeConfig(
+                chartType,
+                currentVizConfig?.fieldConfig,
+                currentVizConfig?.display,
+            );
+
             return {
                 type: chartType,
                 options: lineChartModel.getChartOptions(),
-                config: lineChartModel.mergeConfig(
-                    chartType,
-                    currentVizConfig?.fieldConfig,
-                    currentVizConfig?.display,
-                ),
-                errors: lineChartModel.getConfigErrors(),
+                config: lineConfig,
+                errors: lineChartModel.getConfigErrors(lineConfig.fieldConfig),
             } as const;
         default:
             throw new Error(`Not implemented for chart type: ${chartType}`);

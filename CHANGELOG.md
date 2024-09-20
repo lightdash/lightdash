@@ -1,3 +1,10 @@
+## [0.1266.1](https://github.com/lightdash/lightdash/compare/0.1266.0...0.1266.1) (2024-09-20)
+
+
+### Bug Fixes
+
+* avoid duplicating slugs on all charts, dashboards and spaces ([#11626](https://github.com/lightdash/lightdash/issues/11626)) ([d0fedf3](https://github.com/lightdash/lightdash/commit/d0fedf381ce84ef7cc85a361b3a9ea37a4330cdb))
+
 # [0.1266.0](https://github.com/lightdash/lightdash/compare/0.1265.1...0.1266.0) (2024-09-20)
 
 

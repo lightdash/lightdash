@@ -12,7 +12,6 @@ import {
     type RunPivotQuery,
     type SemanticLayerField,
     type SemanticLayerQuery,
-    type VizColumn,
     type VizCustomMetricLayoutOptions,
     type VizIndexLayoutOptions,
     type VizValuesLayoutOptions,
@@ -49,28 +48,6 @@ export const getVizIndexTypeFromSemanticLayerFieldType = (
         default:
             return assertUnreachable(type, `Unknown field type: ${type}`);
     }
-};
-export const convertColumnNamesToVizColumns = (
-    fields: SemanticLayerField[],
-    columnNames: string[],
-): VizColumn[] => {
-    return columnNames
-        .map<VizColumn | undefined>((columnName) => {
-            const field = fields.find((f) => f.name === columnName);
-            if (!field) {
-                return;
-            }
-
-            const dimType = getDimensionTypeFromSemanticLayerFieldType(
-                field.type,
-            );
-
-            return {
-                reference: columnName,
-                type: dimType,
-            };
-        })
-        .filter((c): c is VizColumn => Boolean(c));
 };
 
 export class BaseResultsRunner implements IResultsRunner {

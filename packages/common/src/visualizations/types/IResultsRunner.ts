@@ -8,7 +8,6 @@ import {
     type VizValuesLayoutOptions,
 } from '.';
 import { type DimensionType } from '../../types/field';
-
 import { type RawResultRow } from '../../types/results';
 import { type SemanticLayerQuery } from '../../types/semanticLayer';
 

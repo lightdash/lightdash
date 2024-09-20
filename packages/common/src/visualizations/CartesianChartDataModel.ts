@@ -170,7 +170,10 @@ export class CartesianChartDataModel {
         };
     }
 
-    getConfigErrors(config: PivotChartLayout) {
+    getConfigErrors(config?: PivotChartLayout) {
+        if (!config) {
+            return undefined;
+        }
         const { indexLayoutOptions, valuesLayoutOptions, pivotLayoutOptions } =
             this.getChartOptions();
 
