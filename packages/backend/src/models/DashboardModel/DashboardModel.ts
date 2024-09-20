@@ -977,6 +977,13 @@ export class DashboardModel {
         };
     }
 
+    /*
+    This utility method wraps the slug generation functionality for testing purposes
+    */
+    static async generateUniqueSlug(trx: Knex, slug: string): Promise<string> {
+        return generateUniqueSlug(trx, DashboardsTableName, slug);
+    }
+
     async create(
         spaceUuid: string,
         dashboard: CreateDashboard & { slug: string },
@@ -997,9 +1004,8 @@ export class DashboardModel {
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
-                    slug: await generateUniqueSlug(
+                    slug: await DashboardModel.generateUniqueSlug(
                         trx,
-                        DashboardsTableName,
                         dashboard.slug,
                     ),
                 })
