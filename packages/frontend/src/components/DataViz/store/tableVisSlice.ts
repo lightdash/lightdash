@@ -57,9 +57,13 @@ export const tableVisSlice = createSlice({
 
             state.options = action.payload.options;
 
+            const newConfigHasColumns =
+                Object.entries(action.payload.config.columns).length > 0;
+
             if (
-                !state.config ||
-                !deepEqual(state.config, action.payload.config)
+                (!state.config ||
+                    !deepEqual(state.config, action.payload.config)) &&
+                newConfigHasColumns
             ) {
                 state.config = action.payload.config;
             }
