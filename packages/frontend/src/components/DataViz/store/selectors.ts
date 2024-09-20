@@ -93,6 +93,11 @@ const getPivotLayoutOptions = createSelector(
     (chartState) => chartState?.options?.pivotLayoutOptions,
 );
 
+const getErrors = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.errors,
+);
+
 export const cartesianChartSelectors = {
     getIndexLayoutOptions,
     getValuesLayoutOptions,
@@ -100,4 +105,5 @@ export const cartesianChartSelectors = {
     getYAxisFields,
     getGroupByField,
     getPivotLayoutOptions,
+    getErrors,
 };

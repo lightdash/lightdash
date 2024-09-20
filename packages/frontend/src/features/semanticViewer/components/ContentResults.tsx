@@ -1,3 +1,4 @@
+import { TableDataModel } from '@lightdash/common';
 import { Box, Tabs, Text } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -10,6 +11,7 @@ import { useAppSelector } from '../store/hooks';
 import {
     selectResultsTableVizConfig,
     selectSemanticLayerInfo,
+    selectSemanticLayerQuery,
 } from '../store/selectors';
 import SqlViewer from './SqlViewer';
 
@@ -17,13 +19,17 @@ enum TabPanel {
     SQL = 'SQL',
 }
 
-const ContentResults: FC = () => {
+type ContentResultsProps = {
+    onTableHeaderClick: (fieldName: string) => void;
+};
+
+const ContentResults: FC<ContentResultsProps> = ({ onTableHeaderClick }) => {
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
+
+    const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
     const { results, columnNames, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
-
-    const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
 
     const [openPanel, setOpenPanel] = useState<TabPanel>();
 
@@ -35,6 +41,10 @@ const ContentResults: FC = () => {
         setOpenPanel(undefined);
     };
 
+    const semanticLayerQuery = useAppSelector((state) =>
+        selectSemanticLayerQuery(state),
+    );
+
     const resultsRunner = useMemo(() => {
         return new SemanticViewerResultsRunnerFrontend({
             rows: results ?? [],
@@ -43,6 +53,13 @@ const ContentResults: FC = () => {
             projectUuid: semanticViewerInfo.projectUuid,
         });
     }, [results, columnNames, semanticViewerInfo.projectUuid, fields]);
+
+    const thSortConfig = useMemo(() => {
+        return TableDataModel.getTableHeaderSortConfig(
+            columnNames,
+            semanticLayerQuery,
+        );
+    }, [columnNames, semanticLayerQuery]);
 
     return (
         <>
@@ -57,6 +74,8 @@ const ContentResults: FC = () => {
                         <Table
                             resultsRunner={resultsRunner}
                             columnsConfig={resultsTableVizConfig.columns}
+                            thSortConfig={thSortConfig}
+                            onTHClick={onTableHeaderClick}
                             flexProps={{
                                 m: '-1px',
                             }}

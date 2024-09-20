@@ -1,3 +1,58 @@
+# [0.1266.0](https://github.com/lightdash/lightdash/compare/0.1265.1...0.1266.0) (2024-09-20)
+
+
+### Features
+
+* alert user if unsaved sql change ([#11606](https://github.com/lightdash/lightdash/issues/11606)) ([01bf5cd](https://github.com/lightdash/lightdash/commit/01bf5cdaac5d131ab2ab37b29e5414fe9c9c4429))
+
+## [0.1265.1](https://github.com/lightdash/lightdash/compare/0.1265.0...0.1265.1) (2024-09-19)
+
+
+### Bug Fixes
+
+* fix invalid user redirection ([#11603](https://github.com/lightdash/lightdash/issues/11603)) ([4516d3f](https://github.com/lightdash/lightdash/commit/4516d3f1c7dd9ac297b50025cb1a474a3bcad947))
+
+# [0.1265.0](https://github.com/lightdash/lightdash/compare/0.1264.0...0.1265.0) (2024-09-19)
+
+
+### Features
+
+* sorts on table headers ([#11582](https://github.com/lightdash/lightdash/issues/11582)) ([882ec49](https://github.com/lightdash/lightdash/commit/882ec4937a4099b36d89fc79b044f64cb704d139))
+
+# [0.1264.0](https://github.com/lightdash/lightdash/compare/0.1263.0...0.1264.0) (2024-09-19)
+
+
+### Features
+
+* add partitioning bigquery sql runner ([#11576](https://github.com/lightdash/lightdash/issues/11576)) ([2fd1513](https://github.com/lightdash/lightdash/commit/2fd15131d5b08a9b8be4b86229d9c619b7d462e5))
+
+# [0.1263.0](https://github.com/lightdash/lightdash/compare/0.1262.0...0.1263.0) (2024-09-19)
+
+
+### Features
+
+* display chart errors on save/edit if invalid ([#11600](https://github.com/lightdash/lightdash/issues/11600)) ([33cc86f](https://github.com/lightdash/lightdash/commit/33cc86f8de0c861563cc7243f514465f99b77f4f))
+* store last successful sql queries ([#11605](https://github.com/lightdash/lightdash/issues/11605)) ([ad3deaf](https://github.com/lightdash/lightdash/commit/ad3deaf991e959f982fd710ef898725686e29ad8))
+
+# [0.1262.0](https://github.com/lightdash/lightdash/compare/0.1261.3...0.1262.0) (2024-09-19)
+
+
+### Bug Fixes
+
+* total count pagination bug ([#11608](https://github.com/lightdash/lightdash/issues/11608)) ([b0c5296](https://github.com/lightdash/lightdash/commit/b0c52967f22974c70a13bacdf0e3ffea668c57a5))
+
+
+### Features
+
+* time granularity label and separate menu ([#11584](https://github.com/lightdash/lightdash/issues/11584)) ([47006ef](https://github.com/lightdash/lightdash/commit/47006ef77270c059b7f5ed8f038d9ee2afff3ec1))
+
+## [0.1261.3](https://github.com/lightdash/lightdash/compare/0.1261.2...0.1261.3) (2024-09-19)
+
+
+### Bug Fixes
+
+* reset chart configs on unmount of create and view ([#11596](https://github.com/lightdash/lightdash/issues/11596)) ([07c21a5](https://github.com/lightdash/lightdash/commit/07c21a5d9d5e637fa8008b6ecadd8fcdbb10d56a))
+
 ## [0.1261.2](https://github.com/lightdash/lightdash/compare/0.1261.1...0.1261.2) (2024-09-18)
 
 

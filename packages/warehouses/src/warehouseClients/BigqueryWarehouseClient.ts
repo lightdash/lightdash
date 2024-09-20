@@ -12,6 +12,8 @@ import {
     DimensionType,
     Metric,
     MetricType,
+    PartitionColumn,
+    PartitionType,
     SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
@@ -294,12 +296,59 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         const datasetTablesResponses = await Promise.all(
             datasets.map((d) => d.getTables()),
         );
+
+        const datasetMetadata = await Promise.all(
+            datasets.map(async (dataset) => {
+                try {
+                    const [rows] = await this.client.query(`
+                        SELECT table_name, column_name, data_type
+                        FROM \`${dataset.id}.INFORMATION_SCHEMA.COLUMNS\`
+                        WHERE is_partitioning_column = "YES"
+                    `);
+                    return {
+                        datasetId: dataset.id,
+                        partitionColumns: rows,
+                    };
+                } catch (error) {
+                    console.error(
+                        `Error fetching partition info for dataset ${dataset.id}:`,
+                        error,
+                    );
+                    return {
+                        datasetId: dataset.id,
+                        partitionColumns: [],
+                    };
+                }
+            }),
+        );
+
         return datasetTablesResponses.flatMap(([tables]) =>
-            tables.map((t) => ({
-                database: t.bigQuery.projectId,
-                schema: t.dataset.id!,
-                table: t.id!,
-            })),
+            tables.map((t) => {
+                const datasetPartitionInfo = datasetMetadata.find(
+                    (d) => d.datasetId === t.dataset.id,
+                );
+                const tablePartitionInfo =
+                    datasetPartitionInfo?.partitionColumns.find(
+                        (pc) => pc.table_name === t.id,
+                    );
+                const partitionColumn: PartitionColumn | undefined =
+                    tablePartitionInfo
+                        ? {
+                              field: tablePartitionInfo.column_name,
+                              partitionType:
+                                  tablePartitionInfo.data_type === BigqueryFieldType.INT64
+                                      ? PartitionType.RANGE
+                                      : PartitionType.DATE,
+                          }
+                        : undefined;
+
+                return {
+                    database: t.bigQuery.projectId,
+                    schema: t.dataset.id!,
+                    table: t.id!,
+                    partitionColumn,
+                };
+            }),
         );
     }
 

@@ -6,6 +6,7 @@ import type {
     LightdashUser,
     Organization,
     Project,
+    SortByDirection,
     SpaceSummary,
     VizAggregationOptions,
     VizChartConfig,
@@ -42,11 +43,6 @@ export enum SemanticLayerTimeGranularity {
     YEAR = 'YEAR',
 }
 
-export enum SemanticLayerSortByDirection {
-    ASC = 'ASC',
-    DESC = 'DESC',
-}
-
 // TODO: should we separate metric and dimension fields?
 export type SemanticLayerField = {
     name: string;
@@ -65,7 +61,7 @@ export type SemanticLayerTimeDimension = SemanticLayerField & {
 };
 
 export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
-    direction: SemanticLayerSortByDirection;
+    direction: SortByDirection;
 };
 
 export type SemanticLayerPivot = {

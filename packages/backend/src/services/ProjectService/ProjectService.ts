@@ -104,6 +104,7 @@ import {
     WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
+    WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
@@ -3028,7 +3029,7 @@ export class ProjectService extends BaseService {
     async populateWarehouseTablesCache(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<WarehouseCatalog> {
+    ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -3053,8 +3054,12 @@ export class ProjectService extends BaseService {
 
         const warehouseTables = await warehouseClient.getAllTables();
 
-        const catalog =
-            WarehouseAvailableTablesModel.toWarehouseCatalog(warehouseTables);
+        const catalog = WarehouseAvailableTablesModel.toWarehouseCatalog(
+            warehouseTables.map((t) => ({
+                ...t,
+                partition_column: t.partitionColumn || null,
+            })),
+        );
 
         if (credentials.userWarehouseCredentialsUuid) {
             await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
@@ -3076,7 +3081,7 @@ export class ProjectService extends BaseService {
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<WarehouseCatalog> {
+    ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -3094,7 +3099,7 @@ export class ProjectService extends BaseService {
             user.userUuid,
         );
 
-        let catalog: WarehouseCatalog | null = null;
+        let catalog: WarehouseTablesCatalog | null = null;
         // Check the cache for catalog
         if (credentials.userWarehouseCredentialsUuid) {
             catalog =
@@ -3119,7 +3124,6 @@ export class ProjectService extends BaseService {
         if (!catalog) {
             throw new NotFoundError('Warehouse tables not found');
         }
-
         return catalog;
     }
 

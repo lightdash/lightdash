@@ -8,6 +8,7 @@ import {
     type VizAggregationOptions,
     type VizBarChartConfig,
     type VizCartesianChartOptions,
+    type VizConfigErrors,
     type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -17,6 +18,7 @@ export type CartesianChartState = {
     defaultLayout: PivotChartLayout | undefined;
     config: VizBarChartConfig | VizLineChartConfig | undefined;
     options: VizCartesianChartOptions;
+    errors: VizConfigErrors | undefined;
 };
 
 const initialState: CartesianChartState = {
@@ -27,6 +29,7 @@ const initialState: CartesianChartState = {
         valuesLayoutOptions: { preAggregated: [], customAggregations: [] },
         pivotLayoutOptions: [],
     },
+    errors: undefined,
 };
 
 export const cartesianChartConfigSlice = createSlice({

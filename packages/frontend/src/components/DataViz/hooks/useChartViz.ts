@@ -25,6 +25,7 @@ type Args = {
     // Different pages may need to refresh this query based on parameters
     // that are unused in this hook.
     additionalQueryKey?: UseQueryOptions['queryKey'];
+    sql?: string;
 };
 export const useChartViz = ({
     projectUuid,
@@ -33,6 +34,7 @@ export const useChartViz = ({
     config,
     semanticLayerQuery,
     additionalQueryKey,
+    sql,
 }: Args) => {
     const org = useOrganization();
 
@@ -87,7 +89,7 @@ export const useChartViz = ({
                 }
             }
         },
-        enabled: !!chartDataModel && !!queryKey,
+        enabled: !!chartDataModel && !!queryKey && !!projectUuid,
         keepPreviousData: true,
     });
 

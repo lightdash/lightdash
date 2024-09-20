@@ -1,5 +1,9 @@
 import { type ChartKind } from '../types/savedCharts';
-import { type VizTableConfig } from './types';
+import {
+    type SemanticLayerQuery,
+    type SemanticLayerSortBy,
+} from '../types/semanticLayer';
+import { type VizTableConfig, type VizTableHeaderSortConfig } from './types';
 import type { IResultsRunner } from './types/IResultsRunner';
 
 export class TableDataModel {
@@ -35,6 +39,24 @@ export class TableDataModel {
 
     public getColumnsCount(): number {
         return this.getColumns().length;
+    }
+
+    static getTableHeaderSortConfig(
+        columnNames: string[],
+        query: SemanticLayerQuery,
+    ): VizTableHeaderSortConfig {
+        return columnNames.reduce<VizTableHeaderSortConfig>((acc, col) => {
+            const sortBy = query.sortBy.find(
+                (sort: SemanticLayerSortBy) => sort.name === col,
+            );
+
+            return {
+                ...acc,
+                [col]: {
+                    direction: sortBy?.direction,
+                },
+            };
+        }, {});
     }
 
     public getResultOptions() {

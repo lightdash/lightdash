@@ -34,6 +34,7 @@ const getChartConfigAndOptions = (
                     currentVizConfig?.fieldConfig,
                     currentVizConfig?.display,
                 ),
+                errors: pieChartDataModel.getConfigErrors(),
             } as const;
         case ChartKind.TABLE:
             if (currentVizConfig && !isVizTableConfig(currentVizConfig)) {
@@ -48,6 +49,7 @@ const getChartConfigAndOptions = (
                 type: chartType,
                 options: tableChartDataModel.getResultOptions(),
                 config: tableChartDataModel.mergeConfig(chartType),
+                errors: undefined, // TODO: Implement error tracking for table viz
             } as const;
         case ChartKind.VERTICAL_BAR:
             if (currentVizConfig && !isVizBarChartConfig(currentVizConfig)) {
@@ -66,6 +68,7 @@ const getChartConfigAndOptions = (
                     currentVizConfig?.fieldConfig,
                     currentVizConfig?.display,
                 ),
+                errors: barChartModel.getConfigErrors(),
             } as const;
 
         case ChartKind.LINE:
@@ -85,6 +88,7 @@ const getChartConfigAndOptions = (
                     currentVizConfig?.fieldConfig,
                     currentVizConfig?.display,
                 ),
+                errors: lineChartModel.getConfigErrors(),
             } as const;
         default:
             throw new Error(`Not implemented for chart type: ${chartType}`);

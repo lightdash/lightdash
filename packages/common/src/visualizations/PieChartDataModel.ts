@@ -3,6 +3,7 @@ import { type ChartKind } from '../types/savedCharts';
 import { type SemanticLayerQuery } from '../types/semanticLayer';
 import {
     type PivotChartData,
+    type VizConfigErrors,
     type VizPieChartConfig,
     type VizPieChartDisplay,
 } from './types';
@@ -111,6 +112,93 @@ export class PieChartDataModel {
             metricFieldOptions: this.resultsRunner.getPivotQueryMetrics(),
             customMetricFieldOptions:
                 this.resultsRunner.getPivotQueryCustomMetrics(),
+        };
+    }
+
+    getConfigErrors(config: PivotChartLayout) {
+        const {
+            groupFieldOptions,
+            metricFieldOptions,
+            customMetricFieldOptions,
+        } = this.getResultOptions();
+
+        const indexFieldError = Boolean(
+            config?.x?.reference &&
+                groupFieldOptions.find(
+                    (x) => x.reference === config?.x?.reference,
+                ) === undefined,
+        );
+
+        const metricFieldError = Boolean(
+            config?.y?.some(
+                (yField) =>
+                    yField.reference &&
+                    metricFieldOptions.find(
+                        (y) => y.reference === yField.reference,
+                    ) === undefined,
+            ),
+        );
+
+        const customMetricFieldError = Boolean(
+            config?.y?.some(
+                (yField) =>
+                    yField.reference &&
+                    customMetricFieldOptions.find(
+                        (y) => y.reference === yField.reference,
+                    ) === undefined,
+            ),
+        );
+
+        if (!indexFieldError && !metricFieldError && !customMetricFieldError) {
+            return undefined;
+        }
+
+        return {
+            ...(indexFieldError &&
+                config?.x?.reference && {
+                    indexFieldError: {
+                        reference: config.x.reference,
+                    },
+                }),
+            // TODO: can we combine metricFieldError and customMetricFieldError?
+            // And maybe take out some noise
+            ...(metricFieldError &&
+                config?.y?.map((y) => y.reference) && {
+                    metricFieldError: {
+                        references: config?.y.reduce<
+                            NonNullable<
+                                VizConfigErrors['metricFieldError']
+                            >['references']
+                        >((acc, y) => {
+                            const valuesLayoutOption = metricFieldOptions.find(
+                                (v) => v.reference === y.reference,
+                            );
+                            if (!valuesLayoutOption) {
+                                acc.push(y.reference);
+                            }
+                            return acc;
+                        }, []),
+                    },
+                }),
+            ...(customMetricFieldError &&
+                config?.y?.map((y) => y.reference) && {
+                    customMetricFieldError: {
+                        references: config?.y.reduce<
+                            NonNullable<
+                                VizConfigErrors['customMetricFieldError']
+                            >['references']
+                        >((acc, y) => {
+                            const valuesLayoutOption =
+                                customMetricFieldOptions.find(
+                                    (v) => v.reference === y.reference,
+                                );
+                            if (!valuesLayoutOption) {
+                                acc.push(y.reference);
+                            }
+                            return acc;
+                        }, []),
+                    },
+                }),
         };
     }
 

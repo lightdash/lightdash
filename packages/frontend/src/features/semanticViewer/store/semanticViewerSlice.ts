@@ -3,7 +3,7 @@ import {
     ChartKind,
     FieldType,
     SemanticLayerFieldType,
-    SemanticLayerSortByDirection,
+    SortByDirection,
     type RawResultRow,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
@@ -214,7 +214,7 @@ export const semanticViewerSlice = createSlice({
             const fieldDefaultSortBy = {
                 name: action.payload.name,
                 kind: action.payload.kind,
-                direction: SemanticLayerSortByDirection.DESC,
+                direction: SortByDirection.DESC,
             };
 
             // If no sorts, add this field as the sort
@@ -307,30 +307,34 @@ export const semanticViewerSlice = createSlice({
 
         updateSortBy: (
             state,
-            action: PayloadAction<{ name: string; kind: FieldType }>,
+            action: PayloadAction<{
+                name: string;
+                kind: FieldType;
+            }>,
         ) => {
             const { name, kind } = action.payload;
+
             const existing = state.sortBy.find(
                 (sort) => sort.name === name && sort.kind === kind,
             );
+
             if (!existing) {
                 state.sortBy = [
                     {
                         name,
                         kind,
-                        direction: SemanticLayerSortByDirection.DESC,
+                        direction: SortByDirection.DESC,
                     },
                 ];
             } else if (
                 existing &&
-                existing.direction === SemanticLayerSortByDirection.DESC
+                existing.direction === SortByDirection.DESC
             ) {
-                existing.direction = SemanticLayerSortByDirection.ASC;
+                existing.direction = SortByDirection.ASC;
             } else {
                 state.sortBy = [];
             }
         },
-
         updateSaveModalOpen: (state, action: PayloadAction<boolean>) => {
             state.saveModalOpen = action.payload;
         },

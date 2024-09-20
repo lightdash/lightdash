@@ -5,6 +5,7 @@ import {
     type DimensionType,
     type SqlRunnerPivotChartLayout,
     type VizAggregationOptions,
+    type VizConfigErrors,
     type VizIndexType,
     type VizPieChartConfig,
     type VizPieChartOptions,
@@ -12,6 +13,7 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import {
+    resetChartState,
     setChartConfig,
     setChartOptionsAndConfig,
 } from './actions/commonChartActions';
@@ -20,6 +22,7 @@ export type PieChartState = {
     defaultFieldConfig: SqlRunnerPivotChartLayout | undefined;
     config: VizPieChartConfig | undefined;
     options: VizPieChartOptions;
+    errors: VizConfigErrors | undefined;
 };
 
 const initialState: PieChartState = {
@@ -30,6 +33,7 @@ const initialState: PieChartState = {
         metricFieldOptions: [],
         customMetricFieldOptions: [],
     },
+    errors: undefined,
 };
 
 export const pieChartConfigSlice = createSlice({
@@ -105,6 +109,7 @@ export const pieChartConfigSlice = createSlice({
                 state.config = action.payload;
             }
         });
+        builder.addCase(resetChartState, () => initialState);
     },
 });
 export const { setGroupFieldIds, setYAxisReference, setYAxisAggregation } =
