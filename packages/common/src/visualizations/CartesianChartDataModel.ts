@@ -174,6 +174,7 @@ export class CartesianChartDataModel {
             return undefined;
         }
 
+        // MARSHALL REFACTOR: inline this with getEchartsSpec
         return this.resultsRunner.getPivotedVisualizationData(query);
     }
 

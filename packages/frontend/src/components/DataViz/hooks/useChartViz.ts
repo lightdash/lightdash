@@ -17,10 +17,7 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 
 type Args = {
     projectUuid?: string;
-    sql?: string;
     limit?: number;
-    slug?: string;
-    uuid?: string;
     resultsRunner?: IResultsRunner;
     config: AllVizChartConfig | undefined;
     semanticLayerQuery?: SemanticLayerQuery;
@@ -31,10 +28,7 @@ type Args = {
 };
 export const useChartViz = ({
     projectUuid,
-    sql,
     limit,
-    slug,
-    uuid,
     resultsRunner,
     config,
     semanticLayerQuery,
@@ -63,6 +57,7 @@ export const useChartViz = ({
         }
     }, [resultsRunner, config]);
 
+    // Caching behaviour seems specific to each chart and should be handled there
     const queryKey = useMemo(() => {
         if (!config) return undefined;
         if (isVizTableConfig(config)) return undefined;

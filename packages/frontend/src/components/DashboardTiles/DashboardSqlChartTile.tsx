@@ -57,6 +57,16 @@ const DashboardOptions = memo(
 const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
 
+    const runner = new Runner()
+
+    // on dashboard
+    runPivotQuery(chartUuid, dashboardFilters, sortOverrides) => permission checks on API
+
+    // on explorer
+    runPivotQuery(inMemoryPivotQuery) => permission checks on API
+
+
+
     const { projectUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;

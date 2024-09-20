@@ -58,6 +58,7 @@ export interface IResultsRunner {
 
     // Why does this have so many parameters not relevant to the runner?
     // Can this operate on almost no params?
+    // MARSHALL REFACTOR: RUN WITH ZERO PARAMETERS
     getPivotedVisualizationData(
         query: SemanticLayerQuery,
     ): Promise<PivotChartData>;
