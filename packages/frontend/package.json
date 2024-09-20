@@ -89,6 +89,7 @@
         "react-vega": "^7.6.0",
         "rudder-sdk-js": "^2.8.0",
         "scheduler": "^0.23.0",
+        "sql-formatter": "^15.4.2",
         "styled-components": "^5.3.3",
         "tippy.js": "^6.3.7",
         "use-context-selector": "^1.4.1",

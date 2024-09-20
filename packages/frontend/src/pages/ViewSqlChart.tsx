@@ -114,6 +114,7 @@ const ViewSqlChart = () => {
         projectUuid,
         slug: params.slug,
         limit: sqlChart?.limit,
+        additionalQueryKey: [params.slug, sql],
     });
 
     useEffect(() => {
