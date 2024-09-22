@@ -1466,7 +1466,7 @@ export class ProjectService extends BaseService {
         exploreName: string;
         csvLimit: number | null | undefined;
         context: QueryExecutionContext;
-        queryTags?: RunQueryTags;
+        queryTags: RunQueryTags;
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
@@ -1554,6 +1554,11 @@ export class ProjectService extends BaseService {
                 const chart = await this.savedChartModel.get(chartUuid);
                 const { metricQuery } = chart;
                 const exploreId = chart.tableName;
+                const queryTags: RunQueryTags = {
+                    project_uuid: chart.projectUuid,
+                    user_uuid: user.userUuid,
+                    chart_uuid: chartUuid
+                };
 
                 return this.runMetricQuery({
                     user,
@@ -1563,6 +1568,7 @@ export class ProjectService extends BaseService {
                     csvLimit: undefined,
                     context,
                     chartUuid,
+                    queryTags
                 });
             },
         );
@@ -1709,7 +1715,7 @@ export class ProjectService extends BaseService {
         exploreName: string;
         csvLimit: number | null | undefined;
         context: QueryExecutionContext;
-        queryTags?: RunQueryTags;
+        queryTags: RunQueryTags;
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;

@@ -50,7 +50,7 @@ export interface WarehouseClient {
         streamCallback: (data: WarehouseResults) => void,
         options: {
             values?: any[];
-            tags?: Record<string, string>;
+            tags: Record<string, string>;
             timezone?: string;
         },
     ): Promise<void>;

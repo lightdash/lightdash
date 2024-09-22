@@ -100,6 +100,13 @@ type SchedulerTaskArguments = {
     semanticLayerService: SemanticLayerService;
 };
 
+type RunQueryTags = {
+    project_uuid?: string;
+    user_uuid?: string;
+    organization_uuid?: string;
+    chart_uuid?: string;
+    dashboard_uuid?: string;
+};
 export default class SchedulerTask {
     protected readonly lightdashConfig: LightdashConfig;
 
@@ -988,6 +995,11 @@ export default class SchedulerTask {
             const user = await this.userService.getSessionByUserUuid(
                 payload.userUuid,
             );
+            const queryTags: RunQueryTags = {
+                project_uuid: payload.projectUuid,
+                user_uuid: payload.userUuid,
+                organization_uuid: payload.organizationUuid
+            }
 
             const { rows } = await this.projectService.runMetricQuery({
                 user,
@@ -997,7 +1009,9 @@ export default class SchedulerTask {
                 csvLimit: undefined,
                 context: QueryExecutionContext.GSHEETS,
                 chartUuid: undefined,
+                queryTags,
             });
+
             const refreshToken = await this.userService.getRefreshToken(
                 payload.userUuid,
             );
