@@ -8,7 +8,7 @@ import { selectChartConfigByKind } from '../../../components/DataViz/store/selec
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
@@ -34,8 +34,14 @@ const Content: FC = () => {
     const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const { results, view, activeEditorTab, columns, fields, activeChartKind } =
-        useAppSelector((state) => state.semanticViewer);
+    const {
+        results,
+        view,
+        activeEditorTab,
+        columnNames,
+        fields,
+        activeChartKind,
+    } = useAppSelector((state) => state.semanticViewer);
     const [hasClickedRunQueryButton, setHasClickedRunQueryButton] =
         useState(false);
 
@@ -75,20 +81,15 @@ const Content: FC = () => {
     useEffect(() => {
         if (!resultsColumns || !resultsData) return;
 
-        const vizColumns =
-            SemanticViewerResultsRunner.convertColumnsToVizColumns(
-                fields,
-                resultsColumns,
-            );
-
-        dispatch(setResults({ results: resultsData, columns: vizColumns }));
+        dispatch(
+            setResults({ results: resultsData, columnNames: resultsColumns }),
+        );
     }, [dispatch, resultsData, resultsColumns, fields]);
 
     useEffect(() => {
-        const resultsRunner = new SemanticViewerResultsRunner({
-            query: semanticQuery,
+        const resultsRunner = new SemanticViewerResultsRunnerFrontend({
             rows: results,
-            columns,
+            columnNames,
             projectUuid,
             fields,
         });
@@ -102,13 +103,13 @@ const Content: FC = () => {
         dispatch(setChartOptionsAndConfig(chartResultOptions));
     }, [
         activeChartKind,
-        columns,
         currentVizConfig,
         dispatch,
         projectUuid,
         results,
         semanticQuery,
         fields,
+        columnNames,
     ]);
 
     const handleRunSemanticLayerQuery = useCallback(async () => {
