@@ -435,8 +435,8 @@ export class CsvService extends BaseService {
             project_uuid: chart.projectUuid,
             user_uuid: user.userUuid,
             organization_uuid: user.organizationUuid,
-            chart_uuid: chartUuid
-        }
+            chart_uuid: chartUuid,
+        };
 
         const { rows, fields } = await this.projectService.runMetricQuery({
             user,
@@ -447,7 +447,7 @@ export class CsvService extends BaseService {
             context: QueryExecutionContext.CSV,
             granularity: dateZoomGranularity,
             chartUuid,
-            queryTags
+            queryTags,
         });
         const numberRows = rows.length;
 
@@ -795,7 +795,7 @@ export class CsvService extends BaseService {
                 project_uuid: projectUuid,
                 user_uuid: user.userUuid,
                 organization_uuid: user.organizationUuid,
-            }
+            };
 
             const { rows } = await this.projectService.runMetricQuery({
                 user,
@@ -805,7 +805,7 @@ export class CsvService extends BaseService {
                 csvLimit,
                 context: QueryExecutionContext.CSV,
                 chartUuid: undefined,
-                queryTags
+                queryTags,
             });
             const numberRows = rows.length;
 

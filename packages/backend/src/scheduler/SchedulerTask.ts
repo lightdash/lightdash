@@ -998,8 +998,8 @@ export default class SchedulerTask {
             const queryTags: RunQueryTags = {
                 project_uuid: payload.projectUuid,
                 user_uuid: payload.userUuid,
-                organization_uuid: payload.organizationUuid
-            }
+                organization_uuid: payload.organizationUuid,
+            };
 
             const { rows } = await this.projectService.runMetricQuery({
                 user,

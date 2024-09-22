@@ -1557,7 +1557,7 @@ export class ProjectService extends BaseService {
                 const queryTags: RunQueryTags = {
                     project_uuid: chart.projectUuid,
                     user_uuid: user.userUuid,
-                    chart_uuid: chartUuid
+                    chart_uuid: chartUuid,
                 };
 
                 return this.runMetricQuery({
@@ -1568,7 +1568,7 @@ export class ProjectService extends BaseService {
                     csvLimit: undefined,
                     context,
                     chartUuid,
-                    queryTags
+                    queryTags,
                 });
             },
         );
