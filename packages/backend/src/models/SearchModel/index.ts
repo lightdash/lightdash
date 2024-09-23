@@ -12,10 +12,11 @@ import {
     SearchItemType,
     SearchResults,
     SpaceSearchResult,
-    SqlOrSemanticViewerChartSearchResult,
+    SqlChartSearchResult,
     TableErrorSearchResult,
     TableSearchResult,
     TableSelectionType,
+    type SemanticViewerChartSearchResults,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -273,7 +274,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-    ) {
+    ): Promise<SqlChartSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.SQL_CHART, filters?.type)) {
             return [];
         }
@@ -293,7 +294,7 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-    ): Promise<SqlOrSemanticViewerChartSearchResult[]> {
+    ): Promise<SemanticViewerChartSearchResults[]> {
         if (
             !shouldSearchForType(
                 SearchItemType.SEMANTIC_VIEWER_CHART,

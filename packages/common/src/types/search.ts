@@ -3,6 +3,7 @@ import { type Dashboard } from './dashboard';
 import { type Table } from './explore';
 import { type Dimension, type Metric } from './field';
 import { type ChartKind, type SavedChart } from './savedCharts';
+import type { SavedSemanticViewerChart } from './semanticLayer';
 import { type Space } from './space';
 import { type SqlChart } from './sqlRunner';
 import {
@@ -36,13 +37,22 @@ export type SavedChartSearchResult = Pick<
     }[];
 } & RankedItem;
 
-export type SqlOrSemanticViewerChartSearchResult = Pick<
+export type SqlChartSearchResult = Pick<
     SqlChart,
     'name' | 'description' | 'slug'
 > & {
     uuid: SqlChart['savedSqlUuid'];
     chartType: ChartKind;
     spaceUuid: SqlChart['space']['uuid'];
+} & RankedItem;
+
+export type SemanticViewerChartSearchResults = Pick<
+    SavedSemanticViewerChart,
+    'name' | 'description' | 'slug'
+> & {
+    uuid: SavedSemanticViewerChart['savedSemanticViewerChartUuid'];
+    chartType: ChartKind;
+    spaceUuid: SavedSemanticViewerChart['space']['uuid'];
 } & RankedItem;
 
 export type TableSearchResult = Pick<
@@ -93,7 +103,8 @@ export type SearchResult =
     | SpaceSearchResult
     | DashboardSearchResult
     | SavedChartSearchResult
-    | SqlOrSemanticViewerChartSearchResult
+    | SqlChartSearchResult
+    | SemanticViewerChartSearchResults
     | TableErrorSearchResult
     | TableSearchResult
     | FieldSearchResult
@@ -116,8 +127,8 @@ export type SearchResults = {
     spaces: SpaceSearchResult[];
     dashboards: DashboardSearchResult[];
     savedCharts: SavedChartSearchResult[];
-    sqlCharts: SqlOrSemanticViewerChartSearchResult[];
-    semanticViewerCharts: SqlOrSemanticViewerChartSearchResult[];
+    sqlCharts: SqlChartSearchResult[];
+    semanticViewerCharts: SemanticViewerChartSearchResults[];
     tables: (TableSearchResult | TableErrorSearchResult)[];
     fields: FieldSearchResult[];
     pages: PageResult[];
