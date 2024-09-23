@@ -1,3 +1,10 @@
+## [0.1266.4](https://github.com/lightdash/lightdash/compare/0.1266.3...0.1266.4) (2024-09-23)
+
+
+### Bug Fixes
+
+* delete users from orgs ([#11633](https://github.com/lightdash/lightdash/issues/11633)) ([5a95193](https://github.com/lightdash/lightdash/commit/5a95193343c05bba005d4c98ebb6523a3c029cb4))
+
 ## [0.1266.3](https://github.com/lightdash/lightdash/compare/0.1266.2...0.1266.3) (2024-09-23)
 
 
