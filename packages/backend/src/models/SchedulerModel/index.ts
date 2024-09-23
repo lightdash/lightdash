@@ -257,7 +257,7 @@ export class SchedulerModel {
                     selected_tabs:
                         isDashboardScheduler(newScheduler) &&
                         newScheduler.selectedTabs
-                            ? JSON.stringify(newScheduler.selectedTabs)
+                            ? newScheduler.selectedTabs
                             : null,
                 })
                 .returning('*');
@@ -325,7 +325,7 @@ export class SchedulerModel {
                         scheduler.notificationFrequency || null,
                     selected_tabs:
                         'selectedTabs' in scheduler && scheduler.selectedTabs
-                            ? JSON.stringify(scheduler.selectedTabs)
+                            ? (scheduler.selectedTabs as string[])
                             : null,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);

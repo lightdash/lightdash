@@ -3,7 +3,7 @@ import { SchedulerTableName } from '../entities/scheduler';
 
 export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(SchedulerTableName, (table) => {
-        table.jsonb('selected_tabs');
+        table.specificType('selected_tabs', 'text[]').nullable();
     });
 }
 

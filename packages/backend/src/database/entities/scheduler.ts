@@ -30,7 +30,7 @@ export type SchedulerDb = {
     thresholds: string | null;
     enabled: boolean;
     notification_frequency: string | null;
-    selected_tabs: string | null;
+    selected_tabs: string[] | null;
 };
 
 export type ChartSchedulerDb = SchedulerDb & {

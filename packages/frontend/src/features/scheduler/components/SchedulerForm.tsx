@@ -14,6 +14,7 @@ import {
     validateEmail,
     type CreateSchedulerAndTargetsWithoutIds,
     type CreateSchedulerTarget,
+    type Dashboard,
     type ItemsMap,
     type SchedulerAndTargets,
 } from '@lightdash/common';
@@ -124,6 +125,23 @@ const thresholdOperatorOptions = [
     { label: 'increased by', value: ThresholdOperator.INCREASED_BY },
     { label: 'decreased by', value: ThresholdOperator.DECREASED_BY },
 ];
+
+const getSelectedTabsForDashboardScheduler = (
+    schedulerData: SchedulerAndTargets,
+    isDashboardTabsAvailable: boolean,
+    dashboard: Dashboard | undefined,
+) => {
+    return (
+        isDashboardScheduler(schedulerData) && {
+            selectedTabs: isDashboardTabsAvailable
+                ? intersection(
+                      schedulerData.selectedTabs,
+                      dashboard?.tabs.map((tab) => tab.uuid),
+                  )
+                : undefined, // remove tabs that have been deleted
+        }
+    );
+};
 
 const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
     const options = schedulerData.options;
@@ -256,14 +274,11 @@ const SchedulerForm: FC<Props> = ({
             savedSchedulerData !== undefined
                 ? getFormValuesFromScheduler({
                       ...savedSchedulerData,
-                      ...(isDashboardScheduler(savedSchedulerData) && {
-                          selectedTabs: isDashboardTabsAvailable
-                              ? intersection(
-                                    savedSchedulerData.selectedTabs,
-                                    dashboard?.tabs.map((tab) => tab.uuid),
-                                )
-                              : undefined, // remove tabs that have been deleted
-                      }),
+                      ...getSelectedTabsForDashboardScheduler(
+                          savedSchedulerData,
+                          isDashboardTabsAvailable,
+                          dashboard,
+                      ),
                   })
                 : isThresholdAlert
                 ? DEFAULT_VALUES_ALERT
