@@ -3,7 +3,7 @@ import {
     NotFoundError,
     SavedSemanticViewerChart,
     SpaceSummary,
-    type SemanticLayerCreateChart,
+    type SemanticViewerCreateChart,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../database/entities/dashboards';
@@ -263,7 +263,7 @@ export class SavedSemanticViewerChartModel {
     static async createVersion(
         trx: Knex,
         data: Pick<
-            SemanticLayerCreateChart,
+            SemanticViewerCreateChart,
             'semanticLayerView' | 'semanticLayerQuery' | 'config'
         > & {
             savedSemanticViewerChartUuid: string;
@@ -303,7 +303,7 @@ export class SavedSemanticViewerChartModel {
     async create(
         userUuid: string,
         projectUuid: string,
-        data: SemanticLayerCreateChart,
+        data: SemanticViewerCreateChart,
     ): Promise<{
         slug: string;
         savedSemanticViewerChartUuid: string;

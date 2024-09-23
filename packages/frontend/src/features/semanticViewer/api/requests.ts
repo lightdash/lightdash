@@ -2,15 +2,15 @@ import {
     SchedulerJobStatus,
     type ApiJobScheduledResponse,
     type ApiSemanticLayerClientInfo,
-    type ApiSemanticLayerCreateChart,
+    type ApiSemanticViewerCreateChart,
     type PivotChartData,
     type SavedSemanticViewerChart,
-    type SemanticLayerCreateChart,
     type SemanticLayerField,
     type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
     type SemanticLayerView,
+    type SemanticViewerCreateChart,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 import { getResultsFromStream } from '../../../utils/request';
@@ -126,9 +126,9 @@ export const apiGetSemanticLayerQueryResults = async ({
 
 export const createSemanticViewerChart = (
     projectUuid: string,
-    payload: SemanticLayerCreateChart,
+    payload: SemanticViewerCreateChart,
 ) =>
-    lightdashApi<ApiSemanticLayerCreateChart['results']>({
+    lightdashApi<ApiSemanticViewerCreateChart['results']>({
         version: 'v2',
         url: `/projects/${projectUuid}/semantic-layer/saved`,
         method: 'POST',
@@ -146,7 +146,7 @@ export const getSavedSemanticViewerChart = async (
         body: undefined,
     });
 
-export const getSemanticViewerChartResults = async (
+export const getSavedSemanticViewerChartResults = async (
     projectUuid: string,
     uuid: string,
 ) => {

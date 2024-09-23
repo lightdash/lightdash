@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    ApiSemanticLayerCreateChart,
+    ApiSemanticViewerCreateChart,
     ForbiddenError,
     isVizBarChartConfig,
     isVizLineChartConfig,
@@ -8,7 +8,7 @@ import {
     Organization,
     Project,
     SavedSemanticViewerChart,
-    SemanticLayerCreateChart,
+    SemanticViewerCreateChart,
     SessionUser,
     SpaceShare,
     SpaceSummary,
@@ -194,8 +194,8 @@ export class SavedSemanticViewerChartService extends BaseService {
     async createSemanticViewerChart(
         user: SessionUser,
         projectUuid: string,
-        semanticViewerChart: SemanticLayerCreateChart,
-    ): Promise<ApiSemanticLayerCreateChart['results']> {
+        semanticViewerChart: SemanticViewerCreateChart,
+    ): Promise<ApiSemanticViewerCreateChart['results']> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );

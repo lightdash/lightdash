@@ -18,7 +18,7 @@ import {
     setSemanticLayerStatus,
 } from '../features/semanticViewer/store/semanticViewerSlice';
 
-const SemanticViewerPageWithStore = () => {
+const SemanticViewerEditorPageWithStore = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const dispatch = useAppDispatch();
@@ -63,12 +63,12 @@ const SemanticViewerPageWithStore = () => {
     );
 };
 
-const SemanticViewerPage = () => {
+const SemanticViewerEditorPage = () => {
     return (
         <Provider store={store}>
-            <SemanticViewerPageWithStore />
+            <SemanticViewerEditorPageWithStore />
         </Provider>
     );
 };
 
-export default SemanticViewerPage;
+export default SemanticViewerEditorPage;

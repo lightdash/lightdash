@@ -2,12 +2,12 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiSemanticLayerClientInfo,
-    ApiSemanticLayerCreateChart,
-    ApiSemanticLayerGetChart,
-    SemanticLayerCreateChart,
+    ApiSemanticViewerCreateChart,
+    ApiSemanticViewerGetChart,
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerView,
+    SemanticViewerCreateChart,
 } from '@lightdash/common';
 import {
     Body,
@@ -194,8 +194,8 @@ export class SemanticLayerController extends BaseController {
     async createSemanticViewerChart(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: SemanticLayerCreateChart,
-    ): Promise<ApiSemanticLayerCreateChart> {
+        @Body() body: SemanticViewerCreateChart,
+    ): Promise<ApiSemanticViewerCreateChart> {
         this.setStatus(200);
         return {
             status: 'ok',
@@ -206,7 +206,7 @@ export class SemanticLayerController extends BaseController {
     }
 
     /**
-     * Get a saved semantic layer chart
+     * Get a saved semantic viewer chart
      * @param projectUuid the uuid for the project
      * @param uuid the uuid for the saved semantic layer chart
      * @param req express request
@@ -219,7 +219,7 @@ export class SemanticLayerController extends BaseController {
         @Path() uuid: string,
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSemanticLayerGetChart> {
+    ): Promise<ApiSemanticViewerGetChart> {
         this.setStatus(200);
         return {
             status: 'ok',
@@ -230,7 +230,9 @@ export class SemanticLayerController extends BaseController {
     }
 
     /**
-     * Get a saved semantic layer chart and results
+     * Get a saved semantic viewer chart results job
+     * @param projectUuid the uuid for the project
+     * @param uuid the uuid for the saved semantic viewer chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')

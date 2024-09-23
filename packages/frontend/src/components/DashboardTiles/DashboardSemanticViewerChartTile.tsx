@@ -9,7 +9,7 @@ import { pick } from 'lodash';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-    useDashboardSemanticViewerChart,
+    useSavedSemanticViewerChart,
     useSemanticLayerViewFields,
 } from '../../features/semanticViewer/api/hooks';
 import { SemanticViewerResultsRunner } from '../../features/semanticViewer/runners/SemanticViewerResultsRunner';
@@ -63,7 +63,7 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const savedSemanticViewerChartUuid =
         tile.properties.savedSemanticViewerChartUuid;
 
-    const chartQuery = useDashboardSemanticViewerChart(
+    const chartQuery = useSavedSemanticViewerChart(
         projectUuid,
         savedSemanticViewerChartUuid,
     );

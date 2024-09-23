@@ -367,7 +367,7 @@ export type SavedSemanticViewerChart = {
     lastViewedAt: Date;
 };
 
-export type SemanticLayerCreateChart = {
+export type SemanticViewerCreateChart = {
     name: string;
     description: string | null;
     semanticLayerView: string | null;
@@ -376,7 +376,7 @@ export type SemanticLayerCreateChart = {
     spaceUuid: string;
 };
 
-export type ApiSemanticLayerCreateChart = {
+export type ApiSemanticViewerCreateChart = {
     status: 'ok';
     results: {
         savedSemanticViewerChartUuid: string;
@@ -384,7 +384,7 @@ export type ApiSemanticLayerCreateChart = {
     };
 };
 
-export type ApiSemanticLayerGetChart = {
+export type ApiSemanticViewerGetChart = {
     status: 'ok';
     results: SavedSemanticViewerChart;
 };

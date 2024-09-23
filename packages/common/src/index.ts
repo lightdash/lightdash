@@ -122,8 +122,8 @@ import {
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiSemanticLayerClientInfo,
-    type ApiSemanticLayerCreateChart,
-    type ApiSemanticLayerGetChart,
+    type ApiSemanticViewerCreateChart,
+    type ApiSemanticViewerGetChart,
 } from './types/semanticLayer';
 import {
     type ApiCreateCustomExplore,
@@ -680,8 +680,8 @@ type ApiResults =
     | ApiChartContentResponse['results']
     | ApiSqlRunnerJobStatusResponse['results']
     | ApiSemanticLayerClientInfo['results']
-    | ApiSemanticLayerCreateChart['results']
-    | ApiSemanticLayerGetChart['results']
+    | ApiSemanticViewerCreateChart['results']
+    | ApiSemanticViewerGetChart['results']
     | ApiCreateCustomExplore['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
