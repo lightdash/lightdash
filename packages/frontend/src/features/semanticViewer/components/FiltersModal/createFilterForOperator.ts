@@ -1,6 +1,6 @@
 import {
-    isSemanticLayerBaseOperator,
-    isSemanticLayerTimeFilter,
+    assertUnreachable,
+    SemanticLayerFieldType,
     SemanticLayerFilterRelativeTimeValue,
     type SemanticLayerFilter,
 } from '@lightdash/common';
@@ -14,27 +14,33 @@ type FilterBaseArgs = Pick<
 export function createFilterForOperator(
     args: FilterBaseArgs,
 ): SemanticLayerFilter {
-    const { operator, ...rest } = args;
+    const { operator, fieldType, ...rest } = args;
     const uuid = uuidV4();
 
-    if (isSemanticLayerTimeFilter(args)) {
-        return {
-            ...rest,
-            uuid,
-            operator,
-            values: {
-                relativeTime: SemanticLayerFilterRelativeTimeValue.TODAY,
-            },
-        };
-    }
-
-    if (isSemanticLayerBaseOperator(operator)) {
-        return {
-            ...rest,
-            uuid,
-            operator,
-            values: [],
-        };
+    switch (fieldType) {
+        case SemanticLayerFieldType.STRING:
+            return {
+                ...rest,
+                fieldType,
+                uuid,
+                operator,
+                values: [],
+            };
+        case SemanticLayerFieldType.TIME:
+            return {
+                ...rest,
+                fieldType,
+                uuid,
+                operator,
+                values: {
+                    relativeTime: SemanticLayerFilterRelativeTimeValue.TODAY,
+                },
+            };
+        default:
+            return assertUnreachable(
+                fieldType,
+                `Unknown field type: ${fieldType}`,
+            );
     }
 
     throw new Error(`Unsupported operator type: ${operator}`);

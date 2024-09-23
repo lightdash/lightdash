@@ -230,16 +230,19 @@ export type SemanticLayerFilterBase = {
 };
 
 export type SemanticLayerStringFilter = SemanticLayerFilterBase & {
+    fieldType: SemanticLayerFieldType.STRING;
     operator: SemanticLayerFilterBaseOperator;
     values: string[];
 };
 
 export type SemanticLayerExactTimeFilter = SemanticLayerFilterBase & {
+    fieldType: SemanticLayerFieldType.TIME;
     operator: SemanticLayerFilterBaseOperator;
     values: { time: string };
 };
 
 export type SemanticLayerRelativeTimeFilter = SemanticLayerFilterBase & {
+    fieldType: SemanticLayerFieldType.TIME;
     operator: SemanticLayerFilterBaseOperator;
     values: { relativeTime: SemanticLayerFilterRelativeTimeValue };
 };
@@ -263,18 +266,6 @@ export const isSemanticLayerBaseOperator = (
     operator === SemanticLayerFilterBaseOperator.IS ||
     operator === SemanticLayerFilterBaseOperator.IS_NOT;
 
-export function isSemanticLayerStringFilter(
-    filter: Pick<SemanticLayerFilter, 'fieldType' | 'operator'>,
-): filter is SemanticLayerStringFilter {
-    return filter.fieldType === SemanticLayerFieldType.STRING;
-}
-
-export function isSemanticLayerTimeFilter(
-    filter: Pick<SemanticLayerFilter, 'fieldType'>,
-): filter is SemanticLayerTimeFilter {
-    return filter.fieldType === SemanticLayerFieldType.TIME;
-}
-
 export function isSemanticLayerRelativeTimeValue(
     value: string,
 ): value is SemanticLayerFilterRelativeTimeValue {
@@ -290,7 +281,7 @@ export function isSemanticLayerRelativeTimeFilter(
     filter: Pick<SemanticLayerFilter, 'fieldType' | 'values'>,
 ): filter is SemanticLayerRelativeTimeFilter {
     return (
-        isSemanticLayerTimeFilter(filter) &&
+        filter.fieldType === SemanticLayerFieldType.TIME &&
         'relativeTime' in filter.values &&
         isSemanticLayerRelativeTimeValue(filter.values.relativeTime)
     );
@@ -299,7 +290,10 @@ export function isSemanticLayerRelativeTimeFilter(
 export function isSemanticLayerExactTimeFilter(
     filter: Pick<SemanticLayerFilter, 'fieldType' | 'values'>,
 ): filter is SemanticLayerExactTimeFilter {
-    return isSemanticLayerTimeFilter(filter) && 'time' in filter.values;
+    return (
+        filter.fieldType === SemanticLayerFieldType.TIME &&
+        'time' in filter.values
+    );
 }
 
 export function getAvailableSemanticLayerFilterOperators(

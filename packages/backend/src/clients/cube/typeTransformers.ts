@@ -7,7 +7,6 @@ import {
 import {
     assertUnreachable,
     isSemanticLayerRelativeTimeFilter,
-    isSemanticLayerTimeFilter,
     SemanticLayerFieldType,
     SemanticLayerFilter,
     SemanticLayerFilterBaseOperator,
@@ -175,9 +174,10 @@ export const getCubeFilterFromSemanticLayerFilter = (
 ): Filter => ({
     member: filter.fieldRef,
     operator: getCubeFilterOperatorForSemanticLayerFilter(filter),
-    values: isSemanticLayerTimeFilter(filter)
-        ? getCubeValuesForTimeFilter(filter)
-        : filter.values,
+    values:
+        filter.fieldType === SemanticLayerFieldType.TIME
+            ? getCubeValuesForTimeFilter(filter)
+            : filter.values,
     ...(filter.or && {
         or: filter.or.map(getCubeFilterFromSemanticLayerFilter),
     }),

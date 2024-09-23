@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
-    isSemanticLayerStringFilter,
-    isSemanticLayerTimeFilter,
+    SemanticLayerFieldType,
     SemanticLayerFilterRelativeTimeValue,
     type SemanticLayerField,
     type SemanticLayerFilter,
@@ -210,22 +209,35 @@ const Filter: FC<FilterProps> = ({
                 operator: updatedOperator,
             };
 
-            if (isSemanticLayerTimeFilter(baseUpdate)) {
-                onUpdate({
-                    ...baseUpdate,
-
-                    values: {
-                        relativeTime:
-                            SemanticLayerFilterRelativeTimeValue.TODAY,
-                    },
-                });
-                return;
+            switch (baseUpdate.fieldType) {
+                case SemanticLayerFieldType.STRING:
+                    onUpdate({
+                        ...baseUpdate,
+                        fieldType: baseUpdate.fieldType,
+                        values: [],
+                    });
+                    return;
+                case SemanticLayerFieldType.TIME:
+                    onUpdate({
+                        ...baseUpdate,
+                        fieldType: baseUpdate.fieldType,
+                        values: {
+                            relativeTime:
+                                SemanticLayerFilterRelativeTimeValue.TODAY,
+                        },
+                    });
+                    return;
+                case SemanticLayerFieldType.BOOLEAN:
+                case SemanticLayerFieldType.NUMBER:
+                    throw new Error(
+                        `Filter not implement for: ${baseUpdate.fieldType}`,
+                    );
+                default:
+                    return assertUnreachable(
+                        baseUpdate.fieldType,
+                        `Unknown field type: ${baseUpdate.fieldType}`,
+                    );
             }
-
-            onUpdate({
-                ...baseUpdate,
-                values: [],
-            });
         },
         [filter.fieldKind, filter.fieldType, findFilterField, onUpdate],
     );
@@ -439,7 +451,7 @@ const Filter: FC<FilterProps> = ({
                         hasNestedFilters={hasNestedFilters}
                     />
 
-                    {isSemanticLayerTimeFilter(filter) ? (
+                    {filter.fieldType === SemanticLayerFieldType.TIME ? (
                         <TimeFilter
                             fields={fields}
                             filter={filter}
@@ -449,7 +461,7 @@ const Filter: FC<FilterProps> = ({
                         />
                     ) : null}
 
-                    {isSemanticLayerStringFilter(filter) ? (
+                    {filter.fieldType === SemanticLayerFieldType.STRING ? (
                         <MultiStringFilter
                             fields={fields}
                             fieldOptions={fieldOptions}

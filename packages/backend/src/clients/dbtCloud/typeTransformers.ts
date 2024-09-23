@@ -8,8 +8,6 @@ import {
     isSemanticLayerBaseOperator,
     isSemanticLayerExactTimeFilter,
     isSemanticLayerRelativeTimeFilter,
-    isSemanticLayerStringFilter,
-    isSemanticLayerTimeFilter,
     SemanticLayerFieldType,
     SemanticLayerFilter,
     SemanticLayerFilterBaseOperator,
@@ -277,7 +275,7 @@ const getDbtFilterSqlFromSemanticLayerFilter = (
     filter: SemanticLayerFilter,
 ): string => {
     if (
-        !isSemanticLayerTimeFilter(filter) &&
+        filter.fieldType !== SemanticLayerFieldType.TIME &&
         filter.values &&
         filter.values.length === 0
     ) {
@@ -286,9 +284,9 @@ const getDbtFilterSqlFromSemanticLayerFilter = (
 
     let baseFilterSql: string | undefined;
 
-    if (isSemanticLayerStringFilter(filter)) {
+    if (filter.fieldType === SemanticLayerFieldType.STRING) {
         baseFilterSql = getStringFilterSql(filter);
-    } else if (isSemanticLayerTimeFilter(filter)) {
+    } else if (filter.fieldType === SemanticLayerFieldType.TIME) {
         baseFilterSql = getTimeFilterSql(filter);
     } else {
         throw new Error('Unsupported filter type');
