@@ -67,7 +67,7 @@ export const getSearchItemMap = (
             item: item,
             searchRank: item.search_rank,
             location: {
-                pathname: `/noop`,
+                pathname: `/projects/${projectUuid}/semantic-viewer/${item.slug}`,
             },
         }),
     );
