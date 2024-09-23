@@ -1,23 +1,24 @@
 import {
     assertUnreachable,
     ChartKind,
-    DimensionType,
     FieldType,
     SemanticLayerFieldType,
+    SemanticLayerSortByDirection,
     type RawResultRow,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
+    type SemanticLayerFilter,
     type SemanticLayerSortBy,
     type SemanticLayerTimeDimension,
-    type VizSqlColumn,
+    type VizColumn,
     type VizTableConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
 export enum EditorTabs {
-    SQL = 'sql',
-    VISUALIZATION = 'visualization',
+    QUERY = 'query',
+    VIZ = 'viz',
 }
 
 export enum SidebarTabs {
@@ -93,26 +94,9 @@ const getKeyByField = (
     }
 };
 
-function getDimensionTypeFromSemanticLayerFieldType(
-    type: SemanticLayerFieldType,
-): DimensionType {
-    switch (type) {
-        case SemanticLayerFieldType.TIME:
-            return DimensionType.TIMESTAMP;
-        case SemanticLayerFieldType.STRING:
-            return DimensionType.STRING;
-        case SemanticLayerFieldType.NUMBER:
-            return DimensionType.NUMBER;
-        case SemanticLayerFieldType.BOOLEAN:
-            return DimensionType.BOOLEAN;
-        default:
-            return assertUnreachable(type, `Unknown field type: ${type}`);
-    }
-}
-
 export type ResultsAndColumns = {
     results: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
     sortBy: [];
 };
 
@@ -127,15 +111,19 @@ export interface SemanticViewerState {
     info: undefined | (SemanticLayerClientInfo & { projectUuid: string });
 
     view: string | undefined;
+
+    name: string;
+    saveModalOpen: boolean;
+
     activeEditorTab: EditorTabs;
     activeSidebarTab: SidebarTabs;
-    // TODO: rename this
-    selectedChartType: ChartKind | undefined;
+    activeChartKind: ChartKind;
 
     resultsTableConfig: VizTableConfig | undefined;
 
     results: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
+    fields: SemanticLayerField[];
 
     selectedDimensions: Record<string, SemanticLayerStateDimension>;
     selectedTimeDimensions: Record<string, SemanticLayerStateTimeDimension>;
@@ -144,6 +132,10 @@ export interface SemanticViewerState {
     limit: number | undefined;
 
     sortBy: SemanticLayerSortBy[];
+
+    filters: SemanticLayerFilter[];
+
+    isFiltersModalOpen: boolean;
 }
 
 const initialState: SemanticViewerState = {
@@ -151,22 +143,29 @@ const initialState: SemanticViewerState = {
 
     info: undefined,
 
-    activeEditorTab: EditorTabs.VISUALIZATION,
-    activeSidebarTab: SidebarTabs.TABLES,
-    selectedChartType: ChartKind.TABLE,
-    resultsTableConfig: undefined,
-
     view: undefined,
 
+    name: '',
+    saveModalOpen: false,
+
+    activeEditorTab: EditorTabs.QUERY,
+    activeSidebarTab: SidebarTabs.TABLES,
+    activeChartKind: ChartKind.VERTICAL_BAR,
+
+    resultsTableConfig: undefined,
+
+    results: [],
+    columns: [],
+    fields: [],
     selectedDimensions: {},
     selectedMetrics: {},
     selectedTimeDimensions: {},
 
-    results: [],
-    columns: [],
     limit: undefined,
 
     sortBy: [],
+    filters: [],
+    isFiltersModalOpen: false,
 };
 
 export const semanticViewerSlice = createSlice({
@@ -188,6 +187,9 @@ export const semanticViewerSlice = createSlice({
         ) => {
             state.info = action.payload;
         },
+        updateName: (state, action: PayloadAction<string>) => {
+            state.name = action.payload;
+        },
         enterView: (state, action: PayloadAction<string>) => {
             state.view = action.payload;
         },
@@ -195,10 +197,11 @@ export const semanticViewerSlice = createSlice({
             state,
             action: PayloadAction<{
                 results: RawResultRow[];
-                columns: VizSqlColumn[];
+                columns: VizColumn[];
             }>,
         ) => {
             state.results = action.payload.results || [];
+            state.columns = action.payload.columns;
         },
 
         selectField: (
@@ -207,6 +210,30 @@ export const semanticViewerSlice = createSlice({
         ) => {
             const key = getKeyByField(action.payload);
             state[key][action.payload.name] = action.payload;
+
+            const fieldDefaultSortBy = {
+                name: action.payload.name,
+                kind: action.payload.kind,
+                direction: SemanticLayerSortByDirection.DESC,
+            };
+
+            // If no sorts, add this field as the sort
+            if (state.sortBy.length === 0) {
+                state.sortBy = [fieldDefaultSortBy];
+            } else if (
+                // If sort is on a metric, and this is a dimension, replace sort with this field
+                state.sortBy[0].kind === FieldType.METRIC &&
+                action.payload.kind === FieldType.DIMENSION
+            ) {
+                state.sortBy = [fieldDefaultSortBy];
+            } else if (
+                state.sortBy[0].kind === FieldType.DIMENSION &&
+                !isSemanticLayerStateTimeDimension(state.sortBy[0]) &&
+                isSemanticLayerStateTimeDimension(action.payload)
+            ) {
+                // If sort is on a dimension, and this is a time dimension, replace sort with this field
+                state.sortBy = [fieldDefaultSortBy];
+            }
         },
         deselectField: (
             state,
@@ -225,14 +252,12 @@ export const semanticViewerSlice = createSlice({
 
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
-            if (action.payload === EditorTabs.VISUALIZATION) {
-                state.activeSidebarTab = SidebarTabs.VISUALIZATION;
-                if (state.selectedChartType === undefined) {
-                    state.selectedChartType = ChartKind.VERTICAL_BAR;
-                }
-            }
-            if (action.payload === EditorTabs.SQL) {
+
+            if (action.payload === EditorTabs.QUERY) {
                 state.activeSidebarTab = SidebarTabs.TABLES;
+            }
+            if (action.payload === EditorTabs.VIZ) {
+                state.activeSidebarTab = SidebarTabs.VISUALIZATION;
             }
         },
 
@@ -248,19 +273,70 @@ export const semanticViewerSlice = createSlice({
             state.description = action.payload.description || '';
             state.sql = action.payload.sql;
             state.limit = action.payload.limit || 500;
-            state.selectedChartType =
+            state.activeChartKind =
                 action.payload.config.type || ChartKind.VERTICAL_BAR;*/
         },
-        setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
-            state.selectedChartType = action.payload;
+        setActiveChartKind: (state, action: PayloadAction<ChartKind>) => {
+            state.activeChartKind = action.payload;
         },
         setFields: (state, action: PayloadAction<SemanticLayerField[]>) => {
-            const sqlColumns: VizSqlColumn[] = action.payload.map((field) => ({
-                reference: field.name,
-                type: getDimensionTypeFromSemanticLayerFieldType(field.type),
-            }));
+            state.fields = action.payload;
+        },
+        setFilters: (state, action: PayloadAction<SemanticLayerFilter[]>) => {
+            state.filters = action.payload;
+        },
+        updateFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
+            const filterIndex = state.filters.findIndex(
+                (filter) => filter.uuid === action.payload.uuid,
+            );
 
-            state.columns = sqlColumns;
+            if (filterIndex !== -1) {
+                state.filters[filterIndex] = action.payload;
+            }
+        },
+        setIsFiltersModalOpen: (state, action: PayloadAction<boolean>) => {
+            state.isFiltersModalOpen = action.payload;
+        },
+        addFilterAndOpenModal: (
+            state,
+            action: PayloadAction<SemanticLayerFilter>,
+        ) => {
+            state.filters.push(action.payload);
+            state.isFiltersModalOpen = true;
+        },
+
+        updateSortBy: (
+            state,
+            action: PayloadAction<{
+                name: string;
+                kind: FieldType;
+            }>,
+        ) => {
+            const { name, kind } = action.payload;
+
+            const existing = state.sortBy.find(
+                (sort) => sort.name === name && sort.kind === kind,
+            );
+
+            if (!existing) {
+                state.sortBy = [
+                    {
+                        name,
+                        kind,
+                        direction: SemanticLayerSortByDirection.DESC,
+                    },
+                ];
+            } else if (
+                existing &&
+                existing.direction === SemanticLayerSortByDirection.DESC
+            ) {
+                existing.direction = SemanticLayerSortByDirection.ASC;
+            } else {
+                state.sortBy = [];
+            }
+        },
+        updateSaveModalOpen: (state, action: PayloadAction<boolean>) => {
+            state.saveModalOpen = action.payload;
         },
     },
 });
@@ -270,12 +346,18 @@ export const {
     setSemanticLayerInfo,
     setSemanticLayerStatus,
     enterView,
+    updateName,
+    updateSaveModalOpen,
     setResults,
     setActiveEditorTab,
-    setSelectedChartType,
+    setActiveChartKind,
     setFields,
     selectField,
     deselectField,
     setLimit,
     updateTimeDimensionGranularity,
+    setFilters,
+    setIsFiltersModalOpen,
+    addFilterAndOpenModal,
+    updateSortBy,
 } = semanticViewerSlice.actions;

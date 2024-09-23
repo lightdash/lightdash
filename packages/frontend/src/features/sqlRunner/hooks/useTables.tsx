@@ -1,4 +1,8 @@
-import { type ApiError, type ApiWarehouseCatalog } from '@lightdash/common';
+import {
+    type ApiError,
+    type ApiWarehouseCatalog,
+    type ApiWarehouseTablesCatalog,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../../../api';
@@ -11,7 +15,7 @@ export type GetTablesParams = {
 const fetchTables = async ({
     projectUuid,
 }: Pick<GetTablesParams, 'projectUuid'>) =>
-    lightdashApi<ApiWarehouseCatalog>({
+    lightdashApi<ApiWarehouseTablesCatalog>({
         url: `/projects/${projectUuid}/sqlRunner/tables`,
         method: 'GET',
         body: undefined,
@@ -20,7 +24,7 @@ const fetchTables = async ({
 const refreshTables = async ({
     projectUuid,
 }: Pick<GetTablesParams, 'projectUuid'>) =>
-    lightdashApi<ApiWarehouseCatalog>({
+    lightdashApi<ApiWarehouseTablesCatalog>({
         url: `/projects/${projectUuid}/sqlRunner/refresh-catalog`,
         method: 'POST',
         body: undefined,
@@ -29,13 +33,13 @@ const refreshTables = async ({
 export type TablesBySchema =
     | {
           schema: keyof ApiWarehouseCatalog['results'][0];
-          tables: ApiWarehouseCatalog['results'][0]['tables'];
+          tables: ApiWarehouseTablesCatalog['results'][0]['tables'];
       }[]
     | undefined;
 
 export const useTables = ({ projectUuid, search }: GetTablesParams) => {
     return useQuery<
-        ApiWarehouseCatalog,
+        ApiWarehouseTablesCatalog,
         ApiError,
         { database: string; tablesBySchema: TablesBySchema } | undefined
     >({
@@ -104,14 +108,16 @@ export const useRefreshTables = ({
 }: Pick<GetTablesParams, 'projectUuid'>) => {
     const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: () => refreshTables({ projectUuid }),
-        onSuccess: async () => {
-            await queryClient.invalidateQueries([
-                'sqlRunner',
-                'tables',
-                projectUuid,
-            ]);
+    return useMutation<ApiWarehouseTablesCatalog, ApiError>(
+        () => refreshTables({ projectUuid }),
+        {
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    'sqlRunner',
+                    'tables',
+                    projectUuid,
+                ]);
+            },
         },
-    });
+    );
 };

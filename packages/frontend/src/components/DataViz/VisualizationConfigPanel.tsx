@@ -1,4 +1,4 @@
-import { ChartKind, type VizSqlColumn } from '@lightdash/common';
+import { ChartKind, type VizColumn } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { type FC } from 'react';
 import { Config } from '../VisualizationConfigs/common/Config';
@@ -11,13 +11,12 @@ import { VisualizationSwitcher } from './VisualizationSwitcher';
 export const VisualizationConfigPanel: FC<{
     selectedChartType: ChartKind;
     setSelectedChartType: (chartKind: ChartKind) => void;
-    sqlColumns: VizSqlColumn[];
-}> = ({ selectedChartType, setSelectedChartType, sqlColumns }) => {
+    columns: VizColumn[];
+}> = ({ selectedChartType, setSelectedChartType, columns }) => {
     return (
         <MantineProvider inherit theme={themeOverride}>
             <Config>
                 <Config.Section>
-                    <Config.Heading>Chart type</Config.Heading>
                     <VisualizationSwitcher
                         selectedChartType={selectedChartType}
                         setSelectedChartType={setSelectedChartType}
@@ -26,22 +25,22 @@ export const VisualizationConfigPanel: FC<{
             </Config>
 
             {selectedChartType === ChartKind.TABLE && (
-                <TableVisConfiguration sqlColumns={sqlColumns} />
+                <TableVisConfiguration columns={columns} />
             )}
             {selectedChartType === ChartKind.VERTICAL_BAR && (
                 <CartesianChartConfig
                     selectedChartType={selectedChartType}
-                    sqlColumns={sqlColumns}
+                    columns={columns}
                 />
             )}
             {selectedChartType === ChartKind.LINE && (
                 <CartesianChartConfig
                     selectedChartType={selectedChartType}
-                    sqlColumns={sqlColumns}
+                    columns={columns}
                 />
             )}
             {selectedChartType === ChartKind.PIE && (
-                <PieChartConfiguration sqlColumns={sqlColumns} />
+                <PieChartConfiguration columns={columns} />
             )}
         </MantineProvider>
     );

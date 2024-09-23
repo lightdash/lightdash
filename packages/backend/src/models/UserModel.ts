@@ -4,6 +4,7 @@ import {
     CreateUserWithRole,
     ForbiddenError,
     getUserAbilityBuilder,
+    InvalidUser,
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
@@ -12,7 +13,6 @@ import {
     NotFoundError,
     OpenIdIdentityIssuerType,
     OpenIdUser,
-    Organization,
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
@@ -633,7 +633,7 @@ export class UserModel {
             .select('*', 'organizations.created_at as organization_created_at');
 
         if (user === undefined) {
-            throw new NotFoundError(
+            throw new InvalidUser(
                 `Cannot find user with uuid ${userUuid} and org ${organizationUuid}`,
             );
         }
@@ -783,13 +783,20 @@ export class UserModel {
         });
     }
 
-    async updatePassword(userId: number, newPassword: string): Promise<void> {
+    async updatePassword(userUuid: string, newPassword: string): Promise<void> {
         if (!validatePassword(newPassword)) {
             throw new ParameterError("Password doesn't meet requirements");
         }
+        const user = await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .select('user_id')
+            .first();
+        if (!user) {
+            throw new NotExistsError('Cannot find user');
+        }
         return this.database(PasswordLoginTableName)
             .where({
-                user_id: userId,
+                user_id: user.user_id,
             })
             .update({
                 password_hash: await bcrypt.hash(

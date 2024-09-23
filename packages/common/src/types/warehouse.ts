@@ -15,10 +15,19 @@ export type WarehouseCatalog = {
     };
 };
 
+export type WarehouseTablesCatalog = {
+    [database: string]: {
+        [schema: string]: {
+            [table: string]: { partitionColumn?: PartitionColumn };
+        };
+    };
+};
+
 export type WarehouseTables = {
     database: string;
     schema: string;
     table: string;
+    partitionColumn?: PartitionColumn;
 }[];
 
 export type WarehouseResults = {
@@ -83,6 +92,7 @@ export interface WarehouseClient {
     getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog>;
 
@@ -99,7 +109,22 @@ export type ApiWarehouseCatalog = {
     results: WarehouseCatalog;
 };
 
+export type ApiWarehouseTablesCatalog = {
+    status: 'ok';
+    results: WarehouseTablesCatalog;
+};
+
 export type ApiWarehouseTableFields = {
     status: 'ok';
     results: WarehouseTableSchema;
+};
+
+export enum PartitionType {
+    DATE = 'DATE',
+    RANGE = 'RANGE',
+}
+
+export type PartitionColumn = {
+    partitionType: PartitionType;
+    field: string;
 };

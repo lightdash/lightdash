@@ -1,4 +1,4 @@
-import { DimensionType, type VizSqlColumn } from '@lightdash/common';
+import { DimensionType, type VizColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
@@ -11,9 +11,9 @@ import {
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 export const PieChartConfiguration = ({
-    sqlColumns,
+    columns,
 }: {
-    sqlColumns: VizSqlColumn[];
+    columns: VizColumn[];
 }) => {
     const dispatch = useVizDispatch();
 
@@ -31,6 +31,8 @@ export const PieChartConfiguration = ({
     const aggregateFieldOptions = useVizSelector(
         (state) => state.pieChartConfig.options.metricFieldOptions,
     );
+
+    const errors = useVizSelector((state) => state.pieChartConfig.errors);
 
     return (
         <Stack spacing="sm" mb="lg">
@@ -58,14 +60,12 @@ export const PieChartConfiguration = ({
                         dispatch(setGroupFieldIds(field));
                     }}
                     error={
-                        !!groupField &&
-                        groupFieldOptions.find(
-                            (x) => x.reference === groupField,
-                        ) === undefined &&
-                        `Column "${groupField}" not in SQL query`
+                        errors?.groupByFieldError?.references
+                            ? `Column "${errors?.groupByFieldError?.references[0]}" not in SQL query`
+                            : undefined
                     }
                     fieldType={
-                        sqlColumns?.find((x) => x.reference === groupField)
+                        columns?.find((x) => x.reference === groupField)
                             ?.type ?? DimensionType.STRING
                     }
                 />
@@ -81,10 +81,9 @@ export const PieChartConfiguration = ({
                     }))}
                     value={aggregateField?.reference}
                     error={
-                        aggregateFieldOptions.find(
-                            (y) => y.reference === aggregateField?.reference,
-                        ) === undefined &&
-                        `Column "${aggregateField?.reference}" not in SQL query`
+                        errors?.valuesFieldError?.references
+                            ? `Column "${errors?.valuesFieldError?.references[0]}" not in SQL query`
+                            : undefined
                     }
                     placeholder="Select Y axis"
                     onChange={(value) => {
@@ -97,7 +96,7 @@ export const PieChartConfiguration = ({
                         );
                     }}
                     fieldType={
-                        sqlColumns?.find(
+                        columns?.find(
                             (x) => x.reference === aggregateField?.reference,
                         )?.type ?? DimensionType.STRING
                     }

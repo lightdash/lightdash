@@ -1,19 +1,18 @@
 import {
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
+    VIZ_DEFAULT_AGGREGATION,
     type ApiJobScheduledResponse,
     type PivotChartData,
     type RawResultRow,
     type SqlRunnerPivotQueryBody,
     type VizChartLayout,
-    type VizSqlColumn,
+    type VizColumn,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../hooks/requestUtils';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
 
 const schedulePivotSqlJob = async ({
     projectUuid,
@@ -31,7 +30,7 @@ type PivotQueryFn = (
     args: SqlRunnerPivotQueryBody & {
         projectUuid: string;
     },
-) => Promise<PivotChartData>;
+) => Promise<Omit<PivotChartData, 'columns'>>;
 
 const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
     const scheduledJob = await schedulePivotSqlJob({
@@ -49,6 +48,7 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
         const results = await getResultsFromStream<RawResultRow>(url);
 
         return {
+            fileUrl: url,
             results,
             indexColumn: job.details.indexColumn,
             valuesColumns: job.details.valuesColumns,
@@ -60,12 +60,12 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
 
 export type SqlRunnerResultsRunnerDeps = {
     rows: RawResultRow[];
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 export class SqlRunnerResultsRunner extends ResultsRunner {
     // args should be rows, columns, values (blocked by db migration)
-    public async getPivotChartData(
+    async getPivotedVisualizationData(
         config: VizChartLayout,
         sql: string,
         projectUuid: string,
@@ -75,9 +75,11 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
+                fileUrl: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
+                columns: [],
             };
         }
         const pivotResults = await pivotQueryFn({
@@ -91,16 +93,28 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
             },
             valuesColumns: config.y.map((y) => ({
                 reference: y.reference,
-                aggregation: y.aggregation,
+                aggregation: y.aggregation ?? VIZ_DEFAULT_AGGREGATION,
             })),
             groupByColumns: config.groupBy,
             limit,
+            sortBy: config.sortBy,
         });
 
+        const columns: VizColumn[] = [
+            ...(pivotResults.indexColumn?.reference
+                ? [pivotResults.indexColumn.reference]
+                : []),
+            ...pivotResults.valuesColumns,
+        ].map((field) => ({
+            reference: field,
+        }));
+
         return {
+            fileUrl: pivotResults.fileUrl,
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,
             valuesColumns: pivotResults.valuesColumns,
+            columns,
         };
     }
 }

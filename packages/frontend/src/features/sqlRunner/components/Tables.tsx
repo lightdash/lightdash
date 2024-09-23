@@ -1,3 +1,4 @@
+import { PartitionType, type PartitionColumn } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -22,6 +23,7 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -35,10 +37,36 @@ interface TableItemProps extends BoxProps {
     schema: string;
     database: string;
     isActive: boolean;
+    partitionColumn: PartitionColumn | undefined;
 }
 
+const partitionFilter = (partitionColumn: PartitionColumn | undefined) => {
+    if (partitionColumn) {
+        const hint =
+            partitionColumn.partitionType === PartitionType.DATE
+                ? `This table has a date partition on this field`
+                : `This table has a range partition on this field`;
+
+        const defaultValue =
+            partitionColumn.partitionType === PartitionType.DATE
+                ? `'${dayjs().format('YYYY-MM-DD')}'` // Default to today's date
+                : `0`;
+
+        return `\nWHERE ${partitionColumn.field} = ${defaultValue} -- ${hint}`;
+    }
+    return '';
+};
+
 const TableItem: FC<TableItemProps> = memo(
-    ({ table, search, schema, database, isActive, ...rest }) => {
+    ({
+        table,
+        search,
+        schema,
+        database,
+        isActive,
+        partitionColumn,
+        ...rest
+    }) => {
         const { ref: hoverRef, hovered } = useHover();
         const { ref: truncatedRef, isTruncated } =
             useIsTruncated<HTMLDivElement>();
@@ -51,7 +79,13 @@ const TableItem: FC<TableItemProps> = memo(
                 <UnstyledButton
                     onClick={() => {
                         if (!sql || sql.match(/SELECT \* FROM (.+)/)) {
-                            dispatch(setSql(`SELECT * FROM ${quotedTable}`));
+                            dispatch(
+                                setSql(
+                                    `SELECT * FROM ${quotedTable} ${partitionFilter(
+                                        partitionColumn,
+                                    )}`,
+                                ),
+                            );
                         }
 
                         dispatch(toggleActiveTable({ table, schema }));
@@ -59,8 +93,7 @@ const TableItem: FC<TableItemProps> = memo(
                     w="100%"
                     p={4}
                     sx={(theme) => ({
-                        fontWeight: 500,
-                        fontSize: 13,
+                        fontSize: 14,
                         borderRadius: theme.radius.sm,
                         color: isActive ? 'gray.8' : 'gray.7',
                         flex: 1,
@@ -127,8 +160,9 @@ const Table: FC<{
     tables: NonNullable<TablesBySchema>[number]['tables'];
     search: string;
     activeTable: string | undefined;
+    activeSchema: string | undefined;
     database: string;
-}> = ({ schema, tables, search, activeTable, database }) => {
+}> = ({ schema, tables, search, activeTable, activeSchema, database }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const hasMatchingTable = useMemo(() => {
@@ -141,34 +175,50 @@ const Table: FC<{
     }, [tables, schema, search]);
 
     useEffect(() => {
-        if (activeTable && Object.keys(tables).includes(activeTable)) {
+        if (
+            activeTable &&
+            Object.keys(tables).includes(activeTable) &&
+            schema === activeSchema
+        ) {
             setIsExpanded(true);
         }
         if (hasMatchingTable) {
             setIsExpanded(true);
         }
-    }, [activeTable, tables, hasMatchingTable]);
+    }, [activeTable, tables, hasMatchingTable, activeSchema, schema]);
     return (
         <Stack spacing={0}>
-            <Group noWrap spacing="two">
-                <Text p={6} fw={700} fz="md" c="gray.7">
-                    {schema}
-                </Text>
-                <ActionIcon onClick={() => setIsExpanded(!isExpanded)}>
+            <UnstyledButton
+                onClick={() => setIsExpanded(!isExpanded)}
+                sx={(theme) => ({
+                    borderRadius: theme.radius.md,
+                    '&:hover': {
+                        background: theme.colors.gray[1],
+                    },
+                })}
+            >
+                <Group noWrap spacing="two">
+                    <Text p={6} fz="sm" c="gray.8">
+                        {schema}
+                    </Text>
+
                     <MantineIcon
                         icon={isExpanded ? IconChevronDown : IconChevronRight}
                     />
-                </ActionIcon>
-            </Group>
+                </Group>
+            </UnstyledButton>
             {isExpanded &&
                 Object.keys(tables).map((table) => (
                     <TableItem
                         key={table}
                         search={search}
-                        isActive={activeTable === table}
+                        isActive={
+                            activeTable === table && schema === activeSchema
+                        }
                         table={table}
                         schema={`${schema}`}
                         database={database}
+                        partitionColumn={tables[table].partitionColumn}
                         ml="sm"
                     />
                 ))}
@@ -179,6 +229,9 @@ const Table: FC<{
 export const Tables: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
+    const activeSchema = useAppSelector(
+        (state) => state.sqlRunner.activeSchema,
+    );
 
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 500);
@@ -237,6 +290,7 @@ export const Tables: FC = () => {
                             tables={tables}
                             search={search}
                             activeTable={activeTable}
+                            activeSchema={activeSchema}
                             database={data.database}
                         />
                     ))}

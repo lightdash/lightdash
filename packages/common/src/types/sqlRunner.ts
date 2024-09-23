@@ -1,11 +1,13 @@
-import { type ApiError, type PivotChartData } from '..';
+import { type ApiError, type Explore, type PivotChartData } from '..';
 import {
+    type PivotIndexColum,
     type VizAggregationOptions,
     type VizBaseConfig,
     type VizCartesianChartConfig,
     type VizChartConfig,
+    type VizChartLayout,
+    type VizColumn,
     type VizPieChartConfig,
-    type VizSqlColumn,
     type VizTableConfig,
 } from '../visualizations/types';
 import { type Dashboard } from './dashboard';
@@ -13,7 +15,7 @@ import { type Organization } from './organization';
 import { type Project } from './projects';
 import { type RawResultRow } from './results';
 import { type ChartKind } from './savedCharts';
-import { SchedulerJobStatus, type ApiJobScheduledResponse } from './scheduler';
+import { SchedulerJobStatus } from './scheduler';
 import { type SpaceSummary } from './space';
 import { type LightdashUser } from './user';
 
@@ -26,17 +28,13 @@ export type SqlRunnerPayload = {
 } & SqlRunnerBody;
 
 type ApiSqlRunnerPivotQueryPayload = {
-    indexColumn:
-        | {
-              reference: string;
-              type: string;
-          }
-        | undefined;
+    indexColumn: PivotIndexColum;
     valuesColumns: {
         reference: string;
         aggregation: VizAggregationOptions;
     }[];
     groupByColumns: { reference: string }[] | undefined;
+    sortBy: VizChartLayout['sortBy'] | undefined;
 };
 
 export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
@@ -59,7 +57,7 @@ export const sqlRunnerPivotQueryJob = 'sqlRunnerPivotQuery';
 
 type SqlRunnerJobStatusSuccessDetails = {
     fileUrl: string;
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 type SqlRunnerPivotQueryJobStatusSuccessDetails =
@@ -99,6 +97,10 @@ export const isApiSqlRunnerJobSuccessResponse = (
     response: ApiSqlRunnerJobStatusResponse['results'] | ApiError,
 ): response is ApiSqlRunnerJobSuccessResponse['results'] =>
     response.status === SchedulerJobStatus.COMPLETED;
+
+export const isApiSqlRunnerJobErrorResponse = (
+    response: ApiSqlRunnerJobStatusResponse['results'] | ApiError,
+): response is ApiError => response.status === SchedulerJobStatus.ERROR;
 
 // TODO: common type with semantic viewer and should be abstracted
 export type ApiSqlRunnerJobPivotQuerySuccessResponse = {
@@ -189,10 +191,13 @@ export type ApiUpdateSqlChart = {
     };
 };
 
-export type ApiSqlChartWithResults = {
+export type ApiCreateCustomExplore = {
     status: 'ok';
-    results: {
-        jobId: ApiJobScheduledResponse['results']['jobId'];
-        chart: SqlChart;
-    };
+    results: Pick<Explore, 'name'>;
+};
+
+export type CreateCustomExplorePayload = {
+    name: string;
+    sql: string;
+    columns: VizColumn[];
 };

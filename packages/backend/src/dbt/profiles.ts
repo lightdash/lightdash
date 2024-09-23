@@ -41,6 +41,7 @@ const credentialsTarget = (
                             envVarReference(key),
                         ]),
                     ),
+                    execution_project: credentials.executionProject,
                 },
                 environment: Object.fromEntries(
                     Object.entries(credentials.keyfileContents).map(

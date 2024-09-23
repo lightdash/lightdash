@@ -2,19 +2,19 @@ import { subject } from '@casl/ability';
 import {
     ChartKind,
     isVizTableConfig,
-    type DashboardSqlChartTile as DashboardSqlChartTileType,
-    type SqlChart,
+    type DashboardSqlChartTile,
 } from '@lightdash/common';
-import { Box, Menu } from '@mantine/core';
+import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
-import { useHistory, useParams } from 'react-router-dom';
-import { useSqlChartAndResults } from '../../features/sqlRunner/hooks/useSqlChartAndResults';
+import { memo, useMemo, type FC } from 'react';
+import { useParams } from 'react-router-dom';
+import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
 import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
 import { useApp } from '../../providers/AppProvider';
+import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { type ResultsAndColumns } from '../DataViz/Results';
+import { useChartViz } from '../DataViz/hooks/useChartViz';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
@@ -24,7 +24,7 @@ interface Props
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
-    tile: DashboardSqlChartTileType;
+    tile: DashboardSqlChartTile;
     minimal?: boolean;
 }
 
@@ -33,38 +33,28 @@ interface Props
  * Handle minimal mode
  * handle tabs
  */
-const DashboardOptions = ({
-    isEditMode,
-    data,
-}: {
-    isEditMode: boolean;
-    data: {
-        resultsAndColumns: ResultsAndColumns;
-        chart: SqlChart;
-    };
-}) => {
-    const history = useHistory();
-    return (
-        <Box>
-            <Menu.Item
-                icon={<MantineIcon icon={IconFilePencil} />}
-                disabled={isEditMode}
-                onClick={() =>
-                    history.push(
-                        `/projects/${data.chart.project.projectUuid}/sql-runner/${data.chart.slug}/edit`,
-                    )
-                }
-            >
-                Edit SQL chart
-            </Menu.Item>
-        </Box>
-    );
-};
-export const DashboardSqlChartTile: FC<Props> = ({
-    tile,
-    isEditMode,
-    ...rest
-}) => {
+const DashboardOptions = memo(
+    ({
+        isEditMode,
+        projectUuid,
+        slug,
+    }: {
+        isEditMode: boolean;
+        projectUuid: string;
+        slug: string;
+    }) => (
+        <LinkMenuItem
+            icon={<MantineIcon icon={IconFilePencil} />}
+            href={`/projects/${projectUuid}/sql-runner/${slug}/edit`}
+            disabled={isEditMode}
+            target="_blank"
+        >
+            Edit SQL chart
+        </LinkMenuItem>
+    ),
+);
+
+const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
 
     const { projectUuid } = useParams<{
@@ -72,7 +62,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
         dashboardUuid: string;
     }>();
     const savedSqlUuid = tile.properties.savedSqlUuid;
-    const { data, isLoading, error } = useSqlChartAndResults({
+    const { data, isLoading, error } = useDashboardSqlChart({
         projectUuid,
         savedSqlUuid,
     });
@@ -102,6 +92,17 @@ export const DashboardSqlChartTile: FC<Props> = ({
         [sqlRunnerChartData],
     );
 
+    const [chartVizQuery, chartSpec] = useChartViz({
+        projectUuid,
+        resultsRunner,
+        config: data?.chart.config,
+        uuid: savedSqlUuid ?? undefined,
+        sql: data?.chart.sql,
+        slug: data?.chart.slug,
+        limit: data?.chart.limit,
+        additionalQueryKey: [data?.chart.slug, data?.chart.sql, savedSqlUuid],
+    });
+
     if (isLoading) {
         return (
             <TileBase
@@ -122,7 +123,18 @@ export const DashboardSqlChartTile: FC<Props> = ({
                 chartName={tile.properties.chartName ?? ''}
                 tile={tile}
                 title={tile.properties.title || tile.properties.chartName || ''}
+                titleHref={`/projects/${projectUuid}/sql-runner/${error.slug}`}
                 {...rest}
+                extraMenuItems={
+                    canManageSqlRunner &&
+                    error.slug && (
+                        <DashboardOptions
+                            isEditMode={isEditMode}
+                            projectUuid={projectUuid}
+                            slug={error.slug}
+                        />
+                    )
+                }
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
@@ -142,36 +154,45 @@ export const DashboardSqlChartTile: FC<Props> = ({
             {...rest}
             extraMenuItems={
                 canManageSqlRunner && (
-                    <DashboardOptions isEditMode={isEditMode} data={data} />
+                    <DashboardOptions
+                        isEditMode={isEditMode}
+                        projectUuid={projectUuid}
+                        slug={data.chart.slug}
+                    />
                 )
             }
         >
             {data.chart.config.type === ChartKind.TABLE &&
                 isVizTableConfig(data.chart.config) && (
-                    <Table
-                        resultsRunner={resultsRunner}
-                        config={data.chart.config}
-                    />
+                    // So that the Table tile isn't cropped by the overflow
+                    <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
+                        <Table
+                            resultsRunner={resultsRunner}
+                            columnsConfig={data.chart.config.columns}
+                            flexProps={{
+                                mah: '100%',
+                            }}
+                        />
+                    </Box>
                 )}
-            {(data.chart.config.type === ChartKind.VERTICAL_BAR ||
-                data.chart.config.type === ChartKind.LINE ||
-                data.chart.config.type === ChartKind.PIE) &&
-                savedSqlUuid && (
+            {savedSqlUuid &&
+                (data.chart.config.type === ChartKind.VERTICAL_BAR ||
+                    data.chart.config.type === ChartKind.LINE ||
+                    data.chart.config.type === ChartKind.PIE) && (
                     <ChartView
-                        data={sqlRunnerChartData}
                         config={data.chart.config}
+                        spec={chartSpec}
+                        isLoading={chartVizQuery.isFetching}
+                        error={chartVizQuery.error}
                         style={{
                             minHeight: 'inherit',
                             height: '100%',
                             width: '100%',
                         }}
-                        resultsRunner={resultsRunner}
-                        isLoading={isLoading}
-                        sql={data.chart.sql}
-                        projectUuid={projectUuid}
-                        uuid={savedSqlUuid}
                     />
                 )}
         </TileBase>
     );
 };
+
+export default SqlChartTile;

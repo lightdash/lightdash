@@ -1,21 +1,26 @@
 import {
+    isApiSqlRunnerJobErrorResponse,
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
     type ApiError,
     type ApiJobScheduledResponse,
-    type RawResultRow,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
-import { getResultsFromStream, getSqlRunnerCompleteJob } from './requestUtils';
+import { getSqlRunnerCompleteJob } from './requestUtils';
+import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { type ResultsAndColumns } from './useSqlQueryRun';
 
-const getSqlChartResults = async ({
+export const getSqlChartResults = async ({
     projectUuid,
     slug,
+    getResultsFromStream,
 }: {
     projectUuid: string;
     slug: string;
+    getResultsFromStream: ReturnType<
+        typeof useResultsFromStreamWorker
+    >['getResultsFromStream'];
 }) => {
     const scheduledJob = await lightdashApi<ApiJobScheduledResponse['results']>(
         {
@@ -25,15 +30,20 @@ const getSqlChartResults = async ({
         },
     );
     const job = await getSqlRunnerCompleteJob(scheduledJob.jobId);
+
+    if (isApiSqlRunnerJobErrorResponse(job)) {
+        throw job;
+    }
     const url =
         isApiSqlRunnerJobSuccessResponse(job) &&
         job?.details &&
         !isErrorDetails(job.details)
             ? job.details.fileUrl
             : undefined;
-    const results = await getResultsFromStream<RawResultRow>(url);
+    const results = await getResultsFromStream(url);
 
     return {
+        fileUrl: url!,
         results,
         columns:
             isApiSqlRunnerJobSuccessResponse(job) &&
@@ -55,16 +65,21 @@ export const useSqlChartResults = (
     projectUuid: string,
     slug: string | undefined,
 ) => {
-    return useQuery<ResultsAndColumns | undefined, ApiError>(
+    const { getResultsFromStream } = useResultsFromStreamWorker();
+    return useQuery<
+        (ResultsAndColumns & { fileUrl: string }) | undefined,
+        ApiError
+    >(
         ['sqlChartResults', projectUuid, slug],
         () => {
             return getSqlChartResults({
                 projectUuid,
                 slug: slug!,
+                getResultsFromStream,
             });
         },
         {
-            enabled: Boolean(slug),
+            enabled: Boolean(slug) && Boolean(projectUuid),
         },
     );
 };

@@ -5,110 +5,34 @@ import {
     MantineProvider,
     Text,
     Tooltip,
+    type ButtonGroupProps,
 } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { useCallback, useEffect, type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { onResults } from '../../../components/DataViz/store/actions/commonChartActions';
-import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
-import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import LimitButton from '../../../components/LimitButton';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { useSemanticLayerQueryResults } from '../api/hooks';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import {
-    selectAllSelectedFieldNames,
-    selectAllSelectedFieldsByKind,
-    selectSemanticLayerInfo,
-} from '../store/selectors';
-import { setLimit, setResults } from '../store/semanticViewerSlice';
+import { selectAllSelectedFieldNames } from '../store/selectors';
+import { setLimit } from '../store/semanticViewerSlice';
 
-export const RunSemanticQueryButton: FC = () => {
+type Props = ButtonGroupProps & {
+    onClick: () => void;
+    isLoading?: boolean;
+    maxQueryLimit: number;
+};
+
+export const RunSemanticQueryButton: FC<Props> = ({
+    onClick,
+    isLoading,
+    maxQueryLimit,
+    ...buttonGroupProps
+}) => {
     const os = useOs();
-    const { showToastError } = useToaster();
-
-    const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
-
-    const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const { columns, limit, sortBy, selectedChartType } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
-    const currentVizConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, selectedChartType),
-    );
-    const allSelectedFieldsByKind = useAppSelector(
-        selectAllSelectedFieldsByKind,
-    );
     const dispatch = useAppDispatch();
 
-    const {
-        data: resultsData,
-        mutateAsync: runSemanticViewerQuery,
-        isLoading,
-    } = useSemanticLayerQueryResults(projectUuid, {
-        onError: (data) => {
-            showToastError({
-                title: 'Could not fetch SQL query results',
-                subtitle: data.error.message,
-            });
-        },
-    });
-
-    useEffect(() => {
-        if (!resultsData || selectedChartType === undefined) return;
-
-        const usedColumns = columns.filter((c) =>
-            allSelectedFields.includes(c.reference),
-        );
-        dispatch(
-            setResults({
-                results: resultsData,
-                columns: usedColumns,
-            }),
-        );
-
-        const resultsRunner = new SemanticViewerResultsRunner({
-            rows: resultsData,
-            columns: usedColumns,
-            query: {
-                ...allSelectedFieldsByKind,
-                sortBy,
-                limit,
-            },
-            projectUuid,
-        });
-
-        const chartResultOptions = getChartConfigAndOptions(
-            resultsRunner,
-            selectedChartType,
-            currentVizConfig,
-        );
-
-        dispatch(onResults(chartResultOptions));
-    }, [
-        allSelectedFields,
-        allSelectedFieldsByKind,
-        columns,
-        currentVizConfig,
-        dispatch,
-        limit,
-        projectUuid,
-        resultsData,
-        selectedChartType,
-        sortBy,
-    ]);
-
-    const handleSubmit = useCallback(
-        () =>
-            runSemanticViewerQuery({
-                ...allSelectedFieldsByKind,
-                sortBy,
-                limit,
-            }),
-        [allSelectedFieldsByKind, runSemanticViewerQuery, sortBy, limit],
-    );
+    const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
+    const { limit } = useAppSelector((state) => state.semanticViewer);
 
     const handleLimitChange = useCallback(
         (newLimit: number) => dispatch(setLimit(newLimit)),
@@ -116,7 +40,7 @@ export const RunSemanticQueryButton: FC = () => {
     );
 
     return (
-        <Button.Group>
+        <Button.Group {...buttonGroupProps}>
             <Tooltip
                 label={
                     <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
@@ -140,7 +64,7 @@ export const RunSemanticQueryButton: FC = () => {
                     size="xs"
                     pr={limit ? 'xs' : undefined}
                     leftIcon={<MantineIcon icon={IconPlayerPlay} />}
-                    onClick={handleSubmit}
+                    onClick={onClick}
                     loading={isLoading}
                     disabled={allSelectedFields.length === 0}
                     sx={(theme) => ({
@@ -151,7 +75,7 @@ export const RunSemanticQueryButton: FC = () => {
                         )}`,
                     })}
                 >
-                    {`Run query ${limit ? `(${limit})` : ''}`}
+                    Run query ({limit ?? maxQueryLimit})
                 </Button>
             </Tooltip>
 
@@ -159,8 +83,8 @@ export const RunSemanticQueryButton: FC = () => {
                 <LimitButton
                     disabled={allSelectedFields.length === 0}
                     size="xs"
-                    maxLimit={config.maxQueryLimit}
-                    limit={limit ?? config.maxQueryLimit}
+                    maxLimit={maxQueryLimit}
+                    limit={limit ?? maxQueryLimit}
                     onLimitChange={handleLimitChange}
                 />
             )}

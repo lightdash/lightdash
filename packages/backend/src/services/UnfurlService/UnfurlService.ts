@@ -6,6 +6,7 @@ import {
     DownloadFileType,
     ForbiddenError,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     LightdashPage,
     SessionUser,
     snakeCaseName,
@@ -55,6 +56,7 @@ export type Unfurl = {
     organizationUuid: string;
     resourceUuid: string | undefined;
     chartTileUuids?: (string | null)[];
+    sqlChartTileUuids?: (string | null)[];
 };
 
 export type ParsedUrl = {
@@ -124,6 +126,7 @@ export class UnfurlService extends BaseService {
         > & {
             resourceUuid?: string;
             chartTileUuids?: (string | null)[];
+            sqlChartTileUuids?: (string | null)[];
         }
     > {
         switch (parsedUrl.lightdashPage) {
@@ -143,6 +146,9 @@ export class UnfurlService extends BaseService {
                     chartTileUuids: dashboard.tiles
                         .filter(isDashboardChartTileType)
                         .map((t) => t.properties.savedChartUuid),
+                    sqlChartTileUuids: dashboard.tiles
+                        .filter(isDashboardSqlChartTile)
+                        .map((t) => t.properties.savedSqlUuid),
                 };
             case LightdashPage.CHART:
                 if (!parsedUrl.chartUuid)
@@ -262,6 +268,7 @@ export class UnfurlService extends BaseService {
             resourceName: details?.title,
             selector,
             chartTileUuids: details?.chartTileUuids,
+            sqlChartTileUuids: details?.sqlChartTileUuids,
         });
 
         let imageUrl;
@@ -354,6 +361,7 @@ export class UnfurlService extends BaseService {
         resourceName = undefined,
         selector = 'body',
         chartTileUuids = undefined,
+        sqlChartTileUuids = undefined,
         retries = SCREENSHOT_RETRIES,
     }: {
         imageId: string;
@@ -367,6 +375,7 @@ export class UnfurlService extends BaseService {
         resourceName?: string;
         selector?: string;
         chartTileUuids?: (string | null)[] | undefined;
+        sqlChartTileUuids?: (string | null)[] | undefined;
         retries?: number;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
@@ -483,15 +492,35 @@ export class UnfurlService extends BaseService {
 
                         if (lightdashPage === LightdashPage.DASHBOARD) {
                             // Wait for the all charts to load if we are in a dashboard
-                            chartResultsPromises = chartTileUuids?.map((id) => {
-                                const responsePattern = new RegExp(
-                                    `${id}/chart-and-results`,
+                            const exploreChartResultsPromises =
+                                chartTileUuids?.map((id) => {
+                                    const responsePattern = new RegExp(
+                                        `${id}/chart-and-results`,
+                                    );
+
+                                    return page?.waitForResponse(
+                                        responsePattern,
+                                        {
+                                            timeout: 60000,
+                                        },
+                                    ); // NOTE: No await here
+                                });
+                            // We wait for the sql charts to load
+                            const sqlChartResultsPromises =
+                                sqlChartTileUuids?.map(
+                                    (id) =>
+                                        page?.waitForResponse(
+                                            /\/sqlRunner\/results/,
+                                            {
+                                                timeout: 60000,
+                                            },
+                                        ), // NOTE: No await here
                                 );
 
-                                return page?.waitForResponse(responsePattern, {
-                                    timeout: 60000,
-                                }); // NOTE: No await here
-                            });
+                            chartResultsPromises = [
+                                ...(exploreChartResultsPromises || []),
+                                ...(sqlChartResultsPromises || []),
+                            ];
                         } else if (lightdashPage === LightdashPage.CHART) {
                             // Wait for the visualization to load if we are in an saved explore page
                             const responsePattern = new RegExp(
@@ -652,6 +681,7 @@ export class UnfurlService extends BaseService {
                             resourceName,
                             selector,
                             chartTileUuids,
+                            sqlChartTileUuids,
                             retries,
                         });
                     }

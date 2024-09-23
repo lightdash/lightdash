@@ -115,7 +115,8 @@ const LIGHTDASH_THEME = {
     colors: {
         'editor.background': '#FFFFFF',
         'editor.foreground': '#333333',
-        'editor.lineHighlightBackground': '#ffffff',
+        'editor.lineHighlightBackground': '#f8f8f8',
+        'editor.lineHighlight': '#e0e0e0',
         'editorCursor.foreground': '#7262FF',
         'editorWhitespace.foreground': '#efefef',
         'editor.selectionBackground': '#E6E3FF',

@@ -1,13 +1,14 @@
 import {
+    ApiCreateCustomExplore,
     ApiCreateSqlChart,
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiSqlChart,
-    ApiSqlChartWithResults,
     ApiSuccessEmpty,
     ApiUpdateSqlChart,
-    ApiWarehouseCatalog,
     ApiWarehouseTableFields,
+    ApiWarehouseTablesCatalog,
+    CreateCustomExplorePayload,
     CreateSqlChart,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
@@ -54,7 +55,7 @@ export class SqlRunnerController extends BaseController {
     async getTables(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiWarehouseCatalog> {
+    ): Promise<ApiWarehouseTablesCatalog> {
         this.setStatus(200);
         return {
             status: 'ok',
@@ -70,13 +71,13 @@ export class SqlRunnerController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Get('/tables/{tableName}')
+    @Get('/fields')
     @OperationId('getTableFields')
     async getTableFields(
         @Path() projectUuid: string,
-        @Path() tableName: string,
         @Request() req: express.Request,
-        @Query() schema?: string,
+        @Query() tableName?: string,
+        @Query() schemaName?: string,
     ): Promise<ApiWarehouseTableFields> {
         this.setStatus(200);
 
@@ -84,7 +85,12 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getWarehouseFields(req.user!, projectUuid, tableName, schema),
+                .getWarehouseFields(
+                    req.user!,
+                    projectUuid,
+                    tableName,
+                    schemaName,
+                ),
         };
     }
 
@@ -247,31 +253,6 @@ export class SqlRunnerController extends BaseController {
     }
 
     /**
-     * Gets chart and schedules a job to get its results
-     * @param projectUuid - the uuid of the project
-     * @param uuid - the uuid of the saved chart
-     * @param req - express request
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('saved/{uuid}/chart-and-results')
-    @OperationId('getSavedSqlChartWithResults')
-    async getSavedSqlChartWithResults(
-        @Path() uuid: string,
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-    ): Promise<ApiSqlChartWithResults> {
-        this.setStatus(200);
-
-        return {
-            status: 'ok',
-            results: await this.services
-                .getSavedSqlService()
-                .getChartWithResultJob(req.user!, projectUuid, uuid),
-        };
-    }
-
-    /**
      * Create sql chart
      * @param projectUuid the uuid for the project
      * @param req express request
@@ -382,6 +363,40 @@ export class SqlRunnerController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Create a custom explore
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('create-custom-explore')
+    @OperationId('createCustomExplore')
+    async createCustomExplore(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateCustomExplorePayload,
+    ): Promise<ApiCreateCustomExplore> {
+        this.setStatus(200);
+        const { name, sql, columns } = body;
+
+        const exploreName = await this.services
+            .getProjectService()
+            .createCustomExplore(req.user!, projectUuid, {
+                name,
+                sql,
+                columns,
+            });
+
+        return {
+            status: 'ok',
+            results: exploreName,
         };
     }
 }

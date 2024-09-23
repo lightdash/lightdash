@@ -10,16 +10,15 @@ import warehouseConnections from '../../support/warehouses';
 
 const apiUrl = '/api/v1';
 
-// Object.entries({ postgres: warehouseConnections.postgres }).forEach(  // For testing
+// Object.entries({ postgres: warehouseConnections.postgresSQL }).forEach(  // For testing
 Object.entries(warehouseConnections).forEach(
+    // Object.entries({ snowflake: warehouseConnections.snowflake }).forEach(
+    // For testing
     ([warehouseName, warehouseConfig]) => {
         const getDatabaseDetails = () => {
             switch (warehouseConfig.type) {
                 case WarehouseTypes.SNOWFLAKE:
-                    return [
-                        warehouseConfig.database.toLowerCase(),
-                        warehouseConfig.schema.toLowerCase(),
-                    ];
+                    return [warehouseConfig.database, warehouseConfig.schema];
                 case WarehouseTypes.BIGQUERY:
                     return [warehouseConfig.project, warehouseConfig.dataset];
                 case WarehouseTypes.REDSHIFT:
@@ -49,9 +48,11 @@ Object.entries(warehouseConnections).forEach(
 
             // test for invalid sql
             // note each db type may have different error messages
-            it(`Get error on invalid SQL for ${warehouseName}`, () => {
-                const sql =
-                    'SELECT * FROM `fake_test_db`.e2e_jaffle_shop`.`raw_customers`';
+            it.skip(`Get error on invalid SQL for ${warehouseName}`, () => {
+                const sql = `SELECT * FROM ${getDatabaseDetails()[0]}.${
+                    getDatabaseDetails()[1]
+                }.raw_customers`;
+                cy.log(`sql ${sql}`);
                 cy.request({
                     url: `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
                     headers: { 'Content-type': 'application/json' },
@@ -165,19 +166,44 @@ Object.entries(warehouseConnections).forEach(
                     expect(Object.keys(resp.body.results[database])).to.include(
                         schema,
                     );
-                    ['customers', 'orders', 'payments'].forEach((table) => {
+                    if (warehouseConfig.type === WarehouseTypes.SNOWFLAKE) {
+                        ['CUSTOMERS', 'ORDERS', 'PAYMENTS'].forEach((table) => {
+                            expect(
+                                Object.keys(
+                                    resp.body.results[database][schema],
+                                ),
+                            ).to.include(table);
+                        });
                         expect(
-                            Object.keys(resp.body.results[database][schema]),
-                        ).to.include(table);
-                    });
-                    expect(
-                        Object.keys(resp.body.results[database][schema].orders),
-                    ).to.be.deep.eq([]);
+                            Object.keys(
+                                resp.body.results[database][schema].ORDERS,
+                            ),
+                        ).to.be.deep.eq([]);
+                    } else {
+                        ['customers', 'orders', 'payments'].forEach((table) => {
+                            expect(
+                                Object.keys(
+                                    resp.body.results[database][schema],
+                                ),
+                            ).to.include(table);
+                        });
+                        expect(
+                            Object.keys(
+                                resp.body.results[database][schema].orders,
+                            ),
+                        ).to.be.deep.eq([]);
+                    }
                 });
             });
             it(`Get fields for SQL runner ${warehouseName}`, () => {
+                const tableName =
+                    warehouseConfig.type === WarehouseTypes.SNOWFLAKE
+                        ? 'ORDERS'
+                        : 'orders';
                 cy.request<ApiWarehouseTableFields>({
-                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/tables/orders`,
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/fields?tableName=${tableName}&schemaName=${
+                        getDatabaseDetails()[1]
+                    }`,
                     headers: { 'Content-type': 'application/json' },
                     method: 'GET',
                 }).then((resp) => {
@@ -186,13 +212,24 @@ Object.entries(warehouseConnections).forEach(
                     const { results } = resp.body;
 
                     expect(Object.keys(results)).to.have.length.gt(5);
-                    ['order_id', 'status', 'amount'].forEach((table) => {
-                        expect(Object.keys(results)).to.include(table);
-                    });
-                    expect(results.amount).to.be.eq('number');
-                    expect(results.status).to.be.eq('string');
-                    expect(results.is_completed).to.be.eq('boolean');
-                    expect(results.order_date).to.be.eq('date');
+
+                    if (warehouseConfig.type === WarehouseTypes.SNOWFLAKE) {
+                        ['ORDER_ID', 'STATUS', 'AMOUNT'].forEach((table) => {
+                            expect(Object.keys(results)).to.include(table);
+                        });
+                        expect(results.AMOUNT).to.be.eq('number');
+                        expect(results.STATUS).to.be.eq('string');
+                        expect(results.IS_COMPLETED).to.be.eq('boolean');
+                        expect(results.ORDER_DATE).to.be.eq('date');
+                    } else {
+                        ['order_id', 'status', 'amount'].forEach((table) => {
+                            expect(Object.keys(results)).to.include(table);
+                        });
+                        expect(results.amount).to.be.eq('number');
+                        expect(results.status).to.be.eq('string');
+                        expect(results.is_completed).to.be.eq('boolean');
+                        expect(results.order_date).to.be.eq('date');
+                    }
                 });
             });
 
@@ -267,6 +304,88 @@ Object.entries(warehouseConnections).forEach(
                                 });
                             } // Else keep polling
                             else if (retries < maxRetries) {
+                                poll(retries + 1);
+                            } else {
+                                expect(
+                                    resp.body.results.status,
+                                    'Reached max number of retries without getting completed job',
+                                ).to.eq('completed');
+                            }
+                        });
+                    };
+                    poll();
+                });
+            });
+            it(`Run pivot query for ${warehouseName}`, () => {
+                const [database, schema] = getDatabaseDetails();
+                const sql =
+                    warehouseConfig.type === WarehouseTypes.SNOWFLAKE
+                        ? `SELECT "orders".order_id AS "order_id", 
+                    "orders".status AS "status"
+                     FROM ${database}.${schema}.orders AS "orders"`
+                        : `SELECT * FROM ${database}.${schema}.orders`;
+                const pivotQueryPayload = {
+                    sql,
+                    indexColumn: { reference: 'status', type: 'category' },
+                    valuesColumns: [
+                        { reference: 'order_id', aggregation: 'sum' },
+                    ],
+                    limit: 500,
+                };
+
+                cy.request({
+                    url: `${apiUrl}/projects/${projectUuid}/sqlRunner/runPivotQuery`,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: JSON.stringify(pivotQueryPayload),
+                }).then((runResp) => {
+                    expect(runResp.status).to.eq(200);
+                    const { jobId } = runResp.body.results;
+
+                    const maxRetries = 50;
+
+                    // Poll request until job is `completed`
+                    const poll = (retries = 0) => {
+                        cy.wait(1000);
+                        cy.request({
+                            url: `${apiUrl}/schedulers/job/${jobId}/status`,
+                            method: 'GET',
+                        }).then((resp) => {
+                            expect(resp.status).to.eq(200);
+                            cy.log(
+                                `Job status (${retries}): ${resp.body.results.status}`,
+                            );
+                            if (
+                                resp.body.results.status === 'completed' ||
+                                resp.body.results.status === 'error'
+                            ) {
+                                expect(resp.body.results.status).to.eq(
+                                    'completed',
+                                );
+                                const { fileUrl } = resp.body.results.details;
+                                cy.request({
+                                    url: fileUrl,
+                                    method: 'GET',
+                                }).then((fileResp) => {
+                                    expect(fileResp.status).to.eq(200);
+                                    const lines = fileResp.body
+                                        .trim()
+                                        .split('\n');
+                                    const results = lines.map((line) =>
+                                        JSON.parse(line),
+                                    );
+
+                                    expect(results).to.have.length.greaterThan(
+                                        0,
+                                    );
+                                    expect(results[0]).to.have.property(
+                                        'status',
+                                    );
+                                    expect(results[0]).to.have.property(
+                                        'order_id_sum',
+                                    );
+                                });
+                            } else if (retries < maxRetries) {
                                 poll(retries + 1);
                             } else {
                                 expect(

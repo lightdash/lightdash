@@ -103,6 +103,7 @@ export type SearchResultClickedEvent = {
             | 'saved_chart'
             | 'table'
             | 'field'
+            | 'sql_chart'
             | 'page';
         id: string;
     };

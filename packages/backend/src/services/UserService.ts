@@ -291,15 +291,27 @@ export class UserService extends BaseService {
     }
 
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
-        if (user.organizationUuid) {
-            if (user.ability.cannot('delete', 'OrganizationMemberProfile')) {
+        const [orgForUser] = await this.userModel.getOrganizationsForUser(
+            userUuidToDelete,
+        );
+        if (orgForUser.organizationUuid) {
+            // We assume only one org per user
+
+            if (
+                user.ability.cannot(
+                    'delete',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: orgForUser.organizationUuid,
+                    }),
+                )
+            ) {
                 throw new ForbiddenError();
             }
 
             // Race condition between check and delete
             const [admin, ...remainingAdmins] =
                 await this.organizationMemberProfileModel.getOrganizationAdmins(
-                    user.organizationUuid,
+                    orgForUser.organizationUuid,
                 );
             if (
                 remainingAdmins.length === 0 &&
@@ -918,7 +930,10 @@ export class UserService extends BaseService {
                 user.userUuid,
                 data.password,
             );
-            await this.userModel.updatePassword(user.userId, data.newPassword);
+            await this.userModel.updatePassword(
+                user.userUuid,
+                data.newPassword,
+            );
         } else {
             await this.userModel.createPassword(user.userId, data.newPassword);
         }

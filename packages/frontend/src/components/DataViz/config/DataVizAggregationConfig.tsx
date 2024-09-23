@@ -1,15 +1,15 @@
 import {
     MetricType,
-    type VizAggregationOptions,
+    VizAggregationOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { Box, Group, Select, Text } from '@mantine/core';
 import {
+    IconAsterisk,
     IconMathFunction,
     IconMathMax,
     IconMathMin,
     IconMathOff,
-    IconNumber1,
     IconSum,
     IconTrendingUp,
 } from '@tabler/icons-react';
@@ -30,6 +30,7 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
             icon = IconSum;
             break;
         case MetricType.AVERAGE:
+        case VizAggregationOptions.AVERAGE:
             icon = IconTrendingUp;
             break;
         case MetricType.MIN:
@@ -38,8 +39,8 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
         case MetricType.MAX:
             icon = IconMathMax;
             break;
-        case 'first':
-            icon = IconNumber1;
+        case VizAggregationOptions.ANY:
+            icon = IconAsterisk;
             break;
         default:
             icon = IconMathOff;
@@ -50,12 +51,8 @@ const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
 
 type Props = {
     options: VizValuesLayoutOptions['aggregationOptions'] | undefined;
-    aggregation:
-        | VizValuesLayoutOptions['aggregationOptions'][number]
-        | undefined;
-    onChangeAggregation: (
-        value: VizValuesLayoutOptions['aggregationOptions'][number],
-    ) => void;
+    aggregation: VizAggregationOptions | undefined;
+    onChangeAggregation: (value: VizAggregationOptions) => void;
 };
 
 const AggregationItem = forwardRef<

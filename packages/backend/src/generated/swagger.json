@@ -532,7 +532,13 @@
                 "type": "object"
             },
             "DashboardTileTypes": {
-                "enum": ["saved_chart", "sql_chart", "markdown", "loom"],
+                "enum": [
+                    "saved_chart",
+                    "sql_chart",
+                    "semantic_viewer_chart",
+                    "markdown",
+                    "loom"
+                ],
                 "type": "string"
             },
             "Required_CreateDashboardTileBase_": {
@@ -739,6 +745,51 @@
                     }
                 ]
             },
+            "DashboardTileTypes.SEMANTIC_VIEWER_CHART": {
+                "enum": ["semantic_viewer_chart"],
+                "type": "string"
+            },
+            "DashboardSemanticViewerChartTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "chartName": {
+                                "type": "string"
+                            },
+                            "savedSemanticViewerChartUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "chartName",
+                            "savedSemanticViewerChartUuid"
+                        ],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.SEMANTIC_VIEWER_CHART"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardSemanticViewerChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTileProperties"
+                    }
+                ]
+            },
             "DashboardTile": {
                 "anyOf": [
                     {
@@ -752,6 +803,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardSqlChartTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTile"
                     }
                 ]
             },
@@ -4345,7 +4399,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ChartSourceType": {
-                "enum": ["dbt_explore", "sql"],
+                "enum": ["dbt_explore", "sql", "semantic_layer"],
                 "type": "string"
             },
             "ResourceViewChartItem": {
@@ -5110,6 +5164,9 @@
                     "maximumBytesBilled": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "executionProject": {
+                        "type": "string"
                     }
                 },
                 "required": ["type", "project", "dataset"],
@@ -5363,6 +5420,9 @@
                     },
                     {
                         "properties": {
+                            "source": {
+                                "$ref": "#/components/schemas/ChartSourceType"
+                            },
                             "chartKind": {
                                 "$ref": "#/components/schemas/ChartKind"
                             },
@@ -7228,21 +7288,35 @@
                 "required": ["spaceRole", "groupUuid"],
                 "type": "object"
             },
-            "WarehouseTableSchema": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/DimensionType"
+            "PartitionType": {
+                "enum": ["DATE", "RANGE"],
+                "type": "string"
+            },
+            "PartitionColumn": {
+                "properties": {
+                    "field": {
+                        "type": "string"
+                    },
+                    "partitionType": {
+                        "$ref": "#/components/schemas/PartitionType"
+                    }
                 },
+                "required": ["field", "partitionType"],
                 "type": "object"
             },
-            "WarehouseCatalog": {
+            "WarehouseTablesCatalog": {
                 "properties": {},
                 "additionalProperties": {
                     "properties": {},
                     "additionalProperties": {
                         "properties": {},
                         "additionalProperties": {
-                            "$ref": "#/components/schemas/WarehouseTableSchema"
+                            "properties": {
+                                "partitionColumn": {
+                                    "$ref": "#/components/schemas/PartitionColumn"
+                                }
+                            },
+                            "type": "object"
                         },
                         "type": "object"
                     },
@@ -7250,10 +7324,10 @@
                 },
                 "type": "object"
             },
-            "ApiWarehouseCatalog": {
+            "ApiWarehouseTablesCatalog": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/WarehouseCatalog"
+                        "$ref": "#/components/schemas/WarehouseTablesCatalog"
                     },
                     "status": {
                         "type": "string",
@@ -7262,6 +7336,13 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "WarehouseTableSchema": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DimensionType"
+                },
                 "type": "object"
             },
             "ApiWarehouseTableFields": {
@@ -7297,12 +7378,50 @@
                 "required": ["sql"],
                 "type": "object"
             },
-            "VizAggregationOptions": {
-                "enum": ["sum", "count", "min", "max", "first"],
+            "VizIndexType": {
+                "enum": ["time", "category"],
                 "type": "string"
+            },
+            "PivotIndexColum": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/VizIndexType"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "reference"],
+                "type": "object"
+            },
+            "VizAggregationOptions": {
+                "enum": ["sum", "count", "avg", "min", "max", "any"],
+                "type": "string"
+            },
+            "SortByDirection": {
+                "enum": ["ASC", "DESC"],
+                "type": "string"
+            },
+            "VizSortBy": {
+                "properties": {
+                    "direction": {
+                        "$ref": "#/components/schemas/SortByDirection"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["direction", "reference"],
+                "type": "object"
             },
             "ApiSqlRunnerPivotQueryPayload": {
                 "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
                     "groupByColumns": {
                         "items": {
                             "properties": {
@@ -7331,19 +7450,10 @@
                         "type": "array"
                     },
                     "indexColumn": {
-                        "properties": {
-                            "type": {
-                                "type": "string"
-                            },
-                            "reference": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["type", "reference"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/PivotIndexColum"
                     }
                 },
-                "required": ["valuesColumns"],
+                "required": ["valuesColumns", "indexColumn"],
                 "type": "object"
             },
             "SqlRunnerPivotQueryBody": {
@@ -7383,12 +7493,14 @@
                 "enum": ["line"],
                 "type": "string"
             },
-            "VizIndexType": {
-                "enum": ["time", "category"],
-                "type": "string"
-            },
             "VizChartLayout": {
                 "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
                     "groupBy": {
                         "items": {
                             "properties": {
@@ -7411,7 +7523,7 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["aggregation", "reference"],
+                            "required": ["reference"],
                             "type": "object"
                         },
                         "type": "array"
@@ -7499,7 +7611,6 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["type"],
                         "type": "object"
                     }
                 },
@@ -7572,6 +7683,38 @@
                 "enum": ["table"],
                 "type": "string"
             },
+            "VizColumnConfig": {
+                "properties": {
+                    "aggregation": {
+                        "$ref": "#/components/schemas/VizAggregationOptions"
+                    },
+                    "order": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "frozen": {
+                        "type": "boolean"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "reference": {
+                        "type": "string"
+                    },
+                    "visible": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["frozen", "label", "reference", "visible"],
+                "type": "object"
+            },
+            "VizColumnsConfig": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/VizColumnConfig"
+                },
+                "type": "object"
+            },
             "VizTableConfig": {
                 "allOf": [
                     {
@@ -7580,38 +7723,7 @@
                     {
                         "properties": {
                             "columns": {
-                                "properties": {},
-                                "additionalProperties": {
-                                    "properties": {
-                                        "aggregation": {
-                                            "$ref": "#/components/schemas/VizAggregationOptions"
-                                        },
-                                        "order": {
-                                            "type": "number",
-                                            "format": "double"
-                                        },
-                                        "frozen": {
-                                            "type": "boolean"
-                                        },
-                                        "label": {
-                                            "type": "string"
-                                        },
-                                        "reference": {
-                                            "type": "string"
-                                        },
-                                        "visible": {
-                                            "type": "boolean"
-                                        }
-                                    },
-                                    "required": [
-                                        "frozen",
-                                        "label",
-                                        "reference",
-                                        "visible"
-                                    ],
-                                    "type": "object"
-                                },
-                                "type": "object"
+                                "$ref": "#/components/schemas/VizColumnsConfig"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.TABLE"
@@ -7812,29 +7924,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiSqlChartWithResults": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/SqlChart"
-                            },
-                            "jobId": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["chart", "jobId"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ApiCreateSqlChart": {
                 "properties": {
                     "results": {
@@ -8016,6 +8105,60 @@
                         "$ref": "#/components/schemas/UpdateUnversionedSqlChart"
                     }
                 },
+                "type": "object"
+            },
+            "Pick_Explore.name_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiCreateCustomExplore": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Pick_Explore.name_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "VizColumn": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reference"],
+                "type": "object"
+            },
+            "CreateCustomExplorePayload": {
+                "properties": {
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizColumn"
+                        },
+                        "type": "array"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["columns", "sql", "name"],
                 "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
@@ -9085,8 +9228,18 @@
                 ],
                 "type": "string"
             },
+            "SemanticLayerStringFilterOperator": {
+                "enum": ["IS", "IS NOT"],
+                "type": "string"
+            },
             "SemanticLayerField": {
                 "properties": {
+                    "availableOperators": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                        },
+                        "type": "array"
+                    },
                     "availableGranularities": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerTimeGranularity"
@@ -9116,6 +9269,7 @@
                     }
                 },
                 "required": [
+                    "availableOperators",
                     "availableGranularities",
                     "visible",
                     "kind",
@@ -9206,33 +9360,11 @@
                     }
                 ]
             },
-            "SemanticLayerAggFunc": {
-                "type": "string",
-                "enum": [
-                    "sum",
-                    "max",
-                    "min",
-                    "mean",
-                    "median",
-                    "first",
-                    "last",
-                    "count"
-                ]
-            },
             "SemanticLayerPivot": {
                 "properties": {
                     "values": {
                         "items": {
-                            "properties": {
-                                "aggFunction": {
-                                    "$ref": "#/components/schemas/SemanticLayerAggFunc"
-                                },
-                                "name": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["aggFunction", "name"],
-                            "type": "object"
+                            "type": "string"
                         },
                         "type": "array"
                     },
@@ -9252,8 +9384,81 @@
                 "required": ["values", "index", "on"],
                 "type": "object"
             },
+            "SemanticLayerFilterBase": {
+                "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/SemanticLayerFieldType"
+                    },
+                    "fieldKind": {
+                        "$ref": "#/components/schemas/FieldType"
+                    },
+                    "field": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldType", "fieldKind", "field", "uuid"],
+                "type": "object"
+            },
+            "SemanticLayerStringFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "operator": {
+                                "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                            }
+                        },
+                        "required": ["values", "operator"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerFilterTypes": {
+                "$ref": "#/components/schemas/SemanticLayerStringFilter"
+            },
+            "SemanticLayerFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterTypes"
+                    },
+                    {
+                        "properties": {
+                            "or": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SemanticLayerFilter"
+                                },
+                                "type": "array"
+                            },
+                            "and": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SemanticLayerFilter"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "SemanticLayerQuery": {
                 "properties": {
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerFilter"
+                        },
+                        "type": "array"
+                    },
                     "pivot": {
                         "$ref": "#/components/schemas/SemanticLayerPivot"
                     },
@@ -9290,11 +9495,203 @@
                     }
                 },
                 "required": [
+                    "filters",
                     "sortBy",
                     "metrics",
                     "timeDimensions",
                     "dimensions"
                 ],
+                "type": "object"
+            },
+            "ApiSemanticLayerCreateChart": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "slug": {
+                                "type": "string"
+                            },
+                            "savedSemanticViewerChartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["slug", "savedSemanticViewerChartUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticLayerCreateChart": {
+                "properties": {
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/VizChartConfig"
+                    },
+                    "semanticLayerQuery": {
+                        "$ref": "#/components/schemas/SemanticLayerQuery"
+                    },
+                    "semanticLayerView": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "spaceUuid",
+                    "config",
+                    "semanticLayerQuery",
+                    "semanticLayerView",
+                    "description",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "AllVizChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBarChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizLineChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizPieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizTableConfig"
+                    }
+                ]
+            },
+            "SavedSemanticViewerChart": {
+                "properties": {
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "organization": {
+                        "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
+                    },
+                    "project": {
+                        "$ref": "#/components/schemas/Pick_Project.projectUuid_"
+                    },
+                    "dashboard": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "space": {
+                        "$ref": "#/components/schemas/Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_"
+                    },
+                    "lastUpdatedBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "semanticLayerQuery": {
+                        "$ref": "#/components/schemas/SemanticLayerQuery"
+                    },
+                    "semanticLayerView": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/AllVizChartConfig"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "savedSemanticViewerChartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "lastViewedAt",
+                    "firstViewedAt",
+                    "views",
+                    "organization",
+                    "project",
+                    "dashboard",
+                    "space",
+                    "lastUpdatedBy",
+                    "lastUpdatedAt",
+                    "createdBy",
+                    "createdAt",
+                    "chartKind",
+                    "semanticLayerQuery",
+                    "semanticLayerView",
+                    "config",
+                    "slug",
+                    "description",
+                    "name",
+                    "savedSemanticViewerChartUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSemanticLayerGetChart": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SavedSemanticViewerChart"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "ValidationTarget": {
@@ -9538,7 +9935,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1236.0",
+        "version": "0.1263.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,4 +1,4 @@
-# Filters reference doc
+# Filters reference
 
 Filters appear at the top of the Explore view and allow users to change the data being pulled in.
 

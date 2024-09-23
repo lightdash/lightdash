@@ -21,7 +21,8 @@ import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { groupResults, pivotResults } from './Pivoting';
+import { SavedSemanticViewerChartService } from '../SavedSemanticViewerChartService/SavedSemanticViewerChartService';
+import { pivotResults } from './Pivoting';
 
 type SearchServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -33,6 +34,8 @@ type SearchServiceArguments = {
     cubeClient: CubeClient;
     dbtCloudClient: DbtCloudGraphqlClient;
     s3Client: S3Client;
+    // Services
+    savedSemanticViewerChartService: SavedSemanticViewerChartService;
 };
 
 export class SemanticLayerService extends BaseService {
@@ -53,6 +56,10 @@ export class SemanticLayerService extends BaseService {
 
     private readonly s3Client: S3Client;
 
+    // Services
+
+    private readonly savedSemanticViewerChartService: SavedSemanticViewerChartService;
+
     constructor(args: SearchServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -64,6 +71,9 @@ export class SemanticLayerService extends BaseService {
         this.cubeClient = args.cubeClient;
         this.dbtCloudClient = args.dbtCloudClient;
         this.s3Client = args.s3Client;
+        // Services
+        this.savedSemanticViewerChartService =
+            args.savedSemanticViewerChartService;
     }
 
     private validateQueryLimit(query: SemanticLayerQuery) {
@@ -182,6 +192,7 @@ export class SemanticLayerService extends BaseService {
         context,
     }: SemanticLayerQueryPayload): Promise<{
         fileUrl: string;
+        columns: string[];
     }> {
         // TODO add analytics
         Logger.debug(`Streaming query into file for project ${projectUuid}`);
@@ -189,11 +200,17 @@ export class SemanticLayerService extends BaseService {
 
         this.validateQueryLimit(query);
 
+        let columns: string[] = [];
+
         // Default stream function, just streams results into a file
         let streamFunctionCallback: (
             writer: (data: SemanticLayerResultRow) => void,
         ) => Promise<void> = async (writer) => {
             await client.streamResults(projectUuid, query, async (rows) => {
+                if (!columns.length) {
+                    columns = Object.keys(rows[0]).map((col) => col);
+                }
+
                 rows.forEach(writer);
             });
         };
@@ -203,30 +220,49 @@ export class SemanticLayerService extends BaseService {
         if (query.pivot) {
             const results = [] as SemanticLayerResultRow[];
 
-            // Wait for all results to be fetched
-            await client.streamResults(projectUuid, query, async (rows) => {
-                results.push(...rows);
-            });
+            const { pivot } = query;
+
+            // Wait for all results to be fetched, edit the query so that it only fetches the columns we need
+            await client.streamResults(
+                projectUuid,
+                {
+                    ...query,
+                    dimensions: query.dimensions.filter(
+                        (dimension) =>
+                            pivot.index.includes(dimension.name) ||
+                            pivot.on.includes(dimension.name),
+                    ),
+                    timeDimensions: query.timeDimensions.filter(
+                        (timeDimension) =>
+                            pivot.index.includes(timeDimension.name) ||
+                            pivot.on.includes(timeDimension.name),
+                    ),
+                    metrics: query.metrics.filter((metric) =>
+                        pivot.values.includes(metric.name),
+                    ),
+                    sortBy: query.sortBy.filter(
+                        (sortBy) =>
+                            pivot.index.includes(sortBy.name) ||
+                            pivot.values.includes(sortBy.name) ||
+                            pivot.on.includes(sortBy.name),
+                    ),
+                },
+                async (rows) => {
+                    results.push(...rows);
+                },
+            );
 
             // Pivot results
             const pivotedResults =
                 query.pivot.index.length === 0
-                    ? groupResults(results, {
-                          values: query.pivot.values,
-                          groupBy: query.pivot.on,
-                      })
-                    : pivotResults(
-                          results,
-                          [
-                              ...query.dimensions.map((d) => d.name),
-                              ...query.timeDimensions.map((d) => d.name),
-                          ],
-                          query.pivot,
-                      );
+                    ? results
+                    : pivotResults(results, query.pivot);
 
             streamFunctionCallback = async (writer) => {
                 pivotedResults.forEach(writer);
             };
+
+            columns = Object.keys(pivotedResults[0] ?? {});
         }
 
         const fileUrl = await this.downloadFileModel.streamFunction(
@@ -237,7 +273,10 @@ export class SemanticLayerService extends BaseService {
             this.s3Client,
         );
 
-        return { fileUrl };
+        return {
+            fileUrl,
+            columns,
+        };
     }
 
     async getSql(
@@ -258,5 +297,40 @@ export class SemanticLayerService extends BaseService {
         await this.checkCanViewProject(user, projectUuid);
         const client = await this.getSemanticLayerClient(projectUuid);
         return client.getClientInfo();
+    }
+
+    async getSemanticViewerChartResultJob(
+        user: SessionUser,
+        projectUuid: string,
+        uuid: string,
+    ): Promise<{ jobId: string }> {
+        const savedChart =
+            await this.savedSemanticViewerChartService.getSemanticViewerChart(
+                user,
+                projectUuid,
+                uuid,
+            );
+
+        const { hasAccess: hasViewAccess } =
+            await this.savedSemanticViewerChartService.hasSavedChartAccess(
+                user,
+                'view',
+                savedChart,
+            );
+
+        if (!hasViewAccess) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
+
+        const jobId = await this.schedulerClient.semanticLayerStreamingResults({
+            context: 'semanticViewer',
+            projectUuid,
+            query: savedChart.semanticLayerQuery,
+            userUuid: user.userUuid,
+        });
+
+        return {
+            jobId,
+        };
     }
 }

@@ -4,18 +4,24 @@ import {
     VIZ_DEFAULT_AGGREGATION,
     type VizAggregationOptions,
     type VizChartLayout,
+    type VizConfigErrors,
     type VizIndexType,
     type VizPieChartConfig,
     type VizPieChartOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { onResults, setChartConfig } from './actions/commonChartActions';
+import {
+    resetChartState,
+    setChartConfig,
+    setChartOptionsAndConfig,
+} from './actions/commonChartActions';
 
 export type PieChartState = {
     defaultFieldConfig: VizChartLayout | undefined;
     config: VizPieChartConfig | undefined;
     options: VizPieChartOptions;
+    errors: VizConfigErrors | undefined;
 };
 
 const initialState: PieChartState = {
@@ -25,6 +31,7 @@ const initialState: PieChartState = {
         groupFieldOptions: [],
         metricFieldOptions: [],
     },
+    errors: undefined,
 };
 
 export const pieChartConfigSlice = createSlice({
@@ -60,7 +67,7 @@ export const pieChartConfigSlice = createSlice({
                         state.options.metricFieldOptions.find(
                             (option) =>
                                 option.reference === action.payload.reference,
-                        )?.aggregationOptions[0] ?? VIZ_DEFAULT_AGGREGATION;
+                        )?.aggregationOptions?.[0] ?? VIZ_DEFAULT_AGGREGATION;
                 }
             }
         },
@@ -81,14 +88,15 @@ export const pieChartConfigSlice = createSlice({
         },
     },
     extraReducers: (builder) => {
-        builder.addCase(onResults, (state, action) => {
+        builder.addCase(setChartOptionsAndConfig, (state, action) => {
             if (action.payload.type !== ChartKind.PIE) {
                 return;
             }
 
             state.options = action.payload.options;
 
-            if (!state.config) {
+            // Only set the initial config if it's not already set and the fieldConfig is present
+            if (!state.config && action.payload.config.fieldConfig) {
                 state.config = action.payload.config;
             }
         });
@@ -97,6 +105,7 @@ export const pieChartConfigSlice = createSlice({
                 state.config = action.payload;
             }
         });
+        builder.addCase(resetChartState, () => initialState);
     },
 });
 export const { setGroupFieldIds, setYAxisReference, setYAxisAggregation } =

@@ -51,7 +51,9 @@ style={{ display: 'block', margin: '0 auto 20px auto' }}
 
 :::info
 
-You must be a `developer` and have access to the chart and space in both the `development project` and the `upstream project`. The space must also be public—promoting content in private or restricted access spaces is not supported yet.
+You must be a `developer` and have access to the chart and space in both the `development project` and the `upstream project`.
+If the chart is in a space that doesn't exist in the `upstream project`, then this space will be created with the same user access and the content will be put in this space.
+If the chart is in a space that exists in the `upstream project`, the access to this space will not be updated.
 
 :::
 
@@ -88,8 +90,9 @@ style={{ display: 'block', margin: '0 auto 20px auto' }}
 
 :::info
 
-You must be a `developer` and have access to the dashboard and space in both the `development project` and the `upstream project` as well as have access to all the charts in the dashboard. The space must also be public—promoting content in private or restricted access spaces is not supported yet.
-
+You must be a `developer` and have access to the dashboard and space in both the `development project` and the `upstream project` as well as have access to all the charts in the dashboard.
+If the dashboard is in a space that doesn't exist in the `upstream project`, then this space will be created with the same user access and the content will be put in this space.
+If the dashboard is in a space that exists in the `upstream project`, the access to this space will not be updated.
 :::
 
 Once the dashboard is promoted, you can click on the `success` banner to open a new tab into this dashboard in the `production project`.

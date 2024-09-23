@@ -11,6 +11,7 @@ export type SearchItem = {
     location: { pathname: string; search?: string };
     item?: SearchResult;
     searchRank?: number;
+    slug?: string;
 };
 
 export type FocusedItemIndex = {

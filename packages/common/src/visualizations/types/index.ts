@@ -6,22 +6,29 @@ import { type CartesianChartDisplay } from '../CartesianChartDataModel';
 export enum VizAggregationOptions {
     SUM = 'sum',
     COUNT = 'count',
+    AVERAGE = 'avg',
     MIN = 'min',
     MAX = 'max',
-    FIRST = 'first',
+    ANY = 'any',
+}
+
+export enum SortByDirection {
+    ASC = 'ASC',
+    DESC = 'DESC',
 }
 
 export const vizAggregationOptions = [
     VizAggregationOptions.SUM,
     VizAggregationOptions.COUNT,
+    VizAggregationOptions.AVERAGE,
     VizAggregationOptions.MIN,
     VizAggregationOptions.MAX,
-    VizAggregationOptions.FIRST,
+    VizAggregationOptions.ANY,
 ];
 
 export const VIZ_DEFAULT_AGGREGATION = VizAggregationOptions.COUNT;
 
-export type VizSqlColumn = {
+export type VizColumn = {
     reference: string;
     type?: DimensionType;
 };
@@ -38,13 +45,17 @@ export type VizIndexLayoutOptions = {
 
 export type VizValuesLayoutOptions = {
     reference: string;
-    aggregationOptions: VizAggregationOptions[];
+    aggregationOptions?: VizAggregationOptions[];
 };
 
 export type VizPivotLayoutOptions = {
     reference: string;
 };
 
+export type VizSortBy = {
+    reference: string;
+    direction: SortByDirection;
+};
 export type VizChartLayout = {
     x:
         | {
@@ -54,19 +65,26 @@ export type VizChartLayout = {
         | undefined;
     y: {
         reference: string;
-        aggregation: VizAggregationOptions;
+        aggregation?: VizAggregationOptions;
     }[];
     groupBy: { reference: string }[] | undefined;
+    sortBy?: VizSortBy[];
 };
 
 export type VizPieChartDisplay = {
     isDonut?: boolean;
 };
 
+export type PivotIndexColum =
+    | { reference: string; type: VizIndexType }
+    | undefined;
+
 export type PivotChartData = {
+    fileUrl: string | undefined;
     results: RawResultRow[];
-    indexColumn: { reference: string; type: string } | undefined;
+    indexColumn: PivotIndexColum;
     valuesColumns: string[];
+    columns: VizColumn[];
 };
 
 export type VizCartesianChartOptions = {
@@ -80,22 +98,24 @@ export type VizPieChartOptions = {
     metricFieldOptions: VizValuesLayoutOptions[];
 };
 
+export type VizColumnConfig = {
+    visible: boolean;
+    reference: string;
+    label: string;
+    frozen: boolean;
+    order?: number;
+    aggregation?: VizAggregationOptions;
+};
+
+export type VizColumnsConfig = { [key: string]: VizColumnConfig };
+
+export type VizTableColumnsConfig = {
+    columns: VizColumnsConfig;
+};
+
 // TODO: FIXME!! it should be a common type!
 export type VizTableOptions = {
     defaultColumnConfig: VizTableColumnsConfig['columns'] | undefined;
-};
-
-export type VizTableColumnsConfig = {
-    columns: {
-        [key: string]: {
-            visible: boolean;
-            reference: string;
-            label: string;
-            frozen: boolean;
-            order?: number;
-            aggregation?: VizAggregationOptions;
-        };
-    };
 };
 
 export type VizBaseConfig = {
@@ -134,6 +154,12 @@ export type VizTableConfig = VizBaseConfig & {
     columns: VizTableColumnsConfig['columns'];
 };
 
+export type AllVizChartConfig =
+    | VizBarChartConfig
+    | VizLineChartConfig
+    | VizPieChartConfig
+    | VizTableConfig;
+
 export const isVizBarChartConfig = (
     value: VizBaseConfig | undefined,
 ): value is VizBarChartConfig =>
@@ -162,3 +188,22 @@ export type VizChartConfig =
     | VizLineChartConfig
     | VizPieChartConfig
     | VizTableConfig;
+
+export type VizConfigErrors = {
+    indexFieldError?: {
+        reference: string;
+    };
+    valuesFieldError?: {
+        references: string[];
+    };
+    groupByFieldError?: {
+        references: string[];
+    };
+};
+
+// TODO: this can probably go in VizTableColumnsConfig
+export type VizTableHeaderSortConfig = {
+    [fieldName: string]: {
+        direction: SortByDirection | undefined;
+    };
+};

@@ -14,6 +14,7 @@ import {
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
+    CreateCustomExplorePayload,
     CreateDbtCloudIntegration,
     createDimensionWithGranularity,
     CreateJob,
@@ -41,9 +42,11 @@ import {
     findFieldByIdInExplore,
     ForbiddenError,
     formatRows,
+    getAggregatedField,
     getDashboardFilterRulesForTables,
     getDateDimension,
     getDimensions,
+    getFieldQuoteChar,
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
@@ -61,6 +64,7 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
+    LightdashError,
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
@@ -80,6 +84,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     snakeCaseName,
+    SortByDirection,
     SortField,
     SpaceQuery,
     SpaceSummary,
@@ -94,10 +99,12 @@ import {
     UpdateProjectMember,
     UserAttributeValueMap,
     UserWarehouseCredentials,
-    VizSqlColumn,
+    VizAggregationOptions,
+    VizColumn,
     WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
+    WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
@@ -597,9 +604,16 @@ export class ProjectService extends BaseService {
         };
 
         await this.jobModel.create(job);
-        doAsyncWork().catch((e) =>
-            this.logger.error(`Error running background job: ${e}`),
-        );
+        doAsyncWork().catch((e) => {
+            if (!(e instanceof LightdashError)) {
+                Sentry.captureException(e);
+            }
+            this.logger.error(
+                `Error running background job:${
+                    e instanceof Error ? e.stack : e
+                }`,
+            );
+        });
         return {
             jobUuid: job.jobUuid,
         };
@@ -1977,7 +1991,7 @@ export class ProjectService extends BaseService {
         context,
     }: SqlRunnerPayload): Promise<{
         fileUrl: string;
-        columns: VizSqlColumn[];
+        columns: VizColumn[];
     }> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -2006,7 +2020,7 @@ export class ProjectService extends BaseService {
             user_uuid: userUuid,
         };
 
-        const columns: VizSqlColumn[] = [];
+        const columns: VizColumn[] = [];
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
@@ -2042,27 +2056,38 @@ export class ProjectService extends BaseService {
     }
 
     static applyPivotToSqlQuery({
+        warehouseType,
         sql,
         limit,
         indexColumn,
         valuesColumns,
         groupByColumns,
+        sortBy,
     }: Pick<
         SqlRunnerPivotQueryPayload,
-        'sql' | 'limit' | 'indexColumn' | 'valuesColumns' | 'groupByColumns'
-    >): string {
+        | 'sql'
+        | 'limit'
+        | 'indexColumn'
+        | 'valuesColumns'
+        | 'groupByColumns'
+        | 'sortBy'
+    > & { warehouseType: WarehouseTypes }): string {
         if (!indexColumn) throw new ParameterError('Index column is required');
-
+        const q = getFieldQuoteChar(warehouseType);
         const userSql = sql.replace(/;\s*$/, '');
         const groupBySelectDimensions = [
-            ...(groupByColumns || []).map((col) => col.reference),
-            indexColumn.reference,
+            ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
+            `${q}${indexColumn.reference}${q}`,
         ];
         const groupBySelectMetrics = [
-            ...(valuesColumns ?? []).map(
-                (col) =>
-                    `${col.aggregation}(${col.reference}) as ${col.reference}_${col.aggregation}`,
-            ),
+            ...(valuesColumns ?? []).map((col) => {
+                const aggregationField = getAggregatedField(
+                    warehouseType,
+                    col.aggregation,
+                    col.reference,
+                );
+                return `${aggregationField} AS ${q}${col.reference}_${col.aggregation}${q}`;
+            }),
         ];
         const groupByQuery = `SELECT ${[
             ...new Set(groupBySelectDimensions), // Remove duplicate columns
@@ -2073,35 +2098,45 @@ export class ProjectService extends BaseService {
 
         const selectReferences = [
             indexColumn.reference,
-            ...(groupByColumns || []).map((col) => col.reference),
-            ...(valuesColumns || []).map((col) =>
-                groupByColumns && groupByColumns.length > 0
-                    ? `${col.reference}_${col.aggregation}`
-                    : `${col.reference}_${col.aggregation} as ${col.reference}`,
+            ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
+            ...(valuesColumns || []).map(
+                (col) => `${q}${col.reference}_${col.aggregation}${q}`,
             ),
         ];
 
+        const orderBy: string = sortBy
+            ? `ORDER BY ${sortBy
+                  .map((s) => `${q}${s.reference}${q} ${s.direction}`)
+                  .join(', ')}`
+            : ``;
+
+        const sortDirectionForIndexColumn =
+            sortBy?.find((s) => s.reference === indexColumn.reference)
+                ?.direction === SortByDirection.DESC
+                ? 'DESC'
+                : 'ASC';
         const pivotQuery = `SELECT ${selectReferences.join(
             ', ',
-        )}, dense_rank() over (order by ${
+        )}, dense_rank() over (order by ${q}${
             indexColumn.reference
-        }) as row_index, dense_rank() over (order by ${
+        }${q} ${sortDirectionForIndexColumn}) as ${q}row_index${q}, dense_rank() over (order by ${q}${
             groupByColumns?.[0]?.reference
-        }) as column_index FROM group_by_query`;
+        }${q}) as ${q}column_index${q} FROM group_by_query`;
 
         if (groupByColumns && groupByColumns.length > 0) {
             // Wrap the original query in a CTE
             let pivotedSql = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery}), pivot_query AS (${pivotQuery})`;
 
-            pivotedSql += `\nSELECT * FROM pivot_query WHERE row_index < ${
+            pivotedSql += `\nSELECT * FROM pivot_query WHERE ${q}row_index${q} <= ${
                 limit ?? 500
-            } and column_index < 10 order by row_index, column_index`;
-
+            } and ${q}column_index${q} <= 10 order by ${q}row_index${q}, ${q}column_index${q}`;
             return pivotedSql;
         }
 
         let sqlQuery = `WITH original_query AS (${userSql}), group_by_query AS (${groupByQuery})`;
-        sqlQuery += `\nSELECT * FROM group_by_query LIMIT ${limit ?? 500} `;
+        sqlQuery += `\nSELECT * FROM group_by_query ${orderBy} LIMIT ${
+            limit ?? 500
+        } `;
 
         return sqlQuery;
     }
@@ -2116,23 +2151,28 @@ export class ProjectService extends BaseService {
         indexColumn,
         valuesColumns,
         groupByColumns,
+        sortBy,
     }: SqlRunnerPivotQueryPayload): Promise<
-        {
-            fileUrl: string;
-        } & Omit<PivotChartData, 'results'>
+        Omit<PivotChartData, 'results' | 'columns'>
     > {
         if (!indexColumn) throw new ParameterError('Index column is required');
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
 
+        const warehouseCredentials = await this.getWarehouseCredentials(
+            projectUuid,
+            userUuid,
+        );
         // Apply limit and pivot to the SQL query
         const pivotedSql = ProjectService.applyPivotToSqlQuery({
+            warehouseType: warehouseCredentials.type,
             sql,
             limit,
             indexColumn,
             valuesColumns,
             groupByColumns,
+            sortBy,
         });
 
         this.analytics.track({
@@ -2148,7 +2188,7 @@ export class ProjectService extends BaseService {
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials(projectUuid, userUuid),
+            warehouseCredentials,
         );
         this.logger.debug(`Stream query against warehouse`);
         const queryTags: RunQueryTags = {
@@ -2156,8 +2196,7 @@ export class ProjectService extends BaseService {
             user_uuid: userUuid,
         };
 
-        const columns: VizSqlColumn[] = [];
-
+        const columns: VizColumn[] = [];
         let currentRowIndex = 0;
         let currentTransformedRow: ResultRow | undefined;
         const valuesColumnReferences = new Set<string>(); // NOTE: This is used to pivot the data later with the same group by columns
@@ -2216,6 +2255,10 @@ export class ProjectService extends BaseService {
                         tags: queryTags,
                     },
                 );
+                // Write the last row
+                if (currentTransformedRow) {
+                    writer(currentTransformedRow);
+                }
             },
             this.s3Client,
         );
@@ -2697,7 +2740,14 @@ export class ProjectService extends BaseService {
         };
         await this.projectModel
             .tryAcquireProjectLock(projectUuid, onLockAcquired, onLockFailed)
-            .catch((e) => this.logger.error(`Background job failed: ${e}`));
+            .catch((e) => {
+                if (!(e instanceof LightdashError)) {
+                    Sentry.captureException(e);
+                }
+                this.logger.error(
+                    `Background job failed:${e instanceof Error ? e.stack : e}`,
+                );
+            });
     }
 
     async getAllExploresSummary(
@@ -2979,7 +3029,7 @@ export class ProjectService extends BaseService {
     async populateWarehouseTablesCache(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<WarehouseCatalog> {
+    ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -3002,12 +3052,14 @@ export class ProjectService extends BaseService {
             credentials,
         );
 
-        const schema = ProjectService.getWarehouseSchema(credentials);
+        const warehouseTables = await warehouseClient.getAllTables();
 
-        const warehouseTables = await warehouseClient.getAllTables(schema);
-
-        const catalog =
-            WarehouseAvailableTablesModel.toWarehouseCatalog(warehouseTables);
+        const catalog = WarehouseAvailableTablesModel.toWarehouseCatalog(
+            warehouseTables.map((t) => ({
+                ...t,
+                partition_column: t.partitionColumn || null,
+            })),
+        );
 
         if (credentials.userWarehouseCredentialsUuid) {
             await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
@@ -3029,7 +3081,7 @@ export class ProjectService extends BaseService {
     async getWarehouseTables(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<WarehouseCatalog> {
+    ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -3047,7 +3099,7 @@ export class ProjectService extends BaseService {
             user.userUuid,
         );
 
-        let catalog: WarehouseCatalog | null = null;
+        let catalog: WarehouseTablesCatalog | null = null;
         // Check the cache for catalog
         if (credentials.userWarehouseCredentialsUuid) {
             catalog =
@@ -3072,15 +3124,14 @@ export class ProjectService extends BaseService {
         if (!catalog) {
             throw new NotFoundError('Warehouse tables not found');
         }
-
         return catalog;
     }
 
     async getWarehouseFields(
         user: SessionUser,
         projectUuid: string,
-        tableName: string,
-        schema?: string,
+        tableName?: string,
+        schemaName?: string,
     ): Promise<WarehouseTableSchema> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3108,28 +3159,31 @@ export class ProjectService extends BaseService {
             project_uuid: projectUuid,
             user_uuid: user.userUuid,
         };
-        const warehouseSchema =
-            schema || ProjectService.getWarehouseSchema(credentials);
-        const database = ProjectService.getWarehouseDatabase(credentials);
-
-        if (!warehouseSchema) {
-            throw new NotFoundError(
-                'Schema not found in warehouse credentials',
-            );
-        }
+        let database = ProjectService.getWarehouseDatabase(credentials);
         if (!database) {
             throw new NotFoundError(
                 'Database not found in warehouse credentials',
             );
         }
+        if (credentials.type === WarehouseTypes.SNOWFLAKE) {
+            // TODO: credentials returning a lower case database name for snowflake (bug) - this hack works for unquoted database names
+            database = database.toUpperCase();
+        }
+        if (!schemaName) {
+            throw new ParameterError('Schema name is required');
+        }
+        if (!tableName) {
+            throw new ParameterError('Table name is required');
+        }
         const warehouseCatalog = await warehouseClient.getFields(
             tableName,
-            warehouseSchema,
+            schemaName,
+            database,
             queryTags,
         );
 
         await sshTunnel.disconnect();
-        return warehouseCatalog[database][warehouseSchema][tableName];
+        return warehouseCatalog[database][schemaName][tableName];
     }
 
     async getTablesConfiguration(
@@ -3762,7 +3816,12 @@ export class ProjectService extends BaseService {
                 mostPopular: true,
             },
         );
-
+        const mostPopularSqlCharts = await this.spaceModel.getSpaceSqlCharts(
+            allowedSpaces.map(({ uuid }) => uuid),
+            {
+                mostPopular: true,
+            },
+        );
         const mostPopularDashboards = await this.spaceModel.getSpaceDashboards(
             allowedSpaces.map(({ uuid }) => uuid),
             {
@@ -3770,7 +3829,11 @@ export class ProjectService extends BaseService {
             },
         );
 
-        return [...mostPopularCharts, ...mostPopularDashboards];
+        return [
+            ...mostPopularCharts,
+            ...mostPopularSqlCharts,
+            ...mostPopularDashboards,
+        ];
     }
 
     async getRecentlyUpdated(
@@ -3782,7 +3845,13 @@ export class ProjectService extends BaseService {
                 recentlyUpdated: true,
             },
         );
-
+        const recentlyUpdatedSqlCharts =
+            await this.spaceModel.getSpaceSqlCharts(
+                allowedSpaces.map(({ uuid }) => uuid),
+                {
+                    recentlyUpdated: true,
+                },
+            );
         const recentlyUpdatedDashboards =
             await this.spaceModel.getSpaceDashboards(
                 allowedSpaces.map(({ uuid }) => uuid),
@@ -3790,8 +3859,11 @@ export class ProjectService extends BaseService {
                     recentlyUpdated: true,
                 },
             );
-
-        return [...recentlyUpdatedCharts, ...recentlyUpdatedDashboards];
+        return [
+            ...recentlyUpdatedCharts,
+            ...recentlyUpdatedSqlCharts,
+            ...recentlyUpdatedDashboards,
+        ];
     }
 
     async getSpaces(
@@ -4309,5 +4381,22 @@ export class ProjectService extends BaseService {
 
             return metrics;
         }, []);
+    }
+
+    async createCustomExplore(
+        user: SessionUser,
+        projectUuid: string,
+        payload: CreateCustomExplorePayload,
+    ) {
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+        );
+        const explore = await this.projectModel.createCustomExplore(
+            projectUuid,
+            payload,
+            warehouseClient,
+        );
+        return explore;
     }
 }

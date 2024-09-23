@@ -7,7 +7,11 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
-import { onResults, setChartConfig } from './actions/commonChartActions';
+import {
+    resetChartState,
+    setChartConfig,
+    setChartOptionsAndConfig,
+} from './actions/commonChartActions';
 
 export type TableVizState = {
     config: VizTableConfig | undefined;
@@ -46,7 +50,7 @@ export const tableVisSlice = createSlice({
         },
     },
     extraReducers: (builder) => {
-        builder.addCase(onResults, (state, action) => {
+        builder.addCase(setChartOptionsAndConfig, (state, action) => {
             if (action.payload.type !== ChartKind.TABLE) {
                 return;
             }
@@ -65,6 +69,7 @@ export const tableVisSlice = createSlice({
                 state.config = action.payload;
             }
         });
+        builder.addCase(resetChartState, () => initialState);
     },
 });
 

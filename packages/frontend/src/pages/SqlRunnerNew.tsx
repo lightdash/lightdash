@@ -8,7 +8,10 @@ import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-import { setChartConfig } from '../components/DataViz/store/actions/commonChartActions';
+import {
+    resetChartState,
+    setChartConfig,
+} from '../components/DataViz/store/actions/commonChartActions';
 import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
@@ -20,13 +23,14 @@ import {
 } from '../features/sqlRunner/store/hooks';
 import {
     resetState,
+    setFetchResultsOnLoad,
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { useProject } from '../hooks/useProject';
 
-const SqlRunnerNew = () => {
+const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
@@ -37,13 +41,15 @@ const SqlRunnerNew = () => {
 
     useUnmount(() => {
         dispatch(resetState());
+        dispatch(resetChartState());
     });
 
     useEffect(() => {
         if (!projectUuid && params.projectUuid) {
             dispatch(setProjectUuid(params.projectUuid));
+            dispatch(setFetchResultsOnLoad(!!isEditMode));
         }
-    }, [dispatch, params.projectUuid, projectUuid]);
+    }, [dispatch, params.projectUuid, projectUuid, isEditMode]);
 
     const { data, error: chartError } = useSavedSqlChart({
         projectUuid,
@@ -79,9 +85,10 @@ const SqlRunnerNew = () => {
             header={<Header mode={params.slug ? 'edit' : 'create'} />}
             isSidebarOpen={isLeftSidebarOpen}
             sidebar={<Sidebar setSidebarOpen={setLeftSidebarOpen} />}
+            noSidebarPadding
         >
             <Group
-                align={'stretch'}
+                align="stretch"
                 grow
                 spacing="none"
                 p={0}
@@ -118,10 +125,10 @@ const SqlRunnerNew = () => {
     );
 };
 
-const SqlRunnerNewPage = () => {
+const SqlRunnerNewPage = ({ isEditMode }: { isEditMode?: boolean }) => {
     return (
         <Provider store={store}>
-            <SqlRunnerNew />
+            <SqlRunnerNew isEditMode={isEditMode} />
         </Provider>
     );
 };

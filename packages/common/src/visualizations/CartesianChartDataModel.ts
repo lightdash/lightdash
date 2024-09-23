@@ -1,4 +1,9 @@
-import { CustomFormatType, Format, friendlyName } from '../types/field';
+import {
+    capitalize,
+    CustomFormatType,
+    Format,
+    friendlyName,
+} from '../types/field';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { applyCustomFormat } from '../utils/formatting';
 import {
@@ -101,6 +106,10 @@ export class CartesianChartDataModel
         return this.resultsRunner.pivotChartOptions();
     }
 
+    getConfigErrors() {
+        return this.resultsRunner.getPivotChartLayoutErrors(this.fieldConfig);
+    }
+
     async getTransformedData(
         layout: VizChartLayout | undefined,
         sql?: string,
@@ -113,7 +122,7 @@ export class CartesianChartDataModel
             return undefined;
         }
 
-        return this.resultsRunner.getPivotChartData(
+        return this.resultsRunner.getPivotedVisualizationData(
             layout,
             sql,
             projectUuid,
@@ -150,7 +159,7 @@ export class CartesianChartDataModel
 
         const shouldStack = display?.stack === true;
         /*
-// For old colors method
+        // For old colors method
         const possibleXAxisValues = transformedData.results.map((row) =>
             transformedData.indexColumn?.reference
                 ? `${row[transformedData.indexColumn.reference]}`
@@ -163,6 +172,22 @@ export class CartesianChartDataModel
                     (s) => s.yAxisIndex === index,
                 )?.format;
 
+                const singleYAxisLabel =
+                    // NOTE: When there's only one y-axis left, set the label on the series as well
+                    this.fieldConfig?.y.length === 1 &&
+                    display?.yAxis?.[0]?.label
+                        ? display.yAxis[0].label
+                        : undefined;
+                const seriesLabel =
+                    singleYAxisLabel ??
+                    Object.values(display?.series || {}).find(
+                        (s) => s.yAxisIndex === index,
+                    )?.label;
+
+                const seriesColor = Object.values(display?.series || {}).find(
+                    (s) => s.yAxisIndex === index,
+                )?.color;
+
                 return {
                     dimensions: [
                         transformedData.indexColumn?.reference,
@@ -171,9 +196,11 @@ export class CartesianChartDataModel
                     type: defaultSeriesType,
                     stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
                     name:
-                        (display?.series &&
-                            display.series[seriesColumn]?.label) ||
-                        friendlyName(seriesColumn),
+                        seriesLabel ||
+                        capitalize(seriesColumn.toLowerCase()).replaceAll(
+                            '_',
+                            ' ',
+                        ), // similar to friendlyName, but this will preserve special characters
                     encode: {
                         x: transformedData.indexColumn?.reference,
                         y: seriesColumn,
@@ -190,8 +217,7 @@ export class CartesianChartDataModel
                             : undefined,
                     },
                     color:
-                        (display?.series &&
-                            display.series[seriesColumn]?.color) ||
+                        seriesColor ||
                         CartesianChartDataModel.getDefaultColor(
                             index,
                             orgColors,
@@ -207,7 +233,7 @@ export class CartesianChartDataModel
                 appendToBody: true, // Similar to rendering a tooltip in a Portal
             },
             legend: {
-                show: true,
+                show: !!(transformedData.valuesColumns.length > 1),
                 type: 'scroll',
             },
             xAxis: {
@@ -243,7 +269,7 @@ export class CartesianChartDataModel
                     nameTextStyle: {
                         fontWeight: 'bold',
                     },
-                    ...(display?.yAxis?.[0].format
+                    ...(display?.yAxis?.[0]?.format
                         ? {
                               axisLabel: {
                                   formatter:
@@ -267,7 +293,7 @@ export class CartesianChartDataModel
 export type CartesianChartDisplay = {
     xAxis?: {
         label?: string;
-        type: VizIndexType;
+        type?: VizIndexType;
     };
     yAxis?: {
         label?: string;

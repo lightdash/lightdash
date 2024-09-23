@@ -12,6 +12,7 @@ import {
     SearchItemType,
     SearchResults,
     SpaceSearchResult,
+    SqlChartSearchResult,
     TableErrorSearchResult,
     TableSearchResult,
     TableSelectionType,
@@ -26,6 +27,7 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
+import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import {
@@ -167,6 +169,7 @@ export class SearchModel {
 
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
+            .whereNull('job_id')
             .whereIn('dashboard_uuid', dashboardUuids)
             .andWhereNot('dashboard_uuid', null)
             .select('validation_id', 'dashboard_uuid')
@@ -189,6 +192,80 @@ export class SearchModel {
             ...dashboard,
             validationErrors: validationErrors[dashboard.uuid] || [],
         }));
+    }
+
+    private async searchSqlCharts(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<SqlChartSearchResult[]> {
+        if (!shouldSearchForType(SearchItemType.SQL_CHART, filters?.type)) {
+            return [];
+        }
+
+        const searchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${SavedSqlTableName}.search_vector`,
+                searchQuery: query,
+            },
+        });
+
+        // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
+        let subquery = this.database(SavedSqlTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${SavedSqlTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+            )
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SavedSqlTableName}.space_uuid`,
+                    '=',
+                    `${SpaceTableName}.space_uuid`,
+                );
+                this.orOn(
+                    `${DashboardsTableName}.space_id`,
+                    '=',
+                    `${SpaceTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .column(
+                { uuid: 'saved_sql_uuid' },
+                `${SavedSqlTableName}.slug`,
+                `${SavedSqlTableName}.name`,
+                `${SavedSqlTableName}.description`,
+                {
+                    chartType: `${SavedSqlTableName}.last_version_chart_kind`,
+                },
+                { spaceUuid: `${SavedSqlTableName}.space_uuid` },
+                { search_rank: searchRankRawSql },
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .orderBy('search_rank', 'desc');
+
+        subquery = filterByCreatedAt(SavedSqlTableName, subquery, filters);
+        subquery = filterByCreatedByUuid(
+            subquery,
+            {
+                tableName: SavedSqlTableName,
+                tableUserUuidColumnName: 'last_version_updated_by_user_uuid',
+            },
+            filters,
+        );
+
+        const savedSqlCharts = await this.database(SavedSqlTableName)
+            .select()
+            .from(subquery.as('saved_charts_with_rank'))
+            .where('search_rank', '>', 0)
+            .limit(10);
+
+        return savedSqlCharts;
     }
 
     private async searchSavedCharts(
@@ -265,6 +342,7 @@ export class SearchModel {
 
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
+            .whereNull('job_id')
             .whereIn('saved_chart_uuid', chartUuids)
             .andWhereNot('saved_chart_uuid', null)
             .select('validation_id', 'saved_chart_uuid')
@@ -431,6 +509,7 @@ export class SearchModel {
 
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
+            .whereNull('job_id')
             .whereNotNull('model_name')
             .select('validation_id', 'model_name')
             .then((rows) =>
@@ -505,7 +584,11 @@ export class SearchModel {
             query,
             filters,
         );
-
+        const sqlCharts = await this.searchSqlCharts(
+            projectUuid,
+            query,
+            filters,
+        );
         const explores = await this.getProjectExplores(projectUuid);
         const tableErrors = await this.searchTableErrors(
             projectUuid,
@@ -525,6 +608,7 @@ export class SearchModel {
             spaces,
             dashboards,
             savedCharts,
+            sqlCharts,
             tables: tablesAndErrors,
             fields,
             pages,

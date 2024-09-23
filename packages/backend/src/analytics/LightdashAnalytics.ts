@@ -16,6 +16,7 @@ import {
     ProjectMemberRole,
     RequestMethod,
     SchedulerFormat,
+    SemanticLayerQuery,
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
@@ -579,6 +580,7 @@ type ProjectSearch = BaseTrack & {
         spacesResultsCount: number;
         dashboardsResultsCount: number;
         savedChartsResultsCount: number;
+        sqlChartsResultsCount: number;
         tablesResultsCount: number;
         fieldsResultsCount: number;
     };
@@ -723,6 +725,32 @@ export type CreateSqlChartVersionEvent = BaseTrack & {
         projectId: string;
         organizationId: string;
         chartKind: ChartKind;
+        barChart?: {
+            groupByCount: number;
+            yAxisCount: number;
+            aggregationTypes: string[];
+        };
+        lineChart?: {
+            groupByCount: number;
+            yAxisCount: number;
+            aggregationTypes: string[];
+        };
+        pieChart?: {
+            groupByCount: number;
+        };
+    };
+};
+
+export type CreateSemanticViewerChartVersionEvent = BaseTrack & {
+    event: 'semantic_viewer_chart_version.created';
+    userId: string;
+    properties: {
+        chartId: string;
+        versionId: string;
+        projectId: string;
+        organizationId: string;
+        chartKind: ChartKind;
+        semanticLayerQuery: SemanticLayerQuery;
         barChart?: {
             groupByCount: number;
             yAxisCount: number;

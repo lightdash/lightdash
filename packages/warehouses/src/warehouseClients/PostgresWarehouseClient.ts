@@ -389,10 +389,9 @@ export class PostgresClient<
     async getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        const schemaFilter = schema ? `AND table_schema = $2` : '';
-
         const query = `
             SELECT table_catalog,
                    table_schema,
@@ -401,14 +400,17 @@ export class PostgresClient<
                    data_type
             FROM information_schema.columns
             WHERE table_name = $1
-                ${schemaFilter};
+            ${schema ? 'AND table_schema = $2' : ''}
+            ${database ? 'AND table_catalog = $3' : ''}
         `;
-        const { rows } = await this.runQuery(
-            query,
-            tags,
-            undefined,
-            schema ? [tableName, schema] : [tableName],
-        );
+        const values = [tableName];
+        if (schema) {
+            values.push(schema);
+        }
+        if (database) {
+            values.push(database);
+        }
+        const { rows } = await this.runQuery(query, tags, undefined, values);
 
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }

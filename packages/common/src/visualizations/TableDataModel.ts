@@ -55,11 +55,11 @@ export class TableDataModel
             (acc, key) => ({
                 ...acc,
                 [key]: {
-                    visible: this.config?.columns[key].visible ?? true,
+                    visible: this.config?.columns[key]?.visible ?? true,
                     reference: key,
-                    label: this.config?.columns[key].label ?? key,
-                    frozen: this.config?.columns[key].frozen ?? false,
-                    order: this.config?.columns[key].order,
+                    label: this.config?.columns[key]?.label ?? key,
+                    frozen: this.config?.columns[key]?.frozen ?? false,
+                    order: this.config?.columns[key]?.order,
                 },
             }),
             {},

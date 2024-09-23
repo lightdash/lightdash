@@ -12,6 +12,8 @@ import {
     DimensionType,
     Metric,
     MetricType,
+    PartitionColumn,
+    PartitionType,
     SupportedDbtAdapter,
     WarehouseConnectionError,
     WarehouseQueryError,
@@ -114,7 +116,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         super(credentials);
         try {
             this.client = new BigQuery({
-                projectId: credentials.project,
+                projectId: credentials.executionProject || credentials.project,
                 location: credentials.location,
                 maxRetries: credentials.retries,
                 credentials: credentials.keyfileContents,
@@ -223,19 +225,12 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             table: string;
         }[],
     ) {
-        const databaseClients: { [client: string]: BigQuery } = {};
         const tablesMetadataPromises: Promise<
             [string, string, string, TableSchema] | undefined
         >[] = requests.map(({ database, schema, table }) => {
-            databaseClients[database] =
-                databaseClients[database] ||
-                new BigQuery({
-                    projectId: database,
-                    location: this.credentials.location,
-                    maxRetries: this.credentials.retries,
-                    credentials: this.credentials.keyfileContents,
-                });
-            const dataset = databaseClients[database].dataset(schema);
+            const dataset: Dataset = new Dataset(this.client, schema, {
+                projectId: database,
+            });
             return BigqueryWarehouseClient.getTableMetadata(
                 dataset,
                 table,
@@ -297,36 +292,75 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     async getAllTables() {
-        const client = new BigQuery({
-            projectId: this.credentials.project,
-            location: this.credentials.location,
-            maxRetries: this.credentials.retries,
-            credentials: this.credentials.keyfileContents,
-        });
-        const [datasets] = await client.getDatasets();
+        const [datasets] = await this.client.getDatasets();
         const datasetTablesResponses = await Promise.all(
             datasets.map((d) => d.getTables()),
         );
+
+        const datasetMetadata = await Promise.all(
+            datasets.map(async (dataset) => {
+                try {
+                    const [rows] = await this.client.query(`
+                        SELECT table_name, column_name, data_type
+                        FROM \`${dataset.id}.INFORMATION_SCHEMA.COLUMNS\`
+                        WHERE is_partitioning_column = "YES"
+                    `);
+                    return {
+                        datasetId: dataset.id,
+                        partitionColumns: rows,
+                    };
+                } catch (error) {
+                    console.error(
+                        `Error fetching partition info for dataset ${dataset.id}:`,
+                        error,
+                    );
+                    return {
+                        datasetId: dataset.id,
+                        partitionColumns: [],
+                    };
+                }
+            }),
+        );
+
         return datasetTablesResponses.flatMap(([tables]) =>
-            tables.map((t) => ({
-                database: t.bigQuery.projectId,
-                schema: t.dataset.id!,
-                table: t.id!,
-            })),
+            tables.map((t) => {
+                const datasetPartitionInfo = datasetMetadata.find(
+                    (d) => d.datasetId === t.dataset.id,
+                );
+                const tablePartitionInfo =
+                    datasetPartitionInfo?.partitionColumns.find(
+                        (pc) => pc.table_name === t.id,
+                    );
+                const partitionColumn: PartitionColumn | undefined =
+                    tablePartitionInfo
+                        ? {
+                              field: tablePartitionInfo.column_name,
+                              partitionType:
+                                  tablePartitionInfo.data_type ===
+                                  BigqueryFieldType.INT64
+                                      ? PartitionType.RANGE
+                                      : PartitionType.DATE,
+                          }
+                        : undefined;
+
+                return {
+                    database: t.bigQuery.projectId,
+                    schema: t.dataset.id!,
+                    table: t.id!,
+                    partitionColumn,
+                };
+            }),
         );
     }
 
     async getFields(
         tableName: string,
         schema: string,
+        database?: string,
     ): Promise<WarehouseCatalog> {
-        const client = new BigQuery({
-            projectId: this.credentials.project,
-            location: this.credentials.location,
-            maxRetries: this.credentials.retries,
-            credentials: this.credentials.keyfileContents,
+        const dataset: Dataset = new Dataset(this.client, schema, {
+            projectId: database,
         });
-        const dataset = client.dataset(schema);
         const schemas = await BigqueryWarehouseClient.getTableMetadata(
             dataset,
             tableName,

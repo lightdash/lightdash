@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
 import {
     IconFolder,
@@ -12,7 +11,6 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useHistory } from 'react-router-dom';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import LargeMenuItem from '../common/LargeMenuItem';
@@ -32,8 +30,6 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState<boolean>(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
         useState<boolean>(false);
-
-    const canSaveSqlChart = useFeatureFlagEnabled(FeatureFlags.SaveSqlChart);
 
     return (
         <>
@@ -95,9 +91,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 component={Link}
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
-                                to={`/projects/${projectUuid}/${
-                                    canSaveSqlChart ? 'sql-runner' : 'sqlRunner'
-                                }`}
+                                to={`/projects/${projectUuid}/sql-runner`}
                                 icon={IconTerminal2}
                             />
                         </Can>

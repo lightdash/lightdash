@@ -2,6 +2,7 @@ import {
     CreateWarehouseCredentials,
     DimensionType,
     Metric,
+    PartitionColumn,
     SupportedDbtAdapter,
     WarehouseCatalog,
     WarehouseResults,
@@ -94,7 +95,12 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     }
 
     async getAllTables(): Promise<
-        { database: string; schema: string; table: string }[]
+        {
+            database: string;
+            schema: string;
+            table: string;
+            partitionColumn?: PartitionColumn;
+        }[]
     > {
         throw new Error('Warehouse method not implemented.');
     }
@@ -102,6 +108,7 @@ export default class WarehouseBaseClient<T extends CreateWarehouseCredentials>
     async getFields(
         tableName: string,
         schema?: string,
+        database?: string,
         tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
         throw new Error('Warehouse method not implemented.');

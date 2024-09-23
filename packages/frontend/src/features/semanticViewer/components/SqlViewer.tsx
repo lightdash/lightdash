@@ -1,34 +1,22 @@
-import { Box, LoadingOverlay } from '@mantine/core';
+import { Box, getDefaultZIndex, LoadingOverlay } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { type FC } from 'react';
 import { useSemanticLayerSql } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
 import {
-    selectAllSelectedFieldsByKind,
+    selectAllSelectedFieldNames,
     selectSemanticLayerInfo,
+    selectSemanticLayerQuery,
 } from '../store/selectors';
 
 const SqlViewer: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
-
-    const { sortBy, limit } = useAppSelector((state) => state.semanticViewer);
-
-    const allSelectedFieldsByKind = useAppSelector(
-        selectAllSelectedFieldsByKind,
-    );
+    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
+    const selectedFields = useAppSelector(selectAllSelectedFieldNames);
 
     const sql = useSemanticLayerSql(
-        {
-            projectUuid,
-            query: {
-                ...allSelectedFieldsByKind,
-                sortBy,
-                limit,
-            },
-        },
-        {
-            keepPreviousData: true,
-        },
+        { projectUuid, query: semanticQuery },
+        { keepPreviousData: true, enabled: selectedFields.length !== 0 },
     );
 
     if (sql.isError) {
@@ -36,10 +24,11 @@ const SqlViewer: FC = () => {
     }
 
     return (
-        <Box pos="relative" h="100%">
+        <Box pos="relative" h="100%" w="100%" sx={{ overflow: 'auto' }}>
             <LoadingOverlay
                 visible={sql.isFetching}
                 opacity={1}
+                zIndex={getDefaultZIndex('modal') - 1}
                 loaderProps={{ color: 'gray', size: 'sm' }}
             />
 

@@ -1,3 +1,10 @@
+import {
+    FieldType as FieldKind,
+    getFilterFieldNamesRecursively,
+    SemanticLayerFieldType,
+    type SemanticLayerField,
+    type VizTableColumnsConfig,
+} from '@lightdash/common';
 import { createSelector } from 'reselect';
 import { type RootState } from '.';
 
@@ -18,8 +25,9 @@ const selectSelectedTimeDimensions = (state: RootState) =>
     state.semanticViewer.selectedTimeDimensions;
 const selectSelectedMetrics = (state: RootState) =>
     state.semanticViewer.selectedMetrics;
+const selectFilters = (state: RootState) => state.semanticViewer.filters;
 
-export const selectAllSelectedFieldsByKind = createSelector(
+const selectAllSelectedFieldsByKind = createSelector(
     [
         selectSelectedDimensions,
         selectSelectedTimeDimensions,
@@ -30,6 +38,24 @@ export const selectAllSelectedFieldsByKind = createSelector(
         timeDimensions: Object.values(timeDimensions),
         metrics: Object.values(metrics),
     }),
+);
+
+export const selectAllSelectedFields = createSelector(
+    [selectAllSelectedFieldsByKind],
+    (selectedFieldsByKind) => [
+        ...selectedFieldsByKind.dimensions.map((d) => ({
+            ...d,
+            kind: FieldKind.DIMENSION,
+        })),
+        ...selectedFieldsByKind.timeDimensions.map((d) => ({
+            ...d,
+            kind: FieldKind.DIMENSION,
+        })),
+        ...selectedFieldsByKind.metrics.map((m) => ({
+            ...m,
+            kind: FieldKind.METRIC,
+        })),
+    ],
 );
 
 export const getSelectedField = (name: string) =>
@@ -50,6 +76,41 @@ export const getSelectedField = (name: string) =>
         },
     );
 
+export const selectFilterFields = createSelector([selectFilters], (filters) => {
+    const allFilterFields = Object.values(filters).flatMap(
+        getFilterFieldNamesRecursively,
+    );
+
+    return allFilterFields.reduce(
+        (acc, f) => {
+            if (
+                f.fieldKind === FieldKind.DIMENSION &&
+                f.fieldType !== SemanticLayerFieldType.TIME
+            ) {
+                acc.dimensions.push({ name: f.field });
+            }
+
+            if (
+                f.fieldKind === FieldKind.DIMENSION &&
+                f.fieldType === SemanticLayerFieldType.TIME
+            ) {
+                acc.timeDimensions.push({ name: f.field });
+            }
+
+            if (f.fieldKind === FieldKind.METRIC) {
+                acc.metrics.push({ name: f.field });
+            }
+
+            return acc;
+        },
+        {
+            dimensions: [] as Pick<SemanticLayerField, 'name'>[],
+            timeDimensions: [] as Pick<SemanticLayerField, 'name'>[],
+            metrics: [] as Pick<SemanticLayerField, 'name'>[],
+        },
+    );
+});
+
 export const selectAllSelectedFieldNames = createSelector(
     [selectAllSelectedFieldsByKind],
     ({ dimensions, metrics, timeDimensions }) => {
@@ -58,5 +119,43 @@ export const selectAllSelectedFieldNames = createSelector(
             ...timeDimensions.map((td) => td.name),
             ...metrics.map((m) => m.name),
         ];
+    },
+);
+
+const selectLimit = (state: RootState) => state.semanticViewer.limit;
+const selectSortBy = (state: RootState) => state.semanticViewer.sortBy;
+
+export const selectSemanticLayerQuery = createSelector(
+    [selectAllSelectedFieldsByKind, selectSortBy, selectLimit, selectFilters],
+    (allSelectedFieldsByKind, sortBy, limit, filters) => {
+        return {
+            ...allSelectedFieldsByKind,
+            sortBy,
+            limit,
+            filters,
+        };
+    },
+);
+
+export const selectResultsTableVizConfig = createSelector(
+    [selectAllSelectedFieldNames, (s: RootState) => s.semanticViewer.columns],
+    (allSelectedFieldNames, columns): VizTableColumnsConfig => {
+        const selectedColumns = columns.filter((c) =>
+            allSelectedFieldNames.includes(c.reference),
+        );
+
+        return {
+            columns: Object.fromEntries(
+                selectedColumns.map((c) => [
+                    c.reference,
+                    {
+                        visible: true,
+                        reference: c.reference,
+                        label: c.reference,
+                        frozen: false,
+                    },
+                ]),
+            ),
+        };
     },
 );

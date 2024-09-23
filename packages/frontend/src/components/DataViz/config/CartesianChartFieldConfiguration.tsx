@@ -1,14 +1,18 @@
 import {
     DimensionType,
+    SortByDirection,
     type ChartKind,
     type VizChartLayout,
+    type VizColumn,
+    type VizConfigErrors,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
-    type VizSqlColumn,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { ActionIcon, Box, Select, Stack } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../../common/MantineIcon';
 import { AddButton } from '../../VisualizationConfigs/common/AddButton';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
@@ -26,8 +30,11 @@ const YFieldsAxisConfig: FC<{
     isSingle: boolean;
     index: number;
     actions: CartesianChartActionsType;
-    sqlColumns: VizSqlColumn[];
-}> = ({ field, yLayoutOptions, isSingle, index, actions, sqlColumns }) => {
+    columns: VizColumn[];
+    error:
+        | NonNullable<VizConfigErrors['valuesFieldError']>['references'][number]
+        | undefined;
+}> = ({ field, yLayoutOptions, isSingle, index, actions, columns, error }) => {
     const dispatch = useVizDispatch();
 
     return (
@@ -50,10 +57,8 @@ const YFieldsAxisConfig: FC<{
                             }))}
                             value={field.reference}
                             error={
-                                yLayoutOptions.find(
-                                    (y) => y.reference === field.reference,
-                                ) === undefined &&
-                                `Column "${field.reference}" does not exist. Choose another`
+                                !!error &&
+                                `Column "${error}" does not exist. Choose another`
                             }
                             placeholder="Select Y axis"
                             onChange={(value) => {
@@ -68,7 +73,7 @@ const YFieldsAxisConfig: FC<{
                                     );
                             }}
                             fieldType={
-                                sqlColumns?.find(
+                                columns?.find(
                                     (x) => x.reference === field.reference,
                                 )?.type ?? DimensionType.STRING
                             }
@@ -107,43 +112,73 @@ const XFieldAxisConfig = ({
     field,
     xLayoutOptions,
     actions,
-    sqlColumns,
+    columns,
+    error,
 }: {
-    sqlColumns: VizSqlColumn[];
-
+    columns: VizColumn[];
     field: VizChartLayout['x'] | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
+    error: VizConfigErrors['indexFieldError'];
 }) => {
     const dispatch = useVizDispatch();
 
     return (
-        <FieldReferenceSelect
-            clearable
-            data={xLayoutOptions.map((x) => ({
-                value: x.reference,
-                label: x.reference,
-            }))}
-            value={field?.reference ?? null}
-            placeholder="Select X axis"
-            onChange={(value) => {
-                if (!value) {
-                    dispatch(actions.removeXAxisField());
-                } else dispatch(actions.setXAxisReference(value));
-            }}
-            error={
-                field?.reference &&
-                xLayoutOptions.find((x) => x.reference === field.reference) ===
-                    undefined &&
-                `Column "${field.reference}" does not exist. Choose another`
-            }
-            fieldType={
-                (field?.reference &&
-                    sqlColumns?.find((x) => x.reference === field.reference)
-                        ?.type) ||
-                DimensionType.STRING
-            }
-        />
+        <>
+            <FieldReferenceSelect
+                clearable
+                data={xLayoutOptions.map((x) => ({
+                    value: x.reference,
+                    label: x.reference,
+                }))}
+                value={field?.reference ?? null}
+                placeholder="Select X axis"
+                onChange={(value) => {
+                    if (!value) {
+                        dispatch(actions.removeXAxisField());
+                    } else dispatch(actions.setXAxisReference(value));
+                }}
+                error={
+                    error &&
+                    `Column "${error.reference}" does not exist. Choose another`
+                }
+                fieldType={
+                    (field?.reference &&
+                        columns?.find((x) => x.reference === field.reference)
+                            ?.type) ||
+                    DimensionType.STRING
+                }
+            />
+            {field?.reference && (
+                <Config.Group>
+                    <Config.Label>Sort by</Config.Label>
+                    <Select
+                        radius="md"
+                        placeholder="Select sort option"
+                        data={[
+                            {
+                                value: SortByDirection.ASC,
+                                label: 'Ascending',
+                            },
+                            {
+                                value: SortByDirection.DESC,
+                                label: 'Descending',
+                            },
+                        ]}
+                        onChange={(direction: SortByDirection) => {
+                            dispatch(
+                                actions.setSortBy([
+                                    {
+                                        reference: field?.reference,
+                                        direction,
+                                    },
+                                ]),
+                            );
+                        }}
+                    />
+                </Config.Group>
+            )}
+        </>
     );
 };
 
@@ -151,17 +186,33 @@ const GroupByFieldAxisConfig = ({
     field,
     groupByOptions = [],
     actions,
-    sqlColumns,
+    columns,
+    error,
 }: {
-    sqlColumns: VizSqlColumn[];
-
+    columns: VizColumn[];
     field: undefined | { reference: string };
     groupByOptions?: VizPivotLayoutOptions[];
     actions: CartesianChartActionsType;
+    error: VizConfigErrors['groupByFieldError'];
 }) => {
     const dispatch = useVizDispatch();
+    const groupByError = error?.references[0]
+        ? `Column "${error.references[0]}" does not exist. Choose another`
+        : undefined;
     return (
         <FieldReferenceSelect
+            rightSection={
+                // When the field is deleted, the error state prevents the clear button from showing
+                groupByError && (
+                    <ActionIcon
+                        onClick={() =>
+                            dispatch(actions.unsetGroupByReference())
+                        }
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                )
+            }
             clearable
             data={groupByOptions.map((groupBy) => ({
                 value: groupBy.reference,
@@ -169,11 +220,7 @@ const GroupByFieldAxisConfig = ({
             }))}
             value={field?.reference ?? null}
             placeholder="Select group by"
-            error={
-                field !== undefined &&
-                !groupByOptions.find((x) => x.reference === field.reference) &&
-                `Column "${field.reference}" does not exist. Choose another`
-            }
+            error={groupByError}
             onChange={(value) => {
                 if (!value) {
                     dispatch(actions.unsetGroupByReference());
@@ -186,20 +233,20 @@ const GroupByFieldAxisConfig = ({
                 }
             }}
             fieldType={
-                sqlColumns?.find((x) => x.reference === field?.reference)
-                    ?.type ?? DimensionType.STRING
+                columns?.find((x) => x.reference === field?.reference)?.type ??
+                DimensionType.STRING
             }
         />
     );
 };
 
 export const CartesianChartFieldConfiguration = ({
-    sqlColumns,
+    columns,
     actions,
     selectedChartType,
 }: {
     selectedChartType: ChartKind;
-    sqlColumns: VizSqlColumn[];
+    columns: VizColumn[];
 
     actions: CartesianChartActionsType;
 }) => {
@@ -225,17 +272,23 @@ export const CartesianChartFieldConfiguration = ({
     const groupByLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getPivotLayoutOptions(state, selectedChartType),
     );
+
+    const errors = useVizSelector((state) =>
+        cartesianChartSelectors.getErrors(state, selectedChartType),
+    );
+
     return (
-        <>
+        <Stack spacing="sm">
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis`}</Config.Heading>
                     {xLayoutOptions && (
                         <XFieldAxisConfig
-                            sqlColumns={sqlColumns}
+                            columns={columns}
                             field={xAxisField}
                             xLayoutOptions={xLayoutOptions}
                             actions={actions}
+                            error={errors?.indexFieldError}
                         />
                     )}
                 </Config.Section>
@@ -258,7 +311,11 @@ export const CartesianChartFieldConfiguration = ({
                                 isSingle={yAxisFields.length === 1}
                                 index={index}
                                 actions={actions}
-                                sqlColumns={sqlColumns}
+                                columns={columns}
+                                error={errors?.valuesFieldError?.references.find(
+                                    (reference) =>
+                                        reference === field.reference,
+                                )}
                             />
                         ))}
                 </Config.Section>
@@ -267,13 +324,14 @@ export const CartesianChartFieldConfiguration = ({
                 <Config.Section>
                     <Config.Heading>Group by</Config.Heading>
                     <GroupByFieldAxisConfig
-                        sqlColumns={sqlColumns}
+                        columns={columns}
                         field={groupByField}
                         groupByOptions={groupByLayoutOptions}
                         actions={actions}
+                        error={errors?.groupByFieldError}
                     />
                 </Config.Section>
             </Config>
-        </>
+        </Stack>
     );
 };

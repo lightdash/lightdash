@@ -1,4 +1,17 @@
+import type {
+    AllVizChartConfig,
+    ApiError,
+    ChartKind,
+    Dashboard,
+    LightdashUser,
+    Organization,
+    Project,
+    SpaceSummary,
+    VizChartConfig,
+} from '..';
+import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
+import { SchedulerJobStatus } from './scheduler';
 
 export type SemanticLayerView = {
     name: string;
@@ -43,40 +56,21 @@ export type SemanticLayerField = {
     visible: boolean;
     aggType?: string; // eg: count, sum
     availableGranularities: SemanticLayerTimeGranularity[];
+    availableOperators: SemanticLayerStringFilterOperator[];
 };
 
 export type SemanticLayerTimeDimension = SemanticLayerField & {
     granularity?: SemanticLayerTimeGranularity;
 };
 
-export const isSemanticLayerTimeDimension = (
-    field: SemanticLayerField,
-): field is SemanticLayerTimeDimension => 'granularity' in field;
-
 export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
     direction: SemanticLayerSortByDirection;
 };
 
-// These agg functions match 1:1 to polars' agg functions, they're not typed
-export type SemanticLayerAggFunc =
-    | 'sum'
-    | 'max'
-    | 'min'
-    | 'mean'
-    | 'median'
-    | 'first'
-    | 'last'
-    | 'count';
-
 export type SemanticLayerPivot = {
     on: string[];
     index: string[];
-    values: { name: string; aggFunction: SemanticLayerAggFunc }[];
-};
-
-export type SemanticLayerGroupBy = {
-    groupBy: string[];
-    values: { name: string; aggFunction: SemanticLayerAggFunc }[];
+    values: string[];
 };
 
 export type SemanticLayerQuery = {
@@ -87,6 +81,7 @@ export type SemanticLayerQuery = {
     limit?: number;
     timezone?: string;
     pivot?: SemanticLayerPivot;
+    filters: SemanticLayerFilter[];
 };
 
 export type SemanticLayerResultRow = Record<
@@ -110,18 +105,7 @@ export interface SemanticLayerTransformer<
     semanticLayerQueryToQuery: (query: SemanticLayerQuery) => QueryType;
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
-}
-
-const SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT = 500;
-
-export function getDefaultedLimit(
-    maxQueryLimit: number,
-    queryLimit?: number,
-): number {
-    return Math.min(
-        queryLimit ?? SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT,
-        maxQueryLimit,
-    );
+    mapResultsKeys: (key: string, query: SemanticLayerQuery) => string;
 }
 
 export interface SemanticLayerClientInfo {
@@ -158,10 +142,188 @@ export interface SemanticLayerClient {
     getMaxQueryLimit: () => number;
 }
 
-export const semanticLayerQueryJob = 'semanticLayer';
 export type SemanticLayerQueryPayload = {
     projectUuid: string;
     userUuid: string;
     query: SemanticLayerQuery;
     context: 'semanticViewer';
+};
+
+export enum SemanticLayerStringFilterOperator {
+    IS = 'IS',
+    IS_NOT = 'IS NOT',
+}
+
+export type SemanticLayerFilterBase = {
+    uuid: string;
+    field: string;
+    fieldKind: FieldType; // This is mostly to help with frontend state and avoiding having to set all the fields in redux to be able to find the kind
+    fieldType: SemanticLayerFieldType;
+};
+
+export type SemanticLayerStringFilter = SemanticLayerFilterBase & {
+    operator: SemanticLayerStringFilterOperator;
+    values: string[];
+};
+
+// TODO: right now we only support string filters, this type should be a union of all filter types
+type SemanticLayerFilterTypes = SemanticLayerStringFilter;
+
+export type SemanticLayerFilter = SemanticLayerFilterTypes & {
+    and?: SemanticLayerFilter[];
+    or?: SemanticLayerFilter[];
+};
+
+// Helper functions and constants
+const SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT = 500;
+
+export const isSemanticLayerTimeDimension = (
+    field: SemanticLayerField,
+): field is SemanticLayerTimeDimension => 'granularity' in field;
+
+export function getDefaultedLimit(
+    maxQueryLimit: number,
+    queryLimit?: number,
+): number {
+    return Math.min(
+        queryLimit ?? SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT,
+        maxQueryLimit,
+    );
+}
+
+export function getAvailableSemanticLayerFilterOperators(
+    fieldType: SemanticLayerFieldType,
+) {
+    switch (fieldType) {
+        case SemanticLayerFieldType.STRING:
+            return [
+                SemanticLayerStringFilterOperator.IS,
+                SemanticLayerStringFilterOperator.IS_NOT,
+            ];
+        case SemanticLayerFieldType.NUMBER:
+        case SemanticLayerFieldType.BOOLEAN:
+        case SemanticLayerFieldType.TIME:
+            return [];
+        default:
+            return assertUnreachable(
+                fieldType,
+                `Unsupported field type: ${fieldType}`,
+            );
+    }
+}
+
+export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
+    field: string;
+    fieldKind: FieldType;
+    fieldType: SemanticLayerFieldType;
+}[] {
+    const andFiltersFieldNames =
+        filter.and?.flatMap(getFilterFieldNamesRecursively) ?? [];
+    const orFiltersFieldNames =
+        filter.or?.flatMap(getFilterFieldNamesRecursively) ?? [];
+
+    return [
+        {
+            field: filter.field,
+            fieldKind: filter.fieldKind,
+            fieldType: filter.fieldType,
+        },
+        ...andFiltersFieldNames,
+        ...orFiltersFieldNames,
+    ];
+}
+
+// Semantic Layer Schedueler Job
+
+export const semanticLayerQueryJob = 'semanticLayer';
+
+export type SemanticLayerJobStatusSuccessDetails = {
+    fileUrl: string;
+    columns: string[];
+};
+
+export type SemanticLayerJobStatusErrorDetails = {
+    error: string;
+    charNumber?: number;
+    lineNumber?: number;
+    createdByUserUuid: string;
+};
+
+export type ApiSemanticLayerJobStatusResponse = {
+    status: 'ok';
+    results: {
+        status: SchedulerJobStatus;
+        details:
+            | SemanticLayerJobStatusSuccessDetails
+            | SemanticLayerJobStatusErrorDetails;
+    };
+};
+
+export type ApiSemanticLayerJobSuccessResponse =
+    ApiSemanticLayerJobStatusResponse & {
+        results: {
+            status: SchedulerJobStatus.COMPLETED;
+            details: SemanticLayerJobStatusSuccessDetails;
+        };
+    };
+
+export function isSemanticLayerJobErrorDetails(
+    results?: ApiSemanticLayerJobStatusResponse['results']['details'],
+): results is SemanticLayerJobStatusErrorDetails {
+    return (results as SemanticLayerJobStatusErrorDetails).error !== undefined;
+}
+
+export const isApiSemanticLayerJobSuccessResponse = (
+    response: ApiSemanticLayerJobStatusResponse['results'] | ApiError,
+): response is ApiSemanticLayerJobSuccessResponse['results'] =>
+    response.status === SchedulerJobStatus.COMPLETED;
+
+export type SavedSemanticViewerChart = {
+    savedSemanticViewerChartUuid: string;
+    name: string;
+    description: string | null;
+    slug: string;
+    config: AllVizChartConfig;
+    semanticLayerView: string | null;
+    semanticLayerQuery: SemanticLayerQuery;
+    chartKind: ChartKind;
+    createdAt: Date;
+    createdBy: Pick<
+        LightdashUser,
+        'userUuid' | 'firstName' | 'lastName'
+    > | null;
+    lastUpdatedAt: Date;
+    lastUpdatedBy: Pick<
+        LightdashUser,
+        'userUuid' | 'firstName' | 'lastName'
+    > | null;
+    space: Pick<SpaceSummary, 'uuid' | 'name' | 'isPrivate' | 'userAccess'>;
+    dashboard: Pick<Dashboard, 'uuid' | 'name'> | null;
+    project: Pick<Project, 'projectUuid'>;
+    organization: Pick<Organization, 'organizationUuid'>;
+    views: number;
+    firstViewedAt: Date;
+    lastViewedAt: Date;
+};
+
+export type SemanticLayerCreateChart = {
+    name: string;
+    description: string | null;
+    semanticLayerView: string | null;
+    semanticLayerQuery: SemanticLayerQuery;
+    config: VizChartConfig;
+    spaceUuid: string;
+};
+
+export type ApiSemanticLayerCreateChart = {
+    status: 'ok';
+    results: {
+        savedSemanticViewerChartUuid: string;
+        slug: string;
+    };
+};
+
+export type ApiSemanticLayerGetChart = {
+    status: 'ok';
+    results: SavedSemanticViewerChart;
 };

@@ -7,6 +7,7 @@ import {
     type VizBarChartConfig,
     type VizCartesianChartOptions,
     type VizChartLayout,
+    type VizConfigErrors,
     type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -16,6 +17,7 @@ export type CartesianChartState = {
     defaultLayout: VizChartLayout | undefined;
     config: VizBarChartConfig | VizLineChartConfig | undefined;
     options: VizCartesianChartOptions;
+    errors: VizConfigErrors | undefined;
 };
 
 const initialState: CartesianChartState = {
@@ -26,6 +28,7 @@ const initialState: CartesianChartState = {
         valuesLayoutOptions: [],
         pivotLayoutOptions: [],
     },
+    errors: undefined,
 };
 
 export const cartesianChartConfigSlice = createSlice({
@@ -75,7 +78,18 @@ export const cartesianChartConfigSlice = createSlice({
                         state.options.valuesLayoutOptions.find(
                             (option) =>
                                 option.reference === action.payload.reference,
-                        )?.aggregationOptions[0] ?? VIZ_DEFAULT_AGGREGATION;
+                        )?.aggregationOptions?.[0] ?? VIZ_DEFAULT_AGGREGATION;
+                } else {
+                    state.config.fieldConfig.y.push({
+                        reference: action.payload.reference,
+                        aggregation:
+                            state.options.valuesLayoutOptions.find(
+                                (option) =>
+                                    option.reference ===
+                                    action.payload.reference,
+                            )?.aggregationOptions?.[0] ??
+                            VIZ_DEFAULT_AGGREGATION,
+                    });
                 }
             }
         },
@@ -96,16 +110,14 @@ export const cartesianChartConfigSlice = createSlice({
         },
         setXAxisLabel: (
             { config },
-            action: PayloadAction<CartesianChartDisplay['xAxis']>,
+            action: PayloadAction<
+                Pick<Required<CartesianChartDisplay>['xAxis'], 'label'>
+            >,
         ) => {
             if (!config) return;
-            if (!config.display) {
-                config.display = {
-                    xAxis: action.payload,
-                };
-            } else {
-                config.display.xAxis = action.payload;
-            }
+            if (!config.display) config.display = {};
+            if (!config.display.xAxis) config.display.xAxis = {};
+            config.display.xAxis.label = action.payload.label;
         },
         setYAxisLabel: (
             { config },
@@ -130,6 +142,7 @@ export const cartesianChartConfigSlice = createSlice({
             action: PayloadAction<{
                 reference: string;
                 label: string;
+                index: number;
             }>,
         ) => {
             if (!config) return;
@@ -137,6 +150,7 @@ export const cartesianChartConfigSlice = createSlice({
             config.display.series = config.display.series || {};
             config.display.series[action.payload.reference] = {
                 ...config.display.series[action.payload.reference],
+                yAxisIndex: action.payload.index,
                 label: action.payload.label,
             };
         },
@@ -222,6 +236,14 @@ export const cartesianChartConfigSlice = createSlice({
             if (!state.config?.fieldConfig) return;
             delete state.config.fieldConfig.x;
         },
+        setSortBy: (
+            { config },
+            action: PayloadAction<VizChartLayout['sortBy']>,
+        ) => {
+            if (!config?.fieldConfig) return;
+            config.fieldConfig.sortBy = action.payload;
+        },
+
         setStacked: ({ config }, action: PayloadAction<boolean>) => {
             if (!config) return;
 
@@ -296,18 +318,33 @@ export const cartesianChartConfigSlice = createSlice({
         setSeriesColor: (
             { config },
             action: PayloadAction<{
-                index: number;
-                color: string;
                 reference: string;
+                color: string;
+                index?: number;
             }>,
         ) => {
             if (!config) return;
             config.display = config.display || {};
+            config.display.yAxis = config.display.yAxis || [];
             config.display.series = config.display.series || {};
-            config.display.series[action.payload.reference] = {
-                ...config.display.series[action.payload.reference],
-                color: action.payload.color,
-            };
+
+            if (config.fieldConfig?.y.length === 1) {
+                const yReference = config.fieldConfig?.y[0].reference;
+                if (yReference) {
+                    config.display.series[yReference] = {
+                        ...config.display.series[yReference],
+                        yAxisIndex: 0,
+                        color: action.payload.color,
+                    };
+                }
+            }
+            if (action.payload.index !== undefined) {
+                config.display.series[action.payload.reference] = {
+                    ...config.display.series[action.payload.reference],
+                    yAxisIndex: action.payload.index,
+                    color: action.payload.color,
+                };
+            }
         },
     },
 });

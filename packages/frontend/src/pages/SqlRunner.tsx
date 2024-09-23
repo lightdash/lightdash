@@ -5,10 +5,19 @@ import {
     getCustomLabelsFromTableConfig,
     NotFoundError,
 } from '@lightdash/common';
-import { Badge, Box, Group, Stack, Tabs, Tooltip } from '@mantine/core';
+import {
+    Alert,
+    Badge,
+    Box,
+    Group,
+    Stack,
+    Tabs,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { getHotkeyHandler } from '@mantine/hooks';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { NavLink, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -57,6 +66,13 @@ enum SqlRunnerCards {
     SQL = 'SQL',
     RESULTS = 'RESULTS',
 }
+
+const NEW_SQL_RUNNER_RELEASE_DATE = new Date('2024-09-02');
+const NEW_SQL_RUNNER_MIGRATION_DEADLINE = new Date(
+    NEW_SQL_RUNNER_RELEASE_DATE.setDate(
+        NEW_SQL_RUNNER_RELEASE_DATE.getDate() + 30,
+    ),
+).toLocaleDateString();
 
 const SqlRunnerPage = () => {
     const { user, health } = useApp();
@@ -240,6 +256,21 @@ const SqlRunnerPage = () => {
                     <Box>
                         <RefreshDbtButton />
                     </Box>
+
+                    <Alert
+                        icon={<IconAlertCircle />}
+                        title="Important Notice"
+                        color="yellow"
+                        fw={500}
+                    >
+                        Please migrate your SQL queries/charts to the{' '}
+                        <NavLink to="sql-runner">new SQL Runner</NavLink> by{' '}
+                        {NEW_SQL_RUNNER_MIGRATION_DEADLINE}.
+                        <br />
+                        <Text fz="xs">
+                            Contact customer support if you have any questions.
+                        </Text>
+                    </Alert>
 
                     <Group spacing="sm">
                         {showLimitReachedWarning && (
