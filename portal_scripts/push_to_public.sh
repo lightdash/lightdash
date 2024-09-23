@@ -3,9 +3,9 @@ set -e
 
 get_restricted_content () {
     ALL_CONTENT=$1
-    HAS_RESTRICTED=$(echo "$ALL_CONTENT" | grep -iq -e 'RK..Y' -e 'P.RFTO' && { echo 1; } || { echo 0; })
+    HAS_RESTRICTED=$(echo "$ALL_CONTENT" | grep -iq -e 'RK.AY' -e 'P.RFTO' && { echo 1; } || { echo 0; })
     if [ $HAS_RESTRICTED = 1 ]; then
-        RESTRICTED_CONTENT=$(echo "$ALL_CONTENT" | (grep -i -e 'RK..Y' -e 'P.RFTO'))
+        RESTRICTED_CONTENT=$(echo "$ALL_CONTENT" | (grep -i -e 'RK.AY' -e 'P.RFTO'))
         echo "$RESTRICTED_CONTENT"
     fi
 }
@@ -38,24 +38,45 @@ fi
 
 git fetch public
 
-MODIFIED=$(git status | grep -q 'branch is ahead of' && { echo 1; } || { echo 0; })
+MODIFIED=$(git status | grep -q 'nothing to commit' && { echo 0; } || { echo 1; })
 if [ $MODIFIED = 1 ]; then
-    echo "#### Add/commit your local changes before pushing to public LD."
+    echo "#### Add/commit your local changes before pushing to your public LD."
+    exit 1
+fi
+
+BRANCH_INFO=$(git branch -r)
+IS_TRACKING_PUBLIC=$(git branch -r | grep -qE '[[:space:]]public\/main$' && { echo 1; } || { echo 0; })
+if [ $IS_TRACKING_PUBLIC != 1 ]; then
+    echo "#### Branch is not tracking the public repo. Create a new branch with:"
+    echo "    git checkout -b name-of-branch --track public/main"
     exit 1
 fi
 
 BRANCH_INFO=$(git status -sb)
-
-IS_TRACKING_PUBLIC=$(echo $BRANCH_INFO | grep -q '\.\.\.upstream\/main ' && { echo 1; } || { echo 0; })
-if [ $IS_TRACKING_PUBLIC != 1 ]; then
-    echo "#### Branch is not tracking the public repo. Create a new branch with:"
-    echo "    git checkout -b name-of-branch --track upstream/main"
+IS_MASTER_BRANCH=$(echo $BRANCH_INFO | grep -q ' master\.\.\.' && { echo 1; } || { echo 0; })
+if [ $IS_MASTER_BRANCH = 1 ]; then
+    echo "#### Do not push master branch to your public LD."
     exit 1
 fi
 
-IS_MASTER_BRANCH=$(echo $BRANCH_INFO | grep -q ' master\.\.\.' && { echo 1; } || { echo 0; })
-if [ $IS_MASTER_BRANCH = 1 ]; then
-    echo "#### Do not push master branch to public LD."
+DIFFERENT_BASE_VERSION_INFO=$(git diff --shortstat public/main -- CHANGELOG.md)
+IS_PUBLIC_MAIN_BEHIND=$(echo $DIFFERENT_BASE_VERSION_INFO | grep -q 'insertion' && { echo 1; } || { echo 0; })
+if [ $IS_PUBLIC_MAIN_BEHIND = 1 ]; then
+    echo "#### Base LD version of local branch is ahead of your remote public branch. Rebase remote public branch."
+    echo "#### If necessary, clone your remote public repo:"
+    echo "    git clone https://github.com/<your.username>/lightdash.git"
+    echo "#### From your local copy of the remote public repo:"
+    echo "    git checkout main"
+    echo "    git fetch upstream"
+    echo "    git merge upstream/main"
+    echo "    git push"
+    exit 1
+fi
+IS_LOCAL_BEHIND=$(echo $DIFFERENT_BASE_VERSION_INFO | grep -q 'deletion' && { echo 1; } || { echo 0; })
+if [ $IS_LOCAL_BEHIND = 1 ]; then
+    echo "#### Base LD version of remote public branch is ahead of local branch. Rebase local branch:"
+    echo "    git rebase public/main"
+    echo "    git push -f"
     exit 1
 fi
 

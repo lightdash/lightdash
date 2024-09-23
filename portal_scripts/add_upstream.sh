@@ -12,4 +12,4 @@ if git remote | grep -q 'upstream'; then
 fi
 
 git remote add upstream https://github.com/lightdash/lightdash.git
-git fetch upstreamg
+git fetch upstream
