@@ -270,6 +270,7 @@ export const ContentPanel: FC = () => {
         config: currentVizConfig,
         sql,
         limit,
+        additionalQueryKey: [sql],
     });
 
     const chartFileUrl = chartVizQuery?.data?.fileUrl;
