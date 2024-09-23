@@ -8,7 +8,7 @@ jobs:
   files-changed:
     if: github.ref != 'refs/heads/main'
     name: Detect what files changed
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     # Map a step output to a job output
     outputs:
       cli: ${{ steps.changes.outputs.cli == 'true' || steps.overrides.outputs.cli == 'true' }}
@@ -33,7 +33,7 @@ jobs:
     # Only trigger for correct environment and status and if CLI files changed
     if: needs.files-changed.outputs.cli == 'true'
     needs: files-changed
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     outputs:
       url: ${{ github.event.deployment_status.environment_url }}
     steps:
@@ -45,7 +45,7 @@ jobs:
 
   cli-tests:
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     needs: prepare-preview
     strategy:
       fail-fast: false
@@ -56,7 +56,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       ## Install pip
-      - uses: actions/setup-python@v4
+      - uses: useblacksmith/setup-python@v6
         with:
           python-version: '3.9.x'
       - run: pip install dbt-postgres~=${{ matrix.dbt }}.0
@@ -93,7 +93,7 @@ jobs:
           PGDATABASE: postgres
           SEED_SCHEMA: jaffle-${{strategy.job-index}}
       # Install packages
-      - uses: actions/setup-node@v3
+      - uses: useblacksmith/setup-node@v5
         with:
           node-version: '20'
           cache: 'yarn'

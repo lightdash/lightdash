@@ -19,7 +19,7 @@ jobs:
   # This job builds Docker images for various architectures in parallel
   # See https://docs.docker.com/build/ci/github-actions/multi-platform/#distribute-build-across-multiple-runners
   docker-build:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
     strategy:
       fail-fast: false
@@ -84,7 +84,7 @@ jobs:
 
   # This step "merges" multiple images for various architectures into a single image
   docker-merge:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     # Should be kept in sync with the jobs.docker-build.steps.build.with.push condition
     if: ${{ github.event_name != 'pull_request' }}
     needs:

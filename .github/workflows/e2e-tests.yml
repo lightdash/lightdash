@@ -4,7 +4,7 @@ jobs:
   files-changed:
     if: github.ref != 'refs/heads/main'
     name: Detect what files changed
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     # Map a step output to a job output
     outputs:
       frontend: ${{ steps.changes.outputs.frontend == 'true' || steps.overrides.outputs.frontend == 'true' }}
@@ -30,7 +30,7 @@ jobs:
 
   prepare-preview:
     # Only trigger for correct environment and status
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.backend == 'true'
     needs: files-changed
     outputs:
@@ -45,14 +45,14 @@ jobs:
   api-tests:
     if: needs.files-changed.outputs.backend == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     needs: prepare-preview
     name: API tests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       # Install packages
-      - uses: actions/setup-node@v4
+      - uses: useblacksmith/setup-node@v5
         with:
           node-version: '20'
           cache: 'yarn'
@@ -93,7 +93,7 @@ jobs:
           CYPRESS_TZ: 'UTC'
   
   build-cypress-e2e-image:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     name: Build cypress e2e image
     permissions:
       contents: read
@@ -122,7 +122,7 @@ jobs:
   app-tests:
     if: needs.files-changed.outputs.frontend == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     needs: prepare-preview
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
@@ -136,7 +136,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       # Install packages
-      - uses: actions/setup-node@v4
+      - uses: useblacksmith/setup-node@v5
         with:
           node-version: '20'
           cache: 'yarn'
@@ -193,7 +193,7 @@ jobs:
   timezone-tests:
     if: needs.files-changed.outputs.frontend == 'true'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2204
     needs: prepare-preview
     container:
       image: ghcr.io/lightdash/lightdash-cypress-e2e:latest
@@ -207,7 +207,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       # Install packages
-      - uses: actions/setup-node@v4
+      - uses: useblacksmith/setup-node@v5
         with:
           node-version: '20'
           cache: 'yarn'
