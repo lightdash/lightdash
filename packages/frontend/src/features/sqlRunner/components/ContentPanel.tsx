@@ -22,6 +22,7 @@ import {
     IconCodeCircle,
     IconGripHorizontal,
 } from '@tabler/icons-react';
+import type { EChartsInstance } from 'echarts-for-react';
 import {
     useCallback,
     useEffect,
@@ -61,7 +62,8 @@ import {
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
-import { DownloadCsvButton } from './DownloadCsvButton';
+import { ChartDownload } from './Download/ChartDownload';
+import { ResultsDownload } from './Download/ResultsDownload';
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 import { SqlQueryHistory } from './SqlQueryHistory';
 
@@ -273,6 +275,9 @@ export const ContentPanel: FC = () => {
         additionalQueryKey: [sql],
     });
 
+    const [activeEchartsInstance, setActiveEchartsInstance] =
+        useState<EChartsInstance>();
+
     const chartFileUrl = chartVizQuery?.data?.fileUrl;
     const resultsFileUrl = queryResults?.fileUrl;
 
@@ -418,14 +423,16 @@ export const ContentPanel: FC = () => {
                                     : {})}
                             />
                             {activeEditorTab === EditorTabs.VISUALIZATION &&
-                            !isVizTableConfig(currentVizConfig) ? (
-                                <DownloadCsvButton
+                            !isVizTableConfig(currentVizConfig) &&
+                            selectedChartType ? (
+                                <ChartDownload
                                     fileUrl={chartFileUrl}
                                     columns={chartVizQuery?.data?.columns ?? []}
                                     chartName={savedSqlChart?.name}
+                                    echartsInstance={activeEchartsInstance}
                                 />
                             ) : (
-                                <DownloadCsvButton
+                                <ResultsDownload
                                     fileUrl={resultsFileUrl}
                                     columns={queryResults?.columns ?? []}
                                     chartName={savedSqlChart?.name}
@@ -547,6 +554,18 @@ export const ContentPanel: FC = () => {
                                                                             style={{
                                                                                 height: inputSectionHeight,
                                                                                 flex: 1,
+                                                                            }}
+                                                                            onChartReady={(
+                                                                                instance,
+                                                                            ) => {
+                                                                                if (
+                                                                                    c.type ===
+                                                                                    selectedChartType
+                                                                                ) {
+                                                                                    setActiveEchartsInstance(
+                                                                                        instance,
+                                                                                    );
+                                                                                }
                                                                             }}
                                                                         />
                                                                     </ConditionalVisibility>
