@@ -1,3 +1,10 @@
+# [0.1267.0](https://github.com/lightdash/lightdash/compare/0.1266.4...0.1267.0) (2024-09-23)
+
+
+### Features
+
+* allow download charts as image,pdf ([#11639](https://github.com/lightdash/lightdash/issues/11639)) ([b646b18](https://github.com/lightdash/lightdash/commit/b646b186e523983d2b800842154390dd041e7a83))
+
 ## [0.1266.4](https://github.com/lightdash/lightdash/compare/0.1266.3...0.1266.4) (2024-09-23)
 
 
