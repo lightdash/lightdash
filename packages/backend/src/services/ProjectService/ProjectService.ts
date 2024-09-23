@@ -3722,7 +3722,22 @@ export class ProjectService extends BaseService {
             )
             .map(({ uuid }) => uuid);
 
-        return this.spaceModel.getSpaceQueries(allowedSpaceUuids);
+        const savedQueries = await this.spaceModel.getSpaceQueries(
+            allowedSpaceUuids,
+        );
+        const savedSqlCharts = await this.spaceModel.getSpaceSqlCharts(
+            allowedSpaceUuids,
+        );
+        const savedSemanticViewerCharts =
+            await this.spaceModel.getSpaceSemanticViewerCharts(
+                allowedSpaceUuids,
+            );
+
+        return [
+            ...savedQueries,
+            ...savedSqlCharts,
+            ...savedSemanticViewerCharts,
+        ];
     }
 
     async getChartSummaries(
