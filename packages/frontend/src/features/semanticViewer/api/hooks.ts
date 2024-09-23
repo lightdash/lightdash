@@ -147,35 +147,42 @@ export const useCreateSemanticViewerChartMutation = (
         ...mutationOptions,
     });
 
+type SavedSemanticViewChartWithResultsAndColumns = {
+    resultsAndColumns: {
+        results: SemanticLayerResultRow[];
+        columns: string[];
+    };
+    chart: SavedSemanticViewerChart;
+};
+
 /**
- * @param savedSemanticViewerChartUuid - The UUID of the saved semantic viewer chart.
- * @param projectUuid - The UUID of the project.
+ * Fetches the semantic viewer chart and results for a saved chart.
  * @returns The chart and results of the semantic layer query.
  */
 export const useSavedSemanticViewerChart = (
-    projectUuid: string,
-    savedSemanticViewerChartUuid: string | null,
+    {
+        projectUuid,
+        uuid,
+    }: {
+        projectUuid: string;
+        uuid: string | null;
+    },
+    useQueryParams?: UseQueryOptions<
+        SavedSemanticViewChartWithResultsAndColumns,
+        ApiError & { slug?: string }
+    >,
 ) => {
     return useQuery<
-        {
-            resultsAndColumns: {
-                results: SemanticLayerResultRow[];
-                columns: string[];
-            };
-            chart: SavedSemanticViewerChart;
-        },
+        SavedSemanticViewChartWithResultsAndColumns,
         ApiError & { slug?: string }
     >(
-        [projectUuid, 'semanticLayer', 'chart', savedSemanticViewerChartUuid],
+        [projectUuid, 'semanticLayer', 'chart', uuid],
         async () => {
-            if (!savedSemanticViewerChartUuid) {
-                throw new Error('savedSemanticViewerChartUuid is required');
+            if (!uuid) {
+                throw new Error('uuid is required');
             }
 
-            const chart = await getSavedSemanticViewerChart(
-                projectUuid,
-                savedSemanticViewerChartUuid,
-            );
+            const chart = await getSavedSemanticViewerChart(projectUuid, uuid);
 
             // If the chart is not a table, we don't need to fetch the results.
             if (chart.config.type !== ChartKind.TABLE) {
@@ -204,7 +211,8 @@ export const useSavedSemanticViewerChart = (
             };
         },
         {
-            enabled: Boolean(savedSemanticViewerChartUuid),
+            enabled: Boolean(uuid),
+            ...useQueryParams,
         },
     );
 };

@@ -220,6 +220,7 @@ export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertToDbt';
 export * from './utils/customExplore';
+export * from './utils/dashboard';
 export * from './utils/email';
 export * from './utils/fields';
 export * from './utils/filters';

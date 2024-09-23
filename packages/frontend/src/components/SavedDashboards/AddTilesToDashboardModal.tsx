@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DashboardTileTypes,
     getDefaultChartTileSize,
     type DashboardTile,
@@ -22,6 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import { useSavedSemanticViewerChart } from '../../features/semanticViewer/api/hooks';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
     appendNewTilesToBottom,
@@ -40,16 +42,16 @@ import MantineIcon from '../common/MantineIcon';
 interface AddTilesToDashboardModalProps {
     isOpen: boolean;
     projectUuid: string;
-    savedChartUuid?: string;
-    savedSqlChartUuid?: string;
+    uuid: string;
+    dashboardTileType: DashboardTileTypes;
     onClose?: () => void;
 }
 
 const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     isOpen,
     projectUuid,
-    savedChartUuid,
-    savedSqlChartUuid,
+    uuid,
+    dashboardTileType,
     onClose,
 }) => {
     const [isCreatingNewDashboard, setIsCreatingNewDashboard] = useState(false);
@@ -57,45 +59,119 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         useState<boolean>(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    const { data: savedExploreChart } = useSavedQuery({ id: savedChartUuid });
-    const { data: savedSqlChart } = useSavedSqlChart({
-        projectUuid,
-        uuid: savedSqlChartUuid,
+    const exploreChartQuery = useSavedQuery({
+        id: uuid,
+        useQueryOptions: {
+            enabled: dashboardTileType === DashboardTileTypes.SAVED_CHART,
+        },
     });
+    const sqlChartQuery = useSavedSqlChart(
+        { projectUuid, uuid: uuid },
+        { enabled: dashboardTileType === DashboardTileTypes.SQL_CHART },
+    );
+    const semanticViewerChartQuery = useSavedSemanticViewerChart(
+        { projectUuid, uuid: uuid },
+        {
+            enabled:
+                dashboardTileType === DashboardTileTypes.SEMANTIC_VIEWER_CHART,
+        },
+    );
 
-    const [savedChart, chartTile] = useMemo(() => {
-        if (savedExploreChart) {
-            const tile: DashboardTile = {
-                uuid: uuid4(),
-                type: DashboardTileTypes.SAVED_CHART,
-                properties: { savedChartUuid: savedExploreChart.uuid },
-                tabUuid: undefined,
-                ...getDefaultChartTileSize(savedExploreChart.chartConfig?.type),
-            };
+    const tile = useMemo<
+        | {
+              props: { uuid: string; spaceUuid: string };
+              payload: DashboardTile;
+          }
+        | undefined
+    >(() => {
+        switch (dashboardTileType) {
+            case DashboardTileTypes.SAVED_CHART:
+                if (!exploreChartQuery.isSuccess) return;
 
-            return [savedExploreChart, tile];
-        } else if (savedSqlChart) {
-            const chart = {
-                ...savedSqlChart,
-                uuid: savedSqlChart.savedSqlUuid,
-                spaceUuid: savedSqlChart.space.uuid,
-                chartConfig: savedSqlChart.config,
-            };
-            const tile: DashboardTile = {
-                uuid: uuid4(),
-                type: DashboardTileTypes.SQL_CHART,
-                properties: {
-                    savedSqlUuid: savedSqlChart.savedSqlUuid,
-                    chartName: savedSqlChart.name,
-                },
-                tabUuid: undefined,
-                ...getDefaultChartTileSize(savedSqlChart.config?.type),
-            };
+                return {
+                    props: {
+                        uuid: exploreChartQuery.data.uuid,
+                        spaceUuid: exploreChartQuery.data.spaceUuid,
+                    },
+                    payload: {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: {
+                            savedChartUuid: exploreChartQuery.data.uuid,
+                        },
+                        tabUuid: undefined,
+                        ...getDefaultChartTileSize(
+                            exploreChartQuery.data.chartConfig?.type,
+                        ),
+                    },
+                };
 
-            return [chart, tile];
+            case DashboardTileTypes.SQL_CHART:
+                if (!sqlChartQuery.isSuccess) return;
+
+                return {
+                    props: {
+                        uuid: sqlChartQuery.data.savedSqlUuid,
+                        spaceUuid: sqlChartQuery.data.space.uuid,
+                    },
+                    payload: {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.SQL_CHART,
+                        properties: {
+                            savedSqlUuid: sqlChartQuery.data.savedSqlUuid,
+                            chartName: sqlChartQuery.data.name,
+                        },
+                        tabUuid: undefined,
+                        ...getDefaultChartTileSize(
+                            sqlChartQuery.data.config?.type,
+                        ),
+                    },
+                };
+
+            case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
+                if (!semanticViewerChartQuery.isSuccess) return;
+
+                return {
+                    props: {
+                        uuid: semanticViewerChartQuery.data.chart
+                            .savedSemanticViewerChartUuid,
+                        spaceUuid:
+                            semanticViewerChartQuery.data.chart.space.uuid,
+                    },
+                    payload: {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.SEMANTIC_VIEWER_CHART,
+                        properties: {
+                            chartName: semanticViewerChartQuery.data.chart.name,
+                            savedSemanticViewerChartUuid:
+                                semanticViewerChartQuery.data.chart
+                                    .savedSemanticViewerChartUuid,
+                        },
+                        tabUuid: undefined,
+                        ...getDefaultChartTileSize(
+                            semanticViewerChartQuery.data.chart.config.type,
+                        ),
+                    },
+                };
+
+            case DashboardTileTypes.LOOM:
+            case DashboardTileTypes.MARKDOWN:
+                throw new Error(
+                    `not implemented for chart tile type: ${dashboardTileType}`,
+                );
+            default:
+                return assertUnreachable(
+                    dashboardTileType,
+                    `Unsupported chart tile type: ${dashboardTileType}`,
+                );
         }
-        return [undefined, undefined];
-    }, [savedExploreChart, savedSqlChart]);
+    }, [
+        dashboardTileType,
+        exploreChartQuery,
+        sqlChartQuery,
+        semanticViewerChartQuery,
+    ]);
+
     const { data: dashboards, isInitialLoading: isLoadingDashboards } =
         useDashboards(
             projectUuid,
@@ -118,7 +194,8 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 }
             },
         });
-    const currentSpace = spaces?.find((s) => s.uuid === savedChart?.spaceUuid);
+
+    const currentSpace = spaces?.find((s) => s.uuid === tile?.props.spaceUuid);
 
     const form = useForm({
         initialValues: {
@@ -152,7 +229,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             spaceUuid,
             spaceName,
         }) => {
-            if (!savedChart) return;
+            if (!tile) return;
 
             setIsLoading(true);
 
@@ -171,7 +248,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                         name: dashboardName,
                         description: dashboardDescription,
                         spaceUuid: spaceUuid,
-                        tiles: [chartTile],
+                        tiles: [tile.payload],
                         tabs: [],
                     });
                     onClose?.();
@@ -186,10 +263,10 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                         tiles: appendNewTilesToBottom(selectedDashboard.tiles, [
                             firstTab
                                 ? {
-                                      ...chartTile,
+                                      ...tile.payload,
                                       tabUuid: firstTab.uuid,
                                   }
-                                : chartTile, // TODO: add to first tab by default, need ux to allow user select tab
+                                : tile.payload, // TODO: add to first tab by default, need ux to allow user select tab
                         ]),
                         tabs: selectedDashboard.tabs,
                     });
@@ -222,7 +299,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                         size="lg"
                         color="green.8"
                     />
-                    <Title order={4}> Add chart to dashboard</Title>
+                    <Title order={4}>Add chart to dashboard</Title>
                 </Group>
             }
             withCloseButton

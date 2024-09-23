@@ -1,5 +1,8 @@
 import { subject } from '@casl/ability';
-import { DashboardTileTypes } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    type SavedSemanticViewerChart,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -9,8 +12,9 @@ import {
     Stack,
     Title,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconDots, IconLayoutGridAdd, IconTrash } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
+import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
@@ -18,36 +22,33 @@ import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPop
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
 import { useApp } from '../../../../providers/AppProvider';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { toggleModal } from '../../store/sqlRunnerSlice';
-import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
+import { getSavedSemanticViewerChart } from '../../api/requests';
+import * as Models from './../Modals';
 
-export const HeaderView: FC = () => {
+type Props = {
+    projectUuid: string;
+    savedSemanticViewerChart: SavedSemanticViewerChart;
+};
+
+export const HeaderView: FC<Props> = ({
+    projectUuid,
+    savedSemanticViewerChart: chart,
+}) => {
     const history = useHistory();
-    const dispatch = useAppDispatch();
     const { user } = useApp();
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const space = useAppSelector(
-        (state) => state.sqlRunner.savedSqlChart?.space,
-    );
-    const savedSqlChart = useAppSelector(
-        (state) => state.sqlRunner.savedSqlChart,
-    );
-    const isAddToDashboardModalOpen = useAppSelector(
-        (state) => state.sqlRunner.modals.addToDashboard.isOpen,
-    );
-    const onCloseAddToDashboardModal = useCallback(() => {
-        dispatch(toggleModal('addToDashboard'));
-    }, [dispatch]);
-    const isDeleteModalOpen = useAppSelector(
-        (state) => state.sqlRunner.modals.deleteChartModal.isOpen,
-    );
-    const onCloseDeleteModal = useCallback(() => {
-        dispatch(toggleModal('deleteChartModal'));
-    }, [dispatch]);
 
-    const canManageSqlRunner = user.data?.ability?.can(
+    const [
+        isDeleteModalOpen,
+        { open: openDeleteModal, close: closeDeleteModal },
+    ] = useDisclosure(false);
+    const [
+        isAddToDashboardOpen,
+        { open: openAddToDashboardModal, close: closeAddToDashboardModal },
+    ] = useDisclosure(false);
+
+    const canManageSemanticViewerChart = user.data?.ability?.can(
         'manage',
+        // TODO: change to permissions for semantic viewer
         subject('SqlRunner', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
@@ -59,16 +60,12 @@ export const HeaderView: FC = () => {
         subject('SavedChart', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
-            isPrivate: savedSqlChart?.space.isPrivate,
-            access: savedSqlChart?.space.userAccess
-                ? [savedSqlChart.space.userAccess]
-                : [],
+            isPrivate: chart.space.isPrivate,
+            access: chart.space.userAccess,
         }),
     );
 
-    if (!savedSqlChart) {
-        return null;
-    }
+    if (!getSavedSemanticViewerChart) return null;
 
     return (
         <>
@@ -76,44 +73,42 @@ export const HeaderView: FC = () => {
                 <Group position="apart">
                     <Stack spacing="none">
                         <Group spacing="two">
-                            {space && (
-                                <TitleBreadCrumbs
-                                    projectUuid={projectUuid}
-                                    spaceUuid={space.uuid}
-                                    spaceName={space.name}
-                                />
-                            )}
+                            <TitleBreadCrumbs
+                                projectUuid={projectUuid}
+                                spaceUuid={chart.space.uuid}
+                                spaceName={chart.space.name}
+                            />
                             <Title c="dark.6" order={5} fw={600}>
-                                {savedSqlChart.name}
+                                {chart.name}
                             </Title>
                         </Group>
                         <Group spacing="xs">
                             <UpdatedInfo
-                                updatedAt={savedSqlChart.lastUpdatedAt}
-                                user={savedSqlChart.lastUpdatedBy}
+                                updatedAt={chart.lastUpdatedAt}
+                                user={chart.lastUpdatedBy}
                                 partiallyBold={false}
                             />
                             <ResourceInfoPopup
-                                resourceUuid={savedSqlChart.savedSqlUuid}
-                                projectUuid={projectUuid}
-                                description={
-                                    savedSqlChart.description ?? undefined
+                                resourceUuid={
+                                    chart.savedSemanticViewerChartUuid
                                 }
-                                viewStats={savedSqlChart.views}
-                                firstViewedAt={savedSqlChart.firstViewedAt}
+                                projectUuid={projectUuid}
+                                description={chart.description ?? undefined}
+                                viewStats={chart.views}
+                                firstViewedAt={chart.firstViewedAt}
                                 withChartData={false}
                             />
                         </Group>
                     </Stack>
 
                     <Group spacing="md">
-                        {canManageSqlRunner && canManageChart && (
+                        {canManageSemanticViewerChart && canManageChart && (
                             <Button
                                 size="xs"
                                 variant="default"
                                 onClick={() =>
                                     history.push(
-                                        `/projects/${projectUuid}/sql-runner/${savedSqlChart.slug}/edit`,
+                                        `/projects/${projectUuid}/semantic-viewer/${chart.savedSemanticViewerChartUuid}/edit`,
                                     )
                                 }
                             >
@@ -139,9 +134,7 @@ export const HeaderView: FC = () => {
                                     icon={
                                         <MantineIcon icon={IconLayoutGridAdd} />
                                     }
-                                    onClick={() =>
-                                        dispatch(toggleModal('addToDashboard'))
-                                    }
+                                    onClick={openAddToDashboardModal}
                                 >
                                     Add to dashboard
                                 </Menu.Item>
@@ -154,13 +147,12 @@ export const HeaderView: FC = () => {
                                     }
                                     color="red"
                                     disabled={
-                                        !(canManageSqlRunner && canManageChart)
-                                    }
-                                    onClick={() =>
-                                        dispatch(
-                                            toggleModal('deleteChartModal'),
+                                        !(
+                                            canManageSemanticViewerChart &&
+                                            canManageChart
                                         )
                                     }
+                                    onClick={openDeleteModal}
                                 >
                                     Delete
                                 </Menu.Item>
@@ -170,23 +162,22 @@ export const HeaderView: FC = () => {
                 </Group>
             </Paper>
 
-            <DeleteSqlChartModal
+            <Models.DeleteSavedSemanticChart
                 projectUuid={projectUuid}
-                savedSqlUuid={savedSqlChart.savedSqlUuid}
-                name={savedSqlChart.name}
+                savedSqlUuid={chart.savedSemanticViewerChartUuid}
+                name={chart.name}
                 opened={isDeleteModalOpen}
-                onClose={onCloseDeleteModal}
+                onClose={closeDeleteModal}
                 onSuccess={() => history.push(`/projects/${projectUuid}/home`)}
             />
-            {isAddToDashboardModalOpen && (
-                <AddTilesToDashboardModal
-                    isOpen={true}
-                    projectUuid={projectUuid}
-                    uuid={savedSqlChart.savedSqlUuid}
-                    dashboardTileType={DashboardTileTypes.SQL_CHART}
-                    onClose={onCloseAddToDashboardModal}
-                />
-            )}
+
+            <AddTilesToDashboardModal
+                isOpen={isAddToDashboardOpen}
+                projectUuid={projectUuid}
+                uuid={chart.savedSemanticViewerChartUuid}
+                dashboardTileType={DashboardTileTypes.SEMANTIC_VIEWER_CHART}
+                onClose={closeAddToDashboardModal}
+            />
         </>
     );
 };

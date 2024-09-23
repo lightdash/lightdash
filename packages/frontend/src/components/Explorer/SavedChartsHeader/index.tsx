@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DashboardTileTypes,
     FeatureFlags,
     type ApiError,
     type GitIntegrationConfiguration,
@@ -946,7 +947,8 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                 <AddTilesToDashboardModal
                     isOpen={isAddToDashboardModalOpen}
                     projectUuid={projectUuid}
-                    savedChartUuid={savedChart.uuid}
+                    uuid={savedChart.uuid}
+                    dashboardTileType={DashboardTileTypes.SAVED_CHART}
                     onClose={addToDashboardModalHandlers.close}
                 />
             )}
