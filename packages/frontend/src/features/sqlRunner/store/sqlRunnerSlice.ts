@@ -7,7 +7,9 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { format } from 'sql-formatter';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
+import { createHistoryReducer, withHistory, type WithHistory } from './history';
 
 export enum EditorTabs {
     SQL = 'SQL',
@@ -18,6 +20,16 @@ export enum SidebarTabs {
     TABLES = 'tables',
     VISUALIZATION = 'visualization',
 }
+
+/**
+ * Normalizes the SQL by removing all whitespace and formatting it consistently - helpful for comparing two SQL queries
+ * @param sql
+ * @returns formatted SQL
+ */
+const normalizeSQL = (sql: string): string =>
+    format(sql, {
+        language: 'sql',
+    });
 
 export const DEFAULT_NAME = 'Untitled SQL Query';
 
@@ -30,6 +42,8 @@ export interface SqlRunnerState {
     name: string;
     description: string;
     sql: string;
+    successfulSqlQueries: WithHistory<string | undefined>;
+    hasUnrunChanges: boolean;
     limit: number;
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
@@ -48,6 +62,12 @@ export interface SqlRunnerState {
         addToDashboard: {
             isOpen: boolean;
         };
+        saveCustomExploreModal: {
+            isOpen: boolean;
+        };
+        chartErrorsAlert: {
+            isOpen: boolean;
+        };
     };
     quoteChar: string;
     sqlColumns: VizColumn[] | undefined;
@@ -64,6 +84,8 @@ const initialState: SqlRunnerState = {
     name: '',
     description: '',
     sql: '',
+    successfulSqlQueries: withHistory(undefined),
+    hasUnrunChanges: false,
     limit: 500,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
@@ -82,6 +104,12 @@ const initialState: SqlRunnerState = {
         addToDashboard: {
             isOpen: false,
         },
+        saveCustomExploreModal: {
+            isOpen: false,
+        },
+        chartErrorsAlert: {
+            isOpen: false,
+        },
     },
     quoteChar: '"',
     sqlColumns: undefined,
@@ -89,13 +117,16 @@ const initialState: SqlRunnerState = {
     fetchResultsOnLoad: false,
 };
 
+const sqlHistoryReducer = createHistoryReducer<string | undefined>({
+    maxHistoryItems: 5,
+    compareFunc: (a, b) => normalizeSQL(a || '') !== normalizeSQL(b || ''),
+});
+
 export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
     reducers: {
-        resetState: () => {
-            return initialState;
-        },
+        resetState: () => initialState,
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
@@ -141,12 +172,26 @@ export const sqlRunnerSlice = createSlice({
             state.resultsTableConfig = {
                 columns,
             };
+
+            if (!!state.sql) {
+                sqlHistoryReducer.addToHistory(state.successfulSqlQueries, {
+                    payload: state.sql,
+                    type: 'sql',
+                });
+                state.hasUnrunChanges = false;
+            }
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
         },
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
+
+            const normalizedNewSql = normalizeSQL(action.payload);
+            const normalizedCurrentSql = normalizeSQL(
+                state.successfulSqlQueries.current || '',
+            );
+            state.hasUnrunChanges = normalizedNewSql !== normalizedCurrentSql;
         },
         setSqlLimit: (state, action: PayloadAction<number>) => {
             state.limit = action.payload;

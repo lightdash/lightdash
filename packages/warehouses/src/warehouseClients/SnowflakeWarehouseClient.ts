@@ -475,7 +475,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 TABLE_SCHEMA as "table_schema",
                 TABLE_NAME as "table_name"
             FROM information_schema.tables
-            WHERE TABLE_TYPE = 'BASE TABLE'
+            WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW')
             ${whereSql}
             ORDER BY 1,2,3
         `;

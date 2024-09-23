@@ -103,26 +103,31 @@ export const useSemanticLayerSql = (
     });
 
 export const useSemanticLayerQueryResults = (
-    projectUuid: string,
-    useMutationParams?: UseMutationOptions<
+    { projectUuid, query }: SemanticLayerSqlParams,
+    useQueryParams?: UseQueryOptions<
         Pick<PivotChartData, 'results'> &
             Pick<SemanticLayerJobStatusSuccessDetails, 'columns'>,
-        ApiError,
-        SemanticLayerQuery
+        ApiError
     >,
 ) =>
-    useMutation<
+    useQuery<
         Pick<PivotChartData, 'results'> &
             Pick<SemanticLayerJobStatusSuccessDetails, 'columns'>,
-        ApiError,
-        SemanticLayerQuery
+        ApiError
     >({
-        mutationFn: (query) =>
+        ...useQueryParams,
+        queryKey: [
+            projectUuid,
+            'semanticLayer',
+            'query',
+            query.sortBy,
+            query.filters,
+        ],
+        queryFn: () =>
             apiGetSemanticLayerQueryResults({
                 projectUuid,
                 query,
             }),
-        ...useMutationParams,
     });
 
 export const useCreateSemanticViewerChartMutation = (

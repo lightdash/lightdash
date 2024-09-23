@@ -7,6 +7,7 @@ import {
     type VizBarChartConfig,
     type VizCartesianChartOptions,
     type VizChartLayout,
+    type VizConfigErrors,
     type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -16,6 +17,7 @@ export type CartesianChartState = {
     defaultLayout: VizChartLayout | undefined;
     config: VizBarChartConfig | VizLineChartConfig | undefined;
     options: VizCartesianChartOptions;
+    errors: VizConfigErrors | undefined;
 };
 
 const initialState: CartesianChartState = {
@@ -26,6 +28,7 @@ const initialState: CartesianChartState = {
         valuesLayoutOptions: [],
         pivotLayoutOptions: [],
     },
+    errors: undefined,
 };
 
 export const cartesianChartConfigSlice = createSlice({
@@ -233,6 +236,14 @@ export const cartesianChartConfigSlice = createSlice({
             if (!state.config?.fieldConfig) return;
             delete state.config.fieldConfig.x;
         },
+        setSortBy: (
+            { config },
+            action: PayloadAction<VizChartLayout['sortBy']>,
+        ) => {
+            if (!config?.fieldConfig) return;
+            config.fieldConfig.sortBy = action.payload;
+        },
+
         setStacked: ({ config }, action: PayloadAction<boolean>) => {
             if (!config) return;
 

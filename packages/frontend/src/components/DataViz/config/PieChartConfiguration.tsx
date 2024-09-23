@@ -32,6 +32,8 @@ export const PieChartConfiguration = ({
         (state) => state.pieChartConfig.options.metricFieldOptions,
     );
 
+    const errors = useVizSelector((state) => state.pieChartConfig.errors);
+
     return (
         <Stack spacing="sm" mb="lg">
             <Title order={5} fz="sm" c="gray.9">
@@ -58,11 +60,9 @@ export const PieChartConfiguration = ({
                         dispatch(setGroupFieldIds(field));
                     }}
                     error={
-                        !!groupField &&
-                        groupFieldOptions.find(
-                            (x) => x.reference === groupField,
-                        ) === undefined &&
-                        `Column "${groupField}" not in SQL query`
+                        errors?.groupByFieldError?.references
+                            ? `Column "${errors?.groupByFieldError?.references[0]}" not in SQL query`
+                            : undefined
                     }
                     fieldType={
                         columns?.find((x) => x.reference === groupField)
@@ -81,10 +81,9 @@ export const PieChartConfiguration = ({
                     }))}
                     value={aggregateField?.reference}
                     error={
-                        aggregateFieldOptions.find(
-                            (y) => y.reference === aggregateField?.reference,
-                        ) === undefined &&
-                        `Column "${aggregateField?.reference}" not in SQL query`
+                        errors?.valuesFieldError?.references
+                            ? `Column "${errors?.valuesFieldError?.references[0]}" not in SQL query`
+                            : undefined
                     }
                     placeholder="Select Y axis"
                     onChange={(value) => {

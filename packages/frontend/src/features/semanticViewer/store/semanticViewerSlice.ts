@@ -17,8 +17,8 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
 export enum EditorTabs {
-    RESULTS = 'results',
-    VISUALIZATION = 'visualization',
+    QUERY = 'query',
+    VIZ = 'viz',
 }
 
 export enum SidebarTabs {
@@ -148,7 +148,7 @@ const initialState: SemanticViewerState = {
     name: '',
     saveModalOpen: false,
 
-    activeEditorTab: EditorTabs.RESULTS,
+    activeEditorTab: EditorTabs.QUERY,
     activeSidebarTab: SidebarTabs.TABLES,
     activeChartKind: ChartKind.VERTICAL_BAR,
 
@@ -253,10 +253,10 @@ export const semanticViewerSlice = createSlice({
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
 
-            if (action.payload === EditorTabs.RESULTS) {
+            if (action.payload === EditorTabs.QUERY) {
                 state.activeSidebarTab = SidebarTabs.TABLES;
             }
-            if (action.payload === EditorTabs.VISUALIZATION) {
+            if (action.payload === EditorTabs.VIZ) {
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
             }
         },
@@ -307,12 +307,17 @@ export const semanticViewerSlice = createSlice({
 
         updateSortBy: (
             state,
-            action: PayloadAction<{ name: string; kind: FieldType }>,
+            action: PayloadAction<{
+                name: string;
+                kind: FieldType;
+            }>,
         ) => {
             const { name, kind } = action.payload;
+
             const existing = state.sortBy.find(
                 (sort) => sort.name === name && sort.kind === kind,
             );
+
             if (!existing) {
                 state.sortBy = [
                     {
@@ -330,7 +335,6 @@ export const semanticViewerSlice = createSlice({
                 state.sortBy = [];
             }
         },
-
         updateSaveModalOpen: (state, action: PayloadAction<boolean>) => {
             state.saveModalOpen = action.payload;
         },

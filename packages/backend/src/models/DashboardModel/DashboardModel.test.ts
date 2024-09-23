@@ -157,9 +157,13 @@ describe('DashboardModel', () => {
         tracker.on.select(SavedChartsTableName).responseOnce([savedChartEntry]);
         tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
+        tracker.on.select(DashboardsTableName).responseOnce('slug');
 
         jest.spyOn(model, 'getById').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
+        );
+        jest.spyOn(DashboardModel, 'generateUniqueSlug').mockResolvedValue(
+            createDashboard.slug,
         );
 
         await model.create('spaceUuid', createDashboard, user, projectUuid);
