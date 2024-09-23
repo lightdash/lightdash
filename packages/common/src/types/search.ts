@@ -36,7 +36,7 @@ export type SavedChartSearchResult = Pick<
     }[];
 } & RankedItem;
 
-export type SqlChartSearchResult = Pick<
+export type SqlOrSemanticViewerChartSearchResult = Pick<
     SqlChart,
     'name' | 'description' | 'slug'
 > & {
@@ -93,7 +93,7 @@ export type SearchResult =
     | SpaceSearchResult
     | DashboardSearchResult
     | SavedChartSearchResult
-    | SqlChartSearchResult
+    | SqlOrSemanticViewerChartSearchResult
     | TableErrorSearchResult
     | TableSearchResult
     | FieldSearchResult
@@ -116,7 +116,8 @@ export type SearchResults = {
     spaces: SpaceSearchResult[];
     dashboards: DashboardSearchResult[];
     savedCharts: SavedChartSearchResult[];
-    sqlCharts: SqlChartSearchResult[];
+    sqlCharts: SqlOrSemanticViewerChartSearchResult[];
+    semanticViewerCharts: SqlOrSemanticViewerChartSearchResult[];
     tables: (TableSearchResult | TableErrorSearchResult)[];
     fields: FieldSearchResult[];
     pages: PageResult[];
@@ -139,6 +140,7 @@ export enum SearchItemType {
     DASHBOARD = 'dashboard',
     CHART = 'saved_chart',
     SQL_CHART = 'sql_chart',
+    SEMANTIC_VIEWER_CHART = 'semantic_viewer_chart',
     SPACE = 'space',
     TABLE = 'table',
     FIELD = 'field',
@@ -163,6 +165,8 @@ export function getSearchItemTypeFromResultKey(
             return SearchItemType.PAGE;
         case 'sqlCharts':
             return SearchItemType.SQL_CHART;
+        case 'semanticViewerCharts':
+            return SearchItemType.SEMANTIC_VIEWER_CHART;
         default:
             return assertUnreachable(
                 searchResultKey,
