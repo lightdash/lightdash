@@ -11,10 +11,15 @@ export interface WithHistory<T> {
 }
 
 const DEFAULT_MAX_HISTORY_ITEMS = 10;
+const DEFAULT_COMPARE_FUNC = <T>(a: T, b: T) => a !== b;
 
-export const createHistoryReducer = <T>(
-    maxHistoryItems: number = DEFAULT_MAX_HISTORY_ITEMS,
-) => {
+export const createHistoryReducer = <T>({
+    maxHistoryItems = DEFAULT_MAX_HISTORY_ITEMS,
+    compareFunc = DEFAULT_COMPARE_FUNC<T>,
+}: {
+    maxHistoryItems?: number;
+    compareFunc?: (a: T, b: T) => boolean;
+}) => {
     return {
         addToHistory: (state: WithHistory<T>, action: PayloadAction<T>) => {
             const newItem: HistoryItem<NonNullable<T>> = {
@@ -22,9 +27,9 @@ export const createHistoryReducer = <T>(
                 timestamp: Date.now(),
             };
 
-            // Remove any existing duplicate
-            state.past = state.past.filter(
-                (item) => item.value !== newItem.value,
+            // Remove any existing duplicate using the provided comparison function
+            state.past = state.past.filter((item) =>
+                compareFunc(item.value, newItem.value),
             );
 
             // Add the new item to the beginning of the past array

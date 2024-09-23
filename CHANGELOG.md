@@ -1,3 +1,47 @@
+## [0.1266.4](https://github.com/lightdash/lightdash/compare/0.1266.3...0.1266.4) (2024-09-23)
+
+
+### Bug Fixes
+
+* delete users from orgs ([#11633](https://github.com/lightdash/lightdash/issues/11633)) ([5a95193](https://github.com/lightdash/lightdash/commit/5a95193343c05bba005d4c98ebb6523a3c029cb4))
+
+## [0.1266.3](https://github.com/lightdash/lightdash/compare/0.1266.2...0.1266.3) (2024-09-23)
+
+
+### Bug Fixes
+
+* add additional query key to dashboard sql tile ([#11634](https://github.com/lightdash/lightdash/issues/11634)) ([7aa856f](https://github.com/lightdash/lightdash/commit/7aa856fb2df382d7959820b4225b0634c1f69181))
+
+## [0.1266.2](https://github.com/lightdash/lightdash/compare/0.1266.1...0.1266.2) (2024-09-23)
+
+
+### Bug Fixes
+
+* allow deletion of charts within dashboards ([#11618](https://github.com/lightdash/lightdash/issues/11618)) ([9a0b145](https://github.com/lightdash/lightdash/commit/9a0b145741cb807c193a6bfd1c499a0003633915))
+* cast float on quick table calculations ([#11610](https://github.com/lightdash/lightdash/issues/11610)) ([c78add1](https://github.com/lightdash/lightdash/commit/c78add10e4c2f943d35ef211ce2916f0e88906fd))
+* move to new space ([#11615](https://github.com/lightdash/lightdash/issues/11615)) ([65a48f4](https://github.com/lightdash/lightdash/commit/65a48f42c447a72ec19d95dd54d1eb107edf1b31))
+
+## [0.1266.1](https://github.com/lightdash/lightdash/compare/0.1266.0...0.1266.1) (2024-09-20)
+
+
+### Bug Fixes
+
+* avoid duplicating slugs on all charts, dashboards and spaces ([#11626](https://github.com/lightdash/lightdash/issues/11626)) ([d0fedf3](https://github.com/lightdash/lightdash/commit/d0fedf381ce84ef7cc85a361b3a9ea37a4330cdb))
+
+# [0.1266.0](https://github.com/lightdash/lightdash/compare/0.1265.1...0.1266.0) (2024-09-20)
+
+
+### Features
+
+* alert user if unsaved sql change ([#11606](https://github.com/lightdash/lightdash/issues/11606)) ([01bf5cd](https://github.com/lightdash/lightdash/commit/01bf5cdaac5d131ab2ab37b29e5414fe9c9c4429))
+
+## [0.1265.1](https://github.com/lightdash/lightdash/compare/0.1265.0...0.1265.1) (2024-09-19)
+
+
+### Bug Fixes
+
+* fix invalid user redirection ([#11603](https://github.com/lightdash/lightdash/issues/11603)) ([4516d3f](https://github.com/lightdash/lightdash/commit/4516d3f1c7dd9ac297b50025cb1a474a3bcad947))
+
 # [0.1265.0](https://github.com/lightdash/lightdash/compare/0.1264.0...0.1265.0) (2024-09-19)
 
 

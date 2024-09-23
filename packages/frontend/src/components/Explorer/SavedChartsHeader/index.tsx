@@ -218,8 +218,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
         return resultsData?.fields;
     }, [resultsData]);
 
-    const { clearIsEditingDashboardChart, getIsEditingDashboardChart } =
-        useDashboardStorage();
+    const { clearIsEditingDashboardChart } = useDashboardStorage();
 
     const [blockedNavigationLocation, setBlockedNavigationLocation] =
         useState<string>();
@@ -902,31 +901,22 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                     <>
                                         <Menu.Divider />
 
-                                        <Tooltip
-                                            disabled={
-                                                !getIsEditingDashboardChart()
-                                            }
-                                            position="bottom"
-                                            label="This chart can be deleted from its dashboard"
-                                        >
-                                            <Box>
-                                                <Menu.Item
-                                                    icon={
-                                                        <MantineIcon
-                                                            icon={IconTrash}
-                                                            color="red"
-                                                        />
-                                                    }
-                                                    color="red"
-                                                    disabled={getIsEditingDashboardChart()}
-                                                    onClick={
-                                                        deleteModalHandlers.open
-                                                    }
-                                                >
-                                                    Delete
-                                                </Menu.Item>
-                                            </Box>
-                                        </Tooltip>
+                                        <Box>
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                        color="red"
+                                                    />
+                                                }
+                                                color="red"
+                                                onClick={
+                                                    deleteModalHandlers.open
+                                                }
+                                            >
+                                                Delete
+                                            </Menu.Item>
+                                        </Box>
                                     </>
                                 )}
                             </Menu.Dropdown>
@@ -983,7 +973,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                         } else {
                             history.push(`/`);
                         }
-
+                        clearIsEditingDashboardChart();
                         deleteModalHandlers.close();
                     }}
                 />

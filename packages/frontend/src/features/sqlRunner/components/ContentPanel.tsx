@@ -270,6 +270,7 @@ export const ContentPanel: FC = () => {
         config: currentVizConfig,
         sql,
         limit,
+        additionalQueryKey: [sql],
     });
 
     const chartFileUrl = chartVizQuery?.data?.fileUrl;
@@ -284,6 +285,9 @@ export const ContentPanel: FC = () => {
         });
     }, [chartVizQuery.data]);
 
+    const hasUnrunChanges = useAppSelector(
+        (state) => state.sqlRunner.hasUnrunChanges,
+    );
     const hasErrors = useAppSelector(
         (state) =>
             !!cartesianChartSelectors.getErrors(state, selectedChartType),
@@ -324,13 +328,34 @@ export const ContentPanel: FC = () => {
                                         {
                                             value: EditorTabs.SQL,
                                             label: (
-                                                <Group spacing={4} noWrap>
-                                                    <MantineIcon
-                                                        color="gray.6"
-                                                        icon={IconCodeCircle}
-                                                    />
-                                                    <Text>SQL</Text>
-                                                </Group>
+                                                <Tooltip
+                                                    disabled={!hasUnrunChanges}
+                                                    variant="xs"
+                                                    withinPortal
+                                                    label="You haven't run this query yet."
+                                                >
+                                                    <Group spacing={4} noWrap>
+                                                        <MantineIcon
+                                                            color={
+                                                                hasUnrunChanges
+                                                                    ? 'yellow.7'
+                                                                    : 'gray.6'
+                                                            }
+                                                            icon={
+                                                                IconCodeCircle
+                                                            }
+                                                        />
+                                                        <Text
+                                                            color={
+                                                                hasUnrunChanges
+                                                                    ? 'yellow.7'
+                                                                    : 'gray.6'
+                                                            }
+                                                        >
+                                                            SQL
+                                                        </Text>
+                                                    </Group>
+                                                </Tooltip>
                                             ),
                                         },
                                         {
