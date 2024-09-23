@@ -7,7 +7,10 @@ import { ActionIcon, Button, Popover, Radio, Stack } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
 import { type EChartsInstance } from 'echarts-for-react';
 import { memo, useState } from 'react';
-import { ChartDownloadOptions } from '../../../../components/ChartDownload';
+import {
+    ChartDownloadOptions,
+    DownloadType,
+} from '../../../../components/ChartDownload';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useDownloadResults } from '../../hooks/useDownloadResults';
 
@@ -63,6 +66,7 @@ export const ChartDownload: React.FC<Props> = memo(
                         {downloadFormat === DownloadFileType.IMAGE && (
                             <ChartDownloadOptions
                                 getChartInstance={() => echartsInstance}
+                                unavailableOptions={[DownloadType.JSON]}
                             />
                         )}
                         {downloadFormat === DownloadFileType.CSV && (

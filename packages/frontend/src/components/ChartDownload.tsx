@@ -34,7 +34,7 @@ import { useVisualizationContext } from './LightdashVisualization/VisualizationP
 
 const FILE_NAME = 'lightdash_chart';
 
-enum DownloadType {
+export enum DownloadType {
     JPEG = 'JPEG',
     PNG = 'PNG',
     SVG = 'SVG',
@@ -121,9 +121,11 @@ function downloadPdf(base64: string, width: number, height: number) {
 
 type DownloadOptions = {
     getChartInstance: () => EChartsInstance | undefined;
+    unavailableOptions?: DownloadType[];
 };
 export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     getChartInstance,
+    unavailableOptions,
 }) => {
     const [type, setType] = useState<DownloadType>(DownloadType.PNG);
     const [isBackgroundTransparent, setIsBackgroundTransparent] =
@@ -190,10 +192,15 @@ export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 id="download-type"
                 value={type}
                 onChange={(value) => setType(value as DownloadType)}
-                data={Object.values(DownloadType).map((downloadType) => ({
-                    value: downloadType,
-                    label: downloadType,
-                }))}
+                data={Object.values(DownloadType)
+                    .filter(
+                        (downloadType) =>
+                            !unavailableOptions?.includes(downloadType),
+                    )
+                    .map((downloadType) => ({
+                        value: downloadType,
+                        label: downloadType,
+                    }))}
             />
             {type === DownloadType.PNG && (
                 <SegmentedControl
