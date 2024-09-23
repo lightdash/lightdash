@@ -247,7 +247,6 @@ export const CartesianChartFieldConfiguration = ({
 }: {
     selectedChartType: ChartKind;
     columns: VizColumn[];
-
     actions: CartesianChartActionsType;
 }) => {
     const dispatch = useVizDispatch();
