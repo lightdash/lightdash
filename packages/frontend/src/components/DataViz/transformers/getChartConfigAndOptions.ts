@@ -8,6 +8,7 @@ import {
     PieChartDataModel,
     TableDataModel,
     type IResultsRunner,
+    type Organization,
     type VizChartConfig,
 } from '@lightdash/common';
 
@@ -15,7 +16,9 @@ const getChartConfigAndOptions = (
     resultsRunner: IResultsRunner,
     chartType: ChartKind,
     currentVizConfig?: VizChartConfig,
+    organization?: Organization,
 ) => {
+
     switch (chartType) {
         case ChartKind.PIE:
             if (currentVizConfig && !isVizPieChartConfig(currentVizConfig)) {
@@ -62,6 +65,8 @@ const getChartConfigAndOptions = (
 
             const barChartModel = new CartesianChartDataModel({
                 resultsRunner,
+                config: currentVizConfig,
+                organization: organization,
             });
 
             const barConfig = barChartModel.mergeConfig(
@@ -85,6 +90,8 @@ const getChartConfigAndOptions = (
 
             const lineChartModel = new CartesianChartDataModel({
                 resultsRunner,
+                config: currentVizConfig,
+                organization: organization,
             });
 
             const lineConfig = lineChartModel.mergeConfig(

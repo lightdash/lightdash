@@ -6,6 +6,7 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';
 import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunner';
@@ -32,6 +33,7 @@ const Content: FC = () => {
     const { showToastError } = useToaster();
 
     const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
+    const org = useOrganization();
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
     const {
@@ -98,6 +100,7 @@ const Content: FC = () => {
             resultsRunner,
             activeChartKind,
             currentVizConfig,
+            org.data,
         );
 
         dispatch(setChartOptionsAndConfig(chartResultOptions));
@@ -110,6 +113,7 @@ const Content: FC = () => {
         semanticQuery,
         fields,
         columnNames,
+        org.data,
     ]);
 
     const handleRunSemanticLayerQuery = useCallback(async () => {

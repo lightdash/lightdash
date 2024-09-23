@@ -39,7 +39,7 @@ export const useChartViz = ({
     const org = useOrganization();
 
     const chartDataModel = useMemo(() => {
-        if (!resultsRunner) return;
+        if (!resultsRunner || !org?.data) return;
 
         const type = config?.type;
         if (!type) return;
@@ -52,14 +52,14 @@ export const useChartViz = ({
             case ChartKind.VERTICAL_BAR:
             case ChartKind.LINE:
                 return new CartesianChartDataModel({
-                    resultsRunner,
+                    resultsRunner, config, organization: org.data
                 });
             default:
                 return;
         }
-    }, [resultsRunner, config]);
+    }, [resultsRunner, org.data, config]);
 
-    // Caching behaviour seems specific to each chart and should be handled there
+    // Caching behavior seems specific to each chart and should be handled there
     const queryKey = useMemo(() => {
         if (!config) return undefined;
         if (isVizTableConfig(config)) return undefined;

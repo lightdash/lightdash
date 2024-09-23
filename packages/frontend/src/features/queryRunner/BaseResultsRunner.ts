@@ -16,6 +16,7 @@ import {
     type VizIndexLayoutOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
+import { QueryClient } from '@tanstack/react-query';
 
 function getDimensionTypeFromSemanticLayerFieldType(
     type: SemanticLayerFieldType,
@@ -59,6 +60,10 @@ export class BaseResultsRunner implements IResultsRunner {
 
     private readonly metrics: SemanticLayerField[];
 
+    // NOTE: putting the query client on the Base means that
+    // this is essentially a frontend only class. The backend would need it's own base.
+    private readonly queryClient: QueryClient;
+
     // MARSHALL REFACTOR: should take no arguments
     private readonly runPivotQuery: RunPivotQuery;
 
@@ -87,21 +92,30 @@ export class BaseResultsRunner implements IResultsRunner {
         this.metrics = this.availableFields.filter(
             (field) => field.kind === FieldType.METRIC,
         );
+
+        this.queryClient = new QueryClient();
     }
 
     async getPivotedVisualizationData(
         query: SemanticLayerQuery,
     ): Promise<PivotChartData> {
+        const emptyPivotChartData: PivotChartData = {
+            fileUrl: undefined,
+            results: [],
+            indexColumn: undefined,
+            valuesColumns: [],
+            columns: [],
+        };
+
         if (!!query.pivot?.index.length || !!query.pivot?.values.length) {
-            return {
-                fileUrl: undefined,
-                results: [],
-                indexColumn: undefined,
-                valuesColumns: [],
-                columns: [],
-            };
+            return emptyPivotChartData;
         }
-        return this.runPivotQuery(query);
+
+        // TODO: use a real query key
+        return this.queryClient.fetchQuery({
+            queryKey: ['transformedData', query],
+            queryFn: () => this.runPivotQuery(query),
+        });
     }
 
     getPivotQueryDimensions(): VizIndexLayoutOptions[] {
@@ -189,12 +203,12 @@ export class BaseResultsRunner implements IResultsRunner {
         return this.availableFields.map((field) => field.name);
     }
 
-    // used by the table viz only
+    // TODO: used by the table viz only
     getColumnsAccessorFn(column: string) {
         return (row: RawResultRow) => row[column];
     }
 
-    // TODO: Powers the table visualisation - move this out the runner
+    // TODO: Powers the table visualization - move this out the runner
     getRows() {
         return this.rows;
     }

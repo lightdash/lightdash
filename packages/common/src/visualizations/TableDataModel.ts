@@ -1,4 +1,5 @@
-import { type ChartKind } from '../types/savedCharts';
+import { type RawResultRow } from '../types/results';
+import { ChartKind } from '../types/savedCharts';
 import {
     type SemanticLayerQuery,
     type SemanticLayerSortBy,
@@ -6,17 +7,25 @@ import {
 import { type VizTableConfig, type VizTableHeaderSortConfig } from './types';
 import type { IResultsRunner } from './types/IResultsRunner';
 
+const defaultTableConfig: VizTableConfig = {
+    type: ChartKind.TABLE,
+    metadata: {
+        version: 1,
+    },
+    columns: {},
+};
+
 export class TableDataModel {
     private readonly resultsRunner: IResultsRunner;
 
-    private readonly config: VizTableConfig | undefined;
+    private readonly config: VizTableConfig;
 
     constructor(args: {
         resultsRunner: IResultsRunner;
-        config: VizTableConfig | undefined;
+        config?: VizTableConfig | undefined;
     }) {
         this.resultsRunner = args.resultsRunner;
-        this.config = args.config;
+        this.config = args.config ?? defaultTableConfig;
     }
 
     private getColumns() {
@@ -77,6 +86,14 @@ export class TableDataModel {
         return { defaultColumnConfig: columns };
     }
 
+    public getConfig() {
+        return this.config;
+    }
+
+    static getColumnsAccessorFn(column: string) {
+        return (row: RawResultRow) => row[column];
+    }
+
     mergeConfig(chartKind: ChartKind.TABLE): VizTableConfig {
         return {
             type: chartKind,
@@ -85,5 +102,10 @@ export class TableDataModel {
             },
             columns: this.getResultOptions().defaultColumnConfig,
         };
+    }
+
+    getSpec(query?: SemanticLayerQuery) {
+        console.log('not implemented in table', this.config, query);
+        return {};
     }
 }

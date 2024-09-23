@@ -1,7 +1,9 @@
 import { DimensionType } from '../types/field';
-import { type ChartKind } from '../types/savedCharts';
+import { ChartKind } from '../types/savedCharts';
 import { type SemanticLayerQuery } from '../types/semanticLayer';
 import {
+    VizAggregationOptions,
+    VizIndexType,
     type PivotChartData,
     type VizConfigErrors,
     type VizPieChartConfig,
@@ -12,11 +14,39 @@ import {
     type PivotChartLayout,
 } from './types/IResultsRunner';
 
+const defaultPieChartConfig: VizPieChartConfig = {
+    metadata: {
+        version: 1,
+    },
+    type: ChartKind.PIE,
+    fieldConfig: {
+        x: {
+            reference: 'x',
+            axisType: VizIndexType.CATEGORY,
+            dimensionType: DimensionType.STRING,
+        },
+        y: [
+            {
+                reference: 'y',
+                aggregation: VizAggregationOptions.SUM,
+            },
+        ],
+        groupBy: [],
+    },
+    display: {},
+};
+
 export class PieChartDataModel {
     private readonly resultsRunner: IResultsRunner;
 
-    constructor(args: { resultsRunner: IResultsRunner }) {
+    private readonly config: VizPieChartConfig;
+
+    constructor(args: {
+        resultsRunner: IResultsRunner;
+        config?: VizPieChartConfig;
+    }) {
         this.resultsRunner = args.resultsRunner;
+        this.config = args.config ?? defaultPieChartConfig;
     }
 
     getDefaultLayout(): PivotChartLayout | undefined {
@@ -249,5 +279,10 @@ export class PieChartDataModel {
                 },
             ],
         };
+    }
+
+    getSpec(query?: SemanticLayerQuery) {
+        console.log('not implemented in pie', this.config, query);
+        return {};
     }
 }

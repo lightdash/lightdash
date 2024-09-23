@@ -1,11 +1,4 @@
-import {
-    ChartKind,
-    TableDataModel,
-    type IResultsRunner,
-    type RawResultRow,
-    type VizTableColumnsConfig,
-    type VizTableConfig,
-} from '@lightdash/common';
+import { TableDataModel, type RawResultRow } from '@lightdash/common';
 import {
     getCoreRowModel,
     useReactTable,
@@ -16,34 +9,18 @@ import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
 
-// TODO: Remove this when useVirtualTable is ready
-export const useTableDataModel = ({
-    config,
-    resultsRunner,
+// TODO: This is meant to replace useTableDataModel
+export const useVirtualTable = ({
+    tableDataModel,
 }: {
-    config: VizTableColumnsConfig | undefined;
-    resultsRunner: IResultsRunner;
+    tableDataModel: TableDataModel;
 }) => {
-    const tableModel = useMemo(() => {
-        // TODO: currently usage of this hook relies just on columns, change to rely on full config so we don't have to create a dummy config
-        const tableConfig: VizTableConfig | undefined = config
-            ? {
-                  type: ChartKind.TABLE,
-                  metadata: {
-                      version: 1,
-                  },
-                  columns: config?.columns ?? {},
-              }
-            : undefined;
-
-        return new TableDataModel({
-            resultsRunner,
-            config: tableConfig,
-        });
-    }, [resultsRunner, config]);
-
-    const columns = useMemo(() => tableModel.getVisibleColumns(), [tableModel]);
-    const rows = useMemo(() => tableModel.getRows(), [tableModel]);
+    const columns = useMemo(
+        () => tableDataModel.getVisibleColumns(),
+        [tableDataModel],
+    );
+    const rows = useMemo(() => tableDataModel.getRows(), [tableDataModel]);
+    const config = useMemo(() => tableDataModel.getConfig(), [tableDataModel]);
 
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
         return columns.map((column) => ({
@@ -51,11 +28,11 @@ export const useTableDataModel = ({
             // react table has a bug with accessors that has dots in them
             // we found the fix here -> https://github.com/TanStack/table/issues/1671
             // do not remove the line below
-            accessorFn: resultsRunner.getColumnsAccessorFn(column),
-            header: config?.columns[column].label || column,
+            accessorFn: TableDataModel.getColumnsAccessorFn(column),
+            header: config.columns[column].label || column,
             cell: getValueCell,
         }));
-    }, [columns, config?.columns, resultsRunner]);
+    }, [columns, config.columns]);
 
     const table = useReactTable({
         data: rows,
@@ -69,12 +46,12 @@ export const useTableDataModel = ({
 
     const virtualizer = useVirtualizer({
         getScrollElement: () => tableWrapperRef.current,
-        count: tableModel.getRowsCount(),
+        count: tableDataModel.getRowsCount(),
         estimateSize: () => getRowHeight(),
         overscan: 25,
     });
 
-    const getTableData = () => {
+    const getTableData = useCallback(() => {
         const { rows: rowModelRows } = table.getRowModel();
         const virtualRows = virtualizer.getVirtualItems();
 
@@ -83,7 +60,7 @@ export const useTableDataModel = ({
             virtualRows,
             rowModelRows,
         };
-    };
+    }, [table, virtualizer]);
 
     const paddingTop =
         virtualizer.getVirtualItems().length > 0
@@ -102,8 +79,6 @@ export const useTableDataModel = ({
         columns,
         rows,
         getRowHeight,
-        getRowsCount: () => tableModel.getRowsCount(),
-        getColumnsCount: () => tableModel.getColumnsCount(),
         getTableData,
         paddingTop,
         paddingBottom,

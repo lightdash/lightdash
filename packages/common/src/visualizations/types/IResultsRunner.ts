@@ -65,7 +65,7 @@ export interface IResultsRunner {
 
     getColumns(): string[];
 
-    // Sql specific?
+    // TODO: Remove this. Its on the table data model now
     getColumnsAccessorFn(
         column: string,
     ): (row: RawResultRow) => RawResultRow[string];

@@ -3,11 +3,15 @@ import { Box, Tabs, useMantineTheme } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { useAsync } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
+import { Table2 } from '../../../components/DataViz/visualizations/Table2';
+
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 import {
@@ -26,9 +30,19 @@ type ContentChartsProps = {
 const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const mantineTheme = useMantineTheme();
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
-
+    const [openPanel, setOpenPanel] = useState<TabPanel>();
+    const org = useOrganization();
     const { results, columnNames, activeChartKind, fields, sortBy, filters } =
         useAppSelector((state) => state.semanticViewer);
+
+    // Get config. This could be a UUID fetch on dashboards
+    const vizConfig = useAppSelector((state) =>
+        selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
+    );
+
+    const semanticLayerQuery = useAppSelector((state) =>
+        selectSemanticLayerQuery(state),
+    );
 
     const resultsRunner = useMemo(() => {
         return new SemanticViewerResultsRunnerFrontend({
@@ -39,15 +53,41 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         });
     }, [columnNames, fields, projectUuid, results]);
 
-    const vizConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
+    const vizDataModel = useMemo(() => {
+        return getChartDataModel(resultsRunner, vizConfig, org.data);
+    }, [vizConfig, resultsRunner, org.data]);
+
+    const pivotTableDataModel = useMemo(() => {
+        console.log('new tabel model');
+        return new TableDataModel({ resultsRunner });
+    }, [resultsRunner]);
+
+    const {
+        loading: chartLoading,
+        error: chartError,
+        value: chartSpec,
+    } = useAsync(
+        async () => vizDataModel.getSpec(semanticLayerQuery),
+        [semanticLayerQuery],
     );
 
-    const semanticLayerQuery = useAppSelector((state) =>
-        selectSemanticLayerQuery(state),
-    );
+    // For the table only -- move to table data model?
+    // const pivotResultsRunner = useMemo(() => {
+    //     return new SemanticViewerResultsRunnerFrontend({
+    //         rows: chartSpec?.results ?? [],
+    //         columnNames:
+    //             chartVizQuery.data?.columns.map((c) => c.reference) ?? [],
+    //         fields: fields,
+    //         projectUuid,
+    //     });
+    // }, [projectUuid, chartSpec, fields]);
 
-    const [openPanel, setOpenPanel] = useState<TabPanel>();
+    const thSortConfig = useMemo(() => {
+        return TableDataModel.getTableHeaderSortConfig(
+            columnNames,
+            semanticLayerQuery,
+        );
+    }, [columnNames, semanticLayerQuery]);
 
     const handleOpenPanel = (panel: TabPanel) => {
         setOpenPanel(panel);
@@ -56,36 +96,6 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const handleClosePanel = () => {
         setOpenPanel(undefined);
     };
-
-    const [chartVizQuery, chartSpec] = useChartViz({
-        resultsRunner,
-        config: vizConfig,
-        projectUuid,
-        semanticLayerQuery,
-        additionalQueryKey: [filters, sortBy],
-    });
-
-    const pivotResultsRunner = useMemo(() => {
-        return new SemanticViewerResultsRunnerFrontend({
-            rows: chartVizQuery.data?.results ?? [],
-            columnNames:
-                chartVizQuery.data?.columns.map((c) => c.reference) ?? [],
-            fields: fields,
-            projectUuid,
-        });
-    }, [
-        chartVizQuery.data?.columns,
-        chartVizQuery.data?.results,
-        projectUuid,
-        fields,
-    ]);
-
-    const thSortConfig = useMemo(() => {
-        return TableDataModel.getTableHeaderSortConfig(
-            columnNames,
-            semanticLayerQuery,
-        );
-    }, [columnNames, semanticLayerQuery]);
 
     return (
         <>
@@ -114,10 +124,10 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                         />
                     ) : vizConfig && !isVizTableConfig(vizConfig) ? (
                         <ChartView
-                            config={vizConfig}
+                            config={vizConfig} // Config only used for error messaging
                             spec={chartSpec}
-                            isLoading={chartVizQuery.isFetching}
-                            error={chartVizQuery.error}
+                            isLoading={chartLoading}
+                            error={chartError}
                             style={{
                                 flexGrow: 1,
                                 width: '100%',
@@ -154,24 +164,9 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 minSize={10}
                                 onCollapse={() => setOpenPanel(undefined)}
                             >
-                                <Table
-                                    resultsRunner={pivotResultsRunner}
+                                <Table2
+                                    dataModel={pivotTableDataModel}
                                     thSortConfig={thSortConfig}
-                                    columnsConfig={Object.fromEntries(
-                                        chartVizQuery.data?.columns.map(
-                                            (field) => [
-                                                field.reference,
-                                                {
-                                                    visible: true,
-                                                    reference: field.reference,
-                                                    label: field.reference,
-                                                    frozen: false,
-                                                    // TODO: add aggregation
-                                                    // aggregation?: VizAggregationOptions;
-                                                },
-                                            ],
-                                        ) ?? [],
-                                    )}
                                 />
                             </Panel>
                         </>
