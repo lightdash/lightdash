@@ -200,7 +200,7 @@ const generateTableCompletions = (
 };
 
 export const SqlEditor: FC<{
-    onSubmit?: (sql?: string) => void;
+    onSubmit?: (sql: string) => void;
     highlightText?: MonacoHighlightLine;
     resetHighlightError?: () => void;
 }> = ({ onSubmit, highlightText, resetHighlightError }) => {
@@ -214,13 +214,6 @@ export const SqlEditor: FC<{
         search: undefined,
     });
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
-    const sqlRef = useRef(sql);
-    const onSubmitRef = useRef(onSubmit);
-
-    useEffect(() => {
-        sqlRef.current = sql;
-        onSubmitRef.current = onSubmit;
-    }, [sql, onSubmit]);
 
     const language = useMemo(
         () => getLanguage(data?.warehouseConnection?.type),
@@ -267,7 +260,8 @@ export const SqlEditor: FC<{
                 monacoObj.KeyMod.CtrlCmd | monacoObj.KeyCode.Enter,
                 () => {
                     const currentSql = editorObj.getValue();
-                   onSubmit(currentSql ?? '');
+                    if (!onSubmit) return;
+                    onSubmit(currentSql ?? '');
                 },
             );
         },
