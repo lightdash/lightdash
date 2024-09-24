@@ -173,9 +173,7 @@ export class CartesianChartDataModel
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
                 const isSingleAxis = this.fieldConfig?.y.length === 1;
-                const foundSeries = Object.values(display?.series || {}).find(
-                    (s) => s.yAxisIndex === index,
-                );
+                const foundSeries = display?.series?.[seriesColumn];
                 const {
                     format,
                     color,
@@ -269,11 +267,7 @@ export class CartesianChartDataModel
                     position: display?.yAxis?.[0]?.position || 'left',
                     name:
                         (display?.yAxis && display.yAxis[0]?.label) ||
-                        friendlyName(
-                            transformedData.valuesColumns.length === 1
-                                ? transformedData.valuesColumns[0]
-                                : '',
-                        ),
+                        friendlyName(transformedData.valuesColumns[0]),
                     nameLocation: 'center',
                     nameGap: 50,
                     nameRotate: 90,
@@ -315,7 +309,7 @@ export type CartesianChartDisplay = {
         [key: string]: {
             label?: string;
             format?: Format;
-            yAxisIndex?: number;
+            yAxisIndex?: 0 | 1;
             color?: string;
             type?: ChartKind.LINE | ChartKind.VERTICAL_BAR;
         };

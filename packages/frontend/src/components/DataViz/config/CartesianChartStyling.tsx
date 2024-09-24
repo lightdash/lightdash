@@ -45,20 +45,18 @@ export const CartesianChartStyling = ({
             return [];
         }
         return currentConfig?.config?.fieldConfig?.y.map((f, index) => {
-            const foundSeries = Object.values(
-                currentConfig?.config?.display?.series || {},
-            ).find((s) => s.yAxisIndex === index);
+            const reference = `${f.reference}_${f.aggregation}`;
+            const foundSeries =
+                currentConfig?.config?.display?.series?.[reference];
 
             const seriesFormat = foundSeries?.format;
             const seriesLabel = foundSeries?.label;
             const seriesColor = foundSeries?.color;
             const seriesType = foundSeries?.type;
             return {
-                reference: f.reference,
+                reference,
                 format: seriesFormat,
-                label:
-                    seriesLabel ??
-                    friendlyName(`${f.reference}_${f.aggregation}`),
+                label: seriesLabel ?? friendlyName(reference),
                 color: seriesColor ?? colors[index],
                 type: seriesType,
             };
