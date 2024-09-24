@@ -1,6 +1,5 @@
 import type {
     AllVizChartConfig,
-    ApiError,
     ChartKind,
     Dashboard,
     LightdashUser,
@@ -11,7 +10,7 @@ import type {
 } from '..';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
-import { SchedulerJobStatus } from './scheduler';
+import { type SchedulerJobStatus } from './scheduler';
 
 export type SemanticLayerView = {
     name: string;
@@ -56,7 +55,7 @@ export type SemanticLayerField = {
     visible: boolean;
     aggType?: string; // eg: count, sum
     availableGranularities: SemanticLayerTimeGranularity[];
-    availableOperators: SemanticLayerStringFilterOperator[];
+    availableOperators: SemanticLayerFilter['operator'][];
 };
 
 export type SemanticLayerTimeDimension = SemanticLayerField & {
@@ -149,31 +148,6 @@ export type SemanticLayerQueryPayload = {
     context: 'semanticViewer';
 };
 
-export enum SemanticLayerStringFilterOperator {
-    IS = 'IS',
-    IS_NOT = 'IS NOT',
-}
-
-export type SemanticLayerFilterBase = {
-    uuid: string;
-    field: string;
-    fieldKind: FieldType; // This is mostly to help with frontend state and avoiding having to set all the fields in redux to be able to find the kind
-    fieldType: SemanticLayerFieldType;
-};
-
-export type SemanticLayerStringFilter = SemanticLayerFilterBase & {
-    operator: SemanticLayerStringFilterOperator;
-    values: string[];
-};
-
-// TODO: right now we only support string filters, this type should be a union of all filter types
-type SemanticLayerFilterTypes = SemanticLayerStringFilter;
-
-export type SemanticLayerFilter = SemanticLayerFilterTypes & {
-    and?: SemanticLayerFilter[];
-    or?: SemanticLayerFilter[];
-};
-
 // Helper functions and constants
 const SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT = 500;
 
@@ -191,49 +165,7 @@ export function getDefaultedLimit(
     );
 }
 
-export function getAvailableSemanticLayerFilterOperators(
-    fieldType: SemanticLayerFieldType,
-) {
-    switch (fieldType) {
-        case SemanticLayerFieldType.STRING:
-            return [
-                SemanticLayerStringFilterOperator.IS,
-                SemanticLayerStringFilterOperator.IS_NOT,
-            ];
-        case SemanticLayerFieldType.NUMBER:
-        case SemanticLayerFieldType.BOOLEAN:
-        case SemanticLayerFieldType.TIME:
-            return [];
-        default:
-            return assertUnreachable(
-                fieldType,
-                `Unsupported field type: ${fieldType}`,
-            );
-    }
-}
-
-export function getFilterFieldNamesRecursively(filter: SemanticLayerFilter): {
-    field: string;
-    fieldKind: FieldType;
-    fieldType: SemanticLayerFieldType;
-}[] {
-    const andFiltersFieldNames =
-        filter.and?.flatMap(getFilterFieldNamesRecursively) ?? [];
-    const orFiltersFieldNames =
-        filter.or?.flatMap(getFilterFieldNamesRecursively) ?? [];
-
-    return [
-        {
-            field: filter.field,
-            fieldKind: filter.fieldKind,
-            fieldType: filter.fieldType,
-        },
-        ...andFiltersFieldNames,
-        ...orFiltersFieldNames,
-    ];
-}
-
-// Semantic Layer Schedueler Job
+// Semantic Layer Scheduler Job
 
 export const semanticLayerQueryJob = 'semanticLayer';
 
@@ -244,19 +176,28 @@ export type SemanticLayerJobStatusSuccessDetails = {
 
 export type SemanticLayerJobStatusErrorDetails = {
     error: string;
-    charNumber?: number;
-    lineNumber?: number;
     createdByUserUuid: string;
 };
 
 export type ApiSemanticLayerJobStatusResponse = {
     status: 'ok';
-    results: {
-        status: SchedulerJobStatus;
-        details:
-            | SemanticLayerJobStatusSuccessDetails
-            | SemanticLayerJobStatusErrorDetails;
-    };
+    results:
+        | {
+              status: SchedulerJobStatus.SCHEDULED;
+              details?: undefined;
+          }
+        | {
+              status: SchedulerJobStatus.STARTED;
+              details?: undefined;
+          }
+        | {
+              status: SchedulerJobStatus.COMPLETED;
+              details: SemanticLayerJobStatusSuccessDetails;
+          }
+        | {
+              status: SchedulerJobStatus.ERROR;
+              details: SemanticLayerJobStatusErrorDetails;
+          };
 };
 
 export type ApiSemanticLayerJobSuccessResponse =
@@ -267,17 +208,137 @@ export type ApiSemanticLayerJobSuccessResponse =
         };
     };
 
-export function isSemanticLayerJobErrorDetails(
-    results?: ApiSemanticLayerJobStatusResponse['results']['details'],
-): results is SemanticLayerJobStatusErrorDetails {
-    return (results as SemanticLayerJobStatusErrorDetails).error !== undefined;
+// Semantic Layer Filters
+
+export enum SemanticLayerFilterBaseOperator {
+    IS = 'IS',
+    IS_NOT = 'IS_NOT',
 }
 
-export const isApiSemanticLayerJobSuccessResponse = (
-    response: ApiSemanticLayerJobStatusResponse['results'] | ApiError,
-): response is ApiSemanticLayerJobSuccessResponse['results'] =>
-    response.status === SchedulerJobStatus.COMPLETED;
+export enum SemanticLayerFilterRelativeTimeValue {
+    TODAY = 'TODAY',
+    YESTERDAY = 'YESTERDAY',
+    LAST_7_DAYS = 'LAST_7_DAYS',
+    LAST_30_DAYS = 'LAST_30_DAYS',
+}
 
+export type SemanticLayerFilterBase = {
+    uuid: string;
+    fieldRef: string;
+    fieldKind: FieldType; // This is mostly to help with frontend state and avoiding having to set all the fields in redux to be able to find the kind
+    fieldType: SemanticLayerFieldType;
+};
+
+export type SemanticLayerStringFilter = SemanticLayerFilterBase & {
+    fieldType: SemanticLayerFieldType.STRING;
+    operator: SemanticLayerFilterBaseOperator;
+    values: string[];
+};
+
+export type SemanticLayerExactTimeFilter = SemanticLayerFilterBase & {
+    fieldType: SemanticLayerFieldType.TIME;
+    operator: SemanticLayerFilterBaseOperator;
+    values: { time: string };
+};
+
+export type SemanticLayerRelativeTimeFilter = SemanticLayerFilterBase & {
+    fieldType: SemanticLayerFieldType.TIME;
+    operator: SemanticLayerFilterBaseOperator;
+    values: { relativeTime: SemanticLayerFilterRelativeTimeValue };
+};
+
+export type SemanticLayerTimeFilter =
+    | SemanticLayerExactTimeFilter
+    | SemanticLayerRelativeTimeFilter;
+
+type SemanticLayerFilterTypes =
+    | SemanticLayerStringFilter
+    | SemanticLayerTimeFilter;
+
+export type SemanticLayerFilter = SemanticLayerFilterTypes & {
+    and?: SemanticLayerFilter[];
+    or?: SemanticLayerFilter[];
+};
+
+export const isSemanticLayerBaseOperator = (
+    operator: SemanticLayerFilter['operator'],
+): operator is SemanticLayerFilterBaseOperator =>
+    operator === SemanticLayerFilterBaseOperator.IS ||
+    operator === SemanticLayerFilterBaseOperator.IS_NOT;
+
+export function isSemanticLayerRelativeTimeValue(
+    value: string,
+): value is SemanticLayerFilterRelativeTimeValue {
+    return (
+        value === SemanticLayerFilterRelativeTimeValue.TODAY ||
+        value === SemanticLayerFilterRelativeTimeValue.YESTERDAY ||
+        value === SemanticLayerFilterRelativeTimeValue.LAST_7_DAYS ||
+        value === SemanticLayerFilterRelativeTimeValue.LAST_30_DAYS
+    );
+}
+
+export function isSemanticLayerRelativeTimeFilter(
+    filter: Pick<SemanticLayerFilter, 'fieldType' | 'values'>,
+): filter is SemanticLayerRelativeTimeFilter {
+    return (
+        filter.fieldType === SemanticLayerFieldType.TIME &&
+        'relativeTime' in filter.values &&
+        isSemanticLayerRelativeTimeValue(filter.values.relativeTime)
+    );
+}
+
+export function isSemanticLayerExactTimeFilter(
+    filter: Pick<SemanticLayerFilter, 'fieldType' | 'values'>,
+): filter is SemanticLayerExactTimeFilter {
+    return (
+        filter.fieldType === SemanticLayerFieldType.TIME &&
+        'time' in filter.values
+    );
+}
+
+export function getAvailableSemanticLayerFilterOperators(
+    fieldType: SemanticLayerFieldType,
+) {
+    switch (fieldType) {
+        case SemanticLayerFieldType.STRING:
+            return [
+                SemanticLayerFilterBaseOperator.IS,
+                SemanticLayerFilterBaseOperator.IS_NOT,
+            ];
+        case SemanticLayerFieldType.NUMBER:
+        case SemanticLayerFieldType.BOOLEAN:
+            return [];
+        case SemanticLayerFieldType.TIME:
+            return [
+                SemanticLayerFilterBaseOperator.IS,
+                SemanticLayerFilterBaseOperator.IS_NOT,
+            ];
+        default:
+            return assertUnreachable(
+                fieldType,
+                `Unsupported field type: ${fieldType}`,
+            );
+    }
+}
+
+export function getFlattenedFilterFieldProps(
+    filter: SemanticLayerFilter,
+): Pick<SemanticLayerFilter, 'fieldRef' | 'fieldKind' | 'fieldType'>[] {
+    const andFiltersFieldNames =
+        filter.and?.flatMap(getFlattenedFilterFieldProps) ?? [];
+    const orFiltersFieldNames =
+        filter.or?.flatMap(getFlattenedFilterFieldProps) ?? [];
+
+    return [
+        {
+            fieldRef: filter.fieldRef,
+            fieldKind: filter.fieldKind,
+            fieldType: filter.fieldType,
+        },
+        ...andFiltersFieldNames,
+        ...orFiltersFieldNames,
+    ];
+}
 export type SavedSemanticViewerChart = {
     savedSemanticViewerChartUuid: string;
     name: string;

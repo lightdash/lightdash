@@ -335,6 +335,8 @@ type RollbackChartVersionEvent = BaseTrack & {
 export type CreateSavedChartVersionEvent = BaseTrack & {
     event: 'saved_chart_version.created';
     properties: {
+        title: string;
+        description: string | undefined;
         projectId: string;
         savedQueryId: string;
         dimensionsCount: number;
@@ -510,6 +512,8 @@ type UpdatedDashboardEvent = BaseTrack & {
 export type CreateDashboardOrVersionEvent = BaseTrack & {
     event: 'dashboard.created' | 'dashboard_version.created';
     properties: {
+        title: string;
+        description: string | undefined;
         projectId: string;
         dashboardId: string;
         filtersCount: number;

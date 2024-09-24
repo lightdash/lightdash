@@ -104,6 +104,7 @@ export type SearchResultClickedEvent = {
             | 'table'
             | 'field'
             | 'sql_chart'
+            | 'semantic_viewer_chart'
             | 'page';
         id: string;
     };

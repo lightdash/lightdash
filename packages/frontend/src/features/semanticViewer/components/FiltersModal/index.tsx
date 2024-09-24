@@ -1,8 +1,4 @@
-import {
-    FieldType as FieldKind,
-    SemanticLayerFieldType,
-    type SemanticLayerFilter,
-} from '@lightdash/common';
+import { type SemanticLayerFilter } from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -13,8 +9,6 @@ import {
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import useToaster from '../../../../hooks/toaster/useToaster';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { selectAllSelectedFieldNames } from '../../store/selectors';
 import { setFilters } from '../../store/semanticViewerSlice';
@@ -22,7 +16,7 @@ import Filter from './Filter';
 import FilterButton from './FilterButton';
 import FilterFieldSelect from './FilterFieldSelect';
 
-type FiltersModalProps = ModalProps & {
+type FiltersModalProps = Omit<ModalProps, 'opened'> & {
     onApply?: () => void;
 };
 
@@ -32,32 +26,19 @@ const FiltersModal: FC<FiltersModalProps> = ({
     ...props
 }) => {
     const [isAddingFilter, setIsAddingFilter] = useState(false);
-
     const { filters, fields } = useAppSelector((state) => state.semanticViewer);
-    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
+    const selectedFields = useAppSelector(selectAllSelectedFieldNames);
 
-    const [draftFilters, setDraftFilters] =
-        useState<SemanticLayerFilter[]>(filters);
-
-    const dispatch = useAppDispatch();
-
-    const { showToastError } = useToaster();
-
-    const availableFieldOptions = useMemo(() => {
+    const fieldOptions = useMemo(() => {
         if (!fields) return [];
 
         return fields
-            .filter(
-                (f) =>
-                    f.visible &&
-                    f.type === SemanticLayerFieldType.STRING &&
-                    f.kind === FieldKind.DIMENSION, // TODO: for now only string dimensions are supported
-            )
+            .filter((f) => f.visible && f.availableOperators.length > 0)
             .map((f) => ({
                 value: f.name,
                 field: f,
                 label: f.label,
-                group: allSelectedFieldNames.includes(f.name)
+                group: selectedFields.includes(f.name)
                     ? 'Results'
                     : 'Other fields',
             }))
@@ -67,7 +48,12 @@ const FiltersModal: FC<FiltersModalProps> = ({
 
                 return bValue - aValue;
             });
-    }, [allSelectedFieldNames, fields]);
+    }, [selectedFields, fields]);
+
+    const [draftFilters, setDraftFilters] =
+        useState<SemanticLayerFilter[]>(filters);
+
+    const dispatch = useAppDispatch();
 
     const handleUpdateFilter = (updatedFilter: SemanticLayerFilter) => {
         setDraftFilters((prev) => {
@@ -93,6 +79,7 @@ const FiltersModal: FC<FiltersModalProps> = ({
     return (
         <Modal
             {...props}
+            opened
             title={
                 <Title order={5} fw={500}>
                     Filters
@@ -107,8 +94,8 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         key={filter.uuid}
                         isFirstRootFilter={index === 0}
                         filter={filter}
-                        fieldOptions={availableFieldOptions}
-                        allFields={fields ?? []}
+                        fields={fields ?? []}
+                        fieldOptions={fieldOptions}
                         onDelete={() => handleRemoveFilter(filter.uuid)}
                         onUpdate={handleUpdateFilter}
                     />
@@ -122,39 +109,11 @@ const FiltersModal: FC<FiltersModalProps> = ({
                     </FilterButton>
                 ) : (
                     <FilterFieldSelect
-                        availableFieldOptions={availableFieldOptions}
-                        onFieldChange={(value) => {
+                        fields={fields}
+                        fieldOptions={fieldOptions}
+                        isCreatingFilter
+                        onCreate={(newFilter) => {
                             setIsAddingFilter(false);
-
-                            const field = fields?.find((f) => f.name === value);
-
-                            if (!field) {
-                                showToastError({
-                                    title: 'Error',
-                                    subtitle: 'Field not found',
-                                });
-                                return;
-                            }
-
-                            const defaultOperator = field.availableOperators[0];
-
-                            if (!defaultOperator) {
-                                showToastError({
-                                    title: 'Error',
-                                    subtitle:
-                                        'No filter operators available for this field',
-                                });
-                                return;
-                            }
-                            const newFilter = {
-                                uuid: uuidv4(),
-                                field: value,
-                                fieldKind: field.kind,
-                                fieldType: field.type,
-                                operator: defaultOperator,
-                                values: [],
-                            };
-
                             setDraftFilters((prev) => [...prev, newFilter]);
                         }}
                         onCancel={
@@ -162,7 +121,6 @@ const FiltersModal: FC<FiltersModalProps> = ({
                                 ? () => setIsAddingFilter(false)
                                 : undefined
                         }
-                        isCreatingFilter
                     />
                 )}
                 <Flex w="100%" justify="flex-end">

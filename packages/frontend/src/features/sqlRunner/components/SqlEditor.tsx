@@ -200,7 +200,7 @@ const generateTableCompletions = (
 };
 
 export const SqlEditor: FC<{
-    onSubmit?: () => void;
+    onSubmit?: (sql: string) => void;
     highlightText?: MonacoHighlightLine;
     resetHighlightError?: () => void;
 }> = ({ onSubmit, highlightText, resetHighlightError }) => {
@@ -214,13 +214,6 @@ export const SqlEditor: FC<{
         search: undefined,
     });
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
-    const sqlRef = useRef(sql);
-    const onSubmitRef = useRef(onSubmit);
-
-    useEffect(() => {
-        sqlRef.current = sql;
-        onSubmitRef.current = onSubmit;
-    }, [sql, onSubmit]);
 
     const language = useMemo(
         () => getLanguage(data?.warehouseConnection?.type),
@@ -258,18 +251,22 @@ export const SqlEditor: FC<{
     const decorationsCollectionRef =
         useRef<editor.IEditorDecorationsCollection | null>(null); // Ref to store the decorations collection
 
-    const onMount: OnMount = useCallback((editorObj, monacoObj) => {
-        editorRef.current = editorObj;
-        decorationsCollectionRef.current =
-            editorObj.createDecorationsCollection(); // Initialize the decorations collection
-        editorObj.addCommand(
-            monacoObj.KeyMod.CtrlCmd | monacoObj.KeyCode.Enter,
-            () => {
-                // When the editor is mounted, the onSubmit callback should be set to the latest value, otherwise it will be set to the initial value on the first render
-                onSubmitRef.current?.();
-            },
-        );
-    }, []);
+    const onMount: OnMount = useCallback(
+        (editorObj, monacoObj) => {
+            editorRef.current = editorObj;
+            decorationsCollectionRef.current =
+                editorObj.createDecorationsCollection();
+            editorObj.addCommand(
+                monacoObj.KeyMod.CtrlCmd | monacoObj.KeyCode.Enter,
+                () => {
+                    const currentSql = editorObj.getValue();
+                    if (!onSubmit) return;
+                    onSubmit(currentSql ?? '');
+                },
+            );
+        },
+        [onSubmit],
+    );
 
     useEffect(() => {
         // remove any existing decorations

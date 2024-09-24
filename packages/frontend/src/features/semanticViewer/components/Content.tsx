@@ -1,3 +1,4 @@
+import { ChartKind } from '@lightdash/common';
 import { Center, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
@@ -95,7 +96,7 @@ const Content: FC = () => {
 
         const chartResultOptions = getChartConfigAndOptions(
             resultsRunner,
-            activeChartKind,
+            activeChartKind ?? ChartKind.TABLE,
             currentVizConfig,
         );
 

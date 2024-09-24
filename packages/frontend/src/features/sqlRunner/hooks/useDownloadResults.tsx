@@ -1,20 +1,22 @@
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { type VizColumn } from '@lightdash/common';
+import { useCallback } from 'react';
+import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 
-import { IconDownload } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { useResultsFromStreamWorker } from '../hooks/useResultsFromStreamWorker';
-
-type DownloadCsvButtonProps = {
-    fileUrl: string | undefined;
-    columns: { reference: string }[];
-    chartName?: string;
-};
-
-export const DownloadCsvButton: FC<DownloadCsvButtonProps> = ({
+/**
+ * Hook to download results from a stream worker as a CSV file
+ * @param fileUrl - The URL of the file to download
+ * @param columns - The columns of the streamed results
+ * @param chartName - The name of the chart
+ * @returns The download handler
+ */
+export const useDownloadResults = ({
     fileUrl,
     columns,
     chartName,
+}: {
+    fileUrl: string | undefined;
+    columns: VizColumn[];
+    chartName?: string;
 }) => {
     const { getResultsFromStream } = useResultsFromStreamWorker();
     const handleDownload = useCallback(async () => {
@@ -39,22 +41,14 @@ export const DownloadCsvButton: FC<DownloadCsvButtonProps> = ({
         link.href = url;
         link.setAttribute(
             'download',
-            `${chartName || 'SQL runner results'}.csv`,
+            `${
+                chartName || 'SQL runner results'
+            }-${new Date().toISOString()}.csv`,
         );
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     }, [fileUrl, columns, chartName, getResultsFromStream]);
 
-    return (
-        <Tooltip label={`Download results as .csv`}>
-            <ActionIcon
-                variant="default"
-                disabled={!fileUrl}
-                onClick={handleDownload}
-            >
-                <MantineIcon icon={IconDownload} />
-            </ActionIcon>
-        </Tooltip>
-    );
+    return { handleDownload };
 };

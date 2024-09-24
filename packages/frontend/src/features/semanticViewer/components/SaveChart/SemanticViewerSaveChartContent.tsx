@@ -1,10 +1,11 @@
+import { ChartKind } from '@lightdash/common';
 import { Button, Input, useMantineTheme } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { selectChartConfigByKind } from '../../../../components/DataViz/store/selectors';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectSemanticLayerQuery } from '../../store/selectors';
+import { selectAllSelectedFieldNames } from '../../store/selectors';
 import {
     updateName,
     updateSaveModalOpen,
@@ -15,19 +16,19 @@ const SemanticViewerSaveChartContent: FC = () => {
     const dispatch = useAppDispatch();
 
     const name = useAppSelector((state) => state.semanticViewer.name);
-    const semanticLayerQuery = useAppSelector(selectSemanticLayerQuery);
+    const selectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
     const activeChartKind = useAppSelector(
         (state) => state.semanticViewer.activeChartKind,
     );
     const selectedChartConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, activeChartKind),
+        selectChartConfigByKind(state, activeChartKind ?? ChartKind.TABLE),
     );
 
     const handleOpenSaveModal = () => {
         dispatch(updateSaveModalOpen(true));
     };
 
-    const canSave = !!semanticLayerQuery && !!selectedChartConfig;
+    const canSave = selectedFieldNames.length > 0 && !!selectedChartConfig;
 
     return (
         <>

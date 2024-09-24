@@ -7567,6 +7567,16 @@
                         "properties": {},
                         "additionalProperties": {
                             "properties": {
+                                "type": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ChartKind.LINE"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                                        }
+                                    ]
+                                },
                                 "color": {
                                     "type": "string"
                                 },
@@ -9228,15 +9238,15 @@
                 ],
                 "type": "string"
             },
-            "SemanticLayerStringFilterOperator": {
-                "enum": ["IS", "IS NOT"],
+            "SemanticLayerFilterBaseOperator": {
+                "enum": ["IS", "IS_NOT"],
                 "type": "string"
             },
             "SemanticLayerField": {
                 "properties": {
                     "availableOperators": {
                         "items": {
-                            "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                            "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
                         },
                         "type": "array"
                     },
@@ -9392,15 +9402,19 @@
                     "fieldKind": {
                         "$ref": "#/components/schemas/FieldType"
                     },
-                    "field": {
+                    "fieldRef": {
                         "type": "string"
                     },
                     "uuid": {
                         "type": "string"
                     }
                 },
-                "required": ["fieldType", "fieldKind", "field", "uuid"],
+                "required": ["fieldType", "fieldKind", "fieldRef", "uuid"],
                 "type": "object"
+            },
+            "SemanticLayerFieldType.STRING": {
+                "enum": ["string"],
+                "type": "string"
             },
             "SemanticLayerStringFilter": {
                 "allOf": [
@@ -9416,16 +9430,100 @@
                                 "type": "array"
                             },
                             "operator": {
-                                "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            },
+                            "fieldType": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldType.STRING"
                             }
                         },
-                        "required": ["values", "operator"],
+                        "required": ["values", "operator", "fieldType"],
                         "type": "object"
                     }
                 ]
             },
+            "SemanticLayerFieldType.TIME": {
+                "enum": ["time"],
+                "type": "string"
+            },
+            "SemanticLayerExactTimeFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "properties": {
+                                    "time": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["time"],
+                                "type": "object"
+                            },
+                            "operator": {
+                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            },
+                            "fieldType": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldType.TIME"
+                            }
+                        },
+                        "required": ["values", "operator", "fieldType"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerFilterRelativeTimeValue": {
+                "enum": ["TODAY", "YESTERDAY", "LAST_7_DAYS", "LAST_30_DAYS"],
+                "type": "string"
+            },
+            "SemanticLayerRelativeTimeFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "properties": {
+                                    "relativeTime": {
+                                        "$ref": "#/components/schemas/SemanticLayerFilterRelativeTimeValue"
+                                    }
+                                },
+                                "required": ["relativeTime"],
+                                "type": "object"
+                            },
+                            "operator": {
+                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            },
+                            "fieldType": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldType.TIME"
+                            }
+                        },
+                        "required": ["values", "operator", "fieldType"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerTimeFilter": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerExactTimeFilter"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerRelativeTimeFilter"
+                    }
+                ]
+            },
             "SemanticLayerFilterTypes": {
-                "$ref": "#/components/schemas/SemanticLayerStringFilter"
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerStringFilter"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerTimeFilter"
+                    }
+                ]
             },
             "SemanticLayerFilter": {
                 "allOf": [
@@ -9935,7 +10033,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1263.0",
+        "version": "0.1271.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

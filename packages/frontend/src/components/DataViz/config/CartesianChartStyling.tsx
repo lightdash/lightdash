@@ -45,23 +45,22 @@ export const CartesianChartStyling = ({
             return [];
         }
         return currentConfig?.config?.fieldConfig?.y.map((f, index) => {
-            const seriesFormat = Object.values(
+            const foundSeries = Object.values(
                 currentConfig?.config?.display?.series || {},
-            ).find((s) => s.yAxisIndex === index)?.format;
-            const seriesLabel =
-                Object.values(
-                    currentConfig?.config?.display?.series || {},
-                ).find((s) => s.yAxisIndex === index)?.label ??
-                friendlyName(`${f.reference}_${f.aggregation}`);
+            ).find((s) => s.yAxisIndex === index);
 
-            const seriesColor = Object.values(
-                currentConfig?.config?.display?.series || {},
-            ).find((s) => s.yAxisIndex === index)?.color;
+            const seriesFormat = foundSeries?.format;
+            const seriesLabel = foundSeries?.label;
+            const seriesColor = foundSeries?.color;
+            const seriesType = foundSeries?.type;
             return {
                 reference: f.reference,
                 format: seriesFormat,
-                label: seriesLabel,
+                label:
+                    seriesLabel ??
+                    friendlyName(`${f.reference}_${f.aggregation}`),
                 color: seriesColor ?? colors[index],
+                type: seriesType,
             };
         });
     }, [

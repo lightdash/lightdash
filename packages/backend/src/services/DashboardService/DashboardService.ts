@@ -103,6 +103,9 @@ export class DashboardService extends BaseService {
         dashboard: DashboardDAO,
     ): CreateDashboardOrVersionEvent['properties'] {
         return {
+            title: dashboard.name,
+            description: dashboard.description,
+
             projectId: dashboard.projectUuid,
             dashboardId: dashboard.uuid,
             filtersCount: dashboard.filters
