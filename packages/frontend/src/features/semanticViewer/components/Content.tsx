@@ -24,7 +24,6 @@ import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRun
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
-    selectAllSelectedFields,
     selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
@@ -68,7 +67,7 @@ const Content: FC = () => {
         selectChartConfigByKind(state, activeChartKind),
     );
 
-    const allSelectedFields = useAppSelector(selectAllSelectedFields);
+    const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
 
     const {
         data: requestData,
@@ -149,15 +148,13 @@ const Content: FC = () => {
 
     const handleSortField = useCallback(
         (fieldName: string) => {
-            const fieldToUpdate = allSelectedFields.find(
-                (f) => f.name === fieldName,
-            );
+            const fieldToUpdate = fields.find((f) => f.name === fieldName);
 
             if (fieldToUpdate) {
                 dispatch(updateSortBy(fieldToUpdate));
             }
         },
-        [allSelectedFields, dispatch],
+        [dispatch, fields],
     );
 
     return (
