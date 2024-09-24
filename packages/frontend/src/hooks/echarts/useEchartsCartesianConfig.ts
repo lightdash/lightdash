@@ -1916,8 +1916,8 @@ const useEchartsCartesianConfig = (
 
     if (
         !itemsMap ||
-        series.length <= 0 ||
         rows.length <= 0 ||
+        !eChartsOptions ||
         !validCartesianConfig
     ) {
         return undefined;
