@@ -19,42 +19,41 @@ export const selectSemanticLayerInfo = (state: RootState) => {
     return state.semanticViewer.info;
 };
 
-const selectSelectedDimensions = (state: RootState) =>
-    state.semanticViewer.selectedDimensions;
-const selectSelectedTimeDimensions = (state: RootState) =>
-    state.semanticViewer.selectedTimeDimensions;
-const selectSelectedMetrics = (state: RootState) =>
-    state.semanticViewer.selectedMetrics;
+export const selectSemanticLayerQuery = (state: RootState) =>
+    state.semanticViewer.semanticLayerQuery;
 
 export const selectAllSelectedFieldsByKind = createSelector(
-    [
-        selectSelectedDimensions,
-        selectSelectedTimeDimensions,
-        selectSelectedMetrics,
-    ],
-    (dimensions, timeDimensions, metrics) => ({
-        dimensions: Object.values(dimensions),
-        timeDimensions: Object.values(timeDimensions),
-        metrics: Object.values(metrics),
+    [selectSemanticLayerQuery],
+    ({ dimensions, timeDimensions, metrics }) => ({
+        dimensions,
+        timeDimensions,
+        metrics,
     }),
 );
 
-export const selectAllSelectedFields = createSelector(
-    [selectAllSelectedFieldsByKind],
-    (selectedFieldsByKind) => [
-        ...selectedFieldsByKind.dimensions.map((d) => ({
-            ...d,
-            kind: FieldKind.DIMENSION,
-        })),
-        ...selectedFieldsByKind.timeDimensions.map((d) => ({
-            ...d,
-            kind: FieldKind.DIMENSION,
-        })),
-        ...selectedFieldsByKind.metrics.map((m) => ({
-            ...m,
-            kind: FieldKind.METRIC,
-        })),
-    ],
+export const selectAllSelectedFieldNames = createSelector(
+    [selectSemanticLayerQuery],
+    ({ dimensions, metrics, timeDimensions }) => {
+        return [
+            ...dimensions.map((d) => d.name),
+            ...timeDimensions.map((td) => td.name),
+            ...metrics.map((m) => m.name),
+        ];
+    },
+);
+
+const selectSelectedDimensions = createSelector(
+    [selectSemanticLayerQuery],
+    ({ dimensions }) => Object.fromEntries(dimensions.map((d) => [d.name, d])),
+);
+const selectSelectedTimeDimensions = createSelector(
+    [selectSemanticLayerQuery],
+    ({ timeDimensions }) =>
+        Object.fromEntries(timeDimensions.map((td) => [td.name, td])),
+);
+const selectSelectedMetrics = createSelector(
+    [selectSemanticLayerQuery],
+    ({ metrics }) => Object.fromEntries(metrics.map((m) => [m.name, m])),
 );
 
 export const getSelectedField = (name: string) =>
@@ -74,20 +73,6 @@ export const getSelectedField = (name: string) =>
                 : null ?? null;
         },
     );
-
-export const selectAllSelectedFieldNames = createSelector(
-    [selectAllSelectedFieldsByKind],
-    ({ dimensions, metrics, timeDimensions }) => {
-        return [
-            ...dimensions.map((d) => d.name),
-            ...timeDimensions.map((td) => td.name),
-            ...metrics.map((m) => m.name),
-        ];
-    },
-);
-
-export const selectSemanticLayerQuery = (state: RootState) =>
-    state.semanticViewer.semanticLayerQuery;
 
 export const selectFilters = createSelector(
     [selectSemanticLayerQuery],

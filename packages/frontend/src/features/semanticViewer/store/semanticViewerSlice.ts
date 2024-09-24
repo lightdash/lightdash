@@ -68,16 +68,16 @@ const getKeyByField = (
               SemanticLayerTimeDimension,
               'name' | 'kind' | 'type' | 'granularity'
           >,
-): 'selectedDimensions' | 'selectedTimeDimensions' | 'selectedMetrics' => {
+) => {
     switch (field.kind) {
         case FieldType.DIMENSION:
             switch (field.type) {
                 case SemanticLayerFieldType.TIME:
-                    return 'selectedTimeDimensions';
+                    return 'timeDimensions';
                 case SemanticLayerFieldType.STRING:
                 case SemanticLayerFieldType.NUMBER:
                 case SemanticLayerFieldType.BOOLEAN:
-                    return 'selectedDimensions';
+                    return 'dimensions';
                 default:
                     return assertUnreachable(
                         field.type,
@@ -85,7 +85,7 @@ const getKeyByField = (
                     );
             }
         case FieldType.METRIC:
-            return 'selectedMetrics';
+            return 'metrics';
         default:
             return assertUnreachable(
                 field.kind,
@@ -127,10 +127,6 @@ export interface SemanticViewerState {
     semanticLayerView: string | undefined;
     semanticLayerQuery: SemanticLayerQuery;
 
-    selectedDimensions: Record<string, SemanticLayerStateDimension>;
-    selectedTimeDimensions: Record<string, SemanticLayerStateTimeDimension>;
-    selectedMetrics: Record<string, SemanticLayerStateMetric>;
-
     isFiltersModalOpen: boolean;
 }
 
@@ -163,9 +159,6 @@ const initialState: SemanticViewerState = {
     results: [],
     columns: [],
     fields: [],
-    selectedDimensions: {},
-    selectedMetrics: {},
-    selectedTimeDimensions: {},
 
     isFiltersModalOpen: false,
 };
@@ -217,7 +210,7 @@ export const semanticViewerSlice = createSlice({
             action: PayloadAction<SemanticLayerStatePayloadField>,
         ) => {
             const key = getKeyByField(action.payload);
-            state[key][action.payload.name] = action.payload;
+            state.semanticLayerQuery[key].push({ name: action.payload.name });
 
             const fieldDefaultSortBy = {
                 name: action.payload.name,
@@ -251,16 +244,25 @@ export const semanticViewerSlice = createSlice({
             action: PayloadAction<SemanticLayerStatePayloadField>,
         ) => {
             const key = getKeyByField(action.payload);
-            delete state[key][action.payload.name];
+            state.semanticLayerQuery[key] = state.semanticLayerQuery[
+                key
+            ].filter((field) => field.name !== action.payload.name);
         },
         updateTimeDimensionGranularity: (
             state,
             action: PayloadAction<SemanticLayerStatePayloadTimeDimension>,
         ) => {
-            const key = getKeyByField(action.payload);
-            state[key][action.payload.name] = action.payload;
+            state.semanticLayerQuery.timeDimensions =
+                state.semanticLayerQuery.timeDimensions.map((timeDimension) => {
+                    if (timeDimension.name === action.payload.name) {
+                        return {
+                            ...timeDimension,
+                            granularity: action.payload.granularity,
+                        };
+                    }
+                    return timeDimension;
+                });
         },
-
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
 
