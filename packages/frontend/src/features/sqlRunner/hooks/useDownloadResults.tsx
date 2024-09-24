@@ -1,6 +1,8 @@
-import { type VizColumn } from '@lightdash/common';
+import { type RawResultRow, type VizColumn } from '@lightdash/common';
 import { useCallback } from 'react';
+import { useAppSelector } from '../store/hooks';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
+import { useSqlQueryRun } from './useSqlQueryRun';
 
 /**
  * Hook to download results from a stream worker as a CSV file
@@ -13,17 +15,35 @@ export const useDownloadResults = ({
     fileUrl,
     columns,
     chartName,
+    customLimit,
 }: {
     fileUrl: string | undefined;
     columns: VizColumn[];
     chartName?: string;
+    customLimit?: number;
 }) => {
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
     const { getResultsFromStream } = useResultsFromStreamWorker();
+    const { mutateAsync: runQuery, isLoading } = useSqlQueryRun(projectUuid);
     const handleDownload = useCallback(async () => {
         if (!fileUrl) return;
 
-        const results = await getResultsFromStream(fileUrl);
+        let results: RawResultRow[] | undefined = undefined;
+        if (customLimit) {
+            const queryResult = await runQuery({ sql, limit: customLimit });
+            results = queryResult?.results;
+        } else {
+            // If no custom limit applied, we can use the fileUrl directly from the original query
+            results = await getResultsFromStream(fileUrl);
+        }
+
+        if (!results) {
+            return;
+        }
+
         const columnReferences = columns.map((col) => col.reference);
+
         const csvContent = [
             columnReferences.join(','),
             ...results.map((row) =>
@@ -48,7 +68,15 @@ export const useDownloadResults = ({
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    }, [fileUrl, columns, chartName, getResultsFromStream]);
+    }, [
+        fileUrl,
+        customLimit,
+        columns,
+        chartName,
+        runQuery,
+        sql,
+        getResultsFromStream,
+    ]);
 
-    return { handleDownload };
+    return { handleDownload, isLoading };
 };
