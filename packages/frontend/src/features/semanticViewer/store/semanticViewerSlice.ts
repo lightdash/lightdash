@@ -5,6 +5,7 @@ import {
     SemanticLayerFieldType,
     SemanticLayerSortByDirection,
     type RawResultRow,
+    type SavedSemanticViewerChart,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
     type SemanticLayerFilter,
@@ -135,8 +136,8 @@ const initialState: SemanticViewerState = {
 
     info: undefined,
 
+    name: '',
     savedSemanticViewerChartUuid: undefined,
-
     semanticLayerView: undefined,
     semanticLayerQuery: {
         dimensions: [],
@@ -147,7 +148,6 @@ const initialState: SemanticViewerState = {
         limit: undefined,
     },
 
-    name: '',
     saveModalOpen: false,
 
     activeEditorTab: EditorTabs.QUERY,
@@ -170,23 +170,27 @@ export const semanticViewerSlice = createSlice({
         resetState: () => {
             return initialState;
         },
-        setSemanticLayerStatus: (
-            state,
-            action: PayloadAction<SemanticViewerStateStatus>,
-        ) => {
-            state.status = action.payload;
-        },
         setSemanticLayerInfo: (
             state,
             action: PayloadAction<SemanticViewerState['info']>,
         ) => {
             state.info = action.payload;
         },
-        setSavedSemanticViewerChartUuid: (
+        initializeSemanticViewer: (
             state,
-            action: PayloadAction<string>,
+            action: PayloadAction<SavedSemanticViewerChart | undefined>,
         ) => {
-            state.savedSemanticViewerChartUuid = action.payload;
+            state.status = SemanticViewerStateStatus.INITIALIZED;
+
+            if (action.payload) {
+                state.savedSemanticViewerChartUuid =
+                    action.payload.savedSemanticViewerChartUuid;
+                state.name = action.payload.name;
+                state.semanticLayerQuery = action.payload.semanticLayerQuery;
+                state.semanticLayerView =
+                    action.payload.semanticLayerView ?? '';
+                state.activeChartKind = action.payload.chartKind;
+            }
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
@@ -360,8 +364,7 @@ export const semanticViewerSlice = createSlice({
 export const {
     resetState,
     setSemanticLayerInfo,
-    setSavedSemanticViewerChartUuid,
-    setSemanticLayerStatus,
+    initializeSemanticViewer,
     enterView,
     updateName,
     updateSaveModalOpen,

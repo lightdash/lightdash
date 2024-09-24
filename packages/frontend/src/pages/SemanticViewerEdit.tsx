@@ -15,11 +15,10 @@ import {
 } from '../features/semanticViewer/store/hooks';
 import { selectSemanticViewerState } from '../features/semanticViewer/store/selectors';
 import {
+    initializeSemanticViewer,
     resetState,
     SemanticViewerStateStatus,
-    setSavedSemanticViewerChartUuid,
     setSemanticLayerInfo,
-    setSemanticLayerStatus,
 } from '../features/semanticViewer/store/semanticViewerSlice';
 
 const SemanticViewerEditorPageWithStore = () => {
@@ -39,6 +38,7 @@ const SemanticViewerEditorPageWithStore = () => {
 
     const infoQuery = useSemanticLayerInfo({ projectUuid });
 
+    // TODO: we might not need results here. just chart data should be enough
     const chartQuery = useSavedSemanticViewerChart(
         { projectUuid, uuid: savedSemanticViewerChartUuid ?? null },
         { enabled: !!savedSemanticViewerChartUuid },
@@ -55,18 +55,9 @@ const SemanticViewerEditorPageWithStore = () => {
         dispatch(setSemanticLayerInfo({ projectUuid, ...infoQuery.data }));
 
         if (savedSemanticViewerChartUuid && chartQuery.isSuccess) {
-            dispatch(
-                setSavedSemanticViewerChartUuid(
-                    chartQuery.data.chart.savedSemanticViewerChartUuid,
-                ),
-            );
-            dispatch(
-                setSemanticLayerStatus(SemanticViewerStateStatus.INITIALIZED),
-            );
+            dispatch(initializeSemanticViewer(chartQuery.data.chart));
         } else {
-            dispatch(
-                setSemanticLayerStatus(SemanticViewerStateStatus.INITIALIZED),
-            );
+            dispatch(initializeSemanticViewer());
             if (!!rootRouteMatch) {
                 history.replace(rootRouteMatch.path + '/new');
             }
