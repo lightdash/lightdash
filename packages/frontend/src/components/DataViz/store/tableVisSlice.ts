@@ -1,12 +1,12 @@
 import {
     ChartKind,
-    deepEqual,
     isVizTableConfig,
     type VizTableConfig,
     type VizTableOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { isEqual } from 'lodash';
 import {
     resetChartState,
     setChartConfig,
@@ -62,7 +62,7 @@ export const tableVisSlice = createSlice({
 
             if (
                 (!state.config ||
-                    !deepEqual(state.config, action.payload.config)) &&
+                    !isEqual(state.config, action.payload.config)) &&
                 newConfigHasColumns
             ) {
                 state.config = action.payload.config;
