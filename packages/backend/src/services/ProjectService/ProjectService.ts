@@ -1588,7 +1588,7 @@ export class ProjectService extends BaseService {
         warehouseClient: WarehouseClient;
         query: any;
         metricQuery: MetricQuery;
-        queryTags?: RunQueryTags;
+        queryTags: RunQueryTags;
         invalidateCache?: boolean;
     }): Promise<{
         rows: Record<string, any>[];
