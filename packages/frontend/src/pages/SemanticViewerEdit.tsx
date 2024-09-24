@@ -1,13 +1,17 @@
-import { useEffect } from 'react';
+import { pick } from 'lodash';
+import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
-import { useUnmount } from 'react-use';
 import Page from '../components/common/Page/Page';
+import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/commonChartActions';
+import getChartConfigAndOptions from '../components/DataViz/transformers/getChartConfigAndOptions';
 import * as SemanticViewer from '../features/semanticViewer';
 import {
     useSavedSemanticViewerChart,
     useSemanticLayerInfo,
+    useSemanticLayerViewFields,
 } from '../features/semanticViewer/api/hooks';
+import { SemanticViewerResultsRunner } from '../features/semanticViewer/runners/SemanticViewerResultsRunner';
 import { store } from '../features/semanticViewer/store';
 import {
     useAppDispatch,
@@ -16,9 +20,7 @@ import {
 import { selectSemanticViewerState } from '../features/semanticViewer/store/selectors';
 import {
     initializeSemanticViewer,
-    resetState,
     SemanticViewerStateStatus,
-    setSemanticLayerInfo,
 } from '../features/semanticViewer/store/semanticViewerSlice';
 
 const SemanticViewerEditorPageWithStore = () => {
@@ -38,26 +40,85 @@ const SemanticViewerEditorPageWithStore = () => {
 
     const infoQuery = useSemanticLayerInfo({ projectUuid });
 
-    // TODO: we might not need results here. just chart data should be enough
     const chartQuery = useSavedSemanticViewerChart(
         { projectUuid, uuid: savedSemanticViewerChartUuid ?? null },
         { enabled: !!savedSemanticViewerChartUuid },
     );
 
+    const fieldsQuery = useSemanticLayerViewFields(
+        {
+            projectUuid,
+            view: chartQuery.isSuccess
+                ? chartQuery.data.chart.semanticLayerView ?? ''
+                : '', // TODO: this should never be empty or that hook should receive a null view!
+            selectedFields: chartQuery.isSuccess
+                ? pick(chartQuery.data.chart.semanticLayerQuery, [
+                      'dimensions',
+                      'timeDimensions',
+                      'metrics',
+                  ])
+                : { dimensions: [], timeDimensions: [], metrics: [] },
+        },
+        { enabled: chartQuery.isSuccess },
+    );
+
+    const resultsRunner = useMemo(() => {
+        if (!chartQuery.isSuccess || !fieldsQuery.isSuccess) return;
+
+        const vizColumns =
+            SemanticViewerResultsRunner.convertColumnsToVizColumns(
+                fieldsQuery.data,
+                chartQuery.data.resultsAndColumns.columns,
+            );
+
+        return new SemanticViewerResultsRunner({
+            projectUuid,
+            fields: fieldsQuery.data,
+            query: chartQuery.data.chart.semanticLayerQuery,
+            rows: chartQuery.data.resultsAndColumns.results,
+            columns: vizColumns,
+        });
+    }, [chartQuery, fieldsQuery, projectUuid]);
+
     useEffect(() => {
-        if (
-            semanticViewerState === SemanticViewerStateStatus.INITIALIZED ||
-            !infoQuery.isSuccess
-        ) {
+        if (semanticViewerState === SemanticViewerStateStatus.INITIALIZED) {
             return;
         }
 
-        dispatch(setSemanticLayerInfo({ projectUuid, ...infoQuery.data }));
+        // If we have a saved chart, initialize the viewer with it
+        if (
+            savedSemanticViewerChartUuid &&
+            chartQuery.isSuccess &&
+            infoQuery.isSuccess &&
+            resultsRunner
+        ) {
+            const chartResultOptions = getChartConfigAndOptions(
+                resultsRunner,
+                chartQuery.data.chart.chartKind,
+                chartQuery.data.chart.config,
+            );
 
-        if (savedSemanticViewerChartUuid && chartQuery.isSuccess) {
-            dispatch(initializeSemanticViewer(chartQuery.data.chart));
-        } else {
-            dispatch(initializeSemanticViewer());
+            dispatch(setChartOptionsAndConfig(chartResultOptions));
+            dispatch(
+                initializeSemanticViewer({
+                    projectUuid,
+                    info: infoQuery.data,
+                    chart: chartQuery.data.chart,
+                }),
+            );
+        }
+
+        // If we don't have a saved chart, initialize the viewer with an empty chart
+        if (!savedSemanticViewerChartUuid && infoQuery.isSuccess) {
+            console.log('did this happen?');
+
+            dispatch(
+                initializeSemanticViewer({
+                    projectUuid,
+                    info: infoQuery.data,
+                    chart: undefined,
+                }),
+            );
             if (!!rootRouteMatch) {
                 history.replace(rootRouteMatch.path + '/new');
             }
@@ -73,18 +134,18 @@ const SemanticViewerEditorPageWithStore = () => {
         infoQuery.data,
         chartQuery.isSuccess,
         chartQuery.data,
+        resultsRunner,
     ]);
 
-    useUnmount(() => {
-        dispatch(resetState());
-    });
-
-    if (infoQuery.isError || chartQuery.isError)
-        throw infoQuery.error ?? chartQuery.error;
+    // TODO: add error state
+    if (infoQuery.isError || chartQuery.isError || fieldsQuery.isError) {
+        return null;
+    }
 
     // TODO: add loading state
-    if (infoQuery.isLoading || chartQuery.isInitialLoading) return null;
     if (semanticViewerState === SemanticViewerStateStatus.LOADING) return null;
+
+    console.log(semanticViewerState);
 
     return (
         <Page

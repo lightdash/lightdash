@@ -367,7 +367,7 @@ export type SavedSemanticViewerChart = {
     lastViewedAt: Date;
 };
 
-export type SemanticViewerCreateChart = {
+export type SemanticViewerChartCreate = {
     name: string;
     description: string | null;
     semanticLayerView: string | null;
@@ -376,15 +376,41 @@ export type SemanticViewerCreateChart = {
     spaceUuid: string;
 };
 
-export type ApiSemanticViewerCreateChart = {
-    status: 'ok';
-    results: {
-        savedSemanticViewerChartUuid: string;
-        slug: string;
+export type SemanticViewerChartCreateResult = {
+    savedSemanticViewerChartUuid: string;
+    slug: string;
+};
+
+export type SemanticViewerChartUpdate = {
+    unversionedData?: {
+        name: string;
+        description: string | null;
+        spaceUuid: string;
+    };
+    versionedData?: {
+        semanticLayerView: string | null;
+        semanticLayerQuery: SemanticLayerQuery;
+        config: VizChartConfig;
+        chartKind: ChartKind;
     };
 };
 
-export type ApiSemanticViewerGetChart = {
+export type SemanticViewerChartUpdateResult = {
+    savedSemanticViewerChartUuid: string;
+    savedSemanticViewerChartVersionUuid: string | null;
+};
+
+export type ApiSemanticViewerChartCreate = {
+    status: 'ok';
+    results: SemanticViewerChartCreateResult;
+};
+
+export type ApiSemanticViewerChartGet = {
     status: 'ok';
     results: SavedSemanticViewerChart;
+};
+
+export type ApiSemanticViewerChartUpdate = {
+    status: 'ok';
+    results: SemanticViewerChartUpdateResult;
 };

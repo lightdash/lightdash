@@ -9,28 +9,28 @@ import {
 import { IconChartBar } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { useDeleteSqlChartMutation } from '../../../sqlRunner/hooks/useSavedSqlCharts';
+import { useSavedSemanticViewerChartDeleteMutation } from '../../api/hooks';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
-    savedSqlUuid: string;
+    uuid: string;
     name: string;
     onSuccess: () => void;
 };
 
 export const DeleteSavedSemanticChart: FC<Props> = ({
     projectUuid,
-    savedSqlUuid,
+    uuid,
     name,
     opened,
     onClose,
     onSuccess,
 }) => {
-    // FIXME: this should be useDeleteSavedSemanticChartMutation
-    const { mutate, isLoading, isSuccess } = useDeleteSqlChartMutation(
-        projectUuid,
-        savedSqlUuid,
-    );
+    const { mutate, isLoading, isSuccess } =
+        useSavedSemanticViewerChartDeleteMutation({
+            projectUuid,
+            uuid,
+        });
 
     useEffect(() => {
         if (isSuccess) {

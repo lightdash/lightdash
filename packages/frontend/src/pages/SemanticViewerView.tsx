@@ -113,8 +113,19 @@ const SemanticViewerViewPage = () => {
         chartVizQuery.data,
     ]);
 
-    if (chartQuery.isError) return null;
-    if (!chartQuery.isSuccess) return null;
+    // TODO: add error state
+    if (chartQuery.isError || fieldsQuery.isError || chartVizQuery.isError) {
+        return null;
+    }
+
+    // TODO: add loading state
+    if (
+        chartQuery.isLoading ||
+        fieldsQuery.isLoading ||
+        chartVizQuery.isLoading
+    ) {
+        return null;
+    }
 
     const chartType = chartQuery.data.chart.config.type;
 
@@ -180,17 +191,19 @@ const SemanticViewerViewPage = () => {
                 chartType === ChartKind.VERTICAL_BAR ||
                 chartType === ChartKind.LINE ||
                 chartType === ChartKind.PIE ? (
-                    <ChartView
-                        config={chartQuery.data.chart.config}
-                        spec={chartSpec}
-                        isLoading={chartVizQuery.isLoading}
-                        error={chartVizQuery.error}
-                        style={{
-                            minHeight: 'inherit',
-                            height: '100%',
-                            width: '100%',
-                        }}
-                    />
+                    <Box h="100%" w="100%" mih="inherit" pos="relative">
+                        <ChartView
+                            config={chartQuery.data.chart.config}
+                            spec={chartSpec}
+                            isLoading={chartVizQuery.isLoading}
+                            error={chartVizQuery.error}
+                            style={{
+                                minHeight: 'inherit',
+                                height: 'inherit',
+                                width: 'inherit',
+                            }}
+                        />
+                    </Box>
                 ) : chartType === ChartKind.TABLE ? (
                     resultsRunner ? (
                         <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>

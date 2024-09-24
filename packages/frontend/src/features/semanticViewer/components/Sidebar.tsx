@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectSemanticLayerInfo } from '../store/selectors';
@@ -24,10 +25,12 @@ import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
 
 const Sidebar: FC = () => {
-    const { features } = useAppSelector(selectSemanticLayerInfo);
+    const { features, projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const { semanticLayerView, saveModalOpen } = useAppSelector(
         (state) => state.semanticViewer,
     );
+    const history = useHistory();
+
     const dispatch = useAppDispatch();
 
     const handleExitView = () => {
@@ -37,6 +40,12 @@ const Sidebar: FC = () => {
     const { activeSidebarTab, activeChartKind, columns } = useAppSelector(
         (state) => state.semanticViewer,
     );
+
+    const handleSave = (uuid: string) => {
+        history.replace(
+            `/projects/${projectUuid}/semantic-viewer/${uuid}/edit`,
+        );
+    };
 
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
@@ -55,7 +64,9 @@ const Sidebar: FC = () => {
                 {semanticLayerView && (
                     <>
                         <SaveChart.Content />
-                        {saveModalOpen && <SaveChart.Modal />}
+                        {saveModalOpen && (
+                            <SaveChart.Modal onSave={handleSave} />
+                        )}
                     </>
                 )}
             </Group>

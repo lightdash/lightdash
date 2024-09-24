@@ -1,7 +1,8 @@
 import {
     ChartKind,
     type ApiError,
-    type ApiSemanticViewerCreateChart,
+    type ApiSemanticViewerChartCreate,
+    type ApiSemanticViewerChartUpdate,
     type PivotChartData,
     type SavedSemanticViewerChart,
     type SemanticLayerClientInfo,
@@ -10,7 +11,8 @@ import {
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
     type SemanticLayerView,
-    type SemanticViewerCreateChart,
+    type SemanticViewerChartCreate,
+    type SemanticViewerChartUpdate,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -19,14 +21,16 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import {
+    apiDeleteSavedSemanticViewerChart,
+    apiGetSavedSemanticViewerChart,
+    apiGetSavedSemanticViewerChartResults,
     apiGetSemanticLayerInfo,
     apiGetSemanticLayerQueryResults,
     apiGetSemanticLayerViews,
+    apiPatchSavedSemanticViewerChart,
     apiPostSemanticLayerSql,
     apiPostSemanticLayerViewFields,
-    createSemanticViewerChart,
-    getSavedSemanticViewerChart,
-    getSavedSemanticViewerChartResults,
+    apiPostSemanticViewerChartCreate,
 } from './requests';
 
 type SemanticLayerInfoParams = {
@@ -133,16 +137,16 @@ export const useSemanticLayerQueryResults = (
 export const useCreateSemanticViewerChartMutation = (
     projectUuid: string,
     mutationOptions: UseMutationOptions<
-        ApiSemanticViewerCreateChart['results'],
+        ApiSemanticViewerChartCreate['results'],
         ApiError,
-        SemanticViewerCreateChart
+        SemanticViewerChartCreate
     > = {},
 ) =>
     useMutation<
-        ApiSemanticViewerCreateChart['results'],
+        ApiSemanticViewerChartCreate['results'],
         ApiError,
-        SemanticViewerCreateChart
-    >((data) => createSemanticViewerChart(projectUuid, data), {
+        SemanticViewerChartCreate
+    >((payload) => apiPostSemanticViewerChartCreate({ projectUuid, payload }), {
         mutationKey: [projectUuid, 'semanticViewer', 'createChart'],
         ...mutationOptions,
     });
@@ -182,7 +186,10 @@ export const useSavedSemanticViewerChart = (
                 throw new Error('uuid is required');
             }
 
-            const chart = await getSavedSemanticViewerChart(projectUuid, uuid);
+            const chart = await apiGetSavedSemanticViewerChart({
+                projectUuid,
+                uuid,
+            });
 
             // If the chart is not a table, we don't need to fetch the results.
             if (chart.config.type !== ChartKind.TABLE) {
@@ -197,10 +204,10 @@ export const useSavedSemanticViewerChart = (
             }
 
             const semanticViewerChartResults =
-                await getSavedSemanticViewerChartResults(
+                await apiGetSavedSemanticViewerChartResults({
                     projectUuid,
-                    chart.savedSemanticViewerChartUuid,
-                );
+                    uuid: chart.savedSemanticViewerChartUuid,
+                });
 
             return {
                 chart,
@@ -216,3 +223,36 @@ export const useSavedSemanticViewerChart = (
         },
     );
 };
+
+export const useSavedSemanticViewerChartUpdateMutation = (
+    { projectUuid }: { projectUuid: string },
+    mutationOptions: UseMutationOptions<
+        ApiSemanticViewerChartUpdate['results'],
+        ApiError,
+        { uuid: string; payload: SemanticViewerChartUpdate }
+    > = {},
+) =>
+    useMutation<
+        ApiSemanticViewerChartUpdate['results'],
+        ApiError,
+        { uuid: string; payload: SemanticViewerChartUpdate }
+    >(
+        ({ uuid, payload }) =>
+            apiPatchSavedSemanticViewerChart({ projectUuid, uuid, payload }),
+        {
+            mutationKey: [projectUuid, 'semanticViewer', 'updateChart'],
+            ...mutationOptions,
+        },
+    );
+
+export const useSavedSemanticViewerChartDeleteMutation = (
+    { projectUuid, uuid }: { projectUuid: string; uuid: string },
+    mutationOptions: UseMutationOptions<void, ApiError> = {},
+) =>
+    useMutation<void, ApiError>(
+        () => apiDeleteSavedSemanticViewerChart({ projectUuid, uuid }),
+        {
+            mutationKey: [projectUuid, 'semanticViewer', uuid, 'deleteChart'],
+            ...mutationOptions,
+        },
+    );

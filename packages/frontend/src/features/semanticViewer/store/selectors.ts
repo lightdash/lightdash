@@ -66,11 +66,11 @@ export const getSelectedField = (name: string) =>
         (dimensions, timeDimensions, metrics) => {
             return name in dimensions
                 ? dimensions[name]
-                : null ?? name in timeDimensions
+                : name in timeDimensions
                 ? timeDimensions[name]
-                : null ?? name in metrics
+                : name in metrics
                 ? metrics[name]
-                : null ?? null;
+                : null;
         },
     );
 

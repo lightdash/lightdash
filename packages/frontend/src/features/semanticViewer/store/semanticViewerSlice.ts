@@ -170,27 +170,28 @@ export const semanticViewerSlice = createSlice({
         resetState: () => {
             return initialState;
         },
-        setSemanticLayerInfo: (
-            state,
-            action: PayloadAction<SemanticViewerState['info']>,
-        ) => {
-            state.info = action.payload;
-        },
         initializeSemanticViewer: (
             state,
-            action: PayloadAction<SavedSemanticViewerChart | undefined>,
+            action: PayloadAction<{
+                projectUuid: string;
+                info: SemanticLayerClientInfo;
+                chart: SavedSemanticViewerChart | undefined;
+            }>,
         ) => {
-            state.status = SemanticViewerStateStatus.INITIALIZED;
+            const { projectUuid, info, chart } = action.payload;
 
-            if (action.payload) {
+            state.info = { ...info, projectUuid };
+
+            if (chart) {
                 state.savedSemanticViewerChartUuid =
-                    action.payload.savedSemanticViewerChartUuid;
-                state.name = action.payload.name;
-                state.semanticLayerQuery = action.payload.semanticLayerQuery;
-                state.semanticLayerView =
-                    action.payload.semanticLayerView ?? '';
-                state.activeChartKind = action.payload.chartKind;
+                    chart.savedSemanticViewerChartUuid;
+                state.name = chart.name;
+                state.semanticLayerQuery = chart.semanticLayerQuery;
+                state.semanticLayerView = chart.semanticLayerView ?? '';
+                state.activeChartKind = chart.chartKind;
             }
+
+            state.status = SemanticViewerStateStatus.INITIALIZED;
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
@@ -363,7 +364,6 @@ export const semanticViewerSlice = createSlice({
 
 export const {
     resetState,
-    setSemanticLayerInfo,
     initializeSemanticViewer,
     enterView,
     updateName,

@@ -22,7 +22,6 @@ import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPop
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
 import { useApp } from '../../../../providers/AppProvider';
-import { getSavedSemanticViewerChart } from '../../api/requests';
 import * as Models from './../Modals';
 
 type Props = {
@@ -64,8 +63,6 @@ export const HeaderView: FC<Props> = ({
             access: chart.space.userAccess,
         }),
     );
-
-    if (!getSavedSemanticViewerChart) return null;
 
     return (
         <>
@@ -164,7 +161,7 @@ export const HeaderView: FC<Props> = ({
 
             <Models.DeleteSavedSemanticChart
                 projectUuid={projectUuid}
-                savedSqlUuid={chart.savedSemanticViewerChartUuid}
+                uuid={chart.savedSemanticViewerChartUuid}
                 name={chart.name}
                 opened={isDeleteModalOpen}
                 onClose={closeDeleteModal}
