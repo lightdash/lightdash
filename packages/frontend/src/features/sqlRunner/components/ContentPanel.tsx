@@ -149,16 +149,19 @@ export const ContentPanel: FC = () => {
     // in the state to keep them around when the query is re-run.
     const [queryResults, setQueryResults] = useState<ResultsAndColumns>();
 
-    const handleRunQuery = useCallback(async () => {
-        if (!sql) return;
-        const newQueryResults = await runSqlQuery({
-            sql,
-            limit: DEFAULT_SQL_LIMIT,
-        });
+    const handleRunQuery = useCallback(
+        async (sqlToUse: string) => {
+            if (!sqlToUse) return;
+            const newQueryResults = await runSqlQuery({
+                sql: sqlToUse,
+                limit: DEFAULT_SQL_LIMIT,
+            });
 
-        setQueryResults(newQueryResults);
-        notifications.clean();
-    }, [runSqlQuery, sql]);
+            setQueryResults(newQueryResults);
+            notifications.clean();
+        },
+        [runSqlQuery, setQueryResults],
+    );
 
     // Run query on cmd + enter
     useHotkeys([
@@ -167,11 +170,11 @@ export const ContentPanel: FC = () => {
 
     useEffect(() => {
         if (fetchResultsOnLoad && !queryResults) {
-            void handleRunQuery();
+            void handleRunQuery(sql);
         } else if (fetchResultsOnLoad && queryResults) {
             dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
         }
-    }, [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch]);
+    }, [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch, sql]);
 
     const resultsRunner = useMemo(() => {
         if (!queryResults) return;
@@ -413,7 +416,7 @@ export const ContentPanel: FC = () => {
                             <RunSqlQueryButton
                                 isLoading={isLoading}
                                 disabled={!sql}
-                                onSubmit={() => handleRunQuery()}
+                                onSubmit={() => handleRunQuery(sql)}
                                 {...(canSetSqlLimit
                                     ? {
                                           onLimitChange: (l) =>
@@ -491,7 +494,9 @@ export const ContentPanel: FC = () => {
                                         resetHighlightError={() =>
                                             setHightlightError(undefined)
                                         }
-                                        onSubmit={() => handleRunQuery()}
+                                        onSubmit={(submittedSQL) =>
+                                            handleRunQuery(submittedSQL ?? '')
+                                        }
                                         highlightText={
                                             hightlightError
                                                 ? {
