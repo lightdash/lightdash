@@ -267,8 +267,7 @@ export const SqlEditor: FC<{
                 monacoObj.KeyMod.CtrlCmd | monacoObj.KeyCode.Enter,
                 () => {
                     const currentSql = editorObj.getValue();
-                    if (!onSubmit) return;
-                    onSubmit(currentSql ? currentSql : '');
+                   onSubmit(currentSql ?? '');
                 },
             );
         },
