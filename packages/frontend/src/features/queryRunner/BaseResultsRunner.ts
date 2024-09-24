@@ -200,7 +200,7 @@ export class BaseResultsRunner implements IResultsRunner {
 
     // used by the table viz only
     getColumns(): string[] {
-        return this.availableFields.map((field) => field.name);
+        return Object.keys(this.rows[0]);
     }
 
     // TODO: used by the table viz only

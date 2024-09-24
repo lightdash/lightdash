@@ -72,11 +72,7 @@ export class CartesianChartDataModel {
         this.organization = args.organization;
     }
 
-    async getTransformedData(query?: SemanticLayerQuery) {
-        if (!query) {
-            return undefined;
-        }
-
+    async getTransformedData(query: SemanticLayerQuery) {
         return this.resultsRunner.getPivotedVisualizationData(query);
     }
 
@@ -495,11 +491,21 @@ export class CartesianChartDataModel {
         };
     }
 
-    // TODO: this any in the return type could be more specific, but this is also a
-    // pretty loose type in purpose.
-    async getSpec(query?: SemanticLayerQuery): Promise<Record<string, any>> {
+    async getSpec(query?: SemanticLayerQuery): Promise<{
+        spec: Record<string, any>;
+        pivotedChartData: PivotChartData;
+    }> {
         if (!query) {
-            return {};
+            return {
+                spec: {},
+                pivotedChartData: {
+                    columns: [],
+                    fileUrl: '',
+                    indexColumn: undefined,
+                    results: [],
+                    valuesColumns: [],
+                },
+            };
         }
 
         const transformedData = await this.getTransformedData({
@@ -510,10 +516,6 @@ export class CartesianChartDataModel {
         const type = this.config?.type;
         const display = this.config?.display;
         const { chartColors: orgColors } = this.organization;
-
-        if (!transformedData) {
-            return {};
-        }
 
         const DEFAULT_X_AXIS_TYPE = 'category';
 
@@ -651,9 +653,10 @@ export class CartesianChartDataModel {
             series,
         };
 
-        console.log('spec', spec);
-
-        return spec;
+        return {
+            spec,
+            pivotedChartData: transformedData,
+        };
     }
 }
 

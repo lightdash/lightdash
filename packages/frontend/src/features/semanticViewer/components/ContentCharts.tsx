@@ -32,8 +32,9 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const [openPanel, setOpenPanel] = useState<TabPanel>();
     const org = useOrganization();
-    const { results, columnNames, activeChartKind, fields, sortBy, filters } =
-        useAppSelector((state) => state.semanticViewer);
+    const { results, columnNames, activeChartKind, fields } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
 
     // Get config. This could be a UUID fetch on dashboards
     const vizConfig = useAppSelector((state) =>
@@ -57,37 +58,35 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         return getChartDataModel(resultsRunner, vizConfig, org.data);
     }, [vizConfig, resultsRunner, org.data]);
 
-    const pivotTableDataModel = useMemo(() => {
-        console.log('new tabel model');
-        return new TableDataModel({ resultsRunner });
-    }, [resultsRunner]);
-
     const {
         loading: chartLoading,
         error: chartError,
-        value: chartSpec,
+        value: getSpecResult,
     } = useAsync(
         async () => vizDataModel.getSpec(semanticLayerQuery),
         [semanticLayerQuery, vizDataModel],
     );
 
-    // For the table only -- move to table data model?
-    // const pivotResultsRunner = useMemo(() => {
-    //     return new SemanticViewerResultsRunnerFrontend({
-    //         rows: chartSpec?.results ?? [],
-    //         columnNames:
-    //             chartVizQuery.data?.columns.map((c) => c.reference) ?? [],
-    //         fields: fields,
-    //         projectUuid,
-    //     });
-    // }, [projectUuid, chartSpec, fields]);
+    const { spec, pivotedChartData } = getSpecResult ?? {};
 
-    const thSortConfig = useMemo(() => {
-        return TableDataModel.getTableHeaderSortConfig(
-            columnNames,
-            semanticLayerQuery,
-        );
-    }, [columnNames, semanticLayerQuery]);
+    const pivotedDataModel = useMemo(() => {
+        const pivotedResultsRunner = new SemanticViewerResultsRunnerFrontend({
+            columnNames:
+                pivotedChartData?.columns?.map((c) => c.reference) ?? [],
+            fields,
+            projectUuid,
+            rows: pivotedChartData?.results ?? [],
+        });
+
+        return new TableDataModel({
+            resultsRunner: pivotedResultsRunner,
+        });
+    }, [
+        fields,
+        pivotedChartData?.columns,
+        pivotedChartData?.results,
+        projectUuid,
+    ]);
 
     const handleOpenPanel = (panel: TabPanel) => {
         setOpenPanel(panel);
@@ -97,7 +96,20 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         setOpenPanel(undefined);
     };
 
-    console.log('vizConfig', vizConfig);
+    // ! TODO: THIS SHOULD COME FROM THE CORRESPONDING TABLE DATA MODELS
+    const tableVizSorts = useMemo(() => {
+        return TableDataModel.getTableHeaderSortConfig(
+            resultsRunner.getColumns(),
+            semanticLayerQuery,
+        );
+    }, [resultsRunner, semanticLayerQuery]);
+
+    const pivotedTableVizSorts = useMemo(() => {
+        return TableDataModel.getTableHeaderSortConfig(
+            pivotedChartData?.columns?.map((c) => c.reference) ?? [],
+            semanticLayerQuery,
+        );
+    }, [pivotedChartData?.columns, semanticLayerQuery]);
 
     return (
         <>
@@ -116,7 +128,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                         <Table
                             resultsRunner={resultsRunner}
                             columnsConfig={vizConfig.columns}
-                            thSortConfig={thSortConfig}
+                            thSortConfig={tableVizSorts}
                             onTHClick={onTableHeaderClick}
                             flexProps={{
                                 m: '-1px',
@@ -127,7 +139,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                     ) : vizConfig && !isVizTableConfig(vizConfig) ? (
                         <ChartView
                             config={vizConfig} // Config only used for error messaging
-                            spec={chartSpec}
+                            spec={spec}
                             isLoading={chartLoading}
                             error={chartError}
                             style={{
@@ -167,8 +179,9 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 onCollapse={() => setOpenPanel(undefined)}
                             >
                                 <Table2
-                                    dataModel={pivotTableDataModel}
-                                    thSortConfig={thSortConfig}
+                                    dataModel={pivotedDataModel}
+                                    onTHClick={onTableHeaderClick}
+                                    thSortConfig={pivotedTableVizSorts}
                                 />
                             </Panel>
                         </>

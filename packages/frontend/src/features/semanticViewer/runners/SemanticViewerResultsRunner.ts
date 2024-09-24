@@ -31,7 +31,7 @@ function getDimensionTypeFromSemanticLayerFieldType(
 }
 
 // Useful but belongs on chart model
-export const getVizIndexTypeFromSemanticLayerFieldType = (
+const getVizIndexTypeFromSemanticLayerFieldType = (
     type: SemanticLayerFieldType,
 ): VizIndexType => {
     switch (type) {
@@ -71,7 +71,7 @@ export const convertColumnNamesToVizColumns = (
 };
 
 // This fields dependency should be fixed by fixing the API for semantic layer
-export const getPivotQueryFunctionForSemanticViewer = (
+const getPivotQueryFunctionForSemanticViewer = (
     projectUuid: string,
     fields: SemanticLayerField[],
 ): RunPivotQuery => {

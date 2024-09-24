@@ -236,16 +236,9 @@ export class PieChartDataModel {
     }
 
     async getTransformedData(
-        query?: SemanticLayerQuery,
-    ): Promise<PivotChartData | undefined> {
-        if (!query) {
-            return undefined;
-        }
-
-        const data = await this.resultsRunner.getPivotedVisualizationData(
-            query,
-        );
-        return data;
+        query: SemanticLayerQuery,
+    ): Promise<PivotChartData> {
+        return this.resultsRunner.getPivotedVisualizationData(query);
     }
 
     getEchartsSpec(
@@ -285,40 +278,55 @@ export class PieChartDataModel {
         };
     }
 
-    async getSpec(query?: SemanticLayerQuery): Promise<Record<string, any>> {
+    async getSpec(query?: SemanticLayerQuery): Promise<{
+        spec: Record<string, any>;
+        pivotedChartData: PivotChartData;
+    }> {
+        if (!query) {
+            return {
+                spec: {},
+                pivotedChartData: {
+                    columns: [],
+                    fileUrl: '',
+                    indexColumn: undefined,
+                    results: [],
+                    valuesColumns: [],
+                },
+            };
+        }
+
         const transformedData = await this.getTransformedData(query);
         const display = this.config?.display;
 
-        if (!transformedData) {
-            return {};
-        }
-        console.log('transformedData', transformedData);
         return {
-            legend: {
-                show: true,
-                orient: 'horizontal',
-                type: 'scroll',
-                left: 'center',
-                top: 'top',
-                align: 'auto',
-            },
-            tooltip: {
-                trigger: 'item',
-            },
-            series: [
-                {
-                    type: 'pie',
-                    radius: display?.isDonut ? ['30%', '70%'] : '50%',
-                    center: ['50%', '50%'],
-                    data: transformedData.results.map((result) => ({
-                        name: transformedData.indexColumn?.reference
-                            ? result[transformedData.indexColumn.reference]
-                            : '-',
-                        groupId: transformedData.indexColumn?.reference,
-                        value: result[transformedData.valuesColumns[0]],
-                    })),
+            spec: {
+                legend: {
+                    show: true,
+                    orient: 'horizontal',
+                    type: 'scroll',
+                    left: 'center',
+                    top: 'top',
+                    align: 'auto',
                 },
-            ],
+                tooltip: {
+                    trigger: 'item',
+                },
+                series: [
+                    {
+                        type: 'pie',
+                        radius: display?.isDonut ? ['30%', '70%'] : '50%',
+                        center: ['50%', '50%'],
+                        data: transformedData.results.map((result) => ({
+                            name: transformedData.indexColumn?.reference
+                                ? result[transformedData.indexColumn.reference]
+                                : '-',
+                            groupId: transformedData.indexColumn?.reference,
+                            value: result[transformedData.valuesColumns[0]],
+                        })),
+                    },
+                ],
+            },
+            pivotedChartData: transformedData,
         };
     }
 }

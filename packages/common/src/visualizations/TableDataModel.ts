@@ -4,16 +4,12 @@ import {
     type SemanticLayerQuery,
     type SemanticLayerSortBy,
 } from '../types/semanticLayer';
-import { type VizTableConfig, type VizTableHeaderSortConfig } from './types';
+import {
+    type PivotChartData,
+    type VizTableConfig,
+    type VizTableHeaderSortConfig,
+} from './types';
 import type { IResultsRunner } from './types/IResultsRunner';
-
-const defaultTableConfig: VizTableConfig = {
-    type: ChartKind.TABLE,
-    metadata: {
-        version: 1,
-    },
-    columns: {},
-};
 
 export class TableDataModel {
     private readonly resultsRunner: IResultsRunner;
@@ -25,7 +21,13 @@ export class TableDataModel {
         config?: VizTableConfig | undefined;
     }) {
         this.resultsRunner = args.resultsRunner;
-        this.config = args.config ?? defaultTableConfig;
+        this.config = args.config ?? {
+            type: ChartKind.TABLE,
+            metadata: {
+                version: 1,
+            },
+            columns: this.getResultOptions().defaultColumnConfig,
+        };
     }
 
     private getColumns() {
@@ -104,8 +106,20 @@ export class TableDataModel {
         };
     }
 
-    getSpec(query?: SemanticLayerQuery) {
-        console.log('not implemented in table', this.config, query);
-        return {};
+    // eslint-disable-next-line class-methods-use-this
+    async getSpec(_query?: SemanticLayerQuery): Promise<{
+        spec: Record<string, any>;
+        pivotedChartData: PivotChartData;
+    }> {
+        return {
+            spec: {},
+            pivotedChartData: {
+                columns: [],
+                fileUrl: '',
+                indexColumn: undefined,
+                results: [],
+                valuesColumns: [],
+            },
+        };
     }
 }
