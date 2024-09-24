@@ -1,3 +1,4 @@
+import { ChartKind } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -49,7 +50,7 @@ const SemanticViewerSaveChartModal: FC = () => {
         (state) => state.semanticViewer.activeChartKind,
     );
     const selectedChartConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, activeChartKind),
+        selectChartConfigByKind(state, activeChartKind ?? ChartKind.TABLE),
     );
 
     const spacesQuery = useSpaceSummaries(projectUuid, true);

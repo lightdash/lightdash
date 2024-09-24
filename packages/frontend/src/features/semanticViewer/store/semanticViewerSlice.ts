@@ -117,7 +117,7 @@ export interface SemanticViewerState {
 
     activeEditorTab: EditorTabs;
     activeSidebarTab: SidebarTabs;
-    activeChartKind: ChartKind;
+    activeChartKind: ChartKind | undefined;
 
     resultsTableConfig: VizTableConfig | undefined;
 
@@ -150,7 +150,7 @@ const initialState: SemanticViewerState = {
 
     activeEditorTab: EditorTabs.QUERY,
     activeSidebarTab: SidebarTabs.TABLES,
-    activeChartKind: ChartKind.VERTICAL_BAR,
+    activeChartKind: undefined,
 
     resultsTableConfig: undefined,
 
@@ -258,6 +258,10 @@ export const semanticViewerSlice = createSlice({
             }
             if (action.payload === EditorTabs.VIZ) {
                 state.activeSidebarTab = SidebarTabs.VISUALIZATION;
+
+                if (!state.activeChartKind) {
+                    state.activeChartKind = ChartKind.VERTICAL_BAR;
+                }
             }
         },
 
