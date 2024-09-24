@@ -1,3 +1,10 @@
+# [0.1271.0](https://github.com/lightdash/lightdash/compare/0.1270.0...0.1271.0) (2024-09-24)
+
+
+### Features
+
+* semantic layer date filters ([#11551](https://github.com/lightdash/lightdash/issues/11551)) ([92cf95e](https://github.com/lightdash/lightdash/commit/92cf95e1ac9b4be6c1c310b5d17b5f8552a9c45b))
+
 # [0.1270.0](https://github.com/lightdash/lightdash/compare/0.1269.1...0.1270.0) (2024-09-24)
 
 
