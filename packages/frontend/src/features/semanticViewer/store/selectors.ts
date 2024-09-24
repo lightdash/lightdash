@@ -25,9 +25,8 @@ const selectSelectedTimeDimensions = (state: RootState) =>
     state.semanticViewer.selectedTimeDimensions;
 const selectSelectedMetrics = (state: RootState) =>
     state.semanticViewer.selectedMetrics;
-const selectFilters = (state: RootState) => state.semanticViewer.filters;
 
-const selectAllSelectedFieldsByKind = createSelector(
+export const selectAllSelectedFieldsByKind = createSelector(
     [
         selectSelectedDimensions,
         selectSelectedTimeDimensions,
@@ -76,6 +75,36 @@ export const getSelectedField = (name: string) =>
         },
     );
 
+export const selectAllSelectedFieldNames = createSelector(
+    [selectAllSelectedFieldsByKind],
+    ({ dimensions, metrics, timeDimensions }) => {
+        return [
+            ...dimensions.map((d) => d.name),
+            ...timeDimensions.map((td) => td.name),
+            ...metrics.map((m) => m.name),
+        ];
+    },
+);
+
+export const selectSemanticLayerQuery = (state: RootState) =>
+    state.semanticViewer.semanticLayerQuery;
+
+export const selectFilters = createSelector(
+    [selectSemanticLayerQuery],
+    (semanticLayerQuery) => semanticLayerQuery.filters,
+);
+
+// TODO: unused. remove maybe?
+// export const selectLimit = createSelector(
+//     [selectSemanticLayerQuery],
+//     (semanticLayerQuery) => semanticLayerQuery.limit,
+// );
+
+export const selectSortBy = createSelector(
+    [selectSemanticLayerQuery],
+    (semanticLayerQuery) => semanticLayerQuery.sortBy,
+);
+
 export const selectFilterFields = createSelector([selectFilters], (filters) => {
     const allFilterFields = Object.values(filters).flatMap(
         getFlattenedFilterFieldProps,
@@ -110,32 +139,6 @@ export const selectFilterFields = createSelector([selectFilters], (filters) => {
         },
     );
 });
-
-export const selectAllSelectedFieldNames = createSelector(
-    [selectAllSelectedFieldsByKind],
-    ({ dimensions, metrics, timeDimensions }) => {
-        return [
-            ...dimensions.map((d) => d.name),
-            ...timeDimensions.map((td) => td.name),
-            ...metrics.map((m) => m.name),
-        ];
-    },
-);
-
-const selectLimit = (state: RootState) => state.semanticViewer.limit;
-const selectSortBy = (state: RootState) => state.semanticViewer.sortBy;
-
-export const selectSemanticLayerQuery = createSelector(
-    [selectAllSelectedFieldsByKind, selectSortBy, selectLimit, selectFilters],
-    (allSelectedFieldsByKind, sortBy, limit, filters) => {
-        return {
-            ...allSelectedFieldsByKind,
-            sortBy,
-            limit,
-            filters,
-        };
-    },
-);
 
 export const selectResultsTableVizConfig = createSelector(
     [selectAllSelectedFieldNames, (s: RootState) => s.semanticViewer.columns],

@@ -8,7 +8,7 @@ import {
     type SemanticLayerClientInfo,
     type SemanticLayerField,
     type SemanticLayerFilter,
-    type SemanticLayerSortBy,
+    type SemanticLayerQuery,
     type SemanticLayerTimeDimension,
     type VizColumn,
     type VizTableConfig,
@@ -110,8 +110,6 @@ export interface SemanticViewerState {
 
     info: undefined | (SemanticLayerClientInfo & { projectUuid: string });
 
-    view: string | undefined;
-
     name: string;
     saveModalOpen: boolean;
 
@@ -125,15 +123,13 @@ export interface SemanticViewerState {
     columns: VizColumn[];
     fields: SemanticLayerField[];
 
+    savedSemanticViewerChartUuid: string | undefined;
+    semanticLayerView: string | undefined;
+    semanticLayerQuery: SemanticLayerQuery;
+
     selectedDimensions: Record<string, SemanticLayerStateDimension>;
     selectedTimeDimensions: Record<string, SemanticLayerStateTimeDimension>;
     selectedMetrics: Record<string, SemanticLayerStateMetric>;
-
-    limit: number | undefined;
-
-    sortBy: SemanticLayerSortBy[];
-
-    filters: SemanticLayerFilter[];
 
     isFiltersModalOpen: boolean;
 }
@@ -143,7 +139,17 @@ const initialState: SemanticViewerState = {
 
     info: undefined,
 
-    view: undefined,
+    savedSemanticViewerChartUuid: undefined,
+
+    semanticLayerView: undefined,
+    semanticLayerQuery: {
+        dimensions: [],
+        metrics: [],
+        timeDimensions: [],
+        filters: [],
+        sortBy: [],
+        limit: undefined,
+    },
 
     name: '',
     saveModalOpen: false,
@@ -161,10 +167,6 @@ const initialState: SemanticViewerState = {
     selectedMetrics: {},
     selectedTimeDimensions: {},
 
-    limit: undefined,
-
-    sortBy: [],
-    filters: [],
     isFiltersModalOpen: false,
 };
 
@@ -187,11 +189,17 @@ export const semanticViewerSlice = createSlice({
         ) => {
             state.info = action.payload;
         },
+        setSavedSemanticViewerChartUuid: (
+            state,
+            action: PayloadAction<string>,
+        ) => {
+            state.savedSemanticViewerChartUuid = action.payload;
+        },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
         },
         enterView: (state, action: PayloadAction<string>) => {
-            state.view = action.payload;
+            state.semanticLayerView = action.payload;
         },
         setResults: (
             state,
@@ -218,21 +226,24 @@ export const semanticViewerSlice = createSlice({
             };
 
             // If no sorts, add this field as the sort
-            if (state.sortBy.length === 0) {
-                state.sortBy = [fieldDefaultSortBy];
+            if (state.semanticLayerQuery.sortBy.length === 0) {
+                state.semanticLayerQuery.sortBy = [fieldDefaultSortBy];
             } else if (
                 // If sort is on a metric, and this is a dimension, replace sort with this field
-                state.sortBy[0].kind === FieldType.METRIC &&
+                state.semanticLayerQuery.sortBy[0].kind === FieldType.METRIC &&
                 action.payload.kind === FieldType.DIMENSION
             ) {
-                state.sortBy = [fieldDefaultSortBy];
+                state.semanticLayerQuery.sortBy = [fieldDefaultSortBy];
             } else if (
-                state.sortBy[0].kind === FieldType.DIMENSION &&
-                !isSemanticLayerStateTimeDimension(state.sortBy[0]) &&
+                state.semanticLayerQuery.sortBy[0].kind ===
+                    FieldType.DIMENSION &&
+                !isSemanticLayerStateTimeDimension(
+                    state.semanticLayerQuery.sortBy[0],
+                ) &&
                 isSemanticLayerStateTimeDimension(action.payload)
             ) {
                 // If sort is on a dimension, and this is a time dimension, replace sort with this field
-                state.sortBy = [fieldDefaultSortBy];
+                state.semanticLayerQuery.sortBy = [fieldDefaultSortBy];
             }
         },
         deselectField: (
@@ -266,7 +277,7 @@ export const semanticViewerSlice = createSlice({
         },
 
         setLimit: (state, action: PayloadAction<number>) => {
-            state.limit = action.payload;
+            state.semanticLayerQuery.limit = action.payload;
         },
 
         setSavedChartData: (state, action: PayloadAction<any>) => {
@@ -287,15 +298,15 @@ export const semanticViewerSlice = createSlice({
             state.fields = action.payload;
         },
         setFilters: (state, action: PayloadAction<SemanticLayerFilter[]>) => {
-            state.filters = action.payload;
+            state.semanticLayerQuery.filters = action.payload;
         },
         updateFilter: (state, action: PayloadAction<SemanticLayerFilter>) => {
-            const filterIndex = state.filters.findIndex(
+            const filterIndex = state.semanticLayerQuery.filters.findIndex(
                 (filter) => filter.uuid === action.payload.uuid,
             );
 
             if (filterIndex !== -1) {
-                state.filters[filterIndex] = action.payload;
+                state.semanticLayerQuery.filters[filterIndex] = action.payload;
             }
         },
         setIsFiltersModalOpen: (state, action: PayloadAction<boolean>) => {
@@ -305,7 +316,7 @@ export const semanticViewerSlice = createSlice({
             state,
             action: PayloadAction<SemanticLayerFilter>,
         ) => {
-            state.filters.push(action.payload);
+            state.semanticLayerQuery.filters.push(action.payload);
             state.isFiltersModalOpen = true;
         },
 
@@ -317,13 +328,12 @@ export const semanticViewerSlice = createSlice({
             }>,
         ) => {
             const { name, kind } = action.payload;
-
-            const existing = state.sortBy.find(
+            const existing = state.semanticLayerQuery.sortBy.find(
                 (sort) => sort.name === name && sort.kind === kind,
             );
 
             if (!existing) {
-                state.sortBy = [
+                state.semanticLayerQuery.sortBy = [
                     {
                         name,
                         kind,
@@ -336,7 +346,7 @@ export const semanticViewerSlice = createSlice({
             ) {
                 existing.direction = SemanticLayerSortByDirection.ASC;
             } else {
-                state.sortBy = [];
+                state.semanticLayerQuery.sortBy = [];
             }
         },
         updateSaveModalOpen: (state, action: PayloadAction<boolean>) => {
@@ -348,6 +358,7 @@ export const semanticViewerSlice = createSlice({
 export const {
     resetState,
     setSemanticLayerInfo,
+    setSavedSemanticViewerChartUuid,
     setSemanticLayerStatus,
     enterView,
     updateName,

@@ -25,7 +25,7 @@ import SidebarViews from './SidebarViews';
 
 const Sidebar: FC = () => {
     const { features } = useAppSelector(selectSemanticLayerInfo);
-    const { view, saveModalOpen } = useAppSelector(
+    const { semanticLayerView, saveModalOpen } = useAppSelector(
         (state) => state.semanticViewer,
     );
     const dispatch = useAppDispatch();
@@ -52,7 +52,7 @@ const Sidebar: FC = () => {
                     borderBottom: `1px solid ${theme.colors.gray[3]}`,
                 })}
             >
-                {view && (
+                {semanticLayerView && (
                     <>
                         <SaveChart.Content />
                         {saveModalOpen && <SaveChart.Modal />}
@@ -69,7 +69,7 @@ const Sidebar: FC = () => {
             >
                 <Title order={5} fz="sm" c="gray.6" px="sm">
                     <Group spacing="xs">
-                        {features.views && view && (
+                        {features.views && semanticLayerView && (
                             <Tooltip
                                 variant="xs"
                                 label="Back to views"
@@ -81,7 +81,7 @@ const Sidebar: FC = () => {
                             </Tooltip>
                         )}
 
-                        {!view ? 'Views' : 'Fields'}
+                        {!semanticLayerView ? 'Views' : 'Fields'}
                     </Group>
                 </Title>
 
@@ -90,7 +90,11 @@ const Sidebar: FC = () => {
                     sx={{ flexGrow: 1, overflowY: 'auto' }}
                     px="sm"
                 >
-                    {!view ? <SidebarViews /> : <SidebarViewFields />}
+                    {!semanticLayerView ? (
+                        <SidebarViews />
+                    ) : (
+                        <SidebarViewFields />
+                    )}
                 </Flex>
             </Stack>
 

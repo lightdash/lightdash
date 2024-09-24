@@ -32,7 +32,9 @@ export const RunSemanticQueryButton: FC<Props> = ({
     const dispatch = useAppDispatch();
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const { limit } = useAppSelector((state) => state.semanticViewer);
+    const limit = useAppSelector(
+        (state) => state.semanticViewer.semanticLayerQuery.limit,
+    );
 
     const handleLimitChange = useCallback(
         (newLimit: number) => dispatch(setLimit(newLimit)),

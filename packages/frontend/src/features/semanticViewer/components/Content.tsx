@@ -1,9 +1,20 @@
-import { ChartKind } from '@lightdash/common';
-import { Center, Group, SegmentedControl, Text } from '@mantine/core';
-import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
+import {
+    ChartKind,
+    DimensionType,
+    FieldType,
+    SemanticLayerSortByDirection,
+} from '@lightdash/common';
+import { Button, Center, Group, SegmentedControl, Text } from '@mantine/core';
+import {
+    IconArrowDown,
+    IconArrowUp,
+    IconChartHistogram,
+    IconCodeCircle,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { TableFieldIcon } from '../../../components/DataViz/Icons';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
@@ -14,8 +25,10 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectAllSelectedFields,
+    selectAllSelectedFieldsByKind,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
+    selectSortBy,
 } from '../store/selectors';
 import {
     EditorTabs,
@@ -35,8 +48,19 @@ const Content: FC = () => {
     const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const { results, view, activeEditorTab, columns, fields, activeChartKind } =
-        useAppSelector((state) => state.semanticViewer);
+    const allSelectedFieldsByKind = useAppSelector(
+        selectAllSelectedFieldsByKind,
+    );
+
+    const {
+        semanticLayerView,
+        results,
+        activeEditorTab,
+        columns,
+        fields,
+        activeChartKind,
+    } = useAppSelector((state) => state.semanticViewer);
+
     const [hasClickedRunQueryButton, setHasClickedRunQueryButton] =
         useState(false);
 
@@ -72,6 +96,12 @@ const Content: FC = () => {
 
     const resultsData = useMemo(() => requestData?.results, [requestData]);
     const resultsColumns = useMemo(() => requestData?.columns, [requestData]);
+
+    const sortBy = useAppSelector(selectSortBy);
+
+    const handleAddSortBy = (fieldName: string, kind: FieldType) => {
+        dispatch(updateSortBy({ name: fieldName, kind }));
+    };
 
     useEffect(() => {
         if (!resultsColumns || !resultsData) return;
@@ -180,7 +210,7 @@ const Content: FC = () => {
                     }}
                 />
 
-                {!!view && <Filters />}
+                {!!semanticLayerView && <Filters />}
 
                 <RunSemanticQueryButton
                     ml="auto"
@@ -189,7 +219,85 @@ const Content: FC = () => {
                     maxQueryLimit={config.maxQueryLimit}
                 />
             </Group>
-            {!view ? (
+
+            {allSelectedFieldNames.length > 0 && (
+                <Group
+                    px="md"
+                    pt="sm"
+                    bg="gray.1"
+                    sx={(theme) => ({
+                        borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                    })}
+                    spacing="xxs"
+                    align="baseline"
+                >
+                    <Text fw={600} mr="xs">
+                        Sort by:
+                    </Text>
+
+                    {Object.entries(allSelectedFieldsByKind).map(
+                        ([kind, allFields]) =>
+                            allFields.map((field) => {
+                                // TODO: this is annoying
+                                const normalKind =
+                                    kind === 'metrics'
+                                        ? FieldType.METRIC
+                                        : FieldType.DIMENSION;
+
+                                const sortDirection = sortBy.find(
+                                    (s) =>
+                                        s.name === field.name &&
+                                        s.kind === normalKind,
+                                )?.direction;
+
+                                return (
+                                    <Button
+                                        key={`${kind}-${field.name}`}
+                                        variant={
+                                            sortDirection ? 'filled' : 'outline'
+                                        }
+                                        leftIcon={
+                                            <TableFieldIcon
+                                                fieldType={
+                                                    kind === 'metrics'
+                                                        ? DimensionType.NUMBER
+                                                        : DimensionType.STRING
+                                                }
+                                            />
+                                        }
+                                        size="sm"
+                                        mr="xs"
+                                        mb="xs"
+                                        color="gray"
+                                        compact
+                                        onClick={() =>
+                                            handleAddSortBy(
+                                                field.name,
+                                                normalKind,
+                                            )
+                                        }
+                                        rightIcon={
+                                            sortDirection && (
+                                                <MantineIcon
+                                                    icon={
+                                                        sortDirection ===
+                                                        SemanticLayerSortByDirection.ASC
+                                                            ? IconArrowUp
+                                                            : IconArrowDown
+                                                    }
+                                                ></MantineIcon>
+                                            )
+                                        }
+                                    >
+                                        {field.name}
+                                    </Button>
+                                );
+                            }),
+                    )}
+                </Group>
+            )}
+
+            {!semanticLayerView ? (
                 <Center sx={{ flexGrow: 1 }}>
                     <SuboptimalState
                         title="Select a view"

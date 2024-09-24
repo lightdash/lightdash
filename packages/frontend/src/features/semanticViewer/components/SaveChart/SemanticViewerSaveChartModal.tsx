@@ -43,7 +43,9 @@ const SemanticViewerSaveChartModal: FC = () => {
     const [opened, { close }] = useDisclosure(true);
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const name = useAppSelector((state) => state.semanticViewer.name);
-    const view = useAppSelector((state) => state.semanticViewer.view);
+    const semanticLayerView = useAppSelector(
+        (state) => state.semanticViewer.semanticLayerView,
+    );
     const semanticLayerQuery = useAppSelector(selectSemanticLayerQuery);
 
     const activeChartKind = useAppSelector(
@@ -136,7 +138,7 @@ const SemanticViewerSaveChartModal: FC = () => {
             await saveChart({
                 name: form.values.name,
                 description: form.values.description || '',
-                semanticLayerView: view ?? null,
+                semanticLayerView: semanticLayerView ?? null,
                 semanticLayerQuery,
                 config: selectedChartConfig,
                 spaceUuid: spaceUuid,
@@ -158,7 +160,7 @@ const SemanticViewerSaveChartModal: FC = () => {
         dispatch,
         handleClose,
         saveChart,
-        view,
+        semanticLayerView,
         semanticLayerQuery,
         selectedChartConfig,
     ]);

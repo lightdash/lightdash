@@ -63,10 +63,10 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const savedSemanticViewerChartUuid =
         tile.properties.savedSemanticViewerChartUuid;
 
-    const chartQuery = useSavedSemanticViewerChart(
+    const chartQuery = useSavedSemanticViewerChart({
         projectUuid,
-        savedSemanticViewerChartUuid,
-    );
+        uuid: savedSemanticViewerChartUuid,
+    });
 
     const fieldsQuery = useSemanticLayerViewFields(
         {

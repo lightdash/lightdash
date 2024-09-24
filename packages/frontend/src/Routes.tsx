@@ -269,6 +269,22 @@ const Routes: FC = () => {
 
                                     <Route
                                         exact
+                                        path={[
+                                            '/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartUuid/edit',
+                                            '/projects/:projectUuid/semantic-viewer/new',
+                                            '/projects/:projectUuid/semantic-viewer',
+                                        ]}
+                                    >
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.SEMANTIC_VIEWER_EDIT}
+                                        >
+                                            <SemanticViewerEditPage />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route
+                                        exact
                                         path="/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartUuid"
                                     >
                                         <NavBar />
@@ -277,23 +293,6 @@ const Routes: FC = () => {
                                             name={PageName.SEMANTIC_VIEWER_VIEW}
                                         >
                                             <SemanticViewerViewPage />
-                                        </TrackPage>
-                                    </Route>
-
-                                    <Route
-                                        exact
-                                        path={[
-                                            '/projects/:projectUuid/semantic-viewer',
-                                            '/projects/:projectUuid/semantic-viewer/new',
-                                            '/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartUuid/edit',
-                                        ]}
-                                    >
-                                        <NavBar />
-
-                                        <TrackPage
-                                            name={PageName.SEMANTIC_VIEWER_EDIT}
-                                        >
-                                            <SemanticViewerEditPage />
                                         </TrackPage>
                                     </Route>
 

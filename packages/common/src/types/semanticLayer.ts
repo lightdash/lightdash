@@ -76,11 +76,11 @@ export type SemanticLayerQuery = {
     dimensions: Pick<SemanticLayerField, 'name'>[];
     timeDimensions: Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>[];
     metrics: Pick<SemanticLayerField, 'name'>[];
+    filters: SemanticLayerFilter[];
     sortBy: SemanticLayerSortBy[];
+    pivot?: SemanticLayerPivot;
     limit?: number;
     timezone?: string;
-    pivot?: SemanticLayerPivot;
-    filters: SemanticLayerFilter[];
 };
 
 export type SemanticLayerResultRow = Record<

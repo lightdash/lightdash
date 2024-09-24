@@ -41,7 +41,9 @@ const getSearchResults = (
 
 const SidebarViewFields = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
-    const { view } = useAppSelector((state) => state.semanticViewer);
+    const semanticLayerView = useAppSelector(
+        (state) => state.semanticViewer.semanticLayerView,
+    );
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
     const filterFields = useAppSelector(selectFilterFields);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
@@ -50,7 +52,7 @@ const SidebarViewFields = () => {
 
     const [searchQuery, setSearchQuery] = useState('');
 
-    if (!view) {
+    if (!semanticLayerView) {
         throw new Error('Impossible state');
     }
 
@@ -77,7 +79,7 @@ const SidebarViewFields = () => {
     const fields = useSemanticLayerViewFields(
         {
             projectUuid,
-            view,
+            view: semanticLayerView,
             selectedFields: usedFields,
         },
         { keepPreviousData: true },
