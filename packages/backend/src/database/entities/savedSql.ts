@@ -83,8 +83,11 @@ export type InsertSavedSqlVersion = Pick<
     | 'created_by_user_uuid'
 >;
 
+type UpdateSqlVersionConfig = Partial<Pick<DbSavedSqlVersion, 'config'>>;
+
 export type SavedSqlVersionsTable = Knex.CompositeTableType<
     DbSavedSqlVersion,
     InsertSavedSqlVersion,
+    UpdateSqlVersionConfig,
     never
 >;
