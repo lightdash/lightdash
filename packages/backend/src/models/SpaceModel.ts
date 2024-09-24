@@ -53,6 +53,7 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
+import { SavedSemanticViewerChartsTableName } from '../database/entities/savedSemanticViewerCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import {
     DbSpace,
@@ -918,15 +919,25 @@ export class SpaceModel {
         });
     }
 
-    async getSpaceSqlCharts(
+    private async getSpaceCharts(
+        chartsTable: {
+            name: string;
+            uuidColumnName: string;
+            chartSourceType: ChartSourceType;
+        },
         spaceUuids: string[],
         filters?: {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
-    ): Promise<SpaceQuery[]> {
-        const chartTable = SavedSqlTableName;
-        let spaceQueriesQuery = this.database('saved_sql')
+    ) {
+        const {
+            name: chartTable,
+            uuidColumnName,
+            chartSourceType,
+        } = chartsTable;
+
+        let spaceChartsQuery = this.database(chartTable)
             .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
             .leftJoin(
                 SpaceTableName,
@@ -939,9 +950,9 @@ export class SpaceModel {
                 'users.user_uuid',
             )
             /* .leftJoin(
-                PinnedChartTableName,
-                `${PinnedChartTableName}.saved_chart_uuid`,
-                `${chartTable}.saved_sql_uuid`,
+            PinnedChartTableName,
+            `${PinnedChartTableName}.saved_chart_uuid`,
+            `${chartTable}.saved_sql_uuid`,
             )
             .leftJoin(
                 PinnedListTableName,
@@ -965,7 +976,7 @@ export class SpaceModel {
             )
             .select<
                 {
-                    saved_sql_uuid: string;
+                    uuid: string;
                     name: string;
                     description?: string;
                     created_at: Date;
@@ -986,7 +997,7 @@ export class SpaceModel {
                     slug: string;
                 }[]
             >([
-                `${chartTable}.saved_sql_uuid`,
+                `${chartTable}.${uuidColumnName}`,
                 `${chartTable}.name`,
                 `${chartTable}.description`,
                 `${chartTable}.last_version_updated_at as created_at`,
@@ -1009,7 +1020,7 @@ export class SpaceModel {
             ]);
 
         if (filters?.recentlyUpdated || filters?.mostPopular) {
-            spaceQueriesQuery = spaceQueriesQuery
+            spaceChartsQuery = spaceChartsQuery
                 .orderBy(
                     filters.mostPopular
                         ? [
@@ -1027,7 +1038,7 @@ export class SpaceModel {
                 )
                 .limit(this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
         } else {
-            spaceQueriesQuery = spaceQueriesQuery.orderBy([
+            spaceChartsQuery = spaceChartsQuery.orderBy([
                 {
                     column: `${chartTable}.last_version_updated_at`,
                     order: 'desc',
@@ -1035,34 +1046,68 @@ export class SpaceModel {
             ]);
         }
 
-        const savedQueries = await spaceQueriesQuery;
-
-        return savedQueries.map((savedQuery) => ({
-            uuid: savedQuery.saved_sql_uuid,
-            name: savedQuery.name,
-            spaceName: savedQuery.space_name,
-            dashboardName: savedQuery.dashboard_name,
-            organizationUuid: savedQuery.organization_uuid,
-            projectUuid: savedQuery.project_uuid,
-            dashboardUuid: savedQuery.dashboard_uuid,
-            description: savedQuery.description,
-            updatedAt: savedQuery.created_at,
+        return (await spaceChartsQuery).map((savedChart) => ({
+            uuid: savedChart.uuid,
+            name: savedChart.name,
+            spaceName: savedChart.space_name,
+            dashboardName: savedChart.dashboard_name,
+            organizationUuid: savedChart.organization_uuid,
+            projectUuid: savedChart.project_uuid,
+            dashboardUuid: savedChart.dashboard_uuid,
+            description: savedChart.description,
+            updatedAt: savedChart.created_at,
             updatedByUser: {
-                userUuid: savedQuery.user_uuid,
-                firstName: savedQuery.first_name,
-                lastName: savedQuery.last_name,
+                userUuid: savedChart.user_uuid,
+                firstName: savedChart.first_name,
+                lastName: savedChart.last_name,
             },
-            spaceUuid: savedQuery.space_uuid,
-            views: savedQuery.views_count,
-            firstViewedAt: savedQuery.first_viewed_at,
+            spaceUuid: savedChart.space_uuid,
+            views: savedChart.views_count,
+            firstViewedAt: savedChart.first_viewed_at,
             chartType: ChartType.CARTESIAN,
-            chartKind: savedQuery.chart_kind,
+            chartKind: savedChart.chart_kind,
             pinnedListUuid: '', // savedQuery.pinned_list_uuid,
             pinnedListOrder: 0, // savedQuery.order,
             validationErrors: [],
-            slug: savedQuery.slug,
-            source: ChartSourceType.SQL,
+            slug: savedChart.slug,
+            source: chartSourceType,
         }));
+    }
+
+    async getSpaceSqlCharts(
+        spaceUuids: string[],
+        filters?: {
+            recentlyUpdated?: boolean;
+            mostPopular?: boolean;
+        },
+    ): Promise<SpaceQuery[]> {
+        return this.getSpaceCharts(
+            {
+                name: SavedSqlTableName,
+                uuidColumnName: 'saved_sql_uuid',
+                chartSourceType: ChartSourceType.SQL,
+            },
+            spaceUuids,
+            filters,
+        );
+    }
+
+    async getSpaceSemanticViewerCharts(
+        spaceUuids: string[],
+        filters?: {
+            recentlyUpdated?: boolean;
+            mostPopular?: boolean;
+        },
+    ): Promise<SpaceQuery[]> {
+        return this.getSpaceCharts(
+            {
+                name: SavedSemanticViewerChartsTableName,
+                uuidColumnName: 'saved_semantic_viewer_chart_uuid',
+                chartSourceType: ChartSourceType.SEMANTIC_LAYER,
+            },
+            spaceUuids,
+            filters,
+        );
     }
 
     async getSpaceQueries(

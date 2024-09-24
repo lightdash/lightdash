@@ -16,6 +16,7 @@ import {
     TableErrorSearchResult,
     TableSearchResult,
     TableSelectionType,
+    type SemanticViewerChartSearchResults,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -27,6 +28,7 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
+import { SavedSemanticViewerChartsTableName } from '../../database/entities/savedSemanticViewerCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
@@ -194,33 +196,35 @@ export class SearchModel {
         }));
     }
 
-    private async searchSqlCharts(
+    private async searchCharts(
+        searchTable: {
+            name: string;
+            uuidColumnName: string;
+        },
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-    ): Promise<SqlChartSearchResult[]> {
-        if (!shouldSearchForType(SearchItemType.SQL_CHART, filters?.type)) {
-            return [];
-        }
+    ) {
+        const { name: tableName, uuidColumnName } = searchTable;
 
         const searchRankRawSql = getFullTextSearchRankCalcSql({
             database: this.database,
             variables: {
-                searchVectorColumn: `${SavedSqlTableName}.search_vector`,
+                searchVectorColumn: `${tableName}.search_vector`,
                 searchQuery: query,
             },
         });
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
-        let subquery = this.database(SavedSqlTableName)
+        let subquery = this.database(tableName)
             .leftJoin(
                 DashboardsTableName,
-                `${SavedSqlTableName}.dashboard_uuid`,
+                `${tableName}.dashboard_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
             )
             .leftJoin(SpaceTableName, function joinSpaces() {
                 this.on(
-                    `${SavedSqlTableName}.space_uuid`,
+                    `${tableName}.space_uuid`,
                     '=',
                     `${SpaceTableName}.space_uuid`,
                 );
@@ -236,36 +240,79 @@ export class SearchModel {
                 `${SpaceTableName}.project_id`,
             )
             .column(
-                { uuid: 'saved_sql_uuid' },
-                `${SavedSqlTableName}.slug`,
-                `${SavedSqlTableName}.name`,
-                `${SavedSqlTableName}.description`,
+                { uuid: uuidColumnName },
+                `${tableName}.slug`,
+                `${tableName}.name`,
+                `${tableName}.description`,
                 {
-                    chartType: `${SavedSqlTableName}.last_version_chart_kind`,
+                    chartType: `${tableName}.last_version_chart_kind`,
                 },
-                { spaceUuid: `${SavedSqlTableName}.space_uuid` },
+                { spaceUuid: `${tableName}.space_uuid` },
                 { search_rank: searchRankRawSql },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .orderBy('search_rank', 'desc');
 
-        subquery = filterByCreatedAt(SavedSqlTableName, subquery, filters);
+        subquery = filterByCreatedAt(tableName, subquery, filters);
         subquery = filterByCreatedByUuid(
             subquery,
             {
-                tableName: SavedSqlTableName,
+                tableName,
                 tableUserUuidColumnName: 'last_version_updated_by_user_uuid',
             },
             filters,
         );
 
-        const savedSqlCharts = await this.database(SavedSqlTableName)
+        return this.database(tableName)
             .select()
             .from(subquery.as('saved_charts_with_rank'))
             .where('search_rank', '>', 0)
             .limit(10);
+    }
 
-        return savedSqlCharts;
+    private async searchSqlCharts(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<SqlChartSearchResult[]> {
+        if (!shouldSearchForType(SearchItemType.SQL_CHART, filters?.type)) {
+            return [];
+        }
+
+        return this.searchCharts(
+            {
+                name: SavedSqlTableName,
+                uuidColumnName: 'saved_sql_uuid',
+            },
+            projectUuid,
+            query,
+            filters,
+        );
+    }
+
+    private async searchSemanticViewerCharts(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<SemanticViewerChartSearchResults[]> {
+        if (
+            !shouldSearchForType(
+                SearchItemType.SEMANTIC_VIEWER_CHART,
+                filters?.type,
+            )
+        ) {
+            return [];
+        }
+
+        return this.searchCharts(
+            {
+                name: SavedSemanticViewerChartsTableName,
+                uuidColumnName: 'saved_semantic_viewer_chart_uuid',
+            },
+            projectUuid,
+            query,
+            filters,
+        );
     }
 
     private async searchSavedCharts(
@@ -589,6 +636,11 @@ export class SearchModel {
             query,
             filters,
         );
+        const semanticViewerCharts = await this.searchSemanticViewerCharts(
+            projectUuid,
+            query,
+            filters,
+        );
         const explores = await this.getProjectExplores(projectUuid);
         const tableErrors = await this.searchTableErrors(
             projectUuid,
@@ -609,6 +661,7 @@ export class SearchModel {
             dashboards,
             savedCharts,
             sqlCharts,
+            semanticViewerCharts,
             tables: tablesAndErrors,
             fields,
             pages,
