@@ -93,11 +93,9 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
                                             }
                                             type={type ?? selectedChartType}
                                             onChangeType={(
-                                                value: Extract<
-                                                    ChartKind,
-                                                    | ChartKind.LINE
-                                                    | ChartKind.VERTICAL_BAR
-                                                >,
+                                                value: NonNullable<
+                                                    CartesianChartDisplay['series']
+                                                >[number]['type'],
                                             ) => {
                                                 dispatch(
                                                     actions.setSeriesChartType({
