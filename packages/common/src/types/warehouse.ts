@@ -65,7 +65,7 @@ export interface WarehouseClient {
      */
     runQuery(
         sql: string,
-        tags?: Record<string, string>,
+        tags: Record<string, string>,
         timezone?: string,
         values?: any[],
     ): Promise<WarehouseResults>;
