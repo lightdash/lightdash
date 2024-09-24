@@ -1,4 +1,8 @@
-import { type SemanticLayerField } from '@lightdash/common';
+import {
+    assertUnreachable,
+    SemanticLayerFieldType,
+    type SemanticLayerField,
+} from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
@@ -14,14 +18,30 @@ const FieldFilterItems: FC<Props> = ({ field }) => {
     const dispatch = useAppDispatch();
 
     const handleAddFilter = useCallback(() => {
-        const newFilter = createFilterForOperator({
-            fieldRef: field.name,
-            fieldKind: field.kind,
-            fieldType: field.type,
-            operator: field.availableOperators[0],
-        });
+        switch (field.type) {
+            case SemanticLayerFieldType.STRING:
+            case SemanticLayerFieldType.TIME:
+                const newFilter = createFilterForOperator({
+                    fieldRef: field.name,
+                    fieldKind: field.kind,
+                    fieldType: field.type,
+                    operator: field.availableOperators[0],
+                });
 
-        dispatch(addFilterAndOpenModal(newFilter));
+                dispatch(addFilterAndOpenModal(newFilter));
+
+                break;
+            case SemanticLayerFieldType.BOOLEAN:
+            case SemanticLayerFieldType.NUMBER:
+                throw new Error(
+                    `Filters not implemented for field type: ${field.type}`,
+                );
+            default:
+                return assertUnreachable(
+                    field.type,
+                    `Unknown field type: ${field.type}`,
+                );
+        }
     }, [dispatch, field]);
 
     if (field.availableOperators.length === 0) return null;

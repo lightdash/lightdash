@@ -91,7 +91,8 @@ const FilterFieldSelect: FC<FilterFieldInputProps> = ({
                             operator: defaultOperator,
                         }),
                     );
-                    return;
+
+                    break;
                 case SemanticLayerFieldType.BOOLEAN:
                 case SemanticLayerFieldType.NUMBER:
                     throw new Error(
