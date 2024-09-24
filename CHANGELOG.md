@@ -1,3 +1,10 @@
+# [0.1270.0](https://github.com/lightdash/lightdash/compare/0.1269.1...0.1270.0) (2024-09-24)
+
+
+### Features
+
+* show semantic viewer charts in search and chart lists ([#11644](https://github.com/lightdash/lightdash/issues/11644)) ([754a23d](https://github.com/lightdash/lightdash/commit/754a23d0c2a4d7efbbb05735cce7af66333a7023))
+
 ## [0.1269.1](https://github.com/lightdash/lightdash/compare/0.1269.0...0.1269.1) (2024-09-24)
 
 
