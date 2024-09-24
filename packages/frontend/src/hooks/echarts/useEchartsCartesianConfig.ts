@@ -1914,8 +1914,14 @@ const useEchartsCartesianConfig = (
         ],
     );
 
-    if (!itemsMap) return;
-    if (!eChartsOptions) return;
+    if (
+        !itemsMap ||
+        rows.length <= 0 ||
+        !eChartsOptions ||
+        !validCartesianConfig
+    ) {
+        return undefined;
+    }
 
     return eChartsOptions;
 };
