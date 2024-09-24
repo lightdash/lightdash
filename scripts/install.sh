@@ -414,6 +414,7 @@ LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTA
 echo ""
 echo "🟡 Starting the Lightdash containers. It may take a few minutes ..."
 echo
+# TODO: Remove once verified that the docker compose command works as expected from user feedback
 # The docker-compose command does some nasty stuff for the `--detach` functionality. So we add a `|| true` so that the
 # script doesn't exit because this command looks like it failed to do it's thing.
 if [[ $setup_type == 'local_dbt' ]]; then
