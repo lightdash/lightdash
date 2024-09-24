@@ -1,6 +1,6 @@
 import {
     FieldType as FieldKind,
-    getFilterFieldNamesRecursively,
+    getFlattenedFilterFieldProps,
     SemanticLayerFieldType,
     type SemanticLayerField,
     type VizTableColumnsConfig,
@@ -78,7 +78,7 @@ export const getSelectedField = (name: string) =>
 
 export const selectFilterFields = createSelector([selectFilters], (filters) => {
     const allFilterFields = Object.values(filters).flatMap(
-        getFilterFieldNamesRecursively,
+        getFlattenedFilterFieldProps,
     );
 
     return allFilterFields.reduce(
@@ -87,18 +87,18 @@ export const selectFilterFields = createSelector([selectFilters], (filters) => {
                 f.fieldKind === FieldKind.DIMENSION &&
                 f.fieldType !== SemanticLayerFieldType.TIME
             ) {
-                acc.dimensions.push({ name: f.field });
+                acc.dimensions.push({ name: f.fieldRef });
             }
 
             if (
                 f.fieldKind === FieldKind.DIMENSION &&
                 f.fieldType === SemanticLayerFieldType.TIME
             ) {
-                acc.timeDimensions.push({ name: f.field });
+                acc.timeDimensions.push({ name: f.fieldRef });
             }
 
             if (f.fieldKind === FieldKind.METRIC) {
-                acc.metrics.push({ name: f.field });
+                acc.metrics.push({ name: f.fieldRef });
             }
 
             return acc;

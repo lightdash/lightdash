@@ -1,6 +1,5 @@
 import {
-    isApiSemanticLayerJobSuccessResponse,
-    isSemanticLayerJobErrorDetails,
+    SchedulerJobStatus,
     type ApiJobScheduledResponse,
     type ApiSemanticLayerClientInfo,
     type ApiSemanticLayerCreateChart,
@@ -109,16 +108,16 @@ export const apiGetSemanticLayerQueryResults = async ({
     const { jobId } = await apiPostSemanticLayerRun({ projectUuid, query });
     const job = await getSemanticLayerCompleteJob(jobId);
 
-    if (isApiSemanticLayerJobSuccessResponse(job)) {
-        const url =
-            job.details && !isSemanticLayerJobErrorDetails(job.details)
-                ? job.details.fileUrl
-                : undefined;
-        const results = await getResultsFromStream<SemanticLayerResultRow>(url);
+    if (job.status === SchedulerJobStatus.COMPLETED) {
+        const { fileUrl, columns } = job.details;
+
+        const results = await getResultsFromStream<SemanticLayerResultRow>(
+            fileUrl,
+        );
 
         return {
             results,
-            columns: job.details.columns,
+            columns,
         };
     } else {
         throw job;
@@ -161,16 +160,16 @@ export const getSemanticViewerChartResults = async (
     );
     const job = await getSemanticLayerCompleteJob(scheduledJob.jobId);
 
-    if (isApiSemanticLayerJobSuccessResponse(job)) {
-        const url =
-            job.details && !isSemanticLayerJobErrorDetails(job.details)
-                ? job.details.fileUrl
-                : undefined;
-        const results = await getResultsFromStream<SemanticLayerResultRow>(url);
+    if (job.status === SchedulerJobStatus.COMPLETED) {
+        const { fileUrl, columns } = job.details;
+
+        const results = await getResultsFromStream<SemanticLayerResultRow>(
+            fileUrl,
+        );
 
         return {
             results,
-            columns: job.details.columns,
+            columns,
         };
     } else {
         throw job;
