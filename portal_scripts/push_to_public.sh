@@ -32,7 +32,7 @@ fi
 HAS_PUBLIC_REMOTE=$(git remote get-url public | grep -q 'No such remote' && { echo 0; } || { echo 1; })
 if [ $HAS_PUBLIC_REMOTE = 0 ]; then
     echo '#### Please set a remote repo named "public" where code should be pushed.'
-    echo "    git remote add public https://github.com/<your.username>/lightdash.git"
+    echo "    > git remote add public https://github.com/<your.username>/lightdash.git"
     exit 1
 fi
 
@@ -48,7 +48,7 @@ BRANCH_INFO=$(git branch -r)
 IS_TRACKING_PUBLIC=$(git branch -r | grep -qE '[[:space:]]public\/main$' && { echo 1; } || { echo 0; })
 if [ $IS_TRACKING_PUBLIC != 1 ]; then
     echo "#### Branch is not tracking the public repo. Create a new branch with:"
-    echo "    git checkout -b name-of-branch --track public/main"
+    echo "    > git checkout -b name-of-branch --track public/main"
     exit 1
 fi
 
@@ -59,25 +59,58 @@ if [ $IS_MASTER_BRANCH = 1 ]; then
     exit 1
 fi
 
-DIFFERENT_BASE_VERSION_INFO=$(git diff --shortstat public/main -- CHANGELOG.md)
-IS_PUBLIC_MAIN_BEHIND=$(echo $DIFFERENT_BASE_VERSION_INFO | grep -q 'insertion' && { echo 1; } || { echo 0; })
-if [ $IS_PUBLIC_MAIN_BEHIND = 1 ]; then
-    echo "#### Base LD version of local branch is ahead of your remote public branch. Rebase remote public branch."
-    echo "#### If necessary, clone your remote public repo:"
-    echo "    git clone https://github.com/<your.username>/lightdash.git"
-    echo "#### From your local copy of the remote public repo:"
-    echo "    git checkout main"
-    echo "    git fetch upstream"
-    echo "    git merge upstream/main"
-    echo "    git push"
+# LOCAL AND OFFICIAL LD DIVERGE
+DIFFERENT_BASE_VERSION_PUBLIC_OFFICIAL=$(git diff --shortstat upstream/main -- CHANGELOG.md)
+IS_PUBLIC_DEV_BEHIND=$(echo $DIFFERENT_BASE_VERSION_PUBLIC_OFFICIAL | grep -q 'insertion' && { echo 1; } || { echo 0; })
+if [ $IS_PUBLIC_DEV_BEHIND = 1 ]; then
+    echo "#### Base LD version of local branch is ahead of official public branch."
+    echo "#### This should not be possible! Contact admin."
     exit 1
 fi
-IS_LOCAL_BEHIND=$(echo $DIFFERENT_BASE_VERSION_INFO | grep -q 'deletion' && { echo 1; } || { echo 0; })
-if [ $IS_LOCAL_BEHIND = 1 ]; then
-    echo "#### Base LD version of remote public branch is ahead of local branch. Rebase local branch:"
-    echo "    git rebase public/main"
-    echo "    git push -f"
+IS_LOCAL_BEHIND_PUBLIC_DEV=$(echo $DIFFERENT_BASE_VERSION_PUBLIC_OFFICIAL | grep -q 'deletion' && { echo 1; } || { echo 0; })
+if [ $IS_LOCAL_BEHIND_PUBLIC_DEV = 1 ]; then
+    THIS_BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+    echo "#### Base LD version of official public branch is ahead of local branch. Rebase local branch:"
+    echo "    > git rebase upstream/main"
     exit 1
+fi
+
+# LOCAL AND DEV'S PUBLIC DIVERGE
+DIFFERENT_BASE_VERSION_PUBLIC_DEV=$(git diff --shortstat public/main -- CHANGELOG.md)
+IS_PUBLIC_DEV_BEHIND=$(echo $DIFFERENT_BASE_VERSION_PUBLIC_DEV | grep -q 'insertion' && { echo 1; } || { echo 0; })
+if [ $IS_PUBLIC_DEV_BEHIND = 1 ]; then
+    echo "#### Base LD version of local branch is ahead of your remote public branch."
+    echo "#### From https://github.com/<your.username>/lightdash click the \"Sync fork\" button."
+    echo "#### ***OR*** manually rebase remote public branch:"
+    echo "#### 1) If necessary, clone your remote public repo:"
+    echo "        > git clone https://github.com/<your.username>/lightdash.git"
+    echo "#### 2) From your local copy of the remote public repo:"
+    echo "        > git checkout main"
+    echo "        > git fetch upstream"
+    echo "        > git merge upstream/main"
+    echo "        > git push"
+    exit 1
+fi
+IS_LOCAL_BEHIND_PUBLIC_DEV=$(echo $DIFFERENT_BASE_VERSION_PUBLIC_DEV | grep -q 'deletion' && { echo 1; } || { echo 0; })
+if [ $IS_LOCAL_BEHIND_PUBLIC_DEV = 1 ]; then
+    echo "#### Base LD version of remote public branch is ahead of local branch. Rebase local branch:"
+    echo "    > git rebase public/main"
+    exit 1
+fi
+
+# LOCAL AND INTERNAL REPO DIVERGE
+DIFFERENT_BASE_VERSION_PUBLIC_INTERNAL=$(git diff --shortstat origin/master -- CHANGELOG.md)
+IS_INTERNAL_PUBLIC_BEHIND=$(echo $DIFFERENT_BASE_VERSION_PUBLIC_INTERNAL | grep -q 'insertion' && { echo 1; } || { echo 0; })
+if [ $IS_INTERNAL_PUBLIC_BEHIND = 1 ]; then
+    echo "#### Base LD version local branch is ahead of internal repo."
+    echo "#### Contact admin to update it."
+    exit 1;
+fi
+IS_LOCAL_BEHIND_PUBLIC_INTERNAL=$(echo $DIFFERENT_BASE_VERSION_PUBLIC_INTERNAL | grep -q 'deletion' && { echo 1; } || { echo 0; })
+if [ $IS_LOCAL_BEHIND_PUBLIC_INTERNAL = 1 ]; then
+    echo "#### Base LD version of internal repo is ahead of local branch."
+    echo "#### This should not happen if the local branch is updated from official LD. Contact admin."
+    exit 1;
 fi
 
 RESTRICTED_WORDS_IN_BRANCH_NAME=$(get_restricted_content "$BRANCH_INFO")
@@ -132,6 +165,6 @@ while true; do
     break
 done
 
-git push -u public HEAD
+#git push -u public HEAD
 
 echo "#### Changes pushed public. Create a pull request on GitHub."
