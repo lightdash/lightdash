@@ -295,7 +295,10 @@ export const cartesianChartConfigSlice = createSlice({
                 reference: string;
             }>,
         ) => {
-            if (!config?.display) return;
+            if (!config) return;
+            config.display = config.display || {};
+            config.display.yAxis = config.display.yAxis || [];
+            config.display.series = config.display.series || {};
 
             const { index, format, reference } = action.payload;
             const validFormat = isFormat(format) ? format : undefined;
@@ -314,6 +317,29 @@ export const cartesianChartConfigSlice = createSlice({
                     format: validFormat,
                 };
             }
+        },
+        setSeriesChartType: (
+            { config },
+            action: PayloadAction<{
+                index: number;
+                type: NonNullable<
+                    CartesianChartDisplay['series']
+                >[number]['type'];
+                reference: string;
+            }>,
+        ) => {
+            if (!config) return;
+            config.display = config.display || {};
+            config.display.series = config.display.series || {};
+
+            const { index, type, reference } = action.payload;
+
+            config.display.series = config.display.series || {};
+            config.display.series[reference] = {
+                ...config.display.series[reference],
+                yAxisIndex: index,
+                type,
+            };
         },
         setSeriesColor: (
             { config },

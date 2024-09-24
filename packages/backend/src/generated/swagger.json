@@ -7567,6 +7567,16 @@
                         "properties": {},
                         "additionalProperties": {
                             "properties": {
+                                "type": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ChartKind.LINE"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                                        }
+                                    ]
+                                },
                                 "color": {
                                     "type": "string"
                                 },
@@ -9402,6 +9412,10 @@
                 "required": ["fieldType", "fieldKind", "fieldRef", "uuid"],
                 "type": "object"
             },
+            "SemanticLayerFieldType.STRING": {
+                "enum": ["string"],
+                "type": "string"
+            },
             "SemanticLayerStringFilter": {
                 "allOf": [
                     {
@@ -9417,12 +9431,19 @@
                             },
                             "operator": {
                                 "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            },
+                            "fieldType": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldType.STRING"
                             }
                         },
-                        "required": ["values", "operator"],
+                        "required": ["values", "operator", "fieldType"],
                         "type": "object"
                     }
                 ]
+            },
+            "SemanticLayerFieldType.TIME": {
+                "enum": ["time"],
+                "type": "string"
             },
             "SemanticLayerExactTimeFilter": {
                 "allOf": [
@@ -9442,9 +9463,12 @@
                             },
                             "operator": {
                                 "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            },
+                            "fieldType": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldType.TIME"
                             }
                         },
-                        "required": ["values", "operator"],
+                        "required": ["values", "operator", "fieldType"],
                         "type": "object"
                     }
                 ]
@@ -9471,9 +9495,12 @@
                             },
                             "operator": {
                                 "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            },
+                            "fieldType": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldType.TIME"
                             }
                         },
-                        "required": ["values", "operator"],
+                        "required": ["values", "operator", "fieldType"],
                         "type": "object"
                     }
                 ]
@@ -10006,7 +10033,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1266.2",
+        "version": "0.1271.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
