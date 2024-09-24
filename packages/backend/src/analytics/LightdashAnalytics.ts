@@ -335,7 +335,7 @@ type RollbackChartVersionEvent = BaseTrack & {
 export type CreateSavedChartVersionEvent = BaseTrack & {
     event: 'saved_chart_version.created';
     properties: {
-        name: string;
+        title: string;
         description: string | undefined;
         projectId: string;
         savedQueryId: string;

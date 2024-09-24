@@ -184,7 +184,7 @@ export class SavedChartService extends BaseService {
                 : undefined;
 
         return {
-            name: savedChart.name,
+            title: savedChart.name,
             description: savedChart.description,
             projectId: savedChart.projectUuid,
             savedQueryId: savedChart.uuid,
