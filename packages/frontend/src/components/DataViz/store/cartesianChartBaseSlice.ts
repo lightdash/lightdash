@@ -3,7 +3,6 @@ import {
     VizIndexType,
     VIZ_DEFAULT_AGGREGATION,
     type CartesianChartDisplay,
-    type ChartKind,
     type VizAggregationOptions,
     type VizBarChartConfig,
     type VizCartesianChartOptions,
@@ -323,10 +322,9 @@ export const cartesianChartConfigSlice = createSlice({
             { config },
             action: PayloadAction<{
                 index: number;
-                type: Extract<
-                    ChartKind,
-                    ChartKind.LINE | ChartKind.VERTICAL_BAR
-                >;
+                type: NonNullable<
+                    CartesianChartDisplay['series']
+                >[number]['type'];
                 reference: string;
             }>,
         ) => {

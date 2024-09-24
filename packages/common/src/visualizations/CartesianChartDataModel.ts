@@ -317,7 +317,7 @@ export type CartesianChartDisplay = {
             format?: Format;
             yAxisIndex?: number;
             color?: string;
-            type?: Extract<ChartKind, ChartKind.LINE | ChartKind.VERTICAL_BAR>;
+            type?: ChartKind.LINE | ChartKind.VERTICAL_BAR;
         };
     };
     legend?: {

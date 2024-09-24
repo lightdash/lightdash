@@ -584,13 +584,11 @@ export const getChartKind = (
 };
 
 export const getEChartsChartTypeFromChartKind = (
-    chartKind: Extract<
-        ChartKind,
+    chartKind:
         | ChartKind.VERTICAL_BAR
         | ChartKind.LINE
         | ChartKind.AREA
-        | ChartKind.SCATTER
-    >,
+        | ChartKind.SCATTER,
 ): CartesianSeriesType => {
     switch (chartKind) {
         case ChartKind.VERTICAL_BAR:

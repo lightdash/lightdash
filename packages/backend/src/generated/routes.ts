@@ -6871,6 +6871,13 @@ const models: TsoaRoute.Models = {
                     additionalProperties: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            type: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { ref: 'ChartKind.LINE' },
+                                    { ref: 'ChartKind.VERTICAL_BAR' },
+                                ],
+                            },
                             color: { dataType: 'string' },
                             yAxisIndex: { dataType: 'double' },
                             format: { ref: 'Format' },
@@ -8535,6 +8542,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'SemanticLayerFieldType.STRING': {
+        dataType: 'refEnum',
+        enums: ['string'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerStringFilter: {
         dataType: 'refAlias',
         type: {
@@ -8553,11 +8565,20 @@ const models: TsoaRoute.Models = {
                             ref: 'SemanticLayerFilterBaseOperator',
                             required: true,
                         },
+                        fieldType: {
+                            ref: 'SemanticLayerFieldType.STRING',
+                            required: true,
+                        },
                     },
                 },
             ],
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'SemanticLayerFieldType.TIME': {
+        dataType: 'refEnum',
+        enums: ['time'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerExactTimeFilter: {
@@ -8578,6 +8599,10 @@ const models: TsoaRoute.Models = {
                         },
                         operator: {
                             ref: 'SemanticLayerFilterBaseOperator',
+                            required: true,
+                        },
+                        fieldType: {
+                            ref: 'SemanticLayerFieldType.TIME',
                             required: true,
                         },
                     },
@@ -8613,6 +8638,10 @@ const models: TsoaRoute.Models = {
                         },
                         operator: {
                             ref: 'SemanticLayerFilterBaseOperator',
+                            required: true,
+                        },
+                        fieldType: {
+                            ref: 'SemanticLayerFieldType.TIME',
                             required: true,
                         },
                     },

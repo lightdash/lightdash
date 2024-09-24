@@ -1,4 +1,4 @@
-import { ChartKind } from '@lightdash/common';
+import { ChartKind, type CartesianChartDisplay } from '@lightdash/common';
 import { Box, Group, Select, Text } from '@mantine/core';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -7,7 +7,7 @@ import { getChartIcon } from '../../common/ResourceIcon';
 type Props = {
     type: ChartKind | undefined;
     onChangeType: (
-        value: Extract<ChartKind, ChartKind.LINE | ChartKind.VERTICAL_BAR>,
+        value: NonNullable<CartesianChartDisplay['series']>[number]['type'],
     ) => void;
     canSelectDifferentTypeFromBaseChart: boolean;
 };
