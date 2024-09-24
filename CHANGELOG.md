@@ -1,3 +1,10 @@
+## [0.1269.1](https://github.com/lightdash/lightdash/compare/0.1269.0...0.1269.1) (2024-09-24)
+
+
+### Bug Fixes
+
+* updated install scripts to docker compose ([#11588](https://github.com/lightdash/lightdash/issues/11588)) ([53d56ab](https://github.com/lightdash/lightdash/commit/53d56aba299eb6d7dd0c431778c22c3ab2d5bcfb))
+
 # [0.1269.0](https://github.com/lightdash/lightdash/compare/0.1268.0...0.1269.0) (2024-09-24)
 
 
