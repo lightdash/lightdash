@@ -937,7 +937,7 @@ export class SpaceModel {
             chartSourceType,
         } = chartsTable;
 
-        let spaceQueriesQuery = this.database(chartTable)
+        let spaceChartsQuery = this.database(chartTable)
             .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
             .leftJoin(
                 SpaceTableName,
@@ -1020,7 +1020,7 @@ export class SpaceModel {
             ]);
 
         if (filters?.recentlyUpdated || filters?.mostPopular) {
-            spaceQueriesQuery = spaceQueriesQuery
+            spaceChartsQuery = spaceChartsQuery
                 .orderBy(
                     filters.mostPopular
                         ? [
@@ -1038,7 +1038,7 @@ export class SpaceModel {
                 )
                 .limit(this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
         } else {
-            spaceQueriesQuery = spaceQueriesQuery.orderBy([
+            spaceChartsQuery = spaceChartsQuery.orderBy([
                 {
                     column: `${chartTable}.last_version_updated_at`,
                     order: 'desc',
@@ -1046,7 +1046,7 @@ export class SpaceModel {
             ]);
         }
 
-        return (await spaceQueriesQuery).map((savedChart) => ({
+        return (await spaceChartsQuery).map((savedChart) => ({
             uuid: savedChart.uuid,
             name: savedChart.name,
             spaceName: savedChart.space_name,
