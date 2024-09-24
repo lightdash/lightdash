@@ -8,7 +8,10 @@ import {
 } from '../types/field';
 import { type Organization } from '../types/organization';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
-import { type SemanticLayerQuery } from '../types/semanticLayer';
+import {
+    type SemanticLayerPivot,
+    type SemanticLayerQuery,
+} from '../types/semanticLayer';
 import { applyCustomFormat } from '../utils/formatting';
 import {
     VizAggregationOptions,
@@ -75,6 +78,19 @@ export class CartesianChartDataModel {
         }
 
         return this.resultsRunner.getPivotedVisualizationData(query);
+    }
+
+    getPivotConfig(): SemanticLayerPivot {
+        return {
+            on: this.config?.fieldConfig?.x?.reference
+                ? [this.config.fieldConfig.x?.reference]
+                : [],
+            index:
+                this.config?.fieldConfig?.groupBy?.map(
+                    (groupBy) => groupBy.reference,
+                ) ?? [],
+            values: this.config?.fieldConfig?.y?.map((y) => y.reference) ?? [],
+        };
     }
 
     static getTooltipFormatter(format: Format | undefined) {
@@ -482,7 +498,15 @@ export class CartesianChartDataModel {
     // TODO: this any in the return type could be more specific, but this is also a
     // pretty loose type in purpose.
     async getSpec(query?: SemanticLayerQuery): Promise<Record<string, any>> {
-        const transformedData = await this.getTransformedData(query);
+        if (!query) {
+            return {};
+        }
+
+        const transformedData = await this.getTransformedData({
+            ...query,
+            pivot: this.getPivotConfig(),
+        });
+
         const type = this.config?.type;
         const display = this.config?.display;
         const { chartColors: orgColors } = this.organization;
@@ -566,7 +590,7 @@ export class CartesianChartDataModel {
             },
         );
 
-        return {
+        const spec = {
             tooltip: {
                 trigger: 'axis',
                 appendToBody: true, // Similar to rendering a tooltip in a Portal
@@ -626,6 +650,10 @@ export class CartesianChartDataModel {
             },
             series,
         };
+
+        console.log('spec', spec);
+
+        return spec;
     }
 }
 

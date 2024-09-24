@@ -68,7 +68,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         value: chartSpec,
     } = useAsync(
         async () => vizDataModel.getSpec(semanticLayerQuery),
-        [semanticLayerQuery],
+        [semanticLayerQuery, vizDataModel],
     );
 
     // For the table only -- move to table data model?
@@ -96,6 +96,8 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const handleClosePanel = () => {
         setOpenPanel(undefined);
     };
+
+    console.log('vizConfig', vizConfig);
 
     return (
         <>

@@ -17,11 +17,12 @@ const getChartDataModel = (
     config?: VizChartConfig,
     organization?: Organization,
 ) => {
-    if (!config || !organization) {
+    // TODO: this check is unnecessary
+    if (!organization) {
         throw new Error('No config provided');
     }
 
-    switch (config.type) {
+    switch (config?.type || ChartKind.TABLE) {
         case ChartKind.PIE:
             if (config && !isVizPieChartConfig(config)) {
                 throw new Error('Invalid config for pie chart');

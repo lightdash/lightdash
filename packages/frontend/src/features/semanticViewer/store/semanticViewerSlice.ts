@@ -123,6 +123,8 @@ export interface SemanticViewerState {
 
     results: RawResultRow[];
     columnNames: string[];
+    // TODO: this should be temporary
+    columns: VizColumn[];
     fields: SemanticLayerField[];
 
     selectedDimensions: Record<string, SemanticLayerStateDimension>;
@@ -156,6 +158,7 @@ const initialState: SemanticViewerState = {
 
     results: [],
     columnNames: [],
+    columns: [],
     fields: [],
     selectedDimensions: {},
     selectedMetrics: {},
@@ -198,10 +201,12 @@ export const semanticViewerSlice = createSlice({
             action: PayloadAction<{
                 results: RawResultRow[];
                 columnNames: string[];
+                columns: VizColumn[];
             }>,
         ) => {
             state.results = action.payload.results || [];
             state.columnNames = action.payload.columnNames;
+            state.columns = action.payload.columns;
         },
 
         selectField: (

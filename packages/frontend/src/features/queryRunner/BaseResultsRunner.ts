@@ -107,7 +107,7 @@ export class BaseResultsRunner implements IResultsRunner {
             columns: [],
         };
 
-        if (!!query.pivot?.index.length || !!query.pivot?.values.length) {
+        if (!query) {
             return emptyPivotChartData;
         }
 
