@@ -21,7 +21,7 @@ const SemanticViewerSaveChartContent: FC = () => {
         (state) => state.semanticViewer.activeChartKind,
     );
     const selectedChartConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, activeChartKind || ChartKind.TABLE),
+        selectChartConfigByKind(state, activeChartKind ?? ChartKind.TABLE),
     );
 
     const handleOpenSaveModal = () => {

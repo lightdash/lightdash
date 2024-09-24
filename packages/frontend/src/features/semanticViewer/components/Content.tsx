@@ -96,7 +96,7 @@ const Content: FC = () => {
 
         const chartResultOptions = getChartConfigAndOptions(
             resultsRunner,
-            activeChartKind || ChartKind.TABLE,
+            activeChartKind ?? ChartKind.TABLE,
             currentVizConfig,
         );
 
