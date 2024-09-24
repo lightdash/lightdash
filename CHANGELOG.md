@@ -1,3 +1,43 @@
+## [0.1269.1](https://github.com/lightdash/lightdash/compare/0.1269.0...0.1269.1) (2024-09-24)
+
+
+### Bug Fixes
+
+* updated install scripts to docker compose ([#11588](https://github.com/lightdash/lightdash/issues/11588)) ([53d56ab](https://github.com/lightdash/lightdash/commit/53d56aba299eb6d7dd0c431778c22c3ab2d5bcfb))
+
+# [0.1269.0](https://github.com/lightdash/lightdash/compare/0.1268.0...0.1269.0) (2024-09-24)
+
+
+### Features
+
+* select all for tabbed dashboard filters ([#11461](https://github.com/lightdash/lightdash/issues/11461)) ([61d3b5a](https://github.com/lightdash/lightdash/commit/61d3b5a020b9b66b55c17d9f9b31e0f11f06f7ab))
+
+# [0.1268.0](https://github.com/lightdash/lightdash/compare/0.1267.1...0.1268.0) (2024-09-24)
+
+
+### Bug Fixes
+
+* wait for valid echarts options before returning cartesian config ([#11631](https://github.com/lightdash/lightdash/issues/11631)) ([0257cad](https://github.com/lightdash/lightdash/commit/0257cad4f35247794f1566df9259ee5962f6d119))
+
+
+### Features
+
+* save table when viz tab hasn't been clicked ([#11619](https://github.com/lightdash/lightdash/issues/11619)) ([a64d5d2](https://github.com/lightdash/lightdash/commit/a64d5d2ebb1362ca1488a7f83168e2e7ad79e6e0))
+
+## [0.1267.1](https://github.com/lightdash/lightdash/compare/0.1267.0...0.1267.1) (2024-09-24)
+
+
+### Bug Fixes
+
+* cmd + enter in sql-runner submits correct values if pressed before debounce ([#11641](https://github.com/lightdash/lightdash/issues/11641)) ([01adbde](https://github.com/lightdash/lightdash/commit/01adbde4f3068bfa6c74cbd35cf1e79c9eeb9c90))
+
+# [0.1267.0](https://github.com/lightdash/lightdash/compare/0.1266.4...0.1267.0) (2024-09-23)
+
+
+### Features
+
+* allow download charts as image,pdf ([#11639](https://github.com/lightdash/lightdash/issues/11639)) ([b646b18](https://github.com/lightdash/lightdash/commit/b646b186e523983d2b800842154390dd041e7a83))
+
 ## [0.1266.4](https://github.com/lightdash/lightdash/compare/0.1266.3...0.1266.4) (2024-09-23)
 
 
