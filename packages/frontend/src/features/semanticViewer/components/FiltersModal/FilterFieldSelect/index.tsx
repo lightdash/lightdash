@@ -1,6 +1,8 @@
-import type {
-    SemanticLayerField,
-    SemanticLayerFilter,
+import {
+    assertUnreachable,
+    SemanticLayerFieldType,
+    type SemanticLayerField,
+    type SemanticLayerFilter,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -12,7 +14,7 @@ import {
     type SelectItem,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { createFilterForOperator } from '../createFilterForOperator';
@@ -50,6 +52,61 @@ const FilterFieldSelect: FC<FilterFieldInputProps> = ({
 }) => {
     const { showToastError } = useToaster();
 
+    const handleFilterFieldChange = useCallback(
+        (selectedField: string | null) => {
+            if (!selectedField) {
+                return;
+            }
+
+            onFieldSelect?.(selectedField);
+
+            const field = fields.find((f) => f.name === selectedField);
+
+            if (!field) {
+                showToastError({
+                    title: 'Error',
+                    subtitle: 'Field not found',
+                });
+                return;
+            }
+
+            const defaultOperator = field.availableOperators[0];
+
+            if (!defaultOperator) {
+                showToastError({
+                    title: 'Error',
+                    subtitle: 'No filter operators available for this field',
+                });
+                return;
+            }
+
+            switch (field.type) {
+                case SemanticLayerFieldType.STRING:
+                case SemanticLayerFieldType.TIME:
+                    onCreate?.(
+                        createFilterForOperator({
+                            fieldRef: field.name,
+                            fieldKind: field.kind,
+                            fieldType: field.type,
+                            operator: defaultOperator,
+                        }),
+                    );
+                    return;
+                case SemanticLayerFieldType.BOOLEAN:
+                case SemanticLayerFieldType.NUMBER:
+                    throw new Error(
+                        `Filters not implemented for field type: ${field.type}`,
+                    );
+                default:
+                    return assertUnreachable(
+                        field.type,
+                        `Unknown field type: ${field.type}`,
+                    );
+            }
+        },
+        [fields, onCreate, onFieldSelect, showToastError],
+    );
+
     return (
         <Group spacing="xs" w="100%" style={style}>
             {hasLeftSpacing && (
@@ -65,43 +122,7 @@ const FilterFieldSelect: FC<FilterFieldInputProps> = ({
                 placeholder="Select field"
                 searchable
                 withinPortal={true}
-                onChange={(selectedField) => {
-                    if (!selectedField) {
-                        return;
-                    }
-
-                    onFieldSelect?.(selectedField);
-
-                    const field = fields.find((f) => f.name === selectedField);
-
-                    if (!field) {
-                        showToastError({
-                            title: 'Error',
-                            subtitle: 'Field not found',
-                        });
-                        return;
-                    }
-
-                    const defaultOperator = field.availableOperators[0];
-
-                    if (!defaultOperator) {
-                        showToastError({
-                            title: 'Error',
-                            subtitle:
-                                'No filter operators available for this field',
-                        });
-                        return;
-                    }
-
-                    const newFilter = createFilterForOperator({
-                        fieldRef: selectedField,
-                        fieldKind: field.kind,
-                        fieldType: field.type,
-                        operator: defaultOperator,
-                    });
-
-                    onCreate?.(newFilter);
-                }}
+                onChange={handleFilterFieldChange}
             />
             {isCreatingFilter && (
                 <>
