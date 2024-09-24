@@ -491,27 +491,28 @@ export class CartesianChartDataModel {
         };
     }
 
-    async getSpec(query?: SemanticLayerQuery): Promise<{
-        spec: Record<string, any>;
-        pivotedChartData: PivotChartData;
-    }> {
+    async getPivotedChartData(
+        query: SemanticLayerQuery,
+    ): Promise<PivotChartData> {
+        return this.getTransformedData({
+            ...query,
+            pivot: this.getPivotConfig(),
+        });
+    }
+
+    async getSpec(query?: SemanticLayerQuery): Promise<Record<string, any>> {
         if (!query) {
-            return {
-                spec: {},
-                pivotedChartData: {
-                    columns: [],
-                    fileUrl: '',
-                    indexColumn: undefined,
-                    results: [],
-                    valuesColumns: [],
-                },
-            };
+            return {};
         }
 
         const transformedData = await this.getTransformedData({
             ...query,
             pivot: this.getPivotConfig(),
         });
+
+        if (!transformedData) {
+            return {};
+        }
 
         const type = this.config?.type;
         const display = this.config?.display;
@@ -653,10 +654,7 @@ export class CartesianChartDataModel {
             series,
         };
 
-        return {
-            spec,
-            pivotedChartData: transformedData,
-        };
+        return spec;
     }
 }
 

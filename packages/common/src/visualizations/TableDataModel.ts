@@ -106,20 +106,21 @@ export class TableDataModel {
         };
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    async getSpec(_query?: SemanticLayerQuery): Promise<{
-        spec: Record<string, any>;
-        pivotedChartData: PivotChartData;
-    }> {
+    async getPivotedChartData(
+        query: SemanticLayerQuery,
+    ): Promise<PivotChartData> {
+        console.log('not implemented in table', this.config, query);
         return {
-            spec: {},
-            pivotedChartData: {
-                columns: [],
-                fileUrl: '',
-                indexColumn: undefined,
-                results: [],
-                valuesColumns: [],
-            },
+            columns: [],
+            fileUrl: '',
+            indexColumn: undefined,
+            results: [],
+            valuesColumns: [],
         };
+    }
+
+    async getSpec(query?: SemanticLayerQuery): Promise<Record<string, any>> {
+        console.log('not implemented in table', this.config, query);
+        return {};
     }
 }

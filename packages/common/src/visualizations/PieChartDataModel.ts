@@ -278,55 +278,51 @@ export class PieChartDataModel {
         };
     }
 
-    async getSpec(query?: SemanticLayerQuery): Promise<{
-        spec: Record<string, any>;
-        pivotedChartData: PivotChartData;
-    }> {
+    async getPivotedChartData(
+        query: SemanticLayerQuery,
+    ): Promise<PivotChartData> {
+        return this.getTransformedData(query);
+    }
+
+    async getSpec(query?: SemanticLayerQuery): Promise<Record<string, any>> {
         if (!query) {
-            return {
-                spec: {},
-                pivotedChartData: {
-                    columns: [],
-                    fileUrl: '',
-                    indexColumn: undefined,
-                    results: [],
-                    valuesColumns: [],
-                },
-            };
+            return {};
         }
 
         const transformedData = await this.getTransformedData(query);
+
+        if (!transformedData) {
+            return {};
+        }
+
         const display = this.config?.display;
 
         return {
-            spec: {
-                legend: {
-                    show: true,
-                    orient: 'horizontal',
-                    type: 'scroll',
-                    left: 'center',
-                    top: 'top',
-                    align: 'auto',
-                },
-                tooltip: {
-                    trigger: 'item',
-                },
-                series: [
-                    {
-                        type: 'pie',
-                        radius: display?.isDonut ? ['30%', '70%'] : '50%',
-                        center: ['50%', '50%'],
-                        data: transformedData.results.map((result) => ({
-                            name: transformedData.indexColumn?.reference
-                                ? result[transformedData.indexColumn.reference]
-                                : '-',
-                            groupId: transformedData.indexColumn?.reference,
-                            value: result[transformedData.valuesColumns[0]],
-                        })),
-                    },
-                ],
+            legend: {
+                show: true,
+                orient: 'horizontal',
+                type: 'scroll',
+                left: 'center',
+                top: 'top',
+                align: 'auto',
             },
-            pivotedChartData: transformedData,
+            tooltip: {
+                trigger: 'item',
+            },
+            series: [
+                {
+                    type: 'pie',
+                    radius: display?.isDonut ? ['30%', '70%'] : '50%',
+                    center: ['50%', '50%'],
+                    data: transformedData.results.map((result) => ({
+                        name: transformedData.indexColumn?.reference
+                            ? result[transformedData.indexColumn.reference]
+                            : '-',
+                        groupId: transformedData.indexColumn?.reference,
+                        value: result[transformedData.valuesColumns[0]],
+                    })),
+                },
+            ],
         };
     }
 }

@@ -61,32 +61,11 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const {
         loading: chartLoading,
         error: chartError,
-        value: getSpecResult,
+        value: chartSpec,
     } = useAsync(
         async () => vizDataModel.getSpec(semanticLayerQuery),
         [semanticLayerQuery, vizDataModel],
     );
-
-    const { spec, pivotedChartData } = getSpecResult ?? {};
-
-    const pivotedDataModel = useMemo(() => {
-        const pivotedResultsRunner = new SemanticViewerResultsRunnerFrontend({
-            columnNames:
-                pivotedChartData?.columns?.map((c) => c.reference) ?? [],
-            fields,
-            projectUuid,
-            rows: pivotedChartData?.results ?? [],
-        });
-
-        return new TableDataModel({
-            resultsRunner: pivotedResultsRunner,
-        });
-    }, [
-        fields,
-        pivotedChartData?.columns,
-        pivotedChartData?.results,
-        projectUuid,
-    ]);
 
     const handleOpenPanel = (panel: TabPanel) => {
         setOpenPanel(panel);
@@ -103,13 +82,6 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
             semanticLayerQuery,
         );
     }, [resultsRunner, semanticLayerQuery]);
-
-    const pivotedTableVizSorts = useMemo(() => {
-        return TableDataModel.getTableHeaderSortConfig(
-            pivotedChartData?.columns?.map((c) => c.reference) ?? [],
-            semanticLayerQuery,
-        );
-    }, [pivotedChartData?.columns, semanticLayerQuery]);
 
     return (
         <>
@@ -139,7 +111,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                     ) : vizConfig && !isVizTableConfig(vizConfig) ? (
                         <ChartView
                             config={vizConfig} // Config only used for error messaging
-                            spec={spec}
+                            spec={chartSpec}
                             isLoading={chartLoading}
                             error={chartError}
                             style={{
@@ -178,11 +150,13 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 minSize={10}
                                 onCollapse={() => setOpenPanel(undefined)}
                             >
+                                {/* 
+                                // TODO: Working on powering this from the same data as the chart
                                 <Table2
-                                    dataModel={pivotedDataModel}
+                                    dataModel={vizDataModel}
                                     onTHClick={onTableHeaderClick}
-                                    thSortConfig={pivotedTableVizSorts}
-                                />
+                                    thSortConfig={tableVizSorts}
+                                /> */}
                             </Panel>
                         </>
                     )}
