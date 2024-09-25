@@ -1371,6 +1371,7 @@ export class SpaceModel {
         userId: number,
         isPrivate: boolean,
         slug: string,
+        forceSameSlug?: boolean,
     ): Promise<Space> {
         return this.database.transaction(async (trx) => {
             const [project] = await trx('projects')
@@ -1383,7 +1384,9 @@ export class SpaceModel {
                     is_private: isPrivate,
                     name,
                     created_by_user_id: userId,
-                    slug: await generateUniqueSlug(trx, SpaceTableName, slug),
+                    slug: forceSameSlug
+                        ? slug
+                        : await generateUniqueSlug(trx, SpaceTableName, slug),
                 })
                 .returning('*');
 
