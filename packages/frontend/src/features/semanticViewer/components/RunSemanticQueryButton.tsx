@@ -13,7 +13,7 @@ import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import LimitButton from '../../../components/LimitButton';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { selectAllSelectedFieldNames } from '../store/selectors';
+import { selectAllSelectedFieldNames, selectLimit } from '../store/selectors';
 import { setLimit } from '../store/semanticViewerSlice';
 
 type Props = ButtonGroupProps & {
@@ -32,9 +32,7 @@ export const RunSemanticQueryButton: FC<Props> = ({
     const dispatch = useAppDispatch();
 
     const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-    const limit = useAppSelector(
-        (state) => state.semanticViewer.semanticLayerQuery.limit,
-    );
+    const limit = useAppSelector(selectLimit);
 
     const handleLimitChange = useCallback(
         (newLimit: number) => dispatch(setLimit(newLimit)),

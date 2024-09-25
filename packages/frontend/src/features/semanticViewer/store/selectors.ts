@@ -55,13 +55,12 @@ export const getSelectedField = (name: string) =>
             selectSelectedMetrics,
         ],
         (dimensions, timeDimensions, metrics) => {
-            return name in dimensions
-                ? dimensions[name]
-                : name in timeDimensions
-                ? timeDimensions[name]
-                : name in metrics
-                ? metrics[name]
-                : null;
+            return (
+                dimensions[name] ??
+                timeDimensions[name] ??
+                metrics[name] ??
+                null
+            );
         },
     );
 
@@ -70,11 +69,10 @@ export const selectFilters = createSelector(
     (semanticLayerQuery) => semanticLayerQuery.filters,
 );
 
-// TODO: unused. remove maybe?
-// export const selectLimit = createSelector(
-//     [selectSemanticLayerQuery],
-//     (semanticLayerQuery) => semanticLayerQuery.limit,
-// );
+export const selectLimit = createSelector(
+    [selectSemanticLayerQuery],
+    (semanticLayerQuery) => semanticLayerQuery.limit,
+);
 
 export const selectSortBy = createSelector(
     [selectSemanticLayerQuery],
