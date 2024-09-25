@@ -61,7 +61,6 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
                                                 onColorChange={(c) => {
                                                     dispatch(
                                                         actions.setSeriesColor({
-                                                            index,
                                                             color: c,
                                                             reference,
                                                         }),
@@ -78,7 +77,6 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
                                                             label: e.target
                                                                 .value,
                                                             reference,
-                                                            index,
                                                         }),
                                                     );
                                                 }}
@@ -99,7 +97,6 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
                                             ) => {
                                                 dispatch(
                                                     actions.setSeriesChartType({
-                                                        index,
                                                         type: value,
                                                         reference,
                                                     }),
@@ -115,7 +112,6 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
                                             onChangeFormat={(value) => {
                                                 dispatch(
                                                     actions.setSeriesFormat({
-                                                        index,
                                                         format: value,
                                                         reference,
                                                     }),

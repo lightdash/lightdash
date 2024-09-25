@@ -6879,7 +6879,13 @@ const models: TsoaRoute.Models = {
                                 ],
                             },
                             color: { dataType: 'string' },
-                            yAxisIndex: { dataType: 'double' },
+                            yAxisIndex: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'enum', enums: [0] },
+                                    { dataType: 'enum', enums: [1] },
+                                ],
+                            },
                             format: { ref: 'Format' },
                             label: { dataType: 'string' },
                         },

@@ -28,9 +28,7 @@ export async function up(knex: Knex): Promise<void> {
                 const matchingY = yFields[yAxisIndex];
 
                 if (matchingY) {
-                    const newKey = `${matchingY.reference}_${
-                        matchingY.aggregation || 'count'
-                    }`;
+                    const newKey = `${matchingY.reference}_${matchingY.aggregation}`;
 
                     updatedSeries[newKey] = {
                         ...value,
@@ -55,8 +53,7 @@ export async function up(knex: Knex): Promise<void> {
     await Promise.all(updatePromises);
 }
 
-export async function down(knex: Knex): Promise<void> {
-    // If needed, implement a way to revert the changes
-    // This might be complex or impossible without storing the original data
-    return knex.raw('SELECT 1');
+export async function down(): Promise<void> {
+    // This migration is not reversible
+    return Promise.resolve();
 }
