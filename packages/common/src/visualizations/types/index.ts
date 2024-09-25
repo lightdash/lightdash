@@ -146,13 +146,13 @@ export type VizCartesianChartConfig = VizBaseConfig & {
 export type VizBarChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR;
     fieldConfig: PivotChartLayout | undefined;
-    display: CartesianChartDisplay | undefined;
+    // display: CartesianChartDisplay | undefined;
 };
 
 export type VizLineChartConfig = VizBaseConfig & {
     type: ChartKind.LINE;
     fieldConfig: PivotChartLayout | undefined;
-    display: CartesianChartDisplay | undefined;
+    // display: CartesianChartDisplay | undefined;
 };
 
 export type VizPieChartConfig = VizBaseConfig & {

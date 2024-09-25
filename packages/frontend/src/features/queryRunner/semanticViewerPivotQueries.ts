@@ -83,8 +83,6 @@ export const getPivotQueryFunctionForSemanticViewer = (
         //           )
         //         : this.query.sortBy;
 
-        console.log('query', JSON.stringify(query, null, 2));
-
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid,
             query,

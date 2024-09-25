@@ -5,7 +5,10 @@ import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useAsync } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import {
+    selectChartConfigByKind,
+    selectChartDisplayByKind,
+} from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
@@ -41,6 +44,10 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
     );
 
+    const display = useAppSelector((state) =>
+        selectChartDisplayByKind(state, state.semanticViewer.activeChartKind),
+    );
+
     const semanticLayerQuery = useAppSelector((state) =>
         selectSemanticLayerQuery(state),
     );
@@ -56,18 +63,14 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
 
     const vizDataModel = useMemo(() => {
         return getChartDataModel(resultsRunner, vizConfig, org.data);
-    }, [vizConfig, resultsRunner, org.data]);
+    }, [vizConfig, org.data, resultsRunner]);
 
-    const {
-        loading: chartLoading,
-        error: chartError,
-        value: chartData,
-    } = useAsync(
-        async () => vizDataModel.getSpec(semanticLayerQuery),
+    const { loading: chartLoading, error: chartError } = useAsync(
+        async () => vizDataModel.getPivotedChartData(semanticLayerQuery),
         [semanticLayerQuery, vizDataModel],
     );
 
-    const { spec, pivotedChartData } = chartData ?? {};
+    const { spec, tableData } = vizDataModel.getSpec(display);
 
     const handleOpenPanel = (panel: TabPanel) => {
         setOpenPanel(panel);
@@ -153,8 +156,8 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 onCollapse={() => setOpenPanel(undefined)}
                             >
                                 <Table2
-                                    columnNames={pivotedChartData?.columns}
-                                    rows={pivotedChartData?.rows}
+                                    columnNames={tableData?.columns}
+                                    rows={tableData?.rows}
                                     onTHClick={onTableHeaderClick}
                                     thSortConfig={tableVizSorts}
                                 />

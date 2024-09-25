@@ -47,6 +47,36 @@ export const selectChartConfigByKind = createSelector(
     },
 );
 
+export const selectChartDisplayByKind = createSelector(
+    [
+        (state, chartKind) => chartKind,
+        selectBarChartConfigState,
+        selectLineChartConfigState,
+        selectPieChartConfigState,
+        selectTableVisConfigState,
+    ],
+    (
+        chartKind,
+        barChartConfigState,
+        lineChartConfigState,
+        pieChartConfigState,
+        tableVisConfigState,
+    ) => {
+        switch (chartKind) {
+            case ChartKind.VERTICAL_BAR:
+                return barChartConfigState.display;
+            case ChartKind.LINE:
+                return lineChartConfigState.display;
+            case ChartKind.PIE:
+                return pieChartConfigState.display;
+            case ChartKind.TABLE:
+                return tableVisConfigState.display;
+            default:
+                return undefined;
+        }
+    },
+);
+
 export const selectCurrentCartesianChartState = createSelector(
     [
         (state, chartKind) => chartKind,

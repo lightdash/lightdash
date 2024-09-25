@@ -59,13 +59,18 @@ type CartesianChartKind = Extract<
 export class CartesianChartDataModel {
     private readonly resultsRunner: IResultsRunner;
 
-    private readonly config: VizCartesianChartConfig;
+    private readonly config: Omit<VizCartesianChartConfig, 'display'>;
+
+    private readonly display: VizCartesianChartConfig['display'];
 
     private readonly organization: Organization;
 
+    private pivotedChartData: PivotChartData | undefined;
+
     constructor(args: {
         resultsRunner: IResultsRunner;
-        config?: VizCartesianChartConfig;
+        config?:Omit<VizCartesianChartConfig, 'display'>;
+        display?: VizCartesianChartConfig['display'];
         organization: Organization;
     }) {
         this.resultsRunner = args.resultsRunner;
@@ -502,29 +507,30 @@ export class CartesianChartDataModel {
             return undefined;
         }
 
-        return this.getTransformedData({
+        const pivotedChartData = await this.getTransformedData({
             ...query,
             pivot: this.getPivotConfig(),
         });
+
+        this.pivotedChartData = pivotedChartData;
+
+        return pivotedChartData;
     }
 
-    async getSpec(query?: SemanticLayerQuery): Promise<{
+    getSpec(display: CartesianChartDisplay): {
         spec: Record<string, any>;
-        pivotedChartData:
-            | { columns: string[]; rows: RawResultRow[] }
-            | undefined;
-    }> {
-        const transformedData = await this.getPivotedChartData(query);
+        tableData: { columns: string[]; rows: RawResultRow[] } | undefined;
+    } {
+        const transformedData = this.pivotedChartData;
 
         if (!transformedData) {
             return {
                 spec: {},
-                pivotedChartData: undefined,
+                tableData: undefined,
             };
         }
 
         const type = this.config?.type;
-        const display = this.config?.display;
         const { chartColors: orgColors } = this.organization;
 
         const DEFAULT_X_AXIS_TYPE = 'category';
@@ -665,7 +671,7 @@ export class CartesianChartDataModel {
 
         return {
             spec,
-            pivotedChartData: {
+            tableData: {
                 columns: Object.keys(transformedData.results[0]) ?? [],
                 rows: transformedData.results,
             },
