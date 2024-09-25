@@ -1,6 +1,10 @@
 import { DimensionType } from '../types/field';
+import { type RawResultRow } from '../types/results';
 import { ChartKind } from '../types/savedCharts';
-import { type SemanticLayerQuery } from '../types/semanticLayer';
+import {
+    type SemanticLayerPivot,
+    type SemanticLayerQuery,
+} from '../types/semanticLayer';
 import {
     VizAggregationOptions,
     VizIndexType,
@@ -278,26 +282,51 @@ export class PieChartDataModel {
         };
     }
 
-    async getPivotedChartData(
-        query: SemanticLayerQuery,
-    ): Promise<PivotChartData> {
-        return this.getTransformedData(query);
+    // TODO: This should be specific to pie chart
+    getPivotConfig(): SemanticLayerPivot {
+        return {
+            on: this.config?.fieldConfig?.x?.reference
+                ? [this.config.fieldConfig.x?.reference]
+                : [],
+            index:
+                this.config?.fieldConfig?.groupBy?.map(
+                    (groupBy) => groupBy.reference,
+                ) ?? [],
+            values: this.config?.fieldConfig?.y?.map((y) => y.reference) ?? [],
+        };
     }
 
-    async getSpec(query?: SemanticLayerQuery): Promise<Record<string, any>> {
+    async getPivotedChartData(
+        query: SemanticLayerQuery | undefined,
+    ): Promise<PivotChartData | undefined> {
         if (!query) {
-            return {};
+            return undefined;
         }
 
-        const transformedData = await this.getTransformedData(query);
+        return this.getTransformedData({
+            ...query,
+            pivot: this.getPivotConfig(),
+        });
+    }
+
+    async getSpec(query?: SemanticLayerQuery): Promise<{
+        spec: Record<string, any>;
+        pivotedChartData:
+            | { columns: string[]; rows: RawResultRow[] }
+            | undefined;
+    }> {
+        const transformedData = await this.getPivotedChartData(query);
 
         if (!transformedData) {
-            return {};
+            return {
+                spec: {},
+                pivotedChartData: undefined,
+            };
         }
 
         const display = this.config?.display;
 
-        return {
+        const spec = {
             legend: {
                 show: true,
                 orient: 'horizontal',
@@ -323,6 +352,14 @@ export class PieChartDataModel {
                     })),
                 },
             ],
+        };
+
+        return {
+            spec,
+            pivotedChartData: {
+                columns: Object.keys(transformedData.results[0]) ?? [],
+                rows: transformedData.results,
+            },
         };
     }
 }
