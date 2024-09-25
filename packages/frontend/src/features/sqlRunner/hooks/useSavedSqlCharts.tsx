@@ -55,7 +55,7 @@ const updateSavedSqlChart = async (
     });
 
 export const useSavedSqlChart = (
-    { projectUuid, slug, uuid, onSuccess }: GetSavedSqlChartParams,
+    { projectUuid, slug, uuid }: GetSavedSqlChartParams,
     useQueryParams?: UseQueryOptions<SqlChart, ApiError & { slug?: string }>,
 ) => {
     return useQuery<SqlChart, ApiError>({
@@ -64,10 +64,6 @@ export const useSavedSqlChart = (
         retry: false,
         enabled: !!slug || !!uuid,
         ...useQueryParams,
-        onSuccess: (data) => {
-            if (onSuccess) onSuccess(data);
-            useQueryParams?.onSuccess?.(data);
-        },
     });
 };
 
