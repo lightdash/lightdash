@@ -194,7 +194,11 @@ export default class SchedulerTask {
                         : ''
                 }${
                     selectedTabs
-                        ? `?selectedTabs=${encodeURI(
+                        ? `${
+                              schedulerUuid || sendNowSchedulerFilters
+                                  ? '&'
+                                  : '?'
+                          }selectedTabs=${encodeURI(
                               JSON.stringify(selectedTabs),
                           )}`
                         : ''
