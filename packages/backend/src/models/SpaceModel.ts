@@ -1371,7 +1371,7 @@ export class SpaceModel {
         userId: number,
         isPrivate: boolean,
         slug: string,
-        forceSameSlug?: boolean,
+        forceSameSlug: boolean = false,
     ): Promise<Space> {
         return this.database.transaction(async (trx) => {
             const [project] = await trx('projects')
