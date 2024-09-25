@@ -27,6 +27,7 @@ import {
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
+    setWarehouseConnectionType,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { useProject } from '../hooks/useProject';
 
@@ -65,6 +66,9 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
 
     useEffect(() => {
         if (project?.warehouseConnection?.type) {
+            dispatch(
+                setWarehouseConnectionType(project.warehouseConnection.type),
+            );
             dispatch(
                 setQuoteChar(
                     getFieldQuoteChar(project?.warehouseConnection?.type),
