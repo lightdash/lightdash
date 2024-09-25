@@ -26,18 +26,23 @@ type QueryResultsProps = {
     csvLimit?: number | null; //giving null returns all results (no limit)
     chartUuid?: string;
     dateZoomGranularity?: DateGranularity;
+    context?: string;
 };
 
 const getChartResults = async ({
     chartUuid,
     invalidateCache,
+    context,
 }: {
     chartUuid?: string;
     invalidateCache?: boolean;
     dashboardSorts?: SortField[];
+    context?: string;
 }) => {
     return lightdashApi<ApiQueryResults>({
-        url: `/saved/${chartUuid}/results`,
+        url: `/saved/${chartUuid}/results${
+            context ? `?context=${context}` : ''
+        }`,
         method: 'POST',
         body: JSON.stringify({
             ...(invalidateCache && { invalidateCache: true }),
@@ -81,6 +86,7 @@ const getQueryResults = async ({
     query,
     csvLimit,
     dateZoomGranularity,
+    context,
 }: QueryResultsProps) => {
     const timezoneFixQuery = query && {
         ...query,
@@ -95,6 +101,7 @@ const getQueryResults = async ({
             ...timezoneFixQuery,
             granularity: dateZoomGranularity,
             csvLimit,
+            context,
         }),
     });
 };
@@ -103,6 +110,7 @@ export const useQueryResults = (props?: {
     chartUuid?: string;
     isViewOnly?: boolean;
     dateZoomGranularity?: DateGranularity;
+    context?: string;
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const setErrorResponse = useQueryError({
@@ -139,6 +147,7 @@ export const useQueryResults = (props?: {
                     query: metricQuery,
                     chartUuid: props?.chartUuid,
                     dateZoomGranularity: props?.dateZoomGranularity,
+                    context: props?.context,
                 });
             } else {
                 console.warn(
@@ -155,6 +164,7 @@ export const useQueryResults = (props?: {
             projectUuid,
             props?.chartUuid,
             props?.dateZoomGranularity,
+            props?.context,
         ],
     );
 

@@ -103,7 +103,7 @@ export class RunViewChartQueryController extends BaseController {
     @Post('/explores/{exploreId}/runQuery')
     @OperationId('RunMetricQuery')
     async runMetricQuery(
-        @Body() body: MetricQueryRequest,
+        @Body() body: MetricQueryRequest & { context?: QueryExecutionContext },
         @Path() projectUuid: string,
         @Path() exploreId: string,
 
@@ -130,7 +130,7 @@ export class RunViewChartQueryController extends BaseController {
                 exploreId,
                 body.csvLimit,
                 body.granularity,
-                getContextFromHeader(req),
+                body.context || getContextFromHeader(req),
             );
         this.setStatus(200);
         return {

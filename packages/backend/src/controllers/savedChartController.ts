@@ -24,7 +24,10 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { getContextFromHeader } from '../analytics/LightdashAnalytics';
+import {
+    getContextFromHeader,
+    QueryExecutionContext,
+} from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -53,6 +56,7 @@ export class SavedChartController extends BaseController {
         @Body()
         body: {
             invalidateCache?: boolean;
+            context?: QueryExecutionContext;
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -65,7 +69,7 @@ export class SavedChartController extends BaseController {
                 chartUuid,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
-                context: getContextFromHeader(req),
+                context: body.context || getContextFromHeader(req),
             }),
         };
     }
