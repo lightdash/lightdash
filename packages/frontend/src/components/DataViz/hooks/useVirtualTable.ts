@@ -21,16 +21,16 @@ export const useVirtualTable = ({
 }: {
     columnNames: string[];
     rows: RawResultRow[];
-    config: VizColumnsConfig;
+    config?: VizColumnsConfig;
 }) => {
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
-        return columnNames.map((column) => ({
-            id: column,
+        return columnNames.map((columnName) => ({
+            id: columnName,
             // react table has a bug with accessors that has dots in them
             // we found the fix here -> https://github.com/TanStack/table/issues/1671
             // do not remove the line below
-            accessorFn: TableDataModel.getColumnsAccessorFn(column),
-            header: config[column]?.label || column,
+            accessorFn: TableDataModel.getColumnsAccessorFn(columnName),
+            header: (config && config[columnName]?.label) || columnName,
             cell: getValueCell,
         }));
     }, [columnNames, config]);

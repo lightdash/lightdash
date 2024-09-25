@@ -61,11 +61,13 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const {
         loading: chartLoading,
         error: chartError,
-        value: chartSpec,
+        value: chartData,
     } = useAsync(
         async () => vizDataModel.getSpec(semanticLayerQuery),
         [semanticLayerQuery, vizDataModel],
     );
+
+    const { spec, pivotedChartData } = chartData ?? {};
 
     const handleOpenPanel = (panel: TabPanel) => {
         setOpenPanel(panel);
@@ -74,10 +76,6 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const handleClosePanel = () => {
         setOpenPanel(undefined);
     };
-
-    const { value } = useAsync(() => {
-        return vizDataModel.getTabularData(semanticLayerQuery);
-    }, [vizDataModel, semanticLayerQuery]);
 
     // ! TODO: THIS SHOULD COME FROM THE CORRESPONDING TABLE DATA MODELS
     const tableVizSorts = useMemo(() => {
@@ -115,7 +113,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                     ) : vizConfig && !isVizTableConfig(vizConfig) ? (
                         <ChartView
                             config={vizConfig} // Config only used for error messaging
-                            spec={chartSpec}
+                            spec={spec}
                             isLoading={chartLoading}
                             error={chartError}
                             style={{
@@ -155,9 +153,8 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 onCollapse={() => setOpenPanel(undefined)}
                             >
                                 <Table2
-                                    columns={value?.columns}
-                                    rows={value?.rows}
-                                    columnsConfig={value?.columnsConfig}
+                                    columnNames={pivotedChartData?.columns}
+                                    rows={pivotedChartData?.rows}
                                     onTHClick={onTableHeaderClick}
                                     thSortConfig={tableVizSorts}
                                 />

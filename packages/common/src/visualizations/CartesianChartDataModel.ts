@@ -7,6 +7,7 @@ import {
     friendlyName,
 } from '../types/field';
 import { type Organization } from '../types/organization';
+import { type RawResultRow } from '../types/results';
 import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import {
     type SemanticLayerPivot,
@@ -19,7 +20,6 @@ import {
     type PivotChartData,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
-    type VizColumnsConfig,
     type VizConfigErrors,
 } from './types';
 import {
@@ -87,29 +87,6 @@ export class CartesianChartDataModel {
                     (groupBy) => groupBy.reference,
                 ) ?? [],
             values: this.config?.fieldConfig?.y?.map((y) => y.reference) ?? [],
-        };
-    }
-
-    async getTabularData(query: SemanticLayerQuery) {
-        const transformedData = await this.getTransformedData({
-            ...query,
-            pivot: this.getPivotConfig(),
-        });
-        return {
-            columns: Object.keys(transformedData.results[0]) ?? [],
-            rows: transformedData.results,
-            columnsConfig: transformedData.columns.reduce<VizColumnsConfig>(
-                (acc, column) => {
-                    acc[column.reference] = {
-                        visible: true,
-                        reference: column.reference,
-                        label: column.reference,
-                        frozen: false,
-                    };
-                    return acc;
-                },
-                {},
-            ),
         };
     }
 
@@ -516,26 +493,31 @@ export class CartesianChartDataModel {
     }
 
     async getPivotedChartData(
-        query: SemanticLayerQuery,
-    ): Promise<PivotChartData> {
+        query: SemanticLayerQuery | undefined,
+    ): Promise<PivotChartData | undefined> {
+        if (!query) {
+            return undefined;
+        }
+
         return this.getTransformedData({
             ...query,
             pivot: this.getPivotConfig(),
         });
     }
 
-    async getSpec(query?: SemanticLayerQuery): Promise<Record<string, any>> {
-        if (!query) {
-            return {};
-        }
-
-        const transformedData = await this.getTransformedData({
-            ...query,
-            pivot: this.getPivotConfig(),
-        });
+    async getSpec(query?: SemanticLayerQuery): Promise<{
+        spec: Record<string, any>;
+        pivotedChartData:
+            | { columns: string[]; rows: RawResultRow[] }
+            | undefined;
+    }> {
+        const transformedData = await this.getPivotedChartData(query);
 
         if (!transformedData) {
-            return {};
+            return {
+                spec: {},
+                pivotedChartData: undefined,
+            };
         }
 
         const type = this.config?.type;
@@ -678,7 +660,13 @@ export class CartesianChartDataModel {
             series,
         };
 
-        return spec;
+        return {
+            spec,
+            pivotedChartData: {
+                columns: Object.keys(transformedData.results[0]) ?? [],
+                rows: transformedData.results,
+            },
+        };
     }
 }
 

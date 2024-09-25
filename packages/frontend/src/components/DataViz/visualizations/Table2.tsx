@@ -20,9 +20,9 @@ import {
 import { useVirtualTable } from '../hooks/useVirtualTable';
 
 type TableProps = {
-    columns: string[];
+    columnNames: string[];
     rows: RawResultRow[];
-    columnsConfig: VizColumnsConfig;
+    columnsConfig?: VizColumnsConfig;
     flexProps?: FlexProps;
     thSortConfig?: VizTableHeaderSortConfig;
     onTHClick?: (fieldName: string) => void;
@@ -30,7 +30,7 @@ type TableProps = {
 
 // TODO: TEMPORARY. Replace table with this when it works
 export const Table2 = ({
-    columns,
+    columnNames,
     rows,
     columnsConfig,
     flexProps,
@@ -38,9 +38,9 @@ export const Table2 = ({
     onTHClick,
 }: TableProps) => {
     const { tableWrapperRef, getTableData, paddingTop, paddingBottom } =
-        useVirtualTable({ columnNames: columns, rows, config: columnsConfig });
+        useVirtualTable({ columnNames, rows, config: columnsConfig });
 
-    const columnsCount = useMemo(() => columns.length, [columns]);
+    const columnsCount = useMemo(() => columnNames.length, [columnNames]);
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
     console.log('columnsConfig', {
@@ -94,7 +94,7 @@ export const Table2 = ({
                                         }
                                     >
                                         <Group spacing="two" fz={13}>
-                                            {columnsConfig[header.id]
+                                            {columnsConfig?.[header.id]
                                                 ?.aggregation && (
                                                 <Badge
                                                     size="sm"
@@ -102,8 +102,9 @@ export const Table2 = ({
                                                     radius="xs"
                                                 >
                                                     {
-                                                        columnsConfig[header.id]
-                                                            ?.aggregation
+                                                        columnsConfig?.[
+                                                            header.id
+                                                        ]?.aggregation
                                                     }
                                                 </Badge>
                                             )}
