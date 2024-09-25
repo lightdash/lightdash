@@ -22,15 +22,6 @@ export const selectSemanticLayerInfo = (state: RootState) => {
 export const selectSemanticLayerQuery = (state: RootState) =>
     state.semanticViewer.semanticLayerQuery;
 
-export const selectAllSelectedFieldsByKind = createSelector(
-    [selectSemanticLayerQuery],
-    ({ dimensions, timeDimensions, metrics }) => ({
-        dimensions,
-        timeDimensions,
-        metrics,
-    }),
-);
-
 export const selectAllSelectedFieldNames = createSelector(
     [selectSemanticLayerQuery],
     ({ dimensions, metrics, timeDimensions }) => {
