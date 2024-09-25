@@ -1,3 +1,10 @@
+## [0.1273.4](https://github.com/lightdash/lightdash/compare/0.1273.3...0.1273.4) (2024-09-25)
+
+
+### Bug Fixes
+
+* clarify threshold alerts errors when it doesn't have enough results ([#11297](https://github.com/lightdash/lightdash/issues/11297)) ([fabe79a](https://github.com/lightdash/lightdash/commit/fabe79a1441504af541d003ccf6e4168fb2189c6))
+
 ## [0.1273.3](https://github.com/lightdash/lightdash/compare/0.1273.2...0.1273.3) (2024-09-25)
 
 
