@@ -133,23 +133,22 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
 
                 return {
                     props: {
-                        uuid: semanticViewerChartQuery.data.chart
+                        uuid: semanticViewerChartQuery.data
                             .savedSemanticViewerChartUuid,
-                        spaceUuid:
-                            semanticViewerChartQuery.data.chart.space.uuid,
+                        spaceUuid: semanticViewerChartQuery.data.space.uuid,
                     },
                     payload: {
                         uuid: uuid4(),
                         type: DashboardTileTypes.SEMANTIC_VIEWER_CHART,
                         properties: {
-                            chartName: semanticViewerChartQuery.data.chart.name,
+                            chartName: semanticViewerChartQuery.data.name,
                             savedSemanticViewerChartUuid:
-                                semanticViewerChartQuery.data.chart
+                                semanticViewerChartQuery.data
                                     .savedSemanticViewerChartUuid,
                         },
                         tabUuid: undefined,
                         ...getDefaultChartTileSize(
-                            semanticViewerChartQuery.data.chart.config.type,
+                            semanticViewerChartQuery.data.config.type,
                         ),
                     },
                 };

@@ -82,10 +82,7 @@ const SemanticViewerSaveChartContent: FC = () => {
         showToastSuccess,
     ]);
 
-    const canSave =
-        selectedFieldNames.length > 0 &&
-        !!selectedChartConfig &&
-        !!activeChartKind;
+    const canSave = selectedFieldNames.length > 0 && !!selectedChartConfig;
 
     return (
         <>
@@ -112,10 +109,9 @@ const SemanticViewerSaveChartContent: FC = () => {
             />
 
             <Button
-                p={0}
+                compact
                 leftIcon={<MantineIcon icon={IconDeviceFloppy} />}
                 variant="link"
-                color="black"
                 disabled={!canSave}
                 onClick={
                     savedSemanticViewerChartUuid

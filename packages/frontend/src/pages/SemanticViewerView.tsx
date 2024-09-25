@@ -10,7 +10,7 @@ import { useChartViz } from '../components/DataViz/hooks/useChartViz';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import {
-    useSavedSemanticViewerChart,
+    useSavedSemanticViewerChartAndResults,
     useSemanticLayerViewFields,
 } from '../features/semanticViewer/api/hooks';
 import { HeaderView } from '../features/semanticViewer/components/Header/HeaderView';
@@ -31,7 +31,7 @@ const SemanticViewerViewPage = () => {
         savedSemanticViewerChartUuid: string;
     }>();
 
-    const chartQuery = useSavedSemanticViewerChart({
+    const chartQuery = useSavedSemanticViewerChartAndResults({
         projectUuid,
         uuid: savedSemanticViewerChartUuid,
     });
@@ -55,11 +55,7 @@ const SemanticViewerViewPage = () => {
 
     const chartData = useMemo(() => {
         if (!chartQuery.isSuccess) return undefined;
-
-        return {
-            results: chartQuery.data.resultsAndColumns.results,
-            columns: chartQuery.data.resultsAndColumns.columns,
-        };
+        return chartQuery.data.results;
     }, [chartQuery]);
 
     const resultsRunner = useMemo(() => {

@@ -7,7 +7,7 @@ import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/co
 import getChartConfigAndOptions from '../components/DataViz/transformers/getChartConfigAndOptions';
 import * as SemanticViewer from '../features/semanticViewer';
 import {
-    useSavedSemanticViewerChart,
+    useSavedSemanticViewerChartAndResults,
     useSemanticLayerInfo,
     useSemanticLayerViewFields,
 } from '../features/semanticViewer/api/hooks';
@@ -40,7 +40,7 @@ const SemanticViewerEditorPageWithStore = () => {
 
     const infoQuery = useSemanticLayerInfo({ projectUuid });
 
-    const chartQuery = useSavedSemanticViewerChart(
+    const chartQuery = useSavedSemanticViewerChartAndResults(
         { projectUuid, uuid: savedSemanticViewerChartUuid ?? null },
         { enabled: !!savedSemanticViewerChartUuid },
     );
@@ -68,14 +68,14 @@ const SemanticViewerEditorPageWithStore = () => {
         const vizColumns =
             SemanticViewerResultsRunner.convertColumnsToVizColumns(
                 fieldsQuery.data,
-                chartQuery.data.resultsAndColumns.columns,
+                chartQuery.data.results.columns,
             );
 
         return new SemanticViewerResultsRunner({
             projectUuid,
             fields: fieldsQuery.data,
             query: chartQuery.data.chart.semanticLayerQuery,
-            rows: chartQuery.data.resultsAndColumns.results,
+            rows: chartQuery.data.results.results,
             columns: vizColumns,
         });
     }, [chartQuery, fieldsQuery, projectUuid]);

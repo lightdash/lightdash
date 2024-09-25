@@ -1,5 +1,4 @@
 import {
-    ChartKind,
     type ApiError,
     type ApiSemanticViewerChartCreate,
     type ApiSemanticViewerChartUpdate,
@@ -151,18 +150,6 @@ export const useCreateSemanticViewerChartMutation = (
         ...mutationOptions,
     });
 
-type SavedSemanticViewChartWithResultsAndColumns = {
-    resultsAndColumns: {
-        results: SemanticLayerResultRow[];
-        columns: string[];
-    };
-    chart: SavedSemanticViewerChart;
-};
-
-/**
- * Fetches the semantic viewer chart and results for a saved chart.
- * @returns The chart and results of the semantic layer query.
- */
 export const useSavedSemanticViewerChart = (
     {
         projectUuid,
@@ -172,12 +159,56 @@ export const useSavedSemanticViewerChart = (
         uuid: string | null;
     },
     useQueryParams?: UseQueryOptions<
-        SavedSemanticViewChartWithResultsAndColumns,
+        SavedSemanticViewerChart,
+        ApiError & { slug?: string }
+    >,
+) => {
+    return useQuery<SavedSemanticViewerChart, ApiError & { slug?: string }>(
+        [projectUuid, 'semanticLayer', 'chart', uuid],
+        () => {
+            if (!uuid) {
+                throw new Error('uuid is required');
+            }
+
+            return apiGetSavedSemanticViewerChart({
+                projectUuid,
+                uuid,
+            });
+        },
+        {
+            enabled: !!uuid,
+            ...useQueryParams,
+        },
+    );
+};
+
+type SavedSemanticViewerChartAndResults = {
+    chart: SavedSemanticViewerChart;
+    results: {
+        results: SemanticLayerResultRow[];
+        columns: string[];
+    };
+};
+
+/**
+ * Fetches semantic viewer chart and results for a saved chart.
+ * @returns The chart and results of the semantic layer query.
+ */
+export const useSavedSemanticViewerChartAndResults = (
+    {
+        projectUuid,
+        uuid,
+    }: {
+        projectUuid: string;
+        uuid: string | null;
+    },
+    useQueryParams?: UseQueryOptions<
+        SavedSemanticViewerChartAndResults,
         ApiError & { slug?: string }
     >,
 ) => {
     return useQuery<
-        SavedSemanticViewChartWithResultsAndColumns,
+        SavedSemanticViewerChartAndResults,
         ApiError & { slug?: string }
     >(
         [projectUuid, 'semanticLayer', 'chart', uuid],
@@ -191,31 +222,12 @@ export const useSavedSemanticViewerChart = (
                 uuid,
             });
 
-            // If the chart is not a table, we don't need to fetch the results.
-            if (chart.config.type !== ChartKind.TABLE) {
-                return {
-                    chart,
-                    // TODO: this feels like a type hack
-                    resultsAndColumns: {
-                        results: [],
-                        columns: [],
-                    },
-                };
-            }
+            const results = await apiGetSavedSemanticViewerChartResults({
+                projectUuid,
+                uuid: chart.savedSemanticViewerChartUuid,
+            });
 
-            const semanticViewerChartResults =
-                await apiGetSavedSemanticViewerChartResults({
-                    projectUuid,
-                    uuid: chart.savedSemanticViewerChartUuid,
-                });
-
-            return {
-                chart,
-                resultsAndColumns: {
-                    results: semanticViewerChartResults.results,
-                    columns: semanticViewerChartResults.columns,
-                },
-            };
+            return { chart, results };
         },
         {
             enabled: Boolean(uuid),
