@@ -67,7 +67,7 @@ import { ResultsDownload } from './Download/ResultsDownload';
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 import { SqlQueryHistory } from './SqlQueryHistory';
 
-const DEFAULT_SQL_LIMIT = 500;
+export const DEFAULT_SQL_LIMIT = 500;
 
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
