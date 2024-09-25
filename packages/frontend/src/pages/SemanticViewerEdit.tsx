@@ -145,7 +145,6 @@ const SemanticViewerEditorPageWithStore = () => {
     // TODO: add loading state
     if (semanticViewerState === SemanticViewerStateStatus.LOADING) return null;
 
-    console.log(semanticViewerState);
 
     return (
         <Page
