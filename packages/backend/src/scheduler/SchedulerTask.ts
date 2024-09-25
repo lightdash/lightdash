@@ -154,6 +154,7 @@ export default class SchedulerTask {
         dashboardUuid: string | null,
         schedulerUuid: string | undefined,
         sendNowSchedulerFilters: SchedulerFilterRule[] | undefined,
+        context: DownloadCsv['properties']['context'],
     ) {
         if (chartUuid) {
             const chart =
@@ -162,7 +163,7 @@ export default class SchedulerTask {
                 );
             return {
                 url: `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
-                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}`,
+                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?context=${context}`,
                 details: {
                     name: chart.name,
                     description: chart.description,
@@ -191,7 +192,7 @@ export default class SchedulerTask {
                               JSON.stringify(sendNowSchedulerFilters),
                           )}`
                         : ''
-                }`,
+                }&context=${context}`,
                 details: {
                     name: dashboard.name,
                     description: dashboard.description,
@@ -245,6 +246,7 @@ export default class SchedulerTask {
             dashboardUuid,
             schedulerUuid,
             sendNowSchedulerFilters,
+            scheduler.thresholds !== undefined ? 'scheduled delivery' : 'alert',
         );
 
         switch (format) {
@@ -327,7 +329,7 @@ export default class SchedulerTask {
                             userId: userUuid,
                             properties: {
                                 ...baseAnalyticsProperties,
-                                context: 'scheduled delivery dashboard',
+                                context: 'scheduled delivery',
                             },
                         });
 
@@ -345,7 +347,7 @@ export default class SchedulerTask {
                             userId: userUuid,
                             properties: {
                                 ...baseAnalyticsProperties,
-                                context: 'scheduled delivery dashboard',
+                                context: 'scheduled delivery',
                                 numCharts: csvUrls.length,
                             },
                         });
