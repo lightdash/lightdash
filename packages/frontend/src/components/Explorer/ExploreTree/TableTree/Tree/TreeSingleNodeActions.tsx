@@ -113,12 +113,13 @@ const TreeSingleNodeActions: FC<Props> = ({
         let newId = uuidv4();
         let newIdSubstring=newId.replace(/-/g, '').substring(0, 16);
         let currentName=newDeepCopyItem.name;
-        const tildeIndex = currentName.indexOf('~$');
-        if (tildeIndex !== -1){
-            currentName= currentName.substring(0, tildeIndex + 2) + newIdSubstring;
+        const pattern = '_8id9_';
+        const patternIndex = currentName.indexOf(pattern);
+        if (patternIndex !== -1){
+            currentName= currentName.substring(0, patternIndex + pattern.length) + newIdSubstring;
         }
         else{
-            currentName=currentName + '~$' + newIdSubstring;
+            currentName=currentName + pattern + newIdSubstring;
         }
         newDeepCopyItem.label = 'Copy ' + newDeepCopyItem.label;
         newDeepCopyItem.uuid = newId;
@@ -129,12 +130,13 @@ const TreeSingleNodeActions: FC<Props> = ({
         const newDeepCopyItem = JSON.parse(JSON.stringify(customDimension));
         let newIdSubstring = uuidv4().replace(/-/g, '').substring(0, 16);
         let currentId=newDeepCopyItem.id;
-        const tildeIndex = currentId.indexOf('~$');
-        if (tildeIndex !== -1){
-            currentId= currentId.substring(0, tildeIndex + 2) + newIdSubstring;
+        const pattern = '_8id9_';
+        const patternIndex = currentId.indexOf(pattern);
+        if (patternIndex !== -1){
+            currentId= currentId.substring(0, patternIndex + pattern.length) + newIdSubstring;
         }
         else{
-            currentId=currentId + '~$' + newIdSubstring;
+            currentId=currentId + pattern + newIdSubstring;
         }
         newDeepCopyItem.name = 'Copy ' + newDeepCopyItem.name;
         newDeepCopyItem.id = currentId;
