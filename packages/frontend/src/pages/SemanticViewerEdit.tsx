@@ -110,7 +110,6 @@ const SemanticViewerEditorPageWithStore = () => {
 
         // If we don't have a saved chart, initialize the viewer with an empty chart
         if (!savedSemanticViewerChartUuid && infoQuery.isSuccess) {
-            console.log('did this happen?');
 
             dispatch(
                 initializeSemanticViewer({
