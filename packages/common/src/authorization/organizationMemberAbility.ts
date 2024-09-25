@@ -83,6 +83,9 @@ export const organizationMemberAbilities: Record<
         can('view', 'UnderlyingData', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'SemanticViewer', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'ChangeCsvResults', {
             organizationUuid: member.organizationUuid,
         });
@@ -105,6 +108,16 @@ export const organizationMemberAbilities: Record<
             },
         });
         can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+
+        can('manage', 'SemanticViewer', {
             organizationUuid: member.organizationUuid,
             access: {
                 $elemMatch: {
@@ -166,6 +179,9 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'SqlRunner', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'SemanticViewer', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Validation', {

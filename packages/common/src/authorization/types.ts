@@ -38,6 +38,7 @@ type Subject =
     | 'DashboardComments'
     | 'CustomSql'
     | 'CompileProject'
+    | 'SemanticViewer'
     | 'all';
 
 type PossibleAbilities = [
