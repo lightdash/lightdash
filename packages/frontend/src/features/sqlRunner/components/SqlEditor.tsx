@@ -18,7 +18,6 @@ import { type editor, type languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { useProject } from '../../../hooks/useProject';
 import '../../../styles/monaco.css';
 import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -208,7 +207,9 @@ export const SqlEditor: FC<{
     const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const { data, isLoading } = useProject(projectUuid);
+    const warehouseConnectionType = useAppSelector(
+        (state) => state.sqlRunner.warehouseConnectionType,
+    );
     const { data: tablesData, isLoading: isTablesDataLoading } = useTables({
         projectUuid,
         search: undefined,
@@ -216,8 +217,8 @@ export const SqlEditor: FC<{
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
 
     const language = useMemo(
-        () => getLanguage(data?.warehouseConnection?.type),
-        [data],
+        () => getLanguage(warehouseConnectionType),
+        [warehouseConnectionType],
     );
 
     const beforeMount: BeforeMount = useCallback(
@@ -322,7 +323,7 @@ export const SqlEditor: FC<{
         [debouncedSetSql, highlightText, resetHighlightError],
     );
 
-    if (isLoading || isTablesDataLoading) {
+    if (isTablesDataLoading) {
         return (
             <Center h="100%">
                 <Loader color="gray" size="xs" />
@@ -330,10 +331,10 @@ export const SqlEditor: FC<{
         );
     }
 
-    if (!data) {
+    if (!warehouseConnectionType) {
         return (
             <SuboptimalState
-                title="Project data not available"
+                title="Warehouse connection not available"
                 icon={IconAlertCircle}
             />
         );
