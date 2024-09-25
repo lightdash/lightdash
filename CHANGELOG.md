@@ -1,3 +1,10 @@
+## [0.1273.2](https://github.com/lightdash/lightdash/compare/0.1273.1...0.1273.2) (2024-09-25)
+
+
+### Bug Fixes
+
+* remove query key sql from useChartViz ([#11676](https://github.com/lightdash/lightdash/issues/11676)) ([dcd127d](https://github.com/lightdash/lightdash/commit/dcd127df227a3f8808de45871c4e1568813094bb))
+
 ## [0.1273.1](https://github.com/lightdash/lightdash/compare/0.1273.0...0.1273.1) (2024-09-25)
 
 
