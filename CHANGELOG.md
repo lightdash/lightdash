@@ -1,3 +1,10 @@
+## [0.1273.1](https://github.com/lightdash/lightdash/compare/0.1273.0...0.1273.1) (2024-09-25)
+
+
+### Bug Fixes
+
+* get correct language and not throw error if format fails ([#11680](https://github.com/lightdash/lightdash/issues/11680)) ([3e389ca](https://github.com/lightdash/lightdash/commit/3e389caf4cb096539fb11c9e7abad93cca8d1e96))
+
 # [0.1273.0](https://github.com/lightdash/lightdash/compare/0.1272.0...0.1273.0) (2024-09-25)
 
 
