@@ -73,7 +73,10 @@ export class CartesianChartDataModel {
         this.organization = args.organization;
     }
 
-    async getTransformedData(query: SemanticLayerQuery) {
+    async getTransformedData(query?: SemanticLayerQuery) {
+        if (!query) {
+            return undefined;
+        }
         return this.resultsRunner.getPivotedVisualizationData(query);
     }
 

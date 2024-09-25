@@ -20,21 +20,19 @@ type Args = {
     limit?: number;
     resultsRunner?: IResultsRunner;
     config: AllVizChartConfig | undefined;
-    semanticLayerQuery?: SemanticLayerQuery;
+    semanticQuery?: SemanticLayerQuery;
     // Consumers can provide additional query keys to force a re-fetch.
     // Different pages may need to refresh this query based on parameters
     // that are unused in this hook.
     additionalQueryKey?: UseQueryOptions['queryKey'];
-    sql?: string;
 };
 export const useChartViz = ({
     projectUuid,
     limit,
     resultsRunner,
     config,
-    semanticLayerQuery,
     additionalQueryKey,
-    sql,
+    semanticQuery,
 }: Args) => {
     const org = useOrganization();
 
@@ -48,11 +46,14 @@ export const useChartViz = ({
             case ChartKind.PIE:
                 return new PieChartDataModel({
                     resultsRunner,
+                    config,
                 });
             case ChartKind.VERTICAL_BAR:
             case ChartKind.LINE:
                 return new CartesianChartDataModel({
-                    resultsRunner, config, organization: org.data
+                    resultsRunner,
+                    config,
+                    organization: org.data,
                 });
             default:
                 return;
@@ -78,9 +79,13 @@ export const useChartViz = ({
             if (isVizTableConfig(config) || !chartDataModel) {
                 return undefined;
             }
+            console.log(
+                'semanticQuery in useChartViz',
+                JSON.stringify(semanticQuery, null, 2),
+            );
 
             try {
-                return chartDataModel.getTransformedData(semanticLayerQuery);
+                return chartDataModel.getTransformedData(semanticQuery);
             } catch (e) {
                 if (isApiError(e)) {
                     throw e.error;
@@ -100,7 +105,8 @@ export const useChartViz = ({
 
         if (
             isVizPieChartConfig(config) &&
-            chartDataModel instanceof PieChartDataModel
+            chartDataModel instanceof PieChartDataModel &&
+            transformedData
         ) {
             return chartDataModel.getEchartsSpec(
                 transformedData,

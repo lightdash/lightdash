@@ -12,7 +12,7 @@ import { Table } from '../../../components/DataViz/visualizations/Table';
 import { Table2 } from '../../../components/DataViz/visualizations/Table2';
 
 import { useOrganization } from '../../../hooks/organization/useOrganization';
-import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
 import { useAppSelector } from '../store/hooks';
 import {
     selectSemanticLayerInfo,

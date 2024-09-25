@@ -50,14 +50,6 @@ export const Table = <T extends IResultsRunner>({
     const columnsCount = getColumnsCount();
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
-    console.log('columnsConfig', {
-        columnsConfig,
-        thSortConfig,
-        headerGroups,
-        virtualRows,
-        rowModelRows,
-    });
-
     return (
         <Flex
             ref={tableWrapperRef}

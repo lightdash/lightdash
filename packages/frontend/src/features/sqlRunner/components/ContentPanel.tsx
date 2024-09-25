@@ -1,6 +1,7 @@
 import {
     ChartKind,
     isVizTableConfig,
+    type SemanticLayerQuery,
     type VizTableConfig,
 } from '@lightdash/common';
 import {
@@ -171,44 +172,12 @@ export const ContentPanel: FC = () => {
         }
     }, [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch]);
 
-    const resultsRunner = useMemo(() => {
-        if (!queryResults) return;
-
-        return new SqlRunnerResultsRunnerFrontend({
-            rows: queryResults.results,
-            columns: queryResults.columns,
-            projectUuid,
-            limit,
-            sql,
-        });
-    }, [queryResults, projectUuid, limit, sql]);
-
     useEffect(() => {
         if (queryResults && panelSizes[1] === 0) {
             resultsPanelRef.current?.resize(50);
             setPanelSizes([50, 50]);
         }
     }, [queryResults, panelSizes]);
-
-    useEffect(() => {
-        if (!queryResults || !resultsRunner || !selectedChartType) return;
-
-        dispatch(setSqlRunnerResults(queryResults));
-
-        const chartResultOptions = getChartConfigAndOptions(
-            resultsRunner,
-            selectedChartType,
-            currentVizConfig,
-        );
-
-        dispatch(setChartOptionsAndConfig(chartResultOptions));
-    }, [
-        resultsRunner,
-        dispatch,
-        queryResults,
-        selectedChartType,
-        currentVizConfig,
-    ]);
 
     const activeConfigs = useAppSelector((state) => {
         const configsWithTable = state.sqlRunner.activeConfigs
@@ -267,12 +236,56 @@ export const ContentPanel: FC = () => {
         [activeEditorTab],
     );
 
+    // TODO: dummy semantic query for now
+    const semanticQuery: SemanticLayerQuery = useMemo(() => {
+        return {
+            dimensions: [],
+            timeDimensions: [],
+            metrics: [],
+            sortBy: [],
+            filters: [],
+            sql,
+        };
+    }, [sql]);
+
+    const resultsRunner = useMemo(() => {
+        if (!queryResults) return;
+
+        return new SqlRunnerResultsRunnerFrontend({
+            rows: queryResults.results,
+            columns: queryResults.columns,
+            projectUuid,
+            limit,
+            sql,
+        });
+    }, [queryResults, projectUuid, limit, sql]);
+
+    useEffect(() => {
+        if (!queryResults || !resultsRunner || !selectedChartType) return;
+
+        dispatch(setSqlRunnerResults(queryResults));
+
+        const chartResultOptions = getChartConfigAndOptions(
+            resultsRunner,
+            selectedChartType,
+            currentVizConfig,
+        );
+
+        dispatch(setChartOptionsAndConfig(chartResultOptions));
+    }, [
+        resultsRunner,
+        dispatch,
+        queryResults,
+        selectedChartType,
+        currentVizConfig,
+    ]);
+
     // TODO: this needs to pass the semantic layer query
     const [chartVizQuery, chartSpec] = useChartViz({
         projectUuid,
         resultsRunner,
         config: currentVizConfig,
-        sql,
+        semanticQuery,
     });
 
     const chartFileUrl = chartVizQuery?.data?.fileUrl;

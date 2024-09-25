@@ -12,7 +12,7 @@ import {
     useDashboardSemanticViewerChart,
     useSemanticLayerViewFields,
 } from '../../features/semanticViewer/api/hooks';
-import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';

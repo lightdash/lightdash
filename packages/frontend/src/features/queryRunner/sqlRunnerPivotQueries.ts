@@ -1,16 +1,16 @@
 import {
     isApiSqlRunnerJobPivotQuerySuccessResponse,
     isErrorDetails,
+    VIZ_DEFAULT_AGGREGATION,
+    type ApiJobScheduledResponse,
     type PivotChartData,
+    type RawResultRow,
     type RunPivotQuery,
     type SemanticLayerField,
     type SemanticLayerQuery,
     type SqlRunnerPivotQueryBody,
     type VizColumn,
     type VizSortBy,
-    VIZ_DEFAULT_AGGREGATION,
-    type ApiJobScheduledResponse,
-    type RawResultRow,
 } from '@lightdash/common';
 import { lightdashApi } from '../../api';
 import { getResultsFromStream } from '../../utils/request';
@@ -118,6 +118,8 @@ export const getPivotQueryFunctionForSqlRunner = ({
     fields: SemanticLayerField[];
 }): RunPivotQuery => {
     return async (query: SemanticLayerQuery) => {
+        console.log('query in sql runner', JSON.stringify(query, null, 2));
+
         const index = query.pivot?.index[0];
         if (index === undefined) {
             return {

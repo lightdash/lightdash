@@ -9,7 +9,7 @@ import getChartConfigAndOptions from '../../../components/DataViz/transformers/g
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';
-import { convertColumnNamesToVizColumns, SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
@@ -83,13 +83,8 @@ const Content: FC = () => {
     useEffect(() => {
         if (!resultsColumns || !resultsData) return;
 
-        const vizColumns = convertColumnNamesToVizColumns(
-            fields,
-            resultsColumns,
-            );
-
         dispatch(
-            setResults({ results: resultsData, columnNames: resultsColumns, columns: vizColumns }),
+            setResults({ results: resultsData, columnNames: resultsColumns }),
         );
     }, [dispatch, resultsData, resultsColumns, fields]);
 

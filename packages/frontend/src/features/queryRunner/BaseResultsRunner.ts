@@ -199,6 +199,9 @@ export class BaseResultsRunner implements IResultsRunner {
 
     // used by the table viz only
     getColumns(): string[] {
+        if (!this.rows.length) {
+            return [];
+        }
         return Object.keys(this.rows[0]);
     }
 

@@ -3,7 +3,6 @@ import {
     DimensionType,
     FieldType,
     SemanticLayerFieldType,
-    type IResultsRunner,
     type RawResultRow,
     type SemanticLayerField,
     type VizColumn,
@@ -29,10 +28,7 @@ const getSemanticLayerFieldTypeFromDimensionType = (
     }
 };
 
-export class SqlRunnerResultsRunnerFrontend
-    extends BaseResultsRunner
-    implements IResultsRunner
-{
+export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
     constructor({
         columns,
         rows,

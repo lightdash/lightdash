@@ -240,8 +240,12 @@ export class PieChartDataModel {
     }
 
     async getTransformedData(
-        query: SemanticLayerQuery,
-    ): Promise<PivotChartData> {
+        query: SemanticLayerQuery | undefined,
+    ): Promise<PivotChartData | undefined> {
+        if (!query) {
+            return undefined;
+        }
+
         return this.resultsRunner.getPivotedVisualizationData(query);
     }
 
