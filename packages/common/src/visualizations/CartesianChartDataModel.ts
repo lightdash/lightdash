@@ -19,6 +19,7 @@ import {
     type PivotChartData,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
+    type VizColumnsConfig,
     type VizConfigErrors,
 } from './types';
 import {
@@ -86,6 +87,29 @@ export class CartesianChartDataModel {
                     (groupBy) => groupBy.reference,
                 ) ?? [],
             values: this.config?.fieldConfig?.y?.map((y) => y.reference) ?? [],
+        };
+    }
+
+    async getTabularData(query: SemanticLayerQuery) {
+        const transformedData = await this.getTransformedData({
+            ...query,
+            pivot: this.getPivotConfig(),
+        });
+        return {
+            columns: Object.keys(transformedData.results[0]) ?? [],
+            rows: transformedData.results,
+            columnsConfig: transformedData.columns.reduce<VizColumnsConfig>(
+                (acc, column) => {
+                    acc[column.reference] = {
+                        visible: true,
+                        reference: column.reference,
+                        label: column.reference,
+                        frozen: false,
+                    };
+                    return acc;
+                },
+                {},
+            ),
         };
     }
 

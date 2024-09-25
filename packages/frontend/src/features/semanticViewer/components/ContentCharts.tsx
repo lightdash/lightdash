@@ -75,6 +75,10 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         setOpenPanel(undefined);
     };
 
+    const { value } = useAsync(() => {
+        return vizDataModel.getTabularData(semanticLayerQuery);
+    }, [vizDataModel, semanticLayerQuery]);
+
     // ! TODO: THIS SHOULD COME FROM THE CORRESPONDING TABLE DATA MODELS
     const tableVizSorts = useMemo(() => {
         return TableDataModel.getTableHeaderSortConfig(
@@ -150,13 +154,13 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 minSize={10}
                                 onCollapse={() => setOpenPanel(undefined)}
                             >
-                                {/* 
-                                // TODO: Working on powering this from the same data as the chart
                                 <Table2
-                                    dataModel={vizDataModel}
+                                    columns={value?.columns}
+                                    rows={value?.rows}
+                                    columnsConfig={value?.columnsConfig}
                                     onTHClick={onTableHeaderClick}
                                     thSortConfig={tableVizSorts}
-                                /> */}
+                                />
                             </Panel>
                         </>
                     )}

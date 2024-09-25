@@ -1,4 +1,8 @@
-import { TableDataModel, type RawResultRow } from '@lightdash/common';
+import {
+    TableDataModel,
+    type RawResultRow,
+    type VizColumnsConfig,
+} from '@lightdash/common';
 import {
     getCoreRowModel,
     useReactTable,
@@ -11,28 +15,25 @@ import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
 
 // TODO: This is meant to replace useTableDataModel
 export const useVirtualTable = ({
-    tableDataModel,
+    columnNames,
+    rows,
+    config,
 }: {
-    tableDataModel: TableDataModel;
+    columnNames: string[];
+    rows: RawResultRow[];
+    config: VizColumnsConfig;
 }) => {
-    const columns = useMemo(
-        () => tableDataModel.getVisibleColumns(),
-        [tableDataModel],
-    );
-    const rows = useMemo(() => tableDataModel.getRows(), [tableDataModel]);
-    const config = useMemo(() => tableDataModel.getConfig(), [tableDataModel]);
-
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
-        return columns.map((column) => ({
+        return columnNames.map((column) => ({
             id: column,
             // react table has a bug with accessors that has dots in them
             // we found the fix here -> https://github.com/TanStack/table/issues/1671
             // do not remove the line below
             accessorFn: TableDataModel.getColumnsAccessorFn(column),
-            header: config.columns[column].label || column,
+            header: config[column]?.label || column,
             cell: getValueCell,
         }));
-    }, [columns, config.columns]);
+    }, [columnNames, config]);
 
     const table = useReactTable({
         data: rows,
@@ -46,7 +47,7 @@ export const useVirtualTable = ({
 
     const virtualizer = useVirtualizer({
         getScrollElement: () => tableWrapperRef.current,
-        count: tableDataModel.getRowsCount(),
+        count: rows.length,
         estimateSize: () => getRowHeight(),
         overscan: 25,
     });
@@ -76,7 +77,7 @@ export const useVirtualTable = ({
 
     return {
         tableWrapperRef,
-        columns,
+        columnNames,
         rows,
         getRowHeight,
         getTableData,

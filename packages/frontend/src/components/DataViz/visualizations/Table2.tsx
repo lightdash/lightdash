@@ -1,7 +1,7 @@
 import {
     SortByDirection,
     type RawResultRow,
-    type TableDataModel,
+    type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
 import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
@@ -20,7 +20,9 @@ import {
 import { useVirtualTable } from '../hooks/useVirtualTable';
 
 type TableProps = {
-    dataModel: TableDataModel;
+    columns: string[];
+    rows: RawResultRow[];
+    columnsConfig: VizColumnsConfig;
     flexProps?: FlexProps;
     thSortConfig?: VizTableHeaderSortConfig;
     onTHClick?: (fieldName: string) => void;
@@ -28,25 +30,26 @@ type TableProps = {
 
 // TODO: TEMPORARY. Replace table with this when it works
 export const Table2 = ({
-    dataModel,
+    columns,
+    rows,
+    columnsConfig,
     flexProps,
     thSortConfig,
     onTHClick,
 }: TableProps) => {
     const { tableWrapperRef, getTableData, paddingTop, paddingBottom } =
-        useVirtualTable({ tableDataModel: dataModel });
+        useVirtualTable({ columnNames: columns, rows, config: columnsConfig });
 
-    const columnsCount = useMemo(
-        () => dataModel.getColumnsCount(),
-        [dataModel],
-    );
+    const columnsCount = useMemo(() => columns.length, [columns]);
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
-    const columnsConfig = useMemo(
-        () => dataModel.getConfig()?.columns,
-        [dataModel],
-    );
 
-    console.log('columnsConfig', { columnsConfig, thSortConfig });
+    console.log('columnsConfig', {
+        columnsConfig,
+        thSortConfig,
+        headerGroups,
+        virtualRows,
+        rowModelRows,
+    });
 
     return (
         <Flex
