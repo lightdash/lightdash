@@ -1,3 +1,11 @@
+## [0.1273.5](https://github.com/lightdash/lightdash/compare/0.1273.4...0.1273.5) (2024-09-25)
+
+
+### Bug Fixes
+
+* semantic viewer field select scroll overflow ([#11690](https://github.com/lightdash/lightdash/issues/11690)) ([5f3428b](https://github.com/lightdash/lightdash/commit/5f3428b937cfb97f7832c9f1ea7f1a8160b08490))
+* semantic viewer filter ui bugs ([#11688](https://github.com/lightdash/lightdash/issues/11688)) ([b1d01f4](https://github.com/lightdash/lightdash/commit/b1d01f46d8e3d361592ca911abde37ef9687860a))
+
 ## [0.1273.4](https://github.com/lightdash/lightdash/compare/0.1273.3...0.1273.4) (2024-09-25)
 
 
