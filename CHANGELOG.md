@@ -1,3 +1,10 @@
+## [0.1273.3](https://github.com/lightdash/lightdash/compare/0.1273.2...0.1273.3) (2024-09-25)
+
+
+### Bug Fixes
+
+* Require query tags for all warehouse queries ([#11673](https://github.com/lightdash/lightdash/issues/11673)) ([f18f174](https://github.com/lightdash/lightdash/commit/f18f174c624d355d8e87afed9a939fb04fb63dbb))
+
 ## [0.1273.2](https://github.com/lightdash/lightdash/compare/0.1273.1...0.1273.2) (2024-09-25)
 
 
