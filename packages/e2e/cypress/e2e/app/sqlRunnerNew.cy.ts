@@ -167,4 +167,125 @@ describe('SQL Runner (new)', () => {
             `div[data-testid="chart-view-${ChartKind.VERTICAL_BAR}"]`,
         ).should('exist');
     });
+
+    it('Should save a chart', () => {
+        // Verify that the Run query button is disabled by default
+        cy.contains('Run query').should('be.disabled');
+
+        // Verify that the query is run
+        cy.contains('jaffle').click().wait(500);
+        cy.contains('customers').click();
+        cy.contains(
+            '.monaco-editor',
+            'SELECT * FROM "postgres"."jaffle"."customers"',
+        );
+        cy.contains('Run query').click();
+        cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
+
+        // Verify that the chart is saved
+        cy.contains('Save').click();
+        cy.get(
+            'input[placeholder="eg. How many weekly active users do we have?"]',
+        ).type('Customers table SQL chart');
+        cy.get('section[role="dialog"]')
+            .find('button')
+            .contains('Save')
+            .click();
+
+        // Verify that the chart is in view mode
+        cy.contains('Customers table SQL chart').should('be.visible');
+        cy.get(
+            `div[data-testid="chart-view-${ChartKind.VERTICAL_BAR}"]`,
+        ).should('exist');
+
+        // Verify that the chart is in edit mode and make new changes and fix errors
+        cy.contains('Edit chart').click();
+        cy.get(
+            `div[data-testid="chart-view-${ChartKind.VERTICAL_BAR}"]`,
+        ).should('exist');
+        cy.contains('customer_id_sum').should('be.visible');
+
+        cy.contains('label', 'SQL').click();
+        cy.get('.monaco-editor').should('be.visible');
+        cy.get('.monaco-editor').type('{selectall}{backspace}');
+        cy.get('.monaco-editor')
+            .type('SELECT * FROM "postgres"."jaffle"."orders"')
+            .wait(1000);
+        cy.contains('Run query').click();
+        cy.get('table thead th').eq(0).should('contain.text', 'order_id');
+
+        // Verify that there are errors to be fixed and fix them
+        cy.contains('label', 'Chart').click();
+        cy.contains(
+            'Column "first_name" does not exist. Choose another',
+        ).should('be.visible');
+        cy.contains('Save').click();
+        cy.get('section[role="dialog"]')
+            .find('button')
+            .contains('Fix errors')
+            .click();
+        cy.get('input[placeholder="Select X axis"]').click();
+        cy.get('div[role="option"]').contains('customer_id').click();
+        cy.get('.echarts-for-react')
+            .find('text')
+            .contains('Customer id')
+            .should('be.visible');
+
+        // Verify that saving changes and going back to view page displays the chart
+        cy.contains('Save').click();
+        cy.get('button[data-testid="back-to-view-page-button"]').click();
+        cy.get(
+            `div[data-testid="chart-view-${ChartKind.VERTICAL_BAR}"]`,
+        ).should('exist');
+        cy.get('.echarts-for-react')
+            .find('text')
+            .contains('Customer id')
+            .should('be.visible');
+    });
+
+    it('Should not trigger an extra query to the warehouse when styling a chart', () => {
+        // Verify that the Run query button is disabled by default
+        cy.contains('Run query').should('be.disabled');
+
+        // Verify that the query is run
+        cy.contains('jaffle').click().wait(500);
+        cy.contains('customers').click();
+        cy.contains(
+            '.monaco-editor',
+            'SELECT * FROM "postgres"."jaffle"."customers"',
+        );
+        cy.contains('Run query').click();
+        cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
+
+        // Verify that the chart is ready to be configured
+        cy.contains('label', 'Chart').click();
+        cy.get('.echarts-for-react')
+            .find('text')
+            .contains('First name')
+            .should('be.visible');
+
+        // Make a styling change and wait for 2 seconds to ensure no API calls are made against the warehouse
+        cy.intercept('POST', '**/api/v1/projects/*/sqlRunner/runPivotQuery').as(
+            'runPivotQuery',
+        );
+
+        cy.contains('Styling').click();
+        cy.contains('div', 'X-axis label')
+            .closest('.mantine-Stack-root')
+            .find('input.mantine-Input-input')
+            .type('{selectall}{backspace}New x-axis label');
+
+        cy.wait(2000).then(() => {
+            cy.get('@runPivotQuery.all').should('have.length', 0);
+        });
+
+        // Verify that the chart is displayed with the new label
+        cy.get(
+            `div[data-testid="chart-view-${ChartKind.VERTICAL_BAR}"]`,
+        ).should('exist');
+        cy.get('.echarts-for-react')
+            .find('text')
+            .contains('New x-axis label')
+            .should('be.visible');
+    });
 });

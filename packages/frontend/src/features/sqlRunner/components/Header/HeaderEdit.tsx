@@ -214,6 +214,7 @@ export const HeaderEdit: FC = () => {
                             position="bottom"
                         >
                             <ActionIcon
+                                data-testid="back-to-view-page-button"
                                 variant="default"
                                 size="md"
                                 onClick={handleGoBackToViewPage}

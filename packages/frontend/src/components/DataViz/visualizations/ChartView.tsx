@@ -51,7 +51,7 @@ const ChartView = memo<Props>(
         }
 
         return (
-            <Box data-testid={`chart-view-${config?.type}`}>
+            <Box h="100%" data-testid={`chart-view-${config?.type}`}>
                 <LoadingOverlay visible={isLoading} />
 
                 {spec && (
