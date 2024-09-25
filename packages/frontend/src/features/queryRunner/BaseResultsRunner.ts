@@ -111,7 +111,6 @@ export class BaseResultsRunner implements IResultsRunner {
             return emptyPivotChartData;
         }
 
-        // TODO: use a real query key
         return this.queryClient.fetchQuery({
             queryKey: ['transformedData', query],
             queryFn: () => this.runPivotQuery(query),

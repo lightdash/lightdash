@@ -216,6 +216,7 @@ export class CartesianChartDataModel {
         };
 
         const yColumn =
+            metrics[0] ||
             numericColumns.filter(
                 (column) => column.reference !== x.reference,
             )[0] ||
@@ -224,8 +225,7 @@ export class CartesianChartDataModel {
             )[0] ||
             categoricalColumns.filter(
                 (column) => column.reference !== x.reference,
-            )[0] ||
-            metrics[0];
+            )[0];
 
         if (yColumn === undefined) {
             return undefined;
