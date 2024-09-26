@@ -9601,19 +9601,22 @@
                 ],
                 "type": "object"
             },
-            "ApiSemanticLayerCreateChart": {
+            "SemanticViewerChartCreateResult": {
+                "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
+                    "savedSemanticViewerChartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["slug", "savedSemanticViewerChartUuid"],
+                "type": "object"
+            },
+            "ApiSemanticViewerChartCreate": {
                 "properties": {
                     "results": {
-                        "properties": {
-                            "slug": {
-                                "type": "string"
-                            },
-                            "savedSemanticViewerChartUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["slug", "savedSemanticViewerChartUuid"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/SemanticViewerChartCreateResult"
                     },
                     "status": {
                         "type": "string",
@@ -9624,7 +9627,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "SemanticLayerCreateChart": {
+            "SemanticViewerChartCreate": {
                 "properties": {
                     "spaceUuid": {
                         "type": "string"
@@ -9778,7 +9781,7 @@
                 ],
                 "type": "object"
             },
-            "ApiSemanticLayerGetChart": {
+            "ApiSemanticViewerChartGet": {
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/SavedSemanticViewerChart"
@@ -9790,6 +9793,81 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticViewerChartUpdateResult": {
+                "properties": {
+                    "savedSemanticViewerChartVersionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedSemanticViewerChartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "savedSemanticViewerChartVersionUuid",
+                    "savedSemanticViewerChartUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSemanticViewerChartUpdate": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticViewerChartUpdateResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticViewerChartUpdate": {
+                "properties": {
+                    "versionedData": {
+                        "properties": {
+                            "chartKind": {
+                                "$ref": "#/components/schemas/ChartKind"
+                            },
+                            "config": {
+                                "$ref": "#/components/schemas/VizChartConfig"
+                            },
+                            "semanticLayerQuery": {
+                                "$ref": "#/components/schemas/SemanticLayerQuery"
+                            },
+                            "semanticLayerView": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "chartKind",
+                            "config",
+                            "semanticLayerQuery",
+                            "semanticLayerView"
+                        ],
+                        "type": "object"
+                    },
+                    "unversionedData": {
+                        "properties": {
+                            "spaceUuid": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["spaceUuid", "description", "name"],
+                        "type": "object"
+                    }
+                },
                 "type": "object"
             },
             "ValidationTarget": {
@@ -10033,7 +10111,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1271.0",
+        "version": "0.1273.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

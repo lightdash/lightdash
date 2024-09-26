@@ -8,7 +8,6 @@ import type {
     SpaceSummary,
     VizChartConfig,
 } from '..';
-import assertUnreachable from '../utils/assertUnreachable';
 import { type FieldType } from './field';
 import { type SchedulerJobStatus } from './scheduler';
 
@@ -76,11 +75,11 @@ export type SemanticLayerQuery = {
     dimensions: Pick<SemanticLayerField, 'name'>[];
     timeDimensions: Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>[];
     metrics: Pick<SemanticLayerField, 'name'>[];
+    filters: SemanticLayerFilter[];
     sortBy: SemanticLayerSortBy[];
+    pivot?: SemanticLayerPivot;
     limit?: number;
     timezone?: string;
-    pivot?: SemanticLayerPivot;
-    filters: SemanticLayerFilter[];
 };
 
 export type SemanticLayerResultRow = Record<
@@ -148,22 +147,9 @@ export type SemanticLayerQueryPayload = {
     context: 'semanticViewer';
 };
 
-// Helper functions and constants
-const SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT = 500;
-
 export const isSemanticLayerTimeDimension = (
     field: SemanticLayerField,
 ): field is SemanticLayerTimeDimension => 'granularity' in field;
-
-export function getDefaultedLimit(
-    maxQueryLimit: number,
-    queryLimit?: number,
-): number {
-    return Math.min(
-        queryLimit ?? SEMANTIC_LAYER_DEFAULT_QUERY_LIMIT,
-        maxQueryLimit,
-    );
-}
 
 // Semantic Layer Scheduler Job
 
@@ -296,49 +282,6 @@ export function isSemanticLayerExactTimeFilter(
     );
 }
 
-export function getAvailableSemanticLayerFilterOperators(
-    fieldType: SemanticLayerFieldType,
-) {
-    switch (fieldType) {
-        case SemanticLayerFieldType.STRING:
-            return [
-                SemanticLayerFilterBaseOperator.IS,
-                SemanticLayerFilterBaseOperator.IS_NOT,
-            ];
-        case SemanticLayerFieldType.NUMBER:
-        case SemanticLayerFieldType.BOOLEAN:
-            return [];
-        case SemanticLayerFieldType.TIME:
-            return [
-                SemanticLayerFilterBaseOperator.IS,
-                SemanticLayerFilterBaseOperator.IS_NOT,
-            ];
-        default:
-            return assertUnreachable(
-                fieldType,
-                `Unsupported field type: ${fieldType}`,
-            );
-    }
-}
-
-export function getFlattenedFilterFieldProps(
-    filter: SemanticLayerFilter,
-): Pick<SemanticLayerFilter, 'fieldRef' | 'fieldKind' | 'fieldType'>[] {
-    const andFiltersFieldNames =
-        filter.and?.flatMap(getFlattenedFilterFieldProps) ?? [];
-    const orFiltersFieldNames =
-        filter.or?.flatMap(getFlattenedFilterFieldProps) ?? [];
-
-    return [
-        {
-            fieldRef: filter.fieldRef,
-            fieldKind: filter.fieldKind,
-            fieldType: filter.fieldType,
-        },
-        ...andFiltersFieldNames,
-        ...orFiltersFieldNames,
-    ];
-}
 export type SavedSemanticViewerChart = {
     savedSemanticViewerChartUuid: string;
     name: string;
@@ -367,7 +310,7 @@ export type SavedSemanticViewerChart = {
     lastViewedAt: Date;
 };
 
-export type SemanticLayerCreateChart = {
+export type SemanticViewerChartCreate = {
     name: string;
     description: string | null;
     semanticLayerView: string | null;
@@ -376,15 +319,41 @@ export type SemanticLayerCreateChart = {
     spaceUuid: string;
 };
 
-export type ApiSemanticLayerCreateChart = {
-    status: 'ok';
-    results: {
-        savedSemanticViewerChartUuid: string;
-        slug: string;
+export type SemanticViewerChartCreateResult = {
+    savedSemanticViewerChartUuid: string;
+    slug: string;
+};
+
+export type SemanticViewerChartUpdate = {
+    unversionedData?: {
+        name: string;
+        description: string | null;
+        spaceUuid: string;
+    };
+    versionedData?: {
+        semanticLayerView: string | null;
+        semanticLayerQuery: SemanticLayerQuery;
+        config: VizChartConfig;
+        chartKind: ChartKind;
     };
 };
 
-export type ApiSemanticLayerGetChart = {
+export type SemanticViewerChartUpdateResult = {
+    savedSemanticViewerChartUuid: string;
+    savedSemanticViewerChartVersionUuid: string | null;
+};
+
+export type ApiSemanticViewerChartCreate = {
+    status: 'ok';
+    results: SemanticViewerChartCreateResult;
+};
+
+export type ApiSemanticViewerChartGet = {
     status: 'ok';
     results: SavedSemanticViewerChart;
+};
+
+export type ApiSemanticViewerChartUpdate = {
+    status: 'ok';
+    results: SemanticViewerChartUpdateResult;
 };
