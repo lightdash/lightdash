@@ -43,7 +43,6 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const vizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
     );
-
     const display = useAppSelector((state) =>
         selectChartDisplayByKind(state, state.semanticViewer.activeChartKind),
     );
@@ -156,8 +155,8 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 onCollapse={() => setOpenPanel(undefined)}
                             >
                                 <Table2
-                                    columnNames={tableData?.columns}
-                                    rows={tableData?.rows}
+                                    columnNames={tableData?.columns ?? []}
+                                    rows={tableData?.rows ?? []}
                                     onTHClick={onTableHeaderClick}
                                     thSortConfig={tableVizSorts}
                                 />

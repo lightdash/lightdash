@@ -1,7 +1,6 @@
 import { DimensionType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
-import { type CartesianChartDisplay } from '../CartesianChartDataModel';
 import { type PivotChartLayout } from './IResultsRunner';
 
 export enum VizAggregationOptions {
@@ -83,6 +82,10 @@ export type VizPieChartDisplay = {
     isDonut?: boolean;
 };
 
+export type VizTableDisplay = {
+    // TODO: split table display config out of table config
+};
+
 export type PivotIndexColum =
     | { reference: string; type: VizIndexType }
     | undefined;
@@ -140,7 +143,7 @@ export type VizBaseConfig = {
 export type VizCartesianChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
     fieldConfig: PivotChartLayout | undefined;
-    display: CartesianChartDisplay | undefined;
+    // display: CartesianChartDisplay | undefined;
 };
 
 export type VizBarChartConfig = VizBaseConfig & {
@@ -158,7 +161,7 @@ export type VizLineChartConfig = VizBaseConfig & {
 export type VizPieChartConfig = VizBaseConfig & {
     type: ChartKind.PIE;
     fieldConfig: PivotChartLayout | undefined;
-    display: VizPieChartDisplay | undefined;
+    // display: VizPieChartDisplay | undefined;
 };
 
 export type VizTableConfig = VizBaseConfig & {

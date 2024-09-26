@@ -48,7 +48,6 @@ const defaultCartesianChartConfig: VizCartesianChartConfig = {
         ],
         groupBy: [],
     },
-    display: {},
 };
 
 type CartesianChartKind = Extract<
@@ -59,9 +58,7 @@ type CartesianChartKind = Extract<
 export class CartesianChartDataModel {
     private readonly resultsRunner: IResultsRunner;
 
-    private readonly config: Omit<VizCartesianChartConfig, 'display'>;
-
-    private readonly display: VizCartesianChartConfig['display'];
+    private readonly config: VizCartesianChartConfig;
 
     private readonly organization: Organization;
 
@@ -69,8 +66,7 @@ export class CartesianChartDataModel {
 
     constructor(args: {
         resultsRunner: IResultsRunner;
-        config?:Omit<VizCartesianChartConfig, 'display'>;
-        display?: VizCartesianChartConfig['display'];
+        config?: VizCartesianChartConfig;
         organization: Organization;
     }) {
         this.resultsRunner = args.resultsRunner;
@@ -111,7 +107,6 @@ export class CartesianChartDataModel {
     mergeConfig(
         chartKind: CartesianChartKind,
         existingLayout: PivotChartLayout | undefined,
-        display: CartesianChartDisplay | undefined,
     ): VizCartesianChartConfig {
         const newDefaultLayout = this.getDefaultLayout();
 
@@ -134,7 +129,6 @@ export class CartesianChartDataModel {
             },
             type: chartKind,
             fieldConfig: mergedLayout,
-            display,
         };
     }
 
@@ -517,7 +511,7 @@ export class CartesianChartDataModel {
         return pivotedChartData;
     }
 
-    getSpec(display: CartesianChartDisplay): {
+    getSpec(display?: CartesianChartDisplay): {
         spec: Record<string, any>;
         tableData: { columns: string[]; rows: RawResultRow[] } | undefined;
     } {

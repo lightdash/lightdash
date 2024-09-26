@@ -37,13 +37,14 @@ const defaultPieChartConfig: VizPieChartConfig = {
         ],
         groupBy: [],
     },
-    display: {},
 };
 
 export class PieChartDataModel {
     private readonly resultsRunner: IResultsRunner;
 
     private readonly config: VizPieChartConfig;
+
+    private pivotedChartData: PivotChartData | undefined;
 
     constructor(args: {
         resultsRunner: IResultsRunner;
@@ -121,7 +122,6 @@ export class PieChartDataModel {
     mergeConfig(
         chartKind: ChartKind.PIE,
         fieldConfig: PivotChartLayout | undefined,
-        display: VizPieChartDisplay | undefined,
     ): VizPieChartConfig {
         const newDefaultLayout = this.getDefaultLayout();
 
@@ -136,7 +136,6 @@ export class PieChartDataModel {
             },
             type: chartKind,
             fieldConfig: mergedLayout,
-            display,
         };
     }
 
@@ -307,28 +306,28 @@ export class PieChartDataModel {
             return undefined;
         }
 
-        return this.getTransformedData({
+        const pivotedChartData = await this.getTransformedData({
             ...query,
             pivot: this.getPivotConfig(),
         });
+
+        this.pivotedChartData = pivotedChartData;
+
+        return pivotedChartData;
     }
 
-    async getSpec(query?: SemanticLayerQuery): Promise<{
+    getSpec(display?: VizPieChartDisplay): {
         spec: Record<string, any>;
-        pivotedChartData:
-            | { columns: string[]; rows: RawResultRow[] }
-            | undefined;
-    }> {
-        const transformedData = await this.getPivotedChartData(query);
+        tableData: { columns: string[]; rows: RawResultRow[] } | undefined;
+    } {
+        const transformedData = this.pivotedChartData;
 
         if (!transformedData) {
             return {
                 spec: {},
-                pivotedChartData: undefined,
+                tableData: undefined,
             };
         }
-
-        const display = this.config?.display;
 
         const spec = {
             legend: {
@@ -360,7 +359,7 @@ export class PieChartDataModel {
 
         return {
             spec,
-            pivotedChartData: {
+            tableData: {
                 columns: Object.keys(transformedData.results[0]) ?? [],
                 rows: transformedData.results,
             },

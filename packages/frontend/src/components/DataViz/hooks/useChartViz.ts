@@ -108,10 +108,7 @@ export const useChartViz = ({
             chartDataModel instanceof PieChartDataModel &&
             transformedData
         ) {
-            return chartDataModel.getEchartsSpec(
-                transformedData,
-                config.display,
-            );
+            return chartDataModel.getEchartsSpec(transformedData, undefined);
         }
         if (
             isVizCartesianChartConfig(config) &&
@@ -119,7 +116,7 @@ export const useChartViz = ({
         ) {
             return chartDataModel.getEchartsSpec(
                 transformedData,
-                config.display,
+                undefined,
                 config.type,
                 org?.data?.chartColors,
             );

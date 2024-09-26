@@ -7,6 +7,7 @@ import {
 import {
     type PivotChartData,
     type VizTableConfig,
+    type VizTableDisplay,
     type VizTableHeaderSortConfig,
 } from './types';
 import type { IResultsRunner } from './types/IResultsRunner';
@@ -119,8 +120,17 @@ export class TableDataModel {
         };
     }
 
-    async getSpec(query?: SemanticLayerQuery): Promise<Record<string, any>> {
-        console.log('not implemented in table', this.config, query);
-        return {};
+    getSpec(display?: VizTableDisplay): {
+        spec: Record<string, any>;
+        tableData: { columns: string[]; rows: RawResultRow[] } | undefined;
+    } {
+        console.log('Not implemented in table', {
+            display,
+            config: this.config,
+        });
+        return {
+            spec: {},
+            tableData: undefined,
+        };
     }
 }

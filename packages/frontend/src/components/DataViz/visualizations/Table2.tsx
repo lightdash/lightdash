@@ -43,14 +43,6 @@ export const Table2 = ({
     const columnsCount = useMemo(() => columnNames.length, [columnNames]);
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
-    console.log('columnsConfig', {
-        columnsConfig,
-        thSortConfig,
-        headerGroups,
-        virtualRows,
-        rowModelRows,
-    });
-
     return (
         <Flex
             ref={tableWrapperRef}
