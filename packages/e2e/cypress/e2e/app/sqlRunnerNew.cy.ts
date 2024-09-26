@@ -134,7 +134,7 @@ describe('SQL Runner (new)', () => {
         // Verify that the chart is not displayed when the configuration is incomplete
         cy.get('input[placeholder="Select X axis"]')
             .siblings()
-            .find('button')
+            .find('button.mantine-CloseButton-root')
             .click();
         cy.contains('Incomplete chart configuration').should('be.visible');
         cy.contains("You're missing an X axis").should('be.visible');
