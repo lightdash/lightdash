@@ -2,17 +2,21 @@ import { ChartKind, SEED_PROJECT } from '@lightdash/common';
 
 // TODO: Add more schemas to the list depending on the warehouse
 const generateSchemaString = (baseUrl: string): string => {
-    if (baseUrl.includes('localhost')) {
-        return 'postgres';
+    try {
+        const url = new URL(baseUrl);
+        const host = url.host;
+        if (host === 'localhost') {
+            return 'postgres';
+        }
+        const prMatch = host.match(/^lightdash-pr-(\d+)\.onrender\.com$/);
+        if (prMatch) {
+            const prNumber = prMatch[1];
+            return `jaffle_db_pg_13_pr_${prNumber}`;
+        }
+    } catch (e) {
+        // Handle invalid URL
+        console.error('Invalid URL:', e);
     }
-    if (
-        baseUrl.includes('lightdash-pr-') &&
-        baseUrl.includes('.onrender.com')
-    ) {
-        const prNumber = baseUrl.match(/lightdash-pr-(\d+)/)?.[1];
-        return `jaffle_db_pg_13_pr_${prNumber}`;
-    }
-
     return 'postgres'; // Default to 'postgres' if no match
 };
 
