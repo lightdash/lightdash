@@ -84,6 +84,9 @@ export class SearchService extends BaseService {
                 ...results.savedCharts.map(
                     (savedChart) => savedChart.spaceUuid,
                 ),
+                ...results.semanticViewerCharts.map(
+                    (semanticViewerChart) => semanticViewerChart.spaceUuid,
+                ),
                 ...results.spaces.map((space) => space.uuid),
             ]),
         ];
