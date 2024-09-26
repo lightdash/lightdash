@@ -217,6 +217,7 @@ export class UnfurlService extends BaseService {
             chartType,
             resourceUuid,
             chartTileUuids: rest.chartTileUuids,
+            sqlChartTileUuids: rest.sqlChartTileUuids,
         };
     }
 
@@ -505,12 +506,25 @@ export class UnfurlService extends BaseService {
                                         },
                                     ); // NOTE: No await here
                                 });
-                            // We wait for the sql charts to load
+                            // We wait for the sql charts to load and for the query to finish
+                            // NOTE: We can't combine these promises into a single otherwise Playwright will not capture the response
                             const sqlChartResultsPromises =
                                 sqlChartTileUuids?.map(
                                     (id) =>
                                         page?.waitForResponse(
-                                            /\/sqlRunner\/results/,
+                                            new RegExp(
+                                                `/sqlRunner/saved/${id}`,
+                                            ),
+                                            {
+                                                timeout: 60000,
+                                            },
+                                        ), // NOTE: No await here
+                                );
+                            const sqlChartQueryResultsPromises =
+                                sqlChartTileUuids?.map(
+                                    () =>
+                                        page?.waitForResponse(
+                                            /\/sqlRunner\/runPivotQuery/,
                                             {
                                                 timeout: 60000,
                                             },
@@ -520,6 +534,7 @@ export class UnfurlService extends BaseService {
                             chartResultsPromises = [
                                 ...(exploreChartResultsPromises || []),
                                 ...(sqlChartResultsPromises || []),
+                                ...(sqlChartQueryResultsPromises || []),
                             ];
                         } else if (lightdashPage === LightdashPage.CHART) {
                             // Wait for the visualization to load if we are in an saved explore page
