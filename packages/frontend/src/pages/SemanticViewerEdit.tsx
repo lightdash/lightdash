@@ -96,15 +96,9 @@ const SemanticViewerEditorPageWithStore = () => {
         projectUuid,
     ]);
 
-    const savedChartSpaceUserAccess = useMemo(() => {
-        const access: SpaceShare[] = [];
-
-        if (chartQuery.isSuccess && chartQuery.data.chart.space.userAccess) {
-            access.push(chartQuery.data.chart.space.userAccess);
-        }
-
-        return access;
-    }, [chartQuery]);
+    const savedChartSpaceUserAccess = chartQuery.isSuccess && chartQuery.data.chart.space.userAccess 
+        ? [chartQuery.data.chart.space.userAccess] 
+        : [];
 
     const canManageSemanticViewer = user.data?.ability?.can(
         'manage',
