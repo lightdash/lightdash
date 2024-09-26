@@ -161,6 +161,7 @@ export default class SchedulerTask {
         dashboardUuid: string | null,
         schedulerUuid: string | undefined,
         sendNowSchedulerFilters: SchedulerFilterRule[] | undefined,
+        selectedTabs: string[] | undefined,
     ) {
         if (chartUuid) {
             const chart =
@@ -196,6 +197,16 @@ export default class SchedulerTask {
                     sendNowSchedulerFilters
                         ? `?sendNowchedulerFilters=${encodeURI(
                               JSON.stringify(sendNowSchedulerFilters),
+                          )}`
+                        : ''
+                }${
+                    selectedTabs
+                        ? `${
+                              schedulerUuid || sendNowSchedulerFilters
+                                  ? '&'
+                                  : '?'
+                          }selectedTabs=${encodeURI(
+                              JSON.stringify(selectedTabs),
                           )}`
                         : ''
                 }`,
@@ -240,6 +251,10 @@ export default class SchedulerTask {
                 ? scheduler.filters
                 : undefined;
 
+        const selectedTabs = isDashboardScheduler(scheduler)
+            ? scheduler.selectedTabs
+            : undefined;
+
         const {
             url,
             minimalUrl,
@@ -252,6 +267,7 @@ export default class SchedulerTask {
             dashboardUuid,
             schedulerUuid,
             sendNowSchedulerFilters,
+            selectedTabs,
         );
 
         switch (format) {
@@ -345,6 +361,7 @@ export default class SchedulerTask {
                             isDashboardScheduler(scheduler)
                                 ? scheduler.filters
                                 : undefined,
+                            selectedTabs,
                         );
 
                         this.analytics.track({
