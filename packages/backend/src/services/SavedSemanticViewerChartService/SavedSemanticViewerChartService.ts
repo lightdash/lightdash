@@ -11,6 +11,7 @@ import {
     SpaceShare,
     SpaceSummary,
     VIZ_DEFAULT_AGGREGATION,
+    type AbilityAction,
     type SemanticViewerChartCreate,
     type SemanticViewerChartCreateResult,
     type SemanticViewerChartUpdate,
@@ -98,7 +99,7 @@ export class SavedSemanticViewerChartService extends BaseService {
 
     private async hasAccess(
         user: SessionUser,
-        action: 'view' | 'create' | 'update' | 'delete' | 'manage',
+        action: AbilityAction,
         {
             spaceUuid,
             projectUuid,
@@ -131,7 +132,7 @@ export class SavedSemanticViewerChartService extends BaseService {
     // I think it should be combined now
     async hasSavedChartAccess(
         user: SessionUser,
-        action: 'view' | 'create' | 'update' | 'delete' | 'manage',
+        action: AbilityAction,
         savedChart: {
             project: Pick<Project, 'projectUuid'>;
             organization: Pick<Organization, 'organizationUuid'>;
