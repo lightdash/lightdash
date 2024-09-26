@@ -105,7 +105,7 @@ export const HeaderView: FC<Props> = ({
                                 variant="default"
                                 onClick={() =>
                                     history.push(
-                                        `/projects/${projectUuid}/semantic-viewer/${chart.savedSemanticViewerChartUuid}/edit`,
+                                        `/projects/${projectUuid}/semantic-viewer/${chart.slug}/edit`,
                                     )
                                 }
                             >

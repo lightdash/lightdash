@@ -218,42 +218,47 @@ export class SemanticLayerController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/saved/{uuid}')
+    @Get('/saved')
     @OperationId('getSavedSemanticViewerChart')
     async getSavedSemanticViewerChart(
-        @Path() uuid: string,
-        @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() slug?: string,
+        @Query() uuid?: string,
     ): Promise<ApiSemanticViewerChartGet> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSemanticViewerChartService()
-                .getSemanticViewerChart(req.user!, projectUuid, uuid),
+                .getSemanticViewerChart(req.user!, projectUuid, { uuid, slug }),
         };
     }
 
     /**
      * Get a saved semantic viewer chart results job
      * @param projectUuid the uuid for the project
-     * @param uuid the uuid for the saved semantic viewer chart
+     * @param slug the slug for the saved semantic viewer chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/saved/{uuid}/results-job')
+    @Get('/saved/results-job')
     @OperationId('getSavedSemanticViewerChartAndResults')
     async getSavedSemanticViewerChartAndResults(
-        @Path() uuid: string,
-        @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() slug?: string,
+        @Query() uuid?: string,
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSemanticLayerService()
-                .getSemanticViewerChartResultJob(req.user!, projectUuid, uuid),
+                .getSemanticViewerChartResultJob(req.user!, projectUuid, {
+                    uuid,
+                    slug,
+                }),
         };
     }
 

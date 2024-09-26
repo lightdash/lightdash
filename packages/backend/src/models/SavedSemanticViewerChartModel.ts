@@ -250,8 +250,8 @@ export class SavedSemanticViewerChartModel {
         );
     }
 
-    async getByUuid(uuid: string, options: { projectUuid?: string }) {
-        const results = await this.find({ uuid, ...options });
+    async getByUuid(projectUuid: string, uuid: string) {
+        const results = await this.find({ uuid, projectUuid });
         const [result] = results;
         if (!result) {
             throw new NotFoundError('Saved semantic layer query not found');

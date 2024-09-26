@@ -6529,6 +6529,12 @@
                     },
                     {
                         "properties": {
+                            "selectedTabs": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "customViewportWidth": {
                                 "type": "number",
                                 "format": "double"
@@ -9337,63 +9343,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_SemanticLayerField.name-or-kind_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "kind": {
-                        "$ref": "#/components/schemas/FieldType"
-                    }
-                },
-                "required": ["name", "kind"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "SemanticLayerSortByDirection": {
-                "enum": ["ASC", "DESC"],
-                "type": "string"
-            },
-            "SemanticLayerSortBy": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
-                    },
-                    {
-                        "properties": {
-                            "direction": {
-                                "$ref": "#/components/schemas/SemanticLayerSortByDirection"
-                            }
-                        },
-                        "required": ["direction"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerPivot": {
-                "properties": {
-                    "values": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "index": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "on": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["values", "index", "on"],
-                "type": "object"
-            },
             "SemanticLayerFilterBase": {
                 "properties": {
                     "fieldType": {
@@ -9549,17 +9498,65 @@
                     }
                 ]
             },
-            "SemanticLayerQuery": {
+            "Pick_SemanticLayerField.name-or-kind_": {
                 "properties": {
-                    "filters": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/FieldType"
+                    }
+                },
+                "required": ["name", "kind"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SemanticLayerSortByDirection": {
+                "enum": ["ASC", "DESC"],
+                "type": "string"
+            },
+            "SemanticLayerSortBy": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
+                    },
+                    {
+                        "properties": {
+                            "direction": {
+                                "$ref": "#/components/schemas/SemanticLayerSortByDirection"
+                            }
+                        },
+                        "required": ["direction"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerPivot": {
+                "properties": {
+                    "values": {
                         "items": {
-                            "$ref": "#/components/schemas/SemanticLayerFilter"
+                            "type": "string"
                         },
                         "type": "array"
                     },
-                    "pivot": {
-                        "$ref": "#/components/schemas/SemanticLayerPivot"
+                    "index": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
+                    "on": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["values", "index", "on"],
+                "type": "object"
+            },
+            "SemanticLayerQuery": {
+                "properties": {
                     "timezone": {
                         "type": "string"
                     },
@@ -9567,9 +9564,18 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "pivot": {
+                        "$ref": "#/components/schemas/SemanticLayerPivot"
+                    },
                     "sortBy": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerSortBy"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerFilter"
                         },
                         "type": "array"
                     },
@@ -9593,8 +9599,8 @@
                     }
                 },
                 "required": [
-                    "filters",
                     "sortBy",
+                    "filters",
                     "metrics",
                     "timeDimensions",
                     "dimensions"
@@ -10111,7 +10117,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1273.0",
+        "version": "0.1276.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

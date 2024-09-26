@@ -123,6 +123,7 @@ export class UnexpectedServerError extends LightdashError {
         message = 'Something went wrong.',
         data: { [key: string]: any } = {},
     ) {
+        console.log(message, data);
         super({
             message,
             name: 'UnexpectedServerError',

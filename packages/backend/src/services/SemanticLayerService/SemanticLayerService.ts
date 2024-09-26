@@ -302,13 +302,17 @@ export class SemanticLayerService extends BaseService {
     async getSemanticViewerChartResultJob(
         user: SessionUser,
         projectUuid: string,
-        savedSemanticViewerChartUuid: string,
+        findBy: { slug?: string; uuid?: string },
     ): Promise<{ jobId: string }> {
+        if (!findBy.uuid && !findBy.slug) {
+            throw new ParameterError('uuid or slug is required');
+        }
+
         const savedChart =
             await this.savedSemanticViewerChartService.getSemanticViewerChart(
                 user,
                 projectUuid,
-                savedSemanticViewerChartUuid,
+                findBy,
             );
 
         const { hasAccess: hasViewAccess } =

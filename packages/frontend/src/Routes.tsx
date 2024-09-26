@@ -270,7 +270,7 @@ const Routes: FC = () => {
                                     <Route
                                         exact
                                         path={[
-                                            '/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartUuid/edit',
+                                            '/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartSlug/edit',
                                             '/projects/:projectUuid/semantic-viewer/new',
                                             '/projects/:projectUuid/semantic-viewer',
                                         ]}
@@ -285,7 +285,7 @@ const Routes: FC = () => {
 
                                     <Route
                                         exact
-                                        path="/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartUuid"
+                                        path="/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartSlug"
                                     >
                                         <NavBar />
 

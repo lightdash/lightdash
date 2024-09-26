@@ -70,7 +70,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         { enabled: dashboardTileType === DashboardTileTypes.SQL_CHART },
     );
     const semanticViewerChartQuery = useSavedSemanticViewerChart(
-        { projectUuid, uuid: uuid },
+        { projectUuid, findBy: { uuid } },
         {
             enabled:
                 dashboardTileType === DashboardTileTypes.SEMANTIC_VIEWER_CHART,

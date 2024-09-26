@@ -144,33 +144,52 @@ export const apiPostSemanticViewerChartCreate = ({
 
 type GetSavedSemanticViewerChartRequestParams = {
     projectUuid: string;
-    uuid: string;
+    findBy: { uuid?: string; slug?: string };
 };
 
 export const apiGetSavedSemanticViewerChart = async ({
     projectUuid,
-    uuid,
-}: GetSavedSemanticViewerChartRequestParams) =>
-    lightdashApi<SavedSemanticViewerChart>({
+    findBy: { uuid, slug },
+}: GetSavedSemanticViewerChartRequestParams) => {
+    if (!uuid && !slug) {
+        throw new Error('uuid or slug is required');
+    }
+
+    const params = new URLSearchParams();
+    if (uuid) params.append('uuid', uuid);
+    if (slug) params.append('slug', slug);
+    const paramsString = params.toString();
+
+    return lightdashApi<SavedSemanticViewerChart>({
         version: 'v2',
-        url: `/projects/${projectUuid}/semantic-layer/saved/${uuid}`,
+        url: `/projects/${projectUuid}/semantic-layer/saved?${paramsString}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 type GetSavedSemanticViewerChartResultsRequestParams = {
     projectUuid: string;
-    uuid: string;
+    findBy: { uuid?: string; slug?: string };
 };
 
 export const apiGetSavedSemanticViewerChartResults = async ({
     projectUuid,
-    uuid,
+    findBy: { uuid, slug },
 }: GetSavedSemanticViewerChartResultsRequestParams) => {
+    if (!uuid && !slug) {
+        throw new Error('uuid or slug is required');
+    }
+
+    const params = new URLSearchParams();
+    if (uuid) params.append('uuid', uuid);
+    if (slug) params.append('slug', slug);
+    const paramsString = params.toString();
+
     const scheduledJob = await lightdashApi<ApiJobScheduledResponse['results']>(
         {
             version: 'v2',
-            url: `/projects/${projectUuid}/semantic-layer/saved/${uuid}/results-job`,
+            url: `/projects/${projectUuid}/semantic-layer/saved/results-job?${paramsString}`,
             method: 'GET',
             body: undefined,
         },
