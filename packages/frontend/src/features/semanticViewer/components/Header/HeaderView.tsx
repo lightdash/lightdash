@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DashboardTileTypes,
     type SavedSemanticViewerChart,
+    type SpaceShare,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -14,7 +15,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconDots, IconLayoutGridAdd, IconTrash } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
@@ -45,12 +46,22 @@ export const HeaderView: FC<Props> = ({
         { open: openAddToDashboardModal, close: closeAddToDashboardModal },
     ] = useDisclosure(false);
 
-    const canManageSemanticViewerChart = user.data?.ability?.can(
+    const savedChartSpaceUserAccess = useMemo(() => {
+        const access: SpaceShare[] = [];
+
+        if (chart.space.userAccess) {
+            access.push(chart.space.userAccess);
+        }
+
+        return access;
+    }, [chart]);
+
+    const canManageSemanticViewer = user.data?.ability?.can(
         'manage',
-        // TODO: change to permissions for semantic viewer
-        subject('SqlRunner', {
+        subject('SemanticViewer', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
+            access: savedChartSpaceUserAccess,
         }),
     );
 
@@ -60,7 +71,7 @@ export const HeaderView: FC<Props> = ({
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
             isPrivate: chart.space.isPrivate,
-            access: chart.space.userAccess,
+            access: savedChartSpaceUserAccess,
         }),
     );
 
@@ -99,7 +110,7 @@ export const HeaderView: FC<Props> = ({
                     </Stack>
 
                     <Group spacing="md">
-                        {canManageSemanticViewerChart && canManageChart && (
+                        {canManageSemanticViewer && canManageChart && (
                             <Button
                                 size="xs"
                                 variant="default"
@@ -145,7 +156,7 @@ export const HeaderView: FC<Props> = ({
                                     color="red"
                                     disabled={
                                         !(
-                                            canManageSemanticViewerChart &&
+                                            canManageSemanticViewer &&
                                             canManageChart
                                         )
                                     }

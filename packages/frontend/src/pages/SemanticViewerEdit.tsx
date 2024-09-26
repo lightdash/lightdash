@@ -1,3 +1,5 @@
+import { subject } from '@casl/ability';
+import type { SpaceShare } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
@@ -22,8 +24,10 @@ import {
     initializeSemanticViewer,
     SemanticViewerStateStatus,
 } from '../features/semanticViewer/store/semanticViewerSlice';
+import { useApp } from '../providers/AppProvider';
 
 const SemanticViewerEditorPageWithStore = () => {
+    const { user } = useApp();
     const { projectUuid, savedSemanticViewerChartSlug } = useParams<{
         projectUuid: string;
         savedSemanticViewerChartSlug?: string;
@@ -91,6 +95,34 @@ const SemanticViewerEditorPageWithStore = () => {
         fieldsQuery.isSuccess,
         projectUuid,
     ]);
+
+    const savedChartSpaceUserAccess = useMemo(() => {
+        const access: SpaceShare[] = [];
+
+        if (chartQuery.isSuccess && chartQuery.data.chart.space.userAccess) {
+            access.push(chartQuery.data.chart.space.userAccess);
+        }
+
+        return access;
+    }, [chartQuery]);
+
+    const canManageSemanticViewer = user.data?.ability?.can(
+        'manage',
+        subject('SemanticViewer', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+            access: savedChartSpaceUserAccess,
+        }),
+    );
+
+    const canSaveChart = user.data?.ability?.can(
+        'create',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+            access: savedChartSpaceUserAccess,
+        }),
+    );
 
     useEffect(() => {
         if (semanticViewerState === SemanticViewerStateStatus.INITIALIZED) {
@@ -167,7 +199,11 @@ const SemanticViewerEditorPageWithStore = () => {
             noContentPadding
             withSidebarBorder
             noSidebarPadding
-            sidebar={<SemanticViewer.Sidebar />}
+            sidebar={
+                <SemanticViewer.Sidebar
+                    shouldShowSave={canManageSemanticViewer && canSaveChart}
+                />
+            }
         >
             <SemanticViewer.Content />
         </Page>

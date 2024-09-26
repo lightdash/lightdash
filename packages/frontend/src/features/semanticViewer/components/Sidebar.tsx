@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import { ChartKind } from '@lightdash/common';
 import {
     ActionIcon,
@@ -13,7 +12,6 @@ import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useApp } from '../../../providers/AppProvider';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectSemanticLayerInfo } from '../store/selectors';
 import {
@@ -26,13 +24,16 @@ import { SemanticViewerVizConfig } from './SemanticViewerVizConfig';
 import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
 
-const Sidebar: FC = () => {
+type SidebarProps = {
+    shouldShowSave?: boolean;
+};
+
+const Sidebar: FC<SidebarProps> = ({ shouldShowSave }) => {
     const { features, projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const { semanticLayerView, saveModalOpen } = useAppSelector(
         (state) => state.semanticViewer,
     );
     const history = useHistory();
-    const { user } = useApp();
     const dispatch = useAppDispatch();
 
     const handleExitView = () => {
@@ -49,23 +50,6 @@ const Sidebar: FC = () => {
         );
     };
 
-    const canManageSemanticViewer = user.data?.ability?.can(
-        'manage',
-        subject('SemanticViewer', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
-
-    const canSaveChart = user.data?.ability?.can(
-        'create',
-        subject('SavedChart', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-            // TODO: this needs access that comes from saved chart (only available when view and edit mode are merged)
-        }),
-    );
-
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
             <Group
@@ -80,7 +64,7 @@ const Sidebar: FC = () => {
                     borderBottom: `1px solid ${theme.colors.gray[3]}`,
                 })}
             >
-                {semanticLayerView && canManageSemanticViewer && canSaveChart && (
+                {semanticLayerView && shouldShowSave && (
                     <>
                         <SaveChart.Content />
                         {saveModalOpen && (
