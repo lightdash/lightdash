@@ -208,15 +208,16 @@ export class SavedSemanticViewerChartService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+
         if (
             user.ability.cannot(
                 'manage',
-                // TODO: add it's own ability
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('SemanticViewer', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
         }
+
         const { hasAccess: hasCreateAccess } = await this.hasAccess(
             user,
             'create',
@@ -232,6 +233,7 @@ export class SavedSemanticViewerChartService extends BaseService {
                 "You don't have permission to create this chart",
             );
         }
+
         const createdChart = await this.savedSemanticViewerChartModel.create(
             user.userUuid,
             projectUuid,
