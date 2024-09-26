@@ -165,6 +165,8 @@ while true; do
     break
 done
 
+echo "#### Changes ready to be pushed public. Use the following command then create a pull request on GitHub."
+echo "    > git push -u public HEAD"
+# DO NOT AUTOMATICALLY PUSH AT THIS TIME
 #git push -u public HEAD
-
-echo "#### Changes pushed public. Create a pull request on GitHub."
+#echo "#### Changes pushed public. Create a pull request on GitHub."
