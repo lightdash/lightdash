@@ -102,7 +102,6 @@ const SemanticViewerEditorPageWithStore = () => {
 
         // If we don't have a saved chart, initialize the viewer with an empty chart
         if (!savedSemanticViewerChartUuid && infoQuery.isSuccess) {
-
             dispatch(
                 initializeSemanticViewer({
                     projectUuid,
@@ -135,7 +134,6 @@ const SemanticViewerEditorPageWithStore = () => {
 
     // TODO: add loading state
     if (semanticViewerState === SemanticViewerStateStatus.LOADING) return null;
-
 
     return (
         <Page
