@@ -161,6 +161,8 @@ export enum QueryExecutionContext {
     SQL_CHART = 'sqlChartView',
     SQL_RUNNER = 'sqlRunner',
     VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
+    ALERT = 'alert',
+    SCHEDULED_DELIVERY = 'scheduledDelivery',
     CSV = 'csvDownload',
     GSHEETS = 'gsheets',
     SCHEDULED_GSHEETS_CHART = 'scheduledGsheetsChart',
@@ -183,6 +185,24 @@ export const getContextFromHeader = (req: Request) => {
         default:
             return undefined;
     }
+};
+
+export const getContextFromQueryOrHeader = (
+    req: Request,
+): QueryExecutionContext | undefined => {
+    const context: QueryExecutionContext | undefined =
+        typeof req.query.context === 'string'
+            ? (req.query.context as QueryExecutionContext)
+            : undefined;
+    if (context) {
+        for (const [key, value] of Object.entries(QueryExecutionContext)) {
+            if (value.toLowerCase() === context.toLowerCase()) {
+                return value as QueryExecutionContext;
+            }
+        }
+        console.warn('Invalid query execution context', context);
+    }
+    return getContextFromHeader(req);
 };
 
 type MetricQueryExecutionProperties = {
@@ -935,8 +955,8 @@ export type DownloadCsv = BaseTrack & {
         context?:
             | 'results'
             | 'chart'
-            | 'scheduled delivery'
-            | 'alert'
+            | QueryExecutionContext.ALERT
+            | QueryExecutionContext.SCHEDULED_DELIVERY
             | 'sql runner'
             | 'dashboard csv zip';
         storage?: 'local' | 's3';

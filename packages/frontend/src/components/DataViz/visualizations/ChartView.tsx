@@ -1,5 +1,5 @@
 import { isVizTableConfig, type AllVizChartConfig } from '@lightdash/common';
-import { LoadingOverlay } from '@mantine/core';
+import { Box, LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo } from 'react';
@@ -51,7 +51,7 @@ const ChartView = memo<Props>(
         }
 
         return (
-            <>
+            <Box h="100%" data-testid={`chart-view-${config?.type}`}>
                 <LoadingOverlay visible={isLoading} />
 
                 {spec && (
@@ -63,7 +63,7 @@ const ChartView = memo<Props>(
                         onChartReady={onChartReady}
                     />
                 )}
-            </>
+            </Box>
         );
     },
 );

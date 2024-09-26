@@ -89,7 +89,6 @@ const Sidebar: FC = () => {
                     direction="column"
                     sx={{ flexGrow: 1, overflowY: 'auto' }}
                     px="sm"
-                    pt="xxs"
                 >
                     {!view ? <SidebarViews /> : <SidebarViewFields />}
                 </Flex>

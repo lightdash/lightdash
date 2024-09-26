@@ -72,6 +72,14 @@ type CsvServiceArguments = {
     schedulerClient: SchedulerClient;
 };
 
+type RunQueryTags = {
+    project_uuid?: string;
+    user_uuid?: string;
+    organization_uuid?: string;
+    chart_uuid?: string;
+    dashboard_uuid?: string;
+};
+
 const isRowValueTimestamp = (
     value: unknown,
     field: { type: DimensionType },
@@ -423,6 +431,13 @@ export class CsvService extends BaseService {
               )
             : metricQuery;
 
+        const queryTags: RunQueryTags = {
+            project_uuid: chart.projectUuid,
+            user_uuid: user.userUuid,
+            organization_uuid: user.organizationUuid,
+            chart_uuid: chartUuid,
+        };
+
         const { rows, fields } = await this.projectService.runMetricQuery({
             user,
             metricQuery: metricQueryWithDashboardFilters,
@@ -432,6 +447,7 @@ export class CsvService extends BaseService {
             context: QueryExecutionContext.CSV,
             granularity: dateZoomGranularity,
             chartUuid,
+            queryTags,
         });
         const numberRows = rows.length;
 
@@ -509,6 +525,7 @@ export class CsvService extends BaseService {
         dashboardUuid: string,
         options: SchedulerCsvOptions | undefined,
         schedulerFilters?: SchedulerFilterRule[],
+        selectedTabs?: string[] | undefined,
         overrideDashboardFilters?: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
     ) {
@@ -527,6 +544,10 @@ export class CsvService extends BaseService {
         const chartTileUuidsWithChartUuids = dashboard.tiles
             .filter(isDashboardChartTileType)
             .filter((tile) => tile.properties.savedChartUuid)
+            .filter(
+                (tile) =>
+                    !selectedTabs || selectedTabs.includes(tile.tabUuid || ''),
+            )
             .map((tile) => ({
                 tileUuid: tile.uuid,
                 chartUuid: tile.properties.savedChartUuid!,
@@ -775,6 +796,12 @@ export class CsvService extends BaseService {
                 properties: analyticsProperties,
             });
 
+            const queryTags: RunQueryTags = {
+                project_uuid: projectUuid,
+                user_uuid: user.userUuid,
+                organization_uuid: user.organizationUuid,
+            };
+
             const { rows } = await this.projectService.runMetricQuery({
                 user,
                 metricQuery,
@@ -783,6 +810,7 @@ export class CsvService extends BaseService {
                 csvLimit,
                 context: QueryExecutionContext.CSV,
                 chartUuid: undefined,
+                queryTags,
             });
             const numberRows = rows.length;
 
@@ -933,6 +961,7 @@ export class CsvService extends BaseService {
             user,
             dashboardUuid,
             options,
+            undefined,
             undefined,
             dashboardFilters,
             dateZoomGranularity,

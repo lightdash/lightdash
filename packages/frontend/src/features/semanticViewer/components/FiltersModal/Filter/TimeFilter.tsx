@@ -8,7 +8,7 @@ import {
     type SemanticLayerFilter,
     type SemanticLayerTimeFilter,
 } from '@lightdash/common';
-import { Group, Select, type SelectItem } from '@mantine/core';
+import { Group, rem, Select, type SelectItem } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import FilterFieldSelect from '../FilterFieldSelect';
 import getOperatorString from '../getOperatorString';
@@ -80,19 +80,15 @@ const RelativeTimeFilter: FC<RelativeTimeFilterProps> = ({
             <Select
                 size="xs"
                 w={75}
+                // paddingRight style on the input field to prevent the text from
+                // being hidden on different OS and browsers
+                styles={{ input: { paddingRight: rem(20) } }}
                 withinPortal
                 data={operatorsOpts ?? []}
                 value={filter.operator}
-                onChange={(value: SemanticLayerFilter['operator'] | null) => {
-                    if (!value) {
-                        return;
-                    }
-
+                onChange={(value: SemanticLayerFilter['operator']) => {
                     if (isSemanticLayerBaseOperator(value)) {
-                        onUpdate({
-                            ...filter,
-                            operator: value,
-                        });
+                        onUpdate({ ...filter, operator: value });
                     }
                 }}
             />

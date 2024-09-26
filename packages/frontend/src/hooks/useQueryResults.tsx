@@ -58,6 +58,7 @@ const getChartAndResults = async ({
     dashboardSorts,
     granularity,
     autoRefresh,
+    context,
 }: {
     chartUuid?: string;
     dashboardUuid: string;
@@ -66,9 +67,12 @@ const getChartAndResults = async ({
     dashboardSorts: SortField[];
     granularity?: DateGranularity;
     autoRefresh?: boolean;
+    context?: string;
 }) => {
     return lightdashApi<ApiChartAndResults>({
-        url: `/saved/${chartUuid}/chart-and-results`,
+        url: `/saved/${chartUuid}/chart-and-results${
+            context ? `?context=${context}` : ''
+        }`,
         method: 'POST',
         body: JSON.stringify({
             dashboardUuid,
@@ -225,6 +229,7 @@ export const useChartAndResults = (
     invalidateCache?: boolean,
     granularity?: DateGranularity,
     autoRefresh?: boolean,
+    context?: string,
 ) => {
     const setChartsWithDateZoomApplied = useDashboardContext(
         (c) => c.setChartsWithDateZoomApplied,
@@ -272,6 +277,7 @@ export const useChartAndResults = (
                 dashboardSorts,
                 granularity,
                 autoRefresh,
+                context,
             }),
         [
             chartUuid,
@@ -281,6 +287,7 @@ export const useChartAndResults = (
             dashboardSorts,
             granularity,
             autoRefresh,
+            context,
         ],
     );
 

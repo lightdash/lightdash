@@ -5494,6 +5494,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    QueryExecutionContext: {
+        dataType: 'refEnum',
+        enums: [
+            'dashboardView',
+            'autorefreshedDashboard',
+            'exploreView',
+            'chartView',
+            'sqlChartView',
+            'sqlRunner',
+            'viewUnderlyingData',
+            'csvDownload',
+            'gsheets',
+            'scheduledGsheetsChart',
+            'scheduledGsheetsDashboard',
+            'scheduledChart',
+            'scheduledDashboard',
+            'calculateTotal',
+            'api',
+            'cli',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_LightdashUser.userUuid-or-firstName-or-lastName_': {
         dataType: 'refAlias',
         type: {
@@ -13550,7 +13572,16 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'MetricQueryRequest',
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'MetricQueryRequest' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                context: { ref: 'QueryExecutionContext' },
+                            },
+                        },
+                    ],
                 },
                 projectUuid: {
                     in: 'path',
@@ -13621,6 +13652,7 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        context: { ref: 'QueryExecutionContext' },
                         invalidateCache: { dataType: 'boolean' },
                     },
                 },

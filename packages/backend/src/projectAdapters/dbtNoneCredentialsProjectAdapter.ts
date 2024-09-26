@@ -7,6 +7,14 @@ type DbtNoneCredentialsProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
 };
 
+type RunQueryTags = {
+    project_uuid?: string;
+    user_uuid?: string;
+    organization_uuid?: string;
+    chart_uuid?: string;
+    dashboard_uuid?: string;
+};
+
 export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
     warehouseClient: WarehouseClient;
 
@@ -37,9 +45,9 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public async runQuery(sql: string) {
+    public async runQuery(sql: string, queryTags: RunQueryTags) {
         Logger.debug(`Run query against warehouse`);
         // Possible error if query is ran before dependencies are installed
-        return this.warehouseClient.runQuery(sql);
+        return this.warehouseClient.runQuery(sql, queryTags);
     }
 }

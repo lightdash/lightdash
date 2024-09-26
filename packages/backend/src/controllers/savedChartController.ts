@@ -26,6 +26,7 @@ import {
 import express from 'express';
 import {
     getContextFromHeader,
+    getContextFromQueryOrHeader,
     QueryExecutionContext,
 } from '../analytics/LightdashAnalytics';
 import {
@@ -56,7 +57,6 @@ export class SavedChartController extends BaseController {
         @Body()
         body: {
             invalidateCache?: boolean;
-            context?: QueryExecutionContext;
         },
         @Path() chartUuid: string,
         @Request() req: express.Request,
@@ -69,7 +69,7 @@ export class SavedChartController extends BaseController {
                 chartUuid,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
-                context: body.context || getContextFromHeader(req),
+                context: getContextFromQueryOrHeader(req),
             }),
         };
     }
@@ -105,7 +105,7 @@ export class SavedChartController extends BaseController {
                     granularity: body.granularity,
                     dashboardUuid: body.dashboardUuid,
                     autoRefresh: body.autoRefresh,
-                    context: getContextFromHeader(req),
+                    context: getContextFromQueryOrHeader(req),
                 }),
         };
     }

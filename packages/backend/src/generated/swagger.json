@@ -6065,6 +6065,27 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "QueryExecutionContext": {
+                "enum": [
+                    "dashboardView",
+                    "autorefreshedDashboard",
+                    "exploreView",
+                    "chartView",
+                    "sqlChartView",
+                    "sqlRunner",
+                    "viewUnderlyingData",
+                    "csvDownload",
+                    "gsheets",
+                    "scheduledGsheetsChart",
+                    "scheduledGsheetsDashboard",
+                    "scheduledChart",
+                    "scheduledDashboard",
+                    "calculateTotal",
+                    "api",
+                    "cli"
+                ],
+                "type": "string"
+            },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -10033,7 +10054,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1271.0",
+        "version": "0.1273.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13681,7 +13702,19 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/MetricQueryRequest",
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/MetricQueryRequest"
+                                    },
+                                    {
+                                        "properties": {
+                                            "context": {
+                                                "$ref": "#/components/schemas/QueryExecutionContext"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                ],
                                 "description": "metricQuery for the chart to run"
                             }
                         }
@@ -13734,6 +13767,9 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "context": {
+                                        "$ref": "#/components/schemas/QueryExecutionContext"
+                                    },
                                     "invalidateCache": {
                                         "type": "boolean"
                                     }

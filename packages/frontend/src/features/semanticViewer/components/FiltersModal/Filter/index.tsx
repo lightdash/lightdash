@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Box,
+    Flex,
     Group,
     Menu,
     rem,
@@ -63,27 +63,33 @@ const GroupLeft: FC<GroupLeftProps> = ({
     hasNestedFilters,
     isFirstRootFilter,
 }) => {
-    const theme = useMantineTheme();
-
     // Root filter
     if (!nestedFilterProps) {
         return (
-            <Box w={LEFT_COMPONENT_WIDTH} style={{ flexShrink: 0 }}>
-                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
+            <Flex
+                justify="end"
+                style={{ flexShrink: 0 }}
+                w={LEFT_COMPONENT_WIDTH}
+            >
+                <Text size="xs" fw="bold" color="gray.6">
                     {isFirstRootFilter ? 'Where' : 'And'}
                 </Text>
-            </Box>
+            </Flex>
         );
     }
 
     // Nested filter with nested filters
     if (nestedFilterProps && hasNestedFilters) {
         return (
-            <Box w={LEFT_COMPONENT_WIDTH} style={{ flexShrink: 0 }}>
-                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
+            <Flex
+                w={LEFT_COMPONENT_WIDTH}
+                justify="end"
+                style={{ flexShrink: 0 }}
+            >
+                <Text size="xs" fw="bold" color="gray.6">
                     {capitalize(nestedFilterProps.currentGroup)}
                 </Text>
-            </Box>
+            </Flex>
         );
     }
 
@@ -101,21 +107,27 @@ const FilterLeft: FC<FilterLeftProps> = ({
     nestedFilterProps,
     hasNestedFilters,
 }) => {
-    const theme = useMantineTheme();
-
     if (hasNestedFilters) {
         return (
-            <Box w={LEFT_COMPONENT_WIDTH} style={{ flexShrink: 0 }}>
-                <Text size="xs" fw="bold" color={theme.colors.gray[6]}>
+            <Flex
+                justify="end"
+                style={{ flexShrink: 0 }}
+                w={LEFT_COMPONENT_WIDTH}
+            >
+                <Text size="xs" fw="bold" color="gray.6">
                     Where
                 </Text>
-            </Box>
+            </Flex>
         );
     }
 
     if (nestedFilterProps) {
         return (
-            <Box w={LEFT_COMPONENT_WIDTH} style={{ flexShrink: 0 }}>
+            <Flex
+                justify="end"
+                style={{ flexShrink: 0 }}
+                w={LEFT_COMPONENT_WIDTH}
+            >
                 <FilterButton
                     icon={IconRefresh}
                     onClick={() => {
@@ -129,7 +141,7 @@ const FilterLeft: FC<FilterLeftProps> = ({
                 >
                     {capitalize(nestedFilterProps.currentGroup)}
                 </FilterButton>
-            </Box>
+            </Flex>
         );
     }
 
@@ -459,9 +471,7 @@ const Filter: FC<FilterProps> = ({
                             fieldOptions={fieldOptions}
                             filterField={currentField}
                         />
-                    ) : null}
-
-                    {filter.fieldType === SemanticLayerFieldType.STRING ? (
+                    ) : filter.fieldType === SemanticLayerFieldType.STRING ? (
                         <MultiStringFilter
                             fields={fields}
                             fieldOptions={fieldOptions}
@@ -469,7 +479,9 @@ const Filter: FC<FilterProps> = ({
                             onUpdate={handleUpdateFilter}
                             filterField={currentField}
                         />
-                    ) : null}
+                    ) : (
+                        assertUnreachable(filter, 'filter type not implemented')
+                    )}
 
                     <Menu withinPortal withArrow shadow="md">
                         <Menu.Target>
@@ -569,7 +581,7 @@ const Filter: FC<FilterProps> = ({
                         }}
                         disabled={isAddingNestedFilter}
                     >
-                        Add nested filter
+                        Add filter
                     </FilterButton>
                 ) : null}
             </Stack>
