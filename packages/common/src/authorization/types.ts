@@ -1,7 +1,13 @@
 import { type Ability, type ForcedSubject } from '@casl/ability';
 import { type OrganizationMemberProfile } from '../types/organizationMemberProfile';
 
-type Action = 'manage' | 'update' | 'view' | 'create' | 'delete' | 'promote';
+export type AbilityAction =
+    | 'manage'
+    | 'update'
+    | 'view'
+    | 'create'
+    | 'delete'
+    | 'promote';
 
 interface Project {
     organizationUuid: string;
@@ -42,7 +48,7 @@ type Subject =
     | 'all';
 
 type PossibleAbilities = [
-    Action,
+    AbilityAction,
     Subject | ForcedSubject<Exclude<Subject, 'all'>>,
 ];
 

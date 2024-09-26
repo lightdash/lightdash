@@ -172,6 +172,9 @@ export const organizationMemberAbilities: Record<
         can('manage', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'SemanticViewer', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     developer(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
@@ -179,9 +182,6 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'SqlRunner', {
-            organizationUuid: member.organizationUuid,
-        });
-        can('manage', 'SemanticViewer', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Validation', {

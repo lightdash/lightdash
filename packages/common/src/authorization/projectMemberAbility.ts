@@ -149,6 +149,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'DashboardComments', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'SemanticViewer', {
+            projectUuid: member.projectUuid,
+        });
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
@@ -156,9 +159,6 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'SqlRunner', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'SemanticViewer', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'Validation', {
