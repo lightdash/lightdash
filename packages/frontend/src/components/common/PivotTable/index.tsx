@@ -509,6 +509,7 @@ const PivotTable: FC<PivotTableProps> = ({
                         <Table.Row key={`row-${rowIndex}`} index={rowIndex}>
                             {row.getVisibleCells().map((cell, colIndex) => {
                                 const meta = cell.column.columnDef.meta;
+                                const isRowTotal = meta?.type === 'rowTotal';
                                 let item = meta?.item;
 
                                 if (item && isDimension(item)) {
@@ -586,8 +587,12 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ? undefined
                                     : !!value?.formatted;
 
+                                const TableCellComponent = isRowTotal
+                                    ? Table.CellHead
+                                    : Table.Cell;
+
                                 return (
-                                    <Table.Cell
+                                    <TableCellComponent
                                         key={`value-${rowIndex}-${colIndex}`}
                                         withAlignRight={isNumericItem(item)}
                                         withColor={conditionalFormatting?.color}
@@ -611,7 +616,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 item={item}
                                                 value={value}
                                                 getUnderlyingFieldValues={
-                                                    meta?.type === 'rowTotal'
+                                                    isRowTotal
                                                         ? undefined
                                                         : getUnderlyingFieldValues
                                                 }
@@ -687,7 +692,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 cell.getContext(),
                                             )
                                         )}
-                                    </Table.Cell>
+                                    </TableCellComponent>
                                 );
                             })}
                         </Table.Row>
@@ -710,7 +715,7 @@ const PivotTable: FC<PivotTableProps> = ({
                             index={totalRowIndex}
                         >
                             {/* shows empty cell if row numbers are visible */}
-                            {hideRowNumbers ? null : <Table.CellHead />}
+                            {hideRowNumbers ? null : <Table.Cell />}
 
                             {/* render the total label */}
                             {data.columnTotalFields?.[totalRowIndex].map(
@@ -728,7 +733,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 : `Total`}
                                         </Table.CellHead>
                                     ) : (
-                                        <Table.CellHead
+                                        <Table.Cell
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                         />
                                     ),
@@ -767,7 +772,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         {value.formatted}
                                     </Table.CellHead>
                                 ) : (
-                                    <Table.CellHead
+                                    <Table.Cell
                                         key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                     />
                                 );
