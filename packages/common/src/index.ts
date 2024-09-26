@@ -122,8 +122,9 @@ import {
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiSemanticLayerClientInfo,
-    type ApiSemanticLayerCreateChart,
-    type ApiSemanticLayerGetChart,
+    type ApiSemanticViewerChartCreate,
+    type ApiSemanticViewerChartGet,
+    type ApiSemanticViewerChartUpdate,
 } from './types/semanticLayer';
 import {
     type ApiCreateCustomExplore,
@@ -220,6 +221,7 @@ export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertToDbt';
 export * from './utils/customExplore';
+export * from './utils/dashboard';
 export * from './utils/email';
 export * from './utils/fields';
 export * from './utils/filters';
@@ -229,6 +231,7 @@ export * from './utils/item';
 export * from './utils/projectMemberRole';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
+export * from './utils/semanticLayer';
 export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
@@ -680,8 +683,9 @@ type ApiResults =
     | ApiChartContentResponse['results']
     | ApiSqlRunnerJobStatusResponse['results']
     | ApiSemanticLayerClientInfo['results']
-    | ApiSemanticLayerCreateChart['results']
-    | ApiSemanticLayerGetChart['results']
+    | ApiSemanticViewerChartCreate['results']
+    | ApiSemanticViewerChartGet['results']
+    | ApiSemanticViewerChartUpdate['results']
     | ApiCreateCustomExplore['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {

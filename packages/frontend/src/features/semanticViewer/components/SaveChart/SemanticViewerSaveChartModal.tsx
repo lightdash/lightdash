@@ -38,12 +38,18 @@ import {
 
 type FormValues = z.infer<typeof validationSchema>;
 
-const SemanticViewerSaveChartModal: FC = () => {
+type Props = {
+    onSave: (uuid: string) => void;
+};
+
+const SemanticViewerSaveChartModal: FC<Props> = ({ onSave }) => {
     const dispatch = useAppDispatch();
     const [opened, { close }] = useDisclosure(true);
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const name = useAppSelector((state) => state.semanticViewer.name);
-    const view = useAppSelector((state) => state.semanticViewer.view);
+    const semanticLayerView = useAppSelector(
+        (state) => state.semanticViewer.semanticLayerView,
+    );
     const semanticLayerQuery = useAppSelector(selectSemanticLayerQuery);
 
     const activeChartKind = useAppSelector(
@@ -132,20 +138,19 @@ const SemanticViewerSaveChartModal: FC = () => {
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spacesQuery.data[0].uuid;
 
-        if (hasConfigAndQuery) {
-            await saveChart({
-                name: form.values.name,
-                description: form.values.description || '',
-                semanticLayerView: view ?? null,
-                semanticLayerQuery,
-                config: selectedChartConfig,
-                spaceUuid: spaceUuid,
-            });
-        }
+        const newChart = await saveChart({
+            name: form.values.name,
+            description: form.values.description || '',
+            semanticLayerView: semanticLayerView ?? null,
+            semanticLayerQuery,
+            config: selectedChartConfig,
+            spaceUuid: spaceUuid,
+        });
 
         dispatch(updateName(form.values.name));
 
         handleClose();
+        onSave(newChart.savedSemanticViewerChartUuid);
     }, [
         spacesQuery.isSuccess,
         spacesQuery.data,
@@ -158,9 +163,10 @@ const SemanticViewerSaveChartModal: FC = () => {
         dispatch,
         handleClose,
         saveChart,
-        view,
+        semanticLayerView,
         semanticLayerQuery,
         selectedChartConfig,
+        onSave,
     ]);
 
     return (

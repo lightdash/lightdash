@@ -34,7 +34,8 @@ import Register from './pages/Register';
 import SavedDashboards from './pages/SavedDashboards';
 import SavedExplorer from './pages/SavedExplorer';
 import SavedQueries from './pages/SavedQueries';
-import SemanticViewerPage from './pages/SemanticViewer';
+import SemanticViewerEditPage from './pages/SemanticViewerEdit';
+import SemanticViewerViewPage from './pages/SemanticViewerView';
 import Settings from './pages/Settings';
 import ShareRedirect from './pages/ShareRedirect';
 import Space from './pages/Space';
@@ -268,14 +269,30 @@ const Routes: FC = () => {
 
                                     <Route
                                         exact
-                                        path="/projects/:projectUuid/semantic-viewer"
+                                        path={[
+                                            '/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartUuid/edit',
+                                            '/projects/:projectUuid/semantic-viewer/new',
+                                            '/projects/:projectUuid/semantic-viewer',
+                                        ]}
+                                    >
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.SEMANTIC_VIEWER_EDIT}
+                                        >
+                                            <SemanticViewerEditPage />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route
+                                        exact
+                                        path="/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartUuid"
                                     >
                                         <NavBar />
 
                                         <TrackPage
-                                            name={PageName.SEMANTIC_VIEWER}
+                                            name={PageName.SEMANTIC_VIEWER_VIEW}
                                         >
-                                            <SemanticViewerPage />
+                                            <SemanticViewerViewPage />
                                         </TrackPage>
                                     </Route>
 

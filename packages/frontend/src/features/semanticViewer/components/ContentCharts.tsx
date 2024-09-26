@@ -11,8 +11,10 @@ import { Table } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
 import {
+    selectFilters,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
+    selectSortBy,
 } from '../store/selectors';
 
 enum TabPanel {
@@ -27,8 +29,13 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const mantineTheme = useMantineTheme();
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
-    const { results, columns, activeChartKind, fields, sortBy, filters } =
-        useAppSelector((state) => state.semanticViewer);
+
+    const { results, columns, activeChartKind, fields } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
+
+    const filters = useAppSelector(selectFilters);
+    const sortBy = useAppSelector(selectSortBy);
 
     const resultsRunner = useMemo(() => {
         return new SemanticViewerResultsRunner({
