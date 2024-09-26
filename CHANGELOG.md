@@ -1,3 +1,10 @@
+# [0.1274.0](https://github.com/lightdash/lightdash/compare/0.1273.5...0.1274.0) (2024-09-26)
+
+
+### Features
+
+* allow select tabs for scheduled delivery ([#11266](https://github.com/lightdash/lightdash/issues/11266)) ([55587b8](https://github.com/lightdash/lightdash/commit/55587b8d09e7d286d590b199dfd4a79f98994e36))
+
 ## [0.1273.5](https://github.com/lightdash/lightdash/compare/0.1273.4...0.1273.5) (2024-09-25)
 
 
