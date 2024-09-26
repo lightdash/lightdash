@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
-import { pick } from 'lodash';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import {
@@ -71,16 +70,9 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const fieldsQuery = useSemanticLayerViewFields(
         {
             projectUuid,
-            view: chartQuery.isSuccess
-                ? chartQuery.data.chart.semanticLayerView ?? ''
-                : '', // TODO: this should never be empty or that hook should receive a null view!
-            selectedFields: chartQuery.isSuccess
-                ? pick(chartQuery.data.chart.semanticLayerQuery, [
-                      'dimensions',
-                      'timeDimensions',
-                      'metrics',
-                  ])
-                : { dimensions: [], timeDimensions: [], metrics: [] },
+            // TODO: this should never be empty or that hook should receive a null view!
+            semanticLayerView: chartQuery.data?.chart.semanticLayerView ?? '',
+            semanticLayerQuery: chartQuery.data?.chart.semanticLayerQuery,
         },
         { enabled: chartQuery.isSuccess },
     );

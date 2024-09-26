@@ -1,7 +1,6 @@
 import { assertUnreachable, ChartKind } from '@lightdash/common';
 import { Box, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconChartHistogram, IconTable } from '@tabler/icons-react';
-import { pick } from 'lodash';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import MantineIcon from '../components/common/MantineIcon';
@@ -39,43 +38,38 @@ const SemanticViewerViewPage = () => {
     const fieldsQuery = useSemanticLayerViewFields(
         {
             projectUuid,
-            view: chartQuery.isSuccess
-                ? chartQuery.data.chart.semanticLayerView ?? ''
-                : '', // TODO: this should never be empty or that hook should receive a null view!
-            selectedFields: chartQuery.isSuccess
-                ? pick(chartQuery.data.chart.semanticLayerQuery, [
-                      'dimensions',
-                      'timeDimensions',
-                      'metrics',
-                  ])
-                : { dimensions: [], timeDimensions: [], metrics: [] },
+            // TODO: this should never be empty or that hook should receive a null view!
+            semanticLayerView: chartQuery.data?.chart.semanticLayerView ?? '',
+            semanticLayerQuery: chartQuery.data?.chart.semanticLayerQuery,
         },
         { enabled: chartQuery.isSuccess },
     );
 
-    const chartData = useMemo(() => {
-        if (!chartQuery.isSuccess) return undefined;
-        return chartQuery.data.results;
-    }, [chartQuery]);
-
     const resultsRunner = useMemo(() => {
-        if (!chartQuery.isSuccess || !fieldsQuery.isSuccess || !chartData)
+        if (!chartQuery.isSuccess || !fieldsQuery.isSuccess) {
             return;
+        }
 
         const vizColumns =
             SemanticViewerResultsRunner.convertColumnsToVizColumns(
                 fieldsQuery.data,
-                chartData.columns,
+                chartQuery.data.results.columns,
             );
 
         return new SemanticViewerResultsRunner({
             projectUuid,
             fields: fieldsQuery.data,
             query: chartQuery.data.chart.semanticLayerQuery,
-            rows: chartData.results,
+            rows: chartQuery.data.results.results,
             columns: vizColumns,
         });
-    }, [chartQuery, fieldsQuery, chartData, projectUuid]);
+    }, [
+        chartQuery.isSuccess,
+        chartQuery.data,
+        fieldsQuery.isSuccess,
+        fieldsQuery.data,
+        projectUuid,
+    ]);
 
     const [chartVizQuery, chartSpec] = useChartViz({
         projectUuid,
@@ -86,9 +80,13 @@ const SemanticViewerViewPage = () => {
     });
 
     const pivotResultsRunner = useMemo(() => {
-        if (!chartQuery.isSuccess) return;
-        if (!fieldsQuery.isSuccess) return;
-        if (!chartVizQuery.isSuccess) return;
+        if (
+            !chartQuery.isSuccess ||
+            !fieldsQuery.isSuccess ||
+            !chartVizQuery.isSuccess
+        ) {
+            return;
+        }
 
         if (chartQuery.data.chart.config.type === ChartKind.TABLE) return;
 
@@ -115,15 +113,16 @@ const SemanticViewerViewPage = () => {
     }
 
     // TODO: add loading state
-    if (
-        chartQuery.isLoading ||
-        fieldsQuery.isLoading ||
-        chartVizQuery.isLoading
-    ) {
+    if (chartQuery.isLoading || fieldsQuery.isLoading) {
         return null;
     }
 
     const chartType = chartQuery.data.chart.config.type;
+
+    // TODO: add loading state
+    if (chartType !== ChartKind.TABLE && chartVizQuery.isLoading) {
+        return null;
+    }
 
     return (
         <Page
@@ -172,7 +171,6 @@ const SemanticViewerViewPage = () => {
                         disabled={
                             !chartQuery.isSuccess ||
                             !fieldsQuery.isSuccess ||
-                            !chartData ||
                             !resultsRunner
                         }
                         value={activeViewerTab}

@@ -1,10 +1,4 @@
-import {
-    FieldType as FieldKind,
-    getFlattenedFilterFieldProps,
-    SemanticLayerFieldType,
-    type SemanticLayerField,
-    type VizTableColumnsConfig,
-} from '@lightdash/common';
+import { type VizTableColumnsConfig } from '@lightdash/common';
 import { createSelector } from 'reselect';
 import { type RootState } from '.';
 
@@ -78,41 +72,6 @@ export const selectSortBy = createSelector(
     [selectSemanticLayerQuery],
     (semanticLayerQuery) => semanticLayerQuery.sortBy,
 );
-
-export const selectFilterFields = createSelector([selectFilters], (filters) => {
-    const allFilterFields = Object.values(filters).flatMap(
-        getFlattenedFilterFieldProps,
-    );
-
-    return allFilterFields.reduce(
-        (acc, f) => {
-            if (
-                f.fieldKind === FieldKind.DIMENSION &&
-                f.fieldType !== SemanticLayerFieldType.TIME
-            ) {
-                acc.dimensions.push({ name: f.fieldRef });
-            }
-
-            if (
-                f.fieldKind === FieldKind.DIMENSION &&
-                f.fieldType === SemanticLayerFieldType.TIME
-            ) {
-                acc.timeDimensions.push({ name: f.fieldRef });
-            }
-
-            if (f.fieldKind === FieldKind.METRIC) {
-                acc.metrics.push({ name: f.fieldRef });
-            }
-
-            return acc;
-        },
-        {
-            dimensions: [] as Pick<SemanticLayerField, 'name'>[],
-            timeDimensions: [] as Pick<SemanticLayerField, 'name'>[],
-            metrics: [] as Pick<SemanticLayerField, 'name'>[],
-        },
-    );
-});
 
 export const selectResultsTableVizConfig = createSelector(
     [selectAllSelectedFieldNames, (s: RootState) => s.semanticViewer.columns],

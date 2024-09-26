@@ -1,4 +1,5 @@
 import {
+    fieldsInUseFromSemanticLayerQuery,
     type ApiError,
     type ApiSemanticViewerChartCreate,
     type ApiSemanticViewerChartUpdate,
@@ -61,32 +62,55 @@ export const useSemanticLayerViews = ({
 
 type SemanticLayerViewFieldsParams = {
     projectUuid: string;
-    view: string;
-    selectedFields: Pick<
-        SemanticLayerQuery,
-        'dimensions' | 'timeDimensions' | 'metrics'
-    >;
+    semanticLayerView: string | undefined;
+    semanticLayerQuery:
+        | Pick<
+              SemanticLayerQuery,
+              'dimensions' | 'timeDimensions' | 'metrics' | 'filters'
+          >
+        | undefined;
 };
 
 export const useSemanticLayerViewFields = (
-    { projectUuid, view, selectedFields }: SemanticLayerViewFieldsParams,
+    {
+        projectUuid,
+        semanticLayerView,
+        semanticLayerQuery,
+    }: SemanticLayerViewFieldsParams,
     useQueryParams?: UseQueryOptions<SemanticLayerField[], ApiError>,
 ) => {
+    const allFieldsInUse =
+        semanticLayerQuery &&
+        fieldsInUseFromSemanticLayerQuery(semanticLayerQuery);
+
     return useQuery<SemanticLayerField[], ApiError>({
         queryKey: [
             projectUuid,
             'semanticLayer',
-            view,
+            semanticLayerView,
             'fields',
-            JSON.stringify(selectedFields),
+            allFieldsInUse,
         ],
-        queryFn: () =>
-            apiPostSemanticLayerViewFields({
+        queryFn: () => {
+            if (!semanticLayerView) {
+                throw new Error('semanticLayerView is required');
+            }
+
+            if (!allFieldsInUse) {
+                throw new Error('semanticLayerQuery is required');
+            }
+
+            return apiPostSemanticLayerViewFields({
                 projectUuid,
-                view,
-                selectedFields,
-            }),
+                view: semanticLayerView,
+                selectedFields: allFieldsInUse,
+            });
+        },
         ...useQueryParams,
+        enabled:
+            (useQueryParams?.enabled ?? true) &&
+            !!semanticLayerView &&
+            !!allFieldsInUse,
     });
 };
 

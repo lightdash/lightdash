@@ -1,4 +1,3 @@
-import { pick } from 'lodash';
 import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
@@ -48,16 +47,9 @@ const SemanticViewerEditorPageWithStore = () => {
     const fieldsQuery = useSemanticLayerViewFields(
         {
             projectUuid,
-            view: chartQuery.isSuccess
-                ? chartQuery.data.chart.semanticLayerView ?? ''
-                : '', // TODO: this should never be empty or that hook should receive a null view!
-            selectedFields: chartQuery.isSuccess
-                ? pick(chartQuery.data.chart.semanticLayerQuery, [
-                      'dimensions',
-                      'timeDimensions',
-                      'metrics',
-                  ])
-                : { dimensions: [], timeDimensions: [], metrics: [] },
+            // TODO: this should never be empty or that hook should receive a null view!
+            semanticLayerView: chartQuery.data?.chart.semanticLayerView ?? '',
+            semanticLayerQuery: chartQuery.data?.chart.semanticLayerQuery,
         },
         { enabled: chartQuery.isSuccess },
     );
