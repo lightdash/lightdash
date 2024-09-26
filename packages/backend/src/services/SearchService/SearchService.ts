@@ -180,16 +180,23 @@ export class SearchService extends BaseService {
         const hasDashboardAccess = await Promise.all(
             results.dashboards.map(filterItem),
         );
+
         const hasSavedChartAccess = await Promise.all(
             results.savedCharts.map(filterItem),
         );
+
         const hasSqlChartAccess = await Promise.all(
             results.sqlCharts.map(filterItem),
+        );
+
+        const hasSemanticViewerChartAccess = await Promise.all(
+            results.semanticViewerCharts.map(filterItem),
         );
 
         const hasSpaceAccess = await Promise.all(
             results.spaces.map(filterItem),
         );
+
         const filteredResults = {
             ...results,
             tables: filteredTables,
@@ -203,6 +210,9 @@ export class SearchService extends BaseService {
             sqlCharts: results.sqlCharts.filter(
                 (_, index) => hasSqlChartAccess[index],
             ),
+            semanticViewerCharts: results.semanticViewerCharts.filter(
+                (_, index) => hasSemanticViewerChartAccess[index],
+            ),
             spaces: results.spaces.filter((_, index) => hasSpaceAccess[index]),
             pages: user.ability.can(
                 'view',
@@ -213,6 +223,7 @@ export class SearchService extends BaseService {
                 ? results.pages
                 : [], // For now there is only 1 page and it is for admins only
         };
+
         this.analytics.track({
             event: 'project.search',
             userId: user.userUuid,
@@ -222,10 +233,13 @@ export class SearchService extends BaseService {
                 dashboardsResultsCount: filteredResults.dashboards.length,
                 savedChartsResultsCount: filteredResults.savedCharts.length,
                 sqlChartsResultsCount: filteredResults.sqlCharts.length,
+                semanticViewerChartsResultsCount:
+                    filteredResults.semanticViewerCharts.length,
                 tablesResultsCount: filteredResults.tables.length,
                 fieldsResultsCount: filteredResults.fields.length,
             },
         });
+
         return filteredResults;
     }
 }
