@@ -210,15 +210,6 @@ export class SavedSemanticViewerChartService extends BaseService {
             projectUuid,
         );
 
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('SemanticViewer', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         const { hasAccess: hasCreateAccess } = await this.hasAccess(
             user,
             'create',
@@ -278,6 +269,7 @@ export class SavedSemanticViewerChartService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+
         if (
             user.ability.cannot(
                 'manage',
@@ -298,6 +290,7 @@ export class SavedSemanticViewerChartService extends BaseService {
             'update',
             savedChart,
         );
+
         if (!hasUpdateAccess) {
             throw new ForbiddenError(
                 "You don't have permission to update this chart",
@@ -367,11 +360,13 @@ export class SavedSemanticViewerChartService extends BaseService {
             projectUuid,
             savedSemanticViewerChartUuid,
         );
+
         const { hasAccess: hasDeleteAccess } = await this.hasSavedChartAccess(
             user,
             'delete',
             savedChart,
         );
+
         if (!hasDeleteAccess) {
             throw new ForbiddenError(
                 "You don't have permission to delete this chart",
