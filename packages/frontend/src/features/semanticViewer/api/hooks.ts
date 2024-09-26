@@ -235,7 +235,7 @@ export const useSavedSemanticViewerChartAndResults = (
         SavedSemanticViewerChartAndResults,
         ApiError & { slug?: string }
     >(
-        [projectUuid, 'semanticLayer', 'chart', uuid],
+        [projectUuid, 'semanticLayer', 'chartAndResults', uuid],
         async () => {
             if (!uuid) {
                 throw new Error('uuid is required');
