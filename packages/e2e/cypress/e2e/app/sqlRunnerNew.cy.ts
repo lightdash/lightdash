@@ -4,7 +4,7 @@ import { ChartKind, SEED_PROJECT } from '@lightdash/common';
 const generateSchemaString = (baseUrl: string): string => {
     try {
         const url = new URL(baseUrl);
-        const host = url.host;
+        const { host } = url;
         if (host === 'localhost') {
             return 'postgres';
         }
@@ -15,6 +15,7 @@ const generateSchemaString = (baseUrl: string): string => {
         }
     } catch (e) {
         // Handle invalid URL
+        // eslint-disable-next-line no-console
         console.error('Invalid URL:', e);
     }
     return 'postgres'; // Default to 'postgres' if no match
