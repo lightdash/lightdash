@@ -393,7 +393,7 @@ export class CsvService extends BaseService {
                   values: onlyRaw ? 'raw' : 'formatted',
                   limit: parseAnalyticsLimit(options?.limit),
                   storage: this.s3Client.isEnabled() ? 's3' : 'local',
-                  context: 'scheduled delivery',
+                  context: QueryExecutionContext.SCHEDULED_DELIVERY,
                   numColumns:
                       metricQuery.dimensions.length +
                       metricQuery.metrics.length +

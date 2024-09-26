@@ -5504,6 +5504,8 @@ const models: TsoaRoute.Models = {
             'sqlChartView',
             'sqlRunner',
             'viewUnderlyingData',
+            'alert',
+            'scheduledDelivery',
             'csvDownload',
             'gsheets',
             'scheduledGsheetsChart',
@@ -5895,6 +5897,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        selectedTabs: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
                         customViewportWidth: { dataType: 'double' },
                         filters: {
                             dataType: 'array',
@@ -13652,7 +13658,6 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        context: { ref: 'QueryExecutionContext' },
                         invalidateCache: { dataType: 'boolean' },
                     },
                 },
