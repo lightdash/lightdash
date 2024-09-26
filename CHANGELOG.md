@@ -1,3 +1,10 @@
+# [0.1276.0](https://github.com/lightdash/lightdash/compare/0.1275.0...0.1276.0) (2024-09-26)
+
+
+### Features
+
+* semantic viewer new/edit/view modes ([#11659](https://github.com/lightdash/lightdash/issues/11659)) ([d559632](https://github.com/lightdash/lightdash/commit/d55963209043d14e848b033f03dc0ae157334c35))
+
 # [0.1275.0](https://github.com/lightdash/lightdash/compare/0.1274.1...0.1275.0) (2024-09-26)
 
 
