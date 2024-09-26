@@ -1,5 +1,23 @@
 import { ChartKind, SEED_PROJECT } from '@lightdash/common';
 
+// TODO: Add more schemas to the list depending on the warehouse
+const generateSchemaString = (baseUrl: string): string => {
+    if (baseUrl.includes('localhost')) {
+        return 'postgres';
+    }
+    if (
+        baseUrl.includes('lightdash-pr-') &&
+        baseUrl.includes('.onrender.com')
+    ) {
+        const prNumber = baseUrl.match(/lightdash-pr-(\d+)/)?.[1];
+        return `jaffle_db_pg_13_pr_${prNumber}`;
+    }
+
+    return 'postgres'; // Default to 'postgres' if no match
+};
+
+const schema = generateSchemaString(Cypress.config('baseUrl') as string);
+
 describe('SQL Runner (new)', () => {
     beforeEach(() => {
         cy.login();
@@ -12,7 +30,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('orders').click();
         cy.contains(
             '.monaco-editor',
-            'SELECT * FROM "postgres"."jaffle"."orders"',
+            `SELECT * FROM "${schema}"."jaffle"."orders"`,
         );
 
         // Verify that the query is run and the results are displayed
@@ -45,7 +63,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('customers').click();
         cy.contains(
             '.monaco-editor',
-            'SELECT * FROM "postgres"."jaffle"."customers"',
+            `SELECT * FROM "${schema}"."jaffle"."customers"`,
         );
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
@@ -73,7 +91,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('customers').click();
         cy.contains(
             '.monaco-editor',
-            'SELECT * FROM "postgres"."jaffle"."customers"',
+            `SELECT * FROM "${schema}"."jaffle"."customers"`,
         );
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
@@ -125,7 +143,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('customers').click();
         cy.contains(
             '.monaco-editor',
-            'SELECT * FROM "postgres"."jaffle"."customers"',
+            `SELECT * FROM "${schema}"."jaffle"."customers"`,
         );
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
@@ -177,7 +195,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('customers').click();
         cy.contains(
             '.monaco-editor',
-            'SELECT * FROM "postgres"."jaffle"."customers"',
+            `SELECT * FROM "${schema}"."jaffle"."customers"`,
         );
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
@@ -209,7 +227,7 @@ describe('SQL Runner (new)', () => {
         cy.get('.monaco-editor').should('be.visible');
         cy.get('.monaco-editor').type('{selectall}{backspace}');
         cy.get('.monaco-editor')
-            .type('SELECT * FROM "postgres"."jaffle"."orders"')
+            .type(`SELECT * FROM "${schema}"."jaffle"."orders"`)
             .wait(1000);
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'order_id');
@@ -252,7 +270,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('customers').click();
         cy.contains(
             '.monaco-editor',
-            'SELECT * FROM "postgres"."jaffle"."customers"',
+            `SELECT * FROM "${schema}"."jaffle"."customers"`,
         );
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
