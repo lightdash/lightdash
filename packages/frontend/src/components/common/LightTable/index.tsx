@@ -378,12 +378,12 @@ const BaseCell = (
 
         const isSelected = selectedCell === cellId;
 
-            const { showToastSuccess } = useToaster();
+        const { showToastSuccess } = useToaster();
 
-            const handleCopy = useCallback(() => {
-                clipboard.copy(withValue === undefined ? '' : withValue);
-                showToastSuccess({ title: 'Copied to clipboard!' });
-            }, [clipboard, withValue, showToastSuccess]);
+        const handleCopy = useCallback(() => {
+            clipboard.copy(withValue === undefined ? '' : withValue);
+            showToastSuccess({ title: 'Copied to clipboard!' });
+        }, [clipboard, withValue, showToastSuccess]);
 
         useEffect(() => {
             const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
