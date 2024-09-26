@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ChartKind,
     isVizTableConfig,
@@ -13,6 +14,7 @@ import {
     useSemanticLayerViewFields,
 } from '../../features/semanticViewer/api/hooks';
 import { SemanticViewerResultsRunner } from '../../features/semanticViewer/runners/SemanticViewerResultsRunner';
+import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -58,6 +60,7 @@ const ChartTileOptions = memo(
 );
 
 const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
+    const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const savedSemanticViewerChartUuid =
@@ -123,6 +126,29 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         slug: chartQuery.data?.slug,
     });
 
+    const savedChartSpaceUserAccess =
+        chartQuery.isSuccess && chartQuery.data.space.userAccess
+            ? [chartQuery.data.space.userAccess]
+            : [];
+
+    const canManageSemanticViewer = user.data?.ability?.can(
+        'manage',
+        subject('SemanticViewer', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+            access: savedChartSpaceUserAccess,
+        }),
+    );
+
+    const canUpdateChart = user.data?.ability?.can(
+        'update',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+            access: savedChartSpaceUserAccess,
+        }),
+    );
+
     if (
         chartQuery.isLoading ||
         fieldsQuery.isLoading ||
@@ -176,11 +202,14 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             title={tile.properties.title || tile.properties.chartName || ''}
             {...rest}
             extraMenuItems={
-                <ChartTileOptions
-                    isEditMode={isEditMode}
-                    projectUuid={projectUuid}
-                    slug={chartQuery.data.slug}
-                />
+                canManageSemanticViewer &&
+                canUpdateChart && (
+                    <ChartTileOptions
+                        isEditMode={isEditMode}
+                        projectUuid={projectUuid}
+                        slug={chartQuery.data.slug}
+                    />
+                )
             }
         >
             {resultsRunner &&
