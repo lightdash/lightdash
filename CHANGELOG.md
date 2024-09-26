@@ -1,3 +1,10 @@
+## [0.1274.1](https://github.com/lightdash/lightdash/compare/0.1274.0...0.1274.1) (2024-09-26)
+
+
+### Bug Fixes
+
+* force same slug on spaces in different project ([#11684](https://github.com/lightdash/lightdash/issues/11684)) ([bb1a506](https://github.com/lightdash/lightdash/commit/bb1a506c073b6776397e80ee6c91794b3d87fcb2))
+
 # [0.1274.0](https://github.com/lightdash/lightdash/compare/0.1273.5...0.1274.0) (2024-09-26)
 
 
