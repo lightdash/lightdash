@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     DashboardTileTypes,
     type SavedSemanticViewerChart,
-    type SpaceShare,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -15,7 +14,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconDots, IconLayoutGridAdd, IconTrash } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
@@ -46,7 +45,9 @@ export const HeaderView: FC<Props> = ({
         { open: openAddToDashboardModal, close: closeAddToDashboardModal },
     ] = useDisclosure(false);
 
-    const savedChartSpaceUserAccess = chart.space.userAccess ? [chart.space.userAccess] : [];
+    const savedChartSpaceUserAccess = chart.space.userAccess
+        ? [chart.space.userAccess]
+        : [];
 
     const canManageSemanticViewer = user.data?.ability?.can(
         'manage',

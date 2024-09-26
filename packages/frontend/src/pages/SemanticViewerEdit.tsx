@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-import type { SpaceShare } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
@@ -96,9 +95,10 @@ const SemanticViewerEditorPageWithStore = () => {
         projectUuid,
     ]);
 
-    const savedChartSpaceUserAccess = chartQuery.isSuccess && chartQuery.data.chart.space.userAccess 
-        ? [chartQuery.data.chart.space.userAccess] 
-        : [];
+    const savedChartSpaceUserAccess =
+        chartQuery.isSuccess && chartQuery.data.chart.space.userAccess
+            ? [chartQuery.data.chart.space.userAccess]
+            : [];
 
     const canManageSemanticViewer = user.data?.ability?.can(
         'manage',
