@@ -270,16 +270,6 @@ export class SavedSemanticViewerChartService extends BaseService {
             projectUuid,
         );
 
-        if (
-            user.ability.cannot(
-                'manage',
-                // TODO: add it's own ability
-                subject('CustomSql', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         const savedChart = await this.savedSemanticViewerChartModel.getByUuid(
             projectUuid,
             savedSemanticViewerChartUuid,
