@@ -69,7 +69,9 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         [semanticLayerQuery, vizDataModel],
     );
 
-    const { spec, tableData } = vizDataModel.getSpec(display);
+    const spec = vizDataModel.getSpec(display);
+    const tableData = vizDataModel.getPivotedTableData();
+
 
     const handleOpenPanel = (panel: TabPanel) => {
         setOpenPanel(panel);

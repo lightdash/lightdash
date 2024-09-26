@@ -120,6 +120,18 @@ export class TableDataModel {
         };
     }
 
+    getPivotedTableData():
+        | {
+              columns: string[];
+              rows: RawResultRow[];
+          }
+        | undefined {
+        return {
+            columns: this.getColumns(),
+            rows: this.getRows(),
+        };
+    }
+
     getSpec(display?: VizTableDisplay): {
         spec: Record<string, any>;
         tableData: { columns: string[]; rows: RawResultRow[] } | undefined;

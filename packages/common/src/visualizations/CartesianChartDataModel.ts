@@ -511,17 +511,29 @@ export class CartesianChartDataModel {
         return pivotedChartData;
     }
 
-    getSpec(display?: CartesianChartDisplay): {
-        spec: Record<string, any>;
-        tableData: { columns: string[]; rows: RawResultRow[] } | undefined;
-    } {
+    getPivotedTableData(): // TODO: pass display options and use them
+
+    | {
+              columns: string[];
+              rows: RawResultRow[];
+          }
+        | undefined {
+        const transformedData = this.pivotedChartData;
+        if (!transformedData) {
+            return undefined;
+        }
+
+        return {
+            columns: Object.keys(transformedData.results[0]) ?? [],
+            rows: transformedData.results,
+        };
+    }
+
+    getSpec(display?: CartesianChartDisplay): Record<string, any> {
         const transformedData = this.pivotedChartData;
 
         if (!transformedData) {
-            return {
-                spec: {},
-                tableData: undefined,
-            };
+            return {};
         }
 
         const type = this.config?.type;
@@ -663,13 +675,7 @@ export class CartesianChartDataModel {
             series,
         };
 
-        return {
-            spec,
-            tableData: {
-                columns: Object.keys(transformedData.results[0]) ?? [],
-                rows: transformedData.results,
-            },
-        };
+        return spec;
     }
 }
 
