@@ -287,20 +287,25 @@ describe('SQL Runner (new)', () => {
             .contains('First name')
             .should('be.visible');
 
-        // Make a styling change and wait for 2 seconds to ensure no API calls are made against the warehouse
+        // Intercept the API call we don't expect to happen
         cy.intercept('POST', '**/api/v1/projects/*/sqlRunner/runPivotQuery').as(
             'runPivotQuery',
         );
 
+        // Perform the styling change
         cy.contains('Styling').click();
         cy.contains('div', 'X-axis label')
             .closest('.mantine-Stack-root')
             .find('input.mantine-Input-input')
             .type('{selectall}{backspace}New x-axis label');
 
-        cy.wait(2000).then(() => {
-            cy.get('@runPivotQuery.all').should('have.length', 0);
+        // Wait for the chart label to update
+        cy.get('.echarts-for-react').within(() => {
+            cy.get('text').contains('New x-axis label').should('be.visible');
         });
+
+        // Verify that no extra queries were made
+        cy.get('@runPivotQuery.all').should('have.length', 0);
 
         // Verify that the chart is displayed with the new label
         cy.get(
