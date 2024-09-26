@@ -6065,29 +6065,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "QueryExecutionContext": {
-                "enum": [
-                    "dashboardView",
-                    "autorefreshedDashboard",
-                    "exploreView",
-                    "chartView",
-                    "sqlChartView",
-                    "sqlRunner",
-                    "viewUnderlyingData",
-                    "alert",
-                    "scheduledDelivery",
-                    "csvDownload",
-                    "gsheets",
-                    "scheduledGsheetsChart",
-                    "scheduledGsheetsDashboard",
-                    "scheduledChart",
-                    "scheduledDashboard",
-                    "calculateTotal",
-                    "api",
-                    "cli"
-                ],
-                "type": "string"
-            },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -9366,63 +9343,6 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_SemanticLayerField.name-or-kind_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "kind": {
-                        "$ref": "#/components/schemas/FieldType"
-                    }
-                },
-                "required": ["name", "kind"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "SemanticLayerSortByDirection": {
-                "enum": ["ASC", "DESC"],
-                "type": "string"
-            },
-            "SemanticLayerSortBy": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
-                    },
-                    {
-                        "properties": {
-                            "direction": {
-                                "$ref": "#/components/schemas/SemanticLayerSortByDirection"
-                            }
-                        },
-                        "required": ["direction"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerPivot": {
-                "properties": {
-                    "values": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "index": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "on": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["values", "index", "on"],
-                "type": "object"
-            },
             "SemanticLayerFilterBase": {
                 "properties": {
                     "fieldType": {
@@ -9578,17 +9498,65 @@
                     }
                 ]
             },
-            "SemanticLayerQuery": {
+            "Pick_SemanticLayerField.name-or-kind_": {
                 "properties": {
-                    "filters": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/FieldType"
+                    }
+                },
+                "required": ["name", "kind"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SemanticLayerSortByDirection": {
+                "enum": ["ASC", "DESC"],
+                "type": "string"
+            },
+            "SemanticLayerSortBy": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
+                    },
+                    {
+                        "properties": {
+                            "direction": {
+                                "$ref": "#/components/schemas/SemanticLayerSortByDirection"
+                            }
+                        },
+                        "required": ["direction"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerPivot": {
+                "properties": {
+                    "values": {
                         "items": {
-                            "$ref": "#/components/schemas/SemanticLayerFilter"
+                            "type": "string"
                         },
                         "type": "array"
                     },
-                    "pivot": {
-                        "$ref": "#/components/schemas/SemanticLayerPivot"
+                    "index": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
+                    "on": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["values", "index", "on"],
+                "type": "object"
+            },
+            "SemanticLayerQuery": {
+                "properties": {
                     "timezone": {
                         "type": "string"
                     },
@@ -9596,9 +9564,18 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "pivot": {
+                        "$ref": "#/components/schemas/SemanticLayerPivot"
+                    },
                     "sortBy": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerSortBy"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerFilter"
                         },
                         "type": "array"
                     },
@@ -9622,27 +9599,30 @@
                     }
                 },
                 "required": [
-                    "filters",
                     "sortBy",
+                    "filters",
                     "metrics",
                     "timeDimensions",
                     "dimensions"
                 ],
                 "type": "object"
             },
-            "ApiSemanticLayerCreateChart": {
+            "SemanticViewerChartCreateResult": {
+                "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
+                    "savedSemanticViewerChartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["slug", "savedSemanticViewerChartUuid"],
+                "type": "object"
+            },
+            "ApiSemanticViewerChartCreate": {
                 "properties": {
                     "results": {
-                        "properties": {
-                            "slug": {
-                                "type": "string"
-                            },
-                            "savedSemanticViewerChartUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["slug", "savedSemanticViewerChartUuid"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/SemanticViewerChartCreateResult"
                     },
                     "status": {
                         "type": "string",
@@ -9653,7 +9633,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "SemanticLayerCreateChart": {
+            "SemanticViewerChartCreate": {
                 "properties": {
                     "spaceUuid": {
                         "type": "string"
@@ -9807,7 +9787,7 @@
                 ],
                 "type": "object"
             },
-            "ApiSemanticLayerGetChart": {
+            "ApiSemanticViewerChartGet": {
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/SavedSemanticViewerChart"
@@ -9819,6 +9799,81 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticViewerChartUpdateResult": {
+                "properties": {
+                    "savedSemanticViewerChartVersionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedSemanticViewerChartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "savedSemanticViewerChartVersionUuid",
+                    "savedSemanticViewerChartUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSemanticViewerChartUpdate": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticViewerChartUpdateResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticViewerChartUpdate": {
+                "properties": {
+                    "versionedData": {
+                        "properties": {
+                            "chartKind": {
+                                "$ref": "#/components/schemas/ChartKind"
+                            },
+                            "config": {
+                                "$ref": "#/components/schemas/VizChartConfig"
+                            },
+                            "semanticLayerQuery": {
+                                "$ref": "#/components/schemas/SemanticLayerQuery"
+                            },
+                            "semanticLayerView": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "chartKind",
+                            "config",
+                            "semanticLayerQuery",
+                            "semanticLayerView"
+                        ],
+                        "type": "object"
+                    },
+                    "unversionedData": {
+                        "properties": {
+                            "spaceUuid": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["spaceUuid", "description", "name"],
+                        "type": "object"
+                    }
+                },
                 "type": "object"
             },
             "ValidationTarget": {
@@ -10062,7 +10117,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1274.1",
+        "version": "0.1276.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13710,19 +13765,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/MetricQueryRequest"
-                                    },
-                                    {
-                                        "properties": {
-                                            "context": {
-                                                "$ref": "#/components/schemas/QueryExecutionContext"
-                                            }
-                                        },
-                                        "type": "object"
-                                    }
-                                ],
+                                "$ref": "#/components/schemas/MetricQueryRequest",
                                 "description": "metricQuery for the chart to run"
                             }
                         }

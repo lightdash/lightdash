@@ -5494,30 +5494,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    QueryExecutionContext: {
-        dataType: 'refEnum',
-        enums: [
-            'dashboardView',
-            'autorefreshedDashboard',
-            'exploreView',
-            'chartView',
-            'sqlChartView',
-            'sqlRunner',
-            'viewUnderlyingData',
-            'alert',
-            'scheduledDelivery',
-            'csvDownload',
-            'gsheets',
-            'scheduledGsheetsChart',
-            'scheduledGsheetsDashboard',
-            'scheduledChart',
-            'scheduledDashboard',
-            'calculateTotal',
-            'api',
-            'cli',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_LightdashUser.userUuid-or-firstName-or-lastName_': {
         dataType: 'refAlias',
         type: {
@@ -8494,68 +8470,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SemanticLayerField.name-or-kind_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                name: { dataType: 'string', required: true },
-                kind: { ref: 'FieldType', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerSortByDirection: {
-        dataType: 'refEnum',
-        enums: ['ASC', 'DESC'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerSortBy: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'Pick_SemanticLayerField.name-or-kind_' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        direction: {
-                            ref: 'SemanticLayerSortByDirection',
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerPivot: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                values: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                index: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                on: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerFilterBase: {
         dataType: 'refAlias',
         type: {
@@ -8733,22 +8647,84 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SemanticLayerField.name-or-kind_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                kind: { ref: 'FieldType', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerSortByDirection: {
+        dataType: 'refEnum',
+        enums: ['ASC', 'DESC'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerSortBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Pick_SemanticLayerField.name-or-kind_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        direction: {
+                            ref: 'SemanticLayerSortByDirection',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerPivot: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                values: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                index: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                on: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerQuery: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                filters: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SemanticLayerFilter' },
-                    required: true,
-                },
-                pivot: { ref: 'SemanticLayerPivot' },
                 timezone: { dataType: 'string' },
                 limit: { dataType: 'double' },
+                pivot: { ref: 'SemanticLayerPivot' },
                 sortBy: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SemanticLayerSortBy' },
+                    required: true,
+                },
+                filters: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SemanticLayerFilter' },
                     required: true,
                 },
                 metrics: {
@@ -8780,20 +8756,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSemanticLayerCreateChart: {
+    SemanticViewerChartCreateResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                slug: { dataType: 'string', required: true },
+                savedSemanticViewerChartUuid: {
+                    dataType: 'string',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSemanticViewerChartCreate: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        slug: { dataType: 'string', required: true },
-                        savedSemanticViewerChartUuid: {
-                            dataType: 'string',
-                            required: true,
-                        },
-                    },
+                    ref: 'SemanticViewerChartCreateResult',
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
@@ -8802,7 +8786,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerCreateChart: {
+    SemanticViewerChartCreate: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -8929,13 +8913,94 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiSemanticLayerGetChart: {
+    ApiSemanticViewerChartGet: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: { ref: 'SavedSemanticViewerChart', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticViewerChartUpdateResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                savedSemanticViewerChartVersionUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                savedSemanticViewerChartUuid: {
+                    dataType: 'string',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSemanticViewerChartUpdate: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'SemanticViewerChartUpdateResult',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticViewerChartUpdate: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                versionedData: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        chartKind: { ref: 'ChartKind', required: true },
+                        config: { ref: 'VizChartConfig', required: true },
+                        semanticLayerQuery: {
+                            ref: 'SemanticLayerQuery',
+                            required: true,
+                        },
+                        semanticLayerView: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+                unversionedData: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        spaceUuid: { dataType: 'string', required: true },
+                        description: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        name: { dataType: 'string', required: true },
+                    },
+                },
             },
             validators: {},
         },
@@ -13578,16 +13643,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'MetricQueryRequest' },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                context: { ref: 'QueryExecutionContext' },
-                            },
-                        },
-                    ],
+                    ref: 'MetricQueryRequest',
                 },
                 projectUuid: {
                     in: 'path',
@@ -17614,7 +17670,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'SemanticLayerCreateChart',
+                    ref: 'SemanticViewerChartCreate',
                 },
             };
 
@@ -17769,6 +17825,138 @@ export function RegisterRoutes(app: express.Router) {
                         controller,
                         validatedArgs as any,
                     );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.patch(
+        '/api/v2/projects/:projectUuid/semantic-layer/saved/:uuid',
+        ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SemanticLayerController.prototype.updateSavedSemanticViewerChart,
+        ),
+
+        async function SemanticLayerController_updateSavedSemanticViewerChart(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                uuid: {
+                    in: 'path',
+                    name: 'uuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'SemanticViewerChartUpdate',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SemanticLayerController>(
+                        SemanticLayerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.updateSavedSemanticViewerChart.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.delete(
+        '/api/v2/projects/:projectUuid/semantic-layer/saved/:uuid',
+        ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SemanticLayerController.prototype.deleteSavedSemanticViewerChart,
+        ),
+
+        async function SemanticLayerController_deleteSavedSemanticViewerChart(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                uuid: {
+                    in: 'path',
+                    name: 'uuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SemanticLayerController>(
+                        SemanticLayerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.deleteSavedSemanticViewerChart.apply(
+                    controller,
+                    validatedArgs as any,
+                );
                 promiseHandler(controller, promise, response, 200, next);
             } catch (err) {
                 return next(err);

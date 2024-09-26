@@ -302,13 +302,13 @@ export class SemanticLayerService extends BaseService {
     async getSemanticViewerChartResultJob(
         user: SessionUser,
         projectUuid: string,
-        uuid: string,
+        savedSemanticViewerChartUuid: string,
     ): Promise<{ jobId: string }> {
         const savedChart =
             await this.savedSemanticViewerChartService.getSemanticViewerChart(
                 user,
                 projectUuid,
-                uuid,
+                savedSemanticViewerChartUuid,
             );
 
         const { hasAccess: hasViewAccess } =

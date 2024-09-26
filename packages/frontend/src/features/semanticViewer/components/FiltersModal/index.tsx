@@ -10,7 +10,10 @@ import {
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectAllSelectedFieldNames } from '../../store/selectors';
+import {
+    selectAllSelectedFieldNames,
+    selectFilters,
+} from '../../store/selectors';
 import { setFilters } from '../../store/semanticViewerSlice';
 import Filter from './Filter';
 import FilterButton from './FilterButton';
@@ -26,8 +29,9 @@ const FiltersModal: FC<FiltersModalProps> = ({
     ...props
 }) => {
     const [isAddingFilter, setIsAddingFilter] = useState(false);
-    const { filters, fields } = useAppSelector((state) => state.semanticViewer);
+    const { fields } = useAppSelector((state) => state.semanticViewer);
     const selectedFields = useAppSelector(selectAllSelectedFieldNames);
+    const filters = useAppSelector(selectFilters);
 
     const fieldOptions = useMemo(() => {
         if (!fields) return [];

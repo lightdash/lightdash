@@ -1,3 +1,17 @@
+# [0.1276.0](https://github.com/lightdash/lightdash/compare/0.1275.0...0.1276.0) (2024-09-26)
+
+
+### Features
+
+* semantic viewer new/edit/view modes ([#11659](https://github.com/lightdash/lightdash/issues/11659)) ([d559632](https://github.com/lightdash/lightdash/commit/d55963209043d14e848b033f03dc0ae157334c35))
+
+# [0.1275.0](https://github.com/lightdash/lightdash/compare/0.1274.1...0.1275.0) (2024-09-26)
+
+
+### Features
+
+* Duplicate metrics dimensions ([#11521](https://github.com/lightdash/lightdash/issues/11521)) ([5000288](https://github.com/lightdash/lightdash/commit/5000288fdf5b9afc78dd2c0fa1f049fe49ad3cfe))
+
 ## [0.1274.1](https://github.com/lightdash/lightdash/compare/0.1274.0...0.1274.1) (2024-09-26)
 
 

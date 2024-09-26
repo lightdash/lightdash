@@ -2,12 +2,13 @@ import { Box, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { selectFilters } from '../store/selectors';
 import { setIsFiltersModalOpen } from '../store/semanticViewerSlice';
 import BadgeButton from './BadgeButton';
 import FiltersModal from './FiltersModal';
 
 const Filters: FC = () => {
-    const { filters } = useAppSelector((state) => state.semanticViewer);
+    const filters = useAppSelector(selectFilters);
     const filtersCount = useMemo(() => Object.keys(filters).length, [filters]);
 
     const dispatch = useAppDispatch();

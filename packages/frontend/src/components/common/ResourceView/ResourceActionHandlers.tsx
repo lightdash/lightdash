@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ChartSourceType,
+    convertChartSourceTypeToDashboardTileType,
     ResourceViewItemType,
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
@@ -277,23 +278,17 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     );
             }
         case ResourceViewItemAction.ADD_TO_DASHBOARD:
-            return (
+            return action.item.data.source ? (
                 <AddTilesToDashboardModal
                     isOpen
                     projectUuid={projectUuid}
-                    savedSqlChartUuid={
-                        action.item.data.source === ChartSourceType.SQL
-                            ? action.item.data.uuid
-                            : undefined
-                    }
-                    savedChartUuid={
-                        action.item.data.source === ChartSourceType.DBT_EXPLORE
-                            ? action.item.data.uuid
-                            : undefined
-                    }
+                    uuid={action.item.data.uuid}
+                    dashboardTileType={convertChartSourceTypeToDashboardTileType(
+                        action.item.data.source,
+                    )}
                     onClose={handleReset}
                 />
-            );
+            ) : null;
         case ResourceViewItemAction.CREATE_SPACE:
             return (
                 <SpaceActionModal
