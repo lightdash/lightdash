@@ -46,15 +46,7 @@ export const HeaderView: FC<Props> = ({
         { open: openAddToDashboardModal, close: closeAddToDashboardModal },
     ] = useDisclosure(false);
 
-    const savedChartSpaceUserAccess = useMemo(() => {
-        const access: SpaceShare[] = [];
-
-        if (chart.space.userAccess) {
-            access.push(chart.space.userAccess);
-        }
-
-        return access;
-    }, [chart]);
+    const savedChartSpaceUserAccess = chart.space.userAccess ? [chart.space.userAccess] : [];
 
     const canManageSemanticViewer = user.data?.ability?.can(
         'manage',
