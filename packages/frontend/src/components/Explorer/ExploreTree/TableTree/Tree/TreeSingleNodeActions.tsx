@@ -111,15 +111,16 @@ const TreeSingleNodeActions: FC<Props> = ({
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
         let newId = uuidv4();
-        let newIdSubstring=newId.replace(/-/g, '').substring(0, 16);
-        let currentName=newDeepCopyItem.name;
+        let newIdSubstring = newId.replace(/-/g, '').substring(0, 16);
+        let currentName = newDeepCopyItem.name;
         const pattern = '_8id9_';
         const patternIndex = currentName.indexOf(pattern);
-        if (patternIndex !== -1){
-            currentName= currentName.substring(0, patternIndex + pattern.length) + newIdSubstring;
-        }
-        else{
-            currentName=currentName + pattern + newIdSubstring;
+        if (patternIndex !== -1) {
+            currentName =
+                currentName.substring(0, patternIndex + pattern.length) +
+                newIdSubstring;
+        } else {
+            currentName = currentName + pattern + newIdSubstring;
         }
         newDeepCopyItem.label = 'Copy ' + newDeepCopyItem.label;
         newDeepCopyItem.uuid = newId;
@@ -129,14 +130,15 @@ const TreeSingleNodeActions: FC<Props> = ({
     const duplicateCustomDimension = (customDimension: CustomDimension) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customDimension));
         let newIdSubstring = uuidv4().replace(/-/g, '').substring(0, 16);
-        let currentId=newDeepCopyItem.id;
+        let currentId = newDeepCopyItem.id;
         const pattern = '_8id9_';
         const patternIndex = currentId.indexOf(pattern);
-        if (patternIndex !== -1){
-            currentId= currentId.substring(0, patternIndex + pattern.length) + newIdSubstring;
-        }
-        else{
-            currentId=currentId + pattern + newIdSubstring;
+        if (patternIndex !== -1) {
+            currentId =
+                currentId.substring(0, patternIndex + pattern.length) +
+                newIdSubstring;
+        } else {
+            currentId = currentId + pattern + newIdSubstring;
         }
         newDeepCopyItem.name = 'Copy ' + newDeepCopyItem.name;
         newDeepCopyItem.id = currentId;
