@@ -30,6 +30,7 @@ import {
     NotificationFrequency,
     NotificationPayloadBase,
     operatorActionValue,
+    QueryExecutionContext,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerFilterRule,
@@ -51,13 +52,13 @@ import {
     ValidateProjectPayload,
     VizColumn,
 } from '@lightdash/common';
+import { consoleLogFactory } from 'graphile-worker';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
 import {
     DownloadCsv,
     LightdashAnalytics,
     parseAnalyticsLimit,
-    QueryExecutionContext,
 } from '../analytics/LightdashAnalytics';
 import { S3Client } from '../clients/Aws/s3';
 import EmailClient from '../clients/EmailClient/EmailClient';
@@ -161,6 +162,7 @@ export default class SchedulerTask {
         dashboardUuid: string | null,
         schedulerUuid: string | undefined,
         sendNowSchedulerFilters: SchedulerFilterRule[] | undefined,
+        context: DownloadCsv['properties']['context'],
         selectedTabs: string[] | undefined,
     ) {
         if (chartUuid) {
@@ -170,7 +172,7 @@ export default class SchedulerTask {
                 );
             return {
                 url: `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
-                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}`,
+                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?context=${context}`,
                 details: {
                     name: chart.name,
                     description: chart.description,
@@ -187,28 +189,23 @@ export default class SchedulerTask {
                     dashboardUuid,
                 );
 
+            const queryParams = new URLSearchParams();
+            if (schedulerUuid) queryParams.set('schedulerUuid', schedulerUuid);
+            if (sendNowSchedulerFilters)
+                queryParams.set(
+                    'sendNowSchedulerFilters',
+                    JSON.stringify(sendNowSchedulerFilters),
+                );
+            if (selectedTabs)
+                queryParams.set('selectedTabs', JSON.stringify(selectedTabs));
+            if (context) queryParams.set('context', context);
+
             return {
                 url: `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view`,
                 minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${
                     dashboard.projectUuid
                 }/dashboards/${dashboardUuid}${
-                    schedulerUuid ? `?schedulerUuid=${schedulerUuid}` : ''
-                }${
-                    sendNowSchedulerFilters
-                        ? `?sendNowchedulerFilters=${encodeURI(
-                              JSON.stringify(sendNowSchedulerFilters),
-                          )}`
-                        : ''
-                }${
-                    selectedTabs
-                        ? `${
-                              schedulerUuid || sendNowSchedulerFilters
-                                  ? '&'
-                                  : '?'
-                          }selectedTabs=${encodeURI(
-                              JSON.stringify(selectedTabs),
-                          )}`
-                        : ''
+                    queryParams.toString() ? `?${queryParams.toString()}` : ''
                 }`,
                 details: {
                     name: dashboard.name,
@@ -255,6 +252,12 @@ export default class SchedulerTask {
             ? scheduler.selectedTabs
             : undefined;
 
+        const context =
+            scheduler.thresholds === undefined ||
+            scheduler.thresholds.length === 0
+                ? QueryExecutionContext.SCHEDULED_DELIVERY
+                : QueryExecutionContext.ALERT;
+
         const {
             url,
             minimalUrl,
@@ -267,9 +270,9 @@ export default class SchedulerTask {
             dashboardUuid,
             schedulerUuid,
             sendNowSchedulerFilters,
+            context,
             selectedTabs,
         );
-
         switch (format) {
             case SchedulerFormat.IMAGE:
                 try {
@@ -350,7 +353,7 @@ export default class SchedulerTask {
                             userId: userUuid,
                             properties: {
                                 ...baseAnalyticsProperties,
-                                context: 'scheduled delivery dashboard',
+                                context,
                             },
                         });
 
@@ -369,7 +372,7 @@ export default class SchedulerTask {
                             userId: userUuid,
                             properties: {
                                 ...baseAnalyticsProperties,
-                                context: 'scheduled delivery dashboard',
+                                context,
                                 numCharts: csvUrls.length,
                             },
                         });

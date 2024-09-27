@@ -78,6 +78,7 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
+    QueryExecutionContext,
     replaceDimensionInExplore,
     RequestMethod,
     ResultRow,
@@ -99,9 +100,7 @@ import {
     UpdateProjectMember,
     UserAttributeValueMap,
     UserWarehouseCredentials,
-    VizAggregationOptions,
     VizColumn,
-    WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTablesCatalog,
@@ -119,10 +118,7 @@ import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
-import {
-    LightdashAnalytics,
-    QueryExecutionContext,
-} from '../../analytics/LightdashAnalytics';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';

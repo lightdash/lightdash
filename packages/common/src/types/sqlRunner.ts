@@ -1,4 +1,9 @@
-import { type ApiError, type Explore, type PivotChartData } from '..';
+import {
+    type ApiError,
+    type Explore,
+    type PivotChartData,
+    type QueryExecutionContext,
+} from '..';
 import {
     type PivotIndexColum,
     type VizAggregationOptions,
@@ -24,7 +29,7 @@ export type SqlRunnerPayload = {
     userUuid: string;
     organizationUuid: string | undefined;
     sqlChartUuid?: string;
-    context: 'sqlChartView' | 'sqlRunner' | 'dashboardView'; // TODO: move scheduler types to Backend package. Can't import QueryExecutionProperties from LightdashAnalytics
+    context: QueryExecutionContext;
 } & SqlRunnerBody;
 
 type ApiSqlRunnerPivotQueryPayload = {

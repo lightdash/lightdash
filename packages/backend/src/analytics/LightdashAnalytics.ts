@@ -14,6 +14,7 @@ import {
     OrganizationMemberRole,
     PinnedItem,
     ProjectMemberRole,
+    QueryExecutionContext,
     RequestMethod,
     SchedulerFormat,
     SemanticLayerQuery,
@@ -153,25 +154,6 @@ type UserJoinOrganizationEvent = BaseTrack & {
     };
 };
 
-export enum QueryExecutionContext {
-    DASHBOARD = 'dashboardView',
-    AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
-    EXPLORE = 'exploreView',
-    CHART = 'chartView',
-    SQL_CHART = 'sqlChartView',
-    SQL_RUNNER = 'sqlRunner',
-    VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
-    CSV = 'csvDownload',
-    GSHEETS = 'gsheets',
-    SCHEDULED_GSHEETS_CHART = 'scheduledGsheetsChart',
-    SCHEDULED_GSHEETS_DASHBOARD = 'scheduledGsheetsDashboard',
-    SCHEDULED_CHART = 'scheduledChart',
-    SCHEDULED_DASHBOARD = 'scheduledDashboard',
-    CALCULATE_TOTAL = 'calculateTotal',
-    API = 'api',
-    CLI = 'cli',
-}
-
 export const getContextFromHeader = (req: Request) => {
     const method = getRequestMethod(req.header(LightdashRequestMethodHeader));
     switch (method) {
@@ -183,6 +165,24 @@ export const getContextFromHeader = (req: Request) => {
         default:
             return undefined;
     }
+};
+
+export const getContextFromQueryOrHeader = (
+    req: Request,
+): QueryExecutionContext | undefined => {
+    const context: QueryExecutionContext | undefined =
+        typeof req.query.context === 'string'
+            ? (req.query.context as QueryExecutionContext)
+            : undefined;
+    if (context) {
+        for (const [key, value] of Object.entries(QueryExecutionContext)) {
+            if (value.toLowerCase() === context.toLowerCase()) {
+                return value as QueryExecutionContext;
+            }
+        }
+        console.warn('Invalid query execution context', context);
+    }
+    return getContextFromHeader(req);
 };
 
 type MetricQueryExecutionProperties = {
@@ -935,8 +935,8 @@ export type DownloadCsv = BaseTrack & {
         context?:
             | 'results'
             | 'chart'
-            | 'scheduled delivery chart'
-            | 'scheduled delivery dashboard'
+            | QueryExecutionContext.ALERT
+            | QueryExecutionContext.SCHEDULED_DELIVERY
             | 'sql runner'
             | 'dashboard csv zip';
         storage?: 'local' | 's3';

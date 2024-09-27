@@ -3,13 +3,10 @@ import {
     ApiErrorPayload,
     ApiQueryResults,
     CacheMetadata,
-    getRequestMethod,
     Item,
-    LightdashRequestMethodHeader,
     MetricQuery,
     MetricQueryRequest,
     MetricQueryResponse,
-    RequestMethod,
 } from '@lightdash/common';
 import {
     Body,
@@ -24,10 +21,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import {
-    getContextFromHeader,
-    QueryExecutionContext,
-} from '../analytics/LightdashAnalytics';
+import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
