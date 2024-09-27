@@ -30,6 +30,7 @@ import {
     NotificationFrequency,
     NotificationPayloadBase,
     operatorActionValue,
+    QueryExecutionContext,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
     SchedulerFilterRule,
@@ -58,7 +59,6 @@ import {
     DownloadCsv,
     LightdashAnalytics,
     parseAnalyticsLimit,
-    QueryExecutionContext,
 } from '../analytics/LightdashAnalytics';
 import { S3Client } from '../clients/Aws/s3';
 import EmailClient from '../clients/EmailClient/EmailClient';

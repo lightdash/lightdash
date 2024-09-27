@@ -27,6 +27,7 @@ type Args<T extends ResultsRunner> = {
     // Different pages may need to refresh this query based on parameters
     // that are unused in this hook.
     additionalQueryKey?: UseQueryOptions['queryKey'];
+    context?: string;
 };
 export const useChartViz = <T extends ResultsRunner>({
     projectUuid,
@@ -37,6 +38,7 @@ export const useChartViz = <T extends ResultsRunner>({
     resultsRunner,
     config,
     additionalQueryKey,
+    context,
 }: Args<T>) => {
     const org = useOrganization();
 
@@ -90,6 +92,7 @@ export const useChartViz = <T extends ResultsRunner>({
                     limit,
                     slug,
                     uuid,
+                    context,
                 );
             } catch (e) {
                 if (isApiError(e)) {

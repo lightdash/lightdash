@@ -121,6 +121,7 @@ export class CartesianChartDataModel
         limit?: number,
         slug?: string,
         uuid?: string,
+        context?: string,
     ) {
         if (!layout) {
             return undefined;
@@ -133,6 +134,7 @@ export class CartesianChartDataModel
             limit,
             slug,
             uuid,
+            context,
         );
     }
 

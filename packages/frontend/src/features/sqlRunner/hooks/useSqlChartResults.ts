@@ -15,16 +15,20 @@ export const getSqlChartResults = async ({
     projectUuid,
     slug,
     getResultsFromStream,
+    context,
 }: {
     projectUuid: string;
     slug: string;
     getResultsFromStream: ReturnType<
         typeof useResultsFromStreamWorker
     >['getResultsFromStream'];
+    context: string | undefined;
 }) => {
     const scheduledJob = await lightdashApi<ApiJobScheduledResponse['results']>(
         {
-            url: `/projects/${projectUuid}/sqlRunner/saved/slug/${slug}/results-job`,
+            url: `/projects/${projectUuid}/sqlRunner/saved/slug/${slug}/results-job${
+                context ? `?context=${context}` : ''
+            }`,
             method: 'GET',
             body: undefined,
         },

@@ -14,6 +14,7 @@ import {
     OrganizationMemberRole,
     PinnedItem,
     ProjectMemberRole,
+    QueryExecutionContext,
     RequestMethod,
     SchedulerFormat,
     SemanticLayerQuery,
@@ -152,27 +153,6 @@ type UserJoinOrganizationEvent = BaseTrack & {
         projectIds: string[];
     };
 };
-
-export enum QueryExecutionContext {
-    DASHBOARD = 'dashboardView',
-    AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
-    EXPLORE = 'exploreView',
-    CHART = 'chartView',
-    SQL_CHART = 'sqlChartView',
-    SQL_RUNNER = 'sqlRunner',
-    VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
-    ALERT = 'alert',
-    SCHEDULED_DELIVERY = 'scheduledDelivery',
-    CSV = 'csvDownload',
-    GSHEETS = 'gsheets',
-    SCHEDULED_GSHEETS_CHART = 'scheduledGsheetsChart',
-    SCHEDULED_GSHEETS_DASHBOARD = 'scheduledGsheetsDashboard',
-    SCHEDULED_CHART = 'scheduledChart',
-    SCHEDULED_DASHBOARD = 'scheduledDashboard',
-    CALCULATE_TOTAL = 'calculateTotal',
-    API = 'api',
-    CLI = 'cli',
-}
 
 export const getContextFromHeader = (req: Request) => {
     const method = getRequestMethod(req.header(LightdashRequestMethodHeader));
