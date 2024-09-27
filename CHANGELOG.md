@@ -1,3 +1,10 @@
+# [0.1278.0](https://github.com/lightdash/lightdash/compare/0.1277.0...0.1278.0) (2024-09-27)
+
+
+### Features
+
+* add context to deliveries ([#11683](https://github.com/lightdash/lightdash/issues/11683)) ([c7b6cd1](https://github.com/lightdash/lightdash/commit/c7b6cd133b463b7f2aef19845c45567fd8198e7d))
+
 # [0.1277.0](https://github.com/lightdash/lightdash/compare/0.1276.3...0.1277.0) (2024-09-27)
 
 
