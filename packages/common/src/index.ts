@@ -8,7 +8,6 @@ import {
     type DashboardBasicDetails,
     type DashboardSummary,
 } from './types/dashboard';
-import { type DbtCloudIntegration } from './types/dbtCloud';
 import { type Explore, type SummaryExplore } from './types/explore';
 import {
     DimensionType,
@@ -154,7 +153,6 @@ export * from './types/analytics';
 export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
-export * from './types/api/integrations';
 export * from './types/api/notifications';
 export * from './types/api/share';
 export * from './types/api/success';
@@ -167,7 +165,6 @@ export * from './types/content';
 export * from './types/csv';
 export * from './types/dashboard';
 export * from './types/dbt';
-export * from './types/dbtCloud';
 export * from './types/dbtSemanticLayer';
 export * from './types/downloadFile';
 export * from './types/email';
@@ -633,7 +630,6 @@ type ApiResults =
     | ProjectGroupAccess
     | SearchResults
     | Space
-    | DbtCloudIntegration
     | ShareUrl
     | SlackSettings
     | ApiSlackChannelsResponse['results']
