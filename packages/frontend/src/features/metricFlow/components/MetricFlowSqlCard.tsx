@@ -29,7 +29,7 @@ const MetricFlowSqlCard: FC<Props> = ({
     const sqlRunnerLink = useMemo(
         () => ({
             pathname: `/projects/${projectUuid}/sql-runner`,
-            state: { sql: sql ?? '' }, // pass SQL as state
+            state: { sql }, // pass SQL as state
         }),
         [projectUuid, sql],
     );

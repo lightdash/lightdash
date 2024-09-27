@@ -20,7 +20,7 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
                 component={Link}
                 to={{
                     pathname: `/projects/${projectUuid}/sql-runner`,
-                    state: { sql: data ?? '' }, // pass SQL as location state
+                    state: { sql: data }, // pass SQL as location state
                 }}
                 leftIcon={<MantineIcon icon={IconTerminal2} color="gray" />}
                 disabled={isInitialLoading || !!error}
