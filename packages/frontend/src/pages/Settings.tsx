@@ -331,6 +331,26 @@ const Settings: FC = () => {
                                         }
                                     />
 
+                                    {user.ability?.can(
+                                        'manage',
+                                        subject('Project', {
+                                            organizationUuid:
+                                                project.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        }),
+                                    ) ? (
+                                        <RouterNavLink
+                                            label="Semantic Layer"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/semanticLayer`}
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconCloudSearch}
+                                                />
+                                            }
+                                        />
+                                    ) : null}
+
                                     <RouterNavLink
                                         label="Tables configuration"
                                         exact
@@ -348,25 +368,6 @@ const Settings: FC = () => {
                                         to={`/generalSettings/projectManagement/${project.projectUuid}/projectAccess`}
                                         icon={<MantineIcon icon={IconUsers} />}
                                     />
-                                    {user.ability?.can(
-                                        'manage',
-                                        subject('Project', {
-                                            organizationUuid:
-                                                project.organizationUuid,
-                                            projectUuid: project.projectUuid,
-                                        }),
-                                    ) ? (
-                                        <RouterNavLink
-                                            label="dbt Semantic Layer"
-                                            exact
-                                            to={`/generalSettings/projectManagement/${project.projectUuid}/integrations/dbtCloud`}
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconCloudSearch}
-                                                />
-                                            }
-                                        />
-                                    ) : null}
 
                                     {user.ability.can(
                                         'view',
@@ -584,7 +585,6 @@ const Settings: FC = () => {
                         <Route
                             path={[
                                 '/generalSettings/projectManagement/:projectUuid/:tab?',
-                                '/generalSettings/projectManagement/:projectUuid/integrations/:tab',
                             ]}
                             exact
                         >

@@ -82,6 +82,7 @@ import {
     RequestMethod,
     ResultRow,
     SavedChartsInfoForDashboardAvailableFilters,
+    SemanticLayerConnection,
     SessionUser,
     snakeCaseName,
     SortByDirection,
@@ -4363,5 +4364,25 @@ export class ProjectService extends BaseService {
             warehouseClient,
         );
         return explore;
+    }
+
+    async updateSemanticLayerConnection(
+        user: SessionUser,
+        projectUuid: string,
+        payload: SemanticLayerConnection | undefined,
+    ) {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        if (user.ability.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        const updatedProject =
+            await this.projectModel.updateSemanticLayerConnection(
+                projectUuid,
+                payload,
+            );
+
+        return updatedProject;
     }
 }

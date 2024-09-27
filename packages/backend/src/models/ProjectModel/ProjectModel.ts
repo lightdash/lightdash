@@ -1824,4 +1824,20 @@ export class ProjectModel {
 
         return { name };
     }
+
+    async updateSemanticLayerConnection(
+        projectUuid: string,
+        connection: SemanticLayerConnection | undefined,
+    ) {
+        const [updatedProject] = await this.database(ProjectTableName)
+            .update({
+                semantic_layer_connection: connection
+                    ? this.encryptionUtil.encrypt(JSON.stringify(connection))
+                    : null,
+            })
+            .where('project_uuid', projectUuid)
+            .returning('*');
+
+        return updatedProject;
+    }
 }

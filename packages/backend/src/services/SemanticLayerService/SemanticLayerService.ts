@@ -54,12 +54,6 @@ export class SemanticLayerService extends BaseService {
 
     private readonly s3Client: S3Client;
 
-    // Clients initialized inside the service.
-
-    private cubeClient?: CubeClient;
-
-    private dbtCloudClient?: DbtCloudGraphqlClient;
-
     // Services
 
     private readonly savedSemanticViewerChartService: SavedSemanticViewerChartService;
@@ -136,19 +130,15 @@ export class SemanticLayerService extends BaseService {
 
         switch (semanticLayerConnectionType) {
             case SemanticLayerType.CUBE:
-                this.cubeClient ??= new CubeClient({
+                return new CubeClient({
                     lightdashConfig: this.lightdashConfig,
                     connectionCredentials: project.semanticLayerConnection,
                 });
-                return this.cubeClient;
-
             case SemanticLayerType.DBT:
-                this.dbtCloudClient ??= new DbtCloudGraphqlClient({
+                return new DbtCloudGraphqlClient({
                     lightdashConfig: this.lightdashConfig,
                     connectionCredentials: project.semanticLayerConnection,
                 });
-
-                return this.dbtCloudClient;
             default:
                 return assertUnreachable(
                     semanticLayerConnectionType,
