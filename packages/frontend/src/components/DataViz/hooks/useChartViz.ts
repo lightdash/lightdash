@@ -28,6 +28,7 @@ type Args<T extends ResultsRunner> = {
     // that are unused in this hook.
     additionalQueryKey?: UseQueryOptions['queryKey'];
     context?: string;
+    inDashboard?: boolean;
 };
 export const useChartViz = <T extends ResultsRunner>({
     projectUuid,
@@ -39,6 +40,7 @@ export const useChartViz = <T extends ResultsRunner>({
     config,
     additionalQueryKey,
     context,
+    inDashboard = false,
 }: Args<T>) => {
     const org = useOrganization();
 
@@ -115,23 +117,35 @@ export const useChartViz = <T extends ResultsRunner>({
             isVizPieChartConfig(config) &&
             chartDataModel instanceof PieChartDataModel
         ) {
-            return chartDataModel.getEchartsSpec(
-                transformedData,
-                config.display,
-            );
+            return {
+                ...chartDataModel.getEchartsSpec(
+                    transformedData,
+                    config.display,
+                ),
+                animation: !inDashboard,
+            };
         }
         if (
             isVizCartesianChartConfig(config) &&
             chartDataModel instanceof CartesianChartDataModel
         ) {
-            return chartDataModel.getEchartsSpec(
-                transformedData,
-                config.display,
-                config.type,
-                org?.data?.chartColors,
-            );
+            return {
+                ...chartDataModel.getEchartsSpec(
+                    transformedData,
+                    config.display,
+                    config.type,
+                    org?.data?.chartColors,
+                ),
+                animation: !inDashboard,
+            };
         }
-    }, [chartDataModel, config, org?.data?.chartColors, transformedDataQuery]);
+    }, [
+        chartDataModel,
+        config,
+        org?.data?.chartColors,
+        transformedDataQuery,
+        inDashboard,
+    ]);
 
     return [transformedDataQuery, chartSpec] as const;
 };

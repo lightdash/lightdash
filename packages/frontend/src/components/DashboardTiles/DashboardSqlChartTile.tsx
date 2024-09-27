@@ -105,6 +105,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         limit: data?.chart.limit,
         additionalQueryKey: [data?.chart.slug, data?.chart.sql, savedSqlUuid],
         context,
+        inDashboard: true,
     });
 
     if (isLoading) {
