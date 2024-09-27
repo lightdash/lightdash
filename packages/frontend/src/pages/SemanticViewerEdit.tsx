@@ -96,8 +96,8 @@ const SemanticViewerEditorPageWithStore = () => {
     ]);
 
     const savedChartSpaceUserAccess =
-        chartQuery.isSuccess && chartQuery.data.chart.space.userAccess
-            ? [chartQuery.data.chart.space.userAccess]
+        chartQuery.isSuccess && chartQuery.data.space.userAccess
+            ? [chartQuery.data.space.userAccess]
             : [];
 
     const canManageSemanticViewer = user.data?.ability?.can(
