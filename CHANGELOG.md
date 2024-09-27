@@ -1,3 +1,10 @@
+# [0.1277.0](https://github.com/lightdash/lightdash/compare/0.1276.3...0.1277.0) (2024-09-27)
+
+
+### Features
+
+* semantic viewer slug ([#11703](https://github.com/lightdash/lightdash/issues/11703)) ([e8e3e47](https://github.com/lightdash/lightdash/commit/e8e3e4728ab3c64a862dd0afa3f44bf48013a70d))
+
 ## [0.1276.3](https://github.com/lightdash/lightdash/compare/0.1276.2...0.1276.3) (2024-09-27)
 
 
