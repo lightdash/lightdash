@@ -24,13 +24,16 @@ import { SemanticViewerVizConfig } from './SemanticViewerVizConfig';
 import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
 
-const Sidebar: FC = () => {
+type SidebarProps = {
+    shouldShowSave?: boolean;
+};
+
+const Sidebar: FC<SidebarProps> = ({ shouldShowSave }) => {
     const { features, projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const { semanticLayerView, saveModalOpen } = useAppSelector(
         (state) => state.semanticViewer,
     );
     const history = useHistory();
-
     const dispatch = useAppDispatch();
 
     const handleExitView = () => {
@@ -61,7 +64,7 @@ const Sidebar: FC = () => {
                     borderBottom: `1px solid ${theme.colors.gray[3]}`,
                 })}
             >
-                {semanticLayerView && (
+                {semanticLayerView && shouldShowSave && (
                     <>
                         <SaveChart.Content />
                         {saveModalOpen && (

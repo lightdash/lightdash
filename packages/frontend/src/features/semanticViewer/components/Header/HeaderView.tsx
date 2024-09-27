@@ -45,12 +45,16 @@ export const HeaderView: FC<Props> = ({
         { open: openAddToDashboardModal, close: closeAddToDashboardModal },
     ] = useDisclosure(false);
 
-    const canManageSemanticViewerChart = user.data?.ability?.can(
+    const savedChartSpaceUserAccess = chart.space.userAccess
+        ? [chart.space.userAccess]
+        : [];
+
+    const canManageSemanticViewer = user.data?.ability?.can(
         'manage',
-        // TODO: change to permissions for semantic viewer
-        subject('SqlRunner', {
+        subject('SemanticViewer', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
+            access: savedChartSpaceUserAccess,
         }),
     );
 
@@ -60,7 +64,7 @@ export const HeaderView: FC<Props> = ({
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
             isPrivate: chart.space.isPrivate,
-            access: chart.space.userAccess,
+            access: savedChartSpaceUserAccess,
         }),
     );
 
@@ -99,7 +103,7 @@ export const HeaderView: FC<Props> = ({
                     </Stack>
 
                     <Group spacing="md">
-                        {canManageSemanticViewerChart && canManageChart && (
+                        {canManageSemanticViewer && canManageChart && (
                             <Button
                                 size="xs"
                                 variant="default"
@@ -145,7 +149,7 @@ export const HeaderView: FC<Props> = ({
                                     color="red"
                                     disabled={
                                         !(
-                                            canManageSemanticViewerChart &&
+                                            canManageSemanticViewer &&
                                             canManageChart
                                         )
                                     }

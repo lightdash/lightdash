@@ -61,6 +61,9 @@ export const projectMemberAbilities: Record<
         can('view', 'UnderlyingData', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'SemanticViewer', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'Explore', {
             projectUuid: member.projectUuid,
         });
@@ -83,6 +86,15 @@ export const projectMemberAbilities: Record<
             },
         });
         can('manage', 'SavedChart', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('manage', 'SemanticViewer', {
             projectUuid: member.projectUuid,
             access: {
                 $elemMatch: {
@@ -135,6 +147,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'DashboardComments', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'SemanticViewer', {
             projectUuid: member.projectUuid,
         });
     },

@@ -10,6 +10,7 @@ import {
     SemanticLayerResultRow,
     SemanticLayerView,
     SessionUser,
+    type AbilityAction,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
@@ -100,11 +101,27 @@ export class SemanticLayerService extends BaseService {
         return project;
     }
 
-    async getSemanticLayerClient(
-        projectUuid: string,
-    ): Promise<CubeClient | DbtCloudGraphqlClient> {
-        // TODO: get different client based on project, right now we're only doing this based on config
+    private static async checkSemanticViewerAccess(
+        action: AbilityAction,
+        {
+            user,
+            projectUuid,
+            organizationUuid,
+        }: { user: SessionUser; projectUuid: string; organizationUuid: string },
+    ) {
+        if (
+            user.ability.cannot(
+                action,
+                subject('SemanticViewer', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
 
+    async getSemanticLayerClient(
+        _projectUuid: string, // TODO: get different client based on project, right now we're only doing this based on config
+    ): Promise<CubeClient | DbtCloudGraphqlClient> {
         if (
             !!this.lightdashConfig.dbtCloud.bearerToken &&
             !!this.lightdashConfig.dbtCloud.environmentId
@@ -130,6 +147,12 @@ export class SemanticLayerService extends BaseService {
             user,
             projectUuid,
         );
+
+        await SemanticLayerService.checkSemanticViewerAccess('view', {
+            user,
+            projectUuid,
+            organizationUuid,
+        });
 
         return this.analytics.wrapEvent<any[]>(
             {
@@ -160,8 +183,19 @@ export class SemanticLayerService extends BaseService {
             'dimensions' | 'timeDimensions' | 'metrics'
         >,
     ): Promise<SemanticLayerField[]> {
-        await this.checkCanViewProject(user, projectUuid);
+        const { organizationUuid } = await this.checkCanViewProject(
+            user,
+            projectUuid,
+        );
+
+        await SemanticLayerService.checkSemanticViewerAccess('view', {
+            user,
+            projectUuid,
+            organizationUuid,
+        });
+
         const client = await this.getSemanticLayerClient(projectUuid);
+
         return client.getFields(view, selectedFields);
     }
 
@@ -172,7 +206,17 @@ export class SemanticLayerService extends BaseService {
     ) {
         this.validateQueryLimit(query);
 
-        await this.checkCanViewProject(user, projectUuid);
+        const { organizationUuid } = await this.checkCanViewProject(
+            user,
+            projectUuid,
+        );
+
+        await SemanticLayerService.checkSemanticViewerAccess('view', {
+            user,
+            projectUuid,
+            organizationUuid,
+        });
+
         await this.getSemanticLayerClient(projectUuid); // Check if client is available
 
         const jobId = await this.schedulerClient.semanticLayerStreamingResults({
@@ -284,9 +328,20 @@ export class SemanticLayerService extends BaseService {
         projectUuid: string,
         query: SemanticLayerQuery,
     ): Promise<string> {
-        await this.checkCanViewProject(user, projectUuid);
+        const { organizationUuid } = await this.checkCanViewProject(
+            user,
+            projectUuid,
+        );
+
+        await SemanticLayerService.checkSemanticViewerAccess('view', {
+            user,
+            projectUuid,
+            organizationUuid,
+        });
+
         const client = await this.getSemanticLayerClient(projectUuid);
         this.validateQueryLimit(query);
+
         return client.getSql(query);
     }
 
@@ -294,7 +349,17 @@ export class SemanticLayerService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SemanticLayerClientInfo> {
-        await this.checkCanViewProject(user, projectUuid);
+        const { organizationUuid } = await this.checkCanViewProject(
+            user,
+            projectUuid,
+        );
+
+        await SemanticLayerService.checkSemanticViewerAccess('view', {
+            user,
+            projectUuid,
+            organizationUuid,
+        });
+
         const client = await this.getSemanticLayerClient(projectUuid);
         return client.getClientInfo();
     }
@@ -314,6 +379,12 @@ export class SemanticLayerService extends BaseService {
                 projectUuid,
                 findBy,
             );
+
+        await SemanticLayerService.checkSemanticViewerAccess('view', {
+            user,
+            projectUuid,
+            organizationUuid: savedChart.organization.organizationUuid,
+        });
 
         const { hasAccess: hasViewAccess } =
             await this.savedSemanticViewerChartService.hasSavedChartAccess(

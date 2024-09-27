@@ -11,6 +11,7 @@ import {
     SpaceShare,
     SpaceSummary,
     VIZ_DEFAULT_AGGREGATION,
+    type AbilityAction,
     type SemanticViewerChartCreate,
     type SemanticViewerChartCreateResult,
     type SemanticViewerChartUpdate,
@@ -98,7 +99,7 @@ export class SavedSemanticViewerChartService extends BaseService {
 
     private async hasAccess(
         user: SessionUser,
-        action: 'view' | 'create' | 'update' | 'delete' | 'manage',
+        action: AbilityAction,
         {
             spaceUuid,
             projectUuid,
@@ -131,7 +132,7 @@ export class SavedSemanticViewerChartService extends BaseService {
     // I think it should be combined now
     async hasSavedChartAccess(
         user: SessionUser,
-        action: 'view' | 'create' | 'update' | 'delete' | 'manage',
+        action: AbilityAction,
         savedChart: {
             project: Pick<Project, 'projectUuid'>;
             organization: Pick<Organization, 'organizationUuid'>;
@@ -208,15 +209,7 @@ export class SavedSemanticViewerChartService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
-        if (
-            user.ability.cannot(
-                'manage',
-                // TODO: add it's own ability
-                subject('CustomSql', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+
         const { hasAccess: hasCreateAccess } = await this.hasAccess(
             user,
             'create',
@@ -232,6 +225,7 @@ export class SavedSemanticViewerChartService extends BaseService {
                 "You don't have permission to create this chart",
             );
         }
+
         const createdChart = await this.savedSemanticViewerChartModel.create(
             user.userUuid,
             projectUuid,
@@ -275,15 +269,6 @@ export class SavedSemanticViewerChartService extends BaseService {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
-        if (
-            user.ability.cannot(
-                'manage',
-                // TODO: add it's own ability
-                subject('CustomSql', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
 
         const savedChart = await this.savedSemanticViewerChartModel.getByUuid(
             projectUuid,
@@ -295,6 +280,7 @@ export class SavedSemanticViewerChartService extends BaseService {
             'update',
             savedChart,
         );
+
         if (!hasUpdateAccess) {
             throw new ForbiddenError(
                 "You don't have permission to update this chart",
@@ -364,11 +350,13 @@ export class SavedSemanticViewerChartService extends BaseService {
             projectUuid,
             savedSemanticViewerChartUuid,
         );
+
         const { hasAccess: hasDeleteAccess } = await this.hasSavedChartAccess(
             user,
             'delete',
             savedChart,
         );
+
         if (!hasDeleteAccess) {
             throw new ForbiddenError(
                 "You don't have permission to delete this chart",
