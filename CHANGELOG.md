@@ -1,3 +1,17 @@
+## [0.1276.2](https://github.com/lightdash/lightdash/compare/0.1276.1...0.1276.2) (2024-09-27)
+
+
+### Bug Fixes
+
+* show oidc buttons on invite and register pages ([#11696](https://github.com/lightdash/lightdash/issues/11696)) ([6c47796](https://github.com/lightdash/lightdash/commit/6c477968aaf63bdb7828de17dbc10b5cc4067862))
+
+## [0.1276.1](https://github.com/lightdash/lightdash/compare/0.1276.0...0.1276.1) (2024-09-26)
+
+
+### Bug Fixes
+
+* apply w100 to chart view ([#11700](https://github.com/lightdash/lightdash/issues/11700)) ([4eec6e7](https://github.com/lightdash/lightdash/commit/4eec6e78e9a5405ee1a40ab9174ae61ae76efd07))
+
 # [0.1276.0](https://github.com/lightdash/lightdash/compare/0.1275.0...0.1276.0) (2024-09-26)
 
 
