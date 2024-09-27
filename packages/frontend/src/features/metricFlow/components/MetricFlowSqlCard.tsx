@@ -25,14 +25,15 @@ const MetricFlowSqlCard: FC<Props> = ({
     canRedirectToSqlRunner = false,
 }) => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
-    const sqlRunnerUrl = useMemo(() => {
-        const params = new URLSearchParams({
-            sql_runner: JSON.stringify({
-                sql: sql ?? '',
-            }),
-        });
-        return `/projects/${projectUuid}/sqlRunner?${params.toString()}`;
-    }, [projectUuid, sql]);
+
+    const sqlRunnerLink = useMemo(
+        () => ({
+            pathname: `/projects/${projectUuid}/sql-runner`,
+            state: { sql }, // pass SQL as state
+        }),
+        [projectUuid, sql],
+    );
+
     return (
         <CollapsableCard
             title="SQL"
@@ -45,7 +46,7 @@ const MetricFlowSqlCard: FC<Props> = ({
                         variant="default"
                         size="xs"
                         component={Link}
-                        to={sqlRunnerUrl}
+                        to={sqlRunnerLink}
                         leftIcon={
                             <MantineIcon icon={IconTerminal2} color="gray" />
                         }
