@@ -1,3 +1,10 @@
+# [0.1280.0](https://github.com/lightdash/lightdash/compare/0.1279.0...0.1280.0) (2024-09-27)
+
+
+### Features
+
+* redirect sql runner to new runner ([#11711](https://github.com/lightdash/lightdash/issues/11711)) ([f79710d](https://github.com/lightdash/lightdash/commit/f79710daea0d1594aee5d3b7b688daf8255c845b))
+
 # [0.1279.0](https://github.com/lightdash/lightdash/compare/0.1278.0...0.1279.0) (2024-09-27)
 
 
