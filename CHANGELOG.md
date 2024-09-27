@@ -1,3 +1,10 @@
+## [0.1276.3](https://github.com/lightdash/lightdash/compare/0.1276.2...0.1276.3) (2024-09-27)
+
+
+### Bug Fixes
+
+* get correct uuid column for resource actions ([#11704](https://github.com/lightdash/lightdash/issues/11704)) ([594bb27](https://github.com/lightdash/lightdash/commit/594bb272c5d91cb059ec8bf452fbf4d78af8f9f7))
+
 ## [0.1276.2](https://github.com/lightdash/lightdash/compare/0.1276.1...0.1276.2) (2024-09-27)
 
 
