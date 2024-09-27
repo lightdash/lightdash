@@ -34,8 +34,6 @@ type SearchServiceArguments = {
     downloadFileModel: DownloadFileModel;
     // Clients
     schedulerClient: SchedulerClient;
-    cubeClient: CubeClient;
-    dbtCloudClient: DbtCloudGraphqlClient;
     s3Client: S3Client;
     // Services
     savedSemanticViewerChartService: SavedSemanticViewerChartService;
@@ -50,14 +48,17 @@ export class SemanticLayerService extends BaseService {
 
     private readonly downloadFileModel: DownloadFileModel;
 
+    // Clients
+
     private readonly schedulerClient: SchedulerClient;
 
-    // Clients
-    private readonly cubeClient: CubeClient;
-
-    private readonly dbtCloudClient: DbtCloudGraphqlClient;
-
     private readonly s3Client: S3Client;
+
+    // Clients initialized inside the service.
+
+    private cubeClient?: CubeClient;
+
+    private dbtCloudClient?: DbtCloudGraphqlClient;
 
     // Services
 
@@ -71,8 +72,6 @@ export class SemanticLayerService extends BaseService {
         this.downloadFileModel = args.downloadFileModel;
         this.schedulerClient = args.schedulerClient;
         // Clients
-        this.cubeClient = args.cubeClient;
-        this.dbtCloudClient = args.dbtCloudClient;
         this.s3Client = args.s3Client;
         // Services
         this.savedSemanticViewerChartService =
@@ -137,8 +136,18 @@ export class SemanticLayerService extends BaseService {
 
         switch (semanticLayerConnectionType) {
             case SemanticLayerType.CUBE:
+                this.cubeClient ??= new CubeClient({
+                    lightdashConfig: this.lightdashConfig,
+                    connectionCredentials: project.semanticLayerConnection,
+                });
                 return this.cubeClient;
+
             case SemanticLayerType.DBT:
+                this.dbtCloudClient ??= new DbtCloudGraphqlClient({
+                    lightdashConfig: this.lightdashConfig,
+                    connectionCredentials: project.semanticLayerConnection,
+                });
+
                 return this.dbtCloudClient;
             default:
                 return assertUnreachable(

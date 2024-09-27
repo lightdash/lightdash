@@ -298,7 +298,8 @@ export type DbtProjectConfig =
 
 export type DbtSemanticLayerConnection = {
     type: SemanticLayerType.DBT;
-    environmentId: number;
+    environmentId: string;
+    domain: string;
     token: string;
 };
 

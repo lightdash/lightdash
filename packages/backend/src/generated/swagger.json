@@ -5305,8 +5305,62 @@
                 "enum": ["v1.4", "v1.5", "v1.6", "v1.7", "v1.8"],
                 "type": "string"
             },
+            "SemanticLayerType.DBT": {
+                "enum": ["DBT"],
+                "type": "string"
+            },
+            "DbtSemanticLayerConnection": {
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "environmentId": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/SemanticLayerType.DBT"
+                    }
+                },
+                "required": ["token", "domain", "environmentId", "type"],
+                "type": "object"
+            },
+            "SemanticLayerType.CUBE": {
+                "enum": ["CUBE"],
+                "type": "string"
+            },
+            "CubeSemanticLayerConnection": {
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/SemanticLayerType.CUBE"
+                    }
+                },
+                "required": ["token", "domain", "type"],
+                "type": "object"
+            },
+            "SemanticLayerConnection": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DbtSemanticLayerConnection"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CubeSemanticLayerConnection"
+                    }
+                ]
+            },
             "Project": {
                 "properties": {
+                    "semanticLayerConnection": {
+                        "$ref": "#/components/schemas/SemanticLayerConnection"
+                    },
                     "dbtVersion": {
                         "$ref": "#/components/schemas/SupportedDbtVersions"
                     },
@@ -10117,7 +10171,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1276.2",
+        "version": "0.1278.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -11993,71 +12047,6 @@
                         }
                     }
                 ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/dbtsemanticlayer": {
-            "post": {
-                "operationId": "GetDbtSemanticLayerData",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get DbtSemanticLayer data",
-                "tags": ["DbtSemanticLayer"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "the projectId",
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "description": "graphql query",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "operationName": {
-                                        "type": "string",
-                                        "enum": [
-                                            "GetFields",
-                                            "CreateQuery",
-                                            "GetQueryResults"
-                                        ]
-                                    },
-                                    "query": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["query"],
-                                "type": "object",
-                                "description": "graphql query"
-                            }
-                        }
-                    }
-                }
             }
         },
         "/api/v1/notifications": {
