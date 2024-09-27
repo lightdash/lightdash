@@ -520,7 +520,8 @@ export class UnfurlService extends BaseService {
                                             },
                                         ), // NOTE: No await here
                                 );
-                            const sqlChartQueryResultsPromises =
+                            // Wait for the query against the warehouse to be scheduled
+                            const sqlChartQueryJobPromises =
                                 sqlChartTileUuids?.map(
                                     () =>
                                         page?.waitForResponse(
@@ -530,10 +531,22 @@ export class UnfurlService extends BaseService {
                                             },
                                         ), // NOTE: No await here
                                 );
+                            // Wait for results to be returned from the warehouse
+                            const sqlChartQueryResultsPromises =
+                                sqlChartTileUuids?.map(
+                                    () =>
+                                        page?.waitForResponse(
+                                            /\/sqlRunner\/results/,
+                                            {
+                                                timeout: 60000,
+                                            },
+                                        ), // NOTE: No await here
+                                );
 
                             chartResultsPromises = [
                                 ...(exploreChartResultsPromises || []),
                                 ...(sqlChartResultsPromises || []),
+                                ...(sqlChartQueryJobPromises || []),
                                 ...(sqlChartQueryResultsPromises || []),
                             ];
                         } else if (lightdashPage === LightdashPage.CHART) {
