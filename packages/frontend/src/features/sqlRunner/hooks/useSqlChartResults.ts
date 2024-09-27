@@ -68,6 +68,7 @@ export const getSqlChartResults = async ({
 export const useSqlChartResults = (
     projectUuid: string,
     slug: string | undefined,
+    context?: string,
 ) => {
     const { getResultsFromStream } = useResultsFromStreamWorker();
     return useQuery<
@@ -80,6 +81,7 @@ export const useSqlChartResults = (
                 projectUuid,
                 slug: slug!,
                 getResultsFromStream,
+                context,
             });
         },
         {
