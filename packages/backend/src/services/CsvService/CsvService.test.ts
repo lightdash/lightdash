@@ -13,6 +13,7 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
@@ -59,6 +60,8 @@ describe('Csv service', () => {
         dashboardModel: {} as DashboardModel,
         downloadFileModel: {} as DownloadFileModel,
         schedulerClient: {} as SchedulerClient,
+        projectModel: {} as ProjectModel,
+        savedSqlModel: {} as SavedSqlModel,
     });
 
     it('Should convert rows to CSV with format', async () => {
