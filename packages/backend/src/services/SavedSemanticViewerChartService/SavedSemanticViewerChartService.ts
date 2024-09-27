@@ -148,27 +148,34 @@ export class SavedSemanticViewerChartService extends BaseService {
     async getSemanticViewerChart(
         user: SessionUser,
         projectUuid: string,
-        savedSemanticViewerChartUuid: string | undefined,
-        slug?: string,
+        findBy: {
+            uuid?: string;
+            slug?: string;
+        },
     ): Promise<SavedSemanticViewerChart> {
-        let savedChart;
-        if (savedSemanticViewerChartUuid) {
-            savedChart = await this.savedSemanticViewerChartModel.getByUuid(
-                savedSemanticViewerChartUuid,
-                {
-                    projectUuid,
-                },
+        if (!findBy.uuid && !findBy.slug) {
+            throw new Error(
+                'Either savedSemanticViewerChartUuid or slug must be provided',
             );
-        } else if (slug) {
+        }
+
+        let savedChart;
+        if (findBy.uuid) {
+            savedChart = await this.savedSemanticViewerChartModel.getByUuid(
+                projectUuid,
+                findBy.uuid,
+            );
+        } else if (findBy.slug) {
             savedChart = await this.savedSemanticViewerChartModel.getBySlug(
                 projectUuid,
-                slug,
+                findBy.slug,
             );
         } else {
             throw new Error(
                 'Either savedSemanticViewerChartUuid or slug must be provided',
             );
         }
+
         const { hasAccess: hasViewAccess, userAccess } =
             await this.hasSavedChartAccess(user, 'view', savedChart);
 
@@ -279,10 +286,8 @@ export class SavedSemanticViewerChartService extends BaseService {
         }
 
         const savedChart = await this.savedSemanticViewerChartModel.getByUuid(
+            projectUuid,
             savedSemanticViewerChartUuid,
-            {
-                projectUuid,
-            },
         );
 
         const { hasAccess: hasUpdateAccess } = await this.hasSavedChartAccess(
@@ -356,10 +361,8 @@ export class SavedSemanticViewerChartService extends BaseService {
         savedSemanticViewerChartUuid: string,
     ): Promise<void> {
         const savedChart = await this.savedSemanticViewerChartModel.getByUuid(
+            projectUuid,
             savedSemanticViewerChartUuid,
-            {
-                projectUuid,
-            },
         );
         const { hasAccess: hasDeleteAccess } = await this.hasSavedChartAccess(
             user,

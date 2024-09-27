@@ -9,7 +9,8 @@ import { useChartViz } from '../components/DataViz/hooks/useChartViz';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import {
-    useSavedSemanticViewerChartAndResults,
+    useSavedSemanticViewerChart,
+    useSavedSemanticViewerChartResults,
     useSemanticLayerViewFields,
 } from '../features/semanticViewer/api/hooks';
 import { HeaderView } from '../features/semanticViewer/components/Header/HeaderView';
@@ -25,58 +26,69 @@ const SemanticViewerViewPage = () => {
         ViewerTabs.VIZ,
     );
 
-    const { projectUuid, savedSemanticViewerChartUuid } = useParams<{
+    const { projectUuid, savedSemanticViewerChartSlug } = useParams<{
         projectUuid: string;
-        savedSemanticViewerChartUuid: string;
+        savedSemanticViewerChartSlug: string;
     }>();
 
-    const chartQuery = useSavedSemanticViewerChartAndResults({
+    const chartQuery = useSavedSemanticViewerChart({
         projectUuid,
-        uuid: savedSemanticViewerChartUuid,
+        findBy: { slug: savedSemanticViewerChartSlug },
+    });
+
+    const chartResultsQuery = useSavedSemanticViewerChartResults({
+        projectUuid,
+        findBy: { slug: savedSemanticViewerChartSlug },
     });
 
     const fieldsQuery = useSemanticLayerViewFields(
         {
             projectUuid,
             // TODO: this should never be empty or that hook should receive a null view!
-            semanticLayerView: chartQuery.data?.chart.semanticLayerView ?? '',
-            semanticLayerQuery: chartQuery.data?.chart.semanticLayerQuery,
+            semanticLayerView: chartQuery.data?.semanticLayerView ?? '',
+            semanticLayerQuery: chartQuery.data?.semanticLayerQuery,
         },
         { enabled: chartQuery.isSuccess },
     );
 
     const resultsRunner = useMemo(() => {
-        if (!chartQuery.isSuccess || !fieldsQuery.isSuccess) {
+        if (
+            !fieldsQuery.isSuccess ||
+            !chartQuery.isSuccess ||
+            !chartResultsQuery.isSuccess
+        ) {
             return;
         }
 
         const vizColumns =
             SemanticViewerResultsRunner.convertColumnsToVizColumns(
                 fieldsQuery.data,
-                chartQuery.data.results.columns,
+                chartResultsQuery.data.columns,
             );
 
         return new SemanticViewerResultsRunner({
             projectUuid,
             fields: fieldsQuery.data,
-            query: chartQuery.data.chart.semanticLayerQuery,
-            rows: chartQuery.data.results.results,
+            query: chartQuery.data.semanticLayerQuery,
+            rows: chartResultsQuery.data.results,
             columns: vizColumns,
         });
     }, [
-        chartQuery.isSuccess,
-        chartQuery.data,
+        projectUuid,
         fieldsQuery.isSuccess,
         fieldsQuery.data,
-        projectUuid,
+        chartQuery.isSuccess,
+        chartQuery.data,
+        chartResultsQuery.isSuccess,
+        chartResultsQuery.data,
     ]);
 
     const [chartVizQuery, chartSpec] = useChartViz({
         projectUuid,
         resultsRunner,
-        uuid: savedSemanticViewerChartUuid,
-        config: chartQuery.data?.chart.config,
-        slug: chartQuery.data?.chart.slug,
+        uuid: chartQuery.data?.savedSemanticViewerChartUuid,
+        config: chartQuery.data?.config,
+        slug: chartQuery.data?.slug,
     });
 
     const pivotResultsRunner = useMemo(() => {
@@ -88,11 +100,11 @@ const SemanticViewerViewPage = () => {
             return;
         }
 
-        if (chartQuery.data.chart.config.type === ChartKind.TABLE) return;
+        if (chartQuery.data.config.type === ChartKind.TABLE) return;
 
         return new SemanticViewerResultsRunner({
             projectUuid,
-            query: chartQuery.data.chart.semanticLayerQuery,
+            query: chartQuery.data.semanticLayerQuery,
             rows: chartVizQuery.data?.results ?? [],
             columns: chartVizQuery.data?.columns ?? [],
             fields: fieldsQuery.data,
@@ -117,7 +129,7 @@ const SemanticViewerViewPage = () => {
         return null;
     }
 
-    const chartType = chartQuery.data.chart.config.type;
+    const chartType = chartQuery.data.config.type;
 
     // TODO: add loading state
     if (chartType !== ChartKind.TABLE && chartVizQuery.isLoading) {
@@ -132,7 +144,7 @@ const SemanticViewerViewPage = () => {
             header={
                 <HeaderView
                     projectUuid={projectUuid}
-                    savedSemanticViewerChart={chartQuery.data.chart}
+                    savedSemanticViewerChart={chartQuery.data}
                 />
             }
         >
@@ -187,7 +199,7 @@ const SemanticViewerViewPage = () => {
                 chartType === ChartKind.PIE ? (
                     <Box h="100%" w="100%" mih="inherit" pos="relative">
                         <ChartView
-                            config={chartQuery.data.chart.config}
+                            config={chartQuery.data.config}
                             spec={chartSpec}
                             isLoading={chartVizQuery.isLoading}
                             error={chartVizQuery.error}
@@ -204,9 +216,7 @@ const SemanticViewerViewPage = () => {
                             {/* So that the Table tile isn't cropped by the overflow */}
                             <Table
                                 resultsRunner={resultsRunner}
-                                columnsConfig={
-                                    chartQuery.data.chart.config.columns
-                                }
+                                columnsConfig={chartQuery.data.config.columns}
                             />
                         </Box>
                     ) : null

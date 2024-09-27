@@ -17705,7 +17705,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v2/projects/:projectUuid/semantic-layer/saved/:uuid',
+        '/api/v2/projects/:projectUuid/semantic-layer/saved',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
             SemanticLayerController.prototype.getSavedSemanticViewerChart,
@@ -17717,11 +17717,11 @@ export function RegisterRoutes(app: express.Router) {
             next: any,
         ) {
             const args = {
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
+                req: {
+                    in: 'request',
+                    name: 'req',
                     required: true,
-                    dataType: 'string',
+                    dataType: 'object',
                 },
                 projectUuid: {
                     in: 'path',
@@ -17729,12 +17729,8 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
+                slug: { in: 'query', name: 'slug', dataType: 'string' },
+                uuid: { in: 'query', name: 'uuid', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -17768,7 +17764,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.get(
-        '/api/v2/projects/:projectUuid/semantic-layer/saved/:uuid/results-job',
+        '/api/v2/projects/:projectUuid/semantic-layer/saved/results-job',
         ...fetchMiddlewares<RequestHandler>(SemanticLayerController),
         ...fetchMiddlewares<RequestHandler>(
             SemanticLayerController.prototype
@@ -17781,11 +17777,11 @@ export function RegisterRoutes(app: express.Router) {
             next: any,
         ) {
             const args = {
-                uuid: {
-                    in: 'path',
-                    name: 'uuid',
+                req: {
+                    in: 'request',
+                    name: 'req',
                     required: true,
-                    dataType: 'string',
+                    dataType: 'object',
                 },
                 projectUuid: {
                     in: 'path',
@@ -17793,12 +17789,8 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
+                slug: { in: 'query', name: 'slug', dataType: 'string' },
+                uuid: { in: 'query', name: 'uuid', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

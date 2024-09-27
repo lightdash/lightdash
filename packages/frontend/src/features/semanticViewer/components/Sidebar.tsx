@@ -41,9 +41,9 @@ const Sidebar: FC = () => {
         (state) => state.semanticViewer,
     );
 
-    const handleSave = (uuid: string) => {
+    const handleSave = (slug: string) => {
         history.replace(
-            `/projects/${projectUuid}/semantic-viewer/${uuid}/edit`,
+            `/projects/${projectUuid}/semantic-viewer/${slug}/edit`,
         );
     };
 
