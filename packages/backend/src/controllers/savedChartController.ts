@@ -7,7 +7,6 @@ import {
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
     DateGranularity,
-    PromotionChanges,
     SortField,
 } from '@lightdash/common';
 import {
@@ -27,7 +26,6 @@ import express from 'express';
 import {
     getContextFromHeader,
     getContextFromQueryOrHeader,
-    QueryExecutionContext,
 } from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
