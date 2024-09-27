@@ -253,9 +253,11 @@ export default class SchedulerTask {
             : undefined;
 
         const context =
-            scheduler.thresholds !== undefined
+            scheduler.thresholds === undefined ||
+            scheduler.thresholds.length === 0
                 ? QueryExecutionContext.SCHEDULED_DELIVERY
                 : QueryExecutionContext.ALERT;
+
         const {
             url,
             minimalUrl,
