@@ -1,3 +1,10 @@
+# [0.1281.0](https://github.com/lightdash/lightdash/compare/0.1280.0...0.1281.0) (2024-09-27)
+
+
+### Features
+
+* pivot table row grouping and subtotals ([#10269](https://github.com/lightdash/lightdash/issues/10269)) ([25d4be8](https://github.com/lightdash/lightdash/commit/25d4be8f84d754f12a1f1053b5b1e9f05e198e93))
+
 # [0.1280.0](https://github.com/lightdash/lightdash/compare/0.1279.0...0.1280.0) (2024-09-27)
 
 
