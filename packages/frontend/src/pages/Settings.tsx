@@ -5,7 +5,6 @@ import {
     IconBuildingSkyscraper,
     IconCalendarStats,
     IconChecklist,
-    IconCloudSearch,
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
@@ -331,7 +330,8 @@ const Settings: FC = () => {
                                         }
                                     />
 
-                                    {user.ability?.can(
+                                    {/* TODO: make this visible once we announce the feature */}
+                                    {/* {user.ability?.can(
                                         'manage',
                                         subject('Project', {
                                             organizationUuid:
@@ -349,7 +349,7 @@ const Settings: FC = () => {
                                                 />
                                             }
                                         />
-                                    ) : null}
+                                    ) : null} */}
 
                                     <RouterNavLink
                                         label="Tables configuration"
