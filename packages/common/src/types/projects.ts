@@ -308,6 +308,10 @@ export type CubeSemanticLayerConnection = {
     token: string;
 };
 
+export type SemanticLayerConnection =
+    | DbtSemanticLayerConnection
+    | CubeSemanticLayerConnection;
+
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
@@ -318,9 +322,7 @@ export type Project = {
     pinnedListUuid?: string;
     upstreamProjectUuid?: string;
     dbtVersion: SupportedDbtVersions;
-    semanticLayerConnection?:
-        | DbtSemanticLayerConnection
-        | CubeSemanticLayerConnection;
+    semanticLayerConnection?: SemanticLayerConnection;
 };
 
 export type ProjectSummary = Pick<

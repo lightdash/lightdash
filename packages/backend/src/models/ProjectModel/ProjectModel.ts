@@ -33,6 +33,7 @@ import {
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
+    type SemanticLayerConnection,
 } from '@lightdash/common';
 import {
     WarehouseCatalog,
@@ -280,6 +281,19 @@ export class ProjectModel {
                 throw new UnexpectedServerError('Could not save credentials.');
             }
 
+            let encryptedSemanticLayerConnection: Buffer | null;
+            try {
+                encryptedSemanticLayerConnection = data.semanticLayerConnection
+                    ? this.encryptionUtil.encrypt(
+                          JSON.stringify(data.semanticLayerConnection),
+                      )
+                    : null;
+            } catch (e) {
+                throw new UnexpectedServerError(
+                    'Could not encrypt semantic layer connection credentials.',
+                );
+            }
+
             // Make sure the project to copy exists and is owned by the same organization
             const copiedProjects = data.upstreamProjectUuid
                 ? await trx('projects')
@@ -298,6 +312,7 @@ export class ProjectModel {
                             ? copiedProjects[0].project_uuid
                             : null,
                     dbt_version: data.dbtVersion,
+                    semantic_layer_connection: encryptedSemanticLayerConnection,
                 })
                 .returning('*');
 
@@ -371,6 +386,7 @@ export class ProjectModel {
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
+                  semantic_layer_connection: Buffer | null;
               }
             | {
                   name: string;
@@ -382,6 +398,7 @@ export class ProjectModel {
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
+                  semantic_layer_connection: Buffer | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -430,6 +447,9 @@ export class ProjectModel {
                         this.database
                             .ref('copied_from_project_uuid')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('semantic_layer_connection')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -454,6 +474,24 @@ export class ProjectModel {
                         'Failed to load dbt credentials',
                     );
                 }
+
+                let semanticLayerConnection:
+                    | SemanticLayerConnection
+                    | undefined;
+                try {
+                    semanticLayerConnection = project.semantic_layer_connection
+                        ? (JSON.parse(
+                              this.encryptionUtil.decrypt(
+                                  project.semantic_layer_connection,
+                              ),
+                          ) as SemanticLayerConnection)
+                        : undefined;
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Failed to load dbt credentials',
+                    );
+                }
+
                 const result: Omit<Project, 'warehouseConnection'> = {
                     organizationUuid: project.organization_uuid,
                     projectUuid,
@@ -463,6 +501,7 @@ export class ProjectModel {
                     pinnedListUuid: project.pinned_list_uuid,
                     dbtVersion: project.dbt_version,
                     upstreamProjectUuid: project.copied_from_project_uuid,
+                    semanticLayerConnection,
                 };
                 if (!project.warehouse_type) {
                     return result;

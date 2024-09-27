@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     ForbiddenError,
     MissingConfigError,
     ParameterError,
@@ -8,6 +9,7 @@ import {
     SemanticLayerQuery,
     SemanticLayerQueryPayload,
     SemanticLayerResultRow,
+    SemanticLayerType,
     SemanticLayerView,
     SessionUser,
     type AbilityAction,
@@ -120,23 +122,30 @@ export class SemanticLayerService extends BaseService {
     }
 
     async getSemanticLayerClient(
-        _projectUuid: string, // TODO: get different client based on project, right now we're only doing this based on config
+        projectUuid: string,
     ): Promise<CubeClient | DbtCloudGraphqlClient> {
-        if (
-            !!this.lightdashConfig.dbtCloud.bearerToken &&
-            !!this.lightdashConfig.dbtCloud.environmentId
-        ) {
-            return this.dbtCloudClient;
+        const project = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (!project.semanticLayerConnection) {
+            throw new MissingConfigError('No semantic layer available');
         }
 
-        if (
-            !!this.lightdashConfig.cube.token &&
-            !!this.lightdashConfig.cube.domain
-        ) {
-            return this.cubeClient;
-        }
+        const semanticLayerConnectionType =
+            project.semanticLayerConnection.type;
 
-        throw new MissingConfigError('No semantic layer available');
+        switch (semanticLayerConnectionType) {
+            case SemanticLayerType.CUBE:
+                return this.cubeClient;
+            case SemanticLayerType.DBT:
+                return this.dbtCloudClient;
+            default:
+                return assertUnreachable(
+                    semanticLayerConnectionType,
+                    `Unknown semantic layer connection type: ${semanticLayerConnectionType}`,
+                );
+        }
     }
 
     async getViews(
