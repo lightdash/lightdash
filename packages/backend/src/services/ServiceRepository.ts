@@ -245,8 +245,10 @@ export class ServiceRepository
                     s3Client: this.clients.getS3Client(),
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
