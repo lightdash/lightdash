@@ -1,3 +1,10 @@
+# [0.1279.0](https://github.com/lightdash/lightdash/compare/0.1278.0...0.1279.0) (2024-09-27)
+
+
+### Features
+
+* add semantic viewer permissions ([#11699](https://github.com/lightdash/lightdash/issues/11699)) ([4fd44c0](https://github.com/lightdash/lightdash/commit/4fd44c041d8cd19195456fc84ed4ae212754113c))
+
 # [0.1278.0](https://github.com/lightdash/lightdash/compare/0.1277.0...0.1278.0) (2024-09-27)
 
 
