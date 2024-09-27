@@ -409,7 +409,9 @@ export class UnfurlService extends BaseService {
                         browserWSEndpoint,
                     );
 
-                    page = await browser.newPage();
+                    page = await browser.newPage({
+                        bypassCSP: true,
+                    });
                     const parsedUrl = new URL(url);
 
                     const cookieMatch = cookie.match(/connect\.sid=([^;]+)/); // Extract cookie value
