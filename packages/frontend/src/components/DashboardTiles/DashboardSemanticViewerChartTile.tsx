@@ -1,6 +1,5 @@
 import {
     ChartKind,
-    isVizTableConfig,
     type DashboardSemanticViewerChartTile,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
@@ -8,15 +7,17 @@ import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
 import { pick } from 'lodash';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
+import { useAsync } from 'react-use';
 import {
     useDashboardSemanticViewerChart,
     useSemanticLayerViewFields,
 } from '../../features/semanticViewer/api/hooks';
 import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { useChartViz } from '../DataViz/hooks/useChartViz';
+import getChartDataModel from '../DataViz/transformers/getChartDataModel';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
@@ -59,6 +60,7 @@ const ChartTileOptions = memo(
 
 const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const org = useOrganization();
 
     const savedSemanticViewerChartUuid =
         tile.properties.savedSemanticViewerChartUuid;
@@ -94,32 +96,38 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         };
     }, [chartQuery]);
 
+    // TODO:Can we do away with this?
     const resultsRunner = useMemo(() => {
         if (!chartQuery.isSuccess || !fieldsQuery.isSuccess || !chartData)
             return;
 
-        const vizColumns =
-            SemanticViewerResultsRunnerFrontend.convertColumnsToVizColumns(
-                fieldsQuery.data,
-                chartData.columns,
-            );
-
         return new SemanticViewerResultsRunnerFrontend({
             projectUuid,
             fields: fieldsQuery.data,
-            query: chartQuery.data.chart.semanticLayerQuery,
             rows: chartData.results,
-            columns: vizColumns,
+            columnNames: chartData.columns,
         });
     }, [chartQuery, fieldsQuery, chartData, projectUuid]);
 
-    const [chartVizQuery, chartSpec] = useChartViz({
-        projectUuid,
-        resultsRunner,
-        uuid: savedSemanticViewerChartUuid ?? undefined,
-        config: chartQuery.data?.chart.config,
-        slug: chartQuery.data?.chart.slug,
-    });
+    const vizDataModel = useMemo(() => {
+        if (!resultsRunner) return;
+        return getChartDataModel(
+            resultsRunner,
+            chartQuery.data?.chart.config,
+            org.data,
+        );
+    }, [resultsRunner, chartQuery.data?.chart.config, org.data]);
+
+    const {
+        loading: chartLoading,
+        error: chartError,
+        value,
+    } = useAsync(
+        async () => vizDataModel?.getPivotedChartData(),
+        [vizDataModel],
+    );
+    console.log('saved chart data', { value });
+    const chartSpec = vizDataModel?.getSpec();
 
     if (chartQuery.isLoading || fieldsQuery.isLoading) {
         return (
@@ -171,7 +179,7 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 />
             }
         >
-            {resultsRunner &&
+            {/* {resultsRunner &&
                 chartQuery.data.chart.config.type === ChartKind.TABLE &&
                 isVizTableConfig(chartQuery.data.chart.config) && (
                     // So that the Table tile isn't cropped by the overflow
@@ -181,7 +189,7 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                             columnsConfig={chartQuery.data.chart.config.columns}
                         />
                     </Box>
-                )}
+                )} */}
 
             {savedSemanticViewerChartUuid &&
                 (chartQuery.data.chart.config.type === ChartKind.VERTICAL_BAR ||
@@ -190,8 +198,8 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                     <ChartView
                         config={chartQuery.data.chart.config}
                         spec={chartSpec}
-                        isLoading={chartVizQuery.isLoading}
-                        error={chartVizQuery.error}
+                        isLoading={chartLoading}
+                        error={chartError}
                         style={{
                             minHeight: 'inherit',
                             height: '100%',
