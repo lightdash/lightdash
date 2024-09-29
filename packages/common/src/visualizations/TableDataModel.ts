@@ -108,7 +108,7 @@ export class TableDataModel {
     }
 
     async getPivotedChartData(
-        query: SemanticLayerQuery,
+        query?: SemanticLayerQuery,
     ): Promise<PivotChartData> {
         console.log('not implemented in table', this.config, query);
         return {

@@ -37,6 +37,7 @@ import {
     PanelResizeHandle,
     type ImperativePanelHandle,
 } from 'react-resizable-panels';
+import { useAsync } from 'react-use';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
@@ -44,11 +45,14 @@ import { setChartOptionsAndConfig } from '../../../components/DataViz/store/acti
 import {
     cartesianChartSelectors,
     selectChartConfigByKind,
+    selectChartDisplayByKind,
 } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
+import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useSqlQueryRun,
@@ -71,6 +75,7 @@ const DEFAULT_SQL_LIMIT = 500;
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
     const { showToastError } = useToaster();
+    const org = useOrganization();
     const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
     const resultsPanelRef = useRef<ImperativePanelHandle>(null);
     const savedSqlChart = useAppSelector(
@@ -106,6 +111,9 @@ export const ContentPanel: FC = () => {
     // currently editing chart config
     const currentVizConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
+    );
+    const currentDisplay = useAppSelector((state) =>
+        selectChartDisplayByKind(state, selectedChartType),
     );
 
     const hideResultsPanel = useMemo(
@@ -236,24 +244,10 @@ export const ContentPanel: FC = () => {
         [activeEditorTab],
     );
 
-    // TODO: dummy semantic query for now
-    const semanticQuery: SemanticLayerQuery = useMemo(() => {
-        return {
-            dimensions: [],
-            timeDimensions: [],
-            metrics: [],
-            sortBy: [],
-            filters: [],
-            sql,
-        };
-    }, [sql]);
-
     const resultsRunner = useMemo(() => {
-        if (!queryResults) return;
-
         return new SqlRunnerResultsRunnerFrontend({
-            rows: queryResults.results,
-            columns: queryResults.columns,
+            rows: queryResults?.results ?? [], // Can this thing build the semantic query?
+            columns: queryResults?.columns ?? [],
             projectUuid,
             limit,
             sql,
@@ -280,28 +274,45 @@ export const ContentPanel: FC = () => {
         currentVizConfig,
     ]);
 
-    // TODO: this needs to pass the semantic layer query
-    const [chartVizQuery, chartSpec] = useChartViz({
-        projectUuid,
-        resultsRunner,
-        config: currentVizConfig,
-        semanticQuery,
-    });
+    const vizDataModel = useMemo(() => {
+        return getChartDataModel(resultsRunner, currentVizConfig, org.data);
+    }, [currentVizConfig, org.data, resultsRunner]);
 
-    const chartFileUrl = chartVizQuery?.data?.fileUrl;
-    const resultsFileUrl = queryResults?.fileUrl;
+    // const [chartVizQuery, chartSpec] = useChartViz({
+    //     projectUuid,
+    //     resultsRunner,
+    //     config: currentVizConfig,
+    //     semanticQuery,
+    // });
 
-    const chartVizResultsRunner = useMemo(() => {
-        if (!chartVizQuery.data) return;
+    const {
+        loading: chartLoading,
+        error: chartError,
+        value: chartData,
+    } = useAsync(
+        async () => vizDataModel.getPivotedChartData(),
+        [vizDataModel],
+    );
 
-        return new SqlRunnerResultsRunnerFrontend({
-            rows: chartVizQuery.data.results,
-            columns: chartVizQuery.data.columns,
-            projectUuid,
-            limit,
-            sql,
-        });
-    }, [chartVizQuery.data, projectUuid, limit, sql]);
+    const chartSpec = vizDataModel.getSpec(currentDisplay);
+    console.log('chartData', { chartData, chartSpec });
+
+    // const tableData = vizDataModel.getPivotedTableData();
+
+    // const chartFileUrl = chartVizQuery?.data?.fileUrl;
+    // const resultsFileUrl = queryResults?.fileUrl;
+
+    // const chartVizResultsRunner = useMemo(() => {
+    //     if (!chartVizQuery.data) return;
+
+    //     return new SqlRunnerResultsRunnerFrontend({
+    //         rows: chartVizQuery.data.results,
+    //         columns: chartVizQuery.data.columns,
+    //         projectUuid,
+    //         limit,
+    //         sql,
+    //     });
+    // }, [chartVizQuery.data, projectUuid, limit, sql]);
 
     const hasUnrunChanges = useAppSelector(
         (state) => state.sqlRunner.hasUnrunChanges,
@@ -435,7 +446,7 @@ export const ContentPanel: FC = () => {
                                       }
                                     : {})}
                             />
-                            {activeEditorTab === EditorTabs.VISUALIZATION &&
+                            {/* {activeEditorTab === EditorTabs.VISUALIZATION &&
                             !isVizTableConfig(currentVizConfig) ? (
                                 <DownloadCsvButton
                                     fileUrl={chartFileUrl}
@@ -448,7 +459,7 @@ export const ContentPanel: FC = () => {
                                     columns={queryResults?.columns ?? []}
                                     chartName={savedSqlChart?.name}
                                 />
-                            )}
+                            )} */}
                         </Group>
                     </Group>
                 </Paper>
@@ -557,10 +568,10 @@ export const ContentPanel: FC = () => {
                                                                                 chartSpec
                                                                             }
                                                                             isLoading={
-                                                                                chartVizQuery.isFetching
+                                                                                chartLoading
                                                                             }
                                                                             error={
-                                                                                chartVizQuery.error
+                                                                                chartError
                                                                             }
                                                                             style={{
                                                                                 height: inputSectionHeight,
@@ -704,7 +715,7 @@ export const ContentPanel: FC = () => {
                                         />
                                     </ConditionalVisibility>
 
-                                    <ConditionalVisibility
+                                    {/* <ConditionalVisibility
                                         isVisible={showChartResultsTable}
                                     >
                                         {selectedChartType &&
@@ -736,7 +747,7 @@ export const ContentPanel: FC = () => {
                                                     }}
                                                 />
                                             )}
-                                    </ConditionalVisibility>
+                                    </ConditionalVisibility> */}
                                 </>
                             )}
                         </Box>

@@ -300,7 +300,7 @@ export class PieChartDataModel {
     }
 
     async getPivotedChartData(
-        query: SemanticLayerQuery | undefined,
+        query?: SemanticLayerQuery | undefined,
     ): Promise<PivotChartData | undefined> {
         if (!query) {
             return undefined;

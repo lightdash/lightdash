@@ -72,7 +72,6 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const spec = vizDataModel.getSpec(display);
     const tableData = vizDataModel.getPivotedTableData();
 
-
     const handleOpenPanel = (panel: TabPanel) => {
         setOpenPanel(panel);
     };

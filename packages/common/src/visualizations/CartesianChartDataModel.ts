@@ -74,26 +74,6 @@ export class CartesianChartDataModel {
         this.organization = args.organization;
     }
 
-    async getTransformedData(query?: SemanticLayerQuery) {
-        if (!query) {
-            return undefined;
-        }
-        return this.resultsRunner.getPivotedVisualizationData(query);
-    }
-
-    getPivotConfig(): SemanticLayerPivot {
-        return {
-            on: this.config?.fieldConfig?.x?.reference
-                ? [this.config.fieldConfig.x?.reference]
-                : [],
-            index:
-                this.config?.fieldConfig?.groupBy?.map(
-                    (groupBy) => groupBy.reference,
-                ) ?? [],
-            values: this.config?.fieldConfig?.y?.map((y) => y.reference) ?? [],
-        };
-    }
-
     static getTooltipFormatter(format: Format | undefined) {
         if (format === Format.PERCENT) {
             return (value: number) =>
@@ -494,15 +474,49 @@ export class CartesianChartDataModel {
         };
     }
 
-    async getPivotedChartData(
-        query: SemanticLayerQuery | undefined,
-    ): Promise<PivotChartData | undefined> {
+    async getTransformedData(query?: SemanticLayerQuery) {
         if (!query) {
             return undefined;
         }
 
+        return this.resultsRunner.getPivotedVisualizationData(query);
+    }
+
+    getPivotConfig(): SemanticLayerPivot {
+        return {
+            on: this.config?.fieldConfig?.x?.reference
+                ? [this.config.fieldConfig.x?.reference]
+                : [],
+            index:
+                this.config?.fieldConfig?.groupBy?.map(
+                    (groupBy) => groupBy.reference,
+                ) ?? [],
+            values: this.config?.fieldConfig?.y?.map((y) => y.reference) ?? [],
+        };
+    }
+
+    async getPivotedChartData(
+        query?: SemanticLayerQuery,
+    ): Promise<PivotChartData | undefined> {
+        let semanticQuery = query;
+        if (!semanticQuery) {
+            semanticQuery = {
+                limit: 100,
+                filters: [],
+                sortBy: [],
+                dimensions: [
+                    { name: this.config?.fieldConfig?.x?.reference || '' },
+                ],
+                metrics:
+                    this.config?.fieldConfig?.y?.map((y) => ({
+                        name: y.reference,
+                    })) ?? [],
+                timeDimensions: [],
+            };
+        }
+
         const pivotedChartData = await this.getTransformedData({
-            ...query,
+            ...semanticQuery,
             pivot: this.getPivotConfig(),
         });
 
@@ -511,15 +525,14 @@ export class CartesianChartDataModel {
         return pivotedChartData;
     }
 
-    getPivotedTableData(): // TODO: pass display options and use them
-
-    | {
+    getPivotedTableData():
+        | {
               columns: string[];
               rows: RawResultRow[];
           }
         | undefined {
         const transformedData = this.pivotedChartData;
-        if (!transformedData) {
+        if (!transformedData || !transformedData.results) {
             return undefined;
         }
 
