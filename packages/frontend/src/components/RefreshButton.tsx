@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { memo, useCallback, type FC } from 'react';
+import { memo, useCallback, useEffect, type FC } from 'react';
 import useHealth from '../hooks/health/useHealth';
 import { useExplorerContext } from '../providers/ExplorerProvider';
 import { useTracking } from '../providers/TrackingProvider';
@@ -50,6 +50,21 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     }, [fetchResults, track, canRunQuery]);
 
     useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                event.preventDefault();
+                onClick();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [onClick]);
 
     return (
         <Button.Group>
