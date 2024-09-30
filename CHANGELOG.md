@@ -1,3 +1,10 @@
+## [0.1282.1](https://github.com/lightdash/lightdash/compare/0.1282.0...0.1282.1) (2024-09-30)
+
+
+### Bug Fixes
+
+* semantic viewer remove sorted field ([#11733](https://github.com/lightdash/lightdash/issues/11733)) ([992fbc1](https://github.com/lightdash/lightdash/commit/992fbc10443ea9ee2a92fd6d5bfd3d84446e9b23))
+
 # [0.1282.0](https://github.com/lightdash/lightdash/compare/0.1281.1...0.1282.0) (2024-09-30)
 
 
