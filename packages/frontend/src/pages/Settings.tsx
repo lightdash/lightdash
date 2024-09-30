@@ -86,6 +86,10 @@ const Settings: FC = () => {
         error: projectError,
     } = useProject(activeProjectUuid);
 
+    const isSemanticLayerEnabled = useFeatureFlagEnabled(
+        FeatureFlags.SemanticLayerEnabled,
+    );
+
     if (
         isHealthLoading ||
         isUserLoading ||
@@ -338,7 +342,7 @@ const Settings: FC = () => {
                                                 project.organizationUuid,
                                             projectUuid: project.projectUuid,
                                         }),
-                                    ) ? (
+                                    ) && isSemanticLayerEnabled ? (
                                         <RouterNavLink
                                             label="Semantic Layer Integration"
                                             exact
