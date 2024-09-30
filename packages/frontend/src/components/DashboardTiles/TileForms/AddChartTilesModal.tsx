@@ -75,14 +75,54 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
             savedChartsUuids: [],
         },
     });
+
+    const currentChartTypes = useMemo(
+        () => Array.from(new Set(dashboard?.tiles.map((t) => t.type))),
+        [dashboard],
+    );
+
+    const filteredAvailableCharts = useMemo(() => {
+        return savedQueries?.filter((savedQuery) => {
+            const savedQuerySource = savedQuery.source;
+
+            if (currentChartTypes.length === 0) {
+                return true;
+            }
+
+            switch (savedQuerySource) {
+                case ChartSourceType.DBT_EXPLORE:
+                case ChartSourceType.SQL:
+                    return !currentChartTypes.includes(
+                        DashboardTileTypes.SEMANTIC_VIEWER_CHART,
+                    );
+                case ChartSourceType.SEMANTIC_LAYER:
+                    return (
+                        !currentChartTypes.includes(
+                            DashboardTileTypes.SAVED_CHART,
+                        ) &&
+                        !currentChartTypes.includes(
+                            DashboardTileTypes.SQL_CHART,
+                        )
+                    );
+                default:
+                    return assertUnreachable(
+                        savedQuerySource,
+                        `Unknown chart source type: ${savedQuerySource}`,
+                    );
+            }
+        });
+    }, [savedQueries, currentChartTypes]);
+
     const allSavedCharts = useMemo(() => {
-        const reorderedCharts = savedQueries?.sort((chartA, chartB) =>
-            chartA.space.uuid === dashboard?.spaceUuid
-                ? -1
-                : chartB.space.uuid === dashboard?.spaceUuid
-                ? 1
-                : 0,
+        const reorderedCharts = filteredAvailableCharts?.sort(
+            (chartA, chartB) =>
+                chartA.space.uuid === dashboard?.spaceUuid
+                    ? -1
+                    : chartB.space.uuid === dashboard?.spaceUuid
+                    ? 1
+                    : 0,
         );
+
         return (reorderedCharts || []).map(
             ({ uuid, name, space, chartKind }) => {
                 const alreadyAddedChart = dashboardTiles?.find((tile) => {
@@ -109,12 +149,14 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 };
             },
         );
-    }, [savedQueries, dashboard?.spaceUuid, dashboardTiles]);
+    }, [filteredAvailableCharts, dashboard?.spaceUuid, dashboardTiles]);
 
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
         onAddTiles(
             savedChartsUuids.map((uuid) => {
-                const chart = savedQueries?.find((c) => c.uuid === uuid);
+                const chart = filteredAvailableCharts?.find(
+                    (c) => c.uuid === uuid,
+                );
                 const sourceType = chart?.source;
 
                 switch (sourceType) {
@@ -166,7 +208,8 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         onClose();
     });
 
-    if (!savedQueries || !dashboardTiles || isInitialLoading) return null;
+    if (!filteredAvailableCharts || !dashboardTiles || isInitialLoading)
+        return null;
 
     return (
         <Modal
