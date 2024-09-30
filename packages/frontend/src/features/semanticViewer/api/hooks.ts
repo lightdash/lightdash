@@ -35,14 +35,17 @@ import {
 
 type SemanticLayerInfoParams = {
     projectUuid: string;
-    useQueryParams?: UseQueryOptions<SemanticLayerClientInfo, ApiError>;
+    useQueryParams?: UseQueryOptions<
+        SemanticLayerClientInfo | undefined,
+        ApiError
+    >;
 };
 
 export const useSemanticLayerInfo = ({
     projectUuid,
     useQueryParams,
 }: SemanticLayerInfoParams) =>
-    useQuery<SemanticLayerClientInfo, ApiError>({
+    useQuery<SemanticLayerClientInfo | undefined, ApiError>({
         queryKey: [projectUuid, 'semanticLayer', 'info'],
         queryFn: () => apiGetSemanticLayerInfo({ projectUuid }),
         ...useQueryParams,

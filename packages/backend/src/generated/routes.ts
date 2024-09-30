@@ -8332,7 +8332,14 @@ const models: TsoaRoute.Models = {
         dataType: 'refObject',
         properties: {
             status: { dataType: 'enum', enums: ['ok'], required: true },
-            results: { ref: 'SemanticLayerClientInfo', required: true },
+            results: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'SemanticLayerClientInfo' },
+                    { dataType: 'undefined' },
+                ],
+                required: true,
+            },
         },
         additionalProperties: true,
     },
