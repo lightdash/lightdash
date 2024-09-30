@@ -10,6 +10,7 @@ import {
     ApiWarehouseTablesCatalog,
     CreateCustomExplorePayload,
     CreateSqlChart,
+    PullRequestCreated,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
     UpdateSqlChart,
@@ -410,6 +411,39 @@ export class SqlRunnerController extends BaseController {
         return {
             status: 'ok',
             results: exploreName,
+        };
+    }
+
+    /**
+     * Write back from SQL runner
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('pull-request')
+    @OperationId('createCustomExplore')
+    async createPr(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateCustomExplorePayload,
+    ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
+        this.setStatus(200);
+        const { name, sql, columns } = body;
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .createPullRequestFromSql(
+                    req.user!,
+                    projectUuid,
+                    name,
+                    sql,
+                    columns,
+                ),
         };
     }
 }
