@@ -82,6 +82,11 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                 return;
             }
 
+            if (form.values.customViewType === CustomViewType.PERSISTENT) {
+                // TODO: Implement dbt write-back
+                return;
+            }
+
             await createCustomExplore({
                 name: snakeCaseName(data.name),
                 sql,
@@ -90,7 +95,14 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
             });
             onClose();
         },
-        [createCustomExplore, sql, columns, onClose, projectUuid],
+        [
+            createCustomExplore,
+            sql,
+            columns,
+            onClose,
+            projectUuid,
+            form.values.customViewType,
+        ],
     );
 
     return (
