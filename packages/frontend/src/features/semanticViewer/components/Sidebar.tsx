@@ -19,7 +19,8 @@ import {
     setActiveChartKind,
     SidebarTabs,
 } from '../store/semanticViewerSlice';
-import * as SaveChart from './SaveChart';
+import SaveSemanticViewerChartModal from './Modals/SaveSemanticViewerChartModal';
+import SaveSemanticViewerChart from './SaveSemanticViewerChart';
 import { SemanticViewerVizConfig } from './SemanticViewerVizConfig';
 import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
@@ -66,9 +67,9 @@ const Sidebar: FC<SidebarProps> = ({ shouldShowSave }) => {
             >
                 {semanticLayerView && shouldShowSave && (
                     <>
-                        <SaveChart.Content />
+                        <SaveSemanticViewerChart />
                         {saveModalOpen && (
-                            <SaveChart.Modal onSave={handleSave} />
+                            <SaveSemanticViewerChartModal onSave={handleSave} />
                         )}
                     </>
                 )}

@@ -22,7 +22,7 @@ import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPop
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
 import { useApp } from '../../../../providers/AppProvider';
-import * as Models from './../Modals';
+import DeleteSemanticViewerChartModal from '../Modals/DeleteSemanticViewerChartModal';
 
 type Props = {
     projectUuid: string;
@@ -163,7 +163,7 @@ export const HeaderView: FC<Props> = ({
                 </Group>
             </Paper>
 
-            <Models.DeleteSavedSemanticChart
+            <DeleteSemanticViewerChartModal
                 projectUuid={projectUuid}
                 uuid={chart.savedSemanticViewerChartUuid}
                 name={chart.name}
