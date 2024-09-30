@@ -107,10 +107,8 @@ export class TableDataModel {
         };
     }
 
-    async getPivotedChartData(
-        query?: SemanticLayerQuery,
-    ): Promise<PivotChartData> {
-        console.log('not implemented in table', this.config, query);
+    async getPivotedChartData(): Promise<PivotChartData> {
+        console.log('not implemented in table', this.config);
         return {
             columns: [],
             fileUrl: '',

@@ -261,7 +261,13 @@ export const ContentPanel: FC = () => {
         error: chartError,
         value: chartData,
     } = useAsync(
-        async () => vizDataModel.getPivotedChartData(),
+        async () =>
+            vizDataModel.getPivotedChartData({
+                limit,
+                sql,
+                sortBy: [],
+                filters: [],
+            }),
         [vizDataModel],
     );
 

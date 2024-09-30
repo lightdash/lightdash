@@ -3,15 +3,19 @@ import pl from 'nodejs-polars';
 
 export function pivotResults(
     results: SemanticLayerResultRow[],
-    { values, ...options }: SemanticLayerPivot,
+    { values, on, index }: SemanticLayerPivot,
 ): SemanticLayerResultRow[] {
     if (values.length === 0) return results;
+    if (on.length === 0) return results;
+
+    console.log({ values, on, index });
 
     return pl
         .DataFrame(results)
         .pivot(values, {
-            on: options.on,
-            index: options.index,
+            // POLARS IMPLEMENTATION IS BACKWARDS! (this is the opposite of their docs)
+            on,
+            index,
         })
         .toRecords();
 }

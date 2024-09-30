@@ -97,17 +97,19 @@ export const getPivotQueryFunctionForSemanticViewer = (
         );
 
         // The index column is the first column in the pivot config
-        const onField = fields.find((f) => f.name === query.pivot?.on[0]);
+        const indexField = fields.find((f) => f.name === query.pivot?.index[0]);
 
-        const indexColumn = onField
+        const indexColumn = indexField
             ? {
-                  reference: onField.name,
-                  type: getVizIndexTypeFromSemanticLayerFieldType(onField.type),
+                  reference: indexField.name,
+                  type: getVizIndexTypeFromSemanticLayerFieldType(
+                      indexField.type,
+                  ),
               }
             : undefined;
 
         const valuesColumns = pivotedResults.columns.filter(
-            (col) => !query.pivot?.on.includes(col),
+            (col) => !query.pivot?.index.includes(col),
         );
 
         return {

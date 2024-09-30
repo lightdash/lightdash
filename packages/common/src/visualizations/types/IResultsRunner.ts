@@ -12,7 +12,7 @@ import { type RawResultRow } from '../../types/results';
 import { type SemanticLayerQuery } from '../../types/semanticLayer';
 
 // TODO: move these types out of here
-export type SqlRunnerPivotChartLayout = {
+export type PivotChartLayout = {
     x:
         | {
               reference: string;
@@ -27,34 +27,12 @@ export type SqlRunnerPivotChartLayout = {
     groupBy: { reference: string }[] | undefined;
     sortBy?: VizSortBy[];
 };
-
-export type SemanticViewerPivotChartLayout = {
-    x:
-        | {
-              reference: string;
-              axisType: VizIndexType;
-              dimensionType: DimensionType;
-          }
-        | undefined;
-    y: {
-        reference: string;
-        aggregation: VizAggregationOptions;
-    }[];
-    groupBy: { reference: string }[] | undefined;
-    sortBy?: VizSortBy[];
-};
-
-// TODO: these types should be somewhere else
-export type PivotChartLayout =
-    | SqlRunnerPivotChartLayout
-    | SemanticViewerPivotChartLayout;
 
 export type RunPivotQuery = (
     query: SemanticLayerQuery,
 ) => Promise<PivotChartData>;
 
 export interface IResultsRunner {
-    
     getPivotedVisualizationData(
         query: SemanticLayerQuery,
         context?: string, // TODO: pick up these changes in the pivot functions

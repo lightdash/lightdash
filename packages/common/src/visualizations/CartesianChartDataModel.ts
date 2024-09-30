@@ -494,43 +494,73 @@ export class CartesianChartDataModel {
         return this.resultsRunner.getPivotedVisualizationData(query);
     }
 
-    getPivotConfig(): SemanticLayerPivot {
-        return {
-            on: this.config?.fieldConfig?.x?.reference
+    async getPivotedChartData({
+        sortBy,
+        filters,
+        limit,
+        sql,
+    }: Pick<
+        SemanticLayerQuery,
+        'sortBy' | 'filters' | 'limit' | 'sql'
+    >): Promise<PivotChartData | undefined> {
+        // TODO: dupe code - see pie chart
+        const allSelectedDimensions = [
+            this.config.fieldConfig?.x?.reference,
+            ...(this.config.fieldConfig?.groupBy?.map(
+                (groupBy) => groupBy.reference,
+            ) ?? []),
+        ];
+        const [timeDimensions, dimensions] = this.resultsRunner
+            .getPivotQueryDimensions()
+            .reduce<
+                [
+                    { name: string }[],
+                    {
+                        name: string;
+                    }[],
+                ]
+            >(
+                (acc, dimension) => {
+                    if (allSelectedDimensions.includes(dimension.reference)) {
+                        if (
+                            dimension.dimensionType === DimensionType.DATE ||
+                            dimension.dimensionType === DimensionType.TIMESTAMP
+                        ) {
+                            acc[0].push({ name: dimension.reference });
+                        } else {
+                            acc[1].push({ name: dimension.reference });
+                        }
+                    }
+                    return acc;
+                },
+                [[], []],
+            );
+        const metrics =
+            this.config.fieldConfig?.y?.map((y) => ({
+                name: y.reference,
+            })) ?? [];
+        const pivot = {
+            index: this.config?.fieldConfig?.x?.reference
                 ? [this.config.fieldConfig.x?.reference]
                 : [],
-            index:
+            on:
                 this.config?.fieldConfig?.groupBy?.map(
                     (groupBy) => groupBy.reference,
                 ) ?? [],
             values: this.config?.fieldConfig?.y?.map((y) => y.reference) ?? [],
         };
-    }
+        const semanticQuery: SemanticLayerQuery = {
+            sql,
+            limit,
+            filters,
+            sortBy,
+            metrics,
+            dimensions,
+            timeDimensions,
+            pivot,
+        };
 
-    async getPivotedChartData(
-        query?: SemanticLayerQuery,
-    ): Promise<PivotChartData | undefined> {
-        let semanticQuery = query;
-        if (!semanticQuery) {
-            semanticQuery = {
-                limit: 100,
-                filters: [],
-                sortBy: [],
-                dimensions: [
-                    { name: this.config?.fieldConfig?.x?.reference || '' },
-                ],
-                metrics:
-                    this.config?.fieldConfig?.y?.map((y) => ({
-                        name: y.reference,
-                    })) ?? [],
-                timeDimensions: [],
-            };
-        }
-
-        const pivotedChartData = await this.getTransformedData({
-            ...semanticQuery,
-            pivot: this.getPivotConfig(),
-        });
+        const pivotedChartData = await this.getTransformedData(semanticQuery);
 
         this.pivotedChartData = pivotedChartData;
 
