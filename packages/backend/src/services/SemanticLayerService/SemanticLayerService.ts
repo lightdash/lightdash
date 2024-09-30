@@ -394,12 +394,6 @@ export class SemanticLayerService extends BaseService {
             organizationUuid: savedChart.organization.organizationUuid,
         });
 
-        await SemanticLayerService.checkSemanticViewerAccess('view', {
-            user,
-            projectUuid,
-            organizationUuid: savedChart.organization.organizationUuid,
-        });
-
         const { hasAccess: hasViewAccess } =
             await this.savedSemanticViewerChartService.hasSavedChartAccess(
                 user,
