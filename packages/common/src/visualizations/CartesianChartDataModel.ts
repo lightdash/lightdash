@@ -13,10 +13,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     getEChartsChartTypeFromChartKind,
 } from '../types/savedCharts';
-import {
-    type SemanticLayerPivot,
-    type SemanticLayerQuery,
-} from '../types/semanticLayer';
+import { type SemanticLayerQuery } from '../types/semanticLayer';
 import { applyCustomFormat } from '../utils/formatting';
 import {
     VizAggregationOptions,

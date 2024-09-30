@@ -56,6 +56,10 @@ const SemanticViewerViewPage = () => {
         { enabled: chartQuery.isSuccess },
     );
 
+    const savedSemanticLayerQuery = useMemo(() => {
+        return chartQuery.data?.semanticLayerQuery;
+    }, [chartQuery.data?.semanticLayerQuery]);
+
     const resultsRunner = useMemo(() => {
         if (
             !fieldsQuery.isSuccess ||
@@ -91,9 +95,13 @@ const SemanticViewerViewPage = () => {
 
     const { loading: chartLoading, error: chartError } = useAsync(
         async () =>
-            // TODO: add filters, sortBy
-            vizDataModel?.getPivotedChartData(),
-        [vizDataModel],
+            vizDataModel?.getPivotedChartData({
+                sortBy: savedSemanticLayerQuery?.sortBy ?? [],
+                filters: savedSemanticLayerQuery?.filters ?? [],
+                limit: savedSemanticLayerQuery?.limit ?? undefined,
+                sql: savedSemanticLayerQuery?.sql ?? undefined,
+            }),
+        [vizDataModel, savedSemanticLayerQuery],
     );
 
     // TODO: add error state
