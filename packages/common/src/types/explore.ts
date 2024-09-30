@@ -90,3 +90,8 @@ export type Table = TableBase & {
     lineageGraph: LineageGraph; // DAG structure representing the lineage of the table
     source?: Source;
 };
+
+export enum CustomViewType {
+    TRANSIENT = 'transient',
+    PERSISTENT = 'persistent',
+}
