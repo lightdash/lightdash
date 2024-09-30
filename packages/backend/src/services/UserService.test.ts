@@ -41,6 +41,7 @@ const userModel = {
     findUserByEmail: jest.fn(async () => undefined),
     createPendingUser: jest.fn(async () => newUser),
     findSessionUserByPrimaryEmail: jest.fn(async () => sessionUser),
+    joinOrg: jest.fn(async () => sessionUser),
 };
 
 const openIdIdentityModel = {
@@ -465,6 +466,7 @@ describe('UserService', () => {
                     inviteUser,
                 ),
             ).toEqual(inviteLink);
+            expect(userModel.joinOrg as jest.Mock).toHaveBeenCalledTimes(1);
             expect(
                 userModel.createPendingUser as jest.Mock,
             ).toHaveBeenCalledTimes(0);
