@@ -18,8 +18,10 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
 import { useAppSelector } from '../store/hooks';
 import {
+    selectFilters,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
+    selectSortBy,
 } from '../store/selectors';
 
 enum TabPanel {
@@ -38,6 +40,9 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const { results, columnNames, activeChartKind, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
+
+    const filters = useAppSelector(selectFilters);
+    const sortBy = useAppSelector(selectSortBy);
 
     // Get config. This could be a UUID fetch on dashboards
     const vizConfig = useAppSelector((state) =>
@@ -65,7 +70,12 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     }, [vizConfig, org.data, resultsRunner]);
 
     const { loading: chartLoading, error: chartError } = useAsync(
-        async () => vizDataModel.getPivotedChartData(semanticLayerQuery),
+        async () =>
+            vizDataModel.getPivotedChartData({
+                ...semanticLayerQuery,
+                filters,
+                sortBy,
+            }),
         [semanticLayerQuery, vizDataModel],
     );
 

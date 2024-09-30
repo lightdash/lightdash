@@ -7,7 +7,6 @@ import {
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
     DateGranularity,
-    PromotionChanges,
     SortField,
 } from '@lightdash/common';
 import {
@@ -24,7 +23,10 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { getContextFromHeader } from '../analytics/LightdashAnalytics';
+import {
+    getContextFromHeader,
+    getContextFromQueryOrHeader,
+} from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -65,7 +67,7 @@ export class SavedChartController extends BaseController {
                 chartUuid,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
-                context: getContextFromHeader(req),
+                context: getContextFromQueryOrHeader(req),
             }),
         };
     }
@@ -101,7 +103,7 @@ export class SavedChartController extends BaseController {
                     granularity: body.granularity,
                     dashboardUuid: body.dashboardUuid,
                     autoRefresh: body.autoRefresh,
-                    context: getContextFromHeader(req),
+                    context: getContextFromQueryOrHeader(req),
                 }),
         };
     }

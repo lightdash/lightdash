@@ -1,5 +1,6 @@
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useChartAndResults } from '../useQueryResults';
+import useSearchParams from '../useSearchParams';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
@@ -10,6 +11,7 @@ const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
     const tileSort = chartSort[tileUuid] || [];
     const granularity = useDashboardContext((c) => c.dateZoomGranularity);
     const isAutoRefresh = useDashboardContext((c) => c.isAutoRefresh);
+    const context = useSearchParams('context') || undefined;
     return useChartAndResults(
         savedChartUuid,
         dashboardUuid ?? null,
@@ -18,6 +20,7 @@ const useDashboardChart = (tileUuid: string, savedChartUuid: string | null) => {
         invalidateCache,
         granularity,
         isAutoRefresh,
+        context,
     );
 };
 

@@ -8,6 +8,7 @@ import {
     Text,
 } from '@mantine/core';
 import { IconChartHistogram, IconTable } from '@tabler/icons-react';
+import type { EChartsInstance } from 'echarts-for-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
@@ -24,7 +25,8 @@ import {
 import { selectChartConfigByKind } from '../components/DataViz/store/selectors';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
-import { DownloadCsvButton } from '../features/sqlRunner/components/DownloadCsvButton';
+import { ChartDownload } from '../features/sqlRunner/components/Download/ChartDownload';
+import { ResultsDownload } from '../features/sqlRunner/components/Download/ResultsDownload';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlChartResults } from '../features/sqlRunner/hooks/useSqlChartResults';
@@ -120,6 +122,8 @@ const ViewSqlChart = () => {
         additionalQueryKey: [params.slug, sql],
     });
 
+    const [echartsInstance, setEchartsInstance] = useState<EChartsInstance>();
+
     useEffect(() => {
         if (!chartVizQuery?.data?.fileUrl) return;
         dispatch(setFileUrl(chartVizQuery.data.fileUrl));
@@ -190,7 +194,19 @@ const ViewSqlChart = () => {
                             />
                         </Group>
                         {activeTab === TabOption.RESULTS && (
-                            <DownloadCsvButton
+                            <ResultsDownload
+                                fileUrl={fileUrl}
+                                columns={
+                                    chartVizQuery.data?.columns ||
+                                    data?.columns ||
+                                    []
+                                }
+                                chartName={sqlChart?.name}
+                            />
+                        )}
+                        {activeTab === TabOption.CHART && echartsInstance && (
+                            <ChartDownload
+                                echartsInstance={echartsInstance}
                                 fileUrl={fileUrl}
                                 columns={
                                     chartVizQuery.data?.columns ||
@@ -251,6 +267,9 @@ const ViewSqlChart = () => {
                                                     }
                                                     error={chartVizQuery.error}
                                                     style={{ height: '100%' }}
+                                                    onChartReady={
+                                                        setEchartsInstance
+                                                    }
                                                 />
                                             )}
                                     </>

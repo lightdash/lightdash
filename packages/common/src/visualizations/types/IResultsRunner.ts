@@ -61,6 +61,7 @@ export interface IResultsRunner {
     // MARSHALL REFACTOR: RUN WITH ZERO PARAMETERS
     getPivotedVisualizationData(
         query: SemanticLayerQuery,
+        context?: string, // TODO: pick up these changes in the pivot functions
     ): Promise<PivotChartData>;
 
     getColumns(): string[];

@@ -8,7 +8,11 @@ import {
 } from '../types/field';
 import { type Organization } from '../types/organization';
 import { type RawResultRow } from '../types/results';
-import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
+import {
+    ChartKind,
+    ECHARTS_DEFAULT_COLORS,
+    getEChartsChartTypeFromChartKind,
+} from '../types/savedCharts';
 import {
     type SemanticLayerPivot,
     type SemanticLayerQuery,
@@ -353,35 +357,42 @@ export class CartesianChartDataModel {
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
-                const seriesFormat = Object.values(display?.series || {}).find(
+                const isSingleAxis = transformedData.valuesColumns.length === 1;
+                const foundSeries = Object.values(display?.series || {}).find(
                     (s) => s.yAxisIndex === index,
-                )?.format;
+                );
+                const {
+                    format,
+                    color,
+                    label,
+                    type: seriesChartType,
+                } = foundSeries || {};
 
+                // TODO: A small change was made here that I'm not sure is reflected in getSpec see PR #11648
                 const singleYAxisLabel =
                     // NOTE: When there's only one y-axis left, set the label on the series as well
-                    transformedData.valuesColumns.length === 1 && // PR NOTE: slight change to behaviour, only set label if there's a single value column (post-pivot) we want this to be fields pre-pivot
-                    display?.yAxis?.[0]?.label
+                    isSingleAxis && display?.yAxis?.[0]?.label
                         ? display.yAxis[0].label
                         : undefined;
-                const seriesLabel =
-                    singleYAxisLabel ??
-                    Object.values(display?.series || {}).find(
-                        (s) => s.yAxisIndex === index,
-                    )?.label;
-
-                const seriesColor = Object.values(display?.series || {}).find(
-                    (s) => s.yAxisIndex === index,
-                )?.color;
+                const singleYAxisFormat =
+                    // NOTE: When there's only one y-axis left, set the format on the series as well
+                    isSingleAxis && display?.yAxis?.[0]?.format
+                        ? display.yAxis[0].format
+                        : undefined;
 
                 return {
                     dimensions: [
                         transformedData.indexColumn?.reference,
                         seriesColumn,
                     ],
-                    type: defaultSeriesType,
+                    type:
+                        seriesChartType && !isSingleAxis
+                            ? getEChartsChartTypeFromChartKind(seriesChartType)
+                            : defaultSeriesType,
                     stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
                     name:
-                        seriesLabel ||
+                        singleYAxisLabel ||
+                        label ||
                         capitalize(seriesColumn.toLowerCase()).replaceAll(
                             '_',
                             ' ',
@@ -395,14 +406,15 @@ export class CartesianChartDataModel {
                             display.series[seriesColumn]?.yAxisIndex) ||
                         0,
                     tooltip: {
-                        valueFormatter: seriesFormat
-                            ? CartesianChartDataModel.getTooltipFormatter(
-                                  seriesFormat,
-                              )
-                            : undefined,
+                        valueFormatter:
+                            singleYAxisFormat || format
+                                ? CartesianChartDataModel.getTooltipFormatter(
+                                      singleYAxisFormat ?? format,
+                                  )
+                                : undefined,
                     },
                     color:
-                        seriesColor ||
+                        color ||
                         CartesianChartDataModel.getDefaultColor(
                             index,
                             orgColors,
@@ -708,6 +720,7 @@ export type CartesianChartDisplay = {
             format?: Format;
             yAxisIndex?: number;
             color?: string;
+            type?: ChartKind.LINE | ChartKind.VERTICAL_BAR;
         };
     };
     legend?: {

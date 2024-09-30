@@ -28,7 +28,12 @@ const VisualizationActionIcon: FC<VisualizationActionIconProps> = memo(
         return (
             <Tooltip variant="xs" label={label} withinPortal>
                 <Box>
-                    <ActionIcon onClick={onClick} w={32} h={32}>
+                    <ActionIcon
+                        onClick={onClick}
+                        w={32}
+                        h={32}
+                        data-testid={`visualization-${chartKind}`}
+                    >
                         <Paper
                             display="flex"
                             w={32}

@@ -3,6 +3,7 @@ import {
     type Explore,
     type PivotChartData,
     type PivotChartLayout,
+    type QueryExecutionContext,
 } from '..';
 import {
     type PivotIndexColum,
@@ -28,7 +29,7 @@ export type SqlRunnerPayload = {
     userUuid: string;
     organizationUuid: string | undefined;
     sqlChartUuid?: string;
-    context: 'sqlChartView' | 'sqlRunner' | 'dashboardView'; // TODO: move scheduler types to Backend package. Can't import QueryExecutionProperties from LightdashAnalytics
+    context: QueryExecutionContext;
 } & SqlRunnerBody;
 
 type ApiSqlRunnerPivotQueryPayload = {

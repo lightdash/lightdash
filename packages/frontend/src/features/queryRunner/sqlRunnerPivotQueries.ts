@@ -19,23 +19,33 @@ import { getVizIndexTypeFromSemanticLayerFieldType } from './BaseResultsRunner';
 
 const schedulePivotSqlJob = async ({
     projectUuid,
+    context,
     ...payload
 }: {
     projectUuid: string;
+    context?: string;
 } & SqlRunnerPivotQueryBody) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
-        url: `/projects/${projectUuid}/sqlRunner/runPivotQuery`,
+        url: `/projects/${projectUuid}/sqlRunner/runPivotQuery${
+            context ? `?context=${context}` : ''
+        }`,
         method: 'POST',
         body: JSON.stringify(payload),
     });
 type PivotQueryFn = (
     args: SqlRunnerPivotQueryBody & {
         projectUuid: string;
+        context?: string;
     },
 ) => Promise<Omit<PivotChartData, 'columns'>>;
-const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
+const pivotQueryFn: PivotQueryFn = async ({
+    projectUuid,
+    context,
+    ...args
+}) => {
     const scheduledJob = await schedulePivotSqlJob({
         projectUuid,
+        context,
         ...args,
     });
 
@@ -108,6 +118,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
     sortBy,
     sql,
     fields,
+    context,
 }: {
     projectUuid: string;
     slug?: string;
@@ -116,6 +127,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
     sql: string;
     sortBy?: VizSortBy[];
     fields: SemanticLayerField[];
+    context?: string;
 }): RunPivotQuery => {
     return async (query: SemanticLayerQuery) => {
         console.log('query in sql runner', JSON.stringify(query, null, 2));
@@ -142,6 +154,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
             groupByColumns,
             limit,
             sortBy,
+            context,
         });
 
         const columns: VizColumn[] = [

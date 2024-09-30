@@ -413,7 +413,7 @@ If you want to debug some of these features, you should run headless browser loc
 
 #### Running Lightdash on docker and headless browser
 
-If you are running both Lightdash and Headless browser using our docker-compose you should be ok, and everything should work as expected.
+If you are running both Lightdash and Headless browser using our docker-compose yml set-up you should be ok, and everything should work as expected.
 
 #### Running Lightdash without docker and headless browser on Linux
 

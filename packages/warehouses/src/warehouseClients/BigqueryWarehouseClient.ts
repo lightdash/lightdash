@@ -336,7 +336,8 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                         ? {
                               field: tablePartitionInfo.column_name,
                               partitionType:
-                                  tablePartitionInfo.data_type === BigqueryFieldType.INT64
+                                  tablePartitionInfo.data_type ===
+                                  BigqueryFieldType.INT64
                                       ? PartitionType.RANGE
                                       : PartitionType.DATE,
                           }

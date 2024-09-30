@@ -2,19 +2,24 @@ import {
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiSemanticLayerClientInfo,
-    ApiSemanticLayerCreateChart,
-    ApiSemanticLayerGetChart,
-    SemanticLayerCreateChart,
     SemanticLayerField,
     SemanticLayerQuery,
     SemanticLayerView,
+    type ApiSemanticViewerChartCreate,
+    type ApiSemanticViewerChartGet,
+    type ApiSemanticViewerChartUpdate,
+    type ApiSuccessEmpty,
+    type SemanticViewerChartCreate,
+    type SemanticViewerChartUpdate,
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Hidden,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Query,
@@ -194,8 +199,8 @@ export class SemanticLayerController extends BaseController {
     async createSemanticViewerChart(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: SemanticLayerCreateChart,
-    ): Promise<ApiSemanticLayerCreateChart> {
+        @Body() body: SemanticViewerChartCreate,
+    ): Promise<ApiSemanticViewerChartCreate> {
         this.setStatus(200);
         return {
             status: 'ok',
@@ -206,47 +211,113 @@ export class SemanticLayerController extends BaseController {
     }
 
     /**
-     * Get a saved semantic layer chart
+     * Get a saved semantic viewer chart
      * @param projectUuid the uuid for the project
      * @param uuid the uuid for the saved semantic layer chart
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/saved/{uuid}')
+    @Get('/saved')
     @OperationId('getSavedSemanticViewerChart')
     async getSavedSemanticViewerChart(
-        @Path() uuid: string,
-        @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSemanticLayerGetChart> {
+        @Path() projectUuid: string,
+        @Query() slug?: string,
+        @Query() uuid?: string,
+    ): Promise<ApiSemanticViewerChartGet> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSemanticViewerChartService()
-                .getSemanticViewerChart(req.user!, projectUuid, uuid),
+                .getSemanticViewerChart(req.user!, projectUuid, { uuid, slug }),
         };
     }
 
     /**
-     * Get a saved semantic layer chart and results
+     * Get a saved semantic viewer chart results job
+     * @param projectUuid the uuid for the project
+     * @param slug the slug for the saved semantic viewer chart
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/saved/{uuid}/results-job')
+    @Get('/saved/results-job')
     @OperationId('getSavedSemanticViewerChartAndResults')
     async getSavedSemanticViewerChartAndResults(
-        @Path() uuid: string,
-        @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() slug?: string,
+        @Query() uuid?: string,
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSemanticLayerService()
-                .getSemanticViewerChartResultJob(req.user!, projectUuid, uuid),
+                .getSemanticViewerChartResultJob(req.user!, projectUuid, {
+                    uuid,
+                    slug,
+                }),
+        };
+    }
+
+    /**
+     * Update semantic viewer chart
+     * @param uuid the uuid for the saved semantic viewer chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     * @param body the body for the update
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/saved/{uuid}')
+    @OperationId('updateSavedSemanticViewerChart')
+    async updateSavedSemanticViewerChart(
+        @Path() projectUuid: string,
+        @Path() uuid: string,
+        @Request() req: express.Request,
+        @Body() body: SemanticViewerChartUpdate,
+    ): Promise<ApiSemanticViewerChartUpdate> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSemanticViewerChartService()
+                .updateSemanticViewerChart(req.user!, projectUuid, uuid, body),
+        };
+    }
+
+    /**
+     * Delete a saved semantic viewer chart
+     * @param uuid the uuid for the saved semantic viewer chart
+     * @param projectUuid the uuid for the project
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('saved/{uuid}')
+    @OperationId('deleteSavedSemanticViewerChart')
+    async deleteSavedSemanticViewerChart(
+        @Path() projectUuid: string,
+        @Path() uuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getSavedSemanticViewerChartService()
+            .deleteSemanticViewerChart(req.user!, projectUuid, uuid);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }

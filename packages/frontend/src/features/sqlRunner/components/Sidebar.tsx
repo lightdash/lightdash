@@ -30,9 +30,13 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
         error,
     } = useRefreshTables({ projectUuid });
 
-    const { selectedChartType, activeSidebarTab, sqlColumns } = useAppSelector(
-        (state) => state.sqlRunner,
+    const selectedChartType = useAppSelector(
+        (state) => state.sqlRunner.selectedChartType,
     );
+    const activeSidebarTab = useAppSelector(
+        (state) => state.sqlRunner.activeSidebarTab,
+    );
+    const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
 
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>

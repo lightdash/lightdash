@@ -25,6 +25,7 @@ type Args = {
     // Different pages may need to refresh this query based on parameters
     // that are unused in this hook.
     additionalQueryKey?: UseQueryOptions['queryKey'];
+    context?: string;
 };
 export const useChartViz = ({
     projectUuid,

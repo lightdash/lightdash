@@ -18,7 +18,6 @@ import { type editor, type languages } from 'monaco-editor';
 import { LanguageIdEnum, setupLanguageFeatures } from 'monaco-sql-languages';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { useProject } from '../../../hooks/useProject';
 import '../../../styles/monaco.css';
 import { useTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -200,7 +199,7 @@ const generateTableCompletions = (
 };
 
 export const SqlEditor: FC<{
-    onSubmit?: () => void;
+    onSubmit?: (sql: string) => void;
     highlightText?: MonacoHighlightLine;
     resetHighlightError?: () => void;
 }> = ({ onSubmit, highlightText, resetHighlightError }) => {
@@ -208,23 +207,18 @@ export const SqlEditor: FC<{
     const dispatch = useAppDispatch();
     const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const { data, isLoading } = useProject(projectUuid);
+    const warehouseConnectionType = useAppSelector(
+        (state) => state.sqlRunner.warehouseConnectionType,
+    );
     const { data: tablesData, isLoading: isTablesDataLoading } = useTables({
         projectUuid,
         search: undefined,
     });
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
-    const sqlRef = useRef(sql);
-    const onSubmitRef = useRef(onSubmit);
-
-    useEffect(() => {
-        sqlRef.current = sql;
-        onSubmitRef.current = onSubmit;
-    }, [sql, onSubmit]);
 
     const language = useMemo(
-        () => getLanguage(data?.warehouseConnection?.type),
-        [data],
+        () => getLanguage(warehouseConnectionType),
+        [warehouseConnectionType],
     );
 
     const beforeMount: BeforeMount = useCallback(
@@ -258,18 +252,22 @@ export const SqlEditor: FC<{
     const decorationsCollectionRef =
         useRef<editor.IEditorDecorationsCollection | null>(null); // Ref to store the decorations collection
 
-    const onMount: OnMount = useCallback((editorObj, monacoObj) => {
-        editorRef.current = editorObj;
-        decorationsCollectionRef.current =
-            editorObj.createDecorationsCollection(); // Initialize the decorations collection
-        editorObj.addCommand(
-            monacoObj.KeyMod.CtrlCmd | monacoObj.KeyCode.Enter,
-            () => {
-                // When the editor is mounted, the onSubmit callback should be set to the latest value, otherwise it will be set to the initial value on the first render
-                onSubmitRef.current?.();
-            },
-        );
-    }, []);
+    const onMount: OnMount = useCallback(
+        (editorObj, monacoObj) => {
+            editorRef.current = editorObj;
+            decorationsCollectionRef.current =
+                editorObj.createDecorationsCollection();
+            editorObj.addCommand(
+                monacoObj.KeyMod.CtrlCmd | monacoObj.KeyCode.Enter,
+                () => {
+                    const currentSql = editorObj.getValue();
+                    if (!onSubmit) return;
+                    onSubmit(currentSql ?? '');
+                },
+            );
+        },
+        [onSubmit],
+    );
 
     useEffect(() => {
         // remove any existing decorations
@@ -325,7 +323,7 @@ export const SqlEditor: FC<{
         [debouncedSetSql, highlightText, resetHighlightError],
     );
 
-    if (isLoading || isTablesDataLoading) {
+    if (isTablesDataLoading) {
         return (
             <Center h="100%">
                 <Loader color="gray" size="xs" />
@@ -333,10 +331,10 @@ export const SqlEditor: FC<{
         );
     }
 
-    if (!data) {
+    if (!warehouseConnectionType) {
         return (
             <SuboptimalState
-                title="Project data not available"
+                title="Warehouse connection not available"
                 icon={IconAlertCircle}
             />
         );

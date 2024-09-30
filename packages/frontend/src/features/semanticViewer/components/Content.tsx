@@ -1,3 +1,4 @@
+import { ChartKind } from '@lightdash/common';
 import { Center, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
@@ -13,7 +14,6 @@ import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerRe
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
-    selectAllSelectedFields,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
@@ -36,14 +36,16 @@ const Content: FC = () => {
     const org = useOrganization();
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
+
     const {
+        semanticLayerView,
         results,
-        view,
         activeEditorTab,
         columnNames,
         fields,
         activeChartKind,
     } = useAppSelector((state) => state.semanticViewer);
+
     const [hasClickedRunQueryButton, setHasClickedRunQueryButton] =
         useState(false);
 
@@ -51,7 +53,7 @@ const Content: FC = () => {
         selectChartConfigByKind(state, activeChartKind),
     );
 
-    const allSelectedFields = useAppSelector(selectAllSelectedFields);
+    const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
 
     const {
         data: requestData,
@@ -98,7 +100,7 @@ const Content: FC = () => {
 
         const chartResultOptions = getChartConfigAndOptions(
             resultsRunner,
-            activeChartKind,
+            activeChartKind ?? ChartKind.TABLE,
             currentVizConfig,
             org.data,
         );
@@ -123,15 +125,13 @@ const Content: FC = () => {
 
     const handleSortField = useCallback(
         (fieldName: string) => {
-            const fieldToUpdate = allSelectedFields.find(
-                (f) => f.name === fieldName,
-            );
+            const fieldToUpdate = fields.find((f) => f.name === fieldName);
 
             if (fieldToUpdate) {
                 dispatch(updateSortBy(fieldToUpdate));
             }
         },
-        [allSelectedFields, dispatch],
+        [dispatch, fields],
     );
 
     return (
@@ -184,7 +184,7 @@ const Content: FC = () => {
                     }}
                 />
 
-                {!!view && <Filters />}
+                {!!semanticLayerView && <Filters />}
 
                 <RunSemanticQueryButton
                     ml="auto"
@@ -193,7 +193,8 @@ const Content: FC = () => {
                     maxQueryLimit={config.maxQueryLimit}
                 />
             </Group>
-            {!view ? (
+
+            {!semanticLayerView ? (
                 <Center sx={{ flexGrow: 1 }}>
                     <SuboptimalState
                         title="Select a view"

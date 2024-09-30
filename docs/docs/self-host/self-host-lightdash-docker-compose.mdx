@@ -1,9 +1,9 @@
 ---
 sidebar_position: 3
-sidebar_label: Host with docker-compose
+sidebar_label: Host with docker compose
 ---
 
-# Self-host Lightdash using docker-compose
+# Self-host Lightdash using docker compose
 
 This guide will give you a minimal Lightdash instance running on your local machine. It will not be accessible from
 the internet, but it will be accessible from your local machine. This is a great way to get started with Lightdash
@@ -49,7 +49,7 @@ You must set the following two environment variables:
 export LIGHTDASH_SECRET="not very secret"
 export PGPASSWORD="password"
 
-docker-compose -f docker-compose.yml --env-file .env up --detach --remove-orphans
+docker compose -f docker-compose.yml --env-file .env up --detach --remove-orphans
 ```
 
 :::info
