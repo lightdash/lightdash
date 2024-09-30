@@ -1,5 +1,6 @@
 import {
     AlreadyExistsError,
+    assertUnreachable,
     createCustomExplore,
     CreateCustomExplorePayload,
     CreateProject,
@@ -19,6 +20,7 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
+    SemanticLayerType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
     SpaceSummary,
@@ -31,6 +33,8 @@ import {
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
+    type CubeSemanticLayerConnection,
+    type DbtSemanticLayerConnection,
     type SemanticLayerConnection,
 } from '@lightdash/common';
 import {
@@ -562,9 +566,36 @@ export class ProjectModel {
         };
     }
 
+    private static getSemanticLayerNonSensitiveCredentials(
+        semanticLayerConnection: SemanticLayerConnection,
+    ) {
+        const { type } = semanticLayerConnection;
+
+        switch (type) {
+            case SemanticLayerType.CUBE:
+                return {
+                    type,
+                    domain: semanticLayerConnection.domain,
+                } as CubeSemanticLayerConnection;
+            case SemanticLayerType.DBT:
+                return {
+                    type,
+                    domain: semanticLayerConnection.domain,
+                    environmentId: semanticLayerConnection.environmentId,
+                } as DbtSemanticLayerConnection;
+            default:
+                return assertUnreachable(
+                    type,
+                    `Unknown semantic layer connection type: ${type}`,
+                );
+        }
+    }
+
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;
+        const sensitiveSemanticLayerCredentials =
+            project.semanticLayerConnection;
 
         const nonSensitiveDbtCredentials = Object.fromEntries(
             Object.entries(project.dbtConnection).filter(
@@ -572,6 +603,7 @@ export class ProjectModel {
                     !sensitiveDbtCredentialsFieldNames.includes(key as any),
             ),
         ) as DbtProjectConfig;
+
         const nonSensitiveCredentials = sensitiveCredentials
             ? (Object.fromEntries(
                   Object.entries(sensitiveCredentials).filter(
@@ -580,6 +612,14 @@ export class ProjectModel {
                   ),
               ) as WarehouseCredentials)
             : undefined;
+
+        const nonSensitiveSemanticLayerCredentials =
+            sensitiveSemanticLayerCredentials
+                ? ProjectModel.getSemanticLayerNonSensitiveCredentials(
+                      sensitiveSemanticLayerCredentials,
+                  )
+                : undefined;
+
         return {
             organizationUuid: project.organizationUuid,
             projectUuid,
@@ -590,6 +630,7 @@ export class ProjectModel {
             pinnedListUuid: project.pinnedListUuid,
             dbtVersion: project.dbtVersion,
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
+            semanticLayerConnection: nonSensitiveSemanticLayerCredentials,
         };
     }
 
