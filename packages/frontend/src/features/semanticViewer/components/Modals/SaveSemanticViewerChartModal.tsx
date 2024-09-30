@@ -42,7 +42,7 @@ type Props = {
     onSave: (slug: string) => void;
 };
 
-const SemanticViewerSaveChartModal: FC<Props> = ({ onSave }) => {
+const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
     const dispatch = useAppDispatch();
     const [opened, { close }] = useDisclosure(true);
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
@@ -236,4 +236,4 @@ const SemanticViewerSaveChartModal: FC<Props> = ({ onSave }) => {
     );
 };
 
-export default SemanticViewerSaveChartModal;
+export default SaveSemanticViewerChartModal;

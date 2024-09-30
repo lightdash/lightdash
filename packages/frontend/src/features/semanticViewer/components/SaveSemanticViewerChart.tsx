@@ -2,22 +2,19 @@ import { ChartKind } from '@lightdash/common';
 import { Button, Input, useMantineTheme } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
-import { selectChartConfigByKind } from '../../../../components/DataViz/store/selectors';
-import useToaster from '../../../../hooks/toaster/useToaster';
-import { useSavedSemanticViewerChartUpdateMutation } from '../../api/hooks';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { useSavedSemanticViewerChartUpdateMutation } from '../api/hooks';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
-} from '../../store/selectors';
-import {
-    updateName,
-    updateSaveModalOpen,
-} from '../../store/semanticViewerSlice';
+} from '../store/selectors';
+import { updateName, updateSaveModalOpen } from '../store/semanticViewerSlice';
 
-const SemanticViewerSaveChartContent: FC = () => {
+const SaveSemanticViewerChart: FC = () => {
     const theme = useMantineTheme();
     const { showToastSuccess } = useToaster();
 
@@ -125,4 +122,4 @@ const SemanticViewerSaveChartContent: FC = () => {
     );
 };
 
-export default SemanticViewerSaveChartContent;
+export default SaveSemanticViewerChart;
