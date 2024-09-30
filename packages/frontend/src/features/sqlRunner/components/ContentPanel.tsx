@@ -302,6 +302,7 @@ export const ContentPanel: FC = () => {
     // const chartFileUrl = chartVizQuery?.data?.fileUrl;
     // const resultsFileUrl = queryResults?.fileUrl;
 
+    // This is for the pivot table, can be updated
     // const chartVizResultsRunner = useMemo(() => {
     //     if (!chartVizQuery.data) return;
 

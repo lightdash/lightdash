@@ -97,8 +97,11 @@ const ViewSqlChart = () => {
             new SqlRunnerResultsRunnerFrontend({
                 rows: data?.results ?? [],
                 columns: data?.columns ?? [],
+                projectUuid,
+                limit: sqlChart?.limit ,
+                sql,
             }),
-        [data],
+        [data?.columns, data?.results, projectUuid, sql, sqlChart?.limit],
     );
 
     useEffect(() => {
@@ -126,11 +129,14 @@ const ViewSqlChart = () => {
     const chartVizResultsRunner = useMemo(() => {
         if (!chartVizQuery.data) return;
 
-        return new SqlRunnerResultsRunner({
+        return new SqlRunnerResultsRunnerFrontend({
             rows: chartVizQuery.data.results,
             columns: chartVizQuery.data.columns,
+            projectUuid,
+            limit: sqlChart?.limit,
+            sql,
         });
-    }, [chartVizQuery.data]);
+    }, [chartVizQuery.data, projectUuid, sql, sqlChart?.limit]);
 
     return (
         <Page

@@ -95,8 +95,11 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             new SqlRunnerResultsRunnerFrontend({
                 rows: sqlRunnerChartData.results,
                 columns: sqlRunnerChartData.columns,
+                projectUuid,
+                limit: data?.chart.limit,
+                sql: data?.chart.sql,
             }),
-        [sqlRunnerChartData],
+        [sqlRunnerChartData, projectUuid, data?.chart.limit, data?.chart.sql],
     );
 
     const [chartVizQuery, chartSpec] = useChartViz({
