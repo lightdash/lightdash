@@ -77,8 +77,33 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     });
 
     const currentChartTypes = useMemo(() => {
-        return Array.from(new Set(dashboard?.tiles.map((t) => t.type)));
-    }, [dashboard?.tiles]);
+        const dashboardTileTypes = dashboard?.tiles.map((t) => t.type) ?? [];
+        const selectedChartTypes =
+            form.values.savedChartsUuids.map<DashboardTileTypes>((uuid) => {
+                const chart = savedQueries?.find((c) => c.uuid === uuid);
+                const chartSourceType = chart?.source;
+
+                switch (chartSourceType) {
+                    case ChartSourceType.DBT_EXPLORE:
+                        return DashboardTileTypes.SAVED_CHART;
+                    case ChartSourceType.SEMANTIC_LAYER:
+                        return DashboardTileTypes.SEMANTIC_VIEWER_CHART;
+                    case ChartSourceType.SQL:
+                        return DashboardTileTypes.SQL_CHART;
+                    case undefined:
+                        throw new Error('Chart does not exist');
+                    default:
+                        return assertUnreachable(
+                            chartSourceType,
+                            `Unknown chart source type: ${chartSourceType}`,
+                        );
+                }
+            });
+
+        return Array.from(
+            new Set([...dashboardTileTypes, ...selectedChartTypes]),
+        );
+    }, [dashboard?.tiles, form.values.savedChartsUuids, savedQueries]);
 
     const allSavedCharts = useMemo(() => {
         const reorderedCharts = savedQueries?.sort((chartA, chartB) =>
