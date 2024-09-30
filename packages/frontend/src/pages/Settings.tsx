@@ -5,6 +5,7 @@ import {
     IconBuildingSkyscraper,
     IconCalendarStats,
     IconChecklist,
+    IconCloudSearch,
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
@@ -330,8 +331,7 @@ const Settings: FC = () => {
                                         }
                                     />
 
-                                    {/* TODO: make this visible once we announce the feature */}
-                                    {/* {user.ability?.can(
+                                    {user.ability?.can(
                                         'manage',
                                         subject('Project', {
                                             organizationUuid:
@@ -340,7 +340,7 @@ const Settings: FC = () => {
                                         }),
                                     ) ? (
                                         <RouterNavLink
-                                            label="Semantic Layer"
+                                            label="Semantic Layer Integration"
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/semanticLayer`}
                                             icon={
@@ -349,7 +349,7 @@ const Settings: FC = () => {
                                                 />
                                             }
                                         />
-                                    ) : null} */}
+                                    ) : null}
 
                                     <RouterNavLink
                                         label="Tables configuration"
