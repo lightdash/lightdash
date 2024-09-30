@@ -41,6 +41,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
             <HoverCard withinPortal position="left" shadow="sm">
                 <HoverCard.Target>
                     <UnstyledButton
+                        data-testid="sql-query-history-item"
                         ref={hoverRef}
                         sx={(theme) => ({
                             padding: theme.spacing.xs,
@@ -122,7 +123,11 @@ export const SqlQueryHistory: FC = () => {
         <Popover withinPortal>
             <Popover.Target>
                 <Tooltip variant="xs" label="SQL Query history">
-                    <ActionIcon variant="default" size={32}>
+                    <ActionIcon
+                        variant="default"
+                        size={32}
+                        data-testid="sql-query-history-button"
+                    >
                         <MantineIcon icon={IconHistory} />
                     </ActionIcon>
                 </Tooltip>

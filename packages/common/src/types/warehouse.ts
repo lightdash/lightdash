@@ -50,7 +50,7 @@ export interface WarehouseClient {
         streamCallback: (data: WarehouseResults) => void,
         options: {
             values?: any[];
-            tags?: Record<string, string>;
+            tags: Record<string, string>;
             timezone?: string;
         },
     ): Promise<void>;
@@ -65,7 +65,7 @@ export interface WarehouseClient {
      */
     runQuery(
         sql: string,
-        tags?: Record<string, string>,
+        tags: Record<string, string>,
         timezone?: string,
         values?: any[],
     ): Promise<WarehouseResults>;

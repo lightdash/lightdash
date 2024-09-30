@@ -854,6 +854,7 @@ export class PromoteService extends BaseService {
                     user.userId,
                     data.isPrivate,
                     data.slug,
+                    true, // forceSameSlug
                 );
                 if (data.isPrivate) {
                     const promotedSpaceWithAccess =

@@ -222,7 +222,6 @@ install_docker() {
         echo "Installing docker"
         # sudo pacman -Syu
         sudo pacman -S docker --noconfirm # (docker, containerd, runc)
-        sudo pacman -S docker-compose --noconfirm
         docker info
         sudo systemctl enable --now docker
         sudo usermod -aG docker $USER
@@ -254,23 +253,13 @@ install_docker_machine() {
 
 }
 
-install_docker_compose() {
-    if [[ $package_manager == "apt-get" || $package_manager == "zypper" || $package_manager == "yum" ]]; then
-        if [[ ! -f /usr/bin/docker-compose ]];then
-            echo "++++++++++++++++++++++++"
-            echo "Installing docker-compose"
-            sudo curl -L "https://github.com/docker/compose/releases/download/1.26.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-            sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-            echo "docker-compose installed!"
-            echo ""
-        fi
-    else
-        track_error "$DockerComposeNotFound"
-        echo "+++++++++++ IMPORTANT READ ++++++++++++++++++++++"
-        echo "docker-compose not found! Please install docker-compose first and then continue with this installation."
-        echo "Refer https://docs.docker.com/compose/install/ for installing docker-compose."
-        echo "+++++++++++++++++++++++++++++++++++++++++++++++++"
+check_docker_version() {
+    docker_version=$(docker --version | awk '{print $3}' | sed 's/,//')
+    major_version=$(echo "$docker_version" | cut -d. -f1)
+    minor_version=$(echo "$docker_version" | cut -d. -f2)
+
+    if [[ "$major_version" -lt 20 ]] || [[ "$major_version" -eq 20 && "$minor_version" -lt 10 ]]; then
+        echo "Docker version 20.10 or higher is required. Please update your Docker installation."
         exit 1
     fi
 }
@@ -339,7 +328,7 @@ bye() {  # Prints a friendly good bye message and exits the script.
 
         echo "🔴 The containers didn't seem to start correctly. Please run the following command to check containers that may have errored out:"
         echo ""
-        echo -e "docker-compose -f docker-compose.yml ps -a"
+        echo -e "docker compose -f docker-compose.yml ps -a"
         echo "Please reach us on Lightdash for support https://join.slack.com/t/lightdash-community/shared_invite/zt-2ehqnrvqt-LbCq7cUSFHAzEj_wMuxg4A"
         echo "++++++++++++++++++++++++++++++++++++++++"
         track_error $Interrupted
@@ -413,26 +402,25 @@ if ! is_command_present docker; then
     fi
 fi
 
-# Install docker-compose
-if ! is_command_present docker-compose; then
-    install_docker_compose
-fi
+# Check for compatible Docker version
+check_docker_version
 
 start_docker
 
 echo ""
 echo -e "\n🟡 Pulling the latest container images for Lightdash.\n"
-LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" docker-compose --env-file ./.env.fast-install -f docker-compose.yml pull
+LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" docker compose --env-file ./.env.fast-install -f docker-compose.yml pull
 
 echo ""
 echo "🟡 Starting the Lightdash containers. It may take a few minutes ..."
 echo
+# TODO: Remove once verified that the docker compose command works as expected from user feedback
 # The docker-compose command does some nasty stuff for the `--detach` functionality. So we add a `|| true` so that the
 # script doesn't exit because this command looks like it failed to do it's thing.
 if [[ $setup_type == 'local_dbt' ]]; then
-    LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PORT="$port" DBT_PROJECT_DIR="$dbt_project_dir" docker-compose --env-file ./.env.fast-install -f docker-compose.yml up --detach --remove-orphans || true
+    LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" PORT="$port" DBT_PROJECT_DIR="$dbt_project_dir" docker compose --env-file ./.env.fast-install -f docker-compose.yml up --detach --remove-orphans || true
 else
-    LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" docker-compose --env-file ./.env.fast-install -f docker-compose.yml up --detach --remove-orphans || true
+    LIGHTDASH_INSTALL_ID="$INSTALLATION_ID" LIGHTDASH_INSTALL_TYPE="$LIGHTDASH_INSTALL_TYPE" docker compose --env-file ./.env.fast-install -f docker-compose.yml up --detach --remove-orphans || true
 fi
 
 wait_for_containers_start 60
@@ -442,7 +430,7 @@ if [[ $status_code -ne 200 ]]; then
     echo "+++++++++++ ERROR ++++++++++++++++++++++"
     echo "🔴 The containers didn't seem to start correctly. Please run the following command to check containers that may have errored out:"
     echo ""
-    echo -e "docker-compose -f docker-compose.yml ps -a"
+    echo -e "docker compose -f docker-compose.yml ps -a"
     echo "Please reach us on Lightdash for support https://join.slack.com/t/lightdash-community/shared_invite/zt-2ehqnrvqt-LbCq7cUSFHAzEj_wMuxg4A"
     echo "++++++++++++++++++++++++++++++++++++++++"
 
@@ -459,9 +447,9 @@ else
     echo -e "🟢 Your frontend is running on http://localhost:$port"
     echo ""
 
-    echo "ℹ️  To restart Lightdash: docker-compose -f docker-compose.yml start"
-    echo "ℹ️  To stop Lightdash: docker-compose -f docker-compose.yml stop -v"
-    echo "ℹ️  To bring down Lightdash and clean volumes: docker-compose -f docker-compose.yml down -v"
+    echo "ℹ️  To restart Lightdash: docker compose -f docker-compose.yml start"
+    echo "ℹ️  To stop Lightdash: docker compose -f docker-compose.yml stop -v"
+    echo "ℹ️  To bring down Lightdash and clean volumes: docker compose -f docker-compose.yml down -v"
 
     echo ""
     echo "+++++++++++++++++++++++++++++++++++++++++++++++++"

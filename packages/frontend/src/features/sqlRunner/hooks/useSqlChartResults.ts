@@ -79,7 +79,7 @@ export const useSqlChartResults = (
             });
         },
         {
-            enabled: Boolean(slug),
+            enabled: Boolean(slug) && Boolean(projectUuid),
         },
     );
 };

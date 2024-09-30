@@ -1,6 +1,4 @@
 import {
-    isApiSemanticLayerJobSuccessResponse,
-    isSemanticLayerJobErrorDetails,
     SchedulerJobStatus,
     type ApiError,
     type ApiSemanticLayerJobStatusResponse,
@@ -14,31 +12,26 @@ export const getSemanticLayerCompleteJob = async (
     const job = await getSchedulerJobStatus<
         ApiSemanticLayerJobStatusResponse['results']
     >(jobId);
-    if (
-        job.status === SchedulerJobStatus.SCHEDULED ||
-        job.status === SchedulerJobStatus.STARTED
-    ) {
-        return new Promise((resolve) => {
-            setTimeout(async () => {
-                resolve(await getSemanticLayerCompleteJob(jobId));
-            }, 1000);
-        });
-    }
-    if (isApiSemanticLayerJobSuccessResponse(job)) {
+
+    if (job.status === SchedulerJobStatus.COMPLETED) {
         return job;
-    } else {
+    }
+
+    if (job.status === SchedulerJobStatus.ERROR) {
         return <ApiError>{
             status: SchedulerJobStatus.ERROR,
             error: {
                 name: 'Error',
                 statusCode: 500,
-                message: isSemanticLayerJobErrorDetails(job.details)
-                    ? job.details.error
-                    : 'Job failed',
-                data: isSemanticLayerJobErrorDetails(job.details)
-                    ? job.details
-                    : {},
+                message: job.details.error,
+                data: job.details,
             },
         };
     }
+
+    return new Promise((resolve) => {
+        setTimeout(async () => {
+            resolve(await getSemanticLayerCompleteJob(jobId));
+        }, 1000);
+    });
 };

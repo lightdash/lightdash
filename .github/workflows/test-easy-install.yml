@@ -21,8 +21,8 @@ jobs:
       run: ./scripts/install.sh
     - name: Test containers 
       run: |
-        exited_containers=$(docker-compose -f docker-compose.yml ps | grep exited | wc -l)
-        if [ $exited_containers = '0' ]; then exit 0 ; else echo "Some containers are not running"; docker-compose -f docker-compose.yml ps ;docker-compose -f docker-compose.yml logs; exit 1; fi 
+        exited_containers=$(docker compose -f docker-compose.yml ps | grep exited | wc -l)
+        if [ $exited_containers = '0' ]; then exit 0 ; else echo "Some containers are not running"; docker compose -f docker-compose.yml ps ;docker compose -f docker-compose.yml logs; exit 1; fi 
     - name: Test frontend 
       run: | 
         output=$(curl -s http://localhost:8080 | grep "Lightdash - Explore and visualize your team's analytics and metrics." |  wc -l)

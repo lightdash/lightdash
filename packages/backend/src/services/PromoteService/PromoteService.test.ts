@@ -518,8 +518,9 @@ describe('PromoteService promoting and mutating changes', () => {
             'upstream-project-uuid',
             'Private space',
             0,
-            true,
+            true, // isPrivate
             'jaffle-shop',
+            true, // forceSameSlug
         );
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(1);
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledWith(

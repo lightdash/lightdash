@@ -100,6 +100,13 @@ type SchedulerTaskArguments = {
     semanticLayerService: SemanticLayerService;
 };
 
+type RunQueryTags = {
+    project_uuid?: string;
+    user_uuid?: string;
+    organization_uuid?: string;
+    chart_uuid?: string;
+    dashboard_uuid?: string;
+};
 export default class SchedulerTask {
     protected readonly lightdashConfig: LightdashConfig;
 
@@ -154,6 +161,7 @@ export default class SchedulerTask {
         dashboardUuid: string | null,
         schedulerUuid: string | undefined,
         sendNowSchedulerFilters: SchedulerFilterRule[] | undefined,
+        selectedTabs: string[] | undefined,
     ) {
         if (chartUuid) {
             const chart =
@@ -189,6 +197,16 @@ export default class SchedulerTask {
                     sendNowSchedulerFilters
                         ? `?sendNowchedulerFilters=${encodeURI(
                               JSON.stringify(sendNowSchedulerFilters),
+                          )}`
+                        : ''
+                }${
+                    selectedTabs
+                        ? `${
+                              schedulerUuid || sendNowSchedulerFilters
+                                  ? '&'
+                                  : '?'
+                          }selectedTabs=${encodeURI(
+                              JSON.stringify(selectedTabs),
                           )}`
                         : ''
                 }`,
@@ -233,6 +251,10 @@ export default class SchedulerTask {
                 ? scheduler.filters
                 : undefined;
 
+        const selectedTabs = isDashboardScheduler(scheduler)
+            ? scheduler.selectedTabs
+            : undefined;
+
         const {
             url,
             minimalUrl,
@@ -245,6 +267,7 @@ export default class SchedulerTask {
             dashboardUuid,
             schedulerUuid,
             sendNowSchedulerFilters,
+            selectedTabs,
         );
 
         switch (format) {
@@ -338,6 +361,7 @@ export default class SchedulerTask {
                             isDashboardScheduler(scheduler)
                                 ? scheduler.filters
                                 : undefined,
+                            selectedTabs,
                         );
 
                         this.analytics.track({
@@ -988,6 +1012,11 @@ export default class SchedulerTask {
             const user = await this.userService.getSessionByUserUuid(
                 payload.userUuid,
             );
+            const queryTags: RunQueryTags = {
+                project_uuid: payload.projectUuid,
+                user_uuid: payload.userUuid,
+                organization_uuid: payload.organizationUuid,
+            };
 
             const { rows } = await this.projectService.runMetricQuery({
                 user,
@@ -997,7 +1026,9 @@ export default class SchedulerTask {
                 csvLimit: undefined,
                 context: QueryExecutionContext.GSHEETS,
                 chartUuid: undefined,
+                queryTags,
             });
+
             const refreshToken = await this.userService.getRefreshToken(
                 payload.userUuid,
             );
@@ -1287,14 +1318,23 @@ export default class SchedulerTask {
         if (thresholds.length < 1 || results.length < 1) {
             return false;
         }
+
         const { fieldId, operator, value: thresholdValue } = thresholds[0];
 
         const getValue = (resultIdx: number) => {
-            if (resultIdx >= results.length) {
+            if (results.length === 0) {
                 throw new NotEnoughResults(
-                    `Threshold alert error: Can't find enough results`,
+                    `Threshold alert error: Query returned no rows.`,
                 );
             }
+
+            // If we are trying to access beyond available rows, throw a general error
+            if (resultIdx >= results.length) {
+                throw new NotEnoughResults(
+                    `Threshold alert error: Expected at least ${resultIdx} rows, but only ${results.length} row(s) were returned.`,
+                );
+            }
+
             const result = results[resultIdx];
 
             if (!(fieldId in result)) {
@@ -1305,14 +1345,23 @@ export default class SchedulerTask {
             }
             return parseFloat(result[fieldId]);
         };
+
         const latestValue = getValue(0);
         switch (operator) {
             case ThresholdOperator.GREATER_THAN:
                 return latestValue > thresholdValue;
+
             case ThresholdOperator.LESS_THAN:
                 return latestValue < thresholdValue;
+
             case ThresholdOperator.INCREASED_BY:
             case ThresholdOperator.DECREASED_BY:
+                // Ensure at least two rows exist for these operations
+                if (results.length < 2) {
+                    throw new NotEnoughResults(
+                        `Threshold alert error: Increase/decrease comparison requires at least two rows, but only ${results.length} row(s) were returned.`,
+                    );
+                }
                 const previousValue = getValue(1);
                 if (operator === ThresholdOperator.INCREASED_BY) {
                     const percentageIncrease =
@@ -1329,6 +1378,7 @@ export default class SchedulerTask {
                     `Unknown threshold alert operator: ${operator}`,
                 );
         }
+
         return false;
     }
 

@@ -1466,7 +1466,7 @@ export class ProjectService extends BaseService {
         exploreName: string;
         csvLimit: number | null | undefined;
         context: QueryExecutionContext;
-        queryTags?: RunQueryTags;
+        queryTags: RunQueryTags;
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
@@ -1554,6 +1554,11 @@ export class ProjectService extends BaseService {
                 const chart = await this.savedChartModel.get(chartUuid);
                 const { metricQuery } = chart;
                 const exploreId = chart.tableName;
+                const queryTags: RunQueryTags = {
+                    project_uuid: chart.projectUuid,
+                    user_uuid: user.userUuid,
+                    chart_uuid: chartUuid,
+                };
 
                 return this.runMetricQuery({
                     user,
@@ -1563,6 +1568,7 @@ export class ProjectService extends BaseService {
                     csvLimit: undefined,
                     context,
                     chartUuid,
+                    queryTags,
                 });
             },
         );
@@ -1582,7 +1588,7 @@ export class ProjectService extends BaseService {
         warehouseClient: WarehouseClient;
         query: any;
         metricQuery: MetricQuery;
-        queryTags?: RunQueryTags;
+        queryTags: RunQueryTags;
         invalidateCache?: boolean;
     }): Promise<{
         rows: Record<string, any>[];
@@ -1709,7 +1715,7 @@ export class ProjectService extends BaseService {
         exploreName: string;
         csvLimit: number | null | undefined;
         context: QueryExecutionContext;
-        queryTags?: RunQueryTags;
+        queryTags: RunQueryTags;
         invalidateCache?: boolean;
         explore?: Explore;
         granularity?: DateGranularity;
@@ -3722,7 +3728,22 @@ export class ProjectService extends BaseService {
             )
             .map(({ uuid }) => uuid);
 
-        return this.spaceModel.getSpaceQueries(allowedSpaceUuids);
+        const savedQueries = await this.spaceModel.getSpaceQueries(
+            allowedSpaceUuids,
+        );
+        const savedSqlCharts = await this.spaceModel.getSpaceSqlCharts(
+            allowedSpaceUuids,
+        );
+        const savedSemanticViewerCharts =
+            await this.spaceModel.getSpaceSemanticViewerCharts(
+                allowedSpaceUuids,
+            );
+
+        return [
+            ...savedQueries,
+            ...savedSqlCharts,
+            ...savedSemanticViewerCharts,
+        ];
     }
 
     async getChartSummaries(
@@ -3822,6 +3843,13 @@ export class ProjectService extends BaseService {
                 mostPopular: true,
             },
         );
+        const mostPopularSemanticViewerCharts =
+            await this.spaceModel.getSpaceSemanticViewerCharts(
+                allowedSpaces.map(({ uuid }) => uuid),
+                {
+                    mostPopular: true,
+                },
+            );
         const mostPopularDashboards = await this.spaceModel.getSpaceDashboards(
             allowedSpaces.map(({ uuid }) => uuid),
             {
@@ -3832,6 +3860,7 @@ export class ProjectService extends BaseService {
         return [
             ...mostPopularCharts,
             ...mostPopularSqlCharts,
+            ...mostPopularSemanticViewerCharts,
             ...mostPopularDashboards,
         ];
     }
@@ -3852,6 +3881,13 @@ export class ProjectService extends BaseService {
                     recentlyUpdated: true,
                 },
             );
+        const recentlyUpdatedSemanticViewerCharts =
+            await this.spaceModel.getSpaceSemanticViewerCharts(
+                allowedSpaces.map(({ uuid }) => uuid),
+                {
+                    recentlyUpdated: true,
+                },
+            );
         const recentlyUpdatedDashboards =
             await this.spaceModel.getSpaceDashboards(
                 allowedSpaces.map(({ uuid }) => uuid),
@@ -3862,6 +3898,7 @@ export class ProjectService extends BaseService {
         return [
             ...recentlyUpdatedCharts,
             ...recentlyUpdatedSqlCharts,
+            ...recentlyUpdatedSemanticViewerCharts,
             ...recentlyUpdatedDashboards,
         ];
     }

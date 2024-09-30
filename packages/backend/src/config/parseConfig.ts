@@ -288,6 +288,7 @@ export type SlackConfig = {
     appToken?: string;
     port: number;
     socketMode?: boolean;
+    channelsCachedTime: number;
 };
 export type HeadlessBrowserConfig = {
     host?: string;
@@ -719,6 +720,10 @@ export const parseConfig = (): LightdashConfig => {
             appToken: process.env.SLACK_APP_TOKEN,
             port: parseInt(process.env.SLACK_PORT || '4351', 10),
             socketMode: process.env.SLACK_SOCKET_MODE === 'true',
+            channelsCachedTime: parseInt(
+                process.env.SLACK_CHANNELS_CACHED_TIME || '600000',
+                10,
+            ), // 10 minutes
         },
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',

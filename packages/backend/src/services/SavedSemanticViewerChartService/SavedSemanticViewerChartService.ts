@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    ApiSemanticLayerCreateChart,
     ForbiddenError,
     isVizBarChartConfig,
     isVizLineChartConfig,
@@ -8,11 +7,14 @@ import {
     Organization,
     Project,
     SavedSemanticViewerChart,
-    SemanticLayerCreateChart,
     SessionUser,
     SpaceShare,
     SpaceSummary,
     VIZ_DEFAULT_AGGREGATION,
+    type SemanticViewerChartCreate,
+    type SemanticViewerChartCreateResult,
+    type SemanticViewerChartUpdate,
+    type SemanticViewerChartUpdateResult,
 } from '@lightdash/common';
 import { uniq } from 'lodash';
 import {
@@ -194,8 +196,8 @@ export class SavedSemanticViewerChartService extends BaseService {
     async createSemanticViewerChart(
         user: SessionUser,
         projectUuid: string,
-        semanticViewerChart: SemanticLayerCreateChart,
-    ): Promise<ApiSemanticLayerCreateChart['results']> {
+        semanticViewerChart: SemanticViewerChartCreate,
+    ): Promise<SemanticViewerChartCreateResult> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -255,5 +257,132 @@ export class SavedSemanticViewerChartService extends BaseService {
         });
 
         return createdChart;
+    }
+
+    async updateSemanticViewerChart(
+        user: SessionUser,
+        projectUuid: string,
+        savedSemanticViewerChartUuid: string,
+        update: SemanticViewerChartUpdate,
+    ): Promise<SemanticViewerChartUpdateResult> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'manage',
+                // TODO: add it's own ability
+                subject('CustomSql', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const savedChart = await this.savedSemanticViewerChartModel.getByUuid(
+            savedSemanticViewerChartUuid,
+            {
+                projectUuid,
+            },
+        );
+
+        const { hasAccess: hasUpdateAccess } = await this.hasSavedChartAccess(
+            user,
+            'update',
+            savedChart,
+        );
+        if (!hasUpdateAccess) {
+            throw new ForbiddenError(
+                "You don't have permission to update this chart",
+            );
+        }
+
+        // check permission if the chart is being moved to a different space
+        if (
+            update.unversionedData &&
+            savedChart.space.uuid !== update.unversionedData.spaceUuid
+        ) {
+            const { hasAccess: hasUpdateAccessToNewSpace } =
+                await this.hasAccess(user, 'update', {
+                    spaceUuid: update.unversionedData.spaceUuid,
+                    organizationUuid: savedChart.organization.organizationUuid,
+                    projectUuid: savedChart.project.projectUuid,
+                });
+            if (!hasUpdateAccessToNewSpace) {
+                throw new ForbiddenError(
+                    "You don't have permission to move this chart to the new space",
+                );
+            }
+        }
+
+        const updatedChart = await this.savedSemanticViewerChartModel.update({
+            userUuid: user.userUuid,
+            savedSemanticViewerChartUuid,
+            update,
+        });
+
+        this.analytics.track({
+            event: 'semantic_viewer_chart.updated',
+            userId: user.userUuid,
+            properties: {
+                chartId: savedChart.savedSemanticViewerChartUuid,
+                projectId: savedChart.project.projectUuid,
+                organizationId: savedChart.organization.organizationUuid,
+            },
+        });
+
+        if (updatedChart.savedSemanticViewerChartUuid && update.versionedData) {
+            this.analytics.track({
+                event: 'semantic_viewer_chart_version.created',
+                userId: user.userUuid,
+                properties: {
+                    chartId: updatedChart.savedSemanticViewerChartUuid,
+                    versionId: updatedChart.savedSemanticViewerChartVersionUuid,
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    ...SavedSemanticViewerChartService.getCreateVersionEventProperties(
+                        update.versionedData.config,
+                        update.versionedData.semanticLayerQuery,
+                    ),
+                },
+            });
+        }
+
+        return updatedChart;
+    }
+
+    async deleteSemanticViewerChart(
+        user: SessionUser,
+        projectUuid: string,
+        savedSemanticViewerChartUuid: string,
+    ): Promise<void> {
+        const savedChart = await this.savedSemanticViewerChartModel.getByUuid(
+            savedSemanticViewerChartUuid,
+            {
+                projectUuid,
+            },
+        );
+        const { hasAccess: hasDeleteAccess } = await this.hasSavedChartAccess(
+            user,
+            'delete',
+            savedChart,
+        );
+        if (!hasDeleteAccess) {
+            throw new ForbiddenError(
+                "You don't have permission to delete this chart",
+            );
+        }
+        await this.savedSemanticViewerChartModel.delete(
+            savedSemanticViewerChartUuid,
+        );
+
+        this.analytics.track({
+            event: 'semantic_viewer_chart.deleted',
+            userId: user.userUuid,
+            properties: {
+                chartId: savedChart.savedSemanticViewerChartUuid,
+                projectId: savedChart.project.projectUuid,
+                organizationId: savedChart.organization.organizationUuid,
+            },
+        });
     }
 }

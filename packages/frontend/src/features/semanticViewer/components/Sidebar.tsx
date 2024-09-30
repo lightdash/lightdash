@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { selectSemanticLayerInfo } from '../store/selectors';
@@ -24,10 +25,12 @@ import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
 
 const Sidebar: FC = () => {
-    const { features } = useAppSelector(selectSemanticLayerInfo);
-    const { view, saveModalOpen } = useAppSelector(
+    const { features, projectUuid } = useAppSelector(selectSemanticLayerInfo);
+    const { semanticLayerView, saveModalOpen } = useAppSelector(
         (state) => state.semanticViewer,
     );
+    const history = useHistory();
+
     const dispatch = useAppDispatch();
 
     const handleExitView = () => {
@@ -37,6 +40,12 @@ const Sidebar: FC = () => {
     const { activeSidebarTab, activeChartKind, columns } = useAppSelector(
         (state) => state.semanticViewer,
     );
+
+    const handleSave = (uuid: string) => {
+        history.replace(
+            `/projects/${projectUuid}/semantic-viewer/${uuid}/edit`,
+        );
+    };
 
     return (
         <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
@@ -52,10 +61,12 @@ const Sidebar: FC = () => {
                     borderBottom: `1px solid ${theme.colors.gray[3]}`,
                 })}
             >
-                {view && (
+                {semanticLayerView && (
                     <>
                         <SaveChart.Content />
-                        {saveModalOpen && <SaveChart.Modal />}
+                        {saveModalOpen && (
+                            <SaveChart.Modal onSave={handleSave} />
+                        )}
                     </>
                 )}
             </Group>
@@ -69,7 +80,7 @@ const Sidebar: FC = () => {
             >
                 <Title order={5} fz="sm" c="gray.6" px="sm">
                     <Group spacing="xs">
-                        {features.views && view && (
+                        {features.views && semanticLayerView && (
                             <Tooltip
                                 variant="xs"
                                 label="Back to views"
@@ -81,7 +92,7 @@ const Sidebar: FC = () => {
                             </Tooltip>
                         )}
 
-                        {!view ? 'Views' : 'Fields'}
+                        {!semanticLayerView ? 'Views' : 'Fields'}
                     </Group>
                 </Title>
 
@@ -89,9 +100,12 @@ const Sidebar: FC = () => {
                     direction="column"
                     sx={{ flexGrow: 1, overflowY: 'auto' }}
                     px="sm"
-                    pt="xxs"
                 >
-                    {!view ? <SidebarViews /> : <SidebarViewFields />}
+                    {!semanticLayerView ? (
+                        <SidebarViews />
+                    ) : (
+                        <SidebarViewFields />
+                    )}
                 </Flex>
             </Stack>
 

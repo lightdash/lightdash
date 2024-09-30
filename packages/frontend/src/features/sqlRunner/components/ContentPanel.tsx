@@ -22,6 +22,7 @@ import {
     IconCodeCircle,
     IconGripHorizontal,
 } from '@tabler/icons-react';
+import type { EChartsInstance } from 'echarts-for-react';
 import {
     useCallback,
     useEffect,
@@ -61,11 +62,12 @@ import {
     setSqlLimit,
     setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
-import { DownloadCsvButton } from './DownloadCsvButton';
+import { ChartDownload } from './Download/ChartDownload';
+import { ResultsDownload } from './Download/ResultsDownload';
 import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
 import { SqlQueryHistory } from './SqlQueryHistory';
 
-const DEFAULT_SQL_LIMIT = 500;
+export const DEFAULT_SQL_LIMIT = 500;
 
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
@@ -147,16 +149,19 @@ export const ContentPanel: FC = () => {
     // in the state to keep them around when the query is re-run.
     const [queryResults, setQueryResults] = useState<ResultsAndColumns>();
 
-    const handleRunQuery = useCallback(async () => {
-        if (!sql) return;
-        const newQueryResults = await runSqlQuery({
-            sql,
-            limit: DEFAULT_SQL_LIMIT,
-        });
+    const handleRunQuery = useCallback(
+        async (sqlToUse: string) => {
+            if (!sqlToUse) return;
+            const newQueryResults = await runSqlQuery({
+                sql: sqlToUse,
+                limit: DEFAULT_SQL_LIMIT,
+            });
 
-        setQueryResults(newQueryResults);
-        notifications.clean();
-    }, [runSqlQuery, sql]);
+            setQueryResults(newQueryResults);
+            notifications.clean();
+        },
+        [runSqlQuery, setQueryResults],
+    );
 
     // Run query on cmd + enter
     useHotkeys([
@@ -165,11 +170,11 @@ export const ContentPanel: FC = () => {
 
     useEffect(() => {
         if (fetchResultsOnLoad && !queryResults) {
-            void handleRunQuery();
+            void handleRunQuery(sql);
         } else if (fetchResultsOnLoad && queryResults) {
             dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
         }
-    }, [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch]);
+    }, [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch, sql]);
 
     const resultsRunner = useMemo(() => {
         if (!queryResults) return;
@@ -272,6 +277,9 @@ export const ContentPanel: FC = () => {
         limit,
     });
 
+    const [activeEchartsInstance, setActiveEchartsInstance] =
+        useState<EChartsInstance>();
+
     const chartFileUrl = chartVizQuery?.data?.fileUrl;
     const resultsFileUrl = queryResults?.fileUrl;
 
@@ -284,6 +292,9 @@ export const ContentPanel: FC = () => {
         });
     }, [chartVizQuery.data]);
 
+    const hasUnrunChanges = useAppSelector(
+        (state) => state.sqlRunner.hasUnrunChanges,
+    );
     const hasErrors = useAppSelector(
         (state) =>
             !!cartesianChartSelectors.getErrors(state, selectedChartType),
@@ -324,13 +335,34 @@ export const ContentPanel: FC = () => {
                                         {
                                             value: EditorTabs.SQL,
                                             label: (
-                                                <Group spacing={4} noWrap>
-                                                    <MantineIcon
-                                                        color="gray.6"
-                                                        icon={IconCodeCircle}
-                                                    />
-                                                    <Text>SQL</Text>
-                                                </Group>
+                                                <Tooltip
+                                                    disabled={!hasUnrunChanges}
+                                                    variant="xs"
+                                                    withinPortal
+                                                    label="You haven't run this query yet."
+                                                >
+                                                    <Group spacing={4} noWrap>
+                                                        <MantineIcon
+                                                            color={
+                                                                hasUnrunChanges
+                                                                    ? 'yellow.7'
+                                                                    : 'gray.6'
+                                                            }
+                                                            icon={
+                                                                IconCodeCircle
+                                                            }
+                                                        />
+                                                        <Text
+                                                            color={
+                                                                hasUnrunChanges
+                                                                    ? 'yellow.7'
+                                                                    : 'gray.6'
+                                                            }
+                                                        >
+                                                            SQL
+                                                        </Text>
+                                                    </Group>
+                                                </Tooltip>
                                             ),
                                         },
                                         {
@@ -383,7 +415,7 @@ export const ContentPanel: FC = () => {
                             <RunSqlQueryButton
                                 isLoading={isLoading}
                                 disabled={!sql}
-                                onSubmit={() => handleRunQuery()}
+                                onSubmit={() => handleRunQuery(sql)}
                                 {...(canSetSqlLimit
                                     ? {
                                           onLimitChange: (l) =>
@@ -393,14 +425,16 @@ export const ContentPanel: FC = () => {
                                     : {})}
                             />
                             {activeEditorTab === EditorTabs.VISUALIZATION &&
-                            !isVizTableConfig(currentVizConfig) ? (
-                                <DownloadCsvButton
+                            !isVizTableConfig(currentVizConfig) &&
+                            selectedChartType ? (
+                                <ChartDownload
                                     fileUrl={chartFileUrl}
                                     columns={chartVizQuery?.data?.columns ?? []}
                                     chartName={savedSqlChart?.name}
+                                    echartsInstance={activeEchartsInstance}
                                 />
                             ) : (
-                                <DownloadCsvButton
+                                <ResultsDownload
                                     fileUrl={resultsFileUrl}
                                     columns={queryResults?.columns ?? []}
                                     chartName={savedSqlChart?.name}
@@ -459,7 +493,9 @@ export const ContentPanel: FC = () => {
                                         resetHighlightError={() =>
                                             setHightlightError(undefined)
                                         }
-                                        onSubmit={() => handleRunQuery()}
+                                        onSubmit={(submittedSQL) =>
+                                            handleRunQuery(submittedSQL ?? '')
+                                        }
                                         highlightText={
                                             hightlightError
                                                 ? {
@@ -522,6 +558,18 @@ export const ContentPanel: FC = () => {
                                                                             style={{
                                                                                 height: inputSectionHeight,
                                                                                 flex: 1,
+                                                                            }}
+                                                                            onChartReady={(
+                                                                                instance,
+                                                                            ) => {
+                                                                                if (
+                                                                                    c.type ===
+                                                                                    selectedChartType
+                                                                                ) {
+                                                                                    setActiveEchartsInstance(
+                                                                                        instance,
+                                                                                    );
+                                                                                }
                                                                             }}
                                                                         />
                                                                     </ConditionalVisibility>

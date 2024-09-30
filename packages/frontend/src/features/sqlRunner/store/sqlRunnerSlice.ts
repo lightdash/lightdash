@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    WarehouseTypes,
     type SqlChart,
     type VizColumn,
     type VizTableColumnsConfig,
@@ -7,6 +8,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { format, type FormatOptionsWithLanguage } from 'sql-formatter';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
 
@@ -20,6 +22,46 @@ export enum SidebarTabs {
     VISUALIZATION = 'visualization',
 }
 
+const getLanguage = (
+    warehouseConnectionType?: WarehouseTypes,
+): FormatOptionsWithLanguage['language'] => {
+    switch (warehouseConnectionType) {
+        case WarehouseTypes.BIGQUERY:
+            return 'bigquery';
+        case WarehouseTypes.SNOWFLAKE:
+            return 'snowflake';
+        case WarehouseTypes.TRINO:
+            return 'spark';
+        case WarehouseTypes.DATABRICKS:
+            return 'spark';
+        case WarehouseTypes.POSTGRES:
+            return 'postgresql';
+        case WarehouseTypes.REDSHIFT:
+            return 'redshift';
+        default:
+            return 'sql';
+    }
+};
+
+/**
+ * Normalizes the SQL by removing all whitespace and formatting it consistently - helpful for comparing two SQL queries
+ * @param sql
+ * @returns formatted SQL
+ */
+const normalizeSQL = (
+    sql: string,
+    warehouseConnectionType: WarehouseTypes | undefined,
+): string => {
+    try {
+        return format(sql, {
+            language: getLanguage(warehouseConnectionType),
+        });
+    } catch (error) {
+        // Return the original SQL or a placeholder if formatting fails
+        return sql;
+    }
+};
+
 export const DEFAULT_NAME = 'Untitled SQL Query';
 
 export interface SqlRunnerState {
@@ -32,6 +74,7 @@ export interface SqlRunnerState {
     description: string;
     sql: string;
     successfulSqlQueries: WithHistory<string | undefined>;
+    hasUnrunChanges: boolean;
     limit: number;
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
@@ -58,6 +101,7 @@ export interface SqlRunnerState {
         };
     };
     quoteChar: string;
+    warehouseConnectionType: WarehouseTypes | undefined;
     sqlColumns: VizColumn[] | undefined;
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
@@ -73,6 +117,7 @@ const initialState: SqlRunnerState = {
     description: '',
     sql: '',
     successfulSqlQueries: withHistory(undefined),
+    hasUnrunChanges: false,
     limit: 500,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
@@ -99,12 +144,15 @@ const initialState: SqlRunnerState = {
         },
     },
     quoteChar: '"',
+    warehouseConnectionType: undefined,
     sqlColumns: undefined,
     activeConfigs: [ChartKind.VERTICAL_BAR],
     fetchResultsOnLoad: false,
 };
 
-const sqlHistoryReducer = createHistoryReducer<string | undefined>(5);
+const sqlHistoryReducer = createHistoryReducer<string | undefined>({
+    maxHistoryItems: 5,
+});
 
 export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
@@ -159,9 +207,21 @@ export const sqlRunnerSlice = createSlice({
 
             if (!!state.sql) {
                 sqlHistoryReducer.addToHistory(state.successfulSqlQueries, {
-                    payload: state.sql,
+                    payload: {
+                        value: state.sql,
+                        compareFunc: (a, b) =>
+                            normalizeSQL(
+                                a || '',
+                                state.warehouseConnectionType,
+                            ) !==
+                            normalizeSQL(
+                                b || '',
+                                state.warehouseConnectionType,
+                            ),
+                    },
                     type: 'sql',
                 });
+                state.hasUnrunChanges = false;
             }
         },
         updateName: (state, action: PayloadAction<string>) => {
@@ -169,6 +229,16 @@ export const sqlRunnerSlice = createSlice({
         },
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
+
+            const normalizedNewSql = normalizeSQL(
+                action.payload,
+                state.warehouseConnectionType,
+            );
+            const normalizedCurrentSql = normalizeSQL(
+                state.successfulSqlQueries.current || '',
+                state.warehouseConnectionType,
+            );
+            state.hasUnrunChanges = normalizedNewSql !== normalizedCurrentSql;
         },
         setSqlLimit: (state, action: PayloadAction<number>) => {
             state.limit = action.payload;
@@ -228,6 +298,12 @@ export const sqlRunnerSlice = createSlice({
         setQuoteChar: (state, action: PayloadAction<string>) => {
             state.quoteChar = action.payload;
         },
+        setWarehouseConnectionType: (
+            state,
+            action: PayloadAction<WarehouseTypes>,
+        ) => {
+            state.warehouseConnectionType = action.payload;
+        },
     },
 });
 
@@ -246,4 +322,5 @@ export const {
     toggleModal,
     resetState,
     setQuoteChar,
+    setWarehouseConnectionType,
 } = sqlRunnerSlice.actions;
