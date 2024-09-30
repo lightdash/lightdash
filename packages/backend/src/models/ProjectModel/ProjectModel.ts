@@ -1,11 +1,10 @@
 import {
     AlreadyExistsError,
+    assertUnreachable,
     createCustomExplore,
     CreateCustomExplorePayload,
-    CreateDbtCloudIntegration,
     CreateProject,
     CreateWarehouseCredentials,
-    DbtCloudIntegration,
     DbtProjectConfig,
     Explore,
     ExploreError,
@@ -21,6 +20,7 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
+    SemanticLayerType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
     SpaceSummary,
@@ -33,6 +33,9 @@ import {
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
+    type CubeSemanticLayerConnection,
+    type DbtSemanticLayerConnection,
+    type SemanticLayerConnection,
 } from '@lightdash/common';
 import {
     WarehouseCatalog,
@@ -280,6 +283,19 @@ export class ProjectModel {
                 throw new UnexpectedServerError('Could not save credentials.');
             }
 
+            let encryptedSemanticLayerConnection: Buffer | null;
+            try {
+                encryptedSemanticLayerConnection = data.semanticLayerConnection
+                    ? this.encryptionUtil.encrypt(
+                          JSON.stringify(data.semanticLayerConnection),
+                      )
+                    : null;
+            } catch (e) {
+                throw new UnexpectedServerError(
+                    'Could not encrypt semantic layer connection credentials.',
+                );
+            }
+
             // Make sure the project to copy exists and is owned by the same organization
             const copiedProjects = data.upstreamProjectUuid
                 ? await trx('projects')
@@ -298,6 +314,7 @@ export class ProjectModel {
                             ? copiedProjects[0].project_uuid
                             : null,
                     dbt_version: data.dbtVersion,
+                    semantic_layer_connection: encryptedSemanticLayerConnection,
                 })
                 .returning('*');
 
@@ -371,6 +388,7 @@ export class ProjectModel {
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
+                  semantic_layer_connection: Buffer | null;
               }
             | {
                   name: string;
@@ -382,6 +400,7 @@ export class ProjectModel {
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
+                  semantic_layer_connection: Buffer | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -430,6 +449,9 @@ export class ProjectModel {
                         this.database
                             .ref('copied_from_project_uuid')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('semantic_layer_connection')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -454,6 +476,24 @@ export class ProjectModel {
                         'Failed to load dbt credentials',
                     );
                 }
+
+                let semanticLayerConnection:
+                    | SemanticLayerConnection
+                    | undefined;
+                try {
+                    semanticLayerConnection = project.semantic_layer_connection
+                        ? (JSON.parse(
+                              this.encryptionUtil.decrypt(
+                                  project.semantic_layer_connection,
+                              ),
+                          ) as SemanticLayerConnection)
+                        : undefined;
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Failed to load dbt credentials',
+                    );
+                }
+
                 const result: Omit<Project, 'warehouseConnection'> = {
                     organizationUuid: project.organization_uuid,
                     projectUuid,
@@ -463,6 +503,7 @@ export class ProjectModel {
                     pinnedListUuid: project.pinned_list_uuid,
                     dbtVersion: project.dbt_version,
                     upstreamProjectUuid: project.copied_from_project_uuid,
+                    semanticLayerConnection,
                 };
                 if (!project.warehouse_type) {
                     return result;
@@ -525,9 +566,36 @@ export class ProjectModel {
         };
     }
 
+    private static getSemanticLayerNonSensitiveCredentials(
+        semanticLayerConnection: SemanticLayerConnection,
+    ) {
+        const { type } = semanticLayerConnection;
+
+        switch (type) {
+            case SemanticLayerType.CUBE:
+                return {
+                    type,
+                    domain: semanticLayerConnection.domain,
+                } as CubeSemanticLayerConnection;
+            case SemanticLayerType.DBT:
+                return {
+                    type,
+                    domain: semanticLayerConnection.domain,
+                    environmentId: semanticLayerConnection.environmentId,
+                } as DbtSemanticLayerConnection;
+            default:
+                return assertUnreachable(
+                    type,
+                    `Unknown semantic layer connection type: ${type}`,
+                );
+        }
+    }
+
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;
+        const sensitiveSemanticLayerCredentials =
+            project.semanticLayerConnection;
 
         const nonSensitiveDbtCredentials = Object.fromEntries(
             Object.entries(project.dbtConnection).filter(
@@ -535,6 +603,7 @@ export class ProjectModel {
                     !sensitiveDbtCredentialsFieldNames.includes(key as any),
             ),
         ) as DbtProjectConfig;
+
         const nonSensitiveCredentials = sensitiveCredentials
             ? (Object.fromEntries(
                   Object.entries(sensitiveCredentials).filter(
@@ -543,6 +612,14 @@ export class ProjectModel {
                   ),
               ) as WarehouseCredentials)
             : undefined;
+
+        const nonSensitiveSemanticLayerCredentials =
+            sensitiveSemanticLayerCredentials
+                ? ProjectModel.getSemanticLayerNonSensitiveCredentials(
+                      sensitiveSemanticLayerCredentials,
+                  )
+                : undefined;
+
         return {
             organizationUuid: project.organizationUuid,
             projectUuid,
@@ -553,6 +630,7 @@ export class ProjectModel {
             pinnedListUuid: project.pinnedListUuid,
             dbtVersion: project.dbtVersion,
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
+            semanticLayerConnection: nonSensitiveSemanticLayerCredentials,
         };
     }
 
@@ -1135,82 +1213,6 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
 
         return projectGroupAccesses;
-    }
-
-    async findDbtCloudIntegration(
-        projectUuid: string,
-    ): Promise<DbtCloudIntegration | undefined> {
-        const [row] = await this.database('dbt_cloud_integrations')
-            .select(['metrics_job_id'])
-            .innerJoin(
-                'projects',
-                'projects.project_id',
-                'dbt_cloud_integrations.project_id',
-            )
-            .where('project_uuid', projectUuid);
-        if (row === undefined) {
-            return undefined;
-        }
-        return {
-            metricsJobId: row.metrics_job_id,
-        };
-    }
-
-    async findDbtCloudIntegrationWithSecrets(
-        projectUuid: string,
-    ): Promise<CreateDbtCloudIntegration | undefined> {
-        const [row] = await this.database('dbt_cloud_integrations')
-            .select(['metrics_job_id', 'service_token'])
-            .innerJoin(
-                'projects',
-                'projects.project_id',
-                'dbt_cloud_integrations.project_id',
-            )
-            .where('project_uuid', projectUuid);
-        if (row === undefined) {
-            return undefined;
-        }
-        const serviceToken = this.encryptionUtil.decrypt(row.service_token);
-        return {
-            metricsJobId: row.metrics_job_id,
-            serviceToken,
-        };
-    }
-
-    async upsertDbtCloudIntegration(
-        projectUuid: string,
-        integration: CreateDbtCloudIntegration,
-    ): Promise<void> {
-        const [project] = await this.database('projects')
-            .select(['project_id'])
-            .where('project_uuid', projectUuid);
-        if (project === undefined) {
-            throw new NotExistsError(
-                `Cannot find project with id '${projectUuid}'`,
-            );
-        }
-        const encryptedServiceToken = this.encryptionUtil.encrypt(
-            integration.serviceToken,
-        );
-        await this.database('dbt_cloud_integrations')
-            .insert({
-                project_id: project.project_id,
-                service_token: encryptedServiceToken,
-                metrics_job_id: integration.metricsJobId,
-            })
-            .onConflict('project_id')
-            .merge();
-    }
-
-    async deleteDbtCloudIntegration(projectUuid: string): Promise<void> {
-        await this.database.raw(
-            `
-                DELETE
-                FROM dbt_cloud_integrations AS i USING projects AS p
-                WHERE p.project_id = i.project_id
-                  AND p.project_uuid = ?`,
-            [projectUuid],
-        );
     }
 
     async getWarehouseCredentialsForProject(
@@ -1862,5 +1864,21 @@ export class ProjectModel {
             .returning('*');
 
         return { name };
+    }
+
+    async updateSemanticLayerConnection(
+        projectUuid: string,
+        connection: SemanticLayerConnection | undefined,
+    ) {
+        const [updatedProject] = await this.database(ProjectTableName)
+            .update({
+                semantic_layer_connection: connection
+                    ? this.encryptionUtil.encrypt(JSON.stringify(connection))
+                    : null,
+            })
+            .where('project_uuid', projectUuid)
+            .returning('*');
+
+        return updatedProject;
     }
 }

@@ -23,6 +23,7 @@ export type DbProject = {
     table_selection_value: string[] | null;
     copied_from_project_uuid: string | null;
     dbt_version: string;
+    semantic_layer_connection: Buffer | null;
 };
 
 type CreateDbProject = Pick<
@@ -34,6 +35,7 @@ type CreateDbProject = Pick<
     | 'dbt_connection_type'
     | 'copied_from_project_uuid'
     | 'dbt_version'
+    | 'semantic_layer_connection'
 >;
 type UpdateDbProject = Partial<
     Pick<
@@ -45,6 +47,7 @@ type UpdateDbProject = Partial<
         | 'table_selection_value'
         | 'dbt_version'
         | 'copied_from_project_uuid'
+        | 'semantic_layer_connection'
     >
 >;
 

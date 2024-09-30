@@ -15,7 +15,6 @@ import {
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateCustomExplorePayload,
-    CreateDbtCloudIntegration,
     createDimensionWithGranularity,
     CreateJob,
     CreateProject,
@@ -83,6 +82,7 @@ import {
     RequestMethod,
     ResultRow,
     SavedChartsInfoForDashboardAvailableFilters,
+    SemanticLayerConnection,
     SessionUser,
     snakeCaseName,
     SortByDirection,
@@ -3623,73 +3623,6 @@ export class ProjectService extends BaseService {
         return this.projectModel.getProjectGroupAccesses(projectUuid);
     }
 
-    async upsertDbtCloudIntegration(
-        user: SessionUser,
-        projectUuid: string,
-        integration: CreateDbtCloudIntegration,
-    ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        await this.projectModel.upsertDbtCloudIntegration(
-            projectUuid,
-            integration,
-        );
-        this.analytics.track({
-            event: 'dbt_cloud_integration.updated',
-            userId: user.userUuid,
-            properties: {
-                projectId: projectUuid,
-            },
-        });
-        return this.findDbtCloudIntegration(user, projectUuid);
-    }
-
-    async deleteDbtCloudIntegration(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        await this.projectModel.deleteDbtCloudIntegration(projectUuid);
-        this.analytics.track({
-            event: 'dbt_cloud_integration.deleted',
-            userId: user.userUuid,
-            properties: {
-                projectId: projectUuid,
-            },
-        });
-    }
-
-    async findDbtCloudIntegration(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        return this.projectModel.findDbtCloudIntegration(projectUuid);
-    }
-
     async getCharts(
         user: SessionUser,
         projectUuid: string,
@@ -4431,5 +4364,25 @@ export class ProjectService extends BaseService {
             warehouseClient,
         );
         return explore;
+    }
+
+    async updateSemanticLayerConnection(
+        user: SessionUser,
+        projectUuid: string,
+        payload: SemanticLayerConnection | undefined,
+    ) {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        if (user.ability.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        const updatedProject =
+            await this.projectModel.updateSemanticLayerConnection(
+                projectUuid,
+                payload,
+            );
+
+        return updatedProject;
     }
 }

@@ -13,6 +13,7 @@ import {
     DbtGraphQLMetric,
     DbtGraphQLRunQueryRawResponse,
     DbtQueryStatus,
+    DbtSemanticLayerConnection,
     getDefaultedLimit,
     SemanticLayerClient,
     SemanticLayerQuery,
@@ -27,6 +28,10 @@ import { dbtCloudTransfomers } from './transformer';
 
 type DbtCloudGraphqlClientArgs = {
     lightdashConfig: LightdashConfig;
+    connectionCredentials: Pick<
+        DbtSemanticLayerConnection,
+        'environmentId' | 'domain' | 'token'
+    >;
 };
 
 type GetDimensionsFnArgs = DbtGraphQLGetDimensionsArgs;
@@ -43,10 +48,13 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     maxQueryLimit: number;
 
-    constructor({ lightdashConfig }: DbtCloudGraphqlClientArgs) {
-        this.domain = lightdashConfig.dbtCloud.domain;
-        this.bearerToken = lightdashConfig.dbtCloud.bearerToken;
-        this.environmentId = lightdashConfig.dbtCloud.environmentId;
+    constructor({
+        lightdashConfig,
+        connectionCredentials,
+    }: DbtCloudGraphqlClientArgs) {
+        this.domain = connectionCredentials.domain;
+        this.bearerToken = connectionCredentials.token;
+        this.environmentId = connectionCredentials.environmentId;
         this.maxQueryLimit = lightdashConfig.query.maxLimit;
     }
 
