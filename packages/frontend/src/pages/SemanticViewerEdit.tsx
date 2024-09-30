@@ -72,27 +72,19 @@ const SemanticViewerEditorPageWithStore = () => {
             return;
         }
 
-        const vizColumns =
-            SemanticViewerResultsRunnerFrontend.convertColumnsToVizColumns(
-                fieldsQuery.data,
-                chartResultsQuery.data.columns,
-            );
-
         return new SemanticViewerResultsRunnerFrontend({
             projectUuid,
             fields: fieldsQuery.data,
-            query: chartQuery.data.semanticLayerQuery,
             rows: chartResultsQuery.data.results,
-            columns: vizColumns,
+            columnNames: chartResultsQuery.data.columns,
         });
     }, [
-        chartQuery.data,
-        chartQuery.isSuccess,
-        chartResultsQuery.data,
-        chartResultsQuery.isSuccess,
-        fieldsQuery.data,
-        fieldsQuery.isSuccess,
         projectUuid,
+        fieldsQuery.isSuccess,
+        fieldsQuery.data,
+        chartQuery.isSuccess,
+        chartResultsQuery.isSuccess,
+        chartResultsQuery.data,
     ]);
 
     const savedChartSpaceUserAccess =
