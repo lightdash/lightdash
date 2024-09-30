@@ -1,3 +1,10 @@
+## [0.1281.1](https://github.com/lightdash/lightdash/compare/0.1281.0...0.1281.1) (2024-09-30)
+
+
+### Bug Fixes
+
+* invite user with no org ([#11717](https://github.com/lightdash/lightdash/issues/11717)) ([760b3fd](https://github.com/lightdash/lightdash/commit/760b3fd06529a0de36790345a5b1c785acd1cf0e))
+
 # [0.1281.0](https://github.com/lightdash/lightdash/compare/0.1280.0...0.1281.0) (2024-09-27)
 
 
