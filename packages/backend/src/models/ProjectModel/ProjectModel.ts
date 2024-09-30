@@ -1371,16 +1371,17 @@ export class ProjectModel {
                         );
                     }
                     // Generate the slug asynchronously
-                    const uniqueSlug = await generateUniqueSlug(
-                        trx,
-                        'saved_sql',
-                        d.slug, // using the existing slug as a base - preventing naming duplicates
-                    );
+                    // const uniqueSlug = await generateUniqueSlug(
+                    //     trx,
+                    //     'saved_sql',
+                    //     d.slug, // using the existing slug as a base - preventing naming duplicates
+                    // );
                     // Map the saved SQL to the new saved SQL
                     const createSavedSQL: CloneSavedSQL = {
                         ...d,
+                        project_uuid: previewProjectUuid,
                         space_uuid: getNewSpaceUuid(d.space_uuid),
-                        slug: uniqueSlug,
+                        // slug: uniqueSlug,
                         search_vector: undefined,
                         saved_sql_uuid: undefined,
                         dashboard_uuid: null,
