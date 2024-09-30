@@ -56,7 +56,9 @@ const DbtSemanticLayerForm: FC<Props> = ({
         },
     });
 
-    const [domainOptions, setDomainOptions] = useState(PRE_DEFINED_DOMAINS);
+    const [domainOptions, setDomainOptions] = useState(
+        PRE_DEFINED_DOMAINS.concat(semanticLayerConnection?.domain ?? []),
+    );
 
     return (
         <form onSubmit={form.onSubmit(onSubmit)}>

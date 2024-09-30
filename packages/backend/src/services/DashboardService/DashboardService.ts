@@ -565,6 +565,7 @@ export class DashboardService extends BaseService {
                 new Set(dashboard.tiles.map((t) => t.type)),
             );
 
+            // INFO: this should be removed once we have one semantic layer per project.
             if (
                 dashboardTileTypes.includes(
                     DashboardTileTypes.SEMANTIC_VIEWER_CHART,
