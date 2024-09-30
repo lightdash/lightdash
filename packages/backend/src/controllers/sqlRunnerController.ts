@@ -33,6 +33,10 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import {
+    getContextFromHeader,
+    getContextFromQueryOrHeader,
+} from '../analytics/LightdashAnalytics';
+import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
@@ -141,7 +145,12 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getResultJobFromSqlPivotQuery(req.user!, projectUuid, body),
+                .getResultJobFromSqlPivotQuery(
+                    req.user!,
+                    projectUuid,
+                    body,
+                    getContextFromQueryOrHeader(req),
+                ),
         };
     }
 
@@ -243,12 +252,16 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
-
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getSqlChartResultJob(req.user!, projectUuid, slug),
+                .getSqlChartResultJob(
+                    req.user!,
+                    projectUuid,
+                    slug,
+                    getContextFromQueryOrHeader(req),
+                ),
         };
     }
 

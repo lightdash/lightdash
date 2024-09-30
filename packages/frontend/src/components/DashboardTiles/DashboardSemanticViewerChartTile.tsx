@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ChartKind,
     isVizTableConfig,
@@ -8,10 +9,12 @@ import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-    useSavedSemanticViewerChartAndResults,
+    useSavedSemanticViewerChart,
+    useSavedSemanticViewerChartResults,
     useSemanticLayerViewFields,
 } from '../../features/semanticViewer/api/hooks';
 import { SemanticViewerResultsRunner } from '../../features/semanticViewer/runners/SemanticViewerResultsRunner';
+import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -57,59 +60,100 @@ const ChartTileOptions = memo(
 );
 
 const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
+    const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const savedSemanticViewerChartUuid =
-        tile.properties.savedSemanticViewerChartUuid;
+        tile.properties.savedSemanticViewerChartUuid ?? undefined;
 
-    const chartQuery = useSavedSemanticViewerChartAndResults({
+    const chartQuery = useSavedSemanticViewerChart({
         projectUuid,
-        uuid: savedSemanticViewerChartUuid,
+        findBy: { uuid: savedSemanticViewerChartUuid },
+    });
+
+    const chartResultsQuery = useSavedSemanticViewerChartResults({
+        projectUuid,
+        findBy: { uuid: savedSemanticViewerChartUuid },
     });
 
     const fieldsQuery = useSemanticLayerViewFields(
         {
             projectUuid,
             // TODO: this should never be empty or that hook should receive a null view!
-            semanticLayerView: chartQuery.data?.chart.semanticLayerView ?? '',
-            semanticLayerQuery: chartQuery.data?.chart.semanticLayerQuery,
+            semanticLayerView: chartQuery.data?.semanticLayerView ?? '',
+            semanticLayerQuery: chartQuery.data?.semanticLayerQuery,
         },
         { enabled: chartQuery.isSuccess },
     );
 
-    const chartData = useMemo(() => {
-        if (!chartQuery.isSuccess) return undefined;
-        return chartQuery.data.results;
-    }, [chartQuery]);
-
     const resultsRunner = useMemo(() => {
-        if (!chartQuery.isSuccess || !fieldsQuery.isSuccess || !chartData)
+        if (
+            !chartQuery.isSuccess ||
+            !fieldsQuery.isSuccess ||
+            !chartResultsQuery.isSuccess
+        ) {
             return;
+        }
 
         const vizColumns =
             SemanticViewerResultsRunner.convertColumnsToVizColumns(
                 fieldsQuery.data,
-                chartData.columns,
+                chartResultsQuery.data.columns,
             );
 
         return new SemanticViewerResultsRunner({
             projectUuid,
             fields: fieldsQuery.data,
-            query: chartQuery.data.chart.semanticLayerQuery,
-            rows: chartData.results,
+            query: chartQuery.data.semanticLayerQuery,
+            rows: chartResultsQuery.data.results,
             columns: vizColumns,
         });
-    }, [chartQuery, fieldsQuery, chartData, projectUuid]);
+    }, [
+        projectUuid,
+        chartQuery.data,
+        chartQuery.isSuccess,
+        chartResultsQuery.data,
+        chartResultsQuery.isSuccess,
+        fieldsQuery.data,
+        fieldsQuery.isSuccess,
+    ]);
 
     const [chartVizQuery, chartSpec] = useChartViz({
         projectUuid,
         resultsRunner,
         uuid: savedSemanticViewerChartUuid ?? undefined,
-        config: chartQuery.data?.chart.config,
-        slug: chartQuery.data?.chart.slug,
+        config: chartQuery.data?.config,
+        slug: chartQuery.data?.slug,
     });
 
-    if (chartQuery.isLoading || fieldsQuery.isLoading) {
+    const savedChartSpaceUserAccess =
+        chartQuery.isSuccess && chartQuery.data.space.userAccess
+            ? [chartQuery.data.space.userAccess]
+            : [];
+
+    const canManageSemanticViewer = user.data?.ability?.can(
+        'manage',
+        subject('SemanticViewer', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+            access: savedChartSpaceUserAccess,
+        }),
+    );
+
+    const canUpdateChart = user.data?.ability?.can(
+        'update',
+        subject('SavedChart', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+            access: savedChartSpaceUserAccess,
+        }),
+    );
+
+    if (
+        chartQuery.isLoading ||
+        fieldsQuery.isLoading ||
+        chartResultsQuery.isLoading
+    ) {
         return (
             <TileBase
                 isEditMode={isEditMode}
@@ -122,7 +166,12 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         );
     }
 
-    if (chartQuery.error !== null || fieldsQuery.error !== null || !chartData) {
+    if (
+        chartQuery.error !== null ||
+        fieldsQuery.error !== null ||
+        chartResultsQuery.error !== null ||
+        !chartResultsQuery.data
+    ) {
         return (
             <TileBase
                 isEditMode={isEditMode}
@@ -136,6 +185,7 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                     title={
                         chartQuery.error?.error?.message ??
                         fieldsQuery.error?.error?.message ??
+                        chartResultsQuery.error?.error?.message ??
                         'No data available'
                     }
                 />
@@ -147,36 +197,39 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         <TileBase
             isEditMode={isEditMode}
             chartName={tile.properties.chartName ?? ''}
-            titleHref={`/projects/${projectUuid}/semantic-viewer/${chartQuery.data.chart.slug}`}
+            titleHref={`/projects/${projectUuid}/semantic-viewer/${chartQuery.data.slug}`}
             tile={tile}
             title={tile.properties.title || tile.properties.chartName || ''}
             {...rest}
             extraMenuItems={
-                <ChartTileOptions
-                    isEditMode={isEditMode}
-                    projectUuid={projectUuid}
-                    slug={chartQuery.data.chart.slug}
-                />
+                canManageSemanticViewer &&
+                canUpdateChart && (
+                    <ChartTileOptions
+                        isEditMode={isEditMode}
+                        projectUuid={projectUuid}
+                        slug={chartQuery.data.slug}
+                    />
+                )
             }
         >
             {resultsRunner &&
-                chartQuery.data.chart.config.type === ChartKind.TABLE &&
-                isVizTableConfig(chartQuery.data.chart.config) && (
+                chartQuery.data.config.type === ChartKind.TABLE &&
+                isVizTableConfig(chartQuery.data.config) && (
                     // So that the Table tile isn't cropped by the overflow
                     <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
                         <Table
                             resultsRunner={resultsRunner}
-                            columnsConfig={chartQuery.data.chart.config.columns}
+                            columnsConfig={chartQuery.data.config.columns}
                         />
                     </Box>
                 )}
 
             {savedSemanticViewerChartUuid &&
-                (chartQuery.data.chart.config.type === ChartKind.VERTICAL_BAR ||
-                    chartQuery.data.chart.config.type === ChartKind.LINE ||
-                    chartQuery.data.chart.config.type === ChartKind.PIE) && (
+                (chartQuery.data.config.type === ChartKind.VERTICAL_BAR ||
+                    chartQuery.data.config.type === ChartKind.LINE ||
+                    chartQuery.data.config.type === ChartKind.PIE) && (
                     <ChartView
-                        config={chartQuery.data.chart.config}
+                        config={chartQuery.data.config}
                         spec={chartSpec}
                         isLoading={chartVizQuery.isLoading}
                         error={chartVizQuery.error}

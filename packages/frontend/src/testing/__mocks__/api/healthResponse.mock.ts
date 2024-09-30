@@ -75,7 +75,6 @@ export default function mockHealthResponse(
         },
         hasEmailClient: false,
         hasHeadlessBrowser: false,
-        hasDbtSemanticLayer: false,
         hasGroups: false,
         hasExtendedUsageAnalytics: false,
         hasGithub: false,

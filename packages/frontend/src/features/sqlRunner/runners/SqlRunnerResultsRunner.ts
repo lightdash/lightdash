@@ -16,12 +16,16 @@ import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
 
 const schedulePivotSqlJob = async ({
     projectUuid,
+    context,
     ...payload
 }: {
     projectUuid: string;
+    context?: string;
 } & SqlRunnerPivotQueryBody) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
-        url: `/projects/${projectUuid}/sqlRunner/runPivotQuery`,
+        url: `/projects/${projectUuid}/sqlRunner/runPivotQuery${
+            context ? `?context=${context}` : ''
+        }`,
         method: 'POST',
         body: JSON.stringify(payload),
     });
@@ -29,12 +33,18 @@ const schedulePivotSqlJob = async ({
 type PivotQueryFn = (
     args: SqlRunnerPivotQueryBody & {
         projectUuid: string;
+        context?: string;
     },
 ) => Promise<Omit<PivotChartData, 'columns'>>;
 
-const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
+const pivotQueryFn: PivotQueryFn = async ({
+    projectUuid,
+    context,
+    ...args
+}) => {
     const scheduledJob = await schedulePivotSqlJob({
         projectUuid,
+        context,
         ...args,
     });
 
@@ -72,6 +82,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
         limit: number,
         slug?: string,
         uuid?: string,
+        context?: string,
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
@@ -98,6 +109,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
             groupByColumns: config.groupBy,
             limit,
             sortBy: config.sortBy,
+            context,
         });
 
         const columns: VizColumn[] = [

@@ -22,7 +22,7 @@ import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPop
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
 import { useApp } from '../../../../providers/AppProvider';
-import * as Models from './../Modals';
+import DeleteSemanticViewerChartModal from '../Modals/DeleteSemanticViewerChartModal';
 
 type Props = {
     projectUuid: string;
@@ -45,12 +45,16 @@ export const HeaderView: FC<Props> = ({
         { open: openAddToDashboardModal, close: closeAddToDashboardModal },
     ] = useDisclosure(false);
 
-    const canManageSemanticViewerChart = user.data?.ability?.can(
+    const savedChartSpaceUserAccess = chart.space.userAccess
+        ? [chart.space.userAccess]
+        : [];
+
+    const canManageSemanticViewer = user.data?.ability?.can(
         'manage',
-        // TODO: change to permissions for semantic viewer
-        subject('SqlRunner', {
+        subject('SemanticViewer', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
+            access: savedChartSpaceUserAccess,
         }),
     );
 
@@ -60,7 +64,7 @@ export const HeaderView: FC<Props> = ({
             organizationUuid: user.data?.organizationUuid,
             projectUuid,
             isPrivate: chart.space.isPrivate,
-            access: chart.space.userAccess,
+            access: savedChartSpaceUserAccess,
         }),
     );
 
@@ -99,13 +103,13 @@ export const HeaderView: FC<Props> = ({
                     </Stack>
 
                     <Group spacing="md">
-                        {canManageSemanticViewerChart && canManageChart && (
+                        {canManageSemanticViewer && canManageChart && (
                             <Button
                                 size="xs"
                                 variant="default"
                                 onClick={() =>
                                     history.push(
-                                        `/projects/${projectUuid}/semantic-viewer/${chart.savedSemanticViewerChartUuid}/edit`,
+                                        `/projects/${projectUuid}/semantic-viewer/${chart.slug}/edit`,
                                     )
                                 }
                             >
@@ -145,7 +149,7 @@ export const HeaderView: FC<Props> = ({
                                     color="red"
                                     disabled={
                                         !(
-                                            canManageSemanticViewerChart &&
+                                            canManageSemanticViewer &&
                                             canManageChart
                                         )
                                     }
@@ -159,7 +163,7 @@ export const HeaderView: FC<Props> = ({
                 </Group>
             </Paper>
 
-            <Models.DeleteSavedSemanticChart
+            <DeleteSemanticViewerChartModal
                 projectUuid={projectUuid}
                 uuid={chart.savedSemanticViewerChartUuid}
                 name={chart.name}

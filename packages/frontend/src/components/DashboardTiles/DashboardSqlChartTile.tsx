@@ -10,6 +10,7 @@ import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
 import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
+import useSearchParams from '../../hooks/useSearchParams';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -61,10 +62,12 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         projectUuid: string;
         dashboardUuid: string;
     }>();
+    const context = useSearchParams('context') || undefined;
     const savedSqlUuid = tile.properties.savedSqlUuid;
     const { data, isLoading, error } = useDashboardSqlChart({
         projectUuid,
         savedSqlUuid,
+        context,
     });
 
     const canManageSqlRunner = user.data?.ability?.can(
@@ -101,6 +104,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         slug: data?.chart.slug,
         limit: data?.chart.limit,
         additionalQueryKey: [data?.chart.slug, data?.chart.sql, savedSqlUuid],
+        context,
     });
 
     if (isLoading) {

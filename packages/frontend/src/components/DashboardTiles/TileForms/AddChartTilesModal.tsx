@@ -75,6 +75,36 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
             savedChartsUuids: [],
         },
     });
+
+    const currentChartTypes = useMemo(() => {
+        const dashboardTileTypes = dashboard?.tiles.map((t) => t.type) ?? [];
+        const selectedChartTypes =
+            form.values.savedChartsUuids.map<DashboardTileTypes>((uuid) => {
+                const chart = savedQueries?.find((c) => c.uuid === uuid);
+                const chartSourceType = chart?.source;
+
+                switch (chartSourceType) {
+                    case ChartSourceType.DBT_EXPLORE:
+                        return DashboardTileTypes.SAVED_CHART;
+                    case ChartSourceType.SEMANTIC_LAYER:
+                        return DashboardTileTypes.SEMANTIC_VIEWER_CHART;
+                    case ChartSourceType.SQL:
+                        return DashboardTileTypes.SQL_CHART;
+                    case undefined:
+                        throw new Error('Chart does not exist');
+                    default:
+                        return assertUnreachable(
+                            chartSourceType,
+                            `Unknown chart source type: ${chartSourceType}`,
+                        );
+                }
+            });
+
+        return Array.from(
+            new Set([...dashboardTileTypes, ...selectedChartTypes]),
+        );
+    }, [dashboard?.tiles, form.values.savedChartsUuids, savedQueries]);
+
     const allSavedCharts = useMemo(() => {
         const reorderedCharts = savedQueries?.sort((chartA, chartB) =>
             chartA.space.uuid === dashboard?.spaceUuid
@@ -83,8 +113,38 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                 ? 1
                 : 0,
         );
-        return (reorderedCharts || []).map(
-            ({ uuid, name, space, chartKind }) => {
+
+        return (reorderedCharts || [])
+            .filter((chart) => {
+                const chartSourceType = chart.source;
+
+                if (currentChartTypes.length === 0) {
+                    return true;
+                }
+
+                switch (chartSourceType) {
+                    case ChartSourceType.DBT_EXPLORE:
+                    case ChartSourceType.SQL:
+                        return !currentChartTypes.includes(
+                            DashboardTileTypes.SEMANTIC_VIEWER_CHART,
+                        );
+                    case ChartSourceType.SEMANTIC_LAYER:
+                        return (
+                            !currentChartTypes.includes(
+                                DashboardTileTypes.SAVED_CHART,
+                            ) &&
+                            !currentChartTypes.includes(
+                                DashboardTileTypes.SQL_CHART,
+                            )
+                        );
+                    default:
+                        return assertUnreachable(
+                            chartSourceType,
+                            `Unknown chart source type: ${chartSourceType}`,
+                        );
+                }
+            })
+            .map(({ uuid, name, space, chartKind }) => {
                 const alreadyAddedChart = dashboardTiles?.find((tile) => {
                     return (
                         (tile.type === DashboardTileTypes.SAVED_CHART &&
@@ -107,9 +167,8 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         : undefined,
                     chartKind,
                 };
-            },
-        );
-    }, [savedQueries, dashboard?.spaceUuid, dashboardTiles]);
+            });
+    }, [currentChartTypes, savedQueries, dashboard?.spaceUuid, dashboardTiles]);
 
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
         onAddTiles(

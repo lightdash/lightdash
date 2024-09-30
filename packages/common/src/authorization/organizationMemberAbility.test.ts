@@ -742,6 +742,9 @@ describe('Organization member permissions', () => {
         it('cannot run SQL Queries', () => {
             expect(ability.can('manage', 'SqlRunner')).toEqual(false);
         });
+        it('can use the SemanticViewer', () => {
+            expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
+        });
     });
     describe('when user is an developer', () => {
         beforeEach(() => {
@@ -752,6 +755,10 @@ describe('Organization member permissions', () => {
 
         it('can run SQL Queries', () => {
             expect(ability.can('manage', 'SqlRunner')).toEqual(true);
+        });
+
+        it('can use the SemanticViewer', () => {
+            expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
         });
     });
     describe('when user is a member', () => {
@@ -1319,6 +1326,9 @@ describe('Organization member permissions', () => {
                 ),
             ).toEqual(false);
         });
+        it('cannot view the SemanticViewer', () => {
+            expect(ability.can('view', 'SemanticViewer')).toEqual(false);
+        });
     });
     describe('when user is an interactive viewer', () => {
         beforeEach(() => {
@@ -1393,6 +1403,17 @@ describe('Organization member permissions', () => {
                 ability.can(
                     'manage',
                     subject('SqlRunner', {
+                        organizationUuid:
+                            ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                    }),
+                ),
+            ).toEqual(false);
+        });
+        it('cannot use the SemanticViewer', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SemanticViewer', {
                         organizationUuid:
                             ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
                     }),

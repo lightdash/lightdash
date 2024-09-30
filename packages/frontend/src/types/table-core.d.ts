@@ -16,5 +16,7 @@ declare module '@tanstack/table-core' {
         frozen?: boolean;
         isVisible?: boolean;
         onHeaderClick?: MouseEventHandler<HTMLTableHeaderCellElement>;
+        type?: string;
+        headerInfo?: {};
     }
 }

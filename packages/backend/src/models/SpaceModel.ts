@@ -997,7 +997,7 @@ export class SpaceModel {
                     slug: string;
                 }[]
             >([
-                `${chartTable}.${uuidColumnName}`,
+                `${chartTable}.${uuidColumnName} as uuid`,
                 `${chartTable}.name`,
                 `${chartTable}.description`,
                 `${chartTable}.last_version_updated_at as created_at`,

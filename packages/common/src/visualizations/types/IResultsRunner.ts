@@ -14,6 +14,7 @@ export interface IResultsRunner<TPivotChartLayout> {
         limit?: number,
         slug?: string,
         uuid?: string,
+        context?: string,
     ): Promise<PivotChartData>;
 
     defaultPivotChartLayout(): TPivotChartLayout | undefined;

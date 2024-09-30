@@ -24,7 +24,6 @@ import Home from './pages/Home';
 import Invite from './pages/Invite';
 import JoinOrganization from './pages/JoinOrganization';
 import Login from './pages/Login';
-import MetricFlowPage from './pages/MetricFlow';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import PasswordRecovery from './pages/PasswordRecovery';
@@ -260,17 +259,10 @@ const Routes: FC = () => {
                                         <SqlRunnerNew />
                                     </Route>
 
-                                    <Route path="/projects/:projectUuid/dbtsemanticlayer">
-                                        <NavBar />
-                                        <TrackPage name={PageName.METRIC_FLOW}>
-                                            <MetricFlowPage />
-                                        </TrackPage>
-                                    </Route>
-
                                     <Route
                                         exact
                                         path={[
-                                            '/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartUuid/edit',
+                                            '/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartSlug/edit',
                                             '/projects/:projectUuid/semantic-viewer/new',
                                             '/projects/:projectUuid/semantic-viewer',
                                         ]}
@@ -285,7 +277,7 @@ const Routes: FC = () => {
 
                                     <Route
                                         exact
-                                        path="/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartUuid"
+                                        path="/projects/:projectUuid/semantic-viewer/:savedSemanticViewerChartSlug"
                                     >
                                         <NavBar />
 

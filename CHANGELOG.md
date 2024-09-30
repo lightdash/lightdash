@@ -1,3 +1,81 @@
+# [0.1283.0](https://github.com/lightdash/lightdash/compare/0.1282.1...0.1283.0) (2024-09-30)
+
+
+### Features
+
+* semantic viewer disable dashboard features ([#11732](https://github.com/lightdash/lightdash/issues/11732)) ([ae15fbd](https://github.com/lightdash/lightdash/commit/ae15fbd0955d113685d67448e9efc2c4d4d60c07))
+* semantic viewer should redirect to view mode after save ([#11730](https://github.com/lightdash/lightdash/issues/11730)) ([54b1292](https://github.com/lightdash/lightdash/commit/54b1292e20a273968fb904cde04ec422174a832a))
+
+## [0.1282.1](https://github.com/lightdash/lightdash/compare/0.1282.0...0.1282.1) (2024-09-30)
+
+
+### Bug Fixes
+
+* semantic viewer remove sorted field ([#11733](https://github.com/lightdash/lightdash/issues/11733)) ([992fbc1](https://github.com/lightdash/lightdash/commit/992fbc10443ea9ee2a92fd6d5bfd3d84446e9b23))
+
+# [0.1282.0](https://github.com/lightdash/lightdash/compare/0.1281.1...0.1282.0) (2024-09-30)
+
+
+### Features
+
+* add semantic layer connection to project ([#11712](https://github.com/lightdash/lightdash/issues/11712)) ([c63f2c5](https://github.com/lightdash/lightdash/commit/c63f2c5a745e1d87e60a64edab87a93e36299cfd))
+
+## [0.1281.1](https://github.com/lightdash/lightdash/compare/0.1281.0...0.1281.1) (2024-09-30)
+
+
+### Bug Fixes
+
+* invite user with no org ([#11717](https://github.com/lightdash/lightdash/issues/11717)) ([760b3fd](https://github.com/lightdash/lightdash/commit/760b3fd06529a0de36790345a5b1c785acd1cf0e))
+
+# [0.1281.0](https://github.com/lightdash/lightdash/compare/0.1280.0...0.1281.0) (2024-09-27)
+
+
+### Features
+
+* pivot table row grouping and subtotals ([#10269](https://github.com/lightdash/lightdash/issues/10269)) ([25d4be8](https://github.com/lightdash/lightdash/commit/25d4be8f84d754f12a1f1053b5b1e9f05e198e93))
+
+# [0.1280.0](https://github.com/lightdash/lightdash/compare/0.1279.0...0.1280.0) (2024-09-27)
+
+
+### Features
+
+* redirect sql runner to new runner ([#11711](https://github.com/lightdash/lightdash/issues/11711)) ([f79710d](https://github.com/lightdash/lightdash/commit/f79710daea0d1594aee5d3b7b688daf8255c845b))
+
+# [0.1279.0](https://github.com/lightdash/lightdash/compare/0.1278.0...0.1279.0) (2024-09-27)
+
+
+### Features
+
+* add semantic viewer permissions ([#11699](https://github.com/lightdash/lightdash/issues/11699)) ([4fd44c0](https://github.com/lightdash/lightdash/commit/4fd44c041d8cd19195456fc84ed4ae212754113c))
+
+# [0.1278.0](https://github.com/lightdash/lightdash/compare/0.1277.0...0.1278.0) (2024-09-27)
+
+
+### Features
+
+* add context to deliveries ([#11683](https://github.com/lightdash/lightdash/issues/11683)) ([c7b6cd1](https://github.com/lightdash/lightdash/commit/c7b6cd133b463b7f2aef19845c45567fd8198e7d))
+
+# [0.1277.0](https://github.com/lightdash/lightdash/compare/0.1276.3...0.1277.0) (2024-09-27)
+
+
+### Features
+
+* semantic viewer slug ([#11703](https://github.com/lightdash/lightdash/issues/11703)) ([e8e3e47](https://github.com/lightdash/lightdash/commit/e8e3e4728ab3c64a862dd0afa3f44bf48013a70d))
+
+## [0.1276.3](https://github.com/lightdash/lightdash/compare/0.1276.2...0.1276.3) (2024-09-27)
+
+
+### Bug Fixes
+
+* get correct uuid column for resource actions ([#11704](https://github.com/lightdash/lightdash/issues/11704)) ([594bb27](https://github.com/lightdash/lightdash/commit/594bb272c5d91cb059ec8bf452fbf4d78af8f9f7))
+
+## [0.1276.2](https://github.com/lightdash/lightdash/compare/0.1276.1...0.1276.2) (2024-09-27)
+
+
+### Bug Fixes
+
+* show oidc buttons on invite and register pages ([#11696](https://github.com/lightdash/lightdash/issues/11696)) ([6c47796](https://github.com/lightdash/lightdash/commit/6c477968aaf63bdb7828de17dbc10b5cc4067862))
+
 ## [0.1276.1](https://github.com/lightdash/lightdash/compare/0.1276.0...0.1276.1) (2024-09-26)
 
 

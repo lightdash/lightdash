@@ -3,7 +3,7 @@ import { ActionIcon, Group, Paper, Stack, Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -27,6 +27,7 @@ import {
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
+    setSql,
     setWarehouseConnectionType,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { useProject } from '../hooks/useProject';
@@ -36,6 +37,9 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const params = useParams<{ projectUuid: string; slug?: string }>();
+
+    const location = useLocation<{ sql?: string }>();
+    const history = useHistory();
 
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const { data: project } = useProject(projectUuid);
@@ -51,6 +55,15 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
             dispatch(setFetchResultsOnLoad(!!isEditMode));
         }
     }, [dispatch, params.projectUuid, projectUuid, isEditMode]);
+
+    // Use the SQL string from the location state if available
+    useEffect(() => {
+        if (location.state?.sql) {
+            dispatch(setSql(location.state.sql));
+            // clear the location state - this prevents state from being preserved on page refresh
+            history.replace({ ...location, state: undefined });
+        }
+    }, [dispatch, location, history]);
 
     const { data, error: chartError } = useSavedSqlChart({
         projectUuid,
@@ -136,4 +149,5 @@ const SqlRunnerNewPage = ({ isEditMode }: { isEditMode?: boolean }) => {
         </Provider>
     );
 };
+
 export default SqlRunnerNewPage;

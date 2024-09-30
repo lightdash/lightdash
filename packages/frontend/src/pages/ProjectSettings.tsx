@@ -7,11 +7,11 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import CustomSqlPanel from '../components/CustomSqlPanel/CustomSqlPanel';
 import { DataOps } from '../components/DataOps';
-import DbtCloudSettings from '../components/DbtCloudSettings';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SchedulersView from '../components/SchedulersView';
+import SettingsSemanticLayer from '../components/SettingsSemanticLayer';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
 import { useProject } from '../hooks/useProject';
@@ -79,9 +79,9 @@ const ProjectSettings: FC = () => {
 
                     <Route
                         exact
-                        path={`/generalSettings/projectManagement/${projectUuid}/integrations/dbtCloud`}
+                        path={`/generalSettings/projectManagement/${projectUuid}/semanticLayer`}
                     >
-                        <DbtCloudSettings projectUuid={projectUuid} />
+                        <SettingsSemanticLayer projectUuid={projectUuid} />
                     </Route>
 
                     <Route

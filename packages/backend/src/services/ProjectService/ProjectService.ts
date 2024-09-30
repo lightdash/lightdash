@@ -15,7 +15,6 @@ import {
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
     CreateCustomExplorePayload,
-    CreateDbtCloudIntegration,
     createDimensionWithGranularity,
     CreateJob,
     CreateProject,
@@ -78,10 +77,12 @@ import {
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
+    QueryExecutionContext,
     replaceDimensionInExplore,
     RequestMethod,
     ResultRow,
     SavedChartsInfoForDashboardAvailableFilters,
+    SemanticLayerConnection,
     SessionUser,
     snakeCaseName,
     SortByDirection,
@@ -99,9 +100,7 @@ import {
     UpdateProjectMember,
     UserAttributeValueMap,
     UserWarehouseCredentials,
-    VizAggregationOptions,
     VizColumn,
-    WarehouseCatalog,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTablesCatalog,
@@ -119,10 +118,7 @@ import { Readable } from 'stream';
 import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { Worker } from 'worker_threads';
-import {
-    LightdashAnalytics,
-    QueryExecutionContext,
-} from '../../analytics/LightdashAnalytics';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -3627,73 +3623,6 @@ export class ProjectService extends BaseService {
         return this.projectModel.getProjectGroupAccesses(projectUuid);
     }
 
-    async upsertDbtCloudIntegration(
-        user: SessionUser,
-        projectUuid: string,
-        integration: CreateDbtCloudIntegration,
-    ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        await this.projectModel.upsertDbtCloudIntegration(
-            projectUuid,
-            integration,
-        );
-        this.analytics.track({
-            event: 'dbt_cloud_integration.updated',
-            userId: user.userUuid,
-            properties: {
-                projectId: projectUuid,
-            },
-        });
-        return this.findDbtCloudIntegration(user, projectUuid);
-    }
-
-    async deleteDbtCloudIntegration(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        await this.projectModel.deleteDbtCloudIntegration(projectUuid);
-        this.analytics.track({
-            event: 'dbt_cloud_integration.deleted',
-            userId: user.userUuid,
-            properties: {
-                projectId: projectUuid,
-            },
-        });
-    }
-
-    async findDbtCloudIntegration(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        return this.projectModel.findDbtCloudIntegration(projectUuid);
-    }
-
     async getCharts(
         user: SessionUser,
         projectUuid: string,
@@ -4435,5 +4364,25 @@ export class ProjectService extends BaseService {
             warehouseClient,
         );
         return explore;
+    }
+
+    async updateSemanticLayerConnection(
+        user: SessionUser,
+        projectUuid: string,
+        payload: SemanticLayerConnection | undefined,
+    ) {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        if (user.ability.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        const updatedProject =
+            await this.projectModel.updateSemanticLayerConnection(
+                projectUuid,
+                payload,
+            );
+
+        return updatedProject;
     }
 }

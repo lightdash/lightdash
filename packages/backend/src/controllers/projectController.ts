@@ -13,6 +13,7 @@ import {
     CalculateTotalFromQuery,
     CreateProjectMember,
     DbtExposure,
+    SemanticLayerConnection,
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
@@ -449,6 +450,31 @@ export class ProjectController extends BaseController {
         await this.services
             .getProjectService()
             .updateMetadata(req.user!, projectUuid, body);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/semantic-layer-connection')
+    @OperationId('updateProjectSemanticLayerConnection')
+    async updateProjectSemanticLayerConnection(
+        @Path() projectUuid: string,
+        @Body() body: SemanticLayerConnection,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.services
+            .getProjectService()
+            .updateSemanticLayerConnection(req.user!, projectUuid, body);
+
         return {
             status: 'ok',
             results: undefined,

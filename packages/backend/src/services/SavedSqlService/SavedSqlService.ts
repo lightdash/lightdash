@@ -2,13 +2,13 @@ import { subject } from '@casl/ability';
 import {
     ApiCreateSqlChart,
     CreateSqlChart,
-    FeatureFlags,
     ForbiddenError,
     isVizBarChartConfig,
     isVizLineChartConfig,
     isVizPieChartConfig,
     Organization,
     Project,
+    QueryExecutionContext,
     SessionUser,
     SpaceShare,
     SpaceSummary,
@@ -21,13 +21,11 @@ import { uniq } from 'lodash';
 import {
     CreateSqlChartVersionEvent,
     LightdashAnalytics,
-    QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 
@@ -409,6 +407,7 @@ export class SavedSqlService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         body: SqlRunnerPivotQueryBody,
+        context?: QueryExecutionContext,
     ): Promise<{ jobId: string }> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -458,7 +457,7 @@ export class SavedSqlService extends BaseService {
             userUuid: user.userUuid,
             organizationUuid,
             projectUuid,
-            context: QueryExecutionContext.SQL_RUNNER,
+            context: context || QueryExecutionContext.SQL_RUNNER,
         });
 
         return { jobId };
@@ -468,6 +467,7 @@ export class SavedSqlService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         slug: string,
+        context?: QueryExecutionContext,
     ): Promise<{ jobId: string }> {
         const savedChart = await this.savedSqlModel.getBySlug(
             projectUuid,
@@ -490,7 +490,7 @@ export class SavedSqlService extends BaseService {
             sql: savedChart.sql,
             limit: savedChart.limit,
             sqlChartUuid: savedChart.savedSqlUuid,
-            context: QueryExecutionContext.SQL_CHART,
+            context: context || QueryExecutionContext.SQL_CHART,
         });
 
         await this.analyticsModel.addSqlChartViewEvent(

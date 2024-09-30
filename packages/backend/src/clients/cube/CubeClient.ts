@@ -1,5 +1,6 @@
 import cube, { CubeApi, Query } from '@cubejs-client/core';
 import {
+    CubeSemanticLayerConnection,
     getDefaultedLimit,
     MissingConfigError,
     NotFoundError,
@@ -14,6 +15,10 @@ import { getCubeTimeDimensionGranularity } from './typeTransformers';
 
 type CubeArgs = {
     lightdashConfig: LightdashConfig;
+    connectionCredentials: Pick<
+        CubeSemanticLayerConnection,
+        'domain' | 'token'
+    >;
 };
 
 export default class CubeClient implements SemanticLayerClient {
@@ -26,19 +31,13 @@ export default class CubeClient implements SemanticLayerClient {
 
     maxPartialResultsLimit = 100;
 
-    constructor({ lightdashConfig }: CubeArgs) {
-        const { token, domain } = lightdashConfig.cube;
+    constructor({ lightdashConfig, connectionCredentials }: CubeArgs) {
         this.maxQueryLimit = lightdashConfig.query.maxLimit;
         // In development mode, the token is not required for authorization
 
-        if (domain === undefined) {
-            console.warn(
-                'Cube token and domain are not set, CubeClient will not be initialized',
-            );
-            return;
-        }
-
-        this.cubeApi = cube(token, { apiUrl: `${domain}/cubejs-api/v1` });
+        this.cubeApi = cube(connectionCredentials.token, {
+            apiUrl: `${connectionCredentials.domain}/cubejs-api/v1`,
+        });
     }
 
     private async _getCubeViews() {

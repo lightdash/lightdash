@@ -20,13 +20,13 @@ import {
     getItemMap,
     isCustomSqlDimension,
     isDashboardChartTileType,
-    isDateItem,
     isField,
     isMomentInput,
     isTableChartConfig,
     ItemsMap,
     MetricQuery,
     MissingConfigError,
+    QueryExecutionContext,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
@@ -45,7 +45,6 @@ import {
     DownloadCsv,
     LightdashAnalytics,
     parseAnalyticsLimit,
-    QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
@@ -56,7 +55,7 @@ import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { runWorkerThread, sanitizeStringParam } from '../../utils';
+import { runWorkerThread } from '../../utils';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -393,7 +392,7 @@ export class CsvService extends BaseService {
                   values: onlyRaw ? 'raw' : 'formatted',
                   limit: parseAnalyticsLimit(options?.limit),
                   storage: this.s3Client.isEnabled() ? 's3' : 'local',
-                  context: 'scheduled delivery chart',
+                  context: QueryExecutionContext.SCHEDULED_DELIVERY,
                   numColumns:
                       metricQuery.dimensions.length +
                       metricQuery.metrics.length +

@@ -50,7 +50,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
-import { debounce, intersection, isEqual } from 'lodash';
+import { intersection, isEqual } from 'lodash';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';

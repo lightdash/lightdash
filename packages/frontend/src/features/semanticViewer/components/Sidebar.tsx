@@ -19,18 +19,22 @@ import {
     setActiveChartKind,
     SidebarTabs,
 } from '../store/semanticViewerSlice';
-import * as SaveChart from './SaveChart';
+import SaveSemanticViewerChartModal from './Modals/SaveSemanticViewerChartModal';
+import SaveSemanticViewerChart from './SaveSemanticViewerChart';
 import { SemanticViewerVizConfig } from './SemanticViewerVizConfig';
 import SidebarViewFields from './SidebarViewFields';
 import SidebarViews from './SidebarViews';
 
-const Sidebar: FC = () => {
+type SidebarProps = {
+    shouldShowSave?: boolean;
+};
+
+const Sidebar: FC<SidebarProps> = ({ shouldShowSave }) => {
     const { features, projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const { semanticLayerView, saveModalOpen } = useAppSelector(
         (state) => state.semanticViewer,
     );
     const history = useHistory();
-
     const dispatch = useAppDispatch();
 
     const handleExitView = () => {
@@ -41,10 +45,8 @@ const Sidebar: FC = () => {
         (state) => state.semanticViewer,
     );
 
-    const handleSave = (uuid: string) => {
-        history.replace(
-            `/projects/${projectUuid}/semantic-viewer/${uuid}/edit`,
-        );
+    const handleCreate = (slug: string) => {
+        history.replace(`/projects/${projectUuid}/semantic-viewer/${slug}`);
     };
 
     return (
@@ -61,11 +63,13 @@ const Sidebar: FC = () => {
                     borderBottom: `1px solid ${theme.colors.gray[3]}`,
                 })}
             >
-                {semanticLayerView && (
+                {semanticLayerView && shouldShowSave && (
                     <>
-                        <SaveChart.Content />
+                        <SaveSemanticViewerChart />
                         {saveModalOpen && (
-                            <SaveChart.Modal onSave={handleSave} />
+                            <SaveSemanticViewerChartModal
+                                onSave={handleCreate}
+                            />
                         )}
                     </>
                 )}

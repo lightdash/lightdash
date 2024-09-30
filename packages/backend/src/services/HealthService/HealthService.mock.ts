@@ -10,7 +10,6 @@ export const BaseResponse: HealthState = {
     siteUrl: 'https://test.lightdash.cloud',
     staticIp: '',
     customVisualizationsEnabled: false,
-    hasDbtSemanticLayer: false,
     hasEmailClient: false,
     hasExtendedUsageAnalytics: false,
     hasGithub: false,

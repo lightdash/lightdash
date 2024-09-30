@@ -17,10 +17,6 @@ import {
     DashboardViewsTableName,
     DashboardViewTable,
 } from '../database/entities/dashboards';
-import {
-    DbtCloudIntegrationsTable,
-    DbtCloudIntegrationsTableName,
-} from '../database/entities/dbtCloudIntegrations';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
 import {
     InviteLinkTable,
@@ -254,7 +250,6 @@ declare module 'knex/types/tables' {
         [PersonalAccessTokenTableName]: PersonalAccessTokenTable;
         [ProjectMembershipsTableName]: ProjectMembershipsTable;
         [ProjectGroupAccessTableName]: ProjectGroupAccessTable;
-        [DbtCloudIntegrationsTableName]: DbtCloudIntegrationsTable;
         [ShareTableName]: ShareTable;
         [SpaceUserAccessTableName]: SpaceUserAccessTable;
         [SlackAuthTokensTableName]: SlackAuthTokensTable;

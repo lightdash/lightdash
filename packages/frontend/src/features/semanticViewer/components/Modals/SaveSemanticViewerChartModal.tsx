@@ -39,10 +39,10 @@ import {
 type FormValues = z.infer<typeof validationSchema>;
 
 type Props = {
-    onSave: (uuid: string) => void;
+    onSave: (slug: string) => void;
 };
 
-const SemanticViewerSaveChartModal: FC<Props> = ({ onSave }) => {
+const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
     const dispatch = useAppDispatch();
     const [opened, { close }] = useDisclosure(true);
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
@@ -150,7 +150,7 @@ const SemanticViewerSaveChartModal: FC<Props> = ({ onSave }) => {
         dispatch(updateName(form.values.name));
 
         handleClose();
-        onSave(newChart.savedSemanticViewerChartUuid);
+        onSave(newChart.slug);
     }, [
         spacesQuery.isSuccess,
         spacesQuery.data,
@@ -236,4 +236,4 @@ const SemanticViewerSaveChartModal: FC<Props> = ({ onSave }) => {
     );
 };
 
-export default SemanticViewerSaveChartModal;
+export default SaveSemanticViewerChartModal;
