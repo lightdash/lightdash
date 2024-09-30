@@ -63,6 +63,8 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
     });
 
     const { data: project } = useProject(projectUuid);
+    // TODO: Add GitHub handler and check if available depending on project type
+    // TODO: Check if possible to create a branch and PR - if not, and it's not a git project, disable option with tooltip
     const projectDirectory = useMemo(
         () => getProjectDirectory(project?.dbtConnection),
         [project?.dbtConnection],
@@ -149,20 +151,7 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                     </Stack>
 
                     <Radio.Group
-                        label={
-                            <Group spacing="xs">
-                                <Text>Custom view type</Text>
-                                <Tooltip
-                                    variant="xs"
-                                    multiline
-                                    withinPortal
-                                    maw={200}
-                                    label="Create a transient custom view so others can reuse this query in Lightdash, but it won't be saved to or managed in your dbt project. Write back to your dbt project to create a governed, version-controlled model from this SQL query."
-                                >
-                                    <MantineIcon icon={IconInfoCircle} />
-                                </Tooltip>
-                            </Group>
-                        }
+                        label="Custom view type"
                         {...form.getInputProps('customViewType')}
                     >
                         <Group mt="md">
@@ -191,17 +180,16 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                         CustomViewType.PERSISTENT && (
                         <Stack spacing="xs" pl="xs">
                             <Text fw={500}>
-                                In project:{' '}
+                                Files to be created in:{' '}
                                 <Badge
-                                    radius="sm"
+                                    radius="md"
                                     variant="light"
                                     color="gray.9"
                                     fz="xs"
                                 >
-                                    insert correct repo name here
+                                    REPO NAME
                                 </Badge>
                             </Text>
-                            <Text fw={500}>Files to be created: </Text>
                             <List spacing="xs">
                                 {filePathsForDbtCustomView.map((file) => (
                                     <Tooltip
