@@ -2,7 +2,10 @@ import { assertUnreachable, SemanticLayerType } from '@lightdash/common';
 import { Stack, Text, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { z } from 'zod';
-import { useProjectSemanticLayerUpdateMutation } from '../../hooks/useProject';
+import {
+    useProject,
+    useProjectSemanticLayerUpdateMutation,
+} from '../../hooks/useProject';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DbtSemanticLayerForm, {
     dbtSemanticLayerFormSchema,
@@ -26,8 +29,10 @@ interface Props {
 const formSchemas = z.union([dbtSemanticLayerFormSchema, z.never()]);
 
 const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
+    const { data } = useProject(projectUuid);
+
     const [semanticLayerType] = useState<SemanticLayerType>(
-        SemanticLayerType.DBT,
+        data?.semanticLayerConnection?.type ?? SemanticLayerType.DBT,
     );
 
     const projectMutation = useProjectSemanticLayerUpdateMutation(projectUuid);
@@ -61,6 +66,12 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
                     <DbtSemanticLayerForm
                         isLoading={false}
                         onSubmit={handleSubmit}
+                        semanticLayerConnection={
+                            semanticLayerType ===
+                            data?.semanticLayerConnection?.type
+                                ? data.semanticLayerConnection
+                                : undefined
+                        }
                     />
                 ) : semanticLayerType === SemanticLayerType.CUBE ? (
                     <>not implemented</>

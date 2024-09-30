@@ -1,4 +1,7 @@
-import { SemanticLayerType } from '@lightdash/common';
+import {
+    SemanticLayerType,
+    type DbtSemanticLayerConnection,
+} from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -34,17 +37,22 @@ const PRE_DEFINED_DOMAINS = [
 
 type Props = {
     isLoading: boolean;
+    semanticLayerConnection?: DbtSemanticLayerConnection;
     onSubmit: (data: z.infer<typeof dbtSemanticLayerFormSchema>) => void;
 };
 
-const DbtSemanticLayerForm: FC<Props> = ({ isLoading, onSubmit }) => {
+const DbtSemanticLayerForm: FC<Props> = ({
+    isLoading,
+    semanticLayerConnection,
+    onSubmit,
+}) => {
     const form = useForm<z.infer<typeof dbtSemanticLayerFormSchema>>({
         validate: zodResolver(dbtSemanticLayerFormSchema),
         initialValues: {
             type: SemanticLayerType.DBT,
             token: '',
-            domain: '',
-            environmentId: '',
+            domain: semanticLayerConnection?.domain ?? '',
+            environmentId: semanticLayerConnection?.environmentId ?? '',
         },
     });
 
@@ -55,6 +63,9 @@ const DbtSemanticLayerForm: FC<Props> = ({ isLoading, onSubmit }) => {
             <Stack>
                 <PasswordInput
                     {...form.getInputProps('token')}
+                    placeholder={
+                        semanticLayerConnection ? '**************' : undefined
+                    }
                     label={
                         <Group display="inline-flex" spacing="xs">
                             Service Token
