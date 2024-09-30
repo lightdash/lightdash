@@ -1133,3 +1133,24 @@ export const deepEqual = (
         );
     });
 };
+
+export const getProjectDirectory = (
+    dbtConnection?: DbtProjectConfig,
+): string | undefined => {
+    if (!dbtConnection) return undefined;
+
+    switch (dbtConnection.type) {
+        case DbtProjectType.DBT:
+            return dbtConnection.project_dir;
+        case DbtProjectType.GITHUB:
+        case DbtProjectType.GITLAB:
+        case DbtProjectType.BITBUCKET:
+        case DbtProjectType.AZURE_DEVOPS:
+            return dbtConnection.project_sub_path;
+        case DbtProjectType.DBT_CLOUD_IDE:
+        case DbtProjectType.NONE:
+            return undefined;
+        default:
+            return undefined;
+    }
+};
