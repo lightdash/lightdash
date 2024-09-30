@@ -296,15 +296,15 @@ const DashboardHeader = ({
 
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
-                    {!hasNewSemanticLayerChart && (
-                        <AddTileButton
-                            onAddTiles={onAddTiles}
-                            disabled={isSaving}
-                            setAddingTab={setAddingTab}
-                            activeTabUuid={activeTabUuid}
-                            dashboardTabs={dashboardTabs}
-                        />
-                    )}
+                    <AddTileButton
+                        onAddTiles={onAddTiles}
+                        disabled={isSaving}
+                        hasNewSemanticLayerChart={hasNewSemanticLayerChart}
+                        setAddingTab={setAddingTab}
+                        activeTabUuid={activeTabUuid}
+                        dashboardTabs={dashboardTabs}
+                    />
+
                     <Tooltip
                         fz="xs"
                         withinPortal
@@ -620,14 +620,20 @@ const DashboardHeader = ({
                                 )}
 
                                 {(userCanExportData ||
-                                    userCanManageDashboard) && (
-                                    <Menu.Item
-                                        icon={<MantineIcon icon={IconUpload} />}
-                                        onClick={onExport}
-                                    >
-                                        Export dashboard{' '}
-                                    </Menu.Item>
-                                )}
+                                    userCanManageDashboard) &&
+                                    !hasNewSemanticLayerChart && (
+                                        <Menu.Item
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconUpload}
+                                                />
+                                            }
+                                            onClick={onExport}
+                                        >
+                                            Export dashboard
+                                        </Menu.Item>
+                                    )}
+
                                 {userCanManageDashboard && (
                                     <>
                                         <Menu.Divider />
