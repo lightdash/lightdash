@@ -69,6 +69,7 @@ type DashboardHeaderProps = {
     dashboard: Dashboard;
     organizationUuid?: string;
     hasDashboardChanged: boolean;
+    hasNewSemanticLayerChart: boolean;
     isEditMode: boolean;
     isSaving: boolean;
     isFullscreen: boolean;
@@ -93,6 +94,7 @@ const DashboardHeader = ({
     dashboard,
     organizationUuid,
     hasDashboardChanged,
+    hasNewSemanticLayerChart,
     isEditMode,
     isSaving,
     isFullscreen,
@@ -294,13 +296,15 @@ const DashboardHeader = ({
 
             {userCanManageDashboard && isEditMode ? (
                 <PageActionsContainer>
-                    <AddTileButton
-                        onAddTiles={onAddTiles}
-                        disabled={isSaving}
-                        setAddingTab={setAddingTab}
-                        activeTabUuid={activeTabUuid}
-                        dashboardTabs={dashboardTabs}
-                    />
+                    {!hasNewSemanticLayerChart && (
+                        <AddTileButton
+                            onAddTiles={onAddTiles}
+                            disabled={isSaving}
+                            setAddingTab={setAddingTab}
+                            activeTabUuid={activeTabUuid}
+                            dashboardTabs={dashboardTabs}
+                        />
+                    )}
                     <Tooltip
                         fz="xs"
                         withinPortal
@@ -565,18 +569,21 @@ const DashboardHeader = ({
                                     </Menu.Item>
                                 )}
 
-                                {!!userCanCreateDeliveries && (
-                                    <Menu.Item
-                                        icon={<MantineIcon icon={IconSend} />}
-                                        onClick={() => {
-                                            toggleScheduledDeliveriesModal(
-                                                true,
-                                            );
-                                        }}
-                                    >
-                                        Scheduled deliveries
-                                    </Menu.Item>
-                                )}
+                                {!!userCanCreateDeliveries &&
+                                    !hasNewSemanticLayerChart && (
+                                        <Menu.Item
+                                            icon={
+                                                <MantineIcon icon={IconSend} />
+                                            }
+                                            onClick={() => {
+                                                toggleScheduledDeliveriesModal(
+                                                    true,
+                                                );
+                                            }}
+                                        >
+                                            Scheduled deliveries
+                                        </Menu.Item>
+                                    )}
 
                                 {userCanPromoteDashboard && (
                                     <Tooltip
