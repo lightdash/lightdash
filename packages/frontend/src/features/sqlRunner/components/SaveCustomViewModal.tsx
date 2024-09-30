@@ -1,8 +1,14 @@
-import { CustomViewType, snakeCaseName } from '@lightdash/common';
+import {
+    CustomViewType,
+    getProjectDirectory,
+    snakeCaseName,
+} from '@lightdash/common';
 import {
     Alert,
+    Badge,
     Button,
     Group,
+    List,
     Modal,
     Radio,
     Stack,
@@ -13,9 +19,10 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconInfoCircle, IconWriting } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useProject } from '../../../hooks/useProject';
 import { useCreateCustomExplore } from '../hooks/useCustomExplore';
 import { useAppSelector } from '../store/hooks';
 
@@ -55,6 +62,20 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
         validate: zodResolver(validationSchema),
     });
 
+    const { data: project } = useProject(projectUuid);
+    const projectDirectory = useMemo(
+        () => getProjectDirectory(project?.dbtConnection),
+        [project?.dbtConnection],
+    );
+    const basePathForDbtCustomView = `${projectDirectory}/models/lightdash`;
+    const filePathsForDbtCustomView = useMemo(
+        () => [
+            `${form.values.name || 'custom_view'}.sql`,
+            `${form.values.name || 'custom_view'}.yml`,
+        ],
+        [form.values.name],
+    );
+
     const handleSubmit = useCallback(
         async (data: { name: string }) => {
             if (!columns) {
@@ -80,7 +101,7 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
             title={
                 <Group spacing="xs">
                     <MantineIcon icon={IconWriting} size="lg" color="gray.7" />
-                    <Text fw={500}>Create custom explore</Text>
+                    <Text fw={500}>Create custom view</Text>
                     <Tooltip
                         variant="xs"
                         withinPortal
@@ -153,6 +174,41 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                             )}
                         </Text>
                     </Alert>
+
+                    {form.values.customViewType ===
+                        CustomViewType.PERSISTENT && (
+                        <Stack spacing="xs" pl="xs">
+                            <Text fw={500}>
+                                In project:{' '}
+                                <Badge
+                                    radius="sm"
+                                    variant="light"
+                                    color="gray.9"
+                                    fz="xs"
+                                >
+                                    insert correct repo name here
+                                </Badge>
+                            </Text>
+                            <Text fw={500}>Files to be created: </Text>
+                            <List spacing="xs">
+                                {filePathsForDbtCustomView.map((file) => (
+                                    <Tooltip
+                                        key={file}
+                                        variant="xs"
+                                        position="top-start"
+                                        label={`${basePathForDbtCustomView}/${file}`}
+                                        multiline
+                                        withinPortal
+                                        maw={300}
+                                    >
+                                        <List.Item fz="xs" ff="monospace">
+                                            {file}
+                                        </List.Item>
+                                    </Tooltip>
+                                ))}
+                            </List>
+                        </Stack>
+                    )}
                 </Stack>
 
                 <Group position="right" w="100%" p="md">
