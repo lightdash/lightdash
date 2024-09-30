@@ -1,0 +1,20 @@
+### Login
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Get all members
+GET http://localhost:8080/api/v1/org/users
+
+### Get a member by uuid
+GET http://localhost:8080/api/v1/org/users/b264d83a-9000-426a-85ec-3f9c20f368ce
+
+### Get a member that doesn't exist
+GET http://localhost:8080/api/v1/org/users/notexists
+
+### Get a member from another org
+GET http://localhost:8080/api/v1/org/users/57cd4548-cbe3-42b3-aa13-97821713e307

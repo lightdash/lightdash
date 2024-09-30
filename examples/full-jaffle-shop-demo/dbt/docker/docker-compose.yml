@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  dbt:
+    image: fishtownanalytics/dbt:0.21.0
+    depends_on:
+      - postgres
+    volumes:
+      - "..:/usr/app"
+    entrypoint: /usr/app/docker/entrypoint.sh
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"

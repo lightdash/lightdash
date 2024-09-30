@@ -1,0 +1,21 @@
+---
+sidebar_label: SMTP for emails
+---
+
+# Configure SMTP for Lightdash email notifications
+
+This is a reference to all the SMTP environment variables that can be used to configure a Lightdash email client.
+
+| Variable                        | Description                                                                | Required? | Default   |
+| ------------------------------- | -------------------------------------------------------------------------- | --------- | --------- |
+| `EMAIL_SMTP_HOST`               | Hostname of email server                                                   | ✅        |           |
+| `EMAIL_SMTP_PORT`               | Port of email server                                                       |           | 587       |
+| `EMAIL_SMTP_SECURE`             | Secure connection                                                          |           | true      |
+| `EMAIL_SMTP_USER`               | Auth user                                                                  | ✅        |           |
+| `EMAIL_SMTP_PASSWORD`           | Auth password                                                              | [1]       |           |
+| `EMAIL_SMTP_ACCESS_TOKEN`       | Auth access token for Oauth2 authentication                                | [1]       |           |
+| `EMAIL_SMTP_ALLOW_INVALID_CERT` | Allow connection to TLS server with self-signed or invalid TLS certificate |           | false     |
+| `EMAIL_SMTP_SENDER_EMAIL`       | The email address that sends emails                                        | ✅        |           |
+| `EMAIL_SMTP_SENDER_NAME`        | The name of the email address that sends emails                            |           | Lightdash |
+
+[1] `EMAIL_SMTP_PASSWORD` or `EMAIL_SMTP_ACCESS_TOKEN` needs to be provided

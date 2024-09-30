@@ -1,0 +1,13 @@
+version: 2
+models:
+  - name: membership
+    meta:
+      required_attributes:
+        is_admin: 'true'
+      joins:
+        - join: plan
+          sql_on: ${membership.plan_id} = ${plan.id}
+    columns:
+      - name: id
+      - name: customer_id
+      - name: plan_id

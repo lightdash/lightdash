@@ -1,0 +1,256 @@
+version: 2
+models:
+  - name: generated_b
+    meta:
+      hidden: true
+    columns:
+      - name: name
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: phone
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: email
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: address
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: postalzip
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: region
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: country
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: alphanumeric
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: currency
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: text
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: name1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: email1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: phone1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: address1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: text1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: url
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: numberrange1
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange2
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange3
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange4
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange5
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange6
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange7
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: primary_key
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: foreign_key
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: track1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: autoincrement2
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange8
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange9
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange10
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange11
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: text2
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date1
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: time
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date2
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date3
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date4
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date5
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date6
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date7
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date8
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: numberrange12
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange13
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: date9
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: date10
+        description: ""
+        meta:
+          dimension:
+            type: string
+      - name: numberrange14
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: numberrange15
+        description: ""
+        meta:
+          dimension:
+            type: number
+      - name: date11
+        description: ""
+        meta:
+          dimension:
+            type: string

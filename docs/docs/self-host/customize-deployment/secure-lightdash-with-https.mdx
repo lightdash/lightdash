@@ -1,0 +1,42 @@
+---
+sidebar_label: Secure with HTTPS
+---
+
+# Secure Lightdash with HTTPS
+
+To run Lightdash in production it is highly recommended to secure it with HTTPS. This is usually done using your
+cloud provider's load balancer or ingress controller. Optionally you could use a proxy service like [nginx]
+(https://www.nginx.com/) or [traefik](https://traefik.io/).
+
+## Configuration options for HTTPS
+
+```yaml
+# values.yaml
+configMap:
+  # Ensures all Lightdash links use https
+  SITE_URL: https://lightdash.mycompany.com
+
+  # Only allow cookies to be sent over HTTPS
+  SECURE_COOKIES: 'true'
+
+  # (optional) allow http traffic behind a https enabled proxy
+  TRUST_PROXY: 'true'
+
+# Depending on your ingress implemantation you may need to set the following
+service:
+  type: NodePort
+
+# Example ingress controller configuration
+ingress:
+  enabled: true
+  annotations: {}
+  hosts:
+    - host: lightdash.mycompany.com
+      paths:
+        - path: /*
+          pathType: ImplementationSpecific
+  tls:
+    - hosts:
+        - lightdash.mycompany.com
+      secretName: lightdash-tls
+```

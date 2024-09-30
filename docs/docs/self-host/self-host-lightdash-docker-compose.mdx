@@ -1,0 +1,60 @@
+---
+sidebar_position: 3
+sidebar_label: Host with docker compose
+---
+
+# Self-host Lightdash using docker compose
+
+This guide will give you a minimal Lightdash instance running on your local machine. It will not be accessible from
+the internet, but it will be accessible from your local machine. This is a great way to get started with Lightdash
+for a proof-of-concept without needing access to kubernetes.
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
+## 1. Clone the Lightdash repository
+
+Clone the Lightdash code to your local machine. This will create a new directory called `./lightdash` (the Lightdash directory).
+
+```bash
+# Clone the Lightdash repo
+git clone https://github.com/lightdash/lightdash
+cd lightdash
+```
+
+## 2. Update your ENV config
+
+Edit all the ENV variables in `.env` to match your setup, eg:
+
+```
+PGHOST=db
+PGPORT=5432
+PGUSER=pg_user *OR* machine username if no prior postgres set up
+PGPASSWORD=pg_password *OR* blank if no prior postgres set up
+PGDATABASE=postgres
+DBT_DEMO_DIR=/*path*/*to*/lightdash/project/examples/full-jaffle-shop-demo
+```
+
+## 3. Create containers
+
+You must set the following two environment variables:
+
+- `PGPASSWORD` is the password used for the internal postgres database
+- `LIGHTDASH_SECRET` is the secret used to encrypt data at rest in the database. If you lose this secret, you will not be able to access your data in Lightdash.
+
+```bash
+
+export LIGHTDASH_SECRET="not very secret"
+export PGPASSWORD="password"
+
+docker compose -f docker-compose.yml --env-file .env up --detach --remove-orphans
+```
+
+:::info
+
+If you have a Windows machine and get the error **Error response from daemon: i/o timeout**.
+Go to **Docker > Settings > General** and enable the option **Expose daemon on tcp://localhost:2375 without TLS**
+
+:::

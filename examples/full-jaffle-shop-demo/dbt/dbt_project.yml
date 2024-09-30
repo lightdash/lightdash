@@ -1,0 +1,35 @@
+name: jaffle_shop
+version: '0.1'
+profile: jaffle_shop
+config-version: 2
+model-paths:
+  - models
+analysis-paths:
+  - analysis
+test-paths:
+  - tests
+seed-paths:
+  - data
+macro-paths:
+  - macros
+target-path: target
+clean-targets:
+  - target
+  - dbt_modules
+  - logs
+models:
+  jaffle_shop:
+    materialized: table
+    staging:
+      materialized: view
+seeds:
+  jaffle_shop:
+    raw_customers:
+      +column_types:
+        created: timestamp
+    raw_plan:
+      +column_types:
+        metadata: jsonb
+    raw_tracks:
+      +column_types:
+        timestamp: timestamp

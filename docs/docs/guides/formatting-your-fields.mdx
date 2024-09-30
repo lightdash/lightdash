@@ -1,0 +1,476 @@
+import GroupLabel from './assets/group-label.png';
+import SubGroupLabel from './assets/sub-group-label.png';
+import Description from './assets/description-on-hover.png';
+import CustomMetricCreate from './assets/custom-metric-create.png';
+import CustomMetricFormat from './assets/custom-metric-format.png';
+import TableCalculationCreate from './assets/table-calculation-create.png';
+import TableCalculationFormat from './assets/table-calculation-format.png';
+
+# Formatting your fields
+
+## Formatting your fields in your .yml files
+
+Sometimes the format of things in your dbt project is different to how you want it to look in Lightdash. That's okay! We've built a bunch of features to help you to format the fields in your dbt project so that the data in your Lightdash project looks exactly like you want it to 🥸
+
+### You can find all of the possible configurations for [metrics](/references/metrics#metric-configuration) and [dimensions](/references/dimensions#dimension-configuration) in the reference docs
+
+We're going to go through formatting your fields in more detail below, but you can see a list of these configurations and all of the other properties you can customize for your fields in the [dimensions reference doc](/references/dimensions#dimension-configuration) and [metrics reference doc](/references/metrics#metric-configuration).
+
+### Hiding fields from your dbt YAML files
+
+Sometimes, we have a bunch of columns in our YAML files that we might not want to include in Lightdash. For example, columns with PII data, or the same date data, but at different levels of date granularity.
+
+It's easy to hide columns from Lightdash. All you need to do is add two words to your column: `hidden: true`.
+
+In your dbt YAML file, it'll look something like this:
+
+```yaml
+version: 2
+models:
+  - name: users
+    columns:
+      - name: first_name
+        meta:
+          dimension:
+            hidden: true
+```
+
+The same thing goes for metrics:
+
+```yaml
+version: 2
+models:
+  - name: users
+    columns:
+      - name: first_name
+        meta:
+          metrics:
+            count_unique_first_names:
+              type: count_distinct
+              hidden: true
+```
+
+By default, all of your dimensions and metrics have been set to `hidden: false`.
+
+### Grouping your metrics and dimensions in the sidebar
+
+You can group related metrics and dimensions together using the model meta `group_details` block in combination with the `groups` property in your .yaml files.
+You can as well add descriptions to your groups using the property `description` that will be displayed when hovering over the group label.
+
+:::note Max grouping levels
+
+There is a max of 2 levels of grouping in the sidebar.
+
+:::
+
+For example you might want to group the percentile metrics into two sub categories one being for over 40 percentiles and the other for under 40 percentiles. You can do this by adding the `group` property to your metrics like so:
+
+```yaml
+version: 2
+models:
+  - name: events
+    meta:
+      group_details:
+        events:
+          label: Events
+          description: Event-related fields.
+        percentile:
+          label: Percentiles
+          description: Grouping of percentiles
+        sub:
+          label: Percentiles under 40
+          description: Grouping of percentiles under 40
+        over:
+          label: Percentiles over 40
+          description: Grouping percentiles over 40
+    columns:
+      - name: event_id
+        description: ''
+        meta:
+          dimension:
+            type: number
+            groups: ['events']
+          metrics:
+            percentile_25:
+              type: percentile
+              percentile: 25
+              groups: ['percentile', 'sub']
+            percentile_50:
+              type: percentile
+              percentile: 50
+              groups: ['percentile', 'over']
+            percentile_75:
+              type: percentile
+              percentile: 75
+              groups: ['percentile', 'over']
+```
+
+<img
+  src={SubGroupLabel}
+  width="366"
+  height="124"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+:::warning Property Deprecated
+
+The property `group_label` will be deprecated in favor of the above `groups` functionality.
+
+The `group_label` property will still work, but it is recommended to use the `groups` property.
+
+:::
+
+You can also group related metrics and dimensions together using the `group_label` property in your .yml files.
+For example, you might want to group together all of the fields related to your user's `product activity`. To do this, you'd add the same `group_label` to all of the fields you want grouped together, like so:
+
+```yaml
+version: 2
+models:
+  - name: users
+    columns:
+      - name: user_id
+      - name: logins_num_total
+        meta:
+          dimension:
+            group_label: 'Product activity'
+      - name: query_executed_num_total
+        meta:
+          dimension:
+            group_label: 'Product activity'
+          metrics:
+            sum_query_executed:
+              type: sum
+              group_label: 'Product activity'
+```
+
+This group would appear in the sidebar of my `Users` table like this:
+
+<img
+  src={GroupLabel}
+  width="366"
+  height="124"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+You can use group labels across metrics and dimensions. In the sidebar, your metrics will get grouped together under your label in the `metrics` section, and your dimensions will get grouped together under your label in the `dimensions` section.
+
+### Adding custom descriptions to your fields
+
+#### Custom descriptions for dimensions
+
+By default, Lightdash pulls in the descriptions you've included for your dimensions. But, you can override the description you see in Lightdash using the `description` property.
+
+```yaml
+version: 2
+models:
+  - name: users
+    columns:
+      - name: user_id
+        description: "Id generated by the Lightdash API on user's first login. On legacy systems, SHA64. On new systems since 2012, FARM_FINGERPRINT()"
+        meta:
+          dimension:
+            description: 'Unique identifier for a user'
+```
+
+You can see the descriptions of your dimensions when you hover over the fields in Lightdash.
+
+<img
+  src={Description}
+  width="368"
+  height="366"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+#### Custom descriptions for metrics
+
+If you don't add a custom description for your metric, Lightdash will show a description for you in the app, by default. To override this default description, you can use the `description` property.
+
+```yaml
+version: 2
+models:
+  - name: users
+    columns:
+      - name: user_id
+        description: "Id generated by the Lightdash API on user's first login. On legacy systems, SHA64. On new systems since 2012, FARM_FINGERPRINT()"
+        meta:
+          metrics:
+            count_unique_users:
+              type: count_distinct
+              description: 'Count the unique number of user IDs'
+```
+
+Check out [this doc](https://docs.lightdash.com/references/metrics#metric-configuration) to see all of the other properties you can customize for metrics.
+
+### Changing the name of your fields in Lightdash
+
+Sometimes, the labels we use for the fields in our dbt project aren't very user friendly. We might want to change these in Lightdash, and we can!
+
+To change the name you'll see for your field in Lightdash, you just use the `label` property.
+
+So, if I had a field `user_id_sha64`, I could relabel it to `User ID`.
+
+```yaml
+version: 2
+models:
+  - name: users
+    columns:
+      - name: user_id_sha64
+        meta:
+          dimension:
+            label: 'User ID'
+```
+
+Same thing goes for metrics!
+
+:::info
+
+Relabelling a metric will not break any saved charts that use the old metric name. Instead, your saved charts will just use the new metric name in their results tables.
+
+:::
+
+```yaml
+version: 2
+models:
+  - name: users
+    columns:
+      - name: user_id_sha64
+        meta:
+          metrics:
+            count_unique_user_ids:
+              type: count_distinct
+              label: 'Total users'
+```
+
+Check out [this doc](https://docs.lightdash.com/references/dimensions#dimension-configuration) to see all of the other properties you can customize for dimensions, and [this one](https://docs.lightdash.com/references/metrics#metric-configuration) for all of the other properties you can customize for your metrics.
+
+### Rounding your metrics and dimensions
+
+Rounding your metrics is easy to do using the `round` property in your YAML file.
+
+Here's an example of how different rounding will affect your numbers:
+
+| Original number | Round value | How it will appear in Lightdash |
+| --------------- | ----------- | ------------------------------- |
+| 121.854         | 2           | 121.85                          |
+| 121.854         | 1           | 121.9                           |
+| 121.854         | 0           | 123                             |
+| 121.854         | -2          | 100                             |
+
+#### To add rounding to your dimensions, you just need to add `round` to their properties
+
+Like this:
+
+```yaml
+version: 2
+models:
+  - name: sales
+    columns:
+      - name: revenue
+        meta:
+          dimension:
+            round: 2
+```
+
+Check out [this doc](https://docs.lightdash.com/references/dimensions#dimension-configuration) to see all of the other properties you can customize for dimensions.
+
+#### To add rounding to your metrics, you just need to add `round` to their properties
+
+Like this:
+
+```yaml
+version: 2
+models:
+  - name: sales
+    columns:
+      - name: revenue
+        meta:
+          metrics:
+            total_revenue:
+              type: sum
+              round: 2
+```
+
+Check out [this doc](https://docs.lightdash.com/references/metrics#metric-configuration) to see all of the other properties you can customize for metrics.
+
+### Compacting big numbers
+
+#### To compact your dimensions, you just need to add `compact` to their properties
+
+Like this:
+
+```yaml
+version: 2
+models:
+  - name: sales
+    columns:
+      - name: revenue
+        meta:
+          dimension:
+            compact: thousands
+```
+
+As an example, this option will compact the number value from 1,500 to 1.50K.
+
+Check out [this doc](https://docs.lightdash.com/references/dimensions#compact-values) to see all the other compact values.
+
+#### To compact your metrics, you just need to add `compact` to their properties
+
+Like this:
+
+```yaml
+version: 2
+models:
+  - name: sales
+    columns:
+      - name: revenue
+        meta:
+          metrics:
+            total_revenue:
+              type: sum
+              compact: billions
+```
+
+As an example, this option will compact the number value from 1,500,000,000 to 1.50B.
+
+Check out [this doc](https://docs.lightdash.com/references/metrics#compact-values) to see all the other compact values.
+
+### Using the `format` label to add units to your values
+
+Some columns need a special format to convey what units they're in. For example, if you're a global company, and you have a `revenue` field. Is that in GBP? USD?
+
+In Lightdash, you can use the `format` label to add units to your fields.
+
+Here's an example of how different formats will affect your values:
+
+| Original value | Format value | How it will appear in Lightdash |
+| -------------- | ------------ | ------------------------------- |
+| 121.854        | 'gbp'        | £121.854                        |
+| 121.854        | 'usd'        | $121.9                          |
+
+You can see which format types are currently available for [dimensions](https://docs.lightdash.com/references/dimensions#:~:text=number%20of%20digits-,format,-No), and for [metrics.](https://docs.lightdash.com/references/metrics#:~:text=number%20of%20digits-,format,-No)
+
+#### To add units to your dimensions, you just need to add `format` to their properties
+
+You can add a `format` to your dimensions this:
+
+```yaml
+version: 2
+models:
+  - name: sales
+    columns:
+      - name: revenue
+        meta:
+          dimension:
+            format: 'gbp'
+```
+
+To see which format types are available for dimensions, [check the reference docs here.](https://docs.lightdash.com/references/dimensions#:~:text=number%20of%20digits-,format,-No). Check out [this doc](https://docs.lightdash.com/references/dimensions#dimension-configuration) to see all of the other properties you can customize for dimensions.
+
+#### To add units to your metrics, you just need to add `format` to their properties
+
+You can add a `format` to your metrics this:
+
+```yaml
+version: 2
+models:
+  - name: sales
+    columns:
+      - name: revenue
+        meta:
+          metrics:
+            total_revenue:
+              type: sum
+              format: 'gbp'
+```
+
+To see which format types are available for metrics, [check the reference docs here.](/references/metrics#:~:text=number%20of%20digits-,format,-No)
+Check out [this doc](/references/metrics#metric-configuration) to see all of the other properties you can customize for metrics.
+
+## Formatting your fields in the Lightdash UI
+
+You can also format your fields in the Lightdash UI. This is useful if you want to format your fields quickly without having to change your YAML files.
+
+Currently you can format 2 types of fields in the Lightdash UI:
+
+- Custom metrics ([reference](/references/custom-fields#custom-metrics))
+- Table calculations ([reference](/references/table-calculations))
+
+### Formatting custom metrics
+
+:::info
+
+Custom metrics formatting is currently only available for numeric metric types.
+
+:::
+
+Firstly, create a custom metric. You can do this by clicking the `...` button on the dimension you want to create a custom metric for, and then clicking on a metric type, e.g.: `count distinct`, `sum`, `average`.
+
+<img
+  src={CustomMetricCreate}
+  width="366"
+  height="100"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once you've created your custom metric, you can format it by clicking on the `Format` button.
+
+<img
+  src={CustomMetricFormat}
+  width="600"
+  height="200"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+You can then choose from the following formatting types:
+
+- `percent`: Formats your metric as a percentage, with the following options:
+  - `round` value to your metric to round it to a certain number of decimal places
+  - `separator`, e.g. from `.` to `,`
+- `currency`: Formats your metric as a currency
+  - `round` value to your metric to round it to a certain number of decimal places
+  - `separator`, e.g. from `.` to `,`
+  - `currency` symbol, e.g. from `$` to `£`
+  - `compact` value to compact your metric to a certain unit, e.g. from `1,000,000` to `1M`
+- `number`: Formats your metric as a number
+  - `round` value to your metric to round it to a certain number of decimal places
+  - `separator`, e.g. from `.` to `,`
+  - `compact` value to compact your metric to a certain unit, e.g. from `1,000,000` to `1M`
+  - `prefix` value to add a prefix to your metric, e.g. `+` or `-`
+  - `suffix` value to add a suffix to your metric, e.g. `%`
+
+### Formatting table calculations
+
+On the results table, you can add a table calculation by clicking on the button on the right hand side of the section.
+
+<img
+  src={TableCalculationCreate}
+  width="366"
+  height="100"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once you've created your table calculation, you can format it by clicking on the `Format` tab:
+
+<img
+  src={TableCalculationFormat}
+  width="600"
+  height="200"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+You can then choose from the following formatting types:
+
+- `percent`: Formats your metric as a percentage, with the following options:
+  - `round` value to your metric to round it to a certain number of decimal places
+  - `separator`, e.g. from `.` to `,`
+- `currency`: Formats your metric as a currency
+  - `round` value to your metric to round it to a certain number of decimal places
+  - `separator`, e.g. from `.` to `,`
+  - `currency` symbol, e.g. from `$` to `£`
+  - `compact` value to compact your metric to a certain unit, e.g. from `1,000,000` to `1M`
+- `number`: Formats your metric as a number
+  - `round` value to your metric to round it to a certain number of decimal places
+  - `separator`, e.g. from `.` to `,`
+  - `compact` value to compact your metric to a certain unit, e.g. from `1,000,000` to `1M`
+  - `prefix` value to add a prefix to your metric, e.g. `+` or `-`
+  - `suffix` value to add a suffix to your metric, e.g. `%`

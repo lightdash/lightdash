@@ -1,0 +1,124 @@
+import CrossFilteringImage from './assets/cross-filtering.png';
+import CrossFilteringAppliedImage from './assets/cross-filtering-applied.png';
+import UnderlyingChart from './assets/underlying-chart-data.png';
+import DateZoomBeforeAndAfter from './assets/date-zoom-before-and-after.png';
+import DateZoomIndicator from './assets/date-zoom-indicator.png';
+import DrillIntoDashboardChart from './assets/drill-into-dashboard-chart.png';
+import DrillIntoModal from './assets/drill-into-modal.png';
+import DrillIntoResultDay from './assets/drill-into-result-day.png';
+
+# Interacting with your dashboards
+
+## Viewing the underlying data for a point on a chart
+
+You can click on any point on a chart and view the records which make up that data point.
+
+For example, I can find out what the underlying data is for the $4,334.0 in my `What are the sales stats per partner, per month?` chart, by clicking on the bar for that month, and then clicking `View underlying data` in the action menu.
+I'd see all of the rows in the underlying table that make up that total.
+
+<img
+  src={UnderlyingChart}
+  width="1175"
+  height="466"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+After viewing the underlying data, I can also:
+
+- Export this data as a CSV
+- Explore from this underlying data, which will take me to a new chart with the underlying data as the starting point
+
+## Using a chart to filter your dashboard (a.k.a. cross-filtering)
+
+When you click on the value in a chart (e.g. a bar in your bar chart), you can choose to filter on that value and update all of the other relevant charts in the dashboard. This type of chart-to-dashboard filtering is sometimes called `cross-filtering`.
+
+<img
+  src={CrossFilteringImage}
+  width="694"
+  height="351"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+### You can see which tiles had the filter applied by hovering over the `dashboard filter applied` text on your chart tile.
+
+Once you've clicked on your filter, all of the tiles in your dashboard with the filter field will be filtered to the value you selected.
+
+You can see which tiles had the filter applied by hovering over the tile and then on the funnel icon to see the filter that was applied.
+
+<img
+  src={CrossFilteringAppliedImage}
+  width="700"
+  height="362"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+### Your cross-filtering will not change the saved chart unless you're in `edit` mode
+
+The filters you add using cross-filtering won't be saved unless you're in `edit` mode (i.e. you've clicked `edit` in your dashboard) and you save the filters you applied.
+
+Otherwise, you can cross-filter away without any worry that you'll be changing the chart for everyone else! 😊
+
+## Date zoom
+
+When viewing a dashboard, you can also change the date granularity (e.g. to Week, Year) of the **charts with date dimensions in your dashboard** by clicking on the button `Date Zoom`.
+
+This is helpful if you want to zoom in to look more closely at something, or zoom out to identify a trend. You're able to quickly date-drill into your data without having to edit the chart.
+
+<img
+  src={DateZoomBeforeAndAfter}
+  width="694"
+  height="351"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+When the date granularity of a chart is changed, you can hover over the indicator to see the date dimension that was affected, like so:
+
+<img
+  src={DateZoomIndicator}
+  width="400"
+  height="351"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+Any chart with results that have at least one date dimension will be affected by
+Date Zoom (even if the date dimension is not explicitly shown on the chart).
+
+:::info
+If you have more than one date dimension in your results, date drill will be applied to the first date dimension it scans - this is normally the left-most column in your results.
+:::
+
+Also, you're only temporarily changing the dates in the tiles on your dashboard. So, if you refresh the dashboard, the tiles that you affected using Date Zoom will go back to how they looked before.
+
+## Drill into a metric in a chart or your results table using `drill into`
+
+You can drill into a metric in your chart or results table to better understand a point in your chart. Selecting `drill into` lets you group your metric by a dimension, like the total revenue segmented by (or grouped by) product type. Note that `drill into` only works for metrics, not for dimensions or table calculations.
+
+### Here's an example of drill into
+
+I have a chart with sales stats (a metric) per partner, per month. As you can see, there's a high spike in sales for one of the partners in the month of May. I want to understand why this spike happened.
+
+To do this, I click on the data point in my chart, then click `drill into` in the action menu:
+
+<img
+  src={DrillIntoDashboardChart}
+  width="629"
+  height="305"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+I then select the dimension I want to segment my metric by (or "drill into"). In this example, I'm interested to see what shipping country the sales were coming from, so I select `Shipping Country`:
+
+<img
+  src={DrillIntoModal}
+  width="416"
+  height="344"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once I've selected the dimension I want to group by, I click `open in new tab` and see a chart with my metric, grouped by `Shipping Country`. Now I can uncover where this spike in sales is coming from 👀
+
+<img
+  src={DrillIntoResultDay}
+  width="600"
+  height="247"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>

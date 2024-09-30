@@ -1,0 +1,70 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+/packages/**/coverage
+/packages/e2e/cypress/screenshots/**/*
+/packages/e2e/cypress/videos/**/*
+/packages/e2e/cypress/downloads/**/*
+
+# logs
+/packages/backend/logs
+/packages/backend/src/database/logs
+/packages/cli/logs
+/packages/warehouses/logs
+
+# development
+lightdash_dev.yml
+
+# production
+/packages/frontend/build
+/packages/common/dist
+/packages/backend/dist
+/packages/cli/dist
+/packages/warehouses/dist
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+.idea
+node_modules
+package-lock.json
+
+# typescript
+*.tsbuildinfo
+
+# examples
+/examples/full-jaffle-shop-demo/dbt/target
+/dbt
+/profile*
+
+# docs
+/docs/build
+/docs/.docusaurus
+
+# credentials
+credentials.json
+
+# dbt
+/target
+packages/backend/target/
+venv/
+dbt_modules/
+logs/
+/.envrc
+
+# dangerfile
+dangerfile.development.ts

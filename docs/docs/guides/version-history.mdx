@@ -1,0 +1,56 @@
+import HistoryMenu from './assets/version-history-menu.png';
+import HistoryExplorer from './assets/version-history-explorer.png';
+import HistorySelection from './assets/version-history-selection.png';
+
+# Chart Version History
+
+You can roll back to previous versions of charts in Lightdash. In case you make a mistake or simply want to go back to a
+previous version of a chart you built, you can easily revert back to previous versions of your charts. It's a great way
+to keep track of changes and revert back to previous versions if needed.
+
+## Exploring version history
+
+To access version history, click on the `Version History` option under the three dot menu when viewing or editing a chart.
+
+<img
+  src={HistoryMenu}
+  width="440"
+  height="664"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+This takes you to the version history of the chart where you can see the previous versions of the chart including
+information around who authored the previous versions as well as when they were udpated. You can preview any previous
+version by clicking on it.
+
+<img
+  src={HistoryExplorer}
+  width="1240"
+  height="580"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once you're happy with the version you want, you can click on the three dot menu next to the version you want to
+restore the chart to.
+
+:::info
+**Note:** Lightdash saves all iterations of your chart, so reverting to a previous version does not
+delete any existing history.
+:::
+
+<img
+  src={HistorySelection}
+  width="600"
+  height="634"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+### Missing some versions?
+
+Version History is limited depending on the tier of Lightdash Cloud you're using:
+
+- Cloud Starter: 3 days
+- Cloud Pro: 30 days
+- Cloud Enterprise: 60 days
+
+Speak to the team if you're interested in moving tier to get access to more history.

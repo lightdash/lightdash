@@ -1,0 +1,16 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  build:
+    if: "false"
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Dependencies audit
+      run: yarn audit --groups dependencies --level high

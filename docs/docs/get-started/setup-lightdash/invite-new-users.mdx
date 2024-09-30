@@ -1,0 +1,43 @@
+import InviteUserAction from './assets/invite_user_action.png';
+import AddUserEmail from './assets/add-user-email.png';
+import PendingInvites from './assets/pending-invites.png';
+import AllowedEmailDomains from './../../snippets/allowed-email-domains.mdx';
+
+# Inviting teammates to your Lightdash project
+
+You can only share things with people you've invited to your Lightdash project. Users with admin access to your project can invite users.
+
+## Allowing users with certain email domain(s) to join automatically
+
+<AllowedEmailDomains />
+
+## Inviting new users individually
+
+To invite your teammates individually, just click on `Settings` --> `User Management` --> `Add user`.
+
+<img
+  src={InviteUserAction}
+  width="852"
+  height="607"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+You then need to input the email address of the user you want to invite and select the role you want to assign them. You can read more about [user roles and permissions in Lightdash here](../../references/roles.mdx).
+
+Once you hit `send invite`, we'll send an email to the new user with their invite link.
+
+<img
+  src={AddUserEmail}
+  width="852"
+  height="607"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once you're done inviting users, you can head back to the list of users in the `User Management` tab, scroll to the bottom and see all of the pending invitations for your project. You can also re-generate an invite link if you need to!
+
+<img
+  src={PendingInvites}
+  width="852"
+  height="607"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>

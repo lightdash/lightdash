@@ -1,0 +1,42 @@
+import CreatePAT from './assets/create-pat.jpg';
+
+# Personal access tokens
+
+You can create a personal access token (PAT) to authenticate in the [CLI](../get-started/setup-lightdash/get-project-lightdash-ready.mdx) or
+with the API.
+
+## Creating a personal access token
+
+To create a personal access token, head to the project settings, then to `personal access tokens`, then click `generate token`.
+
+<img
+  src={CreatePAT}
+  width="1078"
+  height="594"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Everybody in your organization can create a personal access token (PAT). To provide additional security, we highly recommend adding an expiration to your personal access tokens.
+
+### How to authenticate
+
+Note that not all endpoints in the API will be accessible with PAT authentication.
+
+The PAT authentication is done via the HTTP Authorization request header.
+
+```
+Authorization: ApiKey <token>
+```
+
+Examples:
+
+```
+curl --location --request GET 'https://my.lightdash.com/api/v1/org/projects' \
+--header 'Authorization: ApiKey eeaa81d8bcd89a770bd8a581cabd052b'
+```
+
+```
+GET /api/v1/org/projects HTTP/1.1
+Host: my.lightdash.com
+Authorization: ApiKey eeaa81d8bcd89a770bd8a581cabd052b
+```

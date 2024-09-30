@@ -1,0 +1,106 @@
+---
+sidebar_label: Slack integration
+---
+
+import SlackCreateNewApp from './assets/slack-create-new-app.png';
+import SlackSelectWorkspace from './assets/slack-select-worskpace.png';
+import SlackBasicInformation from './assets/slack-basic-information.png';
+
+# Configure a slack integration for self-hosted Lightdash
+
+In this guide we will show you how you can enable [the Slack integration](/references/slack-integration.mdx) on your on self-hosted Lightdash server.
+
+### Create a new Slack APP on your organization
+
+First we will have to create a Slack APP https://api.slack.com/apps?new_app=1
+
+You can select `From an app manifest` to make it easier.
+
+<img
+  src={SlackCreateNewApp}
+  width="500"
+  height="400"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Then select the workspace you want to enable this into. Later you can `enable distribution` if you want to use a different Slack workspace.
+
+<img
+  src={SlackSelectWorkspace}
+  width="500"
+  height="400"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Then copy this manifest to allow URL unfurls in your app. **Make sure you update `your Lightdash URL` in the manifest below** (for example, `app.lightdash.cloud` or `eu1.lightdash.cloud`).
+
+```yaml
+display_information:
+  name: Lightdash
+  description: Share Lightdash URLs on your Slack
+  background_color: '#7262ff'
+features:
+  bot_user:
+    display_name: Lightdash
+    always_online: false
+  unfurl_domains:
+    - your-lightdash-deployment-url.com
+oauth_config:
+  redirect_urls:
+    - https://your-lightdash-deployment-url.com/api/v1/slack/oauth_redirect
+  scopes:
+    bot:
+      - app_mentions:read
+      - channels:join
+      - channels:read
+      - chat:write
+      - chat:write.customize
+      - files:read
+      - files:write
+      - groups:read
+      - links:read
+      - links:write
+      - users:read
+settings:
+  event_subscriptions:
+    request_url: https://your-lightdash-deployment-url.com/slack/events
+    bot_events:
+      - app_mention
+      - link_shared
+  interactivity:
+    is_enabled: true
+    request_url: https://your-lightdash-deployment-url.com/slack/events
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
+```
+
+Finally, click on `create`
+
+### Copying credentials
+
+Now copy the following credentials from your new app.
+
+From `Basic Information`
+
+<img
+  src={SlackBasicInformation}
+  width="500"
+  height="400"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+- Client ID
+- Client secret (show and copy)
+- Signing secret (show and copy)
+
+### Adding credentials to your local environment
+
+Now you need to add the following environment variables to your Lightdash server using the credentials we previously copied
+
+- `SLACK_CLIENT_ID`: Client ID (make sure it is between quotes, so it is a string, not a number)
+- `SLACK_CLIENT_SECRET`: Client secret
+- `SLACK_SIGNING_SECRET`: Signing secret
+- `SLACK_STATE_SECRET`: This can be any string
+
+Restart your Lightdash service, now you should be able to use [the Slack integration](/references/slack-integration.mdx) on your self-hosted Lightdash.

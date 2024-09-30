@@ -1,0 +1,64 @@
+{
+    "definitions": {
+        "LightdashNodeConfig": {
+            "allOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                        }
+                    }
+                }
+            ]
+        },
+        "LightdashColumnInfo": {
+            "allOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashColumnMetadata"
+                        }
+                    }
+                }
+            ]
+        },
+        "LightdashCompiledModelNode": {
+            "allOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "allOf": [
+                                {
+                                    "not": { "enum": ["lightdash", "ld", ""] }
+                                },
+                                {
+                                    "pattern": "^[^.]*$"
+                                }
+                            ]
+                        },
+
+                        "meta": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                        },
+                        "config": {
+                            "$ref": "#/definitions/LightdashNodeConfig"
+                        },
+                        "columns": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/LightdashColumnInfo"
+                            },
+                            "default": {}
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://schemas.lightdash.com/lightdash/v12.json"
+}

@@ -1,0 +1,96 @@
+import ThreeDotMenu from './assets/alert-three-dot-menu.png';
+import CreateNewModal from './assets/alert-create-new-modal.png';
+import ConfigureNewAlert from './assets/configure-alert.png';
+import EditDeleteAlert from './assets/edit-delete-alert.png';
+import PrivateSlackChannel from './assets/private-slack-channel.png';
+
+# Alerts
+
+Alerts enable you to receive notifications via email or Slack when the value of a saved chart meets your specified conditions.
+
+At the scheduled time, Lightdash will run the query and check the results. If the first value in the results set meets the alerting condition, the alert will be sent.
+This notification will continue to be sent if the condition is true until it is manually disabled or deleted.
+
+You can create or select an existing saved chart, add an alert to it, and tell Lightdash when you’d like the send out your update. You can set up as many alerts to a saved chart as you like, and if you make any changes to the content, Lightdash will update the alert the next time they’re sent. Alerts can be sent to an email address or into Slack (assuming your org has [added Slack](/guides/adding-slack-integration.mdx)).
+
+:::info
+For security reasons, the delivered files expire after 3 days. This means old emails or Slack shares will have broken images and there is not an option to retrieve them. If you want to keep the sent files, it's best to download them from the alert.
+:::
+
+## Enabling alerts
+
+Email alerts are available on all Lightdash Cloud plans.
+
+To set up Slack, an organization admin will have to [add the Slack integration](/guides/adding-slack-integration.mdx).
+
+## Creating an alert
+
+Only users with [admin, developer or edit access](/references/roles.mdx) can create alerts. To create an alert, click on the three-dot menu in the top-right corner of your chart, then click on `Alerts`.
+
+<img
+  src={ThreeDotMenu}
+  width="752"
+  height="222"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+You'll get a modal that pops up and shows you the list of existing alerts for your saved chart, and gives you the option to `Create new`.
+
+<img
+  src={CreateNewModal}
+  width="500"
+  height="605"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+### Setup
+
+Once you click on `Create new`, you'll be brought to a configuration screen for your new alert.
+
+<img
+  src={ConfigureNewAlert}
+  width="526"
+  height="598"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Here, you can configure your alert.
+The options are:
+
+- **Alert name**: this is the name of your alert.
+- **Conditions**: Configure the condition that is going to be evaluated against the first result(s).
+  - `Alert field` The numeric field is going to be evaluated
+  - `Condition`: Operator we are going to use to evaluate your value.
+    - **is greater/less than**: Check if the `first` value in your results is greater/less than your threshold value.
+    - **increased/decreased by**: Verify whether the percentage change in the first value relative to the second value exceeds the specified threshold, either by increasing or decreasing.
+- **Run frequency**: This is the frequency at which Lightdash runs a query to check your data for changes. (You will be notified if the conditions on the latest value are met) . All times for the scheduler are in UTC.
+- **Send to**: here, you can pick if you want to send your alert to Slack, email, or both. You can add as many Slack channels and email addresses as you'd like to here. You can send an alert to a person in Slack using `@persons-name` or to a channel using `#channel-name`.
+
+## Editing and deleting your alerts
+
+To edit an alert, click on the pencil-icon next to the alert you want to edit. This will bring you back to the configuration screen for your alert, where you can make any changes you'd like.
+In case you want to delete a alert, click on the trash-icon next to the alert you want to delete.
+
+<img
+  src={EditDeleteAlert}
+  width="500"
+  height="515"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+You can also pause alerts by clicking the toggle button on the list of alerts.
+
+## Sending to private Slack channels
+
+You can also send alerts to private Slack channels. To do this, simply type the name of the Slack channel exactly as it appears in Slack into the input text box. Then click on it to confirm and save the alert.
+
+<img
+  src={PrivateSlackChannel}
+  width="752"
+  height="222"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+:::info
+You must add the Lightdash slack bot into the private Slack channel for it to be able to post alert results.
+:::

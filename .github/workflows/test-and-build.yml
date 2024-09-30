@@ -1,0 +1,41 @@
+name: Test
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+            # Install packages
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'yarn'
+            - name: Install packages
+              run: yarn install --frozen-lockfile
+            - name: Run dangerjs
+              if: github.event_name == 'pull_request'
+              run: yarn danger-ci-lint
+              env:
+                  GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+            - name: Lint all packages
+              run: yarn lint
+            - name: Check formatting all packages
+              run: yarn format
+            - name: Check for unused exports
+              run: yarn workspace frontend unused-exports
+
+            - name: Build common
+              run: yarn common-build
+
+            - name: Build warehouses
+              run: yarn warehouses-build
+
+            - name: Run unit tests
+              run: yarn backend-build && yarn test

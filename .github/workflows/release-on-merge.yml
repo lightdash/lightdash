@@ -1,0 +1,55 @@
+name: Release on Merge
+on:
+  push:
+    branches:
+      - main
+      - alpha
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    concurrency: ${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Build
+        run: yarn build-published-packages
+      - name: Semantic Release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        with:
+          semantic_version: 19
+          extra_plugins: |
+            @semantic-release/changelog@6
+            @semantic-release/git@10
+            @semantic-release/github@8
+            @amanda-mitchell/semantic-release-npm-multiple@2.17.0
+            @google/semantic-release-replace-plugin@1.2.0
+      - name: Reset alpha branch upon release
+        if: |
+          steps.semantic.outputs.new_release_published == 'true' &&
+          steps.semantic.outputs.new_release_channel == null
+        run: "git push --force https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/alpha"
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      - name: Trigger helm chart update on release
+        if: |
+          steps.semantic.outputs.new_release_published == 'true' &&
+          steps.semantic.outputs.new_release_channel == null
+        run: |
+          curl \
+            -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.CI_GITHUB_TOKEN }}" \
+            -d '{"ref": "main", "inputs": {"lightdash-version": "${{ steps.semantic.outputs.new_release_version }}"}}' \
+            https://api.github.com/repos/lightdash/helm-charts/action/workflows/increment-lightdash-app-version.yml/dispatches

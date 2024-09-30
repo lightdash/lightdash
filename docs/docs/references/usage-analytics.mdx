@@ -1,0 +1,64 @@
+import AccessUsageAnalytics from './assets/access-usage-analytics.jpg';
+import UserActivityDashboard from './assets/user-activity-dashboard.jpg';
+
+# Usage analytics
+
+To understand who is accessing content or running queries in your Lightdash projects, we've built usage analytics to help you track this. There are two ways of understanding user activity:
+
+1. **[Usage Analytics dashboards](#usage-analytics-dashboards)** - these are dashboards created by Lightdash which give you an overview of your project's content and user activity.
+2. **[Query tags](#query-tags)** - this is metadata which is added to your data warehouse queries and gives you information about who is querying data and what they are querying.
+
+## Usage analytics dashboards
+
+Each project has usage analytics dashboards created by Lightdash giving you an overview of your project's content and user activity.
+
+To see your usage analytics dashboards for a project, just click on the `settings` icon, `project settings`, then `usage analytics`.
+
+<img
+  src={AccessUsageAnalytics}
+  width="852"
+  height="575"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Or you can also use our [search bar](https://docs.lightdash.com/get-sarted/exploring-data/exploring-your-content#using-the-search-bar) to get direct access to
+the different analytics dashboards by typing the name of the dashboard (eg: User activity)
+
+### User Activity dashboard
+
+This dashboard gives you an overview of the users in your project and the activity of your users.
+
+<img
+  src={UserActivityDashboard}
+  width="936"
+  height="683"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Here's an overview of the fields used in the dashboard:
+
+- **Number of users**: the total number of users that have access to the project.
+- **Number of viewers**: the number of users with the `viewer` role that have access to the project.
+- **Number of editors**: the number of users with the `editor` role that have access to the project.
+- **Number of admins**: the number of users with the `admin` role that have access to the project.
+- **% of weekly querying users**: the % of users which have run at least one query in the project in the last 7 days (out of all users in your project). Queries include viewing existing charts and dashboards.
+- **Number of weekly querying users**: the number of users which have run at least one query in the project in the last 7 days.
+- **Weekly average number of queries per user**: the rolling 7 day average number of queries that each user is running in your project.
+- **Users that have run the most queries in the last 7 days**: a list of the users that have run the most queries in your project in the last 7 days.
+- **Users that have updated the most charts in the last 7 days**: a list of users that have updated (including created) the most charts in the project in the last 7 days.
+- **Users that have not run a query in the last 90 days**: a list of users that have not run a query in the project in the last 7 days. This includes viewing charts and dashboards.
+
+## Query tags
+
+Query tags are metadata which is added to your data warehouse queries and gives you information about the `user_id`, `project_id` and `organization_id` for each query executed.
+
+Query tags are stored differently in each data warehouse:
+
+| Data Warehouse |                                                                      Query Tag                                                                      |
+| :------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------: |
+| BigQuery       |         Persists in the `labels` parameter in your [job history](https://cloud.google.com/bigquery/docs/managing-jobs#view_job_details_2).          |
+| Snowflake      | Persists in the `comment` parameter in your [query history](https://docs.snowflake.com/en/user-guide/ui-history#viewing-query-details-and-results). |
+| Trino          |                                                      Appends to the SQL in your query history.                                                      |
+| Redshift       |                                                      Appends to the SQL in your query history.                                                      |
+| Databricks     |                                                      Appends to the SQL in your query history.                                                      |
+| Postgres       |                                                      Appends to the SQL in your query history.                                                      |

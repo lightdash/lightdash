@@ -1,0 +1,76 @@
+---
+sidebar_label: External storage
+---
+
+# Configure Lightdash to use external storage
+
+On Lightdash, we generate some files like:
+
+- Images for Slack unfurl
+- Images on scheduled deliveries
+- Results on CSV format.
+
+These files can be stored locally and can be served through Lightdash,
+however, if you run Lightdash on multiple containers, these files might not be available when you requested,
+because the file might be generated in another container, as these files are not shared across containers.
+Also these files might not persist across different deployments.
+
+To solve this, we suggest you enable Cloud storage, so Lightdash can store the files in a cloud (GCP buckets, S3 storage...)
+
+For this, all you need is to configure the cloud storage and export S3 credentials (most cloud storages are compatible with S3 library)
+
+## Configure cloud storage on Google Cloud Platform
+
+Go into GCP: Cloud storage
+
+Create a new bucket with the following details:
+
+- give it an unique `Bucket name` like - `lightdash-cloud-file-storage-eu`
+- Select region (like multi US or multi EU or single region EU-west-1)
+- select storage class: default standard
+- disable `enforce public access` and select `fine-grained`
+- Protection: `none`
+
+Go to settings > Interoperability and create a `Access key for service account`
+
+- Copy the `access key` and `secret`
+
+`S3_ENDPOINT` for google is `https://storage.googleapis.com`
+`S3_REGION` for google is `auto`
+
+## Configure cloud storage on AWS
+
+- Navigate to the S3 section of the AWS Management Console and click on the Create Bucket button.
+- Give your bucket a name and select the region where you want to store your data.
+- Next, you need to set the permissions for your bucket. Make it private.
+
+To export your S3 credentials, you need to follow these steps:
+
+- Navigate to the IAM section and click on the Users tab.
+- Click on the user whose credentials you want to export.
+- Click on the Security Credentials tab and locate the Access Keys section.
+- Click on the Create Access Key button.
+- Download the CSV file that contains your Access Key ID and Secret Access Key.
+
+Check [this guide](https://docs.aws.amazon.com/general/latest/gr/s3.html) to see what's the right `S3_ENDPOINT` for your bucket
+
+## Configure Lightdash to use S3 credentials
+
+Now you have the bucket and the S3 credentials for your cloud storage,
+you can provide the following ENV variables to Lightdash so it can use the cloud storage using S3 library
+
+```
+S3_REGION
+S3_ACCESS_KEY
+S3_SECRET_KEY
+S3_BUCKET
+S3_ENDPOINT
+S3_EXPIRATION_TIME
+```
+
+We also support IAM roles. If you don't provide `S3_ACCESS_KEY` and `S3_SECRET_KEY` the S3 library will try to use IAM roles,
+see this [AWS documentation](https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-credentials-node.html) for more details.
+
+The expiration time is optional and defaults to 259200 (seconds).
+
+If you try to customize this expiration time, you should keep in mind that link to your object url will be available for the maximum of 7 days due to signed url limitations if you use IAM role to generate it.

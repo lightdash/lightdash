@@ -1,0 +1,45 @@
+import PercentOfTotal from './assets/percent-of-total.jpg';
+import FormatPercent from './assets/format-percent.jpg';
+
+# Percent of column total
+
+The percent of the column total will give you the percentage of each value in the column out of the total sum of the values in the column.
+
+[Just gimme the code! 👾](#heres-the-sql-you-can-copy-paste-to-calculate-the-percent-of-the-column-total)
+
+Here's an example of a percent of the total column:
+
+<img
+  src={PercentOfTotal}
+  width="862"
+  height="417"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+And here's the SQL used in the table calculation:
+
+```sql
+${orders.total_order_amount} / SUM(${orders.total_order_amount}) OVER()
+```
+
+In general, the SQL used for calculating the percent of the total has just one important column:
+
+- `column_i_want_to_see_the_percent_of_total` - this is the column that you want to see each value's percent of the total values in that column
+
+### Here's the SQL you can copy-paste to calculate the percent of the column total
+
+```sql
+${table.column_i_want_to_see_the_percent_of_total} /
+  SUM(${table.column_i_want_to_see_the_percent_of_total}) OVER()
+```
+
+### Make sure to add percent formatting to your calculation
+
+In the `format` tab, make sure to update the format to `percent` so that your table calculation is shown as a percentage value (instead of a number).
+
+<img
+  src={FormatPercent}
+  width="793"
+  height="454"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>

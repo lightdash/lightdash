@@ -1,0 +1,77 @@
+{
+    "definitions": {
+        "LightdashNodeConfig": {
+            "allOf": [
+                {
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/NodeConfig"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "meta": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                        }
+                    }
+                }
+            ]
+        },
+        "LightdashColumnInfo": {
+            "allOf": [
+                {
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/ColumnInfo"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "not": { "enum": ["TABLE"] }
+                        },
+                        "meta": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashColumnMetadata"
+                        }
+                    }
+                }
+            ]
+        },
+        "LightdashCompiledModelNode": {
+            "allOf": [
+                {
+                    "$ref": "https://schemas.getdbt.com/dbt/manifest/v8.json#/definitions/ModelNode"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "allOf": [
+                                {
+                                    "not": { "enum": ["lightdash", "ld", ""] }
+                                },
+                                {
+                                    "pattern": "^[^.]*$"
+                                }
+                            ]
+                        },
+
+                        "meta": {
+                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                        },
+                        "config": {
+                            "$ref": "#/definitions/LightdashNodeConfig"
+                        },
+                        "columns": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/definitions/LightdashColumnInfo"
+                            },
+                            "default": {}
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lightdash.com/lightdash/v8.json"
+}

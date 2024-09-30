@@ -1,0 +1,78 @@
+name: Duplicate External PR and Run E2E Tests
+on:
+    issue_comment:
+        types: [created]
+jobs:
+    duplicate-and-test:
+        if: github.event.issue.pull_request && contains(github.event.comment.body, '/duplicate-external-pr')
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check user for team affiliation
+              id: check-user-for-team-affiliation
+              uses: tspascoal/get-user-teams-membership@v3
+              with:
+                  username: ${{ github.event.comment.user.login }}
+                  organization: lightdash
+                  team: engineering
+                  GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+            - name: Stop workflow if user isn't a member
+              if: steps.check-user-for-team-affiliation.outputs.isTeamMember == 'false'
+              run: |
+                  echo "You have no rights to trigger this job."
+                  exit 1
+            - name: Checkout code
+              uses: actions/checkout@v2
+              with:
+                  ref: ${{ github.event.issue.pull_request.head.ref }}
+                  token: ${{ secrets.CI_GITHUB_TOKEN }}
+                  fetch-depth: 0 # Fetch all history for all tags and branches
+            - name: Check if duplicate branch exists
+              id: check-branch
+              env:
+                  ISSUE_NUMBER: ${{ github.event.issue.number }}
+                  REF: ${{ github.event.issue.pull_request.head.ref }}
+              run: |
+                  if git ls-remote --heads origin duplicate-${{env.ISSUE_NUMBER}} ${{env.REF}} | grep duplicate-${{env.ISSUE_NUMBER}}; then
+                      echo "Branch already exists."
+                      echo "branch_exists=true" >> $GITHUB_OUTPUT
+                  else
+                      echo "Branch does not exist yet"
+                      echo "branch_exists=false" >> $GITHUB_OUTPUT
+                  fi
+            - name: Update existing branch
+              if: steps.check-branch.outputs.branch_exists == 'true'
+              env:
+                  ISSUE_NUMBER: ${{ github.event.issue.number }}
+                  REF: ${{ github.event.issue.pull_request.head.ref }}
+                  GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+              run: |
+                  git fetch origin duplicate-${{env.ISSUE_NUMBER}}
+                  git checkout duplicate-${{env.ISSUE_NUMBER}}
+                  git pull origin ${{env.REF}} --rebase
+                  git push origin duplicate-${{env.ISSUE_NUMBER}}
+              continue-on-error: true
+            - name: Create new branch and PR
+              if: steps.check-branch.outputs.branch_exists == 'false'
+              env:
+                  ISSUE_NUMBER: ${{ github.event.issue.number }}
+                  PR_REPO: ${{ github.event.issue.pull_request.head.repo.full_name }}
+                  PR_BRANCH: ${{ github.event.issue.pull_request.head.ref }}
+                  DUPLICATE_BRANCH: duplicate_${{ github.event.issue.pull_request.head.ref }}
+                  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+                  ASSIGNEE: ${{ github.event.comment.user.login }}
+                  GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  echo "PR_REPO ${{env.PR_REPO}}"
+                  echo "PR_BRANCH ${{env.PR_BRANCH}}"
+                  echo "DEFAULT_BRANCH ${{env.DEFAULT_BRANCH}}"
+                  echo "Adding remote for external PR repo"
+                  git remote add external https://github.com/${{env.PR_REPO}}.git
+                  echo "Fetching from external PR repo"
+                  git fetch external
+                  echo "Checking out and creating duplicate branch from PR branch"
+                  git checkout -b ${{env.DUPLICATE_BRANCH}} external/${{env.PR_BRANCH}}
+                  git push -u origin ${{env.DUPLICATE_BRANCH}}
+                  echo "Creating PR for the duplicate branch"
+                  gh pr create --base ${{env.DEFAULT_BRANCH}} --head ${{env.DUPLICATE_BRANCH}} --title "chore: ${{env.ISSUE_NUMBER}} [DUPLICATE]" --body "This is a duplicated PR for running E2E tests." --assignee ${{env.ASSIGNEE}}

@@ -1,0 +1,161 @@
+import dbtRepoExample from './assets/dbt-repo-example.png';
+import TablesView from './assets/tables-view.jpg';
+import ExampleTable from './assets/example-table.jpg';
+import Overview from './assets/overview-intro.png';
+import PersonalAccessToken from './assets/personal-access-token.png';
+import UpdateConnection from './assets/update-connection.jpg';
+import HowToInstallTheLightdashCli from './../../snippets/how-to-install-the-lightdash-cli.mdx';
+
+# Create your first project in Lightdash
+
+<img
+  src={Overview}
+  width="1359"
+  height="265"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+In Lightdash, everything you need for BI is written as code in your dbt project. You use dbt to transform all of the data from your data warehouse, then you use Lightdash to explore it.
+
+But, before you hook up your dbt project to Lightdash, we need to make sure we have Tables to explore. **In this setup guide, we'll walk you through the steps of installing + using the Lightdash CLI and creating the first Tables in your project.**
+
+:::tip
+
+**New to dbt?** If you haven't used dbt before, [follow dbt's getting started guide](https://docs.getdbt.com/tutorial/setting-up)
+before proceeding with setting up Lightdash.
+
+:::
+
+## What are Tables?
+
+Tables are the starting point to any data exploration in Lightdash - they're the data in Lightdash that you can query. The beauty of Lightdash is that we're pretty well synced with your dbt project. So, in Lightdash, Tables actually come from dbt models that have been defined in your dbt project's `.yml` files.
+
+If your dbt model has been defined in a .yml file, it will appear in Lightdash as a Table.
+
+:::tip
+
+Not sure what a .yml file is? Make sure to [check out dbt's docs](https://docs.getdbt.com/reference/configs-and-properties) to learn more about building .yml files for your dbt project.
+
+:::
+
+Here's an example of our `Community stats daily` model we've defined in dbt. In Lightdash, we can see it in our list of available Tables to explore.
+
+<img
+  src={TablesView}
+  width="920"
+  height="391"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Now that we know what tables are, let's add some and create our first project!
+
+---
+
+## Step 1: Install the Lightdash CLI tool
+
+<HowToInstallTheLightdashCli />
+
+---
+
+## Step 2: Login to the CLI
+
+We've automatically generated a personal access token that you can use to login to the CLI, so you just need to copy-paste that command in your Terminal.
+
+It's Step 2. and should look something like this:
+
+```shell
+lightdash login https://{{ lightdash_domain }} --token my-super-secret-token
+```
+
+Where `{{ lightdash_domain }}` is `app.lightdash.cloud` for Lightdash Cloud users. Or your own domain if self-hosting. If you want to login using another method, then you [can check out our authentication methods here](/guides/cli/cli-authentication.mdx).
+
+---
+
+## Step 3: Add Tables
+
+:::info
+
+If you're using dbt Cloud, you'll need to [clone your repo to your local machine](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) before completing the next steps.
+
+:::
+
+To get our dbt project Lightdash-ready, we need to define all of the columns in our dbt models that we want to explore in Lightdash. We've made this really easy to do using our CLI tool and the command:
+
+```shell
+lightdash dbt run
+```
+
+This will generate Tables and dimensions for your **_entire_** dbt project. It will document all of the columns in your models and these are what we explore in Lightdash as `Dimensions`.
+
+For example, if we have a `projects.yml` file, we'd have a Table called `Projects` and it would have the dimensions: `Dashboards created num total` and `Days since project created`.
+
+<img
+  src={ExampleTable}
+  width="709"
+  height="226"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+<details>
+  <summary>
+    Error: Not a dbt project (or any of the parent directories). Missing
+    dbt_project.yml file
+  </summary>
+  Make sure that you're in your dbt project folder before you try doing `lightdash
+  dbt run`! Otherwise, you'll run into this error.
+</details>
+
+#### If you only want to generate Tables and dimensions for **_some_** of the models in your dbt project, check this out
+
+<details>
+  <summary>Generate Tables and dimensions for some of the models in my dbt project:</summary>
+  There may be a specific set of models that you want to start out with as Tables in Lightdash. If this is the case, we recommend [using dbt's `tags`](https://docs.getdbt.com/reference/resource-configs/tags) to tag these models. You can use sets of existing tags, or you can create a new Lightdash-specific tag. Something like this:
+
+```yaml
+{{
+  config(
+    materialized='table',
+    tags=['lightdash']
+  )
+}}
+```
+
+The `lightdash dbt run` command supports dbt model selection syntax to generate .yml files for a group of models. This means you can use tags or other model selection syntax to specify which models you want to generate dimensions for in your dbt project.
+
+```shell
+lightdash dbt run -s tag:lightdash # all models with the lightdash tag
+lightdash dbt run -s payments  # just payments
+lightdash dbt run -s payments+ # payments and all children
+lightdash dbt run -s +payments # payments and all parents
+lightdash dbt run -s payments+ +customers tag:lightdash # mix and match
+```
+
+</details>
+
+---
+
+## Step 4: Create your project
+
+Now, your dbt project is Lightdash-ready! Just run this command and follow the link to start exploring your data:
+
+```bash
+lightdash deploy --create
+```
+
+---
+
+## Next steps: Update your project connection settings
+
+We create your first project using your local dbt `profiles.yml` file. So, you might want to update your connection settings to:
+
+1. Set up a service account for Lightdash to run on (instead of using your personal connection details)
+2. Connect Lightdash to your version controlled dbt project so changes are automatically synced.
+
+Check out details on [updating your connection settings here](/get-started/setup-lightdash/connect-project.mdx).
+
+<img
+  src={UpdateConnection}
+  width="1062"
+  height="602"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>

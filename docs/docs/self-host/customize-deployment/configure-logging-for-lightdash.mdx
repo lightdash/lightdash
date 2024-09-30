@@ -1,0 +1,20 @@
+---
+sidebar_label: Logging
+---
+
+# Configure logging for Lightdash
+
+By default Lightdash logs to the console in a human readable format. You can configure the logging behaviour, such
+as logging to a file or using a JSON format, by
+using the following environment variables:
+
+| Variable                       | Description                                                 | Required? | Default                |
+| ------------------------------ | ----------------------------------------------------------- | --------- | ---------------------- |
+| `LIGHTDASH_LOG_LEVEL`          | The minimum level of log messages to display                |           | `INFO`                 |
+| `LIGHTDASH_LOG_FORMAT`         | The format of log messages                                  |           | `pretty`               |
+| `LIGHTDASH_LOG_OUTPUTS`        | The outputs to send log messages to                         |           | `console`              |
+| `LIGHTDASH_LOG_CONSOLE_LEVEL`  | The minimum level of log messages to display on the console |           | `LIGHTDASH_LOG_LEVEL`  |
+| `LIGHTDASH_LOG_CONSOLE_FORMAT` | The format of log messages on the console                   |           | `LIGHTDASH_LOG_FORMAT` |
+| `LIGHTDASH_LOG_FILE_LEVEL`     | The minimum level of log messages to write to the log file  |           | `LIGHTDASH_LOG_LEVEL`  |
+| `LIGHTDASH_LOG_FILE_FORMAT`    | The format of log messages in the log file                  |           | `LIGHTDASH_LOG_FORMAT` |
+| `LIGHTDASH_LOG_FILE_PATH`      | The path to the log file                                    |           | `./logs/all.log`       |

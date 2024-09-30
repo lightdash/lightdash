@@ -1,0 +1,6 @@
+id,plan_name,metadata
+1,free,{"created_by":"John Miller"}
+2,silver,{"created_by":"Elliot Stone"}
+3,gold,{"created_by":"John Miller"}
+4,platinum,{"created_by":"Elliot Stone"}
+5,diamond,{"created_by":"John Miller"}

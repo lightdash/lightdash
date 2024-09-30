@@ -1,0 +1,59 @@
+import AccessDomains from './assets/access-allowed-email-domains.jpg';
+import AddingDomains from './assets/add-allowed-email-domains.jpg';
+import UpdateDomains from './assets/update-allowed-email-domain-projects.png';
+import JoinWorkspace from './assets/join-workspace-prompt.png';
+import ProjectAccess from './assets/project-access.png';
+
+Organization admins can add allowed email domains to their organization settings so that anyone with those email domains can automatically join their organization (without explicitly inviting them).
+
+To update your organization's allowed email domains setting, just go to the `general` organization settings.
+
+<img
+  src={AccessDomains}
+  width="924"
+  height="530"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+In the `allowed email domains` panel, enter the email domains you want to be able to automatically join your organization (e.g. here, we've added `lightdash.com`). Generic email domains like `gmail.com` or `hotmail.com` are not accepted.
+
+You can then select the access that you want these users to have, by default. The organization admin can always update a user's permissions after they've joined the organization!
+
+<img
+  src={AddingDomains}
+  width="793"
+  height="315"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+If you want to add default permissions that are different across each project, you can select the organization role of `organization member`, then set the project access for each project.
+
+<img
+  src={ProjectAccess}
+  width="785"
+  height="341"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once you've selected the default roles for your allowed email domains, make sure to click `update` to save your changes.
+
+<img
+  src={UpdateDomains}
+  width="798"
+  height="339"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Now, when a user tries to join Lightdash, they will be prompted to join your workspace if they have one of your allowed email domains.
+
+<img
+  src={JoinWorkspace}
+  width="431"
+  height="381"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+### Setting a Default Project
+
+In the organization settings you can set a default project. This is the project users will see when they log in for the
+first time or from a new device. If a user does not have access, they will see their next accessible project.

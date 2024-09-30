@@ -1,0 +1,287 @@
+{
+    "definitions": {
+        "RequiredAttributes": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {
+                "oneOf": [
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "type": "string"
+                    }
+                ]
+            }
+        },
+        "Compact": {
+            "type": "string",
+            "enum": [
+                "thousands",
+                "millions",
+                "billions",
+                "trillions",
+                "K",
+                "M",
+                "B",
+                "T"
+            ]
+        },
+        "Format": {
+            "type": "string",
+            "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"]
+        },
+        "Urls": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "LightdashDimension": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "not": { "enum": ["TABLE"] }
+                },
+                "label": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean", "date", "timestamp"]
+                },
+                "description": {
+                    "type": "string"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "time_intervals": {
+                    "oneOf": [
+                        {
+                            "const": "default"
+                        },
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "const": "OFF"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
+                "hidden": {
+                    "type": "boolean"
+                },
+                "round": {
+                    "type": "number"
+                },
+                "compact": {
+                    "$ref": "#/definitions/Compact"
+                },
+                "format": {
+                    "$ref": "#/definitions/Format"
+                },
+                "group_label": {
+                    "type": "string"
+                },
+                "urls": {
+                    "$ref": "#/definitions/Urls"
+                },
+                "required_attributes": {
+                    "$ref": "#/definitions/RequiredAttributes"
+                }
+            }
+        },
+        "LightdashAdditionalDimension": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean", "date", "timestamp"]
+                },
+                "description": {
+                    "type": "string"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "hidden": {
+                    "type": "boolean"
+                },
+                "round": {
+                    "type": "number"
+                },
+                "compact": {
+                    "$ref": "#/definitions/Compact"
+                },
+                "format": {
+                    "$ref": "#/definitions/Format"
+                },
+                "group_label": {
+                    "type": "string"
+                },
+                "urls": {
+                    "$ref": "#/definitions/Urls"
+                },
+                "required_attributes": {
+                    "$ref": "#/definitions/RequiredAttributes"
+                }
+            }
+        },
+        "LightdashMetric": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "median",
+                        "percentile",
+                        "average",
+                        "count",
+                        "count_distinct",
+                        "sum",
+                        "min",
+                        "max",
+                        "number",
+                        "string",
+                        "date",
+                        "boolean"
+                    ]
+                },
+                "description": {
+                    "type": "string"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "hidden": {
+                    "type": "boolean"
+                },
+                "round": {
+                    "type": "number"
+                },
+                "compact": {
+                    "$ref": "#/definitions/Compact"
+                },
+                "format": {
+                    "$ref": "#/definitions/Format"
+                },
+                "group_label": {
+                    "type": "string"
+                },
+                "urls": {
+                    "$ref": "#/definitions/Urls"
+                },
+                "show_underlying_values": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object"
+                    }
+                },
+                "percentile": {
+                    "type": "number"
+                }
+            }
+        },
+        "LightdashColumnMetadata": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "dimension": {
+                    "$ref": "#/definitions/LightdashDimension"
+                },
+                "additional_dimensions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/LightdashAdditionalDimension"
+                    },
+                    "default": {}
+                },
+                "metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/LightdashMetric"
+                    },
+                    "default": {}
+                }
+            }
+        },
+        "LightdashModelMetadata": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "joins": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["join", "sql_on"],
+                        "properties": {
+                            "join": {
+                                "type": "string"
+                            },
+                            "sql_on": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["inner", "left", "right", "full"]
+                            },
+                            "always": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                },
+                "order_fields_by": {
+                    "type": "string",
+                    "enum": ["index", "label"]
+                },
+                "sql_where": {
+                    "type": "string"
+                },
+                "sql_filter": {
+                    "type": "string"
+                },
+                "required_attributes": {
+                    "$ref": "#/definitions/RequiredAttributes"
+                }
+            },
+            "default": {}
+        }
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lightdash.com/lightdash/metadata.json"
+}

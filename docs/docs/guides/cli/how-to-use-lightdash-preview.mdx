@@ -1,0 +1,189 @@
+import AutomaticallyDeployChangesGithub from './../../snippets/github-secrets.mdx';
+import GithubSecrets from '../../snippets/github-secrets.mdx';
+
+# Lightdash Preview
+
+**Developer previews** are temporary Lightdash projects where you can safely experiment with your metrics, dimensions and charts
+without affecting your production project.
+
+<a href="https://www.loom.com/share/fddc9adab0694f60a85d0a48d67469be">
+  <img src="https://cdn.loom.com/sessions/thumbnails/fddc9adab0694f60a85d0a48d67469be-with-play.gif" />
+</a>
+
+Preview environments will copy all spaces/charts/dashboards into your new preview environment, so you can test the content
+and also run [validation](/guides/cli/how-to-use-lightdash-validate). This is only copied on preview creation, you can't sync the content afterwards.
+
+### Run `lightdash preview` from inside your project
+
+```shell
+# This will create a preview and will wait until you press a key to delete the preview project
+lightdash preview
+```
+
+or
+
+```shell
+# This will create a preview and exit, you will have to run lightdash stop-preview to delete it
+lightdash start-preview
+```
+
+Then `cmd` + `click` to open the preview link from your terminal. Once you're in Lightdash go to `Explore` --> `Tables`, then click on the model(s) you just updated to see your changes and play around with them.
+
+**Problems with credentials?**
+
+When you create developer previews, Lightdash will use the same warehouse connection settings you have in your
+`profiles.yml` file for your current dbt project. This can be a problem if you're using a local database that your
+laptop can reach but your Lightdash instance cannot.
+
+## Set up developer previews on your pull requests
+
+If you've connected Lightdash to GitHub, you can setup a `github action` and get Lightdash to create new dynamic `preview` projects automatically
+when a new `pull request` is created, and it will automatically delete the `preview` project when the `pull request` is closed or merged.
+
+### Step 1: add the credentials to Github secrets
+
+If you haven't already set up a GitHub action for Lightdash, you'll need to add some secrets to GitHub. If you already have a GitHub action for Lightdash, then you can use the same Lightdash secrets you created for your other action.
+
+<GithubSecrets />
+
+### Step 2: Create start-preview.yml and close-preview.yml workflows in Github
+
+Go to your repo, click on `Actions` menu, and click on `Configure`
+
+![Github actions page](./assets/github-actions.png)
+
+Now copy [this start-preview.yml file](https://github.com/lightdash/cli-actions/blob/main/start-preview.yml) from our [cli-actions](https://github.com/lightdash/cli-actions) repo
+
+And save by clicking on `Start commit`
+
+Do the same with [this close-preview.yml file](https://github.com/lightdash/cli-actions/blob/main/close-preview.yml).
+
+### You're done!
+
+Everytime you create a new `pull request` , a new `preview` project with your `branch` name will be created on your organization.
+Everytime you make a change to that branch, the preview environment will get updated.
+Once you close or merge your `pull request`, the `preview` project will get deleted.
+
+You can see the log on `Github actions` page
+
+![Github actions stop preview](./assets/github-actions-stop.png)
+
+## How to use the developer credentials in your preview project
+
+When developing in dbt, you typically have a different set of credentials and dataset/schema than when you are running in production.
+Here are two options on how to set them up based on the developer that opened the Pull Request.
+
+:::info
+If you use dbt cloud IDE to create commits and pull requests you need a few extra steps.
+We need to add a step in the GitHub action to fetch the user that created the pull request.
+
+```yaml
+- uses: actions/github-script@v6
+  id: get_pr_creator
+  with:
+    script: |
+      return (
+        await github.rest.repos.listPullRequestsAssociatedWithCommit({
+          commit_sha: context.sha,
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+        })
+      ).data[0].user.login;
+    result-encoding: string
+```
+
+When copying the following templates, you should replace `${{ github.actor }}` with `${{steps.get_pr_creator.outputs.result}}`.
+:::
+
+### Using profile targets
+
+Update your `DBT_PROFILES` to have 1 target per developer. The target name should be their GitHub username.
+
+```yaml
+jaffle_shop:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      keyfile: keyfile.json
+      project: jaffle-shop
+      dataset: prod
+    katie: # example developer 1, should be GitHub username
+      type: bigquery
+      method: oauth
+      keyfile: keyfile.json
+      project: jaffle-shop
+      dataset: dbt_katie
+    jose: # example developer 2
+      type: bigquery
+      method: oauth
+      keyfile: keyfile.json
+      project: jaffle-shop
+      dataset: dbt_jose
+```
+
+Then, update your GitHub action to use the username as the `--target` flag for the `lightdash start-preview` command.
+
+```yaml
+run: lightdash start-preview --project-dir "$PROJECT_DIR" --profiles-dir . --name ${GITHUB_REF##*/} --target ${{ github.actor }}
+```
+
+### Using github environments
+
+Setup a [GitHub environment](https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment) for each developer where the secrets are specifically for them. The environment name should be their GitHub username.
+Then, update your GitHub action to use the username as the environment.
+
+```yml
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    environment: ${{ github.actor }}
+```
+
+## How to use the dbt cloud schema in your preview project
+
+If you are using a [continuous integration job in dbt cloud](https://docs.getdbt.com/docs/deploy/ci-jobs), you can use the schema that is created by dbt cloud (`dbt_cloud_pr_<job_id>_<pr_id>`) for your preview project.
+
+First we need to add an environment variable to your profile.yml file that will be used by dbt to connect to the correct schema.
+
+```yaml
+schema: "{{ env_var('DBT_SCHEMA') }}"
+```
+
+If you are using BigQuery, it should be `dataset` instead of `schema`.
+
+Then we need to add a step in the GitHub action to fetch the pull request id.
+
+```yaml
+- uses: actions/github-script@v6
+  id: pr_id
+  with:
+    script: |
+      if (context.issue.number) {
+        // Return issue number if present
+        return context.issue.number;
+      } else {
+        // Otherwise return issue number from commit
+        return (
+          await github.rest.repos.listPullRequestsAssociatedWithCommit({
+            commit_sha: context.sha,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          })
+        ).data[0].number;
+      }
+    result-encoding: string
+```
+
+After that we need to add a new env variable to the step "Lightdash CLI start preview" which is the schema that dbt cloud will use.
+
+Note that in this example we assume the job id is `1234`. You will need to replace this with the actual job id.
+
+```yaml
+env:
+  # ... keep existing env variables
+  DBT_SCHEMA: 'dbt_cloud_pr_1234_${{steps.pr_id.outputs.result}}'
+```
+
+Now dbt will use the correct schema when running in the preview environment.

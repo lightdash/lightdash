@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: users # In lightdash, the model name will match the name you define here.
+    description: 'One row per user_id. This is a list of all users and aggregated information for these users.'
+
+    # If we want to join this model to other models in lightdash, we need to define this in the .yml file.
+    # We add joins at the same indentation level as our model's name, description, etc. in a `meta` block
+    # You can join multiple models other models to your model.
+    # All joins are left-outer joins.
+    meta:
+      joins:
+        - join: segment_web_sessions # name of model you're joining to
+          left_on: user_id # join key of left model (i.e. this model)
+          right_on: user_id # join key of right model (i.e. model you're joining)
+        - join: payments
+          sql_on: ${users.user_id} = ${segment_web_sessions.blended_user_id} # you can also write the join in SQL instead of using the left_on, right_on syntax
+
+    # For a column to appear in lightdash, it needs to be defined in the model's .yml file.
+    # To define a column, you only need to include the column name (descriptions are optional).
+    # All of the column descriptions are automatically pulled into lightdash.
+    columns:
+      - name: user_id
+        description: 'Unique identifier for a user.'
+        tests:
+          - unique
+          - not_null
+
+        # We add metrics in lightdash in a `meta` block within the column definition.
+        # A single column can have multiple metrics.
+        meta:
+          metrics:
+            - name: num_unique_users # this is the name of the metric.
+              type: count_distinct # this is the type of calculation that's being done
+            - name: num_unique_7d_active_users
+              description: 'Unique number of users that have had at least one web session in the past 7 days.' # metrics have default descriptions that are added to lightdash. But, you can override these with your own descriptions if you want!
+              type: count_distinct
+      - name: user_activated_date
+        description: "Date ('yyyy-mm-dd') when the user ID was first recorded."
+      - name: days_since_activated
+        description: 'Number of days since the user ID was activated'
+      - name: is_7d_web_active_latest
+        description: 'TRUE/FALSE indicating whether or not the user has had at least 1 web session in the previous 7 days.'
+      - name: num_web_sessions_prev_7d
+        description: 'Total number of web sessions the user has had in the past 7 days'
+        meta:
+          metrics:
+            - name: total_num_web_sessions_prev_7d
+              type: sum
+      - name: num_web_sessions_prev_30d
+        description: 'Total number of web sessions the user has had in the past 30 days'
+      - name: num_web_sessions_total
+        description: 'Total number of web sessiosn the user has ever had.'

@@ -1,0 +1,34 @@
+name: Test easy install
+
+on:
+  schedule:
+    - cron: '0 10 * * 1-5' # At 10:00 on every day-of-week from Monday through Friday.
+# Enable this if you want to test this on a branch 
+#  pull_request:
+#    branches: [ main ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run easy install
+      env: 
+        RUDDERSTACK_WRITE_KEY: '1vikeGadtB0Y0oRDFNL2Prdhkbp' # dev key
+      run: ./scripts/install.sh
+    - name: Test containers 
+      run: |
+        exited_containers=$(docker compose -f docker-compose.yml ps | grep exited | wc -l)
+        if [ $exited_containers = '0' ]; then exit 0 ; else echo "Some containers are not running"; docker compose -f docker-compose.yml ps ;docker compose -f docker-compose.yml logs; exit 1; fi 
+    - name: Test frontend 
+      run: | 
+        output=$(curl -s http://localhost:8080 | grep "Lightdash - Explore and visualize your team's analytics and metrics." |  wc -l)
+        if [ $output = '1' ]; then exit 0 ; else echo "Frontend is not running"; exit 1; fi 
+    - name: Test backend 
+      run: | 
+        curl -s "http://localhost:8080/api/v1/health";
+        output=$(curl -s "http://localhost:8080/api/v1/health" | grep -o '"healthy":true' | wc -l)
+        if [ $output = '1' ]; then exit 0 ; else echo "Backend is not running";  exit 1; fi 

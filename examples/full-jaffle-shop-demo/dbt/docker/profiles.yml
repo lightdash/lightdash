@@ -1,0 +1,14 @@
+config:
+  send_anonymous_usage_stats: false
+
+jaffle_shop:
+  outputs:
+    default:
+      type: postgres
+      threads: 1
+      host: postgres
+      port: 5432
+      user: postgres
+      pass: password
+      dbname: postgres
+      schema: jaffle
