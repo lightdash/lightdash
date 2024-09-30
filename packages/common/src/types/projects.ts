@@ -327,4 +327,6 @@ export type PreviewContentMapping = {
     spaces: IdContentMapping[];
     dashboards: IdContentMapping[];
     dashboardVersions: IdContentMapping[];
+    savedSql: IdContentMapping[];
+    savedSqlVersions: IdContentMapping[];
 };
