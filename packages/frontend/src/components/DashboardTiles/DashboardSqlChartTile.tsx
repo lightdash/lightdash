@@ -10,7 +10,6 @@ import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
 import { SqlRunnerResultsRunnerFrontend } from '../../features/sqlRunner/runners/SqlRunnerResultsRunnerFrontend';
-import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
 import useSearchParams from '../../hooks/useSearchParams';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';

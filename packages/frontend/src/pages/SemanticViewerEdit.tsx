@@ -12,7 +12,7 @@ import {
     useSemanticLayerInfo,
     useSemanticLayerViewFields,
 } from '../features/semanticViewer/api/hooks';
-import { SemanticViewerResultsRunner } from '../features/semanticViewer/runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
 import { store } from '../features/semanticViewer/store';
 import {
     useAppDispatch,
@@ -73,12 +73,12 @@ const SemanticViewerEditorPageWithStore = () => {
         }
 
         const vizColumns =
-            SemanticViewerResultsRunner.convertColumnsToVizColumns(
+            SemanticViewerResultsRunnerFrontend.convertColumnsToVizColumns(
                 fieldsQuery.data,
                 chartResultsQuery.data.columns,
             );
 
-        return new SemanticViewerResultsRunner({
+        return new SemanticViewerResultsRunnerFrontend({
             projectUuid,
             fields: fieldsQuery.data,
             query: chartQuery.data.semanticLayerQuery,

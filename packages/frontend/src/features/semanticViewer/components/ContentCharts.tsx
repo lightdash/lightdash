@@ -98,6 +98,9 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         );
     }, [resultsRunner, semanticLayerQuery]);
 
+    console.log('charts', vizConfig);
+    
+
     return (
         <>
             <PanelGroup direction="vertical">

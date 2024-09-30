@@ -13,7 +13,7 @@ import {
     useSavedSemanticViewerChartResults,
     useSemanticLayerViewFields,
 } from '../../features/semanticViewer/api/hooks';
-import { SemanticViewerResultsRunner } from '../../features/semanticViewer/runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -96,12 +96,12 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         }
 
         const vizColumns =
-            SemanticViewerResultsRunner.convertColumnsToVizColumns(
+            SemanticViewerResultsRunnerFrontend.convertColumnsToVizColumns(
                 fieldsQuery.data,
                 chartResultsQuery.data.columns,
             );
 
-        return new SemanticViewerResultsRunner({
+        return new SemanticViewerResultsRunnerFrontend({
             projectUuid,
             fields: fieldsQuery.data,
             query: chartQuery.data.semanticLayerQuery,

@@ -42,20 +42,17 @@ export const cartesianChartConfigSlice = createSlice({
     name: 'cartesianChartBaseConfig',
     initialState,
     reducers: {
-        // Just a SETTER, it sets the viz index type but should it?
         setXAxisReference: (state, action: PayloadAction<string>) => {
             const xField = state.options.indexLayoutOptions.find(
                 (x) => x.reference === action.payload,
             );
 
             // NOTE: now setting a field instead of just a reference.
-            // Should we be only storing references here?
             if (state.config?.fieldConfig && xField) {
                 state.config.fieldConfig.x = xField;
             }
         },
 
-        // Just a SETTER
         setGroupByReference: (
             { config },
             action: PayloadAction<{
@@ -76,7 +73,7 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
 
-        // Has logic for default aggregation but it shouldn't
+        // TODO: has logic for default aggregation but it shouldn't
         setYAxisReference: (
             state,
             action: PayloadAction<{
@@ -113,7 +110,6 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
 
-        // Just a SETTER
         setYAxisAggregation: (
             { config },
             action: PayloadAction<{
@@ -130,7 +126,6 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
 
-        // Just a SETTER
         setXAxisLabel: (
             { display },
             action: PayloadAction<
@@ -142,7 +137,6 @@ export const cartesianChartConfigSlice = createSlice({
             display.xAxis.label = action.payload.label;
         },
 
-        // Just a SETTER
         setYAxisLabel: (
             { display },
             action: PayloadAction<{ index: number; label: string }>,
@@ -162,7 +156,6 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
 
-        // Just a SETTER
         setSeriesLabel: (
             { display },
             action: PayloadAction<{
@@ -180,7 +173,6 @@ export const cartesianChartConfigSlice = createSlice({
             };
         },
 
-        // Just a SETTER
         setYAxisPosition: (
             { display },
             action: PayloadAction<{
@@ -203,7 +195,6 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
 
-        // Just a setter
         addYAxisField: (state) => {
             if (!state?.config?.fieldConfig) return;
 
@@ -236,7 +227,6 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
 
-        // A setter
         removeYAxisField: (state, action: PayloadAction<number>) => {
             if (!state.config?.fieldConfig?.y) return;
 
@@ -267,7 +257,6 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
 
-        // SETTER
         removeXAxisField: (state) => {
             if (!state.config?.fieldConfig) return;
             delete state.config.fieldConfig.x;

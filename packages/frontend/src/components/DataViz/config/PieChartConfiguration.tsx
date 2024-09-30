@@ -28,7 +28,7 @@ export const PieChartConfiguration = ({
         (state) => state.pieChartConfig.config?.fieldConfig?.y[0],
     );
 
-    // NOTE that this form is only used on semantic viewer, so used customMetricFieldOptions
+    // NOTE that this form is only used on semantic viewer, so uses customMetricFieldOptions
     const aggregateFieldOptions = useVizSelector(
         (state) => state.pieChartConfig.options.customMetricFieldOptions,
     );

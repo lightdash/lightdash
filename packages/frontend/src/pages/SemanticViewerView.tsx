@@ -14,7 +14,7 @@ import {
     useSemanticLayerViewFields,
 } from '../features/semanticViewer/api/hooks';
 import { HeaderView } from '../features/semanticViewer/components/Header/HeaderView';
-import { SemanticViewerResultsRunner } from '../features/semanticViewer/runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
 
 enum ViewerTabs {
     VIZ = 'viz',
@@ -61,12 +61,12 @@ const SemanticViewerViewPage = () => {
         }
 
         const vizColumns =
-            SemanticViewerResultsRunner.convertColumnsToVizColumns(
+            SemanticViewerResultsRunnerFrontend.convertColumnsToVizColumns(
                 fieldsQuery.data,
                 chartResultsQuery.data.columns,
             );
 
-        return new SemanticViewerResultsRunner({
+        return new SemanticViewerResultsRunnerFrontend({
             projectUuid,
             fields: fieldsQuery.data,
             query: chartQuery.data.semanticLayerQuery,
@@ -102,7 +102,7 @@ const SemanticViewerViewPage = () => {
 
         if (chartQuery.data.config.type === ChartKind.TABLE) return;
 
-        return new SemanticViewerResultsRunner({
+        return new SemanticViewerResultsRunnerFrontend({
             projectUuid,
             query: chartQuery.data.semanticLayerQuery,
             rows: chartVizQuery.data?.results ?? [],

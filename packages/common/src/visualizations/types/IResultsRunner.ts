@@ -54,11 +54,7 @@ export type RunPivotQuery = (
 ) => Promise<PivotChartData>;
 
 export interface IResultsRunner {
-    // Includes bar, chart, line, pie, scatter, and table v1(?)
-
-    // Why does this have so many parameters not relevant to the runner?
-    // Can this operate on almost no params?
-    // MARSHALL REFACTOR: RUN WITH ZERO PARAMETERS
+    
     getPivotedVisualizationData(
         query: SemanticLayerQuery,
         context?: string, // TODO: pick up these changes in the pivot functions

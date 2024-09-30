@@ -84,6 +84,7 @@ export type VizPieChartDisplay = {
 
 export type VizTableDisplay = {
     // TODO: split table display config out of table config
+    // On vis column config, visible, label and frozen, at least seem like display options
 };
 
 export type PivotIndexColum =
@@ -143,25 +144,21 @@ export type VizBaseConfig = {
 export type VizCartesianChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
     fieldConfig: PivotChartLayout | undefined;
-    // display: CartesianChartDisplay | undefined;
 };
 
 export type VizBarChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR;
     fieldConfig: PivotChartLayout | undefined;
-    // display: CartesianChartDisplay | undefined;
 };
 
 export type VizLineChartConfig = VizBaseConfig & {
     type: ChartKind.LINE;
     fieldConfig: PivotChartLayout | undefined;
-    // display: CartesianChartDisplay | undefined;
 };
 
 export type VizPieChartConfig = VizBaseConfig & {
     type: ChartKind.PIE;
     fieldConfig: PivotChartLayout | undefined;
-    // display: VizPieChartDisplay | undefined;
 };
 
 export type VizTableConfig = VizBaseConfig & {

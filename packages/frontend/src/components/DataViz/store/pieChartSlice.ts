@@ -20,6 +20,7 @@ import {
 } from './actions/commonChartActions';
 
 export type PieChartState = {
+    // TODO: a non-sql type
     defaultFieldConfig: SqlRunnerPivotChartLayout | undefined;
     config: VizPieChartConfig | undefined;
     display: VizPieChartDisplay | undefined;
