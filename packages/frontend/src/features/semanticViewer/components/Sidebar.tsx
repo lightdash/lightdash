@@ -45,10 +45,8 @@ const Sidebar: FC<SidebarProps> = ({ shouldShowSave }) => {
         (state) => state.semanticViewer,
     );
 
-    const handleSave = (slug: string) => {
-        history.replace(
-            `/projects/${projectUuid}/semantic-viewer/${slug}/edit`,
-        );
+    const handleCreate = (slug: string) => {
+        history.replace(`/projects/${projectUuid}/semantic-viewer/${slug}`);
     };
 
     return (
@@ -69,7 +67,9 @@ const Sidebar: FC<SidebarProps> = ({ shouldShowSave }) => {
                     <>
                         <SaveSemanticViewerChart />
                         {saveModalOpen && (
-                            <SaveSemanticViewerChartModal onSave={handleSave} />
+                            <SaveSemanticViewerChartModal
+                                onSave={handleCreate}
+                            />
                         )}
                     </>
                 )}
