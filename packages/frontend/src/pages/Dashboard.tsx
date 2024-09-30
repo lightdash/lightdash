@@ -168,6 +168,14 @@ const Dashboard: FC = () => {
         );
     }, [dashboardUuid, pinnedItems]);
 
+    const hasNewSemanticLayerChart = useMemo(() => {
+        if (!dashboardTiles) return false;
+
+        return dashboardTiles.some(
+            (tile) => tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART,
+        );
+    }, [dashboardTiles]);
+
     // tabs state
     const [activeTab, setActiveTab] = useState<DashboardTab | undefined>();
     const [addingTab, setAddingTab] = useState<boolean>(false);
@@ -619,6 +627,7 @@ const Dashboard: FC = () => {
                             hasTemporaryFilters ||
                             haveTabsChanged
                         }
+                        hasNewSemanticLayerChart={hasNewSemanticLayerChart}
                         onAddTiles={handleAddTiles}
                         onSaveDashboard={() => {
                             const dimensionFilters = [
@@ -672,7 +681,9 @@ const Dashboard: FC = () => {
                             activeTabUuid={activeTab?.uuid}
                         />
                     )}
-                    {hasDashboardTiles && <DateZoom isEditMode={isEditMode} />}
+                    {hasDashboardTiles && !hasNewSemanticLayerChart && (
+                        <DateZoom isEditMode={isEditMode} />
+                    )}
                 </Group>
                 <DashboardTabs
                     isEditMode={isEditMode}
