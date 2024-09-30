@@ -244,13 +244,29 @@ export const ContentPanel: FC = () => {
 
     const resultsRunner = useMemo(() => {
         return new SqlRunnerResultsRunnerFrontend({
-            rows: queryResults?.results ?? [], // Can this thing build the semantic query?
+            rows: queryResults?.results ?? [],
             columns: queryResults?.columns ?? [],
             projectUuid,
             limit,
             sql,
         });
     }, [queryResults, projectUuid, limit, sql]);
+
+    const vizDataModel = useMemo(() => {
+        return getChartDataModel(resultsRunner, currentVizConfig, org.data);
+    }, [currentVizConfig, org.data, resultsRunner]);
+
+    const {
+        loading: chartLoading,
+        error: chartError,
+        value: chartData,
+    } = useAsync(
+        async () => vizDataModel.getPivotedChartData(),
+        [vizDataModel],
+    );
+
+    const chartSpec = vizDataModel.getSpec(currentDisplay);
+    console.log('chartData', { chartData, chartSpec });
 
     useEffect(() => {
         if (!queryResults || !resultsRunner || !selectedChartType) return;
@@ -272,36 +288,13 @@ export const ContentPanel: FC = () => {
         dispatch,
     ]);
 
-    const vizDataModel = useMemo(() => {
-        return getChartDataModel(resultsRunner, currentVizConfig, org.data);
-    }, [currentVizConfig, org.data, resultsRunner]);
-
-    // const [chartVizQuery, chartSpec] = useChartViz({
-    //     projectUuid,
-    //     resultsRunner,
-    //     config: currentVizConfig,
-    //     sql,
-    //     limit,
-    // });
-
-    const {
-        loading: chartLoading,
-        error: chartError,
-        value: chartData,
-    } = useAsync(
-        async () => vizDataModel.getPivotedChartData(),
-        [vizDataModel],
-    );
-
-    const chartSpec = vizDataModel.getSpec(currentDisplay);
-    console.log('chartData', { chartData, chartSpec });
-
     const [activeEchartsInstance, setActiveEchartsInstance] =
         useState<EChartsInstance>();
 
     // const chartFileUrl = chartVizQuery?.data?.fileUrl;
     // const resultsFileUrl = queryResults?.fileUrl;
 
+    // Should come from the chart viz data model
     // const chartVizResultsRunner = useMemo(() => {
     //     if (!chartVizQuery.data) return;
 

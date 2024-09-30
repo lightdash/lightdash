@@ -41,7 +41,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         columns: VizColumn[];
         rows: RawResultRow[];
         projectUuid: string;
-        limit: number;
+        limit?: number;
         sql: string;
         slug?: string;
         uuid?: string;

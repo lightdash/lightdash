@@ -100,7 +100,7 @@ const ViewSqlChart = () => {
                 rows: data?.results ?? [],
                 columns: data?.columns ?? [],
                 projectUuid,
-                limit: sqlChart?.limit ,
+                limit: sqlChart?.limit,
                 sql,
             }),
         [data?.columns, data?.results, projectUuid, sql, sqlChart?.limit],
@@ -114,8 +114,6 @@ const ViewSqlChart = () => {
     const [chartVizQuery, chartSpec] = useChartViz({
         resultsRunner,
         config: currentVisConfig,
-        uuid: sqlChart?.savedSqlUuid,
-        sql,
         projectUuid,
         slug: params.slug,
         limit: sqlChart?.limit,

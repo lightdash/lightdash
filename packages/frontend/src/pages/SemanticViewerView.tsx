@@ -3,11 +3,13 @@ import { Box, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useAsync } from 'react-use';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-import { useChartViz } from '../components/DataViz/hooks/useChartViz';
+import getChartDataModel from '../components/DataViz/transformers/getChartDataModel';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
+import { Table2 } from '../components/DataViz/visualizations/Table2';
 import {
     useSavedSemanticViewerChart,
     useSavedSemanticViewerChartResults,
@@ -15,6 +17,7 @@ import {
 } from '../features/semanticViewer/api/hooks';
 import { HeaderView } from '../features/semanticViewer/components/Header/HeaderView';
 import { SemanticViewerResultsRunnerFrontend } from '../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
+import { useOrganization } from '../hooks/organization/useOrganization';
 
 enum ViewerTabs {
     VIZ = 'viz',
@@ -22,6 +25,8 @@ enum ViewerTabs {
 }
 
 const SemanticViewerViewPage = () => {
+    const org = useOrganization();
+
     const [activeViewerTab, setActiveViewerTab] = useState<ViewerTabs>(
         ViewerTabs.VIZ,
     );
@@ -60,67 +65,44 @@ const SemanticViewerViewPage = () => {
             return;
         }
 
-        const vizColumns =
-            SemanticViewerResultsRunnerFrontend.convertColumnsToVizColumns(
-                fieldsQuery.data,
-                chartResultsQuery.data.columns,
-            );
-
         return new SemanticViewerResultsRunnerFrontend({
             projectUuid,
             fields: fieldsQuery.data,
-            query: chartQuery.data.semanticLayerQuery,
             rows: chartResultsQuery.data.results,
-            columns: vizColumns,
+            columnNames: chartResultsQuery.data.columns,
         });
     }, [
         projectUuid,
         fieldsQuery.isSuccess,
         fieldsQuery.data,
         chartQuery.isSuccess,
-        chartQuery.data,
         chartResultsQuery.isSuccess,
         chartResultsQuery.data,
     ]);
 
-    const [chartVizQuery, chartSpec] = useChartViz({
-        projectUuid,
-        resultsRunner,
-        uuid: chartQuery.data?.savedSemanticViewerChartUuid,
-        config: chartQuery.data?.config,
-        slug: chartQuery.data?.slug,
-    });
+    const vizDataModel = useMemo(() => {
+        if (!resultsRunner) return;
+        return getChartDataModel(
+            resultsRunner,
+            chartQuery.data?.config,
+            org.data,
+        );
+    }, [resultsRunner, chartQuery.data?.config, org.data]);
 
-    const pivotResultsRunner = useMemo(() => {
-        if (
-            !chartQuery.isSuccess ||
-            !fieldsQuery.isSuccess ||
-            !chartVizQuery.isSuccess
-        ) {
-            return;
-        }
-
-        if (chartQuery.data.config.type === ChartKind.TABLE) return;
-
-        return new SemanticViewerResultsRunnerFrontend({
-            projectUuid,
-            query: chartQuery.data.semanticLayerQuery,
-            rows: chartVizQuery.data?.results ?? [],
-            columns: chartVizQuery.data?.columns ?? [],
-            fields: fieldsQuery.data,
-        });
-    }, [
-        projectUuid,
-        fieldsQuery.isSuccess,
-        fieldsQuery.data,
-        chartQuery.isSuccess,
-        chartQuery.data,
-        chartVizQuery.isSuccess,
-        chartVizQuery.data,
-    ]);
+    const { loading: chartLoading, error: chartError } = useAsync(
+        async () =>
+            // TODO: add filters, sortBy
+            vizDataModel?.getPivotedChartData(),
+        [vizDataModel],
+    );
 
     // TODO: add error state
-    if (chartQuery.isError || fieldsQuery.isError || chartVizQuery.isError) {
+    if (
+        !vizDataModel ||
+        chartQuery.isError ||
+        fieldsQuery.isError ||
+        chartError
+    ) {
         return null;
     }
 
@@ -132,9 +114,12 @@ const SemanticViewerViewPage = () => {
     const chartType = chartQuery.data.config.type;
 
     // TODO: add loading state
-    if (chartType !== ChartKind.TABLE && chartVizQuery.isLoading) {
+    if (chartType !== ChartKind.TABLE && chartLoading) {
         return null;
     }
+
+    const spec = vizDataModel.getSpec();
+    const tableData = vizDataModel?.getPivotedTableData();
 
     return (
         <Page
@@ -200,9 +185,9 @@ const SemanticViewerViewPage = () => {
                     <Box h="100%" w="100%" mih="inherit" pos="relative">
                         <ChartView
                             config={chartQuery.data.config}
-                            spec={chartSpec}
-                            isLoading={chartVizQuery.isLoading}
-                            error={chartVizQuery.error}
+                            spec={spec}
+                            isLoading={chartLoading}
+                            error={chartError}
                             style={{
                                 minHeight: 'inherit',
                                 height: 'inherit',
@@ -227,30 +212,11 @@ const SemanticViewerViewPage = () => {
                     )
                 )
             ) : activeViewerTab === ViewerTabs.RESULTS ? (
-                pivotResultsRunner ? (
-                    <Table
-                        resultsRunner={pivotResultsRunner}
-                        columnsConfig={Object.fromEntries(
-                            chartVizQuery.data?.columns.map((field) => [
-                                field.reference,
-                                {
-                                    visible: true,
-                                    reference: field.reference,
-                                    label: field.reference,
-                                    frozen: false,
-                                    // TODO: add aggregation
-                                    // aggregation?: VizAggregationOptions;
-                                },
-                            ]) ?? [],
-                        )}
-                    />
-                ) : null
-            ) : (
-                assertUnreachable(
-                    activeViewerTab,
-                    `Unknown tab ${activeViewerTab}`,
-                )
-            )}
+                <Table2
+                    columnNames={tableData?.columns ?? []}
+                    rows={tableData?.rows ?? []}
+                />
+            ) : null}
         </Page>
     );
 };

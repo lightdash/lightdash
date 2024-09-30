@@ -123,7 +123,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
     projectUuid: string;
     slug?: string;
     uuid?: string;
-    limit: number;
+    limit?: number;
     sql: string;
     sortBy?: VizSortBy[];
     fields: SemanticLayerField[];

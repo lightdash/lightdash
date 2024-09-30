@@ -82,8 +82,10 @@ export const PieChartConfiguration = ({
                     }))}
                     value={aggregateField?.reference}
                     error={
-                        errors?.valuesFieldError?.references
-                            ? `Column "${errors?.valuesFieldError?.references[0]}" not in SQL query`
+                        errors?.customMetricFieldError?.references
+                            ? `Column "${errors?.customMetricFieldError?.references[0]}" not in SQL query`
+                            : errors?.metricFieldError?.references
+                            ? `Column "${errors?.metricFieldError?.references[0]}" not in SQL query`
                             : undefined
                     }
                     placeholder="Select Y axis"

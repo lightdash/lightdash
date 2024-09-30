@@ -138,12 +138,25 @@ const SemanticViewerSaveChartModal: FC<Props> = ({ onSave }) => {
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spacesQuery.data[0].uuid;
 
+        // TODO: this just maps axisType to type. We should make this kind of FE -> DB mapping
+        // more official, or (for now) use the older names.
+        const savedConfig = {
+            ...selectedChartConfig,
+            fieldConfig: {
+                ...selectedChartConfig?.fieldConfig,
+                x: {
+                    reference: selectedChartConfig?.fieldConfig?.x?.reference,
+                    type: selectedChartConfig?.fieldConfig?.x?.axisType,
+                },
+            },
+        };
+
         const newChart = await saveChart({
             name: form.values.name,
             description: form.values.description || '',
             semanticLayerView: semanticLayerView ?? null,
             semanticLayerQuery,
-            config: selectedChartConfig,
+            config: savedConfig,
             spaceUuid: spaceUuid,
         });
 
