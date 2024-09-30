@@ -1,5 +1,6 @@
 import {
     CustomViewType,
+    DbtProjectType,
     getProjectDirectory,
     snakeCaseName,
 } from '@lightdash/common';
@@ -28,12 +29,12 @@ import { useAppSelector } from '../store/hooks';
 
 const getCustomViewTypeAlertText = (customViewType: CustomViewType) => {
     switch (customViewType) {
-        case CustomViewType.TRANSIENT:
-            return "Create a transient custom view so others can reuse this query in Lightdash, but it won't be written to or managed in your dbt project.";
+        case CustomViewType.VIRTUAL:
+            return "Create a virtual custom view so others can reuse this query in Lightdash, but it won't be written to or managed in your dbt project.";
         case CustomViewType.PERSISTENT:
             return 'Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request (docs coming soon).';
         default:
-            return '';
+            return undefined;
     }
 };
 
@@ -57,17 +58,22 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
-            customViewType: CustomViewType.TRANSIENT,
+            customViewType: CustomViewType.VIRTUAL,
         },
         validate: zodResolver(validationSchema),
     });
 
     const { data: project } = useProject(projectUuid);
-    // TODO: Add GitHub handler and check if available depending on project type
+    const canWriteToDbtProject = !!(
+        project?.dbtConnection.type === DbtProjectType.GITHUB
+    );
     // TODO: Check if possible to create a branch and PR - if not, and it's not a git project, disable option with tooltip
     const projectDirectory = useMemo(
-        () => getProjectDirectory(project?.dbtConnection),
-        [project?.dbtConnection],
+        () =>
+            canWriteToDbtProject
+                ? getProjectDirectory(project?.dbtConnection)
+                : undefined,
+        [project?.dbtConnection, canWriteToDbtProject],
     );
     const basePathForDbtCustomView = `${projectDirectory}/models/lightdash`;
     const filePathsForDbtCustomView = useMemo(
@@ -157,11 +163,12 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                         <Group mt="md">
                             <Radio
                                 size="xs"
-                                value={CustomViewType.TRANSIENT}
-                                label="Create transient custom view"
+                                value={CustomViewType.VIRTUAL}
+                                label="Create virtual custom view"
                             />
                             <Radio
                                 size="xs"
+                                disabled={!canWriteToDbtProject}
                                 value={CustomViewType.PERSISTENT}
                                 label="Write back to dbt project"
                             />
@@ -180,7 +187,7 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                         CustomViewType.PERSISTENT && (
                         <Stack spacing="xs" pl="xs">
                             <Text fw={500}>
-                                Files to be created in:{' '}
+                                Files to be created in{' '}
                                 <Badge
                                     radius="md"
                                     variant="light"
@@ -189,8 +196,9 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                                 >
                                     REPO NAME
                                 </Badge>
+                                :
                             </Text>
-                            <List spacing="xs">
+                            <List spacing="xs" pl="xs">
                                 {filePathsForDbtCustomView.map((file) => (
                                     <Tooltip
                                         key={file}

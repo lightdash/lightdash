@@ -92,6 +92,6 @@ export type Table = TableBase & {
 };
 
 export enum CustomViewType {
-    TRANSIENT = 'transient',
+    VIRTUAL = 'virtual',
     PERSISTENT = 'persistent',
 }
