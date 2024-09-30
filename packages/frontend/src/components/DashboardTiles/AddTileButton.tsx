@@ -31,7 +31,7 @@ import { TileAddModal } from './TileForms/TileAddModal';
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
-    hasNewSemanticLayerChart: boolean;
+    hasNewSemanticLayerChart?: boolean;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
 } & Pick<ButtonProps, 'disabled'>;
@@ -39,7 +39,7 @@ type Props = {
 const AddTileButton: FC<Props> = ({
     onAddTiles,
     setAddingTab,
-    hasNewSemanticLayerChart,
+    hasNewSemanticLayerChart = false,
     disabled,
     activeTabUuid,
     dashboardTabs,
