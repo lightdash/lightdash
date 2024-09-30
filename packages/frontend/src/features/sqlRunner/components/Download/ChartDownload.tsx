@@ -1,8 +1,4 @@
-import {
-    capitalize,
-    DownloadFileType,
-    type VizColumn,
-} from '@lightdash/common';
+import { capitalize, DownloadFileType } from '@lightdash/common';
 import { ActionIcon, Button, Popover, Radio, Stack } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
 import { type EChartsInstance } from 'echarts-for-react';
@@ -16,20 +12,20 @@ import { useDownloadResults } from '../../hooks/useDownloadResults';
 
 type Props = {
     fileUrl: string | undefined;
-    columns: VizColumn[];
+    columnNames: string[];
     chartName: string | undefined;
     echartsInstance: EChartsInstance;
 };
 
 export const ChartDownload: React.FC<Props> = memo(
-    ({ fileUrl, columns, chartName, echartsInstance }) => {
+    ({ fileUrl, columnNames, chartName, echartsInstance }) => {
         const [downloadFormat, setDownloadFormat] = useState<
             DownloadFileType.CSV | DownloadFileType.IMAGE
         >(DownloadFileType.CSV);
 
         const { handleDownload: handleCsvDownload } = useDownloadResults({
             fileUrl,
-            columns,
+            columnNames,
             chartName,
         });
 

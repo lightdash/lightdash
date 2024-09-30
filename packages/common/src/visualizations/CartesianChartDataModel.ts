@@ -575,10 +575,20 @@ export class CartesianChartDataModel {
             return undefined;
         }
 
+
         return {
             columns: Object.keys(transformedData.results[0]) ?? [],
             rows: transformedData.results,
         };
+    }
+
+    getDataDownloadUrl(): string | undefined {
+        const transformedData = this.pivotedChartData;
+        if (!transformedData) {
+            return undefined;
+        }
+
+        return transformedData.fileUrl;
     }
 
     getSpec(display?: CartesianChartDisplay): Record<string, any> {

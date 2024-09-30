@@ -78,18 +78,20 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
 > => {
     const index = fields.find((field) => field.name === query.pivot?.index[0]);
     const values = query.pivot?.values.map((value) => {
-        const customMetric = query.customMetrics?.find(
+        // TODO: 'metrics' instead of 'customMetrics' for now
+        // should this be different here or worked out in the model?
+        const customMetric = query.metrics?.find(
             (metric) => metric.name === value,
         );
         if (!customMetric) {
-            throw new Error('Unexpected error: incorrect pivot configuration');
+            throw new Error('Unexpected error: incorrect pivot configuration, no metric');
         }
         return customMetric;
     });
     const groupBy = query.pivot?.on.map((on) => {
         const f = fields.find((field) => field.name === on);
         if (!f) {
-            throw new Error('Unexpected error: incorrect pivot configuration');
+            throw new Error('Unexpected error: incorrect pivot configuration, invalid groupBy');
         }
         return f;
     });

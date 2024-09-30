@@ -51,6 +51,7 @@ import getChartConfigAndOptions from '../../../components/DataViz/transformers/g
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
+import { Table2 } from '../../../components/DataViz/visualizations/Table2';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -272,6 +273,8 @@ export const ContentPanel: FC = () => {
     );
 
     const chartSpec = vizDataModel.getSpec(currentDisplay);
+    const tableData = vizDataModel.getPivotedTableData();
+
     console.log('chartData', { chartData, chartSpec });
 
     useEffect(() => {
@@ -297,18 +300,8 @@ export const ContentPanel: FC = () => {
     const [activeEchartsInstance, setActiveEchartsInstance] =
         useState<EChartsInstance>();
 
-    // const chartFileUrl = chartVizQuery?.data?.fileUrl;
+    // const chartFileUrl = vizDataModel.getDataDownloadUrl();
     // const resultsFileUrl = queryResults?.fileUrl;
-
-    // Should come from the chart viz data model
-    // const chartVizResultsRunner = useMemo(() => {
-    //     if (!chartVizQuery.data) return;
-
-    //     return new SqlRunnerResultsRunner({
-    //         rows: chartVizQuery.data.results,
-    //         columns: chartVizQuery.data.columns,
-    //     });
-    // }, [chartVizQuery.data]);
 
     const hasUnrunChanges = useAppSelector(
         (state) => state.sqlRunner.hasUnrunChanges,
@@ -447,7 +440,7 @@ export const ContentPanel: FC = () => {
                             selectedChartType ? (
                                 <ChartDownload
                                     fileUrl={chartFileUrl}
-                                    columns={chartVizQuery?.data?.columns ?? []}
+                                    columnNames={tableData?.columns ?? []}
                                     chartName={savedSqlChart?.name}
                                     echartsInstance={activeEchartsInstance}
                                 />
@@ -727,39 +720,39 @@ export const ContentPanel: FC = () => {
                                         />
                                     </ConditionalVisibility>
 
-                                    {/* <ConditionalVisibility
+                                    <ConditionalVisibility
                                         isVisible={showChartResultsTable}
                                     >
-                                        {selectedChartType &&
-                                            chartVizQuery.data &&
-                                            chartVizResultsRunner && (
-                                                <Table
-                                                    resultsRunner={
-                                                        chartVizResultsRunner
-                                                    }
-                                                    columnsConfig={Object.fromEntries(
-                                                        chartVizQuery.data.columns.map(
-                                                            (field) => [
-                                                                field.reference,
-                                                                {
-                                                                    visible:
-                                                                        true,
-                                                                    reference:
-                                                                        field.reference,
-                                                                    label: field.reference,
-                                                                    frozen: false,
-                                                                    // TODO: add aggregation
-                                                                    // aggregation?: VizAggregationOptions;
-                                                                },
-                                                            ],
-                                                        ),
-                                                    )}
-                                                    flexProps={{
-                                                        mah: '100%',
-                                                    }}
-                                                />
-                                            )}
-                                    </ConditionalVisibility> */}
+                                        {selectedChartType && tableData && (
+                                            <Table2
+                                                columnNames={
+                                                    tableData?.columns ?? []
+                                                }
+                                                rows={tableData?.rows ?? []}
+                                                // TODO: col config
+                                                // columnsConfig={Object.fromEntries(
+                                                //     chartVizQuery.data.columns.map(
+                                                //         (field) => [
+                                                //             field.reference,
+                                                //             {
+                                                //                 visible:
+                                                //                     true,
+                                                //                 reference:
+                                                //                     field.reference,
+                                                //                 label: field.reference,
+                                                //                 frozen: false,
+                                                //                 // TODO: add aggregation
+                                                //                 // aggregation?: VizAggregationOptions;
+                                                //             },
+                                                //         ],
+                                                //     ),
+                                                // )}
+                                                flexProps={{
+                                                    mah: '100%',
+                                                }}
+                                            />
+                                        )}
+                                    </ConditionalVisibility>
                                 </>
                             )}
                         </Box>

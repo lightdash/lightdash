@@ -1,4 +1,4 @@
-import { type RawResultRow, type VizColumn } from '@lightdash/common';
+import { type RawResultRow } from '@lightdash/common';
 import { useCallback } from 'react';
 import { useAppSelector } from '../store/hooks';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
@@ -13,12 +13,12 @@ import { useSqlQueryRun } from './useSqlQueryRun';
  */
 export const useDownloadResults = ({
     fileUrl,
-    columns,
+    columnNames,
     chartName,
     customLimit,
 }: {
     fileUrl: string | undefined;
-    columns: VizColumn[];
+    columnNames: string[];
     chartName?: string;
     customLimit?: number;
 }) => {
@@ -42,14 +42,10 @@ export const useDownloadResults = ({
             return;
         }
 
-        const columnReferences = columns.map((col) => col.reference);
-
         const csvContent = [
-            columnReferences.join(','),
+            columnNames.join(','),
             ...results.map((row) =>
-                columnReferences
-                    .map((reference) => row[reference] || '-')
-                    .join(','),
+                columnNames.map((reference) => row[reference] || '-').join(','),
             ),
         ].join('\n');
 
@@ -71,7 +67,7 @@ export const useDownloadResults = ({
     }, [
         fileUrl,
         customLimit,
-        columns,
+        columnNames,
         chartName,
         runQuery,
         sql,
