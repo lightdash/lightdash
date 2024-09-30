@@ -2,7 +2,7 @@ import {
     assertUnreachable,
     DashboardTileTypes,
     getDefaultChartTileSize,
-    type Dashboard,
+    type DashboardBasicDetailsWithTileTypes,
     type DashboardTile,
 } from '@lightdash/common';
 import {
@@ -25,13 +25,11 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { forwardRef, useCallback, useMemo, useState, type FC } from 'react';
-import { useAsync } from 'react-use';
 import { v4 as uuid4 } from 'uuid';
 import { useSavedSemanticViewerChart } from '../../features/semanticViewer/api/hooks';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
     appendNewTilesToBottom,
-    getDashboard,
     useCreateMutation,
     useDashboardQuery,
     useUpdateDashboard,
@@ -229,23 +227,19 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const currentSpace = spaces?.find((s) => s.uuid === tile?.props.spaceUuid);
 
     const isDashboardSelectItemDisabled = useCallback(
-        (dashboard: Dashboard) => {
-            const allDashboardTileTypes = Array.from(
-                new Set(dashboard.tiles.map((t) => t.type)),
-            );
-
+        (dashboard: DashboardBasicDetailsWithTileTypes) => {
             switch (dashboardTileType) {
                 case DashboardTileTypes.SAVED_CHART:
                 case DashboardTileTypes.SQL_CHART:
-                    return allDashboardTileTypes.includes(
+                    return dashboard.tileTypes.includes(
                         DashboardTileTypes.SEMANTIC_VIEWER_CHART,
                     );
                 case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
                     return (
-                        allDashboardTileTypes.includes(
+                        dashboard.tileTypes.includes(
                             DashboardTileTypes.SAVED_CHART,
                         ) ||
-                        allDashboardTileTypes.includes(
+                        dashboard.tileTypes.includes(
                             DashboardTileTypes.SQL_CHART,
                         )
                     );
@@ -262,14 +256,9 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         [dashboardTileType],
     );
 
-    // ! Don't really like this here, it is suposed to be temporary until we make semantic layer a type of project connection
-    const dashboardsWithTiles = useAsync(() => {
-        return Promise.all(dashboards?.map((d) => getDashboard(d.uuid)) ?? []);
-    }, [dashboards]);
-
     const dashboardSelectItems = useMemo(() => {
         return (
-            dashboardsWithTiles?.value?.map<ItemProps>((d) => ({
+            dashboards?.map<ItemProps>((d) => ({
                 value: d.uuid,
                 label: d.name,
                 group: spaces?.find((s) => s.uuid === d.spaceUuid)?.name,
@@ -277,7 +266,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 spaceUuid: d.spaceUuid, // ? Adding spaceUuid here for simplicity of selecting the default value in the select
             })) ?? []
         );
-    }, [dashboardsWithTiles?.value, isDashboardSelectItemDisabled, spaces]);
+    }, [dashboards, isDashboardSelectItemDisabled, spaces]);
 
     const form = useForm({
         initialValues: {

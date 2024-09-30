@@ -1,6 +1,6 @@
 import {
     type ApiError,
-    type DashboardBasicDetails,
+    type DashboardBasicDetailsWithTileTypes,
     type UpdateMultipleDashboards,
 } from '@lightdash/common';
 import {
@@ -17,7 +17,7 @@ const getDashboards = async (
     projectUuid: string,
     includePrivateSpaces: boolean,
 ) =>
-    lightdashApi<DashboardBasicDetails[]>({
+    lightdashApi<DashboardBasicDetailsWithTileTypes[]>({
         url: `/projects/${projectUuid}/dashboards?includePrivate=${includePrivateSpaces}`,
         method: 'GET',
         body: undefined,
@@ -28,7 +28,7 @@ const getDashboardsContainingChart = async (
     chartId: string,
     includePrivate: boolean,
 ) =>
-    lightdashApi<DashboardBasicDetails[]>({
+    lightdashApi<DashboardBasicDetailsWithTileTypes[]>({
         url: `/projects/${projectUuid}/dashboards?chartUuid=${chartId}&includePrivate=${includePrivate}`,
         method: 'GET',
         body: undefined,
@@ -36,12 +36,15 @@ const getDashboardsContainingChart = async (
 
 export const useDashboards = (
     projectUuid: string,
-    useQueryOptions?: UseQueryOptions<DashboardBasicDetails[], ApiError>,
+    useQueryOptions?: UseQueryOptions<
+        DashboardBasicDetailsWithTileTypes[],
+        ApiError
+    >,
     includePrivateSpaces: boolean = false,
 ) => {
     const setErrorResponse = useQueryError();
 
-    return useQuery<DashboardBasicDetails[], ApiError>(
+    return useQuery<DashboardBasicDetailsWithTileTypes[], ApiError>(
         ['dashboards', projectUuid, includePrivateSpaces],
         () => getDashboards(projectUuid, includePrivateSpaces),
         {
@@ -60,7 +63,7 @@ export const useDashboardsContainingChart = (
     includePrivate = true,
 ) => {
     const setErrorResponse = useQueryError();
-    return useQuery<DashboardBasicDetails[], ApiError>({
+    return useQuery<DashboardBasicDetailsWithTileTypes[], ApiError>({
         queryKey: [
             'dashboards-containing-chart',
             projectUuid,
