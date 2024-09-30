@@ -1,3 +1,10 @@
+# [0.1282.0](https://github.com/lightdash/lightdash/compare/0.1281.1...0.1282.0) (2024-09-30)
+
+
+### Features
+
+* add semantic layer connection to project ([#11712](https://github.com/lightdash/lightdash/issues/11712)) ([c63f2c5](https://github.com/lightdash/lightdash/commit/c63f2c5a745e1d87e60a64edab87a93e36299cfd))
+
 ## [0.1281.1](https://github.com/lightdash/lightdash/compare/0.1281.0...0.1281.1) (2024-09-30)
 
 
