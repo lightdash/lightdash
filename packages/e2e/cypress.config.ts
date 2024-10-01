@@ -22,6 +22,7 @@ export default defineConfig({
         ],
         trashAssetsBeforeRuns: true,
         experimentalMemoryManagement: true,
+        numTestsKeptInMemory: 0,
         setupNodeEvents(on, config) {
             cypressSplit(on, config);
 
