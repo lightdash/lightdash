@@ -1,3 +1,10 @@
+## [0.1284.1](https://github.com/lightdash/lightdash/compare/0.1284.0...0.1284.1) (2024-10-01)
+
+
+### Bug Fixes
+
+* deduplicate select domains ([#11741](https://github.com/lightdash/lightdash/issues/11741)) ([eef08c6](https://github.com/lightdash/lightdash/commit/eef08c621a5b284ab0a973b7b1ad10990fe84ab7))
+
 # [0.1284.0](https://github.com/lightdash/lightdash/compare/0.1283.1...0.1284.0) (2024-10-01)
 
 
