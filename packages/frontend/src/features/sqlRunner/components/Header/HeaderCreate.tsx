@@ -1,6 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Button, Group, Paper, Tooltip } from '@mantine/core';
-import { IconSparkles } from '@tabler/icons-react';
+import { IconWriting } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
@@ -15,7 +15,7 @@ import {
     updateName,
 } from '../../store/sqlRunnerSlice';
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
-import { SaveCustomExploreModal } from '../SaveCustomExploreModal';
+import { SaveCustomViewModal } from '../SaveCustomViewModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 
 export const HeaderCreate: FC = () => {
@@ -28,8 +28,8 @@ export const HeaderCreate: FC = () => {
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
-    const isSaveCustomExploreModalOpen = useAppSelector(
-        (state) => state.sqlRunner.modals.saveCustomExploreModal.isOpen,
+    const isSaveCustomViewModalOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.saveCustomViewModal.isOpen,
     );
     const isChartErrorsAlertOpen = useAppSelector(
         (state) => state.sqlRunner.modals.chartErrorsAlert.isOpen,
@@ -37,8 +37,8 @@ export const HeaderCreate: FC = () => {
     const onCloseSaveModal = useCallback(() => {
         dispatch(toggleModal('saveChartModal'));
     }, [dispatch]);
-    const onCloseSaveCustomExploreModal = useCallback(() => {
-        dispatch(toggleModal('saveCustomExploreModal'));
+    const onCloseSaveCustomViewModal = useCallback(() => {
+        dispatch(toggleModal('saveCustomViewModal'));
     }, [dispatch]);
 
     const selectedChartType = useAppSelector(
@@ -81,26 +81,23 @@ export const HeaderCreate: FC = () => {
                                 variant="xs"
                             >
                                 <Button
-                                    radius="md"
                                     color="indigo.6"
                                     variant="light"
                                     size="xs"
                                     leftIcon={
                                         <MantineIcon
                                             size={12}
-                                            icon={IconSparkles}
+                                            icon={IconWriting}
                                         />
                                     }
                                     onClick={() => {
                                         dispatch(
-                                            toggleModal(
-                                                'saveCustomExploreModal',
-                                            ),
+                                            toggleModal('saveCustomViewModal'),
                                         );
                                     }}
                                     disabled={!loadedColumns}
                                 >
-                                    Create custom explore
+                                    Create custom view
                                 </Button>
                             </Tooltip>
                         )}
@@ -121,10 +118,10 @@ export const HeaderCreate: FC = () => {
                 opened={isSaveModalOpen}
                 onClose={onCloseSaveModal}
             />
-            <SaveCustomExploreModal
-                key={`${isSaveCustomExploreModalOpen}-saveCustomExploreModal`}
-                opened={isSaveCustomExploreModalOpen}
-                onClose={onCloseSaveCustomExploreModal}
+            <SaveCustomViewModal
+                key={`${isSaveCustomViewModalOpen}-saveCustomViewModal`}
+                opened={isSaveCustomViewModalOpen}
+                onClose={onCloseSaveCustomViewModal}
             />
             <ChartErrorsAlert
                 opened={isChartErrorsAlertOpen}

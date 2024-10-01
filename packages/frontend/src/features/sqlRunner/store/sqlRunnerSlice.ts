@@ -93,7 +93,7 @@ export interface SqlRunnerState {
         addToDashboard: {
             isOpen: boolean;
         };
-        saveCustomExploreModal: {
+        saveCustomViewModal: {
             isOpen: boolean;
         };
         chartErrorsAlert: {
@@ -136,7 +136,7 @@ const initialState: SqlRunnerState = {
         addToDashboard: {
             isOpen: false,
         },
-        saveCustomExploreModal: {
+        saveCustomViewModal: {
             isOpen: false,
         },
         chartErrorsAlert: {
