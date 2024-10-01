@@ -1,3 +1,10 @@
+# [0.1288.0](https://github.com/lightdash/lightdash/compare/0.1287.0...0.1288.0) (2024-10-01)
+
+
+### Features
+
+* show disabled items when diff semantic layers ([#11734](https://github.com/lightdash/lightdash/issues/11734)) ([1d0ebab](https://github.com/lightdash/lightdash/commit/1d0ebab2197605cb586f33dd3c5ffbafce7c41fe))
+
 # [0.1287.0](https://github.com/lightdash/lightdash/compare/0.1286.1...0.1287.0) (2024-10-01)
 
 
