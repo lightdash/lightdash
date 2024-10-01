@@ -46,8 +46,7 @@ export default defineConfig({
         },
     },
 
-    video: true,
-    videoCompression: true,
-
+    video: false,
+    // videoCompression: true,
     screenshotOnRunFailure: true,
 });
