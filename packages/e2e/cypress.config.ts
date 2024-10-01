@@ -34,6 +34,7 @@ export default defineConfig({
                         );
                         launchOptions.args.push('--disable-gpu');
                     }
+
                     launchOptions.args.push(
                         '--js-flags=--max-old-space-size=3500',
                     );
