@@ -22,12 +22,11 @@ export default defineConfig({
         ],
         trashAssetsBeforeRuns: true,
         experimentalMemoryManagement: true,
-        numTestsKeptInMemory: 0,
         setupNodeEvents(on, config) {
             cypressSplit(on, config);
 
             on('before:browser:launch', (_browser, launchOptions) => {
-                launchOptions.args.push('--js-flags=--max-old-space-size=4000');
+                launchOptions.args.push('--js-flags=--max-old-space-size=3000');
 
                 return launchOptions;
             });
