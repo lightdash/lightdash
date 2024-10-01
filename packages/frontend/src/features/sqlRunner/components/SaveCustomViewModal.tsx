@@ -23,6 +23,7 @@ import { IconInfoCircle, IconWriting } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
 import { useCreateCustomExplore } from '../hooks/useCustomExplore';
 import { useAppSelector } from '../store/hooks';
@@ -64,10 +65,12 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
     });
 
     const { data: project } = useProject(projectUuid);
+    const { data: health } = useHealth();
+
     const canWriteToDbtProject = !!(
+        health?.hasGithub &&
         project?.dbtConnection.type === DbtProjectType.GITHUB
     );
-    // TODO: Check if possible to create a branch and PR - if not, and it's not a git project, disable option with tooltip
     const projectDirectory = useMemo(
         () =>
             canWriteToDbtProject
@@ -75,7 +78,8 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                 : undefined,
         [project?.dbtConnection, canWriteToDbtProject],
     );
-    const basePathForDbtCustomView = `${projectDirectory}/models/lightdash`;
+    const basePathForDbtCustomView =
+        `${projectDirectory}models/lightdash`.replace(/\/{2,}/g, '/');
     const filePathsForDbtCustomView = useMemo(
         () => [
             `${form.values.name || 'custom_view'}.sql`,
@@ -194,6 +198,7 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                                     color="gray.9"
                                     fz="xs"
                                 >
+                                    {/* TODO: Add as a Link to a new tab with the Github repo */}
                                     REPO NAME
                                 </Badge>
                                 :
