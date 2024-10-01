@@ -365,10 +365,10 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     );
 
     useEffect(() => {
-        if (defaultSelectValue) {
+        if (defaultSelectValue && !form.values.dashboardUuid) {
             form.setValues({ dashboardUuid: defaultSelectValue });
         }
-    });
+    }, [defaultSelectValue, form]);
 
     if (isLoadingDashboards || !dashboards || isLoadingSpaces || !spaces) {
         return null;
