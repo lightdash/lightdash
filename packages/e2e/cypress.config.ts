@@ -25,8 +25,19 @@ export default defineConfig({
         setupNodeEvents(on, config) {
             cypressSplit(on, config);
 
-            on('before:browser:launch', (_browser, launchOptions) => {
-                launchOptions.args.push('--js-flags=--max-old-space-size=3000');
+            on('before:browser:launch', (browser, launchOptions) => {
+                if (['chrome', 'edge'].includes(browser.name)) {
+                    if (browser.isHeadless) {
+                        launchOptions.args.push('--no-sandbox');
+                        launchOptions.args.push(
+                            '--disable-gl-drawing-for-tests',
+                        );
+                        launchOptions.args.push('--disable-gpu');
+                    }
+                    launchOptions.args.push(
+                        '--js-flags=--max-old-space-size=3500',
+                    );
+                }
 
                 return launchOptions;
             });
