@@ -1,3 +1,10 @@
+# [0.1284.0](https://github.com/lightdash/lightdash/compare/0.1283.1...0.1284.0) (2024-10-01)
+
+
+### Features
+
+* write back create PR ([#11731](https://github.com/lightdash/lightdash/issues/11731)) ([9d31339](https://github.com/lightdash/lightdash/commit/9d31339d82bb1513dbba394d0b4515590f6245e5))
+
 ## [0.1283.1](https://github.com/lightdash/lightdash/compare/0.1283.0...0.1283.1) (2024-10-01)
 
 
