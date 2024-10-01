@@ -21,8 +21,15 @@ export default defineConfig({
             'analytics.lightdash.com',
         ],
         trashAssetsBeforeRuns: true,
+        experimentalMemoryManagement: true,
         setupNodeEvents(on, config) {
             cypressSplit(on, config);
+
+            on('before:browser:launch', (_browser, launchOptions) => {
+                launchOptions.args.push('--js-flags=--max-old-space-size=3500');
+
+                return launchOptions;
+            });
 
             // Delete videos for specs without failing or retried tests
             // https://docs.cypress.io/guides/guides/screenshots-and-videos#Delete-videos-for-specs-without-failing-or-retried-tests
