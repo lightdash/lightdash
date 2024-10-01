@@ -157,7 +157,7 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          browser: edge
+          browser: firefox
           project: ./packages/e2e
           # Set the PR deployment url and disable video recording
           config: 'baseUrl=${{needs.prepare-preview.outputs.url}},specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false'
@@ -228,7 +228,7 @@ jobs:
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
-          browser: edge
+          browser: firefox
           project: ./packages/e2e
           spec: packages/e2e/cypress/e2e/app/dates.cy.ts
           # Set the PR deployment url and disable video recording
