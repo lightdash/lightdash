@@ -1,8 +1,10 @@
 import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import { Button, Menu } from '@mantine/core';
 import {
     IconFolder,
     IconFolderPlus,
+    IconLayersLinked,
     IconLayoutDashboard,
     IconSquareRoundedPlus,
     IconTable,
@@ -10,6 +12,8 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useHistory } from 'react-router-dom';
+import { useSemanticLayerInfo } from '../../features/semanticViewer/api/hooks';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 import LargeMenuItem from '../common/LargeMenuItem';
@@ -22,13 +26,22 @@ type Props = {
 };
 
 const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
-    const { user } = useApp();
     const history = useHistory();
-    const [isOpen, setIsOpen] = useState<boolean>(false);
 
-    const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState<boolean>(false);
-    const [isCreateDashboardOpen, setIsCreateDashboardOpen] =
-        useState<boolean>(false);
+    const isSemanticLayerEnabled = useFeatureFlagEnabled(
+        FeatureFlags.SemanticLayerEnabled,
+    );
+
+    const { user } = useApp();
+
+    const semanticLayerInfoQuery = useSemanticLayerInfo(
+        { projectUuid },
+        { enabled: isSemanticLayerEnabled },
+    );
+
+    const [isOpen, setIsOpen] = useState(false);
+    const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
+    const [isCreateDashboardOpen, setIsCreateDashboardOpen] = useState(false);
 
     return (
         <>
@@ -70,16 +83,28 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             to={`/projects/${projectUuid}/tables`}
                             icon={IconTable}
                         />
-                        {/* TODO: use new semantic layer info to enable this */}
-                        {/* {health.data? && (
-                            <LargeMenuItem
-                                component={Link}
-                                title="Query using dbt Semantic Layer"
-                                description="Build queries with dbt Semantic Layer"
-                                to={`/projects/${projectUuid}/semantic-viewer`}
-                                icon={IconLayersIntersect}
-                            />
-                        )} */}
+
+                        {isSemanticLayerEnabled &&
+                            semanticLayerInfoQuery.isSuccess &&
+                            semanticLayerInfoQuery.data !== null && (
+                                <Can
+                                    I="manage"
+                                    this={subject('SemanticViewer', {
+                                        organizationUuid:
+                                            user.data?.organizationUuid,
+                                        projectUuid,
+                                    })}
+                                >
+                                    <LargeMenuItem
+                                        component={Link}
+                                        title={`Query using ${semanticLayerInfoQuery.data.name} Semantic Layer`}
+                                        description={`Build queries with ${semanticLayerInfoQuery.data.name} Semantic Layer`}
+                                        to={`/projects/${projectUuid}/semantic-viewer`}
+                                        icon={IconLayersLinked}
+                                    />
+                                </Can>
+                            )}
+
                         <Can
                             I="manage"
                             this={subject('SqlRunner', {

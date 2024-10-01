@@ -5,11 +5,11 @@ import {
     IconBuildingSkyscraper,
     IconCalendarStats,
     IconChecklist,
-    IconCloudSearch,
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
     IconKey,
+    IconLayersLinked,
     IconLock,
     IconPalette,
     IconPlug,
@@ -64,6 +64,10 @@ const Settings: FC = () => {
         FeatureFlags.CustomSQLEnabled,
     );
 
+    const isSemanticLayerEnabled = useFeatureFlagEnabled(
+        FeatureFlags.SemanticLayerEnabled,
+    );
+
     const {
         health: {
             data: health,
@@ -85,10 +89,6 @@ const Settings: FC = () => {
         isInitialLoading: isProjectLoading,
         error: projectError,
     } = useProject(activeProjectUuid);
-
-    const isSemanticLayerEnabled = useFeatureFlagEnabled(
-        FeatureFlags.SemanticLayerEnabled,
-    );
 
     if (
         isHealthLoading ||
@@ -349,7 +349,7 @@ const Settings: FC = () => {
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/semanticLayer`}
                                             icon={
                                                 <MantineIcon
-                                                    icon={IconCloudSearch}
+                                                    icon={IconLayersLinked}
                                                 />
                                             }
                                         />

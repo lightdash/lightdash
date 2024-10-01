@@ -18,7 +18,6 @@ import {
     UnexpectedServerError,
     VizColumn,
 } from '@lightdash/common';
-import { RestEndpointMethodTypes } from '@octokit/rest';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
