@@ -26,6 +26,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
 import { useCreateCustomExplore } from '../hooks/useCustomExplore';
+import { useGithubDbtWriteBack } from '../hooks/useGithubDbtWriteBack';
 import { useAppSelector } from '../store/hooks';
 
 const getCustomViewTypeAlertText = (customViewType: CustomViewType) => {
@@ -52,10 +53,12 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
-    const { mutateAsync: createCustomExplore, isLoading } =
+    const { mutateAsync: createCustomExplore, isLoading: isLoadingVirtual } =
         useCreateCustomExplore({
             projectUuid,
         });
+    const { mutateAsync: createPullRequest, isLoading: isLoadingPullRequest } =
+        useGithubDbtWriteBack();
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
@@ -82,8 +85,8 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
         `${projectDirectory}models/lightdash`.replace(/\/{2,}/g, '/');
     const filePathsForDbtCustomView = useMemo(
         () => [
-            `${form.values.name || 'custom_view'}.sql`,
-            `${form.values.name || 'custom_view'}.yml`,
+            `${snakeCaseName(form.values.name || 'custom view')}.sql`,
+            `${snakeCaseName(form.values.name || 'custom view')}.yml`,
         ],
         [form.values.name],
     );
@@ -95,25 +98,30 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
             }
 
             if (form.values.customViewType === CustomViewType.WRITE_BACK) {
-                // TODO: Implement dbt write-back
-                return;
+                await createPullRequest({
+                    projectUuid,
+                    name: data.name,
+                    sql,
+                    columns,
+                });
+            } else if (form.values.customViewType === CustomViewType.VIRTUAL) {
+                await createCustomExplore({
+                    name: snakeCaseName(data.name),
+                    sql,
+                    columns,
+                    projectUuid,
+                });
             }
-
-            await createCustomExplore({
-                name: snakeCaseName(data.name),
-                sql,
-                columns,
-                projectUuid,
-            });
             onClose();
         },
         [
-            createCustomExplore,
-            sql,
             columns,
-            onClose,
-            projectUuid,
             form.values.customViewType,
+            onClose,
+            createPullRequest,
+            projectUuid,
+            sql,
+            createCustomExplore,
         ],
     );
 
@@ -229,7 +237,7 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                         color="gray.7"
                         onClick={onClose}
                         variant="outline"
-                        disabled={isLoading}
+                        disabled={isLoadingVirtual || isLoadingPullRequest}
                         size="xs"
                     >
                         Cancel
@@ -238,7 +246,7 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                     <Button
                         type="submit"
                         disabled={!form.values.name || !sql}
-                        loading={isLoading}
+                        loading={isLoadingVirtual || isLoadingPullRequest}
                         size="xs"
                     >
                         Create

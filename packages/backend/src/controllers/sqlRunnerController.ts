@@ -2,6 +2,7 @@ import {
     ApiCreateCustomExplore,
     ApiCreateSqlChart,
     ApiErrorPayload,
+    ApiGithubDbtWriteBack,
     ApiJobScheduledResponse,
     ApiSqlChart,
     ApiSuccessEmpty,
@@ -10,7 +11,6 @@ import {
     ApiWarehouseTablesCatalog,
     CreateCustomExplorePayload,
     CreateSqlChart,
-    PullRequestCreated,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
     UpdateSqlChart,
@@ -429,7 +429,7 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body() body: CreateCustomExplorePayload,
-    ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
+    ): Promise<ApiGithubDbtWriteBack> {
         this.setStatus(200);
         const { name, sql, columns } = body;
 
