@@ -493,7 +493,7 @@ Affected charts:
         const content = `
 {{
   config(
-    tags=['lightdash-write-back']
+    tags=['created-by-lightdash']
   )
 }}
   
