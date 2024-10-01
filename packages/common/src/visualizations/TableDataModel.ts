@@ -118,6 +118,11 @@ export class TableDataModel {
         };
     }
 
+    getDataDownloadUrl(): string | undefined {
+        console.log('not implemented in table', this.config);
+        return '';
+    }
+
     getPivotedTableData():
         | {
               columns: string[];

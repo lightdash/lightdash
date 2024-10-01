@@ -227,9 +227,12 @@ export class CartesianChartDataModel {
             config?.y?.some(
                 (yField) =>
                     yField.reference &&
-                    valuesLayoutOptions.preAggregated.find(
+                    (valuesLayoutOptions.preAggregated.find(
                         (y) => y.reference === yField.reference,
-                    ) === undefined,
+                    ) === undefined) &&
+                    (valuesLayoutOptions.customAggregations.find(
+                        (y) => y.reference === yField.reference,
+                    ) === undefined),
             ),
         );
 

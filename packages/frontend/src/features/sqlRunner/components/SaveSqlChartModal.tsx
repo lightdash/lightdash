@@ -120,7 +120,24 @@ const SaveChartForm: FC<
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
 
-        const configToSave = selectedChartConfig ?? defaultChartConfig.config;
+        const currentConfig = selectedChartConfig ?? defaultChartConfig.config;
+
+        // TODO: this is part of the question about translating FE types for DB
+        const configToSave = {
+            ...currentConfig,
+            fieldConfig: {
+                ...('fieldConfig' in currentConfig
+                    ? currentConfig.fieldConfig
+                    : {}),
+                x: {
+                    reference:
+                        'fieldConfig' in currentConfig
+                            ? currentConfig.fieldConfig?.x?.reference
+                            : undefined,
+                    type: currentConfig?.fieldConfig?.x?.axisType,
+                },
+            },
+        };
 
         if (configToSave && sql) {
             try {

@@ -14,15 +14,15 @@ import { DEFAULT_SQL_LIMIT } from '../ContentPanel';
 
 type Props = {
     fileUrl: string | undefined;
-    columns: { reference: string }[];
+    columnNames: string[];
     chartName?: string;
 };
 
-export const ResultsDownload: FC<Props> = ({ fileUrl, columns, chartName }) => {
+export const ResultsDownload: FC<Props> = ({ fileUrl, columnNames, chartName }) => {
     const [customLimit, setCustomLimit] = useState(DEFAULT_SQL_LIMIT);
     const { handleDownload, isLoading } = useDownloadResults({
         fileUrl,
-        columns,
+        columnNames,
         chartName,
         customLimit:
             customLimit !== DEFAULT_SQL_LIMIT ? customLimit : undefined,

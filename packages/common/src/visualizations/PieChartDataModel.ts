@@ -2,7 +2,6 @@ import { DimensionType } from '../types/field';
 import { type RawResultRow } from '../types/results';
 import { ChartKind } from '../types/savedCharts';
 import {
-    type SemanticLayerPivot,
     type SemanticLayerQuery,
 } from '../types/semanticLayer';
 import {
@@ -373,6 +372,15 @@ export class PieChartDataModel {
             columns: Object.keys(transformedData.results[0]) ?? [],
             rows: transformedData.results,
         };
+    }
+
+    getDataDownloadUrl(): string | undefined {
+        const transformedData = this.pivotedChartData;
+        if (!transformedData) {
+            return undefined;
+        }
+
+        return transformedData.fileUrl;
     }
 
     getSpec(display?: VizPieChartDisplay): Record<string, any> {

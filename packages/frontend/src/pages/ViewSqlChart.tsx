@@ -12,19 +12,23 @@ import type { EChartsInstance } from 'echarts-for-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
-import { useUnmount } from 'react-use';
+import { useAsync, useUnmount } from 'react-use';
 import { ConditionalVisibility } from '../components/common/ConditionalVisibility';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-import { useChartViz } from '../components/DataViz/hooks/useChartViz';
 import {
     resetChartState,
     setChartConfig,
 } from '../components/DataViz/store/actions/commonChartActions';
-import { selectChartConfigByKind } from '../components/DataViz/store/selectors';
+import {
+    selectChartConfigByKind,
+    selectChartDisplayByKind,
+} from '../components/DataViz/store/selectors';
+import getChartDataModel from '../components/DataViz/transformers/getChartDataModel';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
+import { Table2 } from '../components/DataViz/visualizations/Table2';
 import { ChartDownload } from '../features/sqlRunner/components/Download/ChartDownload';
 import { ResultsDownload } from '../features/sqlRunner/components/Download/ResultsDownload';
 import { Header } from '../features/sqlRunner/components/Header';
@@ -38,11 +42,11 @@ import {
 } from '../features/sqlRunner/store/hooks';
 import {
     resetState,
-    setFileUrl,
     setProjectUuid,
     setSavedChartData,
     setSqlRunnerResults,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { useOrganization } from '../hooks/organization/useOrganization';
 
 enum TabOption {
     CHART = 'chart',
@@ -52,6 +56,7 @@ enum TabOption {
 
 const ViewSqlChart = () => {
     const dispatch = useAppDispatch();
+    const org = useOrganization();
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -66,6 +71,11 @@ const ViewSqlChart = () => {
     const currentVisConfig = useAppSelector((state) =>
         selectChartConfigByKind(state, selectedChartType),
     );
+
+    const currentDisplay = useAppSelector((state) =>
+        selectChartDisplayByKind(state, selectedChartType),
+    );
+
     const { error: chartError, data: sqlChart } = useSavedSqlChart({
         projectUuid,
         slug: params.slug,
@@ -94,51 +104,53 @@ const ViewSqlChart = () => {
         }
     }, [dispatch, sqlChart]);
 
-    const resultsRunner = useMemo(
-        () =>
-            new SqlRunnerResultsRunnerFrontend({
-                rows: data?.results ?? [],
-                columns: data?.columns ?? [],
-                projectUuid,
-                limit: sqlChart?.limit,
-                sql,
-            }),
-        [data?.columns, data?.results, projectUuid, sql, sqlChart?.limit],
-    );
-
     useEffect(() => {
         if (!data) return;
         dispatch(setSqlRunnerResults(data));
     }, [data, dispatch]);
 
-    const [chartVizQuery, chartSpec] = useChartViz({
-        resultsRunner,
-        config: currentVisConfig,
-        projectUuid,
-        slug: params.slug,
-        limit: sqlChart?.limit,
-        additionalQueryKey: [params.slug, sql],
-    });
-
-    const [echartsInstance, setEchartsInstance] = useState<EChartsInstance>();
-
-    useEffect(() => {
-        if (!chartVizQuery?.data?.fileUrl) return;
-        dispatch(setFileUrl(chartVizQuery.data.fileUrl));
-    }, [chartVizQuery, dispatch]);
-
-    const fileUrl = chartVizQuery?.data?.fileUrl || data?.fileUrl;
-    const chartVizResultsRunner = useMemo(() => {
-        if (!chartVizQuery.data) return;
-
+    const resultsRunner = useMemo(() => {
         return new SqlRunnerResultsRunnerFrontend({
-            rows: chartVizQuery.data.results,
-            columns: chartVizQuery.data.columns,
+            rows: data?.results ?? [],
+            columns: data?.columns ?? [],
             projectUuid,
-            limit: sqlChart?.limit,
             sql,
         });
-    }, [chartVizQuery.data, projectUuid, sql, sqlChart?.limit]);
+    }, [data, projectUuid, sql]);
+
+    const vizDataModel = useMemo(() => {
+        return getChartDataModel(resultsRunner, currentVisConfig, org.data);
+    }, [currentVisConfig, org.data, resultsRunner]);
+
+    const {
+        loading: chartLoading,
+        error: chartDataError,
+        value: chartData,
+    } = useAsync(async () => {
+        return vizDataModel.getPivotedChartData({
+            limit: sqlChart?.limit,
+            sql,
+            sortBy: [],
+            filters: [],
+        });
+    }, [vizDataModel, sqlChart?.limit, sql]);
+
+    const { chartSpec, tableData, fileUrl } = useMemo(() => {
+        if (!chartData)
+            return {
+                chartSpec: undefined,
+                tableData: undefined,
+                fileUrl: undefined,
+            };
+
+        return {
+            chartSpec: vizDataModel.getSpec(currentDisplay),
+            tableData: vizDataModel.getPivotedTableData(),
+            fileUrl: vizDataModel.getDataDownloadUrl(),
+        };
+    }, [vizDataModel, currentDisplay, chartData]);
+
+    const [echartsInstance, setEchartsInstance] = useState<EChartsInstance>();
 
     return (
         <Page
@@ -194,11 +206,7 @@ const ViewSqlChart = () => {
                         {activeTab === TabOption.RESULTS && (
                             <ResultsDownload
                                 fileUrl={fileUrl}
-                                columns={
-                                    chartVizQuery.data?.columns ||
-                                    data?.columns ||
-                                    []
-                                }
+                                columnNames={tableData?.columns ?? []}
                                 chartName={sqlChart?.name}
                             />
                         )}
@@ -206,11 +214,7 @@ const ViewSqlChart = () => {
                             <ChartDownload
                                 echartsInstance={echartsInstance}
                                 fileUrl={fileUrl}
-                                columns={
-                                    chartVizQuery.data?.columns ||
-                                    data?.columns ||
-                                    []
-                                }
+                                columnNames={tableData?.columns ?? []}
                                 chartName={sqlChart?.name}
                             />
                         )}
@@ -261,9 +265,9 @@ const ViewSqlChart = () => {
                                                     spec={chartSpec}
                                                     isLoading={
                                                         isLoading ||
-                                                        chartVizQuery.isFetching
+                                                        chartLoading
                                                     }
-                                                    error={chartVizQuery.error}
+                                                    error={chartDataError}
                                                     style={{ height: '100%' }}
                                                     onChartReady={
                                                         setEchartsInstance
@@ -277,30 +281,32 @@ const ViewSqlChart = () => {
                                 isVisible={activeTab === TabOption.RESULTS}
                             >
                                 {!isVizTableConfig(currentVisConfig) &&
-                                    chartVizQuery.data &&
-                                    chartVizResultsRunner && (
-                                        <Table
-                                            resultsRunner={
-                                                chartVizResultsRunner
+                                    tableData && (
+                                        <Table2
+                                            columnNames={
+                                                tableData?.columns ?? []
                                             }
-                                            columnsConfig={Object.fromEntries(
-                                                chartVizQuery.data.columns.map(
-                                                    (field) => [
-                                                        field.reference,
-                                                        {
-                                                            visible: true,
-                                                            reference:
-                                                                field.reference,
-                                                            label: field.reference,
-                                                            frozen: false,
-                                                            // TODO: add aggregation
-                                                            // aggregation?: VizAggregationOptions;
-                                                        },
-                                                    ],
-                                                ),
-                                            )}
+                                            rows={tableData?.rows ?? []}
+                                            // TODO: col config
+                                            // columnsConfig={Object.fromEntries(
+                                            //     chartVizQuery.data.columns.map(
+                                            //         (field) => [
+                                            //             field.reference,
+                                            //             {
+                                            //                 visible:
+                                            //                     true,
+                                            //                 reference:
+                                            //                     field.reference,
+                                            //                 label: field.reference,
+                                            //                 frozen: false,
+                                            //                 // TODO: add aggregation
+                                            //                 // aggregation?: VizAggregationOptions;
+                                            //             },
+                                            //         ],
+                                            //     ),
+                                            // )}
                                             flexProps={{
-                                                mah: 'calc(100vh - 250px)',
+                                                mah: '100%',
                                             }}
                                         />
                                     )}

@@ -40,7 +40,6 @@ import {
 import { useAsync } from 'react-use';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import {
     cartesianChartSelectors,
@@ -272,10 +271,21 @@ export const ContentPanel: FC = () => {
         [vizDataModel],
     );
 
-    const chartSpec = vizDataModel.getSpec(currentDisplay);
-    const tableData = vizDataModel.getPivotedTableData();
+    const { chartSpec, tableData, chartFileUrl } = useMemo(() => {
+        if (!chartData)
+            return {
+                chartSpec: undefined,
+                tableData: undefined,
+                fileUrl: undefined,
+            };
 
-    console.log('chartData', { chartData, chartSpec });
+        return {
+            chartSpec: vizDataModel.getSpec(currentDisplay),
+            tableData: vizDataModel.getPivotedTableData(),
+            chartFileUrl: vizDataModel.getDataDownloadUrl(),
+        };
+    }, [vizDataModel, currentDisplay, chartData]);
+    const resultsFileUrl = useMemo(() => queryResults?.fileUrl, [queryResults]);
 
     useEffect(() => {
         if (!queryResults || !resultsRunner || !selectedChartType) return;
@@ -299,9 +309,6 @@ export const ContentPanel: FC = () => {
 
     const [activeEchartsInstance, setActiveEchartsInstance] =
         useState<EChartsInstance>();
-
-    // const chartFileUrl = vizDataModel.getDataDownloadUrl();
-    // const resultsFileUrl = queryResults?.fileUrl;
 
     const hasUnrunChanges = useAppSelector(
         (state) => state.sqlRunner.hasUnrunChanges,
@@ -435,7 +442,7 @@ export const ContentPanel: FC = () => {
                                       }
                                     : {})}
                             />
-                            {/* {activeEditorTab === EditorTabs.VISUALIZATION &&
+                            {activeEditorTab === EditorTabs.VISUALIZATION &&
                             !isVizTableConfig(currentVizConfig) &&
                             selectedChartType ? (
                                 <ChartDownload
@@ -447,10 +454,14 @@ export const ContentPanel: FC = () => {
                             ) : (
                                 <ResultsDownload
                                     fileUrl={resultsFileUrl}
-                                    columns={queryResults?.columns ?? []}
+                                    columnNames={
+                                        queryResults?.columns.map(
+                                            (c) => c.reference,
+                                        ) ?? []
+                                    }
                                     chartName={savedSqlChart?.name}
                                 />
-                            )} */}
+                            )}
                         </Group>
                     </Group>
                 </Paper>
