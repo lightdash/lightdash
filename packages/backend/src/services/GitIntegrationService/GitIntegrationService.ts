@@ -51,6 +51,7 @@ type GithubProps = {
     branch: string;
     token: string;
     path: string;
+    installationId: string;
     quoteChar: `"` | `'`;
 };
 // TODO move this to common and refactor cli
@@ -98,6 +99,17 @@ export class GitIntegrationService extends BaseService {
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
     }
 
+    async getInstallationId(user: SessionUser) {
+        const installationId =
+            await this.githubAppInstallationsModel.getInstallationId(
+                user.organizationUuid!,
+            );
+        if (!installationId) {
+            throw new Error('Invalid Github installation id');
+        }
+        return installationId;
+    }
+
     async getConfiguration(
         user: SessionUser,
         projectUuid: string,
@@ -141,11 +153,13 @@ export class GitIntegrationService extends BaseService {
         repo,
         mainBranch,
         token,
+        installationId,
     }: {
         owner: string;
         repo: string;
         mainBranch: string;
         token: string;
+        installationId: string;
     }): Promise<string> {
         const { sha: commitSha } = await getLastCommit({
             owner,
@@ -160,7 +174,7 @@ export class GitIntegrationService extends BaseService {
             owner,
             repo,
             sha: commitSha,
-            token,
+            installationId,
         });
         return branchName;
     }
@@ -364,11 +378,13 @@ Affected charts:
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
         const token = await this.getOrUpdateToken(user.organizationUuid!);
 
+        const installationId = await this.getInstallationId(user);
         const branchName = await GitIntegrationService.createBranch({
             owner,
             repo,
             mainBranch: branch,
             token,
+            installationId,
         });
 
         await this.updateFileForCustomMetrics({
@@ -453,12 +469,14 @@ Affected charts:
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
 
         const token = await this.getOrUpdateToken(user.organizationUuid!);
+        const installationId = await this.getInstallationId(user);
 
         const branchName = await GitIntegrationService.createBranch({
             owner,
             repo,
             mainBranch: branch,
             token,
+            installationId,
         });
         await this.updateFileForCustomMetrics({
             user,
@@ -563,6 +581,7 @@ ${sql}
         const { owner, repo, branch, path } = await this.getProjectRepo(
             projectUuid,
         );
+        const installationId = await this.getInstallationId(user);
 
         const token = await this.getOrUpdateToken(user.organizationUuid!);
 
@@ -571,6 +590,7 @@ ${sql}
             repo,
             mainBranch: branch,
             token,
+            installationId,
         });
         const githubProps: GithubProps = {
             owner,
@@ -578,6 +598,7 @@ ${sql}
             branch: branchName,
             token,
             path,
+            installationId,
             quoteChar,
         };
         await GitIntegrationService.createSqlFile({
@@ -591,16 +612,14 @@ ${sql}
             columns,
         });
         const pullRequest = await createPullRequest({
-            owner,
-            repo,
-            title: `Write back \`${name}\` SQL and YML model`,
+            ...githubProps,
+            title: `Creates \`${name}\` SQL and YML model`,
             body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
  
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             `,
             head: branchName,
             base: branch,
-            token,
         });
 
         return {
