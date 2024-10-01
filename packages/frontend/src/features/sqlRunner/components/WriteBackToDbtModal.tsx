@@ -16,7 +16,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconInfoCircle, IconWriting } from '@tabler/icons-react';
+import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -96,7 +96,11 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
             keepMounted={false}
             title={
                 <Group spacing="xs">
-                    <MantineIcon icon={IconWriting} size="lg" color="gray.7" />
+                    <MantineIcon
+                        icon={IconBrandGithub}
+                        size="lg"
+                        color="gray.7"
+                    />
                     <Text fw={500}>Write back to dbt</Text>
                     <Tooltip
                         variant="xs"
