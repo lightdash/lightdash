@@ -118,7 +118,7 @@ export interface SemanticLayerClientInfo {
 
 export interface ApiSemanticLayerClientInfo {
     status: 'ok';
-    results: SemanticLayerClientInfo | undefined;
+    results: SemanticLayerClientInfo | null;
 }
 
 export interface SemanticLayerClient {

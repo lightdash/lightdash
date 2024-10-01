@@ -356,7 +356,7 @@ export class SemanticLayerService extends BaseService {
     async getSemanticLayerClientInfo(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<SemanticLayerClientInfo | undefined> {
+    ): Promise<SemanticLayerClientInfo | null> {
         const { organizationUuid } = await this.checkCanViewProject(
             user,
             projectUuid,
@@ -373,7 +373,7 @@ export class SemanticLayerService extends BaseService {
         );
 
         if (!project.semanticLayerConnection) {
-            return undefined;
+            return null;
         }
 
         const client = await this.getSemanticLayerClient(projectUuid);

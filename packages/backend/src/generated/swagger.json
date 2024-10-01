@@ -9212,10 +9212,15 @@
                         "nullable": false
                     },
                     "results": {
-                        "$ref": "#/components/schemas/SemanticLayerClientInfo"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerClientInfo"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
-                "required": ["status"],
+                "required": ["status", "results"],
                 "type": "object",
                 "additionalProperties": true
             },

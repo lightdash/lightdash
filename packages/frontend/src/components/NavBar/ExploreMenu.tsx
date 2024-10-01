@@ -86,7 +86,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
 
                         {isSemanticLayerEnabled &&
                             semanticLayerInfoQuery.isSuccess &&
-                            semanticLayerInfoQuery.data !== undefined && (
+                            semanticLayerInfoQuery.data !== null && (
                                 <Can
                                     I="manage"
                                     this={subject('SemanticViewer', {
