@@ -80,18 +80,26 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
     const values = query.pivot?.values.map((value) => {
         // TODO: 'metrics' instead of 'customMetrics' for now
         // should this be different here or worked out in the model?
-        const customMetric = query.metrics?.find(
+        const customMetric = query.customMetrics?.find(
             (metric) => metric.name === value,
         );
-        if (!customMetric) {
-            throw new Error('Unexpected error: incorrect pivot configuration, no metric');
+        // This should never be true
+        if (!customMetric || customMetric.baseDimension === undefined) {
+            throw new Error(
+                'Unexpected Lightdash error! Sorry this was not expected at all. Please contact the Lightdash team for help with this query.',
+            );
         }
-        return customMetric;
+        return {
+            name: customMetric.baseDimension,
+            aggregation: customMetric.aggType,
+        };
     });
     const groupBy = query.pivot?.on.map((on) => {
         const f = fields.find((field) => field.name === on);
         if (!f) {
-            throw new Error('Unexpected error: incorrect pivot configuration, invalid groupBy');
+            throw new Error(
+                'Unexpected error: incorrect pivot configuration, invalid groupBy',
+            );
         }
         return f;
     });
@@ -106,7 +114,7 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
         },
         valuesColumns: values.map((value) => ({
             reference: value.name,
-            aggregation: value.aggType ?? VIZ_DEFAULT_AGGREGATION,
+            aggregation: value.aggregation ?? VIZ_DEFAULT_AGGREGATION,
         })),
         groupByColumns: groupBy?.map((f) => ({ reference: f.name })),
     };

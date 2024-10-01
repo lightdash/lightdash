@@ -2211,7 +2211,7 @@ export class ProjectService extends BaseService {
                 await warehouseClient.streamQuery(
                     pivotedSql,
                     async ({ rows, fields }) => {
-                        if (!groupByColumns) {
+                        if (!groupByColumns || groupByColumns.length === 0) {
                             rows.forEach(writer);
                             return;
                         }
@@ -2269,11 +2269,12 @@ export class ProjectService extends BaseService {
 
         return {
             fileUrl,
-            valuesColumns: groupByColumns
-                ? Array.from(valuesColumnReferences)
-                : valuesColumns.map(
-                      (col) => `${col.reference}_${col.aggregation}`,
-                  ),
+            valuesColumns:
+                groupByColumns && groupByColumns.length > 0
+                    ? Array.from(valuesColumnReferences)
+                    : valuesColumns.map(
+                          (col) => `${col.reference}_${col.aggregation}`,
+                      ),
             indexColumn,
         };
     }

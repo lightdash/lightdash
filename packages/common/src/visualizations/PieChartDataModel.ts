@@ -1,9 +1,7 @@
 import { DimensionType } from '../types/field';
 import { type RawResultRow } from '../types/results';
 import { ChartKind } from '../types/savedCharts';
-import {
-    type SemanticLayerQuery,
-} from '../types/semanticLayer';
+import { type SemanticLayerQuery } from '../types/semanticLayer';
 import {
     VizAggregationOptions,
     VizIndexType,
@@ -284,6 +282,7 @@ export class PieChartDataModel {
         };
     }
 
+    // TODO: dupe function code - see cartesian chart
     async getPivotedChartData({
         sortBy,
         filters,
@@ -293,7 +292,11 @@ export class PieChartDataModel {
         SemanticLayerQuery,
         'sortBy' | 'filters' | 'limit' | 'sql'
     >): Promise<PivotChartData | undefined> {
-        // TODO: dupe code - see cartesian chart
+        const allDimensionNames = new Set(
+            this.resultsRunner
+                .getPivotQueryDimensions()
+                .map((d) => d.reference),
+        );
         const allSelectedDimensions = [
             this.config.fieldConfig?.x?.reference,
             ...(this.config.fieldConfig?.groupBy?.map(
@@ -325,10 +328,27 @@ export class PieChartDataModel {
                 },
                 [[], []],
             );
-        const metrics =
-            this.config.fieldConfig?.y?.map((y) => ({
-                name: y.reference,
-            })) ?? [];
+        const { customMetrics, metrics } = this.config.fieldConfig?.y?.reduce<{
+            customMetrics: Required<SemanticLayerQuery>['customMetrics'];
+            metrics: SemanticLayerQuery['metrics'];
+        }>(
+            (acc, field) => {
+                if (allDimensionNames.has(field.reference)) {
+                    // it's a custom metric
+                    const name = `${field.reference}_${field.aggregation}`;
+                    acc.customMetrics.push({
+                        name,
+                        baseDimension: field.reference,
+                        aggType: field.aggregation,
+                    });
+                    acc.metrics.push({ name });
+                } else {
+                    acc.metrics.push({ name: field.reference });
+                }
+                return acc;
+            },
+            { customMetrics: [], metrics: [] },
+        ) ?? { customMetrics: [], metrics: [] };
         const pivot = {
             index: this.config?.fieldConfig?.x?.reference
                 ? [this.config.fieldConfig.x?.reference]
@@ -337,17 +357,18 @@ export class PieChartDataModel {
                 this.config?.fieldConfig?.groupBy?.map(
                     (groupBy) => groupBy.reference,
                 ) ?? [],
-            values: this.config?.fieldConfig?.y?.map((y) => y.reference) ?? [],
+            values: metrics.map((metric) => metric.name),
         };
         const semanticQuery: SemanticLayerQuery = {
-            filters,
-            limit,
             sql,
+            limit,
+            filters,
             sortBy,
-            dimensions,
             metrics,
+            dimensions,
             timeDimensions,
             pivot,
+            customMetrics,
         };
         const pivotedChartData = await this.getTransformedData(semanticQuery);
 
