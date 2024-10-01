@@ -6,6 +6,7 @@ import {
     DimensionType,
     findAndUpdateModelNodes,
     ForbiddenError,
+    friendlyName,
     GitIntegrationConfiguration,
     isUserWithOrg,
     lightdashDbtYamlSchema,
@@ -14,11 +15,16 @@ import {
     SavedChart,
     SessionUser,
     UnexpectedServerError,
+    VizColumn,
 } from '@lightdash/common';
+import { RestEndpointMethodTypes } from '@octokit/rest';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
+import { snakeCase } from 'lodash';
 import {
     createBranch,
+    createFile,
+    createPullRequest,
     getFileContent,
     getLastCommit,
     getOrRefreshToken,
@@ -39,6 +45,14 @@ type GitIntegrationServiceArguments = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
 };
 
+type GithubProps = {
+    owner: string;
+    repo: string;
+    branch: string;
+    token: string;
+    path: string;
+    quoteChar: `"` | `'`;
+};
 // TODO move this to common and refactor cli
 type YamlColumnMeta = {
     dimension?: {
@@ -300,7 +314,8 @@ Affected charts:
             );
         const [owner, repo] = project.dbtConnection.repository.split('/');
         const { branch } = project.dbtConnection;
-        return { owner, repo, branch };
+        const path = project.dbtConnection.project_sub_path?.replace(/^\//, '');
+        return { owner, repo, branch, path };
     }
 
     async getOrUpdateToken(organizationUuid: string) {
@@ -465,5 +480,132 @@ Affected charts:
             chart: undefined,
             projectUuid,
         });
+    }
+
+    private static async createSqlFile({
+        githubProps,
+        name,
+        sql,
+    }: {
+        githubProps: GithubProps;
+        name: string;
+        sql: string;
+    }) {
+        const fileName = `models/${snakeCase(name)}.sql`;
+        const content = `
+{{
+  config(
+    tags=['created-by-lightdash']
+  )
+}}
+  
+${sql}
+`;
+
+        return createFile({
+            ...githubProps,
+            fileName,
+            content,
+            message: `Created file ${fileName} `,
+        });
+    }
+
+    private static async createYmlFile({
+        githubProps,
+        name,
+        columns,
+    }: {
+        githubProps: GithubProps;
+        name: string;
+        columns: VizColumn[];
+    }) {
+        const fileName = `models/${snakeCase(name)}.yml`;
+        const content = yaml.dump(
+            {
+                version: 2,
+                models: [
+                    {
+                        name: snakeCase(name),
+                        label: friendlyName(name),
+                        description: `SQL model for friendlyName(${name})`,
+                        columns: columns.map((c) => ({
+                            name: c.reference,
+                            meta: {
+                                dimension: {
+                                    type: c.type,
+                                },
+                            },
+                        })),
+                    },
+                ],
+            },
+            {
+                quotingType: githubProps.quoteChar,
+            },
+        );
+
+        return createFile({
+            ...githubProps,
+            fileName,
+            content,
+            message: `Created file ${fileName} `,
+        });
+    }
+
+    async createPullRequestFromSql(
+        user: SessionUser,
+        projectUuid: string,
+        name: string,
+        sql: string,
+        columns: VizColumn[],
+        quoteChar: `"` | `'` = '"',
+    ): Promise<PullRequestCreated> {
+        const { owner, repo, branch, path } = await this.getProjectRepo(
+            projectUuid,
+        );
+
+        const token = await this.getOrUpdateToken(user.organizationUuid!);
+
+        const branchName = await GitIntegrationService.createBranch({
+            owner,
+            repo,
+            mainBranch: branch,
+            token,
+        });
+        const githubProps: GithubProps = {
+            owner,
+            repo,
+            branch: branchName,
+            token,
+            path,
+            quoteChar,
+        };
+        await GitIntegrationService.createSqlFile({
+            githubProps,
+            name,
+            sql,
+        });
+        await GitIntegrationService.createYmlFile({
+            githubProps,
+            name,
+            columns,
+        });
+        const pullRequest = await createPullRequest({
+            owner,
+            repo,
+            title: `Write back \`${name}\` SQL and YML model`,
+            body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
+ 
+Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+            `,
+            head: branchName,
+            base: branch,
+            token,
+        });
+
+        return {
+            prTitle: pullRequest.title,
+            prUrl: pullRequest.html_url,
+        };
     }
 }

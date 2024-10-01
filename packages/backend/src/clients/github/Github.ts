@@ -199,3 +199,74 @@ export const updateFile = async ({
     });
     return response;
 };
+
+export const createFile = async ({
+    owner,
+    repo,
+    fileName,
+    content,
+    branch,
+    message,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    fileName: string;
+    content: string;
+    branch: string;
+    message: string;
+    token: string;
+}) => {
+    const { octokit, headers } = getOctokitRestForUser(token);
+
+    const response = await octokit.rest.repos.createOrUpdateFileContents({
+        owner,
+        repo,
+        path: fileName,
+        message,
+        content: Buffer.from(content, 'utf-8').toString('base64'),
+        branch,
+        headers,
+        committer: {
+            name: 'Lightdash',
+            email: 'developers@lightdash.com',
+        },
+        author: {
+            name: 'Lightdash',
+            email: 'developers@lightdash.com',
+        },
+    });
+    return response;
+};
+
+export const createPullRequest = async ({
+    owner,
+    repo,
+    title,
+    body,
+    head,
+    base,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    title: string;
+    body: string;
+    head: string;
+    base: string;
+    token: string;
+}) => {
+    const { octokit, headers } = getOctokitRestForUser(token);
+
+    const response = await octokit.rest.pulls.create({
+        owner,
+        repo,
+        title,
+        body,
+        head,
+        base,
+        headers,
+    });
+
+    return response.data;
+};
