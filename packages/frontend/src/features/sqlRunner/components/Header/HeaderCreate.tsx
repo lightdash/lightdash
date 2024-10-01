@@ -83,14 +83,23 @@ export const HeaderCreate: FC = () => {
         }
     }, [ctaAction, dispatch, hasErrors]);
 
-    const getCtaLabel = useCallback((action: CtaAction) => {
+    const getCtaLabels = useCallback((action: CtaAction) => {
         switch (action) {
             case 'save':
-                return 'Save';
+                return {
+                    label: 'Save chart',
+                    description: 'Save as an adhoc query',
+                };
             case 'createVirtualView':
-                return 'Create virtual view';
+                return {
+                    label: 'Create virtual view',
+                    description: 'Save as a reusable query',
+                };
             case 'writeBackToDbt':
-                return 'Write back to dbt';
+                return {
+                    label: 'Write back to dbt',
+                    description: 'Save as a model in dbt',
+                };
         }
     }, []);
 
@@ -130,7 +139,7 @@ export const HeaderCreate: FC = () => {
                                 disabled={!loadedColumns}
                                 onClick={handleCtaClick}
                             >
-                                {getCtaLabel(ctaAction)}
+                                {getCtaLabels(ctaAction).label}
                             </Button>
                             {isSaveCustomExploreFromSqlRunnerEnabled && (
                                 <Menu
@@ -164,11 +173,22 @@ export const HeaderCreate: FC = () => {
                                                     setCtaAction('save');
                                                 }}
                                             >
-                                                <Text fz="xs" fw={600}>
-                                                    Save chart
+                                                <Text
+                                                    fz="xs"
+                                                    fw={600}
+                                                    c={
+                                                        ctaAction === 'save'
+                                                            ? 'blue'
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {getCtaLabels('save').label}
                                                 </Text>
                                                 <Text fz={10} c="gray.6">
-                                                    {getCtaLabel('save')}
+                                                    {
+                                                        getCtaLabels('save')
+                                                            .description
+                                                    }
                                                 </Text>
                                             </Stack>
                                         </Menu.Item>
@@ -182,13 +202,28 @@ export const HeaderCreate: FC = () => {
                                                     );
                                                 }}
                                             >
-                                                <Text fw={600} fz="xs">
-                                                    {getCtaLabel(
-                                                        'createVirtualView',
-                                                    )}
+                                                <Text
+                                                    fw={600}
+                                                    fz="xs"
+                                                    c={
+                                                        ctaAction ===
+                                                        'createVirtualView'
+                                                            ? 'blue'
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {
+                                                        getCtaLabels(
+                                                            'createVirtualView',
+                                                        ).label
+                                                    }
                                                 </Text>
                                                 <Text fz={10} c="gray.6">
-                                                    Save as a reusable query
+                                                    {
+                                                        getCtaLabels(
+                                                            'createVirtualView',
+                                                        ).description
+                                                    }
                                                 </Text>
                                             </Stack>
                                         </Menu.Item>
@@ -202,13 +237,28 @@ export const HeaderCreate: FC = () => {
                                                     );
                                                 }}
                                             >
-                                                <Text fw={600} fz="xs">
-                                                    {getCtaLabel(
-                                                        'writeBackToDbt',
-                                                    )}
+                                                <Text
+                                                    fw={600}
+                                                    fz="xs"
+                                                    c={
+                                                        ctaAction ===
+                                                        'writeBackToDbt'
+                                                            ? 'blue'
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {
+                                                        getCtaLabels(
+                                                            'writeBackToDbt',
+                                                        ).label
+                                                    }
                                                 </Text>
                                                 <Text fz={10} c="gray.6">
-                                                    Save as model in dbt
+                                                    {
+                                                        getCtaLabels(
+                                                            'writeBackToDbt',
+                                                        ).description
+                                                    }
                                                 </Text>
                                             </Stack>
                                         </Menu.Item>
