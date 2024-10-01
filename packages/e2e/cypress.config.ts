@@ -26,7 +26,7 @@ export default defineConfig({
             cypressSplit(on, config);
 
             on('before:browser:launch', (_browser, launchOptions) => {
-                launchOptions.args.push('--js-flags=--max-old-space-size=3500');
+                launchOptions.args.push('--js-flags=--max-old-space-size=4000');
 
                 return launchOptions;
             });
