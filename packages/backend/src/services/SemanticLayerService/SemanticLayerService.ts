@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     ForbiddenError,
     MissingConfigError,
     ParameterError,
@@ -8,6 +9,7 @@ import {
     SemanticLayerQuery,
     SemanticLayerQueryPayload,
     SemanticLayerResultRow,
+    SemanticLayerType,
     SemanticLayerView,
     SessionUser,
     type AbilityAction,
@@ -32,8 +34,6 @@ type SearchServiceArguments = {
     downloadFileModel: DownloadFileModel;
     // Clients
     schedulerClient: SchedulerClient;
-    cubeClient: CubeClient;
-    dbtCloudClient: DbtCloudGraphqlClient;
     s3Client: S3Client;
     // Services
     savedSemanticViewerChartService: SavedSemanticViewerChartService;
@@ -48,12 +48,9 @@ export class SemanticLayerService extends BaseService {
 
     private readonly downloadFileModel: DownloadFileModel;
 
-    private readonly schedulerClient: SchedulerClient;
-
     // Clients
-    private readonly cubeClient: CubeClient;
 
-    private readonly dbtCloudClient: DbtCloudGraphqlClient;
+    private readonly schedulerClient: SchedulerClient;
 
     private readonly s3Client: S3Client;
 
@@ -69,8 +66,6 @@ export class SemanticLayerService extends BaseService {
         this.downloadFileModel = args.downloadFileModel;
         this.schedulerClient = args.schedulerClient;
         // Clients
-        this.cubeClient = args.cubeClient;
-        this.dbtCloudClient = args.dbtCloudClient;
         this.s3Client = args.s3Client;
         // Services
         this.savedSemanticViewerChartService =
@@ -120,23 +115,36 @@ export class SemanticLayerService extends BaseService {
     }
 
     async getSemanticLayerClient(
-        _projectUuid: string, // TODO: get different client based on project, right now we're only doing this based on config
+        projectUuid: string,
     ): Promise<CubeClient | DbtCloudGraphqlClient> {
-        if (
-            !!this.lightdashConfig.dbtCloud.bearerToken &&
-            !!this.lightdashConfig.dbtCloud.environmentId
-        ) {
-            return this.dbtCloudClient;
+        const project = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (!project.semanticLayerConnection) {
+            throw new MissingConfigError('No semantic layer available');
         }
 
-        if (
-            !!this.lightdashConfig.cube.token &&
-            !!this.lightdashConfig.cube.domain
-        ) {
-            return this.cubeClient;
-        }
+        const semanticLayerConnectionType =
+            project.semanticLayerConnection.type;
 
-        throw new MissingConfigError('No semantic layer available');
+        switch (semanticLayerConnectionType) {
+            case SemanticLayerType.CUBE:
+                return new CubeClient({
+                    lightdashConfig: this.lightdashConfig,
+                    connectionCredentials: project.semanticLayerConnection,
+                });
+            case SemanticLayerType.DBT:
+                return new DbtCloudGraphqlClient({
+                    lightdashConfig: this.lightdashConfig,
+                    connectionCredentials: project.semanticLayerConnection,
+                });
+            default:
+                return assertUnreachable(
+                    semanticLayerConnectionType,
+                    `Unknown semantic layer connection type: ${semanticLayerConnectionType}`,
+                );
+        }
     }
 
     async getViews(

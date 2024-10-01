@@ -220,11 +220,10 @@ module.exports = {
                     },
                     items: [
                         'references/dbt-projects',
-                        'references/dbt-semantic-layer',
                         {
-                          type: 'doc',
-                          id: 'references/slack-integration',
-                          label: 'Slack',
+                            type: 'doc',
+                            id: 'references/slack-integration',
+                            label: 'Slack',
                         },
                         'references/google-sheets',
                     ],

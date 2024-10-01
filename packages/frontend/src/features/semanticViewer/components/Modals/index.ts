@@ -1,1 +1,0 @@
-export { DeleteSavedSemanticChart } from './DeleteSavedSemanticChart';

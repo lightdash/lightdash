@@ -250,9 +250,15 @@ export const semanticViewerSlice = createSlice({
             action: PayloadAction<SemanticLayerStatePayloadField>,
         ) => {
             const key = getKeyByField(action.payload);
+
             state.semanticLayerQuery[key] = state.semanticLayerQuery[
                 key
             ].filter((field) => field.name !== action.payload.name);
+
+            state.semanticLayerQuery.sortBy =
+                state.semanticLayerQuery.sortBy.filter(
+                    (sort) => sort.name !== action.payload.name,
+                );
         },
         updateTimeDimensionGranularity: (
             state,

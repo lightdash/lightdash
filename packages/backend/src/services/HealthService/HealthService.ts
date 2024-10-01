@@ -138,10 +138,6 @@ export class HealthService extends BaseService {
             hasEmailClient: !!this.lightdashConfig.smtp,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
-            // TODO: soon to be deleted as we move feature to UI - https://github.com/lightdash/lightdash/issues/6767
-            hasDbtSemanticLayer:
-                !!this.lightdashConfig.dbtCloud.environmentId &&
-                !!this.lightdashConfig.dbtCloud.bearerToken,
             hasGroups: await this.hasGroups(user),
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,

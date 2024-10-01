@@ -38,4 +38,9 @@ export enum FeatureFlags {
      * Enable saving custom explores from the SQL Runner
      */
     SaveCustomExploreFromSqlRunner = 'save-custom-explore-from-sql-runner',
+
+    /**
+     * Enable the semantic layer
+     */
+    SemanticLayerEnabled = 'semantic-layer-enabled',
 }

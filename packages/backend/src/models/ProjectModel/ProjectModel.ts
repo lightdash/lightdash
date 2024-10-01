@@ -1,11 +1,10 @@
 import {
     AlreadyExistsError,
+    assertUnreachable,
     createCustomExplore,
     CreateCustomExplorePayload,
-    CreateDbtCloudIntegration,
     CreateProject,
     CreateWarehouseCredentials,
-    DbtCloudIntegration,
     DbtProjectConfig,
     Explore,
     ExploreError,
@@ -21,6 +20,7 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
+    SemanticLayerType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
     SpaceSummary,
@@ -33,12 +33,15 @@ import {
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
+    type CubeSemanticLayerConnection,
+    type DbtSemanticLayerConnection,
+    type SemanticLayerConnection,
 } from '@lightdash/common';
 import {
     WarehouseCatalog,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
-import { Knex } from 'knex';
+import knex, { Knex } from 'knex';
 import { omit } from 'lodash';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
@@ -73,12 +76,14 @@ import {
     InsertChart,
     SavedChartCustomSqlDimensionsTableName,
 } from '../../database/entities/savedCharts';
+import { DbSavedSql, InsertSql } from '../../database/entities/savedSql';
 import { DbSpace } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { generateUniqueSlug } from '../../utils/SlugUtils';
 import { convertExploresToCatalog } from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
@@ -280,6 +285,19 @@ export class ProjectModel {
                 throw new UnexpectedServerError('Could not save credentials.');
             }
 
+            let encryptedSemanticLayerConnection: Buffer | null;
+            try {
+                encryptedSemanticLayerConnection = data.semanticLayerConnection
+                    ? this.encryptionUtil.encrypt(
+                          JSON.stringify(data.semanticLayerConnection),
+                      )
+                    : null;
+            } catch (e) {
+                throw new UnexpectedServerError(
+                    'Could not encrypt semantic layer connection credentials.',
+                );
+            }
+
             // Make sure the project to copy exists and is owned by the same organization
             const copiedProjects = data.upstreamProjectUuid
                 ? await trx('projects')
@@ -298,6 +316,7 @@ export class ProjectModel {
                             ? copiedProjects[0].project_uuid
                             : null,
                     dbt_version: data.dbtVersion,
+                    semantic_layer_connection: encryptedSemanticLayerConnection,
                 })
                 .returning('*');
 
@@ -371,6 +390,7 @@ export class ProjectModel {
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
+                  semantic_layer_connection: Buffer | null;
               }
             | {
                   name: string;
@@ -382,6 +402,7 @@ export class ProjectModel {
                   pinned_list_uuid?: string;
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
+                  semantic_layer_connection: Buffer | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -430,6 +451,9 @@ export class ProjectModel {
                         this.database
                             .ref('copied_from_project_uuid')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('semantic_layer_connection')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -454,6 +478,24 @@ export class ProjectModel {
                         'Failed to load dbt credentials',
                     );
                 }
+
+                let semanticLayerConnection:
+                    | SemanticLayerConnection
+                    | undefined;
+                try {
+                    semanticLayerConnection = project.semantic_layer_connection
+                        ? (JSON.parse(
+                              this.encryptionUtil.decrypt(
+                                  project.semantic_layer_connection,
+                              ),
+                          ) as SemanticLayerConnection)
+                        : undefined;
+                } catch (e) {
+                    throw new UnexpectedServerError(
+                        'Failed to load dbt credentials',
+                    );
+                }
+
                 const result: Omit<Project, 'warehouseConnection'> = {
                     organizationUuid: project.organization_uuid,
                     projectUuid,
@@ -463,6 +505,7 @@ export class ProjectModel {
                     pinnedListUuid: project.pinned_list_uuid,
                     dbtVersion: project.dbt_version,
                     upstreamProjectUuid: project.copied_from_project_uuid,
+                    semanticLayerConnection,
                 };
                 if (!project.warehouse_type) {
                     return result;
@@ -525,9 +568,36 @@ export class ProjectModel {
         };
     }
 
+    private static getSemanticLayerNonSensitiveCredentials(
+        semanticLayerConnection: SemanticLayerConnection,
+    ) {
+        const { type } = semanticLayerConnection;
+
+        switch (type) {
+            case SemanticLayerType.CUBE:
+                return {
+                    type,
+                    domain: semanticLayerConnection.domain,
+                } as CubeSemanticLayerConnection;
+            case SemanticLayerType.DBT:
+                return {
+                    type,
+                    domain: semanticLayerConnection.domain,
+                    environmentId: semanticLayerConnection.environmentId,
+                } as DbtSemanticLayerConnection;
+            default:
+                return assertUnreachable(
+                    type,
+                    `Unknown semantic layer connection type: ${type}`,
+                );
+        }
+    }
+
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;
+        const sensitiveSemanticLayerCredentials =
+            project.semanticLayerConnection;
 
         const nonSensitiveDbtCredentials = Object.fromEntries(
             Object.entries(project.dbtConnection).filter(
@@ -535,6 +605,7 @@ export class ProjectModel {
                     !sensitiveDbtCredentialsFieldNames.includes(key as any),
             ),
         ) as DbtProjectConfig;
+
         const nonSensitiveCredentials = sensitiveCredentials
             ? (Object.fromEntries(
                   Object.entries(sensitiveCredentials).filter(
@@ -543,6 +614,14 @@ export class ProjectModel {
                   ),
               ) as WarehouseCredentials)
             : undefined;
+
+        const nonSensitiveSemanticLayerCredentials =
+            sensitiveSemanticLayerCredentials
+                ? ProjectModel.getSemanticLayerNonSensitiveCredentials(
+                      sensitiveSemanticLayerCredentials,
+                  )
+                : undefined;
+
         return {
             organizationUuid: project.organizationUuid,
             projectUuid,
@@ -553,6 +632,7 @@ export class ProjectModel {
             pinnedListUuid: project.pinnedListUuid,
             dbtVersion: project.dbtVersion,
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
+            semanticLayerConnection: nonSensitiveSemanticLayerCredentials,
         };
     }
 
@@ -1137,82 +1217,6 @@ export class ProjectModel {
         return projectGroupAccesses;
     }
 
-    async findDbtCloudIntegration(
-        projectUuid: string,
-    ): Promise<DbtCloudIntegration | undefined> {
-        const [row] = await this.database('dbt_cloud_integrations')
-            .select(['metrics_job_id'])
-            .innerJoin(
-                'projects',
-                'projects.project_id',
-                'dbt_cloud_integrations.project_id',
-            )
-            .where('project_uuid', projectUuid);
-        if (row === undefined) {
-            return undefined;
-        }
-        return {
-            metricsJobId: row.metrics_job_id,
-        };
-    }
-
-    async findDbtCloudIntegrationWithSecrets(
-        projectUuid: string,
-    ): Promise<CreateDbtCloudIntegration | undefined> {
-        const [row] = await this.database('dbt_cloud_integrations')
-            .select(['metrics_job_id', 'service_token'])
-            .innerJoin(
-                'projects',
-                'projects.project_id',
-                'dbt_cloud_integrations.project_id',
-            )
-            .where('project_uuid', projectUuid);
-        if (row === undefined) {
-            return undefined;
-        }
-        const serviceToken = this.encryptionUtil.decrypt(row.service_token);
-        return {
-            metricsJobId: row.metrics_job_id,
-            serviceToken,
-        };
-    }
-
-    async upsertDbtCloudIntegration(
-        projectUuid: string,
-        integration: CreateDbtCloudIntegration,
-    ): Promise<void> {
-        const [project] = await this.database('projects')
-            .select(['project_id'])
-            .where('project_uuid', projectUuid);
-        if (project === undefined) {
-            throw new NotExistsError(
-                `Cannot find project with id '${projectUuid}'`,
-            );
-        }
-        const encryptedServiceToken = this.encryptionUtil.encrypt(
-            integration.serviceToken,
-        );
-        await this.database('dbt_cloud_integrations')
-            .insert({
-                project_id: project.project_id,
-                service_token: encryptedServiceToken,
-                metrics_job_id: integration.metricsJobId,
-            })
-            .onConflict('project_id')
-            .merge();
-    }
-
-    async deleteDbtCloudIntegration(projectUuid: string): Promise<void> {
-        await this.database.raw(
-            `
-                DELETE
-                FROM dbt_cloud_integrations AS i USING projects AS p
-                WHERE p.project_id = i.project_id
-                  AND p.project_uuid = ?`,
-            [projectUuid],
-        );
-    }
-
     async getWarehouseCredentialsForProject(
         projectUuid: string,
     ): Promise<CreateWarehouseCredentials> {
@@ -1334,6 +1338,183 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
+            // .dP"Y8    db    Yb    dP 888888 8888b.      .dP"Y8  dP"Yb  88
+            // `Ybo."   dPYb    Yb  dP  88__    8I  Yb     `Ybo." dP   Yb 88
+            // o.`Y8b  dP__Yb    YbdP   88""    8I  dY     o.`Y8b Yb b dP 88  .o
+            // 8bodP' dP""""Yb    YP    888888 8888Y"      8bodP'  `"YoYo 88ood8
+
+            // Get all the saved SQLs
+            const savedSQLs = await trx('saved_sql')
+                .leftJoin('spaces', 'saved_sql.space_uuid', 'spaces.space_uuid')
+                .whereIn('saved_sql.space_uuid', spaceUuids)
+                .andWhere('spaces.project_id', projectId)
+                .select<DbSavedSql[]>('saved_sql.*');
+
+            Logger.info(
+                `Duplicating ${savedSQLs.length} SQL queries on ${previewProjectUuid}`,
+            );
+
+            // Define the type for the new saved SQLs
+            type CloneSavedSQL = InsertSql & {
+                saved_sql_uuid?: string;
+                search_vector?: string;
+            };
+
+            // Create a function to create the saved SQLs
+            const createSavedSQLs = async (savedSQLList: DbSavedSql[]) => {
+                if (savedSQLList.length === 0) {
+                    return [];
+                }
+                // Create an array of promises for generating slugs and mapping saved SQLs
+                const mappedSavedSQLsPromises = savedSQLList.map(async (d) => {
+                    if (!d.space_uuid) {
+                        throw new Error(
+                            `Chart ${d.saved_sql_uuid} has no space_uuid`,
+                        );
+                    }
+                    // Generate the slug asynchronously
+                    // const uniqueSlug = await generateUniqueSlug(
+                    //     trx,
+                    //     'saved_sql',
+                    //     d.slug, // using the existing slug as a base - preventing naming duplicates
+                    // );
+                    // Map the saved SQL to the new saved SQL
+                    const createSavedSQL: CloneSavedSQL = {
+                        ...d,
+                        project_uuid: previewProjectUuid,
+                        space_uuid: getNewSpaceUuid(d.space_uuid),
+                        // slug: uniqueSlug,
+                        search_vector: undefined,
+                        saved_sql_uuid: undefined,
+                        dashboard_uuid: null,
+                    };
+                    delete createSavedSQL.search_vector;
+                    delete createSavedSQL.saved_sql_uuid;
+                    return createSavedSQL;
+                });
+                // Resolve all promises
+                const mappedSavedSQLs = await Promise.all(
+                    mappedSavedSQLsPromises,
+                );
+                // Insert all the saved SQLs after they have been mapped and return the result
+                const newSavedSQLs = await trx('saved_sql')
+                    .insert(mappedSavedSQLs)
+                    .returning('*');
+                return newSavedSQLs;
+            };
+
+            // Create the saved SQLs
+            const newSavedSQLs = await createSavedSQLs(savedSQLs);
+
+            // Create a mapping of the old saved SQLs to the new saved SQLs
+            const savedSQLInDashboards = await trx('saved_sql')
+                .leftJoin(
+                    'dashboards',
+                    'saved_sql.dashboard_uuid',
+                    'dashboards.dashboard_uuid',
+                )
+                .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+                .where('spaces.project_id', projectId)
+                .andWhere('saved_sql.space_uuid', null)
+                .select<DbSavedSql[]>('saved_sql.*');
+
+            Logger.info(
+                `Duplicating ${savedSQLInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+            );
+
+            // Create the saved SQLs in the dashboards
+            const newSavedSQLInDashboards =
+                savedSQLInDashboards.length > 0
+                    ? await trx('saved_sql')
+                          .insert(
+                              savedSQLInDashboards.map((d) => {
+                                  if (!d.dashboard_uuid) {
+                                      throw new Error(
+                                          `Chart ${d.saved_sql_uuid} has no dashboard_uuid`,
+                                      );
+                                  }
+                                  const createSavedSQL: CloneSavedSQL = {
+                                      ...d,
+                                      dashboard_uuid: d.dashboard_uuid,
+                                      search_vector: undefined,
+                                      saved_sql_uuid: undefined,
+                                      space_uuid: null,
+                                  };
+                                  delete createSavedSQL.search_vector;
+                                  delete createSavedSQL.saved_sql_uuid;
+                                  return createSavedSQL;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+
+            // Create a mapping of the old saved SQLs to the new saved SQLs
+            const savedSQLInSpacesMapping = savedSQLs.map((c, i) => ({
+                id: c.saved_sql_uuid,
+                newId: newSavedSQLs[i].saved_sql_uuid,
+            }));
+            const savedSQLInDashboardsMapping = savedSQLInDashboards.map(
+                (c, i) => ({
+                    id: c.saved_sql_uuid,
+                    newId: newSavedSQLInDashboards[i].saved_sql_uuid,
+                }),
+            );
+            const savedSQLMapping = [
+                ...savedSQLInSpacesMapping,
+                ...savedSQLInDashboardsMapping,
+            ];
+
+            const savedSQLUuids = savedSQLMapping.map((c) => c.id);
+
+            // Get the last saved SQL version by uuid and created_at
+            const lastSavedSQLVersionEntries = await trx('saved_sql_versions')
+                .whereIn('saved_sql_uuid', savedSQLUuids)
+                .select('saved_sql_uuid')
+                .max('created_at as latest_created_at')
+                .groupBy('saved_sql_uuid');
+
+            // Now query the full records for each saved_sql_uuid where created_at is the latest
+            const savedSQLVersions = await trx('saved_sql_versions')
+                .whereIn(
+                    'saved_sql_uuid',
+                    lastSavedSQLVersionEntries.map((d) => d.saved_sql_uuid),
+                )
+                .select('*');
+
+            const newSavedSQLVersions =
+                savedSQLVersions.length > 0
+                    ? await trx('saved_sql_versions')
+                          .insert(
+                              savedSQLVersions.map((d) => {
+                                  const newSavedSQLUuid = savedSQLMapping.find(
+                                      (m) => m.id === d.saved_sql_uuid,
+                                  )?.newId;
+                                  if (!newSavedSQLUuid) {
+                                      throw new Error(
+                                          `Cannot find new saved SQL uuid for ${d.saved_sql_uuid}`,
+                                      );
+                                  }
+                                  const createSavedSQLVersion = {
+                                      ...d,
+                                      saved_sql_version_uuid: undefined,
+                                      saved_sql_uuid: newSavedSQLUuid,
+                                  };
+                                  delete createSavedSQLVersion.saved_sql_version_uuid;
+                                  return createSavedSQLVersion;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+
+            const savedSQLVersionMapping = savedSQLVersions.map((c, i) => ({
+                id: c.saved_sql_version_uuid,
+                newId: newSavedSQLVersions[i].saved_sql_version_uuid,
+            }));
+
+            //  dP""b8 88  88    db    88""Yb 888888 .dP"Y8
+            // dP   `" 88  88   dPYb   88__dP   88   `Ybo."
+            // Yb      888888  dP__Yb  88"Yb    88   o.`Y8b
+            //  YboodP 88  88 dP""""Yb 88  Yb   88   8bodP'
             const charts = await trx('saved_queries')
                 .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
                 .whereIn('saved_queries.space_id', spaceIds)
@@ -1546,6 +1727,10 @@ export class ProjectModel {
                 { filters: (value: any) => JSON.stringify(value) },
             );
 
+            // 8888b.     db    .dP"Y8 88  88 88""Yb  dP"Yb     db    88""Yb 8888b.  .dP"Y8
+            //  8I  Yb   dPYb   `Ybo." 88  88 88__dP dP   Yb   dPYb   88__dP  8I  Yb `Ybo."
+            //  8I  dY  dP__Yb  o.`Y8b 888888 88""Yb Yb   dP  dP__Yb  88"Yb   8I  dY o.`Y8b
+            // 8888Y"  dP""""Yb 8bodP' 88  88 88oodP  YbodP  dP""""Yb 88  Yb 8888Y"  8bodP'
             const dashboards = await trx('dashboards')
                 .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
                 .whereIn('dashboards.space_id', spaceIds)
@@ -1725,6 +1910,29 @@ export class ProjectModel {
             );
             await Promise.all(updateChartInDashboards);
 
+            // update saved_sqls in dashboards
+            const updateSavedSQLInDashboards = newSavedSQLInDashboards.map(
+                (chart) => {
+                    const newDashboardUuid = dashboardMapping.find(
+                        (m) => m.uuid === chart.dashboard_uuid,
+                    )?.newUuid;
+
+                    if (!newDashboardUuid) {
+                        // The dashboard was not copied, perhaps becuase it belongs to a space the user doesn't have access to
+                        // We delete this chart in dashboard
+                        return trx('saved_sql')
+                            .where('saved_sql_uuid', chart.saved_sql_uuid)
+                            .delete();
+                    }
+                    return trx('saved_sql')
+                        .update({
+                            dashboard_uuid: newDashboardUuid,
+                        })
+                        .where('saved_sql_uuid', chart.saved_sql_uuid);
+                },
+            );
+            await Promise.all(updateSavedSQLInDashboards);
+
             const newDashboardTiles =
                 dashboardTiles.length > 0
                     ? await trx('dashboard_tiles')
@@ -1771,6 +1979,13 @@ export class ProjectModel {
                             )?.newId,
                         }),
 
+                        // only applied to saved sql tiles
+                        ...(d.saved_sql_uuid && {
+                            saved_sql_uuid: savedSQLMapping.find(
+                                (c) => c.id === d.saved_sql_uuid,
+                            )?.newId,
+                        }),
+
                         dashboard_version_id: dashboardVersionsMapping.find(
                             (m) => m.id === d.dashboard_version_id,
                         )?.newId!,
@@ -1785,6 +2000,7 @@ export class ProjectModel {
             await copyDashboardTileContent('dashboard_tile_charts');
             await copyDashboardTileContent('dashboard_tile_looms');
             await copyDashboardTileContent('dashboard_tile_markdowns');
+            await copyDashboardTileContent('dashboard_tile_sql_charts');
 
             const contentMapping: PreviewContentMapping = {
                 charts: chartMapping,
@@ -1792,6 +2008,8 @@ export class ProjectModel {
                 spaces: spaceMapping,
                 dashboards: dashboardMapping,
                 dashboardVersions: dashboardVersionsMapping,
+                savedSql: savedSQLMapping,
+                savedSqlVersions: savedSQLVersionMapping,
             };
             // Insert mapping on database
             await trx('preview_content').insert({
@@ -1862,5 +2080,21 @@ export class ProjectModel {
             .returning('*');
 
         return { name };
+    }
+
+    async updateSemanticLayerConnection(
+        projectUuid: string,
+        connection: SemanticLayerConnection | undefined,
+    ) {
+        const [updatedProject] = await this.database(ProjectTableName)
+            .update({
+                semantic_layer_connection: connection
+                    ? this.encryptionUtil.encrypt(JSON.stringify(connection))
+                    : null,
+            })
+            .where('project_uuid', projectUuid)
+            .returning('*');
+
+        return updatedProject;
     }
 }
