@@ -1,3 +1,10 @@
+## [0.1286.1](https://github.com/lightdash/lightdash/compare/0.1286.0...0.1286.1) (2024-10-01)
+
+
+### Bug Fixes
+
+* branch name write back and installationId ([#11746](https://github.com/lightdash/lightdash/issues/11746)) ([8c16d35](https://github.com/lightdash/lightdash/commit/8c16d35f77a570efdb4d48aac47228f713b373cd))
+
 # [0.1286.0](https://github.com/lightdash/lightdash/compare/0.1285.0...0.1286.0) (2024-10-01)
 
 
