@@ -52,7 +52,10 @@ const ChartView = memo<Props>(
 
         return (
             <Box h="100%" w="100%" data-testid={`chart-view-${config?.type}`}>
-                <LoadingOverlay visible={isLoading} />
+                <LoadingOverlay
+                    visible={isLoading}
+                    loaderProps={{ color: 'gray' }}
+                />
 
                 {spec && (
                     <EChartsReact
