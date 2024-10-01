@@ -1,3 +1,10 @@
+# [0.1287.0](https://github.com/lightdash/lightdash/compare/0.1286.1...0.1287.0) (2024-10-01)
+
+
+### Features
+
+* allow creating PR on custom view modal ([#11750](https://github.com/lightdash/lightdash/issues/11750)) ([887bf13](https://github.com/lightdash/lightdash/commit/887bf134c2e6d872af750ab09ff21018967a782e))
+
 ## [0.1286.1](https://github.com/lightdash/lightdash/compare/0.1286.0...0.1286.1) (2024-10-01)
 
 
