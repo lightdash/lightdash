@@ -87,7 +87,7 @@ export const getLastCommit = async ({
     owner: string;
     repo: string;
     branch: string;
-    token: string;
+    token: string; // TODO use installationId instead, to act as a bot
 }) => {
     const response = await new OctokitRest().rest.repos.listCommits({
         owner,
@@ -138,22 +138,21 @@ export const createBranch = async ({
     repo,
     sha,
     branchName,
-    token,
+    installationId,
 }: {
     owner: string;
     repo: string;
     sha: string;
     branchName: string;
-    token: string;
+    installationId: string;
 }) => {
-    const { octokit, headers } = getOctokitRestForUser(token);
+    const octokit = getOctokitRestForApp(installationId);
 
     const response = await octokit.rest.git.createRef({
         owner,
         repo,
         ref: `refs/heads/${branchName}`,
         sha,
-        headers,
     });
     return response;
 };
@@ -207,7 +206,7 @@ export const createFile = async ({
     content,
     branch,
     message,
-    token,
+    installationId,
 }: {
     owner: string;
     repo: string;
@@ -215,9 +214,9 @@ export const createFile = async ({
     content: string;
     branch: string;
     message: string;
-    token: string;
+    installationId: string;
 }) => {
-    const { octokit, headers } = getOctokitRestForUser(token);
+    const octokit = getOctokitRestForApp(installationId);
 
     const response = await octokit.rest.repos.createOrUpdateFileContents({
         owner,
@@ -226,15 +225,6 @@ export const createFile = async ({
         message,
         content: Buffer.from(content, 'utf-8').toString('base64'),
         branch,
-        headers,
-        committer: {
-            name: 'Lightdash',
-            email: 'developers@lightdash.com',
-        },
-        author: {
-            name: 'Lightdash',
-            email: 'developers@lightdash.com',
-        },
     });
     return response;
 };
@@ -246,7 +236,7 @@ export const createPullRequest = async ({
     body,
     head,
     base,
-    token,
+    installationId,
 }: {
     owner: string;
     repo: string;
@@ -254,9 +244,9 @@ export const createPullRequest = async ({
     body: string;
     head: string;
     base: string;
-    token: string;
+    installationId: string;
 }) => {
-    const { octokit, headers } = getOctokitRestForUser(token);
+    const octokit = getOctokitRestForApp(installationId);
 
     const response = await octokit.rest.pulls.create({
         owner,
@@ -265,7 +255,6 @@ export const createPullRequest = async ({
         body,
         head,
         base,
-        headers,
     });
 
     return response.data;

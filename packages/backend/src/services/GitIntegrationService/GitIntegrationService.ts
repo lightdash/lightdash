@@ -14,13 +14,13 @@ import {
     PullRequestCreated,
     SavedChart,
     SessionUser,
+    snakeCaseName,
     UnexpectedServerError,
     VizColumn,
 } from '@lightdash/common';
-import { RestEndpointMethodTypes } from '@octokit/rest';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
-import { snakeCase } from 'lodash';
+import { nanoid } from 'nanoid';
 import {
     createBranch,
     createFile,
@@ -51,6 +51,7 @@ type GithubProps = {
     branch: string;
     token: string;
     path: string;
+    installationId: string;
     quoteChar: `"` | `'`;
 };
 // TODO move this to common and refactor cli
@@ -98,6 +99,17 @@ export class GitIntegrationService extends BaseService {
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
     }
 
+    async getInstallationId(user: SessionUser) {
+        const installationId =
+            await this.githubAppInstallationsModel.getInstallationId(
+                user.organizationUuid!,
+            );
+        if (!installationId) {
+            throw new Error('Invalid Github installation id');
+        }
+        return installationId;
+    }
+
     async getConfiguration(
         user: SessionUser,
         projectUuid: string,
@@ -141,12 +153,16 @@ export class GitIntegrationService extends BaseService {
         repo,
         mainBranch,
         token,
+        installationId,
+        branchName,
     }: {
+        branchName: string;
         owner: string;
         repo: string;
         mainBranch: string;
         token: string;
-    }): Promise<string> {
+        installationId: string;
+    }) {
         const { sha: commitSha } = await getLastCommit({
             owner,
             repo,
@@ -154,15 +170,13 @@ export class GitIntegrationService extends BaseService {
             token,
         });
         // create branch in git
-        const branchName = `add-custom-metrics-${Date.now()}`;
         const newBranch = await createBranch({
             branchName,
             owner,
             repo,
             sha: commitSha,
-            token,
+            installationId,
         });
-        return branchName;
     }
 
     async getPullRequestDetails({
@@ -364,11 +378,16 @@ Affected charts:
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
         const token = await this.getOrUpdateToken(user.organizationUuid!);
 
-        const branchName = await GitIntegrationService.createBranch({
+        const installationId = await this.getInstallationId(user);
+        const branchName = `add-custom-metrics-${Date.now()}`;
+
+        await GitIntegrationService.createBranch({
+            branchName,
             owner,
             repo,
             mainBranch: branch,
             token,
+            installationId,
         });
 
         await this.updateFileForCustomMetrics({
@@ -453,12 +472,16 @@ Affected charts:
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
 
         const token = await this.getOrUpdateToken(user.organizationUuid!);
+        const installationId = await this.getInstallationId(user);
+        const branchName = `add-custom-metrics-${Date.now()}`;
 
-        const branchName = await GitIntegrationService.createBranch({
+        await GitIntegrationService.createBranch({
+            branchName,
             owner,
             repo,
             mainBranch: branch,
             token,
+            installationId,
         });
         await this.updateFileForCustomMetrics({
             user,
@@ -491,7 +514,7 @@ Affected charts:
         name: string;
         sql: string;
     }) {
-        const fileName = `models/${snakeCase(name)}.sql`;
+        const fileName = `models/${snakeCaseName(name)}.sql`;
         const content = `
 {{
   config(
@@ -519,13 +542,13 @@ ${sql}
         name: string;
         columns: VizColumn[];
     }) {
-        const fileName = `models/${snakeCase(name)}.yml`;
+        const fileName = `models/${snakeCaseName(name)}.yml`;
         const content = yaml.dump(
             {
                 version: 2,
                 models: [
                     {
-                        name: snakeCase(name),
+                        name: snakeCaseName(name),
                         label: friendlyName(name),
                         description: `SQL model for friendlyName(${name})`,
                         columns: columns.map((c) => ({
@@ -563,14 +586,21 @@ ${sql}
         const { owner, repo, branch, path } = await this.getProjectRepo(
             projectUuid,
         );
+        const installationId = await this.getInstallationId(user);
 
         const token = await this.getOrUpdateToken(user.organizationUuid!);
+        const userName = `${snakeCaseName(
+            user.firstName[0] || '',
+        )}${snakeCaseName(user.lastName)}`;
+        const branchName = `lightdash-${userName}-${nanoid(4)}`;
 
-        const branchName = await GitIntegrationService.createBranch({
+        await GitIntegrationService.createBranch({
+            branchName,
             owner,
             repo,
             mainBranch: branch,
             token,
+            installationId,
         });
         const githubProps: GithubProps = {
             owner,
@@ -578,6 +608,7 @@ ${sql}
             branch: branchName,
             token,
             path,
+            installationId,
             quoteChar,
         };
         await GitIntegrationService.createSqlFile({
@@ -591,16 +622,14 @@ ${sql}
             columns,
         });
         const pullRequest = await createPullRequest({
-            owner,
-            repo,
-            title: `Write back \`${name}\` SQL and YML model`,
+            ...githubProps,
+            title: `Creates \`${name}\` SQL and YML model`,
             body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
  
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             `,
             head: branchName,
             base: branch,
-            token,
         });
 
         return {
