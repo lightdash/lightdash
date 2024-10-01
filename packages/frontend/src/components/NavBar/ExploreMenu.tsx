@@ -97,8 +97,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 >
                                     <LargeMenuItem
                                         component={Link}
-                                        title={`Query using ${semanticLayerInfoQuery.data.name} Semantic Layer`}
-                                        description={`Build queries with ${semanticLayerInfoQuery.data.name} Semantic Layer`}
+                                        title={`Query from ${semanticLayerInfoQuery.data.name} semantic layer`}
+                                        description={`Build queries using your ${semanticLayerInfoQuery.data.name} semantic layer connection`}
                                         to={`/projects/${projectUuid}/semantic-viewer`}
                                         icon={IconLayersLinked}
                                     />
