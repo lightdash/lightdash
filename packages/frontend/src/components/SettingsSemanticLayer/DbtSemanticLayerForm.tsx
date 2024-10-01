@@ -57,7 +57,14 @@ const DbtSemanticLayerForm: FC<Props> = ({
     });
 
     const [domainOptions, setDomainOptions] = useState(
-        PRE_DEFINED_DOMAINS.concat(semanticLayerConnection?.domain ?? []),
+        // Remove duplicate entries if current domain is already part of PRE_DEFINED_DOMAINS
+        Array.from(
+            new Set(
+                PRE_DEFINED_DOMAINS.concat(
+                    semanticLayerConnection?.domain ?? [],
+                ),
+            ),
+        ),
     );
 
     return (
