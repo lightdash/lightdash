@@ -1,3 +1,10 @@
+# [0.1286.0](https://github.com/lightdash/lightdash/compare/0.1285.0...0.1286.0) (2024-10-01)
+
+
+### Features
+
+* add initial create custom view modal ([#11728](https://github.com/lightdash/lightdash/issues/11728)) ([df9cd10](https://github.com/lightdash/lightdash/commit/df9cd10c0fc03476fe4ce8524adf163c94bd87e2))
+
 # [0.1285.0](https://github.com/lightdash/lightdash/compare/0.1284.1...0.1285.0) (2024-10-01)
 
 
