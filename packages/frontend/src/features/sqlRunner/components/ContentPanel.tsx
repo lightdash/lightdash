@@ -307,6 +307,13 @@ export const ContentPanel: FC = () => {
         dispatch,
     ]);
 
+    useEffect(() => {
+        if (queryResults && panelSizes[1] === 0) {
+            resultsPanelRef.current?.resize(50);
+            setPanelSizes([50, 50]);
+        }
+    }, [queryResults, panelSizes]);
+
     const [activeEchartsInstance, setActiveEchartsInstance] =
         useState<EChartsInstance>();
 

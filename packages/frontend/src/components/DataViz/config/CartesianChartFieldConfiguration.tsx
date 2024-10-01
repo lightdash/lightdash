@@ -2,7 +2,7 @@ import {
     DimensionType,
     SortByDirection,
     type ChartKind,
-    type SqlRunnerPivotChartLayout,
+    type PivotChartLayout,
     type VizColumn,
     type VizConfigErrors,
     type VizIndexLayoutOptions,
@@ -24,7 +24,7 @@ import { cartesianChartSelectors } from '../store/selectors';
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 const YFieldsAxisConfig: FC<{
-    field: SqlRunnerPivotChartLayout['y'][number];
+    field: PivotChartLayout['y'][number];
     yLayoutOptions: VizIndexLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -117,7 +117,7 @@ const XFieldAxisConfig = ({
     error,
 }: {
     columns: VizColumn[];
-    field: SqlRunnerPivotChartLayout['x'] | undefined;
+    field: PivotChartLayout['x'] | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
     error: VizConfigErrors['indexFieldError'];

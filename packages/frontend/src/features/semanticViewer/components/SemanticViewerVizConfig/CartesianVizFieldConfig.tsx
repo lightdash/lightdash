@@ -1,7 +1,7 @@
 import {
     DimensionType,
     type ChartKind,
-    type SemanticViewerPivotChartLayout,
+    type PivotChartLayout,
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
@@ -22,7 +22,7 @@ import { AddButton } from '../../../../components/VisualizationConfigs/common/Ad
 import { Config } from '../../../../components/VisualizationConfigs/common/Config';
 
 const YFieldsAxisConfig: FC<{
-    field?: SemanticViewerPivotChartLayout['y'][number];
+    field?: PivotChartLayout['y'][number];
     yLayoutOptions: VizValuesLayoutOptions[];
     isSingle: boolean;
     index: number;
@@ -88,7 +88,7 @@ const XFieldAxisConfig = ({
 }: {
     columns: VizColumn[];
 
-    field: SemanticViewerPivotChartLayout['x'] | undefined;
+    field: PivotChartLayout['x'] | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {

@@ -51,11 +51,11 @@ export const useTableDataModel = ({
             // react table has a bug with accessors that has dots in them
             // we found the fix here -> https://github.com/TanStack/table/issues/1671
             // do not remove the line below
-            accessorFn: resultsRunner.getColumnsAccessorFn(column),
+            accessorFn: TableDataModel.getColumnsAccessorFn(column),
             header: config?.columns[column].label || column,
             cell: getValueCell,
         }));
-    }, [columns, config?.columns, resultsRunner]);
+    }, [columns, config?.columns]);
 
     const table = useReactTable({
         data: rows,

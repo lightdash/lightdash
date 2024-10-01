@@ -1,7 +1,6 @@
 import { DimensionType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
-import { type PivotChartLayout } from './IResultsRunner';
 
 export enum VizAggregationOptions {
     SUM = 'sum',
@@ -97,6 +96,28 @@ export type PivotChartData = {
     indexColumn: PivotIndexColum;
     valuesColumns: string[];
     columns: VizColumn[];
+};
+
+// TODO: This type is used by both the cartesian and pie chart data models,
+// even though it is clearly a cartesian type. Pie should have something that doesn't
+// include the x and y options. A future improvement would be to have different
+// layout types for chart types that are very different. OR have a more generic
+// layout type that can be used for both, but that might break down anyway with
+// future chart types (maps, funnel, sankey, etc).
+export type PivotChartLayout = {
+    x:
+        | {
+              reference: string;
+              axisType: VizIndexType;
+              dimensionType: DimensionType;
+          }
+        | undefined;
+    y: {
+        reference: string;
+        aggregation: VizAggregationOptions;
+    }[];
+    groupBy: { reference: string }[] | undefined;
+    sortBy?: VizSortBy[];
 };
 
 export type VizCartesianChartOptions = {

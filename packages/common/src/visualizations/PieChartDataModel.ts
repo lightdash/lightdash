@@ -6,14 +6,12 @@ import {
     VizAggregationOptions,
     VizIndexType,
     type PivotChartData,
+    type PivotChartLayout,
     type VizConfigErrors,
     type VizPieChartConfig,
     type VizPieChartDisplay,
 } from './types';
-import {
-    type IResultsRunner,
-    type PivotChartLayout,
-} from './types/IResultsRunner';
+import { type IResultsRunner } from './types/IResultsRunner';
 
 const defaultPieChartConfig: VizPieChartConfig = {
     metadata: {
@@ -243,43 +241,6 @@ export class PieChartDataModel {
         }
 
         return this.resultsRunner.getPivotedVisualizationData(query);
-    }
-
-    getEchartsSpec(
-        transformedData: Awaited<ReturnType<typeof this.getTransformedData>>,
-        display: VizPieChartDisplay | undefined,
-    ) {
-        if (!transformedData) {
-            return {};
-        }
-
-        return {
-            legend: {
-                show: true,
-                orient: 'horizontal',
-                type: 'scroll',
-                left: 'center',
-                top: 'top',
-                align: 'auto',
-            },
-            tooltip: {
-                trigger: 'item',
-            },
-            series: [
-                {
-                    type: 'pie',
-                    radius: display?.isDonut ? ['30%', '70%'] : '50%',
-                    center: ['50%', '50%'],
-                    data: transformedData.results.map((result) => ({
-                        name: transformedData.indexColumn?.reference
-                            ? result[transformedData.indexColumn.reference]
-                            : '-',
-                        groupId: transformedData.indexColumn?.reference,
-                        value: result[transformedData.valuesColumns[0]],
-                    })),
-                },
-            ],
-        };
     }
 
     // TODO: dupe function code - see cartesian chart

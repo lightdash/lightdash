@@ -3,7 +3,7 @@ import {
     isVizPieChartConfig,
     VIZ_DEFAULT_AGGREGATION,
     type DimensionType,
-    type SqlRunnerPivotChartLayout,
+    type PivotChartLayout,
     type VizAggregationOptions,
     type VizConfigErrors,
     type VizIndexType,
@@ -20,8 +20,7 @@ import {
 } from './actions/commonChartActions';
 
 export type PieChartState = {
-    // TODO: a non-sql type
-    defaultFieldConfig: SqlRunnerPivotChartLayout | undefined;
+    defaultFieldConfig: PivotChartLayout | undefined;
     config: VizPieChartConfig | undefined;
     display: VizPieChartDisplay | undefined;
     options: VizPieChartOptions;

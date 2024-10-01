@@ -205,11 +205,6 @@ export class BaseResultsRunner implements IResultsRunner {
         return Object.keys(this.rows[0]);
     }
 
-    // TODO: used by the table viz only
-    getColumnsAccessorFn(column: string) {
-        return (row: RawResultRow) => row[column];
-    }
-
     // TODO: Powers the table visualization - move this out the runner
     getRows() {
         return this.rows;

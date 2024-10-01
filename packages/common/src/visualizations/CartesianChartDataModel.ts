@@ -8,25 +8,19 @@ import {
 } from '../types/field';
 import { type Organization } from '../types/organization';
 import { type RawResultRow } from '../types/results';
-import {
-    ChartKind,
-    ECHARTS_DEFAULT_COLORS,
-    getEChartsChartTypeFromChartKind,
-} from '../types/savedCharts';
+import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
 import { type SemanticLayerQuery } from '../types/semanticLayer';
 import { applyCustomFormat } from '../utils/formatting';
 import {
     VizAggregationOptions,
     VizIndexType,
     type PivotChartData,
+    type PivotChartLayout,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
 } from './types';
-import {
-    type IResultsRunner,
-    type PivotChartLayout,
-} from './types/IResultsRunner';
+import { type IResultsRunner } from './types/IResultsRunner';
 
 // Empty config as default. This makes sense to be defined by the DataModel,
 // but is this the right place?
@@ -330,162 +324,6 @@ export class CartesianChartDataModel {
         return color;
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    getEchartsSpec(
-        transformedData: PivotChartData | undefined,
-        display: CartesianChartDisplay | undefined,
-        type: ChartKind,
-        orgColors?: string[],
-    ) {
-        if (!transformedData) {
-            return {};
-        }
-
-        const DEFAULT_X_AXIS_TYPE = 'category';
-
-        const defaultSeriesType =
-            type === ChartKind.VERTICAL_BAR ? 'bar' : 'line';
-
-        const shouldStack = display?.stack === true;
-        /*
-        // For old colors method
-        const possibleXAxisValues = transformedData.results.map((row) =>
-            transformedData.indexColumn?.reference
-                ? `${row[transformedData.indexColumn.reference]}`
-                : '-',
-        ); */
-
-        const series = transformedData.valuesColumns.map(
-            (seriesColumn, index) => {
-                const isSingleAxis = transformedData.valuesColumns.length === 1;
-                const foundSeries = Object.values(display?.series || {}).find(
-                    (s) => s.yAxisIndex === index,
-                );
-                const {
-                    format,
-                    color,
-                    label,
-                    type: seriesChartType,
-                } = foundSeries || {};
-
-                // TODO: A small change was made here that I'm not sure is reflected in getSpec see PR #11648
-                const singleYAxisLabel =
-                    // NOTE: When there's only one y-axis left, set the label on the series as well
-                    isSingleAxis && display?.yAxis?.[0]?.label
-                        ? display.yAxis[0].label
-                        : undefined;
-                const singleYAxisFormat =
-                    // NOTE: When there's only one y-axis left, set the format on the series as well
-                    isSingleAxis && display?.yAxis?.[0]?.format
-                        ? display.yAxis[0].format
-                        : undefined;
-
-                return {
-                    dimensions: [
-                        transformedData.indexColumn?.reference,
-                        seriesColumn,
-                    ],
-                    type:
-                        seriesChartType && !isSingleAxis
-                            ? getEChartsChartTypeFromChartKind(seriesChartType)
-                            : defaultSeriesType,
-                    stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
-                    name:
-                        singleYAxisLabel ||
-                        label ||
-                        capitalize(seriesColumn.toLowerCase()).replaceAll(
-                            '_',
-                            ' ',
-                        ), // similar to friendlyName, but this will preserve special characters
-                    encode: {
-                        x: transformedData.indexColumn?.reference,
-                        y: seriesColumn,
-                    },
-                    yAxisIndex:
-                        (display?.series &&
-                            display.series[seriesColumn]?.yAxisIndex) ||
-                        0,
-                    tooltip: {
-                        valueFormatter:
-                            singleYAxisFormat || format
-                                ? CartesianChartDataModel.getTooltipFormatter(
-                                      singleYAxisFormat ?? format,
-                                  )
-                                : undefined,
-                    },
-                    color:
-                        color ||
-                        CartesianChartDataModel.getDefaultColor(
-                            index,
-                            orgColors,
-                        ),
-                    // this.getSeriesColor( seriesColumn, possibleXAxisValues, orgColors),
-                };
-            },
-        );
-
-        return {
-            tooltip: {
-                trigger: 'axis',
-                appendToBody: true, // Similar to rendering a tooltip in a Portal
-            },
-            legend: {
-                show: !!(transformedData.valuesColumns.length > 1),
-                type: 'scroll',
-            },
-            xAxis: {
-                type:
-                    display?.xAxis?.type ||
-                    transformedData.indexColumn?.type ||
-                    DEFAULT_X_AXIS_TYPE,
-                name:
-                    display?.xAxis?.label ||
-                    friendlyName(
-                        transformedData.indexColumn?.reference || 'xAxisColumn',
-                    ),
-                nameLocation: 'center',
-                nameGap: 30,
-                nameTextStyle: {
-                    fontWeight: 'bold',
-                },
-            },
-            yAxis: [
-                {
-                    type: 'value',
-                    position: display?.yAxis?.[0]?.position || 'left',
-                    name:
-                        (display?.yAxis && display.yAxis[0]?.label) ||
-                        friendlyName(
-                            transformedData.valuesColumns.length === 1
-                                ? transformedData.valuesColumns[0]
-                                : '',
-                        ),
-                    nameLocation: 'center',
-                    nameGap: 50,
-                    nameRotate: 90,
-                    nameTextStyle: {
-                        fontWeight: 'bold',
-                    },
-                    ...(display?.yAxis?.[0]?.format
-                        ? {
-                              axisLabel: {
-                                  formatter:
-                                      CartesianChartDataModel.getTooltipFormatter(
-                                          display?.yAxis?.[0].format,
-                                      ),
-                              },
-                          }
-                        : {}),
-                },
-            ],
-            dataset: {
-                id: 'dataset',
-                source: transformedData.results,
-            },
-            series,
-        };
-    }
-
     async getTransformedData(query?: SemanticLayerQuery) {
         if (!query) {
             return undefined;
@@ -596,7 +434,11 @@ export class CartesianChartDataModel {
           }
         | undefined {
         const transformedData = this.pivotedChartData;
-        if (!transformedData || !transformedData.results) {
+        if (
+            !transformedData ||
+            !transformedData.results ||
+            !transformedData.results.length
+        ) {
             return undefined;
         }
 
