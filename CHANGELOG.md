@@ -1,3 +1,10 @@
+## [0.1283.1](https://github.com/lightdash/lightdash/compare/0.1283.0...0.1283.1) (2024-10-01)
+
+
+### Bug Fixes
+
+* copy sql runner content with preview env ([#11694](https://github.com/lightdash/lightdash/issues/11694)) ([70068a2](https://github.com/lightdash/lightdash/commit/70068a208896c44be263711cd69d7f93246c458b))
+
 # [0.1283.0](https://github.com/lightdash/lightdash/compare/0.1282.1...0.1283.0) (2024-09-30)
 
 
