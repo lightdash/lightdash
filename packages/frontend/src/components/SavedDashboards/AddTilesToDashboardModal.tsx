@@ -24,7 +24,14 @@ import {
     IconLayoutDashboard,
     IconPlus,
 } from '@tabler/icons-react';
-import { forwardRef, useCallback, useMemo, useState, type FC } from 'react';
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { useSavedSemanticViewerChart } from '../../features/semanticViewer/api/hooks';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
@@ -68,7 +75,7 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
                 position="top-start"
                 withinPortal
             >
-                <Text c={disabled ? 'gray.5' : 'gray.8'} fw={500} fz="xs">
+                <Text c={disabled ? 'dimmed' : 'gray.8'} fw={500} fz="xs">
                     {label}
                 </Text>
             </Tooltip>
@@ -270,7 +277,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
 
     const form = useForm({
         initialValues: {
-            dashboardUuid: undefined, // ? Needs to be undefined so that default value in select can be set
+            dashboardUuid: '',
             dashboardName: '',
             dashboardDescription: '',
             spaceUuid: currentSpace?.uuid ?? '',
@@ -357,13 +364,13 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         [currentSpace?.uuid, dashboardSelectItems],
     );
 
-    if (
-        isLoadingDashboards ||
-        !dashboards ||
-        isLoadingSpaces ||
-        !spaces ||
-        !defaultSelectValue
-    ) {
+    useEffect(() => {
+        if (defaultSelectValue) {
+            form.setValues({ dashboardUuid: defaultSelectValue });
+        }
+    });
+
+    if (isLoadingDashboards || !dashboards || isLoadingSpaces || !spaces) {
         return null;
     }
 
@@ -395,7 +402,6 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 id="select-dashboard"
                                 label="Select a dashboard"
                                 data={dashboardSelectItems}
-                                defaultValue={defaultSelectValue}
                                 searchable
                                 nothingFound="No matching dashboards found"
                                 filter={(value, dashboard) =>

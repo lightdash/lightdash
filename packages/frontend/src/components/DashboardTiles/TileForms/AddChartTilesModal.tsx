@@ -60,7 +60,7 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
                             color={disabled ? 'gray.5' : undefined}
                         />
                         <Text
-                            c={disabled ? 'gray.5' : 'gray.8'}
+                            c={disabled ? 'dimmed' : 'gray.8'}
                             fw={500}
                             fz="xs"
                         >
