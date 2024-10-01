@@ -3,7 +3,8 @@ import cypressSplit from 'cypress-split';
 import { unlinkSync } from 'fs';
 
 export default defineConfig({
-    viewportWidth: 1080,
+    viewportWidth: 1920,
+    viewportHeight: 1080,
     defaultCommandTimeout: 10000,
     retries: {
         runMode: 2,
