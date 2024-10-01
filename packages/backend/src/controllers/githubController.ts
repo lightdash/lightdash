@@ -18,7 +18,7 @@ import { BaseController } from './baseController';
 
 /** HOW it works
  *
- * First install the1013104 app in the org
+ * First install the app in the org
  * using /api/v1/github/install
  *
  * This will redirect to the github app to the callback page
