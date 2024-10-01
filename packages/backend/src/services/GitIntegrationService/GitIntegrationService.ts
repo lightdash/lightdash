@@ -17,8 +17,10 @@ import {
     UnexpectedServerError,
     VizColumn,
 } from '@lightdash/common';
+import { RestEndpointMethodTypes } from '@octokit/rest';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
+import { snakeCase } from 'lodash';
 import {
     createBranch,
     createFile,
@@ -488,8 +490,8 @@ Affected charts:
         githubProps: GithubProps;
         name: string;
         sql: string;
-    }): Promise<any> {
-        const fileName = `models/${friendlyName(name)}.sql`;
+    }) {
+        const fileName = `models/${snakeCase(name)}.sql`;
         const content = `
 {{
   config(
@@ -516,16 +518,16 @@ ${sql}
         githubProps: GithubProps;
         name: string;
         columns: VizColumn[];
-    }): Promise<any> {
-        const fileName = `models/${friendlyName(name)}.yml`;
+    }) {
+        const fileName = `models/${snakeCase(name)}.yml`;
         const content = yaml.dump(
             {
                 version: 2,
                 models: [
                     {
-                        name: friendlyName(name),
-                        label: name,
-                        description: `SQL model for ${name}`,
+                        name: snakeCase(name),
+                        label: friendlyName(name),
+                        description: `SQL model for friendlyName(${name})`,
                         columns: columns.map((c) => ({
                             name: c.reference,
                             meta: {
@@ -591,8 +593,8 @@ ${sql}
         const pullRequest = await createPullRequest({
             owner,
             repo,
-            title: `Write back ${name} SQL and YML model`,
-            body: `Created by Lightdash, this PR adds a new SQL file to the dbt model
+            title: `Write back \`${name}\` SQL and YML model`,
+            body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
  
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             `,
