@@ -122,6 +122,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                             style={{
                                 flexGrow: 1,
                                 width: '100%',
+                                height: '100%',
                                 marginTop: mantineTheme.spacing.sm,
                             }}
                         />

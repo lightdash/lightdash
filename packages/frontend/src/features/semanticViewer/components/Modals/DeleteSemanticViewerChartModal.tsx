@@ -18,7 +18,7 @@ type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     onSuccess: () => void;
 };
 
-export const DeleteSavedSemanticChart: FC<Props> = ({
+const DeleteSemanticViewerChartModal: FC<Props> = ({
     projectUuid,
     uuid,
     name,
@@ -79,3 +79,5 @@ export const DeleteSavedSemanticChart: FC<Props> = ({
         </Modal>
     );
 };
+
+export default DeleteSemanticViewerChartModal;

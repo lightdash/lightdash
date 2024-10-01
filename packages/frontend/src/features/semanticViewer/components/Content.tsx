@@ -51,8 +51,6 @@ const Content: FC = () => {
         selectChartConfigByKind(state, activeChartKind),
     );
 
-    const allSelectedFields = useAppSelector(selectAllSelectedFieldNames);
-
     const {
         data: requestData,
         refetch: runSemanticViewerQuery,
@@ -202,7 +200,7 @@ const Content: FC = () => {
                         description="Please select a view from the sidebar to start building a query"
                     />
                 </Center>
-            ) : allSelectedFields.length === 0 ? (
+            ) : allSelectedFieldNames.length === 0 ? (
                 <Center sx={{ flexGrow: 1 }}>
                     <SuboptimalState
                         title="Select a field"

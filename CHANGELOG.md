@@ -1,3 +1,25 @@
+# [0.1283.0](https://github.com/lightdash/lightdash/compare/0.1282.1...0.1283.0) (2024-09-30)
+
+
+### Features
+
+* semantic viewer disable dashboard features ([#11732](https://github.com/lightdash/lightdash/issues/11732)) ([ae15fbd](https://github.com/lightdash/lightdash/commit/ae15fbd0955d113685d67448e9efc2c4d4d60c07))
+* semantic viewer should redirect to view mode after save ([#11730](https://github.com/lightdash/lightdash/issues/11730)) ([54b1292](https://github.com/lightdash/lightdash/commit/54b1292e20a273968fb904cde04ec422174a832a))
+
+## [0.1282.1](https://github.com/lightdash/lightdash/compare/0.1282.0...0.1282.1) (2024-09-30)
+
+
+### Bug Fixes
+
+* semantic viewer remove sorted field ([#11733](https://github.com/lightdash/lightdash/issues/11733)) ([992fbc1](https://github.com/lightdash/lightdash/commit/992fbc10443ea9ee2a92fd6d5bfd3d84446e9b23))
+
+# [0.1282.0](https://github.com/lightdash/lightdash/compare/0.1281.1...0.1282.0) (2024-09-30)
+
+
+### Features
+
+* add semantic layer connection to project ([#11712](https://github.com/lightdash/lightdash/issues/11712)) ([c63f2c5](https://github.com/lightdash/lightdash/commit/c63f2c5a745e1d87e60a64edab87a93e36299cfd))
+
 ## [0.1281.1](https://github.com/lightdash/lightdash/compare/0.1281.0...0.1281.1) (2024-09-30)
 
 

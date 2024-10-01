@@ -27,6 +27,11 @@ export enum WarehouseTypes {
     TRINO = 'trino',
 }
 
+export enum SemanticLayerType {
+    DBT = 'DBT',
+    CUBE = 'CUBE',
+}
+
 export type SshTunnelConfiguration = {
     useSshTunnel?: boolean;
     sshTunnelHost?: string;
@@ -290,6 +295,24 @@ export type DbtProjectConfig =
     | DbtGitlabProjectConfig
     | DbtAzureDevOpsProjectConfig
     | DbtNoneProjectConfig;
+
+export type DbtSemanticLayerConnection = {
+    type: SemanticLayerType.DBT;
+    environmentId: string;
+    domain: string;
+    token: string;
+};
+
+export type CubeSemanticLayerConnection = {
+    type: SemanticLayerType.CUBE;
+    domain: string;
+    token: string;
+};
+
+export type SemanticLayerConnection =
+    | DbtSemanticLayerConnection
+    | CubeSemanticLayerConnection;
+
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
@@ -300,6 +323,7 @@ export type Project = {
     pinnedListUuid?: string;
     upstreamProjectUuid?: string;
     dbtVersion: SupportedDbtVersions;
+    semanticLayerConnection?: SemanticLayerConnection;
 };
 
 export type ProjectSummary = Pick<
