@@ -121,7 +121,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
             const chartSourceType = chart.source;
 
             if (currentChartTypes.length === 0) {
-                return true;
+                return false;
             }
 
             switch (chartSourceType) {
