@@ -93,5 +93,5 @@ export type Table = TableBase & {
 
 export enum CustomViewType {
     VIRTUAL = 'virtual',
-    PERSISTENT = 'persistent',
+    WRITE_BACK = 'write_back',
 }

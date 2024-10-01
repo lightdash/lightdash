@@ -31,7 +31,7 @@ const getCustomViewTypeAlertText = (customViewType: CustomViewType) => {
     switch (customViewType) {
         case CustomViewType.VIRTUAL:
             return "Create a virtual custom view so others can reuse this query in Lightdash, but it won't be written to or managed in your dbt project.";
-        case CustomViewType.PERSISTENT:
+        case CustomViewType.WRITE_BACK:
             return 'Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request (docs coming soon).';
         default:
             return undefined;
@@ -90,7 +90,7 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                 return;
             }
 
-            if (form.values.customViewType === CustomViewType.PERSISTENT) {
+            if (form.values.customViewType === CustomViewType.WRITE_BACK) {
                 // TODO: Implement dbt write-back
                 return;
             }
@@ -169,7 +169,7 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                             <Radio
                                 size="xs"
                                 disabled={!canWriteToDbtProject}
-                                value={CustomViewType.PERSISTENT}
+                                value={CustomViewType.WRITE_BACK}
                                 label="Write back to dbt project"
                             />
                         </Group>
@@ -184,7 +184,7 @@ export const SaveCustomViewModal: FC<Props> = ({ opened, onClose }) => {
                     </Alert>
 
                     {form.values.customViewType ===
-                        CustomViewType.PERSISTENT && (
+                        CustomViewType.WRITE_BACK && (
                         <Stack spacing="xs" pl="xs">
                             <Text fw={500}>
                                 Files to be created in{' '}
