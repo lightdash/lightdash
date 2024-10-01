@@ -1,3 +1,10 @@
+# [0.1285.0](https://github.com/lightdash/lightdash/compare/0.1284.1...0.1285.0) (2024-10-01)
+
+
+### Features
+
+* semantic viewer menu link based on connection status ([#11736](https://github.com/lightdash/lightdash/issues/11736)) ([1eea714](https://github.com/lightdash/lightdash/commit/1eea714a6c84ae1b6dffed6549bfc9dbf862749d))
+
 ## [0.1284.1](https://github.com/lightdash/lightdash/compare/0.1284.0...0.1284.1) (2024-10-01)
 
 
