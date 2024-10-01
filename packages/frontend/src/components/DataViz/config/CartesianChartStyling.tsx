@@ -46,7 +46,7 @@ export const CartesianChartStyling = ({
         }
         return currentConfig?.config?.fieldConfig?.y.map((f, index) => {
             const foundSeries = Object.values(
-                currentConfig?.config?.display?.series || {},
+                currentConfig?.display?.series || {},
             ).find((s) => s.yAxisIndex === index);
 
             const seriesFormat = foundSeries?.format;
@@ -65,33 +65,33 @@ export const CartesianChartStyling = ({
         });
     }, [
         colors,
-        currentConfig?.config?.display?.series,
+        currentConfig?.display?.series,
         currentConfig?.config?.fieldConfig?.y,
     ]);
 
     const xAxisLabel = useMemo(() => {
         return (
-            currentConfig?.config?.display?.xAxis?.label ??
+            currentConfig?.display?.xAxis?.label ??
             currentConfig?.config?.fieldConfig?.x?.reference
         );
     }, [currentConfig]);
     const yAxisLabel = useMemo(() => {
         return (
-            currentConfig?.config?.display?.yAxis?.[0]?.label ??
+            currentConfig?.display?.yAxis?.[0]?.label ??
             currentConfig?.config?.fieldConfig?.y?.[0]?.reference
         );
     }, [currentConfig]);
     const yAxisLabelColor = useMemo(
         () =>
             currentConfig?.config?.fieldConfig?.y?.[0]?.reference &&
-            currentConfig?.config?.display?.series?.[
+            currentConfig?.display?.series?.[
                 currentConfig.config.fieldConfig?.y[0].reference
             ]?.color,
 
         [currentConfig],
     );
 
-    const yAxisPosition = currentConfig?.config?.display?.yAxis?.[0]?.position;
+    const yAxisPosition = currentConfig?.display?.yAxis?.[0]?.position;
 
     return (
         <Stack spacing="xs">
@@ -112,9 +112,7 @@ export const CartesianChartStyling = ({
                             },
                         ]}
                         defaultValue={
-                            currentConfig?.config?.display?.stack
-                                ? 'Stacked'
-                                : 'None'
+                            currentConfig?.display?.stack ? 'Stacked' : 'None'
                         }
                         onChange={(value) =>
                             dispatch(actions.setStacked(value === 'Stacked'))
@@ -186,8 +184,7 @@ export const CartesianChartStyling = ({
                             <Config.Label>{`Format`}</Config.Label>
                             <CartesianChartFormatConfig
                                 format={
-                                    currentConfig?.config?.display?.yAxis?.[0]
-                                        ?.format
+                                    currentConfig?.display?.yAxis?.[0]?.format
                                 }
                                 onChangeFormat={(value) => {
                                     dispatch(
