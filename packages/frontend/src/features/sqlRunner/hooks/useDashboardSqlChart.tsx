@@ -1,4 +1,4 @@
-import { ChartKind, type ApiError, type SqlChart } from '@lightdash/common';
+import { type ApiError, type SqlChart } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
@@ -23,20 +23,7 @@ const getDashboardSqlChartAndPossibleResults = async ({
         uuid: savedSqlUuid,
     });
 
-    const hasResultsHandledInChart = chart.config.type !== ChartKind.TABLE;
-
-    if (hasResultsHandledInChart) {
-        return {
-            chart,
-            resultsAndColumns: {
-                fileUrl: undefined,
-                results: [],
-                columns: [],
-            },
-        };
-    }
-
-    const resultsTest = await getSqlChartResults({
+    const initialResults = await getSqlChartResults({
         projectUuid,
         slug: chart.slug,
         getResultsFromStream,
@@ -46,9 +33,9 @@ const getDashboardSqlChartAndPossibleResults = async ({
     return {
         chart,
         resultsAndColumns: {
-            fileUrl: resultsTest.fileUrl,
-            results: resultsTest.results,
-            columns: resultsTest.columns,
+            fileUrl: initialResults.fileUrl,
+            results: initialResults.results,
+            columns: initialResults.columns,
         },
     };
 };

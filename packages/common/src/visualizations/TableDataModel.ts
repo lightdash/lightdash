@@ -107,8 +107,9 @@ export class TableDataModel {
         };
     }
 
+    // eslint-disable-next-line class-methods-use-this
     async getPivotedChartData(): Promise<PivotChartData> {
-        console.log('not implemented in table', this.config);
+        // Not implemented in table yet
         return {
             columns: [],
             fileUrl: '',
@@ -118,8 +119,9 @@ export class TableDataModel {
         };
     }
 
+    // eslint-disable-next-line class-methods-use-this
     getDataDownloadUrl(): string | undefined {
-        console.log('not implemented in table', this.config);
+        // Not implemented in table yet
         return '';
     }
 
@@ -135,14 +137,12 @@ export class TableDataModel {
         };
     }
 
-    getSpec(display?: VizTableDisplay): {
+    // eslint-disable-next-line class-methods-use-this
+    getSpec(_display?: VizTableDisplay): {
         spec: Record<string, any>;
         tableData: { columns: string[]; rows: RawResultRow[] } | undefined;
     } {
-        console.log('Not implemented in table', {
-            display,
-            config: this.config,
-        });
+        // Not implemented in table yet
         return {
             spec: {},
             tableData: undefined,

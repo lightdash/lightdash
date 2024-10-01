@@ -86,7 +86,7 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
         // This should never be true
         if (!customMetric || customMetric.baseDimension === undefined) {
             throw new Error(
-                'Unexpected Lightdash error! Sorry this was not expected at all. Please contact the Lightdash team for help with this query.',
+                'Unexpected error: incorrect pivot configuration, no metric',
             );
         }
         return {
@@ -140,7 +140,6 @@ export const getPivotQueryFunctionForSqlRunner = ({
     context?: string;
 }): RunPivotQuery => {
     return async (query: SemanticLayerQuery) => {
-        console.log('query in sql runner', JSON.stringify(query, null, 2));
 
         const index = query.pivot?.index[0];
         if (index === undefined) {

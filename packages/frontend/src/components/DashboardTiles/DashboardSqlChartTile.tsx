@@ -8,14 +8,16 @@ import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
+import { useAsync } from 'react-use';
 import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
 import { SqlRunnerResultsRunnerFrontend } from '../../features/sqlRunner/runners/SqlRunnerResultsRunnerFrontend';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import useSearchParams from '../../hooks/useSearchParams';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { useChartViz } from '../DataViz/hooks/useChartViz';
+import getChartDataModel from '../DataViz/transformers/getChartDataModel';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
@@ -57,14 +59,7 @@ const DashboardOptions = memo(
 
 const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
-
-    // Code sketch
-    // const runner = new Runner()
-    // on dashboard
-    // runPivotQuery(chartUuid, dashboardFilters, sortOverrides) => permission checks on API
-    // on explorer
-    // runPivotQuery(inMemoryPivotQuery) => permission checks on API
-
+    const org = useOrganization();
     const { projectUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
@@ -93,29 +88,36 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         [data],
     );
 
-    const resultsRunner = useMemo(
-        () =>
-            new SqlRunnerResultsRunnerFrontend({
-                rows: sqlRunnerChartData.results,
-                columns: sqlRunnerChartData.columns,
-                projectUuid,
-                limit: data?.chart.limit,
-                sql: data?.chart.sql,
-            }),
-        [sqlRunnerChartData, projectUuid, data?.chart.limit, data?.chart.sql],
-    );
+    const resultsRunner = useMemo(() => {
+        return new SqlRunnerResultsRunnerFrontend({
+            rows: sqlRunnerChartData.results,
+            columns: sqlRunnerChartData.columns,
+            projectUuid,
+            sql: data?.chart.sql ?? '',
+        });
+    }, [projectUuid, sqlRunnerChartData, data]);
 
-    const [chartVizQuery, chartSpec] = useChartViz({
-        projectUuid,
-        resultsRunner,
-        config: data?.chart.config,
-        uuid: savedSqlUuid ?? undefined,
-        sql: data?.chart.sql,
-        slug: data?.chart.slug,
-        limit: data?.chart.limit,
-        additionalQueryKey: [data?.chart.slug, data?.chart.sql, savedSqlUuid],
-        context,
-    });
+    const vizDataModel = useMemo(() => {
+        return getChartDataModel(resultsRunner, data?.chart.config, org.data);
+    }, [data?.chart.config, org.data, resultsRunner]);
+
+    const {
+        loading: chartLoading,
+        error: chartDataError,
+        value: chartData,
+    } = useAsync(async () => {
+        return vizDataModel.getPivotedChartData({
+            limit: data?.chart.limit,
+            sql: data?.chart.sql ?? '',
+            sortBy: [],
+            filters: [],
+        });
+    }, [vizDataModel, data?.chart.limit, data?.chart.sql]);
+
+    const chartSpec = useMemo(() => {
+        if (!chartData) return undefined;
+        return vizDataModel.getSpec();
+    }, [vizDataModel, chartData]);
 
     if (isLoading) {
         return (
@@ -196,8 +198,8 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                     <ChartView
                         config={data.chart.config}
                         spec={chartSpec}
-                        isLoading={chartVizQuery.isFetching}
-                        error={chartVizQuery.error}
+                        isLoading={chartLoading}
+                        error={chartDataError}
                         style={{
                             minHeight: 'inherit',
                             height: '100%',
