@@ -28,8 +28,11 @@ type TableProps = {
     onTHClick?: (fieldName: string) => void;
 };
 
-// TODO: TEMPORARY. Replace table with this when it works
-export const Table2 = ({
+// This is a simple table that is set up to be virtualized from basically
+// just rows and columns. It is currently used to render the table data from charts.
+// TODO: Ideally we could use this for what DataViz/Table is doing and
+// not use a TableDataModel within that
+export const ChartDataTable = ({
     columnNames,
     rows,
     columnsConfig,

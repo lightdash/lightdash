@@ -7,9 +7,9 @@ import { useAsync } from 'react-use';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import getChartDataModel from '../components/DataViz/transformers/getChartDataModel';
+import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
-import { Table2 } from '../components/DataViz/visualizations/Table2';
 import {
     useSavedSemanticViewerChart,
     useSavedSemanticViewerChartResults,
@@ -220,7 +220,7 @@ const SemanticViewerViewPage = () => {
                     )
                 )
             ) : activeViewerTab === ViewerTabs.RESULTS ? (
-                <Table2
+                <ChartDataTable
                     columnNames={tableData?.columns ?? []}
                     rows={tableData?.rows ?? []}
                 />

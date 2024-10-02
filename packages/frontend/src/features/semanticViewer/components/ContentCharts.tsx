@@ -10,9 +10,9 @@ import {
     selectChartDisplayByKind,
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
-import { Table2 } from '../../../components/DataViz/visualizations/Table2';
 
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
@@ -166,7 +166,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 minSize={10}
                                 onCollapse={() => setOpenPanel(undefined)}
                             >
-                                <Table2
+                                <ChartDataTable
                                     columnNames={tableData?.columns ?? []}
                                     rows={tableData?.rows ?? []}
                                     onTHClick={onTableHeaderClick}

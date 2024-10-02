@@ -48,9 +48,9 @@ import {
 } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
-import { Table2 } from '../../../components/DataViz/visualizations/Table2';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -742,7 +742,7 @@ export const ContentPanel: FC = () => {
                                         isVisible={showChartResultsTable}
                                     >
                                         {selectedChartType && tableData && (
-                                            <Table2
+                                            <ChartDataTable
                                                 columnNames={
                                                     tableData?.columns ?? []
                                                 }

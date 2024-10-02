@@ -16,7 +16,8 @@ import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
 
-// TODO: Remove this when useVirtualTable is ready
+// TODO: this name could change or we could replace this with useVirtualTable.
+// It's not really clear what is doing with the table data model for a consumer.
 export const useTableDataModel = ({
     config,
     resultsRunner,
@@ -25,7 +26,8 @@ export const useTableDataModel = ({
     resultsRunner: IResultsRunner;
 }) => {
     const tableModel = useMemo(() => {
-        // TODO: currently usage of this hook relies just on columns, change to rely on full config so we don't have to create a dummy config
+        // TODO: currently usage of this hook relies just on columns,
+        //change to rely on full config so we don't have to create a dummy config
         const tableConfig: VizTableConfig | undefined = config
             ? {
                   type: ChartKind.TABLE,

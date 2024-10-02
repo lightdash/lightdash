@@ -26,9 +26,9 @@ import {
     selectChartDisplayByKind,
 } from '../components/DataViz/store/selectors';
 import getChartDataModel from '../components/DataViz/transformers/getChartDataModel';
+import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
-import { Table2 } from '../components/DataViz/visualizations/Table2';
 import { ChartDownload } from '../features/sqlRunner/components/Download/ChartDownload';
 import { ResultsDownload } from '../features/sqlRunner/components/Download/ResultsDownload';
 import { Header } from '../features/sqlRunner/components/Header';
@@ -282,7 +282,7 @@ const ViewSqlChart = () => {
                             >
                                 {!isVizTableConfig(currentVisConfig) &&
                                     tableData && (
-                                        <Table2
+                                        <ChartDataTable
                                             columnNames={
                                                 tableData?.columns ?? []
                                             }
