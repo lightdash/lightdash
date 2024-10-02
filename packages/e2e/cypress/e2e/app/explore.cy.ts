@@ -356,7 +356,6 @@ describe('Explore', () => {
         cy.findByText('Open in SQL Runner').parent().should('not.be.disabled');
 
         let sqlQueryFromExploreLines;
-        const sqlQueryFromSqlRunnerLines: string[] = [];
 
         // Get compiled SQL query from Explore
         cy.get('.mantine-Prism-root')
@@ -368,26 +367,25 @@ describe('Explore', () => {
                     .map((el) => (el.innerText === '\n' ? '' : el.innerText));
             })
             .then(() => {
-                // open SQL Runner
+                // open SQL Runner and wait for route change
                 cy.findByText('Open in SQL Runner').parent().click();
-                // wait for URL to change to be in SQL Runner
-                cy.url().should('include', '/sqlRunner');
-                cy.get('.ace_content').should('exist');
+                cy.url().should('include', '/sql-runner');
+                cy.get('.monaco-editor').should('exist');
 
-                // Get SQL query from SQL Runner editor
-                cy.get('.ace_line')
-                    .each(($el) => {
-                        sqlQueryFromSqlRunnerLines.push($el.text());
-                    })
-                    .then(() => {
-                        // compare SQL query from the Explore with the one in SQL Runner
-                        cy.get('.ace_line').should(
-                            'have.length',
-                            sqlQueryFromExploreLines?.length,
-                        );
-                        cy.wrap(sqlQueryFromSqlRunnerLines).should(
-                            'deep.equal',
-                            sqlQueryFromExploreLines,
+                // get SQL query from SQL Runner and verify it's the same as the one from Explore
+                cy.get('.view-lines')
+                    .invoke('text')
+                    .then((sqlRunnerText) => {
+                        const normalizedExploreQuery = sqlQueryFromExploreLines
+                            .join('')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+                        const normalizedRunnerQuery = sqlRunnerText
+                            .replace(/\s+/g, ' ')
+                            .trim();
+
+                        expect(normalizedRunnerQuery).to.equal(
+                            normalizedExploreQuery,
                         );
                     });
             });
