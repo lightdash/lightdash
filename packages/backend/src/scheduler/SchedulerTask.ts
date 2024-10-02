@@ -357,15 +357,16 @@ export default class SchedulerTask {
                             },
                         });
 
-                        csvUrls = await this.csvService.getCsvsForDashboard(
+                        csvUrls = await this.csvService.getCsvsForDashboard({
+                            jobId,
                             user,
                             dashboardUuid,
-                            csvOptions,
-                            isDashboardScheduler(scheduler)
+                            options: csvOptions,
+                            schedulerFilters: isDashboardScheduler(scheduler)
                                 ? scheduler.filters
                                 : undefined,
                             selectedTabs,
-                        );
+                        });
 
                         this.analytics.track({
                             event: 'download_results.completed',
