@@ -1,3 +1,10 @@
+## [0.1292.1](https://github.com/lightdash/lightdash/compare/0.1292.0...0.1292.1) (2024-10-02)
+
+
+### Bug Fixes
+
+* github base64 key ([#11771](https://github.com/lightdash/lightdash/issues/11771)) ([8fb9567](https://github.com/lightdash/lightdash/commit/8fb95675bc9be3356d27da089a806f6468635078))
+
 # [0.1292.0](https://github.com/lightdash/lightdash/compare/0.1291.0...0.1292.0) (2024-10-02)
 
 
