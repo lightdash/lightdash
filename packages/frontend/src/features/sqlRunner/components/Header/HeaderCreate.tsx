@@ -1,6 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Button, Group, Paper, Tooltip } from '@mantine/core';
-import { IconWriting } from '@tabler/icons-react';
+import { IconDeviceFloppy, IconWriting } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
@@ -103,8 +103,9 @@ export const HeaderCreate: FC = () => {
                         )}
 
                         <Button
-                            color={'green.7'}
+                            variant="default"
                             size="xs"
+                            leftIcon={<MantineIcon icon={IconDeviceFloppy} />}
                             disabled={!loadedColumns}
                             onClick={onSaveClick}
                         >
