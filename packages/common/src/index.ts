@@ -128,6 +128,7 @@ import {
 import {
     type ApiCreateCustomExplore,
     type ApiCreateSqlChart,
+    type ApiGithubDbtWritePreview,
     type ApiSqlChart,
     type ApiSqlRunnerJobStatusResponse,
     type ApiUpdateSqlChart,
@@ -682,7 +683,8 @@ type ApiResults =
     | ApiSemanticViewerChartCreate['results']
     | ApiSemanticViewerChartGet['results']
     | ApiSemanticViewerChartUpdate['results']
-    | ApiCreateCustomExplore['results'];
+    | ApiCreateCustomExplore['results']
+    | ApiGithubDbtWritePreview['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

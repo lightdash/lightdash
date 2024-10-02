@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
+    ApiGithubDbtWritePreview,
     DbtModelNode,
     DbtProjectType,
     DimensionType,
@@ -635,6 +636,26 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         return {
             prTitle: pullRequest.title,
             prUrl: pullRequest.html_url,
+        };
+    }
+
+    async writeBackPreview(
+        user: SessionUser,
+        projectUuid: string,
+        name: string,
+    ): Promise<ApiGithubDbtWritePreview['results']> {
+        const { owner, repo, path } = await this.getProjectRepo(projectUuid);
+
+        const removeExtraSlashes = (str: string) => str.replace(/\/{2,}/g, '/');
+        return {
+            url: `https://github.com/${owner}/${repo}`,
+            repo,
+            path: removeExtraSlashes(`${path}/models`),
+            files: [
+                removeExtraSlashes(`${path}/models/${snakeCaseName(name)}.sql`),
+                removeExtraSlashes(`${path}/models/${snakeCaseName(name)}.yml`),
+            ],
+            owner,
         };
     }
 }

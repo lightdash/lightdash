@@ -1,13 +1,13 @@
 import {
     DbtProjectType,
-    getProjectDirectory,
-    snakeCaseName,
+    type ApiGithubDbtWritePreview,
 } from '@lightdash/common';
 import {
     Badge,
     Button,
     Group,
     List,
+    Loader,
     Modal,
     Stack,
     Text,
@@ -16,13 +16,15 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
 import { useGithubDbtWriteBack } from '../hooks/useGithubDbtWriteBack';
+import { useGithubDbtWritePreview } from '../hooks/useGithubDbtWritePreview';
 import { useAppSelector } from '../store/hooks';
 
 const validationSchema = z.object({
@@ -40,12 +42,19 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
 
     const { mutateAsync: createPullRequest, isLoading: isLoadingPullRequest } =
         useGithubDbtWriteBack();
+
+    const [writePreviewData, setWritePreviewData] =
+        useState<ApiGithubDbtWritePreview['results']>();
+
+    const { mutateAsync: getWritePreview, isLoading: isPreviewLoading } =
+        useGithubDbtWritePreview();
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
         },
         validate: zodResolver(validationSchema),
     });
+    const [debouncedName] = useDebouncedValue(form.values.name, 300);
 
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
@@ -54,22 +63,22 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
         health?.hasGithub &&
         project?.dbtConnection.type === DbtProjectType.GITHUB
     );
-    const projectDirectory = useMemo(
-        () =>
-            canWriteToDbtProject
-                ? getProjectDirectory(project?.dbtConnection)
-                : undefined,
-        [project?.dbtConnection, canWriteToDbtProject],
-    );
-    const basePathForDbtCustomView =
-        `${projectDirectory}models/lightdash`.replace(/\/{2,}/g, '/');
-    const filePathsForDbtCustomView = useMemo(
-        () => [
-            `${snakeCaseName(form.values.name || 'custom view')}.sql`,
-            `${snakeCaseName(form.values.name || 'custom view')}.yml`,
-        ],
-        [form.values.name],
-    );
+
+    useEffect(() => {
+        if (!opened || !projectUuid || !sql || !columns) return;
+
+        const loadPreview = async () => {
+            const data = await getWritePreview({
+                projectUuid,
+                name: debouncedName || 'custom view',
+                sql,
+                columns,
+            });
+            setWritePreviewData(data);
+        };
+
+        void loadPreview();
+    }, [opened, projectUuid, debouncedName, sql, columns, getWritePreview]);
 
     const handleSubmit = useCallback(
         async (data: { name: string }) => {
@@ -141,25 +150,35 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                 variant="light"
                                 color="gray.9"
                                 fz="xs"
+                                leftSection={
+                                    <MantineIcon icon={IconBrandGithub} />
+                                }
+                                onClick={() => {
+                                    window.open(
+                                        writePreviewData?.url,
+                                        '_blank',
+                                    );
+                                }}
+                                style={{ cursor: 'pointer' }}
+                                title={`Open "${writePreviewData?.url}" in new tab`}
                             >
-                                {/* TODO: Add as a Link to a new tab with the Github repo */}
-                                REPO NAME
+                                {writePreviewData?.repo}
                             </Badge>
-                            :
+                            {isPreviewLoading && <Loader size="xs" />}:
                         </Text>
                         <List spacing="xs" pl="xs">
-                            {filePathsForDbtCustomView.map((file) => (
+                            {writePreviewData?.files.map((file) => (
                                 <Tooltip
                                     key={file}
                                     variant="xs"
                                     position="top-start"
-                                    label={`${basePathForDbtCustomView}/${file}`}
+                                    label={file}
                                     multiline
                                     withinPortal
                                     maw={300}
                                 >
                                     <List.Item fz="xs" ff="monospace">
-                                        {file}
+                                        {file.split('/').pop()}
                                     </List.Item>
                                 </Tooltip>
                             ))}
@@ -180,7 +199,9 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Button
                         type="submit"
-                        disabled={!form.values.name || !sql}
+                        disabled={
+                            !form.values.name || !sql || !canWriteToDbtProject
+                        }
                         loading={isLoadingPullRequest}
                         size="xs"
                     >

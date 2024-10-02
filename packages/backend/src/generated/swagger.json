@@ -8190,6 +8190,41 @@
                 "required": ["columns", "sql", "name"],
                 "type": "object"
             },
+            "ApiGithubDbtWritePreview": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "owner": {
+                                "type": "string"
+                            },
+                            "files": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "path": {
+                                "type": "string"
+                            },
+                            "repo": {
+                                "type": "string"
+                            },
+                            "url": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["owner", "files", "path", "repo", "url"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiGithubDbtWriteBack": {
                 "properties": {
                     "results": {
@@ -10149,7 +10184,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1288.0",
+        "version": "0.1290.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
