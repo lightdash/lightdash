@@ -38,8 +38,11 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
     const { mutateAsync: createPullRequest, isLoading: isLoadingPullRequest } =
         useGithubDbtWriteBack();
 
-    const { mutateAsync: getWritePreview, data: writePreview } =
-        useGithubDbtWritePreview();
+    const {
+        mutateAsync: getWritePreview,
+        data: writePreview,
+        isLoading: isPreviewLoading,
+    } = useGithubDbtWritePreview();
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
@@ -56,7 +59,10 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
     );
 
     useEffect(() => {
-        if (projectUuid && sql && columns) {
+        // Initial preview load
+        if (!opened) return;
+
+        if (!writePreview && columns && !isPreviewLoading) {
             void getWritePreview({
                 projectUuid,
                 name: 'custom view',
@@ -64,9 +70,19 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                 columns,
             });
         }
-    }, [projectUuid, sql, columns, getWritePreview]);
+    }, [
+        opened,
+        isPreviewLoading,
+        writePreview,
+        projectUuid,
+        sql,
+        columns,
+        getWritePreview,
+    ]);
 
     useEffect(() => {
+        // Reload preview on name change
+        if (!opened) return;
         const debounceTimer = setTimeout(() => {
             if (form.values.name && projectUuid && sql && columns) {
                 void getWritePreview({
@@ -78,7 +94,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
             }
         }, 300);
         return () => clearTimeout(debounceTimer);
-    }, [form.values.name, projectUuid, sql, columns, getWritePreview]);
+    }, [opened, form.values.name, projectUuid, sql, columns, getWritePreview]);
 
     const handleSubmit = useCallback(
         async (data: { name: string }) => {
