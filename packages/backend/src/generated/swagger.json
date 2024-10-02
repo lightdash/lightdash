@@ -6043,6 +6043,49 @@
                 },
                 "type": "object"
             },
+            "Partial_DbtSemanticLayerConnection_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/SemanticLayerType.DBT"
+                    },
+                    "environmentId": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "Partial_CubeSemanticLayerConnection_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/SemanticLayerType.CUBE"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "SemanticLayerConnectionUpdate": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/Partial_DbtSemanticLayerConnection_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_CubeSemanticLayerConnection_"
+                    }
+                ]
+            },
             "CacheMetadata": {
                 "properties": {
                     "cacheHit": {
@@ -13591,7 +13634,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/SemanticLayerConnection"
+                                "$ref": "#/components/schemas/SemanticLayerConnectionUpdate"
                             }
                         }
                     }

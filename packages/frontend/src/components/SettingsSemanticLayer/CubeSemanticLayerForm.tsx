@@ -21,7 +21,7 @@ import MantineIcon from '../common/MantineIcon';
 
 export const cubeSemanticLayerFormSchema = z.object({
     type: z.literal(SemanticLayerType.CUBE),
-    token: z.string().min(1, 'Service token is required'),
+    token: z.string(),
     domain: z
         .string()
         .url({ message: 'Domain must be a valid URL' })

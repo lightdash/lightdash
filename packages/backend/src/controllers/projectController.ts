@@ -17,6 +17,7 @@ import {
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
+    type SemanticLayerConnectionUpdate,
 } from '@lightdash/common';
 import {
     Body,
@@ -466,7 +467,7 @@ export class ProjectController extends BaseController {
     @OperationId('updateProjectSemanticLayerConnection')
     async updateProjectSemanticLayerConnection(
         @Path() projectUuid: string,
-        @Body() body: SemanticLayerConnection,
+        @Body() body: SemanticLayerConnectionUpdate,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);

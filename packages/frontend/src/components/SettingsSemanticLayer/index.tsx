@@ -72,7 +72,7 @@ const formSchemas = z.union([
 
 const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
     const { data } = useProject(projectUuid);
-    const { showToastSuccess } = useToaster();
+    const { showToastSuccess, showToastError } = useToaster();
 
     const [semanticLayerType, setSemanticLayerType] =
         useState<SemanticLayerType>(
@@ -86,11 +86,22 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
     const handleSubmit = async (
         connectionData: z.infer<typeof formSchemas>,
     ) => {
-        await projectMutation.mutateAsync(connectionData);
+        const { token, ...rest } = connectionData;
+        try {
+            await projectMutation.mutateAsync({
+                ...rest,
+                ...(token?.trim().length > 0 ? { token } : {}),
+            });
 
-        showToastSuccess({
-            title: `Successfully updated project's semantic layer connection with ${SemanticLayerLabels[semanticLayerType]} credentials.`,
-        });
+            showToastSuccess({
+                title: `Successfully updated project's semantic layer connection with ${SemanticLayerLabels[semanticLayerType]} credentials.`,
+            });
+        } catch (e) {
+            showToastError({
+                title: 'Failed saving semantic layer connection',
+                ...(e.error.message ? { subtitle: e.error.message } : {}),
+            });
+        }
 
         return false;
     };

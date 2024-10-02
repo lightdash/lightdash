@@ -25,7 +25,7 @@ import MantineIcon from '../common/MantineIcon';
 
 export const dbtSemanticLayerFormSchema = z.object({
     type: z.literal(SemanticLayerType.DBT),
-    token: z.string().min(1, 'Service token is required'),
+    token: z.string(),
     domain: z
         .string()
         .url({ message: 'Domain must be a valid URL' })
