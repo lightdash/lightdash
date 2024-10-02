@@ -1,13 +1,17 @@
 import { assertUnreachable, SemanticLayerType } from '@lightdash/common';
-import { Stack, Text, Title } from '@mantine/core';
+import { Select, Stack, Text, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     useProject,
+    useProjectSemanticLayerDeleteMutation,
     useProjectSemanticLayerUpdateMutation,
 } from '../../hooks/useProject';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import CubeSemanticLayerForm, {
+    cubeSemanticLayerFormSchema,
+} from './CubeSemanticLayerForm';
 import DbtSemanticLayerForm, {
     dbtSemanticLayerFormSchema,
 } from './DbtSemanticLayerForm';
@@ -16,33 +20,39 @@ interface Props {
     projectUuid: string;
 }
 
-// const SemanticLayerOptions = [
-//     {
-//         label: 'Cube',
-//         value: SemanticLayerType.CUBE,
-//     },
-//     {
-//         label: 'DBT',
-//         value: SemanticLayerType.DBT,
-//     },
-// ];
+const SemanticLayerOptions = [
+    {
+        label: 'Cube',
+        value: SemanticLayerType.CUBE,
+    },
+    {
+        label: 'DBT',
+        value: SemanticLayerType.DBT,
+    },
+];
 
 const SemanticLayerLabels: Record<SemanticLayerType, string> = {
     [SemanticLayerType.CUBE]: 'Cube',
     [SemanticLayerType.DBT]: 'dbt',
 };
 
-const formSchemas = z.union([dbtSemanticLayerFormSchema, z.never()]);
+const formSchemas = z.union([
+    dbtSemanticLayerFormSchema,
+    cubeSemanticLayerFormSchema,
+]);
 
 const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
     const { data } = useProject(projectUuid);
     const { showToastSuccess } = useToaster();
 
-    const [semanticLayerType] = useState<SemanticLayerType>(
-        data?.semanticLayerConnection?.type ?? SemanticLayerType.DBT,
-    );
+    const [semanticLayerType, setSemanticLayerType] =
+        useState<SemanticLayerType>(
+            data?.semanticLayerConnection?.type ?? SemanticLayerType.DBT,
+        );
 
     const projectMutation = useProjectSemanticLayerUpdateMutation(projectUuid);
+    const deleteSemanticLayerMutation =
+        useProjectSemanticLayerDeleteMutation(projectUuid);
 
     const handleSubmit = async (
         connectionData: z.infer<typeof formSchemas>,
@@ -53,6 +63,11 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
             title: `Successfully updated project's semantic layer connection with ${SemanticLayerLabels[semanticLayerType]} credentials.`,
         });
 
+        return false;
+    };
+
+    const handleDelete = async () => {
+        await deleteSemanticLayerMutation.mutateAsync();
         return false;
     };
 
@@ -68,19 +83,20 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
             </Stack>
 
             <Stack>
-                {/* <Select
+                <Select
                     label="Semantic Layer Type"
                     data={SemanticLayerOptions}
                     value={semanticLayerType}
                     onChange={(value: SemanticLayerType) =>
                         setSemanticLayerType(value)
                     }
-                /> */}
+                />
 
                 {semanticLayerType === SemanticLayerType.DBT ? (
                     <DbtSemanticLayerForm
                         isLoading={projectMutation.isLoading}
                         onSubmit={handleSubmit}
+                        onDelete={handleDelete}
                         semanticLayerConnection={
                             semanticLayerType ===
                             data?.semanticLayerConnection?.type
@@ -89,7 +105,17 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
                         }
                     />
                 ) : semanticLayerType === SemanticLayerType.CUBE ? (
-                    <>not implemented</>
+                    <CubeSemanticLayerForm
+                        isLoading={false}
+                        onSubmit={handleSubmit}
+                        onDelete={handleDelete}
+                        semanticLayerConnection={
+                            semanticLayerType ===
+                            data?.semanticLayerConnection?.type
+                                ? data.semanticLayerConnection
+                                : undefined
+                        }
+                    />
                 ) : (
                     assertUnreachable(
                         semanticLayerType,

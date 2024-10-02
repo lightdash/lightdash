@@ -34,7 +34,7 @@ const getProject = async (uuid: string) =>
         body: undefined,
     });
 
-const updateProjectSemanticLayer = async (
+const updateProjectSemanticLayerConnection = async (
     uuid: string,
     data: SemanticLayerConnection,
 ) =>
@@ -42,6 +42,13 @@ const updateProjectSemanticLayer = async (
         url: `/projects/${uuid}/semantic-layer-connection`,
         method: 'PATCH',
         body: JSON.stringify(data),
+    });
+
+const deleteProjectSemanticLayerConnection = async (uuid: string) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/semantic-layer-connection`,
+        method: 'DELETE',
+        body: undefined,
     });
 
 export const useProject = (id: string | undefined) => {
@@ -119,9 +126,22 @@ export const useMostPopularAndRecentlyUpdated = (projectUuid: string) =>
 export const useProjectSemanticLayerUpdateMutation = (uuid: string) => {
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, SemanticLayerConnection>(
-        (data) => updateProjectSemanticLayer(uuid, data),
+        (data) => updateProjectSemanticLayerConnection(uuid, data),
         {
             mutationKey: ['project_semantic_layer_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['project', uuid]);
+            },
+        },
+    );
+};
+
+export const useProjectSemanticLayerDeleteMutation = (uuid: string) => {
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError>(
+        () => deleteProjectSemanticLayerConnection(uuid),
+        {
+            mutationKey: ['project_semantic_layer_delete', uuid],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['project', uuid]);
             },

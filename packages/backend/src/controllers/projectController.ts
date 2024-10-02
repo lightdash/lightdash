@@ -480,4 +480,28 @@ export class ProjectController extends BaseController {
             results: undefined,
         };
     }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('{projectUuid}/semantic-layer-connection')
+    @OperationId('deleteProjectSemanticLayerConnection')
+    async deleteProjectSemanticLayerConnection(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.services
+            .getProjectService()
+            .deleteSemanticLayerConnection(req.user!, projectUuid);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
 }
