@@ -77,7 +77,7 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
     return (
         <SettingsGridCard>
             <Stack spacing="sm">
-                <Title order={4}>Semantic Layer</Title>
+                <Title order={4}>Semantic Layer Integration</Title>
 
                 <Text color="dimmed">
                     Connect your third-party Semantic Layer so you can explore
