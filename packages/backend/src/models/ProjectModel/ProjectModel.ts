@@ -2097,4 +2097,15 @@ export class ProjectModel {
 
         return updatedProject;
     }
+
+    async deleteSemanticLayerConnection(projectUuid: string) {
+        const [updatedProject] = await this.database(ProjectTableName)
+            .update({
+                semantic_layer_connection: null,
+            })
+            .where('project_uuid', projectUuid)
+            .returning('*');
+
+        return updatedProject;
+    }
 }

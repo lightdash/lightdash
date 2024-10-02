@@ -4385,4 +4385,20 @@ export class ProjectService extends BaseService {
 
         return updatedProject;
     }
+
+    async deleteSemanticLayerConnection(
+        user: SessionUser,
+        projectUuid: string,
+    ) {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        if (user.ability.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        const updatedProject =
+            await this.projectModel.deleteSemanticLayerConnection(projectUuid);
+
+        return updatedProject;
+    }
 }
