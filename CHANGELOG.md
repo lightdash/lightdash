@@ -1,3 +1,15 @@
+# [0.1292.0](https://github.com/lightdash/lightdash/compare/0.1291.0...0.1292.0) (2024-10-02)
+
+
+### Bug Fixes
+
+* enable sql charts' csv exports and schedules ([#11701](https://github.com/lightdash/lightdash/issues/11701)) ([e543097](https://github.com/lightdash/lightdash/commit/e5430970bbb06d4027b37bf83e433cea5c7a792d))
+
+
+### Features
+
+* add csl form ([#11766](https://github.com/lightdash/lightdash/issues/11766)) ([f242104](https://github.com/lightdash/lightdash/commit/f2421043fad7e9036e872879cbe60214aec48ced))
+
 # [0.1291.0](https://github.com/lightdash/lightdash/compare/0.1290.0...0.1291.0) (2024-10-02)
 
 
