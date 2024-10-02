@@ -71,6 +71,7 @@ const DbtSemanticLayerForm: FC<Props> = ({
         <form onSubmit={form.onSubmit(onSubmit)}>
             <Stack>
                 <PasswordInput
+                    autoComplete="off"
                     {...form.getInputProps('token')}
                     placeholder={
                         semanticLayerConnection ? '**************' : undefined
