@@ -5,11 +5,11 @@ import {
     type ApiSemanticViewerChartUpdate,
     type PivotChartData,
     type SavedSemanticViewerChart,
+    type SavedSemanticViewerChartResults,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
     type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
-    type SemanticLayerResultRow,
     type SemanticLayerView,
     type SemanticViewerChartCreate,
     type SemanticViewerChartUpdate,
@@ -203,11 +203,6 @@ export const useSavedSemanticViewerChart = (
             ...useQueryParams,
         },
     );
-};
-
-type SavedSemanticViewerChartResults = {
-    results: SemanticLayerResultRow[];
-    columns: string[];
 };
 
 /**

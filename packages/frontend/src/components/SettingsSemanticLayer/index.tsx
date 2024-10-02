@@ -2,6 +2,7 @@ import { assertUnreachable, SemanticLayerType } from '@lightdash/common';
 import { Stack, Text, Title } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { z } from 'zod';
+import useToaster from '../../hooks/toaster/useToaster';
 import {
     useProject,
     useProjectSemanticLayerUpdateMutation,
@@ -26,10 +27,16 @@ interface Props {
 //     },
 // ];
 
+const SemanticLayerLabels: Record<SemanticLayerType, string> = {
+    [SemanticLayerType.CUBE]: 'Cube',
+    [SemanticLayerType.DBT]: 'dbt',
+};
+
 const formSchemas = z.union([dbtSemanticLayerFormSchema, z.never()]);
 
 const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
     const { data } = useProject(projectUuid);
+    const { showToastSuccess } = useToaster();
 
     const [semanticLayerType] = useState<SemanticLayerType>(
         data?.semanticLayerConnection?.type ?? SemanticLayerType.DBT,
@@ -41,6 +48,11 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
         connectionData: z.infer<typeof formSchemas>,
     ) => {
         await projectMutation.mutateAsync(connectionData);
+
+        showToastSuccess({
+            title: `Successfully updated project's semantic layer connection with ${SemanticLayerLabels[semanticLayerType]} credentials.`,
+        });
+
         return false;
     };
 
@@ -67,7 +79,7 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
 
                 {semanticLayerType === SemanticLayerType.DBT ? (
                     <DbtSemanticLayerForm
-                        isLoading={false}
+                        isLoading={projectMutation.isLoading}
                         onSubmit={handleSubmit}
                         semanticLayerConnection={
                             semanticLayerType ===

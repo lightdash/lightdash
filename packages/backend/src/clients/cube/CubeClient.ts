@@ -53,7 +53,7 @@ export default class CubeClient implements SemanticLayerClient {
 
     getClientInfo() {
         return {
-            name: 'cube',
+            name: 'Cube',
             features: {
                 views: true,
             },

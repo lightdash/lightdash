@@ -1,3 +1,17 @@
+# [0.1290.0](https://github.com/lightdash/lightdash/compare/0.1289.0...0.1290.0) (2024-10-02)
+
+
+### Bug Fixes
+
+* semantic viewer edit mode result initialization ([#11761](https://github.com/lightdash/lightdash/issues/11761)) ([f5e11f9](https://github.com/lightdash/lightdash/commit/f5e11f9d57f2974b4bebdb3f138075756fd7fbd2))
+
+
+### Features
+
+* semantic layer config visual cues ([#11758](https://github.com/lightdash/lightdash/issues/11758)) ([8d88729](https://github.com/lightdash/lightdash/commit/8d887299a368ed24c6f9122f01d20b17b5805401))
+* semantic layer view mode load and error states ([#11759](https://github.com/lightdash/lightdash/issues/11759)) ([4e88fd3](https://github.com/lightdash/lightdash/commit/4e88fd3314813b0a857eafdc589fc45a4874546d))
+* semantic viewer menu copy ([#11757](https://github.com/lightdash/lightdash/issues/11757)) ([0c7e7f4](https://github.com/lightdash/lightdash/commit/0c7e7f47ba0399c6ea8ca6ec111d3d688c6fece5))
+
 # [0.1289.0](https://github.com/lightdash/lightdash/compare/0.1288.0...0.1289.0) (2024-10-02)
 
 
