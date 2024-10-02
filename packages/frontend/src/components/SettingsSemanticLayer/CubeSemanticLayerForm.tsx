@@ -49,8 +49,13 @@ const CubeSemanticLayerForm: FC<Props> = ({
         },
     });
 
-    const handleDelete = useCallback(() => {
-        onDelete();
+    const handleDelete = useCallback(async () => {
+        await onDelete();
+        form.setInitialValues({
+            type: SemanticLayerType.CUBE,
+            token: '',
+            domain: '',
+        });
         form.reset();
     }, [form, onDelete]);
 
@@ -58,6 +63,7 @@ const CubeSemanticLayerForm: FC<Props> = ({
         <form onSubmit={form.onSubmit(onSubmit)}>
             <Stack>
                 <PasswordInput
+                    autoComplete="off"
                     {...form.getInputProps('token')}
                     placeholder={
                         semanticLayerConnection

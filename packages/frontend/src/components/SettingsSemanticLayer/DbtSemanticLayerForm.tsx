@@ -40,7 +40,7 @@ type Props = {
     isLoading: boolean;
     semanticLayerConnection?: DbtSemanticLayerConnection;
     onSubmit: (data: z.infer<typeof dbtSemanticLayerFormSchema>) => void;
-    onDelete: () => void;
+    onDelete: () => Promise<void>;
 };
 
 const DbtSemanticLayerForm: FC<Props> = ({
@@ -70,8 +70,14 @@ const DbtSemanticLayerForm: FC<Props> = ({
         ),
     );
 
-    const handleDelete = useCallback(() => {
-        onDelete();
+    const handleDelete = useCallback(async () => {
+        await onDelete();
+        form.setInitialValues({
+            type: SemanticLayerType.DBT,
+            token: '',
+            domain: '',
+            environmentId: '',
+        });
         form.reset();
     }, [form, onDelete]);
 

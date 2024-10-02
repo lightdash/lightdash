@@ -72,8 +72,6 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
         showToastSuccess({
             title: `Successfully deleted project's semantic layer connection.`,
         });
-
-        return false;
     };
 
     return (
