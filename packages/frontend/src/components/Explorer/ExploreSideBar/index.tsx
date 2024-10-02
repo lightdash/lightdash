@@ -49,8 +49,6 @@ const BasePanel = () => {
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
 
-    console.log({ exploresResult: exploresResult.data });
-
     const [exploreGroupMap, defaultUngroupedExplores, customUngroupedExplores] =
         useMemo(() => {
             const validSearch = search ? search.toLowerCase() : '';
