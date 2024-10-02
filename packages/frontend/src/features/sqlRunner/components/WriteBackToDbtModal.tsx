@@ -1,9 +1,13 @@
-import { DbtProjectType } from '@lightdash/common';
+import {
+    DbtProjectType,
+    type ApiGithubDbtWritePreview,
+} from '@lightdash/common';
 import {
     Badge,
     Button,
     Group,
     List,
+    Loader,
     Modal,
     Stack,
     Text,
@@ -12,8 +16,9 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
-import { useCallback, useEffect, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useHealth from '../../../hooks/health/useHealth';
@@ -38,18 +43,19 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
     const { mutateAsync: createPullRequest, isLoading: isLoadingPullRequest } =
         useGithubDbtWriteBack();
 
-    const {
-        mutateAsync: getWritePreview,
-        data: writePreview,
-        isLoading: isPreviewLoading,
-        isError: isPreviewError,
-    } = useGithubDbtWritePreview();
+    // NOTE: This keeps a mutation's previous data (similar to useQuery's `keepPreviousData`
+    const [writePreviewData, setWritePreviewData] =
+        useState<ApiGithubDbtWritePreview['results']>();
+
+    const { mutateAsync: getWritePreview, isLoading: isPreviewLoading } =
+        useGithubDbtWritePreview();
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
         },
         validate: zodResolver(validationSchema),
     });
+    const [debouncedName] = useDebouncedValue(form.values.name, 300);
 
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
@@ -60,43 +66,20 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
     );
 
     useEffect(() => {
-        // Initial preview load
-        if (!opened) return;
+        if (!opened || !projectUuid || !sql || !columns) return;
 
-        if (!writePreview && columns && !isPreviewLoading && !isPreviewError) {
-            void getWritePreview({
+        const loadPreview = async () => {
+            const data = await getWritePreview({
                 projectUuid,
-                name: 'custom view',
+                name: debouncedName || 'custom view',
                 sql,
                 columns,
             });
-        }
-    }, [
-        opened,
-        isPreviewLoading,
-        isPreviewError,
-        writePreview,
-        projectUuid,
-        sql,
-        columns,
-        getWritePreview,
-    ]);
+            setWritePreviewData(data);
+        };
 
-    useEffect(() => {
-        // Reload preview on name change
-        if (!opened) return;
-        const debounceTimer = setTimeout(() => {
-            if (form.values.name && projectUuid && sql && columns) {
-                void getWritePreview({
-                    projectUuid,
-                    name: form.values.name,
-                    sql,
-                    columns,
-                });
-            }
-        }, 300);
-        return () => clearTimeout(debounceTimer);
-    }, [opened, form.values.name, projectUuid, sql, columns, getWritePreview]);
+        void loadPreview();
+    }, [opened, projectUuid, debouncedName, sql, columns, getWritePreview]);
 
     const handleSubmit = useCallback(
         async (data: { name: string }) => {
@@ -172,17 +155,20 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                     <MantineIcon icon={IconBrandGithub} />
                                 }
                                 onClick={() => {
-                                    window.open(writePreview?.url, '_blank');
+                                    window.open(
+                                        writePreviewData?.url,
+                                        '_blank',
+                                    );
                                 }}
                                 style={{ cursor: 'pointer' }}
-                                title={`Open "${writePreview?.url}" in new tab`}
+                                title={`Open "${writePreviewData?.url}" in new tab`}
                             >
-                                {writePreview?.repo}
+                                {writePreviewData?.repo}
                             </Badge>
-                            :
+                            {isPreviewLoading && <Loader size="xs" />}:
                         </Text>
                         <List spacing="xs" pl="xs">
-                            {writePreview?.files.map((file) => (
+                            {writePreviewData?.files.map((file) => (
                                 <Tooltip
                                     key={file}
                                     variant="xs"
