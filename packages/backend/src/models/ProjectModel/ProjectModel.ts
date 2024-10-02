@@ -948,7 +948,7 @@ export class ProjectModel {
 
                 // We don't support multiple explores with the same name at the moment
                 const uniqueExplores = uniqWith(
-                    explores,
+                    [...explores, ...customExplores.map((e) => e.explore)],
                     (a, b) => a.name === b.name,
                 );
 
@@ -984,10 +984,7 @@ export class ProjectModel {
                 )
                     .insert({
                         project_uuid: projectUuid,
-                        explores: JSON.stringify([
-                            ...uniqueExplores,
-                            ...customExplores.map((e) => e.explore),
-                        ]),
+                        explores: JSON.stringify(uniqueExplores),
                     })
                     .onConflict('project_uuid')
                     .merge()

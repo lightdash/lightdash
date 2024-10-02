@@ -3,7 +3,6 @@ import {
     ApiQueryResults,
     ChartKind,
     ChartType,
-    DbtCloudIDEProjectConfig,
     DbtProjectType,
     DefaultSupportedDbtVersion,
     DimensionType,

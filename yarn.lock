@@ -14751,7 +14751,7 @@ klona@^2.0.6:
 
 knex-mock-client@^1.11.0:
   version "1.11.0"
-  resolved "https://registry.npmjs.org/knex-mock-client/-/knex-mock-client-1.11.0.tgz"
+  resolved "https://registry.yarnpkg.com/knex-mock-client/-/knex-mock-client-1.11.0.tgz#356513462d19cf769ca2e92e4be033ff244b2238"
   integrity sha512-6Mf2jscz6XMVfk7Jhp7pnRe37HsupVfScPf8pyiL6X51B7sporDVQPra4oyj7Ea5ssuqE3XnVhRgUeP50+Yrog==
   dependencies:
     lodash.clonedeep "^4.5.0"
