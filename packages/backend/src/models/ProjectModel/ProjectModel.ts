@@ -2168,19 +2168,19 @@ export class ProjectModel {
 
     private static isSemanticLayerConnectionValid(
         semanticLayerConnection: SemanticLayerConnection,
-    ) {
+    ): boolean {
         const { type } = semanticLayerConnection;
         switch (type) {
             case SemanticLayerType.DBT:
-                return (
+                return Boolean(
                     semanticLayerConnection.domain &&
-                    semanticLayerConnection.environmentId &&
-                    semanticLayerConnection.token
+                        semanticLayerConnection.environmentId &&
+                        semanticLayerConnection.token,
                 );
             case SemanticLayerType.CUBE:
-                return (
+                return Boolean(
                     semanticLayerConnection.domain &&
-                    semanticLayerConnection.token
+                        semanticLayerConnection.token,
                 );
             default:
                 return assertUnreachable(
