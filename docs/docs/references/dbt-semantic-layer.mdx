@@ -46,7 +46,7 @@ To generate a service token:
 4. Choose the Semantic Layer Credentials that you want to give to the token. 
 5. Hit `save`
 
-Copy-paste the token that you've created into `Service Token` on the Semantic Layer integration page in Lightdash. 
+Copy-paste the token into `Service Token` in the Lightdash Semantic Layer Integration page. 
 
 <img
   src={DbtSemanticLayerServiceToken}
@@ -57,11 +57,11 @@ Copy-paste the token that you've created into `Service Token` on the Semantic La
 
 ### Domain
 
-Select the domain where you dbt Cloud instance is being hosted. 
+This is the domain where you dbt Cloud instance is being hosted. 
 
 ### Environment
 
-The unique identifier for the dbt production environment. This should match the environment that you selected when you [configured your project with the dbt Semantic Layer](https://docs.getdbt.com/docs/use-dbt-semantic-layer/setup-sl#1-select-environment).
+This is the unique identifier for the dbt production environment. This should match the environment that you selected when you [configured your dbt Semantic Layer connection](https://docs.getdbt.com/docs/use-dbt-semantic-layer/setup-sl#1-select-environment) for your dbt Cloud project.
 
 You can get this from the dbt Cloud URL when you navigate to `Environments` under `Deploy`. If your URL ends with .../environments/222222, your environmentId is 222222. 
 
@@ -71,6 +71,10 @@ Once you have your dbt Semantic Layer connected to a project in Lightdash, you c
 
 ## Build dashboards using dbt Semantic Layer queries
 
-You can save charts from your dbt Semantic Layer queries and build dashboards with these charts in Lightdash. 
+You can save charts from your dbt Semantic Layer queries and use these to build dashboards. 
+
+:::info
 
 Dashboards can only contain charts from one semantic layer connection. That means charts created using the Lightdash Semantic Layer cannot be used on dashboards that contain charts created from the dbt Semantic Layer. 
+
+:::
