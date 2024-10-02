@@ -551,7 +551,7 @@ ${sql}
                     {
                         name: snakeCaseName(name),
                         label: friendlyName(name),
-                        description: `SQL model for friendlyName(${name})`,
+                        description: `SQL model for ${friendlyName(name)}`,
                         columns: columns.map((c) => ({
                             name: c.reference,
                             meta: {
