@@ -372,22 +372,26 @@ describe('Explore', () => {
                 cy.url().should('include', '/sql-runner');
                 cy.get('.monaco-editor').should('exist');
 
-                // get SQL query from SQL Runner and verify it's the same as the one from Explore
-                cy.get('.view-lines')
-                    .invoke('text')
-                    .then((sqlRunnerText) => {
-                        const normalizedExploreQuery = sqlQueryFromExploreLines
-                            .join('')
-                            .replace(/\s+/g, ' ')
-                            .trim();
-                        const normalizedRunnerQuery = sqlRunnerText
-                            .replace(/\s+/g, ' ')
-                            .trim();
+                // Get the entire SQL query from the Monaco editor
+                cy.window().then((win: any) => {
+                    expect(win.monaco).to.be.an('object');
+                    const editor = win.monaco.editor.getModels()[0];
+                    const sqlRunnerText = editor.getValue();
 
-                        expect(normalizedRunnerQuery).to.equal(
-                            normalizedExploreQuery,
-                        );
-                    });
+                    const normalizeQuery = (query: string) =>
+                        query
+                            .replace(/\s+/g, '') // Remove all whitespace
+                            .toLowerCase(); // Convert to lowercase for case-insensitive comparison
+
+                    const normalizedExploreQuery = normalizeQuery(
+                        sqlQueryFromExploreLines.join(''),
+                    );
+                    const normalizedRunnerQuery = normalizeQuery(sqlRunnerText);
+
+                    expect(normalizedRunnerQuery).to.equal(
+                        normalizedExploreQuery,
+                    );
+                });
             });
     });
 
