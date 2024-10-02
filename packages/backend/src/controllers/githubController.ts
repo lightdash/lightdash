@@ -16,8 +16,6 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { BaseController } from './baseController';
 
-const githubAppName = 'lightdash-dev';
-
 /** HOW it works
  *
  * First install the app in the org
@@ -48,6 +46,9 @@ export class GithubInstallController extends BaseController {
             '/generalSettings/integrations',
             lightdashConfig.siteUrl,
         );
+
+        const githubAppName = lightdashConfig.github.appName;
+
         const state = req.user!.userUuid; // todo: encrypt this?
         req.session.oauth = {};
         req.session.oauth.returnTo = redirectUrl.href;

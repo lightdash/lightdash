@@ -269,6 +269,9 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     logging: LoggingConfig;
+    github: {
+        appName: string;
+    };
 };
 
 export type SlackConfig = {
@@ -762,6 +765,9 @@ export const parseConfig = (): LightdashConfig => {
                     ? undefined
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
+        },
+        github: {
+            appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',
         },
     };
 };
