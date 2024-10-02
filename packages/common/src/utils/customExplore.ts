@@ -1,5 +1,5 @@
 import { ExploreCompiler } from '../compiler/exploreCompiler';
-import { type Explore, type Table } from '../types/explore';
+import { ExploreType, type Explore, type Table } from '../types/explore';
 import {
     DimensionType,
     FieldType,
@@ -58,5 +58,8 @@ export const createCustomExplore = (
         targetDatabase: warehouseClient.getAdapterType(),
     });
 
-    return explore;
+    return {
+        ...explore,
+        type: ExploreType.CUSTOM,
+    };
 };

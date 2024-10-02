@@ -35,6 +35,7 @@ import {
     DownloadFileType,
     Explore,
     ExploreError,
+    ExploreType,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -2826,6 +2827,7 @@ export class ProjectService extends BaseService {
                                 explore.tables[explore.baseTable].schema,
                             description:
                                 explore.tables[explore.baseTable].description,
+                            type: explore.type ?? ExploreType.DEFAULT,
                         },
                     ];
                 }

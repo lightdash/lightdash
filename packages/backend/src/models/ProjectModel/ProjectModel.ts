@@ -8,7 +8,7 @@ import {
     DbtProjectConfig,
     Explore,
     ExploreError,
-    friendlyName,
+    ExploreType,
     generateSlug,
     isExploreError,
     NotExistsError,
@@ -933,6 +933,14 @@ export class ProjectModel {
             'ProjectModel.saveExploresToCache',
             {},
             async () => {
+                // Get custom explores/virtual views before deleting them
+                const customExplores = await this.database(
+                    CachedExploreTableName,
+                )
+                    .select('explore')
+                    .where('project_uuid', projectUuid)
+                    .whereRaw("explore->>'type' = ?", [ExploreType.CUSTOM]);
+
                 // delete previous individually cached explores
                 await this.database(CachedExploreTableName)
                     .where('project_uuid', projectUuid)
@@ -976,7 +984,10 @@ export class ProjectModel {
                 )
                     .insert({
                         project_uuid: projectUuid,
-                        explores: JSON.stringify(uniqueExplores),
+                        explores: JSON.stringify([
+                            ...uniqueExplores,
+                            ...customExplores.map((e) => e.explore),
+                        ]),
                     })
                     .onConflict('project_uuid')
                     .merge()
@@ -2031,7 +2042,7 @@ export class ProjectModel {
         { name, sql, columns }: CreateCustomExplorePayload,
         warehouseClient: WarehouseClient,
     ): Promise<Pick<Explore, 'name'>> {
-        const translatedToExplore = createCustomExplore(
+        const customExplore = createCustomExplore(
             name,
             sql,
             columns,
@@ -2042,23 +2053,13 @@ export class ProjectModel {
         await this.database(CachedExploreTableName)
             .insert({
                 project_uuid: projectUuid,
-                name: translatedToExplore.name,
-                table_names: Object.keys(translatedToExplore.tables || {}),
-                explore: JSON.stringify(translatedToExplore),
+                name: customExplore.name,
+                table_names: Object.keys(customExplore.tables || {}),
+                explore: customExplore,
             })
             .onConflict(['project_uuid', 'name'])
             .merge()
             .returning(['name', 'cached_explore_uuid']);
-        const toAddToCached: Explore = {
-            name,
-            tags: [],
-            label: friendlyName(name),
-            tables: translatedToExplore.tables,
-            baseTable: name,
-            groupLabel: 'Custom explores',
-            joinedTables: [],
-            targetDatabase: SupportedDbtAdapter.POSTGRES,
-        };
 
         // append to cached_explores
         await this.database(CachedExploresTableName)
@@ -2072,8 +2073,8 @@ export class ProjectModel {
                 END
             `,
                     [
-                        JSON.stringify([toAddToCached]),
-                        JSON.stringify([toAddToCached]),
+                        JSON.stringify([customExplore]),
+                        JSON.stringify([customExplore]),
                     ],
                 ),
             })
