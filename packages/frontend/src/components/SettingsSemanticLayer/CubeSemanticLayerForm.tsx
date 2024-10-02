@@ -9,8 +9,10 @@ import {
     Group,
     PasswordInput,
     Stack,
+    Text,
     TextInput,
     Tooltip,
+    useMantineTheme,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelp, IconTrash } from '@tabler/icons-react';
@@ -40,6 +42,7 @@ const CubeSemanticLayerForm: FC<Props> = ({
     onSubmit,
     onDelete,
 }) => {
+    const theme = useMantineTheme();
     const form = useForm<z.infer<typeof cubeSemanticLayerFormSchema>>({
         validate: zodResolver(cubeSemanticLayerFormSchema),
         initialValues: {
@@ -75,7 +78,21 @@ const CubeSemanticLayerForm: FC<Props> = ({
                             Service Token
                             <Tooltip
                                 maw={400}
-                                label="The token can be found by logging into Cube, clicking on the desired deployment and then going to Integrations > API Credentials > REST API."
+                                style={{
+                                    backgroundColor: theme.colors.dark[6],
+                                }}
+                                label={
+                                    <Text fw={400}>
+                                        The token can be found by logging into
+                                        Cube, clicking on the desired deployment
+                                        and then going to{' '}
+                                        <b>
+                                            Integrations {'>'} API Credentials{' '}
+                                            {'>'} REST API
+                                        </b>
+                                        .
+                                    </Text>
+                                }
                                 multiline
                             >
                                 <MantineIcon icon={IconHelp} color="gray.6" />
@@ -92,7 +109,20 @@ const CubeSemanticLayerForm: FC<Props> = ({
                             Domain
                             <Tooltip
                                 maw={400}
-                                label="The domain can be found by logging into Cube, clicking on the desired deployment and then going to Integrations > API Credentials."
+                                style={{
+                                    backgroundColor: theme.colors.dark[6],
+                                }}
+                                label={
+                                    <Text fw={400}>
+                                        The domain can be found by logging into
+                                        Cube, clicking on the desired deployment
+                                        and then going to{' '}
+                                        <b>
+                                            Integrations {'>'} API Credentials
+                                        </b>
+                                        .
+                                    </Text>
+                                }
                                 multiline
                             >
                                 <MantineIcon icon={IconHelp} color="gray.6" />
