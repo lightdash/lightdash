@@ -68,6 +68,11 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
 
     const handleDelete = async () => {
         await deleteSemanticLayerMutation.mutateAsync();
+
+        showToastSuccess({
+            title: `Successfully deleted project's semantic layer connection.`,
+        });
+
         return false;
     };
 
