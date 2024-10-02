@@ -372,7 +372,8 @@ describe('Explore', () => {
                 cy.url().should('include', '/sql-runner');
                 cy.get('.monaco-editor').should('exist');
 
-                // Get the entire SQL query from the Monaco editor
+                // Get the entire SQL query from the Monaco editor instance
+                // NOTE: This is probably the most reliable way to get the SQL query from the Monaco editor, without having to target specific classes/ids
                 cy.window().then((win: any) => {
                     expect(win.monaco).to.be.an('object');
                     const editor = win.monaco.editor.getModels()[0];
