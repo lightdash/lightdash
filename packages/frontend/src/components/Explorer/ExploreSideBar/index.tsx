@@ -182,11 +182,16 @@ const BasePanel = () => {
                                 />
                             ))}
 
-                        <Divider size={0.5} c="gray.5" my="xs" />
+                        {customUngroupedExplores.length ? (
+                            <>
+                                <Divider size={0.5} c="gray.5" my="xs" />
 
-                        <Text fw={500} fz="xs" c="gray.6" mb="xs">
-                            Virtual Views
-                        </Text>
+                                <Text fw={500} fz="xs" c="gray.6" mb="xs">
+                                    Virtual Views
+                                </Text>
+                            </>
+                        ) : null}
+
                         {customUngroupedExplores
                             .sort((a, b) => a.label.localeCompare(b.label))
                             .map((explore) => (
