@@ -1,3 +1,10 @@
+# [0.1289.0](https://github.com/lightdash/lightdash/compare/0.1288.0...0.1289.0) (2024-10-02)
+
+
+### Features
+
+* improve sql runner new create mode layout ([#11755](https://github.com/lightdash/lightdash/issues/11755)) ([efaf9d8](https://github.com/lightdash/lightdash/commit/efaf9d8537e124b3c8f76e7d320a0b949facdcbd))
+
 # [0.1288.0](https://github.com/lightdash/lightdash/compare/0.1287.0...0.1288.0) (2024-10-01)
 
 
