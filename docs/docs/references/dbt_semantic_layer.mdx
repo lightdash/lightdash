@@ -1,3 +1,7 @@
+import SemanticLayerIntegrations from './assets/semantic-layer-integrations.jpg';
+import DbtSemanticLayerServiceToken from './assets/dbt-semantic-layer-service-token.jpg';
+
+
 # dbt Semantic Layer
 
 You can use Lightdash to explore the semantic models you've defined in [dbt's Semantic Layer](https://www.getdbt.com/product/semantic-layer). 
@@ -10,11 +14,54 @@ Note that this integration is **_separate_** to the Lightdash Semantic Layer (wh
 
 :::
 
-## Connecting Lightdash to your dbt Semantic Layer
+## Connect Lightdash to your dbt Semantic Layer
 
 Before you can connect your dbt Semantic Layer to Lightdash, you need to:
 
 - have an active dbt Cloud (i.e. paid dbt) account. 
 - [have the dbt Semantic Layer configured](https://docs.getdbt.com/guides/sl-snowflake-qs?step=14)** in on of your dbt Cloud projects.
 
+### Go to the `Semantic Layer Integrations` page in your `Project connection settings`
+
+1. Click on `settings` --> `project connection settings`
+2. From the sidebar, head to `Semantic Layer Integrations`
+3. Select `dbt Semantic Layer` from the list of Semantic Layer integrations
+
+<img
+  src={SemanticLayerIntegrations}
+  width="996"
+  height="549"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+### Service token
+
+This is a service token for your dbt Cloud account. To generate a service token:
+
+1. Go to https://cloud.getdbt.com/next/settings
+2. From the sidebar, click on `API tokens` --> `service tokens`, then `create new token`
+3. Give your token at least `Semantic Layer Only` permissions and select the project where you've [configured the dbt Semantic Layer](https://docs.getdbt.com/docs/use-dbt-semantic-layer/setup-sl#set-up-dbt-semantic-layer).
+4. Choose the Semantic Layer Credentials that you want to give to the token. 
+5. Hit `save`
+
+Copy-paste the token that you've created into `Service Token` on the Semantic Layer integration page in Lightdash. 
+
+<img
+  src={DbtSemanticLayerServiceToken}
+  width="1065"
+  height="514"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+### Domain
+
+Select the domain where you dbt Cloud instance is being hosted. 
+
+### Environment
+
+The unique identifier for the dbt production environment. This should match the environment that you selected when you [configured your project with the dbt Semantic Layer](https://docs.getdbt.com/docs/use-dbt-semantic-layer/setup-sl#1-select-environment).
+
+You can get this from the dbt Cloud URL when you navigate to `Environments` under `Deploy`. If your URL ends with .../environments/222222, your environmentId is 222222. 
+
+## Run queries using the dbt Semantic Layer
 
