@@ -8,7 +8,6 @@ import {
     type VizConfigErrors,
     type VizIndexType,
     type VizPieChartConfig,
-    type VizPieChartDisplay,
     type VizPieChartOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -22,7 +21,6 @@ import {
 export type PieChartState = {
     defaultFieldConfig: PivotChartLayout | undefined;
     config: VizPieChartConfig | undefined;
-    display: VizPieChartDisplay | undefined;
     options: VizPieChartOptions;
     errors: VizConfigErrors | undefined;
 };
@@ -30,9 +28,6 @@ export type PieChartState = {
 const initialState: PieChartState = {
     defaultFieldConfig: undefined,
     config: undefined,
-    display: {
-        isDonut: false,
-    },
     options: {
         groupFieldOptions: [],
         metricFieldOptions: [],

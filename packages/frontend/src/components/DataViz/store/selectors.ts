@@ -64,13 +64,13 @@ export const selectChartDisplayByKind = createSelector(
     ) => {
         switch (chartKind) {
             case ChartKind.VERTICAL_BAR:
-                return barChartConfigState.display;
+                return barChartConfigState.config?.display;
             case ChartKind.LINE:
-                return lineChartConfigState.display;
+                return lineChartConfigState.config?.display;
             case ChartKind.PIE:
-                return pieChartConfigState.display;
+                return pieChartConfigState.config?.display;
             case ChartKind.TABLE:
-                return tableVisConfigState.display;
+                return tableVisConfigState.config?.display;
             default:
                 return undefined;
         }

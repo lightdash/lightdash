@@ -43,6 +43,7 @@ const defaultCartesianChartConfig: VizCartesianChartConfig = {
         ],
         groupBy: [],
     },
+    display: {},
 };
 
 type CartesianChartKind = Extract<
@@ -55,14 +56,14 @@ export class CartesianChartDataModel {
 
     private readonly config: VizCartesianChartConfig;
 
-    private readonly organization: Organization;
+    private readonly organization: Organization | undefined;
 
     private pivotedChartData: PivotChartData | undefined;
 
     constructor(args: {
         resultsRunner: IResultsRunner;
         config?: VizCartesianChartConfig;
-        organization: Organization;
+        organization?: Organization;
     }) {
         this.resultsRunner = args.resultsRunner;
         this.config = args.config ?? defaultCartesianChartConfig;
@@ -81,21 +82,23 @@ export class CartesianChartDataModel {
 
     mergeConfig(
         chartKind: CartesianChartKind,
-        existingLayout: PivotChartLayout | undefined,
+        existingConfig: VizCartesianChartConfig | undefined,
     ): VizCartesianChartConfig {
         const newDefaultLayout = this.getDefaultLayout();
 
         const someFieldsMatch =
-            existingLayout?.x?.reference === newDefaultLayout?.x?.reference ||
+            existingConfig?.fieldConfig?.x?.reference ===
+                newDefaultLayout?.x?.reference ||
             intersectionBy(
-                existingLayout?.y || [],
+                existingConfig?.fieldConfig?.y || [],
                 newDefaultLayout?.y || [],
                 'reference',
             ).length > 0;
 
-        let mergedLayout: PivotChartLayout | undefined = existingLayout;
+        let mergedLayout: PivotChartLayout | undefined =
+            existingConfig?.fieldConfig;
 
-        if (!existingLayout || !someFieldsMatch) {
+        if (!existingConfig?.fieldConfig || !someFieldsMatch) {
             mergedLayout = newDefaultLayout;
         }
         return {
@@ -104,6 +107,7 @@ export class CartesianChartDataModel {
             },
             type: chartKind,
             fieldConfig: mergedLayout,
+            display: existingConfig?.display ?? {},
         };
     }
 
@@ -465,7 +469,7 @@ export class CartesianChartDataModel {
         }
 
         const type = this.config?.type;
-        const { chartColors: orgColors } = this.organization;
+        const { chartColors: orgColors } = this.organization ?? {};
 
         const DEFAULT_X_AXIS_TYPE = 'category';
 

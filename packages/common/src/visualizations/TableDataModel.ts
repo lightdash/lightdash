@@ -28,6 +28,7 @@ export class TableDataModel {
                 version: 1,
             },
             columns: this.getResultOptions().defaultColumnConfig,
+            display: {},
         };
     }
 
@@ -104,6 +105,7 @@ export class TableDataModel {
                 version: 1,
             },
             columns: this.getResultOptions().defaultColumnConfig,
+            display: {},
         };
     }
 

@@ -14,7 +14,7 @@ import {
 
 const getChartDataModel = (
     resultsRunner: IResultsRunner,
-    config?: Omit<VizChartConfig, 'display'>,
+    config?: VizChartConfig,
     organization?: Organization,
 ) => {
     // TODO: this check is unnecessary

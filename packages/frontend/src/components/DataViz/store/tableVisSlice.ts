@@ -2,7 +2,6 @@ import {
     ChartKind,
     isVizTableConfig,
     type VizTableConfig,
-    type VizTableDisplay,
     type VizTableOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -16,13 +15,11 @@ import {
 
 export type TableVizState = {
     config: VizTableConfig | undefined;
-    display: VizTableDisplay;
     options: VizTableOptions;
 };
 
 const initialState: TableVizState = {
     config: undefined,
-    display: {},
     options: { defaultColumnConfig: undefined },
 };
 
