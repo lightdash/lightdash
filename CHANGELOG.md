@@ -1,3 +1,10 @@
+## [0.1292.2](https://github.com/lightdash/lightdash/compare/0.1292.1...0.1292.2) (2024-10-02)
+
+
+### Bug Fixes
+
+* friendly name yml ([#11773](https://github.com/lightdash/lightdash/issues/11773)) ([edd5671](https://github.com/lightdash/lightdash/commit/edd5671552e4f672f6c7215cc96ef0194278b34e))
+
 ## [0.1292.1](https://github.com/lightdash/lightdash/compare/0.1292.0...0.1292.1) (2024-10-02)
 
 
