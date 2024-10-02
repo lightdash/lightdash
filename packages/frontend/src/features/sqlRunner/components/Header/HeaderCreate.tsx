@@ -166,13 +166,12 @@ export const HeaderCreate: FC = () => {
                                     </Menu.Target>
 
                                     <Menu.Dropdown>
-                                        <Menu.Item>
-                                            <Stack
-                                                spacing="two"
-                                                onClick={() => {
-                                                    setCtaAction('save');
-                                                }}
-                                            >
+                                        <Menu.Item
+                                            onClick={() => {
+                                                setCtaAction('save');
+                                            }}
+                                        >
+                                            <Stack spacing="two">
                                                 <Text
                                                     fz="xs"
                                                     fw={600}
@@ -193,15 +192,14 @@ export const HeaderCreate: FC = () => {
                                             </Stack>
                                         </Menu.Item>
 
-                                        <Menu.Item>
-                                            <Stack
-                                                spacing="two"
-                                                onClick={() => {
-                                                    setCtaAction(
-                                                        'createVirtualView',
-                                                    );
-                                                }}
-                                            >
+                                        <Menu.Item
+                                            onClick={() => {
+                                                setCtaAction(
+                                                    'createVirtualView',
+                                                );
+                                            }}
+                                        >
+                                            <Stack spacing="two">
                                                 <Text
                                                     fw={600}
                                                     fz="xs"
@@ -228,15 +226,12 @@ export const HeaderCreate: FC = () => {
                                             </Stack>
                                         </Menu.Item>
 
-                                        <Menu.Item>
-                                            <Stack
-                                                spacing="two"
-                                                onClick={() => {
-                                                    setCtaAction(
-                                                        'writeBackToDbt',
-                                                    );
-                                                }}
-                                            >
+                                        <Menu.Item
+                                            onClick={() => {
+                                                setCtaAction('writeBackToDbt');
+                                            }}
+                                        >
+                                            <Stack spacing="two">
                                                 <Text
                                                     fw={600}
                                                     fz="xs"
