@@ -137,6 +137,7 @@ const SemanticViewerEditorPageWithStore = () => {
             savedSemanticViewerChartSlug &&
             chartQuery.isSuccess &&
             infoQuery.isSuccess &&
+            chartResultsQuery.isSuccess &&
             infoQuery.data &&
             resultsRunner
         ) {
@@ -151,7 +152,10 @@ const SemanticViewerEditorPageWithStore = () => {
                 initializeSemanticViewer({
                     projectUuid,
                     info: infoQuery.data,
-                    chart: chartQuery.data,
+                    chartData: {
+                        chart: chartQuery.data,
+                        results: chartResultsQuery.data,
+                    },
                 }),
             );
         }
@@ -166,7 +170,7 @@ const SemanticViewerEditorPageWithStore = () => {
                 initializeSemanticViewer({
                     projectUuid,
                     info: infoQuery.data,
-                    chart: undefined,
+                    chartData: undefined,
                 }),
             );
             if (!!rootRouteMatch) {
@@ -185,6 +189,8 @@ const SemanticViewerEditorPageWithStore = () => {
         chartQuery.isSuccess,
         chartQuery.data,
         resultsRunner,
+        chartResultsQuery.isSuccess,
+        chartResultsQuery.data,
     ]);
 
     // TODO: add error state
