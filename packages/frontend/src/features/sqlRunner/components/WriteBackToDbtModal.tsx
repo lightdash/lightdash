@@ -1,8 +1,4 @@
-import {
-    DbtProjectType,
-    getProjectDirectory,
-    snakeCaseName,
-} from '@lightdash/common';
+import { DbtProjectType } from '@lightdash/common';
 import {
     Badge,
     Button,
@@ -17,12 +13,13 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useEffect, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
 import { useGithubDbtWriteBack } from '../hooks/useGithubDbtWriteBack';
+import { useGithubDbtWritePreview } from '../hooks/useGithubDbtWritePreview';
 import { useAppSelector } from '../store/hooks';
 
 const validationSchema = z.object({
@@ -40,6 +37,9 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
 
     const { mutateAsync: createPullRequest, isLoading: isLoadingPullRequest } =
         useGithubDbtWriteBack();
+
+    const { mutateAsync: getWritePreview, data: writePreview } =
+        useGithubDbtWritePreview();
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
@@ -54,22 +54,31 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
         health?.hasGithub &&
         project?.dbtConnection.type === DbtProjectType.GITHUB
     );
-    const projectDirectory = useMemo(
-        () =>
-            canWriteToDbtProject
-                ? getProjectDirectory(project?.dbtConnection)
-                : undefined,
-        [project?.dbtConnection, canWriteToDbtProject],
-    );
-    const basePathForDbtCustomView =
-        `${projectDirectory}models/lightdash`.replace(/\/{2,}/g, '/');
-    const filePathsForDbtCustomView = useMemo(
-        () => [
-            `${snakeCaseName(form.values.name || 'custom view')}.sql`,
-            `${snakeCaseName(form.values.name || 'custom view')}.yml`,
-        ],
-        [form.values.name],
-    );
+
+    useEffect(() => {
+        if (projectUuid && sql && columns) {
+            void getWritePreview({
+                projectUuid,
+                name: 'custom view',
+                sql,
+                columns,
+            });
+        }
+    }, [projectUuid, sql, columns, getWritePreview]);
+
+    useEffect(() => {
+        const debounceTimer = setTimeout(() => {
+            if (form.values.name && projectUuid && sql && columns) {
+                void getWritePreview({
+                    projectUuid,
+                    name: form.values.name,
+                    sql,
+                    columns,
+                });
+            }
+        }, 300);
+        return () => clearTimeout(debounceTimer);
+    }, [form.values.name, projectUuid, sql, columns, getWritePreview]);
 
     const handleSubmit = useCallback(
         async (data: { name: string }) => {
@@ -141,25 +150,32 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                 variant="light"
                                 color="gray.9"
                                 fz="xs"
+                                leftSection={
+                                    <MantineIcon icon={IconBrandGithub} />
+                                }
+                                onClick={() => {
+                                    window.open(writePreview?.url, '_blank');
+                                }}
+                                style={{ cursor: 'pointer' }}
+                                title={`Open "${writePreview?.url}" in new tab`}
                             >
-                                {/* TODO: Add as a Link to a new tab with the Github repo */}
-                                REPO NAME
+                                {writePreview?.repo}
                             </Badge>
                             :
                         </Text>
                         <List spacing="xs" pl="xs">
-                            {filePathsForDbtCustomView.map((file) => (
+                            {writePreview?.files.map((file) => (
                                 <Tooltip
                                     key={file}
                                     variant="xs"
                                     position="top-start"
-                                    label={`${basePathForDbtCustomView}/${file}`}
+                                    label={file}
                                     multiline
                                     withinPortal
                                     maw={300}
                                 >
                                     <List.Item fz="xs" ff="monospace">
-                                        {file}
+                                        {file.split('/').pop()}
                                     </List.Item>
                                 </Tooltip>
                             ))}
@@ -180,7 +196,9 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Button
                         type="submit"
-                        disabled={!form.values.name || !sql}
+                        disabled={
+                            !form.values.name || !sql || !canWriteToDbtProject
+                        }
                         loading={isLoadingPullRequest}
                         size="xs"
                     >

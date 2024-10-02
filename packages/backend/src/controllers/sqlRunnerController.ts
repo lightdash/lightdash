@@ -3,6 +3,7 @@ import {
     ApiCreateSqlChart,
     ApiErrorPayload,
     ApiGithubDbtWriteBack,
+    ApiGithubDbtWritePreview,
     ApiJobScheduledResponse,
     ApiSqlChart,
     ApiSuccessEmpty,
@@ -415,6 +416,33 @@ export class SqlRunnerController extends BaseController {
     }
 
     /**
+     * Preview write back from SQL runner
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('preview')
+    @OperationId('writeBackPreview')
+    async writeBackPreview(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateCustomExplorePayload,
+    ): Promise<ApiGithubDbtWritePreview> {
+        this.setStatus(200);
+        const { name } = body;
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .writeBackPreview(req.user!, projectUuid, name),
+        };
+    }
+
+    /**
      * Write back from SQL runner
      */
     @Middlewares([
@@ -424,8 +452,8 @@ export class SqlRunnerController extends BaseController {
     ])
     @SuccessResponse('200', 'Success')
     @Post('pull-request')
-    @OperationId('createCustomExplore')
-    async createPr(
+    @OperationId('writeBackCreatePr')
+    async writeBackCreatePr(
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body() body: CreateCustomExplorePayload,
