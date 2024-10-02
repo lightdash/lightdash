@@ -43,7 +43,6 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
     const { mutateAsync: createPullRequest, isLoading: isLoadingPullRequest } =
         useGithubDbtWriteBack();
 
-    // NOTE: This keeps a mutation's previous data (similar to useQuery's `keepPreviousData`
     const [writePreviewData, setWritePreviewData] =
         useState<ApiGithubDbtWritePreview['results']>();
 
