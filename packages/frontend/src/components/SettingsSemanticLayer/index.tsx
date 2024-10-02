@@ -35,7 +35,7 @@ const SemanticLayerOptions: SemanticLayerItem[] = [
         logo: DbtLogo,
     },
     {
-        label: 'Cube Semantic Layer',
+        label: 'Cube',
         value: SemanticLayerType.CUBE,
         logo: CubeLogo,
     },
