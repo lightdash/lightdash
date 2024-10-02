@@ -76,7 +76,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                         withinPortal
                         multiline
                         maw={300}
-                        label="Create a virtual view so others can reuse this query in Lightdash, but it won't be written to or managed in your dbt project."
+                        label="Create a virtual view so others can reuse this query in Lightdash. The query won’t be saved to or managed in your dbt project. If you’re expecting to reuse this query regularly, we suggest writing it back to dbt."
                     >
                         <MantineIcon
                             color="gray.7"
