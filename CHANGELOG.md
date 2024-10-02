@@ -1,3 +1,10 @@
+# [0.1291.0](https://github.com/lightdash/lightdash/compare/0.1290.0...0.1291.0) (2024-10-02)
+
+
+### Features
+
+* write back preview ([#11763](https://github.com/lightdash/lightdash/issues/11763)) ([3b5fe6e](https://github.com/lightdash/lightdash/commit/3b5fe6ef8522425b15fd621cbc0ba787b177adee))
+
 # [0.1290.0](https://github.com/lightdash/lightdash/compare/0.1289.0...0.1290.0) (2024-10-02)
 
 
