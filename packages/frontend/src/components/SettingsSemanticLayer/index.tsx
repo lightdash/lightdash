@@ -22,11 +22,11 @@ interface Props {
 
 const SemanticLayerOptions = [
     {
-        label: 'Cube',
+        label: 'Cube Semantic Layer',
         value: SemanticLayerType.CUBE,
     },
     {
-        label: 'DBT',
+        label: 'dbt Semantic Layer',
         value: SemanticLayerType.DBT,
     },
 ];
@@ -87,7 +87,7 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
 
             <Stack>
                 <Select
-                    label="Semantic Layer Type"
+                    label="Type"
                     data={SemanticLayerOptions}
                     value={semanticLayerType}
                     onChange={(value: SemanticLayerType) =>
