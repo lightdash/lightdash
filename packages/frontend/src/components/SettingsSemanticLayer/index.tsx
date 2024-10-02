@@ -49,7 +49,10 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
             <Stack spacing="sm">
                 <Title order={4}>Semantic Layer</Title>
 
-                <Text color="dimmed">copy needed</Text>
+                <Text color="dimmed">
+                    Connect your third-party Semantic Layer so you can explore
+                    and report on your metric definitions in Lightdash.
+                </Text>
             </Stack>
 
             <Stack>
