@@ -4,7 +4,9 @@ import { Octokit as OctokitRest } from '@octokit/rest';
 
 const { createAppAuth } = require('@octokit/auth-app');
 
-const privateKey = process.env.GITHUB_PRIVATE_KEY;
+const privateKey = process.env.GITHUB_PRIVATE_KEY
+    ? Buffer.from(process.env.GITHUB_PRIVATE_KEY, 'base64').toString('utf-8')
+    : undefined;
 const appId = process.env.GITHUB_APP_ID;
 
 export const githubApp =
@@ -46,7 +48,7 @@ export const getOctokitRestForApp = (installationId: string) => {
         authStrategy: createAppAuth,
         auth: {
             appId,
-            privateKey: process.env.GITHUB_PRIVATE_KEY,
+            privateKey,
             installationId,
         },
     });
