@@ -1,16 +1,16 @@
 import { snakeCaseName } from '@lightdash/common';
 import {
-    Accordion,
     Button,
     Group,
     Modal,
     Stack,
     Text,
     TextInput,
+    Tooltip,
     type ModalProps,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconInfoCircle, IconSparkles } from '@tabler/icons-react';
+import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -25,11 +25,11 @@ type FormValues = z.infer<typeof validationSchema>;
 
 type Props = ModalProps;
 
-export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
+export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
-    const { mutateAsync: createCustomExplore, isLoading } =
+    const { mutateAsync: createCustomExplore, isLoading: isLoadingVirtual } =
         useCreateCustomExplore({
             projectUuid,
         });
@@ -52,9 +52,10 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
                 columns,
                 projectUuid,
             });
+
             onClose();
         },
-        [createCustomExplore, sql, columns, onClose, projectUuid],
+        [columns, onClose, projectUuid, sql, createCustomExplore],
     );
 
     return (
@@ -64,8 +65,25 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
             keepMounted={false}
             title={
                 <Group spacing="xs">
-                    <MantineIcon icon={IconSparkles} size="lg" color="gray.7" />
-                    <Text fw={500}>Create custom explore</Text>
+                    <MantineIcon
+                        icon={IconTableAlias}
+                        size="lg"
+                        color="gray.7"
+                    />
+                    <Text fw={500}>Create virtual view</Text>
+                    <Tooltip
+                        variant="xs"
+                        withinPortal
+                        multiline
+                        maw={300}
+                        label="Create a virtual view so others can reuse this query in Lightdash, but it won't be written to or managed in your dbt project."
+                    >
+                        <MantineIcon
+                            color="gray.7"
+                            icon={IconInfoCircle}
+                            size={16}
+                        />
+                    </Tooltip>
                 </Group>
             }
             styles={(theme) => ({
@@ -74,36 +92,13 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
             })}
         >
             <form onSubmit={form.onSubmit(handleSubmit)}>
-                <Accordion variant="separated" radius="md" m="xs">
-                    <Accordion.Item value="custom-explores">
-                        <Accordion.Control
-                            icon={
-                                <MantineIcon icon={IconInfoCircle} size={16} />
-                            }
-                        >
-                            <Text fz="sm" fw="500">
-                                What are custom explores?
-                            </Text>
-                        </Accordion.Control>
-                        <Accordion.Panel>
-                            <Text fz="xs">
-                                Custom explores are a way to save a query that
-                                you can reuse later when 'Querying from tables'.
-                                You can use them to save time when you and your
-                                organization want to run the same query again.
-                            </Text>
-                        </Accordion.Panel>
-                    </Accordion.Item>
-                </Accordion>
                 <Stack p="md">
-                    <Stack spacing="xs">
-                        <TextInput
-                            radius="md"
-                            label="Name"
-                            required
-                            {...form.getInputProps('name')}
-                        />
-                    </Stack>
+                    <TextInput
+                        radius="md"
+                        label="Name"
+                        required
+                        {...form.getInputProps('name')}
+                    />
                 </Stack>
 
                 <Group position="right" w="100%" p="md">
@@ -111,7 +106,7 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
                         color="gray.7"
                         onClick={onClose}
                         variant="outline"
-                        disabled={isLoading}
+                        disabled={isLoadingVirtual}
                         size="xs"
                     >
                         Cancel
@@ -120,7 +115,7 @@ export const SaveCustomExploreModal: FC<Props> = ({ opened, onClose }) => {
                     <Button
                         type="submit"
                         disabled={!form.values.name || !sql}
-                        loading={isLoading}
+                        loading={isLoadingVirtual}
                         size="xs"
                     >
                         Create

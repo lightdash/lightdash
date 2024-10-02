@@ -3,6 +3,7 @@ import {
     type Explore,
     type PivotChartData,
     type PivotChartLayout,
+    type PullRequestCreated,
     type QueryExecutionContext,
 } from '..';
 import {
@@ -205,4 +206,9 @@ export type CreateCustomExplorePayload = {
     name: string;
     sql: string;
     columns: VizColumn[];
+};
+
+export type ApiGithubDbtWriteBack = {
+    status: 'ok';
+    results: PullRequestCreated;
 };

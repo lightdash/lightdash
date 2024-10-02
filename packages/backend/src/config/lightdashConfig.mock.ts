@@ -149,4 +149,7 @@ export const lightdashConfigMock: LightdashConfig = {
             allowedDomains: [],
         },
     },
+    github: {
+        appName: 'lightdash-app-dev',
+    },
 };

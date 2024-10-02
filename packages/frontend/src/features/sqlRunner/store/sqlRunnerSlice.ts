@@ -93,7 +93,10 @@ export interface SqlRunnerState {
         addToDashboard: {
             isOpen: boolean;
         };
-        saveCustomExploreModal: {
+        createVirtualViewModal: {
+            isOpen: boolean;
+        };
+        writeBackToDbtModal: {
             isOpen: boolean;
         };
         chartErrorsAlert: {
@@ -136,7 +139,10 @@ const initialState: SqlRunnerState = {
         addToDashboard: {
             isOpen: false,
         },
-        saveCustomExploreModal: {
+        createVirtualViewModal: {
+            isOpen: false,
+        },
+        writeBackToDbtModal: {
             isOpen: false,
         },
         chartErrorsAlert: {

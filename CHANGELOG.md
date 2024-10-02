@@ -1,3 +1,52 @@
+# [0.1289.0](https://github.com/lightdash/lightdash/compare/0.1288.0...0.1289.0) (2024-10-02)
+
+
+### Features
+
+* improve sql runner new create mode layout ([#11755](https://github.com/lightdash/lightdash/issues/11755)) ([efaf9d8](https://github.com/lightdash/lightdash/commit/efaf9d8537e124b3c8f76e7d320a0b949facdcbd))
+
+# [0.1288.0](https://github.com/lightdash/lightdash/compare/0.1287.0...0.1288.0) (2024-10-01)
+
+
+### Features
+
+* show disabled items when diff semantic layers ([#11734](https://github.com/lightdash/lightdash/issues/11734)) ([1d0ebab](https://github.com/lightdash/lightdash/commit/1d0ebab2197605cb586f33dd3c5ffbafce7c41fe))
+
+# [0.1287.0](https://github.com/lightdash/lightdash/compare/0.1286.1...0.1287.0) (2024-10-01)
+
+
+### Features
+
+* allow creating PR on custom view modal ([#11750](https://github.com/lightdash/lightdash/issues/11750)) ([887bf13](https://github.com/lightdash/lightdash/commit/887bf134c2e6d872af750ab09ff21018967a782e))
+
+## [0.1286.1](https://github.com/lightdash/lightdash/compare/0.1286.0...0.1286.1) (2024-10-01)
+
+
+### Bug Fixes
+
+* branch name write back and installationId ([#11746](https://github.com/lightdash/lightdash/issues/11746)) ([8c16d35](https://github.com/lightdash/lightdash/commit/8c16d35f77a570efdb4d48aac47228f713b373cd))
+
+# [0.1286.0](https://github.com/lightdash/lightdash/compare/0.1285.0...0.1286.0) (2024-10-01)
+
+
+### Features
+
+* add initial create custom view modal ([#11728](https://github.com/lightdash/lightdash/issues/11728)) ([df9cd10](https://github.com/lightdash/lightdash/commit/df9cd10c0fc03476fe4ce8524adf163c94bd87e2))
+
+# [0.1285.0](https://github.com/lightdash/lightdash/compare/0.1284.1...0.1285.0) (2024-10-01)
+
+
+### Features
+
+* semantic viewer menu link based on connection status ([#11736](https://github.com/lightdash/lightdash/issues/11736)) ([1eea714](https://github.com/lightdash/lightdash/commit/1eea714a6c84ae1b6dffed6549bfc9dbf862749d))
+
+## [0.1284.1](https://github.com/lightdash/lightdash/compare/0.1284.0...0.1284.1) (2024-10-01)
+
+
+### Bug Fixes
+
+* deduplicate select domains ([#11741](https://github.com/lightdash/lightdash/issues/11741)) ([eef08c6](https://github.com/lightdash/lightdash/commit/eef08c621a5b284ab0a973b7b1ad10990fe84ab7))
+
 # [0.1284.0](https://github.com/lightdash/lightdash/compare/0.1283.1...0.1284.0) (2024-10-01)
 
 

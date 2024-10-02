@@ -24,7 +24,7 @@ import {
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
-    type DashboardTile,
+    type DashboardBasicDetailsWithTileTypes,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { v4 as uuidv4 } from 'uuid';
@@ -159,7 +159,7 @@ export class DashboardService extends BaseService {
         projectUuid: string,
         chartUuid?: string,
         includePrivate?: boolean,
-    ): Promise<DashboardBasicDetails[]> {
+    ): Promise<DashboardBasicDetailsWithTileTypes[]> {
         const dashboards = await this.dashboardModel.getAllByProject(
             projectUuid,
             chartUuid,

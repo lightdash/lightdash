@@ -1,5 +1,6 @@
 import {
     CreateDashboardMarkdownTile,
+    DashboardTileTypes,
     deepEqual,
     NotFoundError,
 } from '@lightdash/common';
@@ -136,10 +137,16 @@ describe('DashboardModel', () => {
                 },
             ]);
 
+        tracker.on.select(queryMatcher(DashboardTilesTableName, [0])).response([
+            {
+                type: DashboardTileTypes.SAVED_CHART,
+            },
+        ]);
+
         const dashboard = await model.getAllByProject(projectUuid);
 
         expect(dashboard).toEqual(expectedAllDashboards);
-        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select).toHaveLength(2);
     });
 
     test('should create dashboard with tile ids', async () => {
