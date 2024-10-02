@@ -38,7 +38,7 @@ export const useGithubDbtWritePreview = () => {
         ApiError,
         CreatePrParams
     >(createPullRequest, {
-        mutationKey: ['sqlRunner', 'createPullRequest'],
+        mutationKey: ['sqlRunner', 'githubDbtWritePreview'],
 
         onError: () => {
             showToastError({
