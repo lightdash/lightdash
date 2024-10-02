@@ -42,6 +42,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
         mutateAsync: getWritePreview,
         data: writePreview,
         isLoading: isPreviewLoading,
+        isError: isPreviewError,
     } = useGithubDbtWritePreview();
     const form = useForm<FormValues>({
         initialValues: {
@@ -62,7 +63,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
         // Initial preview load
         if (!opened) return;
 
-        if (!writePreview && columns && !isPreviewLoading) {
+        if (!writePreview && columns && !isPreviewLoading && !isPreviewError) {
             void getWritePreview({
                 projectUuid,
                 name: 'custom view',
@@ -73,6 +74,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
     }, [
         opened,
         isPreviewLoading,
+        isPreviewError,
         writePreview,
         projectUuid,
         sql,
