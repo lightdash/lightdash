@@ -26,6 +26,9 @@ const createCustomExplore = async ({
         }),
     });
 
+/**
+ * Create a virtual view (a.k.a. custom explore) - users can query from them in the Explore view
+ */
 export const useCreateCustomExplore = ({
     projectUuid,
 }: {
@@ -42,9 +45,9 @@ export const useCreateCustomExplore = ({
         mutationFn: createCustomExplore,
         onSuccess: (data) => {
             showToastSuccess({
-                title: 'Success! Custom explore created',
+                title: 'Success! Virtual view created',
                 action: {
-                    children: 'Query from new explore',
+                    children: 'Query from new virtual view',
                     icon: IconArrowRight,
                     onClick: () => {
                         window.open(
@@ -57,7 +60,7 @@ export const useCreateCustomExplore = ({
         },
         onError: () => {
             showToastError({
-                title: 'Error creating custom explore',
+                title: 'Error creating virtual view',
             });
         },
     });
