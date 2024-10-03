@@ -109,8 +109,7 @@ export type PivotChartLayout = {
     x:
         | {
               reference: string;
-              axisType: VizIndexType;
-              dimensionType: DimensionType;
+              type: VizIndexType;
           }
         | undefined;
     y: {

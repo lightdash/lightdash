@@ -2,7 +2,6 @@ import {
     ChartKind,
     isVizPieChartConfig,
     VIZ_DEFAULT_AGGREGATION,
-    type DimensionType,
     type VizAggregationOptions,
     type VizConfigErrors,
     type VizIndexType,
@@ -52,14 +51,12 @@ export const pieChartConfigSlice = createSlice({
             action: PayloadAction<{
                 reference: string;
                 axisType: VizIndexType;
-                dimensionType: DimensionType;
             }>,
         ) => {
             if (fieldConfig?.x) {
                 fieldConfig.x = {
                     reference: action.payload.reference,
-                    axisType: action.payload.axisType,
-                    dimensionType: action.payload.dimensionType,
+                    type: action.payload.axisType,
                 };
             }
         },

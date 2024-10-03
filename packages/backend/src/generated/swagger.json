@@ -7549,21 +7549,100 @@
                     },
                     "x": {
                         "properties": {
-                            "dimensionType": {
-                                "$ref": "#/components/schemas/DimensionType"
-                            },
-                            "axisType": {
+                            "type": {
                                 "$ref": "#/components/schemas/VizIndexType"
                             },
                             "reference": {
                                 "type": "string"
                             }
                         },
-                        "required": ["dimensionType", "axisType", "reference"],
+                        "required": ["type", "reference"],
                         "type": "object"
                     }
                 },
                 "required": ["y"],
+                "type": "object"
+            },
+            "CartesianChartDisplay": {
+                "properties": {
+                    "stack": {
+                        "type": "boolean"
+                    },
+                    "legend": {
+                        "properties": {
+                            "align": {
+                                "type": "string",
+                                "enum": ["start", "center", "end"]
+                            },
+                            "position": {
+                                "type": "string",
+                                "enum": ["top", "bottom", "left", "right"]
+                            }
+                        },
+                        "required": ["align", "position"],
+                        "type": "object"
+                    },
+                    "series": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "properties": {
+                                "type": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ChartKind.LINE"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                                        }
+                                    ]
+                                },
+                                "color": {
+                                    "type": "string"
+                                },
+                                "yAxisIndex": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "format": {
+                                    "$ref": "#/components/schemas/Format"
+                                },
+                                "label": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "object"
+                    },
+                    "yAxis": {
+                        "items": {
+                            "properties": {
+                                "format": {
+                                    "$ref": "#/components/schemas/Format"
+                                },
+                                "position": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "xAxis": {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/VizIndexType"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
                 "type": "object"
             },
             "VizCartesianChartConfig": {
@@ -7573,6 +7652,9 @@
                     },
                     {
                         "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
                             "fieldConfig": {
                                 "$ref": "#/components/schemas/PivotChartLayout"
                             },
@@ -7596,6 +7678,14 @@
                 "enum": ["pie"],
                 "type": "string"
             },
+            "VizPieChartDisplay": {
+                "properties": {
+                    "isDonut": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "VizPieChartConfig": {
                 "allOf": [
                     {
@@ -7603,6 +7693,9 @@
                     },
                     {
                         "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/VizPieChartDisplay"
+                            },
                             "fieldConfig": {
                                 "$ref": "#/components/schemas/PivotChartLayout"
                             },
@@ -7651,6 +7744,10 @@
                 },
                 "type": "object"
             },
+            "VizTableDisplay": {
+                "properties": {},
+                "type": "object"
+            },
             "VizTableConfig": {
                 "allOf": [
                     {
@@ -7658,6 +7755,9 @@
                     },
                     {
                         "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/VizTableDisplay"
+                            },
                             "columns": {
                                 "$ref": "#/components/schemas/VizColumnsConfig"
                             },
@@ -7890,6 +7990,9 @@
                     },
                     {
                         "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
                             "fieldConfig": {
                                 "$ref": "#/components/schemas/PivotChartLayout"
                             },
@@ -7909,6 +8012,9 @@
                     },
                     {
                         "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
                             "fieldConfig": {
                                 "$ref": "#/components/schemas/PivotChartLayout"
                             },

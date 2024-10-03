@@ -1,3 +1,4 @@
+import { ChartKind } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -28,7 +29,7 @@ import {
 } from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import {
     selectChartFieldConfigByKind,
-    selectTableVisConfigState,
+    selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -61,10 +62,14 @@ const SaveChartForm: FC<
     );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
-    const selectedChartConfig = useAppSelector((state) =>
-        selectChartFieldConfigByKind(state, selectedChartType),
+
+    const defaultChartConfig = useAppSelector((state) =>
+        selectCompleteConfigByKind(state, ChartKind.TABLE),
     );
-    const defaultChartConfig = useAppSelector(selectTableVisConfigState);
+
+    const currentVizConfig = useAppSelector((state) =>
+        selectCompleteConfigByKind(state, selectedChartType),
+    );
 
     // TODO: this sometimes runs `/api/v1/projects//spaces` request
     // because initial `projectUuid` is set to '' (empty string)
@@ -120,33 +125,16 @@ const SaveChartForm: FC<
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spaces[0].uuid;
 
-        const currentConfig = selectedChartConfig ?? defaultChartConfig.config;
+        const currentConfig = currentVizConfig ?? defaultChartConfig;
 
-        // TODO: this is part of the question about translating FE types for DB
-        const configToSave = {
-            ...currentConfig,
-            fieldConfig: {
-                ...('fieldConfig' in currentConfig
-                    ? currentConfig.fieldConfig
-                    : {}),
-                x: {
-                    reference:
-                        'fieldConfig' in currentConfig
-                            ? currentConfig.fieldConfig?.x?.reference
-                            : undefined,
-                    type: currentConfig?.fieldConfig?.x?.axisType,
-                },
-            },
-        };
-
-        if (configToSave && sql) {
+        if (currentConfig && sql) {
             try {
                 await createSavedSqlChart({
                     name: form.values.name,
                     description: form.values.description || '',
                     sql,
                     limit,
-                    config: configToSave,
+                    config: currentConfig,
                     spaceUuid: spaceUuid,
                 });
 
@@ -163,8 +151,8 @@ const SaveChartForm: FC<
         form.values.name,
         form.values.description,
         createSpace,
-        selectedChartConfig,
-        defaultChartConfig.config,
+        currentVizConfig,
+        defaultChartConfig,
         sql,
         createSavedSqlChart,
         limit,

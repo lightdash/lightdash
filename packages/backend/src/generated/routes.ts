@@ -6822,14 +6822,7 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
-                                dimensionType: {
-                                    ref: 'DimensionType',
-                                    required: true,
-                                },
-                                axisType: {
-                                    ref: 'VizIndexType',
-                                    required: true,
-                                },
+                                type: { ref: 'VizIndexType', required: true },
                                 reference: {
                                     dataType: 'string',
                                     required: true,
@@ -6845,6 +6838,79 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CartesianChartDisplay: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                stack: { dataType: 'boolean' },
+                legend: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        align: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['start'] },
+                                { dataType: 'enum', enums: ['center'] },
+                                { dataType: 'enum', enums: ['end'] },
+                            ],
+                            required: true,
+                        },
+                        position: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['top'] },
+                                { dataType: 'enum', enums: ['bottom'] },
+                                { dataType: 'enum', enums: ['left'] },
+                                { dataType: 'enum', enums: ['right'] },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+                series: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {},
+                    additionalProperties: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            type: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { ref: 'ChartKind.LINE' },
+                                    { ref: 'ChartKind.VERTICAL_BAR' },
+                                ],
+                            },
+                            color: { dataType: 'string' },
+                            yAxisIndex: { dataType: 'double' },
+                            format: { ref: 'Format' },
+                            label: { dataType: 'string' },
+                        },
+                    },
+                },
+                yAxis: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            format: { ref: 'Format' },
+                            position: { dataType: 'string' },
+                            label: { dataType: 'string' },
+                        },
+                    },
+                },
+                xAxis: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        type: { ref: 'VizIndexType' },
+                        label: { dataType: 'string' },
+                    },
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     VizCartesianChartConfig: {
         dataType: 'refAlias',
         type: {
@@ -6854,6 +6920,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
@@ -6882,6 +6956,15 @@ const models: TsoaRoute.Models = {
         enums: ['pie'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizPieChartDisplay: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { isDonut: { dataType: 'boolean' } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     VizPieChartConfig: {
         dataType: 'refAlias',
         type: {
@@ -6891,6 +6974,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'VizPieChartDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
@@ -6938,6 +7029,15 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizTableDisplay: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     VizTableConfig: {
         dataType: 'refAlias',
         type: {
@@ -6947,6 +7047,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'VizTableDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
                         columns: { ref: 'VizColumnsConfig', required: true },
                         type: { ref: 'ChartKind.TABLE', required: true },
                     },
@@ -7132,6 +7240,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
@@ -7157,6 +7273,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CartesianChartDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [

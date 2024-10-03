@@ -27,8 +27,7 @@ import { type IResultsRunner } from './types/IResultsRunner';
 const defaultFieldConfig: PivotChartLayout = {
     x: {
         reference: 'x',
-        axisType: VizIndexType.CATEGORY,
-        dimensionType: DimensionType.STRING,
+        type: VizIndexType.CATEGORY,
     },
     y: [
         {
@@ -156,14 +155,10 @@ export class CartesianChartDataModel {
         }
         const x = {
             reference: xColumn.reference,
-            axisType:
+            type:
                 'axisType' in xColumn
                     ? xColumn.axisType
                     : VizIndexType.CATEGORY,
-            dimensionType:
-                'dimensionType' in xColumn
-                    ? xColumn.dimensionType
-                    : DimensionType.STRING,
         };
 
         const yColumn =

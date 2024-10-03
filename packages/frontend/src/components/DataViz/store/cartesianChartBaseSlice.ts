@@ -55,7 +55,10 @@ export const cartesianChartConfigSlice = createSlice({
 
             // NOTE: now setting a field instead of just a reference.
             if (state.fieldConfig && xField) {
-                state.fieldConfig.x = xField;
+                state.fieldConfig.x = {
+                    type: xField.axisType,
+                    reference: xField.reference,
+                };
             }
         },
 

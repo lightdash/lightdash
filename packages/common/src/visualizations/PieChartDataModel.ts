@@ -16,8 +16,7 @@ import { type IResultsRunner } from './types/IResultsRunner';
 const defaultFieldConfig: PivotChartLayout = {
     x: {
         reference: 'x',
-        axisType: VizIndexType.CATEGORY,
-        dimensionType: DimensionType.STRING,
+        type: VizIndexType.CATEGORY,
     },
     y: [
         {
@@ -78,8 +77,7 @@ export class PieChartDataModel {
 
         const group = {
             reference: groupField.reference,
-            dimensionType: groupField.dimensionType,
-            axisType: groupField.axisType,
+            type: groupField.axisType,
         };
 
         const metricFields = [
