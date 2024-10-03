@@ -86,10 +86,10 @@ const CubeSemanticLayerForm: FC<Props> = ({
                                         The token can be found by logging into
                                         Cube, clicking on the desired deployment
                                         and then going to{' '}
-                                        <b>
+                                        <Text span fw={500}>
                                             Integrations {'>'} API Credentials{' '}
                                             {'>'} REST API
-                                        </b>
+                                        </Text>
                                         .
                                     </Text>
                                 }
