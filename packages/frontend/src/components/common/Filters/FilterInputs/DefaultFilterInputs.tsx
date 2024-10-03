@@ -7,6 +7,7 @@ import {
     type ConditionalRule,
 } from '@lightdash/common';
 import isString from 'lodash/isString';
+import { useEffect, useRef } from 'react';
 import { type FilterInputsProps } from '.';
 import { TagInput } from '../../TagInput/TagInput';
 import { useFiltersContext } from '../FiltersProvider';
@@ -35,6 +36,13 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
             ? rule.disabled && !rule.values
             : undefined,
     });
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [onChange]);
 
     switch (rule.operator) {
         case FilterOperator.NULL:
@@ -94,6 +102,7 @@ const DefaultFilterInputs = <T extends ConditionalRule>({
                             disabled={disabled}
                             placeholder={placeholder}
                             allowDuplicates={false}
+                            ref={inputRef}
                             validationRegex={
                                 filterType === FilterType.NUMBER
                                     ? /^-?\d+(\.\d+)?$/
