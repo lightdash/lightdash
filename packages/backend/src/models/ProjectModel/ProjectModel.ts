@@ -2216,11 +2216,9 @@ export class ProjectModel {
 
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
-                semantic_layer_connection: updatedSemanticLayerConnection
-                    ? this.encryptionUtil.encrypt(
-                          JSON.stringify(updatedSemanticLayerConnection),
-                      )
-                    : null,
+                semantic_layer_connection: this.encryptionUtil.encrypt(
+                    JSON.stringify(updatedSemanticLayerConnection),
+                ),
             })
             .where('project_uuid', projectUuid)
             .returning('*');
