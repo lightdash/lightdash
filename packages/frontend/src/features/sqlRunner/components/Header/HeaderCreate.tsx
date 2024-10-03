@@ -1,5 +1,13 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Button, Group, Menu, Paper, Stack, Text } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Menu,
+    Paper,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import {
     IconBrandGithub,
     IconChevronDown,
@@ -9,7 +17,9 @@ import {
 import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
+import { useGitHubRepositories } from '../../../../components/UserSettings/GithubSettingsPanel';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
+import useHealth from '../../../../hooks/health/useHealth';
 import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -36,6 +46,15 @@ export const HeaderCreate: FC = () => {
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
+
+    const isGithubIntegrationEnabled = useFeatureFlagEnabled(
+        FeatureFlags.CustomSQLEnabled,
+    );
+    const health = useHealth();
+    const { isError } = useGitHubRepositories();
+    const canWriteBackGithub =
+        health?.data?.hasGithub && !isError && isGithubIntegrationEnabled;
+
     const isCreateVirtualViewModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.createVirtualViewModal.isOpen,
     );
@@ -226,37 +245,57 @@ export const HeaderCreate: FC = () => {
                                             </Stack>
                                         </Menu.Item>
 
-                                        <Menu.Item
-                                            onClick={() => {
-                                                setCtaAction('writeBackToDbt');
-                                            }}
+                                        <Tooltip
+                                            label={
+                                                'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
+                                            }
+                                            position="top"
+                                            withArrow
+                                            withinPortal
+                                            disabled={canWriteBackGithub}
                                         >
-                                            <Stack spacing="two">
-                                                <Text
-                                                    fw={600}
-                                                    fz="xs"
-                                                    c={
-                                                        ctaAction ===
-                                                        'writeBackToDbt'
-                                                            ? 'blue'
-                                                            : undefined
+                                            <Group>
+                                                <Menu.Item
+                                                    disabled={
+                                                        !canWriteBackGithub
                                                     }
+                                                    onClick={() => {
+                                                        setCtaAction(
+                                                            'writeBackToDbt',
+                                                        );
+                                                    }}
                                                 >
-                                                    {
-                                                        getCtaLabels(
-                                                            'writeBackToDbt',
-                                                        ).label
-                                                    }
-                                                </Text>
-                                                <Text fz={10} c="gray.6">
-                                                    {
-                                                        getCtaLabels(
-                                                            'writeBackToDbt',
-                                                        ).description
-                                                    }
-                                                </Text>
-                                            </Stack>
-                                        </Menu.Item>
+                                                    <Stack spacing="two">
+                                                        <Text
+                                                            fw={600}
+                                                            fz="xs"
+                                                            c={
+                                                                ctaAction ===
+                                                                'writeBackToDbt'
+                                                                    ? 'blue'
+                                                                    : undefined
+                                                            }
+                                                        >
+                                                            {
+                                                                getCtaLabels(
+                                                                    'writeBackToDbt',
+                                                                ).label
+                                                            }
+                                                        </Text>
+                                                        <Text
+                                                            fz={10}
+                                                            c="gray.6"
+                                                        >
+                                                            {
+                                                                getCtaLabels(
+                                                                    'writeBackToDbt',
+                                                                ).description
+                                                            }
+                                                        </Text>
+                                                    </Stack>
+                                                </Menu.Item>
+                                            </Group>
+                                        </Tooltip>
                                     </Menu.Dropdown>
                                 </Menu>
                             )}
@@ -274,6 +313,7 @@ export const HeaderCreate: FC = () => {
                 opened={isCreateVirtualViewModalOpen}
                 onClose={onCloseCreateVirtualViewModal}
             />
+
             <WriteBackToDbtModal
                 key={`${isWriteBackToDbtModalOpen}-writeBackToDbtModal`}
                 opened={isWriteBackToDbtModalOpen}
