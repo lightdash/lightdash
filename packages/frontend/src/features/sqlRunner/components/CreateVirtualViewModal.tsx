@@ -14,6 +14,7 @@ import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useHealth from '../../../hooks/health/useHealth';
 import { useCreateCustomExplore } from '../hooks/useCustomExplore';
 import { useAppSelector } from '../store/hooks';
 
@@ -26,6 +27,7 @@ type FormValues = z.infer<typeof validationSchema>;
 type Props = ModalProps;
 
 export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
+    const health = useHealth();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
@@ -76,7 +78,11 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                         withinPortal
                         multiline
                         maw={300}
-                        label="Create a virtual view so others can reuse this query in Lightdash. The query won’t be saved to or managed in your dbt project. If you’re expecting to reuse this query regularly, we suggest writing it back to dbt."
+                        label={`Create a virtual view so others can reuse this query in Lightdash. The query won’t be saved to or managed in your dbt project. ${
+                            health.data?.hasGithub
+                                ? 'If you’re expecting to reuse this query regularly, we suggest writing it back to dbt.'
+                                : ''
+                        } `}
                     >
                         <MantineIcon
                             color="gray.7"
