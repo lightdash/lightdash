@@ -1,7 +1,6 @@
 import { DimensionType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
-import { type CartesianChartDisplay } from '../CartesianChartDataModel';
 
 export enum VizAggregationOptions {
     SUM = 'sum',
@@ -166,31 +165,26 @@ export type VizBaseConfig = {
 export type VizCartesianChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
     fieldConfig: PivotChartLayout | undefined;
-    display: CartesianChartDisplay | undefined;
 };
 
 export type VizBarChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR;
     fieldConfig: PivotChartLayout | undefined;
-    display: CartesianChartDisplay | undefined;
 };
 
 export type VizLineChartConfig = VizBaseConfig & {
     type: ChartKind.LINE;
     fieldConfig: PivotChartLayout | undefined;
-    display: CartesianChartDisplay | undefined;
 };
 
 export type VizPieChartConfig = VizBaseConfig & {
     type: ChartKind.PIE;
     fieldConfig: PivotChartLayout | undefined;
-    display: VizPieChartDisplay | undefined;
 };
 
 export type VizTableConfig = VizBaseConfig & {
     type: ChartKind.TABLE;
     columns: VizTableColumnsConfig['columns'];
-    display: VizTableDisplay | undefined;
 };
 
 export type AllVizChartConfig =

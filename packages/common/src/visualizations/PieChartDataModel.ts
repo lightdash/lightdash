@@ -32,7 +32,6 @@ const defaultPieChartConfig: VizPieChartConfig = {
         ],
         groupBy: [],
     },
-    display: {},
 };
 
 export class PieChartDataModel {
@@ -117,14 +116,13 @@ export class PieChartDataModel {
 
     mergeConfig(
         chartKind: ChartKind.PIE,
-        currentVizConfig?: VizPieChartConfig,
+        fieldConfig: PivotChartLayout | undefined,
     ): VizPieChartConfig {
         const newDefaultLayout = this.getDefaultLayout();
 
         const mergedLayout =
-            newDefaultLayout?.x?.reference ===
-            currentVizConfig?.fieldConfig?.x?.reference
-                ? currentVizConfig?.fieldConfig
+            newDefaultLayout?.x?.reference === fieldConfig?.x?.reference
+                ? fieldConfig
                 : newDefaultLayout;
 
         return {
@@ -133,7 +131,6 @@ export class PieChartDataModel {
             },
             type: chartKind,
             fieldConfig: mergedLayout,
-            display: currentVizConfig?.display ?? {},
         };
     }
 

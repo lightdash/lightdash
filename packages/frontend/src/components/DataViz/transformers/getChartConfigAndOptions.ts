@@ -18,6 +18,7 @@ const getChartConfigAndOptions = (
     currentVizConfig?: VizChartConfig,
     organization?: Organization,
 ) => {
+
     switch (chartType) {
         case ChartKind.PIE:
             if (currentVizConfig && !isVizPieChartConfig(currentVizConfig)) {
@@ -30,7 +31,8 @@ const getChartConfigAndOptions = (
 
             const pieConfig = pieChartDataModel.mergeConfig(
                 chartType,
-                currentVizConfig,
+                currentVizConfig?.fieldConfig,
+                currentVizConfig?.display,
             );
 
             return {
@@ -69,7 +71,8 @@ const getChartConfigAndOptions = (
 
             const barConfig = barChartModel.mergeConfig(
                 chartType,
-                currentVizConfig,
+                currentVizConfig?.fieldConfig,
+                currentVizConfig?.display,
             );
 
             return {
@@ -93,7 +96,8 @@ const getChartConfigAndOptions = (
 
             const lineConfig = lineChartModel.mergeConfig(
                 chartType,
-                currentVizConfig,
+                currentVizConfig?.fieldConfig,
+                currentVizConfig?.display,
             );
 
             return {
