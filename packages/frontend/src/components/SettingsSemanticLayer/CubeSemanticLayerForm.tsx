@@ -117,9 +117,9 @@ const CubeSemanticLayerForm: FC<Props> = ({
                                         The domain can be found by logging into
                                         Cube, clicking on the desired deployment
                                         and then going to{' '}
-                                        <b>
+                                        <Text span fw={500}>
                                             Integrations {'>'} API Credentials
-                                        </b>
+                                        </Text>
                                         .
                                     </Text>
                                 }
