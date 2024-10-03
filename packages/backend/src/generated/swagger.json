@@ -7512,7 +7512,7 @@
                 "enum": ["line"],
                 "type": "string"
             },
-            "VizChartLayout": {
+            "PivotChartLayout": {
                 "properties": {
                     "sortBy": {
                         "items": {
@@ -7542,107 +7542,28 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["reference"],
+                            "required": ["aggregation", "reference"],
                             "type": "object"
                         },
                         "type": "array"
                     },
                     "x": {
                         "properties": {
-                            "type": {
+                            "dimensionType": {
+                                "$ref": "#/components/schemas/DimensionType"
+                            },
+                            "axisType": {
                                 "$ref": "#/components/schemas/VizIndexType"
                             },
                             "reference": {
                                 "type": "string"
                             }
                         },
-                        "required": ["type", "reference"],
+                        "required": ["dimensionType", "axisType", "reference"],
                         "type": "object"
                     }
                 },
                 "required": ["y"],
-                "type": "object"
-            },
-            "CartesianChartDisplay": {
-                "properties": {
-                    "stack": {
-                        "type": "boolean"
-                    },
-                    "legend": {
-                        "properties": {
-                            "align": {
-                                "type": "string",
-                                "enum": ["start", "center", "end"]
-                            },
-                            "position": {
-                                "type": "string",
-                                "enum": ["top", "bottom", "left", "right"]
-                            }
-                        },
-                        "required": ["align", "position"],
-                        "type": "object"
-                    },
-                    "series": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "properties": {
-                                "type": {
-                                    "anyOf": [
-                                        {
-                                            "$ref": "#/components/schemas/ChartKind.LINE"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
-                                        }
-                                    ]
-                                },
-                                "color": {
-                                    "type": "string"
-                                },
-                                "yAxisIndex": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
-                                "format": {
-                                    "$ref": "#/components/schemas/Format"
-                                },
-                                "label": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "type": "object"
-                    },
-                    "yAxis": {
-                        "items": {
-                            "properties": {
-                                "format": {
-                                    "$ref": "#/components/schemas/Format"
-                                },
-                                "position": {
-                                    "type": "string"
-                                },
-                                "label": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "xAxis": {
-                        "properties": {
-                            "type": {
-                                "$ref": "#/components/schemas/VizIndexType"
-                            },
-                            "label": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    }
-                },
                 "type": "object"
             },
             "VizCartesianChartConfig": {
@@ -7652,11 +7573,8 @@
                     },
                     {
                         "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/CartesianChartDisplay"
-                            },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "anyOf": [
@@ -7678,14 +7596,6 @@
                 "enum": ["pie"],
                 "type": "string"
             },
-            "VizPieChartDisplay": {
-                "properties": {
-                    "isDonut": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
             "VizPieChartConfig": {
                 "allOf": [
                     {
@@ -7693,11 +7603,8 @@
                     },
                     {
                         "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/VizPieChartDisplay"
-                            },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.PIE"
@@ -7983,11 +7890,8 @@
                     },
                     {
                         "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/CartesianChartDisplay"
-                            },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
@@ -8005,11 +7909,8 @@
                     },
                     {
                         "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/CartesianChartDisplay"
-                            },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.LINE"
@@ -8188,6 +8089,20 @@
                     }
                 },
                 "required": ["columns", "sql", "name"],
+                "type": "object"
+            },
+            "ApiGithubDbtWriteBack": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/PullRequestCreated"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
@@ -9281,7 +9196,7 @@
                         "type": "array"
                     },
                     "aggType": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/VizAggregationOptions"
                     },
                     "visible": {
                         "type": "boolean"
@@ -9360,6 +9275,59 @@
                 "required": ["dimensions", "timeDimensions", "metrics"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_SemanticLayerField.name-or-kind_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/FieldType"
+                    }
+                },
+                "required": ["name", "kind"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SemanticLayerSortBy": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
+                    },
+                    {
+                        "properties": {
+                            "direction": {
+                                "$ref": "#/components/schemas/SortByDirection"
+                            }
+                        },
+                        "required": ["direction"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerPivot": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "index": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "on": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["values", "index", "on"],
+                "type": "object"
             },
             "SemanticLayerFilterBase": {
                 "properties": {
@@ -9516,65 +9484,51 @@
                     }
                 ]
             },
-            "Pick_SemanticLayerField.name-or-kind_": {
+            "Pick_SemanticLayerField.name-or-aggType_": {
                 "properties": {
                     "name": {
                         "type": "string"
                     },
-                    "kind": {
-                        "$ref": "#/components/schemas/FieldType"
+                    "aggType": {
+                        "$ref": "#/components/schemas/VizAggregationOptions"
                     }
                 },
-                "required": ["name", "kind"],
+                "required": ["name"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "SemanticLayerSortByDirection": {
-                "enum": ["ASC", "DESC"],
-                "type": "string"
-            },
-            "SemanticLayerSortBy": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
-                    },
-                    {
-                        "properties": {
-                            "direction": {
-                                "$ref": "#/components/schemas/SemanticLayerSortByDirection"
-                            }
-                        },
-                        "required": ["direction"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerPivot": {
-                "properties": {
-                    "values": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "index": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "on": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["values", "index", "on"],
-                "type": "object"
-            },
             "SemanticLayerQuery": {
                 "properties": {
+                    "customMetrics": {
+                        "items": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-aggType_"
+                                },
+                                {
+                                    "properties": {
+                                        "baseDimension": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerFilter"
+                        },
+                        "type": "array"
+                    },
+                    "pivot": {
+                        "$ref": "#/components/schemas/SemanticLayerPivot"
+                    },
                     "timezone": {
                         "type": "string"
                     },
@@ -9582,18 +9536,9 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "pivot": {
-                        "$ref": "#/components/schemas/SemanticLayerPivot"
-                    },
                     "sortBy": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerSortBy"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "items": {
-                            "$ref": "#/components/schemas/SemanticLayerFilter"
                         },
                         "type": "array"
                     },
@@ -9617,8 +9562,8 @@
                     }
                 },
                 "required": [
-                    "sortBy",
                     "filters",
+                    "sortBy",
                     "metrics",
                     "timeDimensions",
                     "dimensions"
@@ -10135,7 +10080,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1286.0",
+        "version": "0.1289.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
