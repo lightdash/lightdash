@@ -132,21 +132,22 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials);
-        let decodedPrivateKey: string | Buffer | undefined =
-            credentials.privateKey;
-        if (credentials.privateKey && credentials.privateKeyPass) {
-            // Get the private key from the file as an object.
-            const privateKeyObject = crypto.createPrivateKey({
-                key: credentials.privateKey,
-                format: 'pem',
-                passphrase: credentials.privateKeyPass,
-            });
 
-            // Extract the private key from the object as a PEM-encoded string.
-            decodedPrivateKey = privateKeyObject.export({
-                format: 'pem',
-                type: 'pkcs8',
-            });
+        let decodedPrivateKey: string | undefined;
+        if (credentials.privateKey && credentials.privateKeyPass) {
+            // Get the private key from the file as an object and
+            // extract the private key from the object as a PEM-encoded string.
+            decodedPrivateKey = crypto
+                .createPrivateKey({
+                    key: credentials.privateKey,
+                    format: 'pem',
+                    passphrase: credentials.privateKeyPass,
+                })
+                .export({
+                    format: 'pem',
+                    type: 'pkcs8',
+                })
+                .toString('utf-8');
         }
 
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
@@ -155,7 +156,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
 
         let authenticationOptions: Partial<ConnectionOptions> = {};
-
         if (credentials.password) {
             authenticationOptions = {
                 password: credentials.password,
@@ -167,6 +167,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 authenticator: 'SNOWFLAKE_JWT',
             };
         }
+
         this.connectionOptions = {
             account: credentials.account,
             username: credentials.user,
@@ -178,7 +179,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             ...(credentials.accessUrl?.length
                 ? { accessUrl: credentials.accessUrl }
                 : {}),
-        } as ConnectionOptions; // force type because accessUrl property is not recognised
+        };
     }
 
     async streamQuery(
