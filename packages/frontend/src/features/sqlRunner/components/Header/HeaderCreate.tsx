@@ -46,14 +46,12 @@ export const HeaderCreate: FC = () => {
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
-
-    const isGithubIntegrationEnabled = useFeatureFlagEnabled(
-        FeatureFlags.CustomSQLEnabled,
-    );
     const health = useHealth();
-    const { isError } = useGitHubRepositories();
-    const canWriteBackGithub =
-        health?.data?.hasGithub && !isError && isGithubIntegrationEnabled;
+
+    const isGithubIntegrationEnabled =
+        useFeatureFlagEnabled(FeatureFlags.CustomSQLEnabled) &&
+        health?.data?.hasGithub;
+    const { isError: githubIsNotInstalled } = useGitHubRepositories();
 
     const isCreateVirtualViewModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.createVirtualViewModal.isOpen,
@@ -245,57 +243,60 @@ export const HeaderCreate: FC = () => {
                                             </Stack>
                                         </Menu.Item>
 
-                                        <Tooltip
-                                            label={
-                                                'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
-                                            }
-                                            position="top"
-                                            withArrow
-                                            withinPortal
-                                            disabled={canWriteBackGithub}
-                                        >
-                                            <Group>
-                                                <Menu.Item
-                                                    disabled={
-                                                        !canWriteBackGithub
-                                                    }
-                                                    onClick={() => {
-                                                        setCtaAction(
-                                                            'writeBackToDbt',
-                                                        );
-                                                    }}
-                                                >
-                                                    <Stack spacing="two">
-                                                        <Text
-                                                            fw={600}
-                                                            fz="xs"
-                                                            c={
-                                                                ctaAction ===
-                                                                'writeBackToDbt'
-                                                                    ? 'blue'
-                                                                    : undefined
-                                                            }
-                                                        >
-                                                            {
-                                                                getCtaLabels(
-                                                                    'writeBackToDbt',
-                                                                ).label
-                                                            }
-                                                        </Text>
-                                                        <Text
-                                                            fz={10}
-                                                            c="gray.6"
-                                                        >
-                                                            {
-                                                                getCtaLabels(
-                                                                    'writeBackToDbt',
-                                                                ).description
-                                                            }
-                                                        </Text>
-                                                    </Stack>
-                                                </Menu.Item>
-                                            </Group>
-                                        </Tooltip>
+                                        {isGithubIntegrationEnabled && (
+                                            <Tooltip
+                                                label={
+                                                    'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
+                                                }
+                                                position="top"
+                                                withArrow
+                                                withinPortal
+                                                disabled={!githubIsNotInstalled}
+                                            >
+                                                <Group>
+                                                    <Menu.Item
+                                                        disabled={
+                                                            githubIsNotInstalled
+                                                        }
+                                                        onClick={() => {
+                                                            setCtaAction(
+                                                                'writeBackToDbt',
+                                                            );
+                                                        }}
+                                                    >
+                                                        <Stack spacing="two">
+                                                            <Text
+                                                                fw={600}
+                                                                fz="xs"
+                                                                c={
+                                                                    ctaAction ===
+                                                                    'writeBackToDbt'
+                                                                        ? 'blue'
+                                                                        : undefined
+                                                                }
+                                                            >
+                                                                {
+                                                                    getCtaLabels(
+                                                                        'writeBackToDbt',
+                                                                    ).label
+                                                                }
+                                                            </Text>
+                                                            <Text
+                                                                fz={10}
+                                                                c="gray.6"
+                                                            >
+                                                                {
+                                                                    getCtaLabels(
+                                                                        'writeBackToDbt',
+                                                                    )
+                                                                        .description
+                                                                }
+                                                            </Text>
+                                                        </Stack>
+                                                    </Menu.Item>
+                                                </Group>
+                                            </Tooltip>
+                                        )}
                                     </Menu.Dropdown>
                                 </Menu>
                             )}
