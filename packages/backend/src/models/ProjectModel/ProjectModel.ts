@@ -2207,7 +2207,6 @@ export class ProjectModel {
             : connectionUpdate;
 
         if (
-            updatedSemanticLayerConnection &&
             !ProjectModel.isSemanticLayerConnectionValid(
                 updatedSemanticLayerConnection,
             )

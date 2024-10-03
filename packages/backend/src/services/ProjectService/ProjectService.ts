@@ -4409,7 +4409,7 @@ export class ProjectService extends BaseService {
     async updateSemanticLayerConnection(
         user: SessionUser,
         projectUuid: string,
-        payload: SemanticLayerConnectionUpdate | undefined,
+        payload: SemanticLayerConnectionUpdate,
     ) {
         const project = await this.projectModel.getSummary(projectUuid);
 
