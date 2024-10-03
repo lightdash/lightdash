@@ -6079,10 +6079,36 @@
             "SemanticLayerConnectionUpdate": {
                 "anyOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_DbtSemanticLayerConnection_"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Partial_DbtSemanticLayerConnection_"
+                            },
+                            {
+                                "properties": {
+                                    "type": {
+                                        "$ref": "#/components/schemas/SemanticLayerType.DBT"
+                                    }
+                                },
+                                "required": ["type"],
+                                "type": "object"
+                            }
+                        ]
                     },
                     {
-                        "$ref": "#/components/schemas/Partial_CubeSemanticLayerConnection_"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Partial_CubeSemanticLayerConnection_"
+                            },
+                            {
+                                "properties": {
+                                    "type": {
+                                        "$ref": "#/components/schemas/SemanticLayerType.CUBE"
+                                    }
+                                },
+                                "required": ["type"],
+                                "type": "object"
+                            }
+                        ]
                     }
                 ]
             },

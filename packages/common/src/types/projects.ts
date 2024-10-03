@@ -314,8 +314,8 @@ export type SemanticLayerConnection =
     | CubeSemanticLayerConnection;
 
 export type SemanticLayerConnectionUpdate =
-    | Partial<DbtSemanticLayerConnection>
-    | Partial<CubeSemanticLayerConnection>;
+    | (Partial<DbtSemanticLayerConnection> & { type: SemanticLayerType.DBT })
+    | (Partial<CubeSemanticLayerConnection> & { type: SemanticLayerType.CUBE });
 
 export type Project = {
     organizationUuid: string;

@@ -5479,8 +5479,36 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
-                { ref: 'Partial_DbtSemanticLayerConnection_' },
-                { ref: 'Partial_CubeSemanticLayerConnection_' },
+                {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'Partial_DbtSemanticLayerConnection_' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                type: {
+                                    ref: 'SemanticLayerType.DBT',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'Partial_CubeSemanticLayerConnection_' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                type: {
+                                    ref: 'SemanticLayerType.CUBE',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
             ],
             validators: {},
         },

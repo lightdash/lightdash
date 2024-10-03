@@ -2167,7 +2167,7 @@ export class ProjectModel {
     }
 
     private static isSemanticLayerConnectionValid(
-        semanticLayerConnection: SemanticLayerConnection,
+        semanticLayerConnection: SemanticLayerConnectionUpdate,
     ): boolean {
         const { type } = semanticLayerConnection;
         switch (type) {
@@ -2192,15 +2192,19 @@ export class ProjectModel {
 
     async updateSemanticLayerConnection(
         projectUuid: string,
-        connectionUpdate: SemanticLayerConnectionUpdate | undefined,
+        connectionUpdate: SemanticLayerConnectionUpdate,
     ) {
         const { semanticLayerConnection: currentSemanticLayerConnection } =
             await this.getWithSensitiveFields(projectUuid);
 
-        // ? Merging so the partial update only overwrites the existing properties
-        const updatedSemanticLayerConnection = connectionUpdate
+        // ? Merging so the partial update only overwrites the existing properties, even when the current connection is undefined since merge will take ALL properties
+        const shouldMerge =
+            !currentSemanticLayerConnection ||
+            connectionUpdate.type === currentSemanticLayerConnection.type;
+
+        const updatedSemanticLayerConnection = shouldMerge
             ? merge(currentSemanticLayerConnection, connectionUpdate)
-            : undefined;
+            : connectionUpdate;
 
         if (
             updatedSemanticLayerConnection &&
