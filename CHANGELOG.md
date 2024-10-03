@@ -1,3 +1,10 @@
+## [0.1293.2](https://github.com/lightdash/lightdash/compare/0.1293.1...0.1293.2) (2024-10-03)
+
+
+### Bug Fixes
+
+* write back GitHub path ([#11789](https://github.com/lightdash/lightdash/issues/11789)) ([94677bc](https://github.com/lightdash/lightdash/commit/94677bc5f2c977ac4667b395be103e64e5532704))
+
 ## [0.1293.1](https://github.com/lightdash/lightdash/compare/0.1293.0...0.1293.1) (2024-10-03)
 
 
