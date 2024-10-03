@@ -1,3 +1,10 @@
+# [0.1293.0](https://github.com/lightdash/lightdash/compare/0.1292.2...0.1293.0) (2024-10-03)
+
+
+### Features
+
+* sl form improvements ([#11774](https://github.com/lightdash/lightdash/issues/11774)) ([e89269f](https://github.com/lightdash/lightdash/commit/e89269fd41a500b4631c13375096b8e27528e2eb))
+
 ## [0.1292.2](https://github.com/lightdash/lightdash/compare/0.1292.1...0.1292.2) (2024-10-02)
 
 
