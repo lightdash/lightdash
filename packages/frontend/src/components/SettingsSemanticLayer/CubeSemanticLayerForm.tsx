@@ -9,6 +9,7 @@ import {
     Group,
     PasswordInput,
     Stack,
+    Text,
     TextInput,
     Tooltip,
 } from '@mantine/core';
@@ -75,7 +76,18 @@ const CubeSemanticLayerForm: FC<Props> = ({
                             Service Token
                             <Tooltip
                                 maw={400}
-                                label="The token can be found by logging into Cube, clicking on the desired deployment and then going to Integrations > API Credentials > REST API."
+                                label={
+                                    <Text fw={400}>
+                                        The token can be found by logging into
+                                        Cube, clicking on the desired deployment
+                                        and then going to{' '}
+                                        <Text span fw={500}>
+                                            Integrations {'>'} API Credentials{' '}
+                                            {'>'} REST API
+                                        </Text>
+                                        .
+                                    </Text>
+                                }
                                 multiline
                             >
                                 <MantineIcon icon={IconHelp} color="gray.6" />
@@ -92,7 +104,17 @@ const CubeSemanticLayerForm: FC<Props> = ({
                             Domain
                             <Tooltip
                                 maw={400}
-                                label="The domain can be found by logging into Cube, clicking on the desired deployment and then going to Integrations > API Credentials."
+                                label={
+                                    <Text fw={400}>
+                                        The domain can be found by logging into
+                                        Cube, clicking on the desired deployment
+                                        and then going to{' '}
+                                        <Text span fw={500}>
+                                            Integrations {'>'} API Credentials
+                                        </Text>
+                                        .
+                                    </Text>
+                                }
                                 multiline
                             >
                                 <MantineIcon icon={IconHelp} color="gray.6" />

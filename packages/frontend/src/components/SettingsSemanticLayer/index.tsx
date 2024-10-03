@@ -1,6 +1,6 @@
 import { assertUnreachable, SemanticLayerType } from '@lightdash/common';
-import { Select, Stack, Text, Title } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { Avatar, Group, Select, Stack, Text, Title } from '@mantine/core';
+import { forwardRef, useState, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -9,6 +9,8 @@ import {
     useProjectSemanticLayerUpdateMutation,
 } from '../../hooks/useProject';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import CubeLogo from './Assets/cube.svg';
+import DbtLogo from './Assets/dbt.svg';
 import CubeSemanticLayerForm, {
     cubeSemanticLayerFormSchema,
 } from './CubeSemanticLayerForm';
@@ -20,16 +22,35 @@ interface Props {
     projectUuid: string;
 }
 
-const SemanticLayerOptions = [
+interface SemanticLayerItem extends React.ComponentPropsWithoutRef<'div'> {
+    label: string;
+    value: string;
+    logo: string;
+}
+
+const SemanticLayerOptions: SemanticLayerItem[] = [
+    {
+        label: 'dbt Semantic Layer',
+        value: SemanticLayerType.DBT,
+        logo: DbtLogo,
+    },
     {
         label: 'Cube',
         value: SemanticLayerType.CUBE,
-    },
-    {
-        label: 'DBT',
-        value: SemanticLayerType.DBT,
+        logo: CubeLogo,
     },
 ];
+
+const SelectItemComponent = forwardRef<HTMLDivElement, SemanticLayerItem>(
+    ({ logo, label, ...others }: SemanticLayerItem, ref) => (
+        <div ref={ref} {...others}>
+            <Group noWrap>
+                <Avatar src={logo} size="xs" h="100%" />
+                <Text>{label}</Text>
+            </Group>
+        </div>
+    ),
+);
 
 const SemanticLayerLabels: Record<SemanticLayerType, string> = {
     [SemanticLayerType.CUBE]: 'Cube',
@@ -77,7 +98,7 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
     return (
         <SettingsGridCard>
             <Stack spacing="sm">
-                <Title order={4}>Semantic Layer</Title>
+                <Title order={4}>Semantic Layer Integration</Title>
 
                 <Text color="dimmed">
                     Connect your third-party Semantic Layer so you can explore
@@ -87,9 +108,10 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
 
             <Stack>
                 <Select
-                    label="Semantic Layer Type"
+                    label="Type"
                     data={SemanticLayerOptions}
                     value={semanticLayerType}
+                    itemComponent={SelectItemComponent}
                     onChange={(value: SemanticLayerType) =>
                         setSemanticLayerType(value)
                     }

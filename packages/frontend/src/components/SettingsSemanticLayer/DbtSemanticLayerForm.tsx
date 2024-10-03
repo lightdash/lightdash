@@ -4,14 +4,18 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Button,
     Flex,
     Group,
+    HoverCard,
     PasswordInput,
     Select,
     Stack,
+    Text,
     TextInput,
     Tooltip,
+    useMantineTheme,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelp, IconTrash } from '@tabler/icons-react';
@@ -49,6 +53,7 @@ const DbtSemanticLayerForm: FC<Props> = ({
     onSubmit,
     onDelete,
 }) => {
+    const theme = useMantineTheme();
     const form = useForm<z.infer<typeof dbtSemanticLayerFormSchema>>({
         validate: zodResolver(dbtSemanticLayerFormSchema),
         initialValues: {
@@ -95,13 +100,40 @@ const DbtSemanticLayerForm: FC<Props> = ({
                     label={
                         <Group display="inline-flex" spacing="xs">
                             Service Token
-                            <Tooltip
-                                maw={400}
-                                label="Service tokens can be found in your dbt Cloud account settings: https://cloud.getdbt.com/next/settings - token needs at least 'semantic layer only' permissions."
-                                multiline
+                            <HoverCard
+                                width={400}
+                                withinPortal
+                                position="top"
+                                withArrow
                             >
-                                <MantineIcon icon={IconHelp} color="gray.6" />
-                            </Tooltip>
+                                <HoverCard.Target>
+                                    <MantineIcon
+                                        icon={IconHelp}
+                                        color="gray.6"
+                                    />
+                                </HoverCard.Target>
+                                <HoverCard.Dropdown
+                                    style={{
+                                        backgroundColor: theme.colors.dark[6],
+                                    }}
+                                >
+                                    <Text color="white">
+                                        Service tokens can be found in your dbt
+                                        Cloud account settings:{' '}
+                                        <Anchor
+                                            href="https://cloud.getdbt.com/next/settings"
+                                            target="_blank"
+                                        >
+                                            dbt Settings
+                                        </Anchor>{' '}
+                                        - token needs at least{' '}
+                                        <Text span fw={500}>
+                                            'semantic layer only'
+                                        </Text>{' '}
+                                        permissions.
+                                    </Text>
+                                </HoverCard.Dropdown>
+                            </HoverCard>
                         </Group>
                     }
                 />
@@ -128,7 +160,17 @@ const DbtSemanticLayerForm: FC<Props> = ({
                             Environment ID
                             <Tooltip
                                 maw={400}
-                                label="The unique identifier for the dbt production environment, you can retrieve this from the dbt Cloud URL when you navigate to Environments under Deploy. If your URL ends with .../environments/222222, your environmentId is 222222"
+                                label={
+                                    <Text fw={400}>
+                                        The unique identifier for the dbt
+                                        production environment, you can retrieve
+                                        this from the dbt Cloud URL when you
+                                        navigate to Environments under Deploy.
+                                        If your URL ends with
+                                        .../environments/222222, your
+                                        environmentId is 222222
+                                    </Text>
+                                }
                                 multiline
                             >
                                 <MantineIcon icon={IconHelp} color="gray.6" />
