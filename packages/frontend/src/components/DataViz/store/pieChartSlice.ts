@@ -3,12 +3,10 @@ import {
     isVizPieChartConfig,
     VIZ_DEFAULT_AGGREGATION,
     type DimensionType,
-    type PivotChartLayout,
     type VizAggregationOptions,
     type VizConfigErrors,
     type VizIndexType,
     type VizPieChartConfig,
-    type VizPieChartDisplay,
     type VizPieChartOptions,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -20,16 +18,20 @@ import {
 } from './actions/commonChartActions';
 
 export type PieChartState = {
-    defaultFieldConfig: PivotChartLayout | undefined;
-    config: VizPieChartConfig | undefined;
-    display: VizPieChartDisplay | undefined;
+    metadata: {
+        version: number;
+    };
+    fieldConfig: VizPieChartConfig['fieldConfig'] | undefined;
+    display: VizPieChartConfig['display'];
     options: VizPieChartOptions;
     errors: VizConfigErrors | undefined;
 };
 
 const initialState: PieChartState = {
-    defaultFieldConfig: undefined,
-    config: undefined,
+    metadata: {
+        version: 1,
+    },
+    fieldConfig: undefined,
     display: {
         isDonut: false,
     },
@@ -46,15 +48,15 @@ export const pieChartConfigSlice = createSlice({
     initialState,
     reducers: {
         setGroupFieldIds: (
-            { config },
+            { fieldConfig },
             action: PayloadAction<{
                 reference: string;
                 axisType: VizIndexType;
                 dimensionType: DimensionType;
             }>,
         ) => {
-            if (config?.fieldConfig?.x) {
-                config.fieldConfig.x = {
+            if (fieldConfig?.x) {
+                fieldConfig.x = {
                     reference: action.payload.reference,
                     axisType: action.payload.axisType,
                     dimensionType: action.payload.dimensionType,
@@ -68,8 +70,8 @@ export const pieChartConfigSlice = createSlice({
                 index: number;
             }>,
         ) => {
-            if (state.config?.fieldConfig?.y) {
-                const yAxis = state.config.fieldConfig.y[action.payload.index];
+            if (state.fieldConfig?.y) {
+                const yAxis = state.fieldConfig.y[action.payload.index];
                 if (yAxis) {
                     yAxis.reference = action.payload.reference;
                     yAxis.aggregation =
@@ -81,16 +83,15 @@ export const pieChartConfigSlice = createSlice({
             }
         },
         setYAxisAggregation: (
-            { config },
+            { fieldConfig },
             action: PayloadAction<{
                 index: number;
                 aggregation: VizAggregationOptions;
             }>,
         ) => {
-            if (!config) return;
-            if (!config?.fieldConfig?.y) return;
+            if (!fieldConfig?.y) return;
 
-            const yAxis = config.fieldConfig.y[action.payload.index];
+            const yAxis = fieldConfig.y[action.payload.index];
             if (yAxis) {
                 yAxis.aggregation = action.payload.aggregation;
             }
@@ -105,13 +106,19 @@ export const pieChartConfigSlice = createSlice({
             state.options = action.payload.options;
 
             // Only set the initial config if it's not already set and the fieldConfig is present
-            if (!state.config && action.payload.config.fieldConfig) {
-                state.config = action.payload.config;
+            if (!state.fieldConfig && action.payload.config.fieldConfig) {
+                state.fieldConfig = action.payload.config.fieldConfig;
             }
+            if (!state.display && action.payload.config.display) {
+                state.display = action.payload.config.display;
+            }
+
+            state.errors = action.payload.errors;
         });
         builder.addCase(setChartConfig, (state, action) => {
             if (isVizPieChartConfig(action.payload)) {
-                state.config = action.payload;
+                state.fieldConfig = action.payload.fieldConfig;
+                state.display = action.payload.display;
             }
         });
         builder.addCase(resetChartState, () => initialState);

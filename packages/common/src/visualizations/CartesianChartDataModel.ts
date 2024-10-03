@@ -24,25 +24,19 @@ import { type IResultsRunner } from './types/IResultsRunner';
 
 // Empty config as default. This makes sense to be defined by the DataModel,
 // but is this the right place?
-const defaultCartesianChartConfig: VizCartesianChartConfig = {
-    metadata: {
-        version: 1,
+const defaultFieldConfig: PivotChartLayout = {
+    x: {
+        reference: 'x',
+        axisType: VizIndexType.CATEGORY,
+        dimensionType: DimensionType.STRING,
     },
-    type: ChartKind.VERTICAL_BAR,
-    fieldConfig: {
-        x: {
-            reference: 'x',
-            axisType: VizIndexType.CATEGORY,
-            dimensionType: DimensionType.STRING,
+    y: [
+        {
+            reference: 'y',
+            aggregation: VizAggregationOptions.SUM,
         },
-        y: [
-            {
-                reference: 'y',
-                aggregation: VizAggregationOptions.SUM,
-            },
-        ],
-        groupBy: [],
-    },
+    ],
+    groupBy: [],
 };
 
 type CartesianChartKind = Extract<
@@ -53,20 +47,20 @@ type CartesianChartKind = Extract<
 export class CartesianChartDataModel {
     private readonly resultsRunner: IResultsRunner;
 
-    private readonly config: VizCartesianChartConfig;
+    private readonly fieldConfig: PivotChartLayout;
 
-    private readonly organization: Organization;
+    private readonly type: CartesianChartKind;
 
     private pivotedChartData: PivotChartData | undefined;
 
     constructor(args: {
         resultsRunner: IResultsRunner;
-        config?: VizCartesianChartConfig;
-        organization: Organization;
+        fieldConfig?: PivotChartLayout;
+        type?: CartesianChartKind;
     }) {
         this.resultsRunner = args.resultsRunner;
-        this.config = args.config ?? defaultCartesianChartConfig;
-        this.organization = args.organization;
+        this.fieldConfig = args.fieldConfig ?? defaultFieldConfig;
+        this.type = args.type ?? ChartKind.VERTICAL_BAR;
     }
 
     static getTooltipFormatter(format: Format | undefined) {
@@ -81,21 +75,23 @@ export class CartesianChartDataModel {
 
     mergeConfig(
         chartKind: CartesianChartKind,
-        existingLayout: PivotChartLayout | undefined,
+        existingConfig: VizCartesianChartConfig | undefined,
     ): VizCartesianChartConfig {
         const newDefaultLayout = this.getDefaultLayout();
 
         const someFieldsMatch =
-            existingLayout?.x?.reference === newDefaultLayout?.x?.reference ||
+            existingConfig?.fieldConfig?.x?.reference ===
+                newDefaultLayout?.x?.reference ||
             intersectionBy(
-                existingLayout?.y || [],
+                existingConfig?.fieldConfig?.y || [],
                 newDefaultLayout?.y || [],
                 'reference',
             ).length > 0;
 
-        let mergedLayout: PivotChartLayout | undefined = existingLayout;
+        let mergedLayout: PivotChartLayout | undefined =
+            existingConfig?.fieldConfig;
 
-        if (!existingLayout || !someFieldsMatch) {
+        if (!existingConfig?.fieldConfig || !someFieldsMatch) {
             mergedLayout = newDefaultLayout;
         }
         return {
@@ -104,6 +100,7 @@ export class CartesianChartDataModel {
             },
             type: chartKind,
             fieldConfig: mergedLayout,
+            display: existingConfig?.display ?? {},
         };
     }
 
@@ -203,22 +200,22 @@ export class CartesianChartDataModel {
         };
     }
 
-    getConfigErrors(config?: PivotChartLayout) {
-        if (!config) {
+    getConfigErrors(fieldConfig?: PivotChartLayout) {
+        if (!fieldConfig) {
             return undefined;
         }
         const { indexLayoutOptions, valuesLayoutOptions, pivotLayoutOptions } =
             this.getChartOptions();
 
         const indexFieldError = Boolean(
-            config?.x?.reference &&
+            fieldConfig?.x?.reference &&
                 indexLayoutOptions.find(
-                    (x) => x.reference === config?.x?.reference,
+                    (x) => x.reference === fieldConfig?.x?.reference,
                 ) === undefined,
         );
 
         const metricFieldError = Boolean(
-            config?.y?.some(
+            fieldConfig?.y?.some(
                 (yField) =>
                     yField.reference &&
                     valuesLayoutOptions.preAggregated.find(
@@ -231,7 +228,7 @@ export class CartesianChartDataModel {
         );
 
         const customMetricFieldError = Boolean(
-            config?.y?.some(
+            fieldConfig?.y?.some(
                 (yField) =>
                     yField.reference &&
                     valuesLayoutOptions.customAggregations.find(
@@ -240,7 +237,7 @@ export class CartesianChartDataModel {
             ),
         );
         const groupByFieldError = Boolean(
-            config?.groupBy?.some(
+            fieldConfig?.groupBy?.some(
                 (groupByField) =>
                     groupByField.reference &&
                     pivotLayoutOptions.find(
@@ -260,17 +257,17 @@ export class CartesianChartDataModel {
 
         return {
             ...(indexFieldError &&
-                config?.x?.reference && {
+                fieldConfig?.x?.reference && {
                     indexFieldError: {
-                        reference: config.x.reference,
+                        reference: fieldConfig.x.reference,
                     },
                 }),
             // TODO: can we combine metricFieldError and customMetricFieldError?
             // And maybe take out some noise
             ...(metricFieldError &&
-                config?.y?.map((y) => y.reference) && {
+                fieldConfig?.y?.map((y) => y.reference) && {
                     metricFieldError: {
-                        references: config?.y.reduce<
+                        references: fieldConfig?.y.reduce<
                             NonNullable<
                                 VizConfigErrors['metricFieldError']
                             >['references']
@@ -287,9 +284,9 @@ export class CartesianChartDataModel {
                     },
                 }),
             ...(customMetricFieldError &&
-                config?.y?.map((y) => y.reference) && {
+                fieldConfig?.y?.map((y) => y.reference) && {
                     customMetricFieldError: {
-                        references: config?.y.reduce<
+                        references: fieldConfig?.y.reduce<
                             NonNullable<
                                 VizConfigErrors['customMetricFieldError']
                             >['references']
@@ -306,9 +303,11 @@ export class CartesianChartDataModel {
                     },
                 }),
             ...(groupByFieldError &&
-                config?.groupBy?.map((gb) => gb.reference) && {
+                fieldConfig?.groupBy?.map((gb) => gb.reference) && {
                     groupByFieldError: {
-                        references: config.groupBy.map((gb) => gb.reference),
+                        references: fieldConfig.groupBy.map(
+                            (gb) => gb.reference,
+                        ),
                     },
                 }),
         };
@@ -348,8 +347,8 @@ export class CartesianChartDataModel {
                 .map((d) => d.reference),
         );
         const allSelectedDimensions = [
-            this.config.fieldConfig?.x?.reference,
-            ...(this.config.fieldConfig?.groupBy?.map(
+            this.fieldConfig?.x?.reference,
+            ...(this.fieldConfig?.groupBy?.map(
                 (groupBy) => groupBy.reference,
             ) ?? []),
         ];
@@ -378,7 +377,7 @@ export class CartesianChartDataModel {
                 },
                 [[], []],
             );
-        const { customMetrics, metrics } = this.config.fieldConfig?.y?.reduce<{
+        const { customMetrics, metrics } = this.fieldConfig?.y?.reduce<{
             customMetrics: Required<SemanticLayerQuery>['customMetrics'];
             metrics: SemanticLayerQuery['metrics'];
         }>(
@@ -400,11 +399,11 @@ export class CartesianChartDataModel {
             { customMetrics: [], metrics: [] },
         ) ?? { customMetrics: [], metrics: [] };
         const pivot = {
-            index: this.config?.fieldConfig?.x?.reference
-                ? [this.config.fieldConfig.x?.reference]
+            index: this.fieldConfig?.x?.reference
+                ? [this.fieldConfig.x?.reference]
                 : [],
             on:
-                this.config?.fieldConfig?.groupBy?.map(
+                this.fieldConfig?.groupBy?.map(
                     (groupBy) => groupBy.reference,
                 ) ?? [],
             values: metrics.map((metric) => metric.name),
@@ -457,15 +456,19 @@ export class CartesianChartDataModel {
         return transformedData.fileUrl;
     }
 
-    getSpec(display?: CartesianChartDisplay): Record<string, any> {
+    // TODO: make sure to pass colors to this
+    getSpec(
+        display?: CartesianChartDisplay,
+        colors?: Organization['chartColors'],
+    ): Record<string, any> {
         const transformedData = this.pivotedChartData;
 
         if (!transformedData) {
             return {};
         }
 
-        const type = this.config?.type;
-        const { chartColors: orgColors } = this.organization;
+        const { type } = this;
+        const orgColors = colors;
 
         const DEFAULT_X_AXIS_TYPE = 'category';
 
@@ -473,13 +476,6 @@ export class CartesianChartDataModel {
             type === ChartKind.VERTICAL_BAR ? 'bar' : 'line';
 
         const shouldStack = display?.stack === true;
-        /*
-        // For old colors method
-        const possibleXAxisValues = transformedData.results.map((row) =>
-            transformedData.indexColumn?.reference
-                ? `${row[transformedData.indexColumn.reference]}`
-                : '-',
-        ); */
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
@@ -489,7 +485,7 @@ export class CartesianChartDataModel {
 
                 const singleYAxisLabel =
                     // NOTE: When there's only one y-axis left, set the label on the series as well
-                    transformedData.valuesColumns.length === 1 && // PR NOTE: slight change to behaviour, only set label if there's a single value column (post-pivot) we want this to be fields pre-pivot
+                    transformedData.valuesColumns.length === 1 &&
                     display?.yAxis?.[0]?.label
                         ? display.yAxis[0].label
                         : undefined;

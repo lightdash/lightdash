@@ -8,8 +8,6 @@ export function pivotResults(
     if (values.length === 0) return results;
     if (on.length === 0) return results;
 
-    console.log({ values, on, index });
-
     return pl
         .DataFrame(results)
         .pivot(values, {

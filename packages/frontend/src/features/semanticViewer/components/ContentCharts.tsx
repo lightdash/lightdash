@@ -6,8 +6,8 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useAsync } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
-    selectChartConfigByKind,
     selectChartDisplayByKind,
+    selectChartFieldConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
@@ -46,7 +46,10 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
 
     // Get config. This could be a UUID fetch on dashboards
     const vizConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
+        selectChartFieldConfigByKind(
+            state,
+            state.semanticViewer.activeChartKind,
+        ),
     );
     const display = useAppSelector((state) =>
         selectChartDisplayByKind(state, state.semanticViewer.activeChartKind),

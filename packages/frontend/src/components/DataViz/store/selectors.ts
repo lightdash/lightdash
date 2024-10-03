@@ -1,6 +1,11 @@
-import { ChartKind } from '@lightdash/common';
+import {
+    ChartKind,
+    type AllVizChartConfig,
+    type PivotChartLayout,
+} from '@lightdash/common';
 import { createSelector } from 'reselect';
 import { type RootState } from '.';
+import { type TableVizState } from './tableVisSlice';
 
 const selectBarChartConfigState = (
     state: RootState,
@@ -17,7 +22,7 @@ export const selectTableVisConfigState = (
     state: RootState,
 ): RootState['tableVisConfig'] => state.tableVisConfig;
 
-export const selectChartConfigByKind = createSelector(
+export const selectChartMetadataByKind = createSelector(
     [
         (state, chartKind) => chartKind,
         selectBarChartConfigState,
@@ -34,13 +39,43 @@ export const selectChartConfigByKind = createSelector(
     ) => {
         switch (chartKind) {
             case ChartKind.VERTICAL_BAR:
-                return barChartConfigState.config;
+                return barChartConfigState.metadata;
             case ChartKind.LINE:
-                return lineChartConfigState.config;
+                return lineChartConfigState.metadata;
             case ChartKind.PIE:
-                return pieChartConfigState.config;
+                return pieChartConfigState.metadata;
             case ChartKind.TABLE:
-                return tableVisConfigState.config;
+                return tableVisConfigState.metadata;
+            default:
+                return undefined;
+        }
+    },
+);
+
+export const selectChartFieldConfigByKind = createSelector(
+    [
+        (state, chartKind) => chartKind,
+        selectBarChartConfigState,
+        selectLineChartConfigState,
+        selectPieChartConfigState,
+        selectTableVisConfigState,
+    ],
+    (
+        chartKind,
+        barChartConfigState,
+        lineChartConfigState,
+        pieChartConfigState,
+        tableVisConfigState,
+    ) => {
+        switch (chartKind) {
+            case ChartKind.VERTICAL_BAR:
+                return barChartConfigState.fieldConfig;
+            case ChartKind.LINE:
+                return lineChartConfigState.fieldConfig;
+            case ChartKind.PIE:
+                return pieChartConfigState.fieldConfig;
+            case ChartKind.TABLE:
+                return tableVisConfigState.columns;
             default:
                 return undefined;
         }
@@ -77,6 +112,41 @@ export const selectChartDisplayByKind = createSelector(
     },
 );
 
+export const selectCompleteConfigByKind = createSelector(
+    [
+        (state, chartKind) => chartKind,
+        selectChartMetadataByKind,
+        selectChartFieldConfigByKind,
+        selectChartDisplayByKind,
+    ],
+    (
+        chartKind,
+        metadata,
+        fieldConfig,
+        display,
+    ): AllVizChartConfig | undefined => {
+        if (!metadata || !fieldConfig) {
+            return undefined;
+        }
+
+        if (chartKind === ChartKind.TABLE) {
+            return {
+                type: chartKind,
+                metadata: metadata,
+                columns: fieldConfig as NonNullable<TableVizState['columns']>,
+                display: display,
+            };
+        }
+
+        return {
+            type: chartKind,
+            metadata: metadata,
+            fieldConfig: fieldConfig as PivotChartLayout,
+            display: display,
+        };
+    },
+);
+
 export const selectCurrentCartesianChartState = createSelector(
     [
         (state, chartKind) => chartKind,
@@ -105,17 +175,17 @@ const getValuesLayoutOptions = createSelector(
 
 const getXAxisField = createSelector(
     [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
-    (chartState) => chartState?.config?.fieldConfig?.x,
+    (chartState) => chartState?.fieldConfig?.x,
 );
 
 const getYAxisFields = createSelector(
     [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
-    (chartState) => chartState?.config?.fieldConfig?.y,
+    (chartState) => chartState?.fieldConfig?.y,
 );
 
 const getGroupByField = createSelector(
     [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
-    (chartState) => chartState?.config?.fieldConfig?.groupBy?.[0],
+    (chartState) => chartState?.fieldConfig?.groupBy?.[0],
 );
 
 const getPivotLayoutOptions = createSelector(

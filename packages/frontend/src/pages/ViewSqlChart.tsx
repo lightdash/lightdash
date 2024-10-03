@@ -22,8 +22,8 @@ import {
     setChartConfig,
 } from '../components/DataViz/store/actions/commonChartActions';
 import {
-    selectChartConfigByKind,
     selectChartDisplayByKind,
+    selectChartFieldConfigByKind,
 } from '../components/DataViz/store/selectors';
 import getChartDataModel from '../components/DataViz/transformers/getChartDataModel';
 import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
@@ -69,7 +69,7 @@ const ViewSqlChart = () => {
     const sql = useAppSelector((state) => state.sqlRunner.sql);
 
     const currentVisConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, selectedChartType),
+        selectChartFieldConfigByKind(state, selectedChartType),
     );
 
     const currentDisplay = useAppSelector((state) =>

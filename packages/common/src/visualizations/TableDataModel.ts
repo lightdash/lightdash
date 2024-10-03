@@ -1,5 +1,5 @@
 import { type RawResultRow } from '../types/results';
-import { ChartKind } from '../types/savedCharts';
+import { type ChartKind } from '../types/savedCharts';
 import {
     type SemanticLayerQuery,
     type SemanticLayerSortBy,
@@ -15,20 +15,15 @@ import type { IResultsRunner } from './types/IResultsRunner';
 export class TableDataModel {
     private readonly resultsRunner: IResultsRunner;
 
-    private readonly config: VizTableConfig;
+    private readonly columnsConfig: VizTableConfig['columns'];
 
     constructor(args: {
         resultsRunner: IResultsRunner;
-        config?: VizTableConfig | undefined;
+        columnsConfig?: VizTableConfig['columns'] | undefined;
     }) {
         this.resultsRunner = args.resultsRunner;
-        this.config = args.config ?? {
-            type: ChartKind.TABLE,
-            metadata: {
-                version: 1,
-            },
-            columns: this.getResultOptions().defaultColumnConfig,
-        };
+        this.columnsConfig =
+            args.columnsConfig ?? this.getResultOptions().defaultColumnConfig;
     }
 
     private getColumns() {
@@ -37,7 +32,7 @@ export class TableDataModel {
 
     public getVisibleColumns() {
         return this.getColumns().filter((column) =>
-            this.config ? this.config.columns[column]?.visible : true,
+            this.columnsConfig ? this.columnsConfig[column]?.visible : true,
         );
     }
 
@@ -76,11 +71,11 @@ export class TableDataModel {
             (acc, key) => ({
                 ...acc,
                 [key]: {
-                    visible: this.config?.columns[key]?.visible ?? true,
+                    visible: this.columnsConfig?.[key]?.visible ?? true,
                     reference: key,
-                    label: this.config?.columns[key]?.label ?? key,
-                    frozen: this.config?.columns[key]?.frozen ?? false,
-                    order: this.config?.columns[key]?.order,
+                    label: this.columnsConfig?.[key]?.label ?? key,
+                    frozen: this.columnsConfig?.[key]?.frozen ?? false,
+                    order: this.columnsConfig?.[key]?.order,
                 },
             }),
             {},
@@ -90,7 +85,7 @@ export class TableDataModel {
     }
 
     public getConfig() {
-        return this.config;
+        return this.columnsConfig;
     }
 
     static getColumnsAccessorFn(column: string) {
@@ -100,6 +95,7 @@ export class TableDataModel {
     mergeConfig(chartKind: ChartKind.TABLE): VizTableConfig {
         return {
             type: chartKind,
+            display: {},
             metadata: {
                 version: 1,
             },

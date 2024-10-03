@@ -27,7 +27,7 @@ import {
     validationSchema,
 } from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import {
-    selectChartConfigByKind,
+    selectChartFieldConfigByKind,
     selectTableVisConfigState,
 } from '../../../components/DataViz/store/selectors';
 import {
@@ -62,7 +62,7 @@ const SaveChartForm: FC<
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const limit = useAppSelector((state) => state.sqlRunner.limit);
     const selectedChartConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, selectedChartType),
+        selectChartFieldConfigByKind(state, selectedChartType),
     );
     const defaultChartConfig = useAppSelector(selectTableVisConfigState);
 

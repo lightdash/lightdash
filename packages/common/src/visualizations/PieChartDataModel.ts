@@ -1,6 +1,6 @@
 import { DimensionType } from '../types/field';
 import { type RawResultRow } from '../types/results';
-import { ChartKind } from '../types/savedCharts';
+import { type ChartKind } from '../types/savedCharts';
 import { type SemanticLayerQuery } from '../types/semanticLayer';
 import {
     VizAggregationOptions,
@@ -13,40 +13,34 @@ import {
 } from './types';
 import { type IResultsRunner } from './types/IResultsRunner';
 
-const defaultPieChartConfig: VizPieChartConfig = {
-    metadata: {
-        version: 1,
+const defaultFieldConfig: PivotChartLayout = {
+    x: {
+        reference: 'x',
+        axisType: VizIndexType.CATEGORY,
+        dimensionType: DimensionType.STRING,
     },
-    type: ChartKind.PIE,
-    fieldConfig: {
-        x: {
-            reference: 'x',
-            axisType: VizIndexType.CATEGORY,
-            dimensionType: DimensionType.STRING,
+    y: [
+        {
+            reference: 'y',
+            aggregation: VizAggregationOptions.SUM,
         },
-        y: [
-            {
-                reference: 'y',
-                aggregation: VizAggregationOptions.SUM,
-            },
-        ],
-        groupBy: [],
-    },
+    ],
+    groupBy: [],
 };
 
 export class PieChartDataModel {
     private readonly resultsRunner: IResultsRunner;
 
-    private readonly config: VizPieChartConfig;
+    private readonly fieldConfig: PivotChartLayout;
 
     private pivotedChartData: PivotChartData | undefined;
 
     constructor(args: {
         resultsRunner: IResultsRunner;
-        config?: VizPieChartConfig;
+        fieldConfig?: PivotChartLayout;
     }) {
         this.resultsRunner = args.resultsRunner;
-        this.config = args.config ?? defaultPieChartConfig;
+        this.fieldConfig = args.fieldConfig ?? defaultFieldConfig;
     }
 
     getDefaultLayout(): PivotChartLayout | undefined {
@@ -116,13 +110,14 @@ export class PieChartDataModel {
 
     mergeConfig(
         chartKind: ChartKind.PIE,
-        fieldConfig: PivotChartLayout | undefined,
+        currentVizConfig?: VizPieChartConfig,
     ): VizPieChartConfig {
         const newDefaultLayout = this.getDefaultLayout();
 
         const mergedLayout =
-            newDefaultLayout?.x?.reference === fieldConfig?.x?.reference
-                ? fieldConfig
+            newDefaultLayout?.x?.reference ===
+            currentVizConfig?.fieldConfig?.x?.reference
+                ? currentVizConfig?.fieldConfig
                 : newDefaultLayout;
 
         return {
@@ -131,6 +126,7 @@ export class PieChartDataModel {
             },
             type: chartKind,
             fieldConfig: mergedLayout,
+            display: currentVizConfig?.display ?? {},
         };
     }
 
@@ -259,10 +255,9 @@ export class PieChartDataModel {
                 .map((d) => d.reference),
         );
         const allSelectedDimensions = [
-            this.config.fieldConfig?.x?.reference,
-            ...(this.config.fieldConfig?.groupBy?.map(
-                (groupBy) => groupBy.reference,
-            ) ?? []),
+            this.fieldConfig.x?.reference,
+            ...(this.fieldConfig.groupBy?.map((groupBy) => groupBy.reference) ??
+                []),
         ];
         const [timeDimensions, dimensions] = this.resultsRunner
             .getPivotQueryDimensions()
@@ -289,7 +284,7 @@ export class PieChartDataModel {
                 },
                 [[], []],
             );
-        const { customMetrics, metrics } = this.config.fieldConfig?.y?.reduce<{
+        const { customMetrics, metrics } = this.fieldConfig.y?.reduce<{
             customMetrics: Required<SemanticLayerQuery>['customMetrics'];
             metrics: SemanticLayerQuery['metrics'];
         }>(
@@ -311,13 +306,12 @@ export class PieChartDataModel {
             { customMetrics: [], metrics: [] },
         ) ?? { customMetrics: [], metrics: [] };
         const pivot = {
-            index: this.config?.fieldConfig?.x?.reference
-                ? [this.config.fieldConfig.x?.reference]
+            index: this.fieldConfig.x?.reference
+                ? [this.fieldConfig.x?.reference]
                 : [],
             on:
-                this.config?.fieldConfig?.groupBy?.map(
-                    (groupBy) => groupBy.reference,
-                ) ?? [],
+                this.fieldConfig.groupBy?.map((groupBy) => groupBy.reference) ??
+                [],
             values: metrics.map((metric) => metric.name),
         };
         const semanticQuery: SemanticLayerQuery = {

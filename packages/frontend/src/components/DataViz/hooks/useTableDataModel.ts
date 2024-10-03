@@ -1,10 +1,8 @@
 import {
-    ChartKind,
     TableDataModel,
     type IResultsRunner,
     type RawResultRow,
     type VizTableColumnsConfig,
-    type VizTableConfig,
 } from '@lightdash/common';
 import {
     getCoreRowModel,
@@ -26,21 +24,9 @@ export const useTableDataModel = ({
     resultsRunner: IResultsRunner;
 }) => {
     const tableModel = useMemo(() => {
-        // TODO: currently usage of this hook relies just on columns,
-        //change to rely on full config so we don't have to create a dummy config
-        const tableConfig: VizTableConfig | undefined = config
-            ? {
-                  type: ChartKind.TABLE,
-                  metadata: {
-                      version: 1,
-                  },
-                  columns: config?.columns ?? {},
-              }
-            : undefined;
-
         return new TableDataModel({
             resultsRunner,
-            config: tableConfig,
+            columnsConfig: config?.columns,
         });
     }, [resultsRunner, config]);
 

@@ -43,8 +43,9 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import {
     cartesianChartSelectors,
-    selectChartConfigByKind,
     selectChartDisplayByKind,
+    selectChartFieldConfigByKind,
+    selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
@@ -52,7 +53,6 @@ import { ChartDataTable } from '../../../components/DataViz/visualizations/Chart
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useSqlQueryRun,
@@ -76,7 +76,6 @@ export const DEFAULT_SQL_LIMIT = 500;
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
     const { showToastError } = useToaster();
-    const org = useOrganization();
     const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
     const resultsPanelRef = useRef<ImperativePanelHandle>(null);
     const savedSqlChart = useAppSelector(
@@ -110,12 +109,16 @@ export const ContentPanel: FC = () => {
     );
 
     // currently editing chart config
-    const currentVizConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, selectedChartType),
+    const currentFieldConfig = useAppSelector((state) =>
+        selectChartFieldConfigByKind(state, selectedChartType),
     );
 
     const currentDisplay = useAppSelector((state) =>
         selectChartDisplayByKind(state, selectedChartType),
+    );
+
+    const currentVizConfig = useAppSelector((state) =>
+        selectCompleteConfigByKind(state, selectedChartType),
     );
 
     const hideResultsPanel = useMemo(
@@ -187,7 +190,7 @@ export const ContentPanel: FC = () => {
 
     const activeConfigs = useAppSelector((state) => {
         const configsWithTable = state.sqlRunner.activeConfigs
-            .map((type) => selectChartConfigByKind(state, type))
+            .map((type) => selectCompleteConfigByKind(state, type))
             .filter(
                 (config): config is NonNullable<typeof config> =>
                     config !== undefined,
@@ -198,7 +201,7 @@ export const ContentPanel: FC = () => {
             (
                 c,
             ): c is Exclude<
-                NonNullable<ReturnType<typeof selectChartConfigByKind>>,
+                NonNullable<ReturnType<typeof selectCompleteConfigByKind>>,
                 VizTableConfig
             > => !isVizTableConfig(c),
         );
@@ -253,8 +256,12 @@ export const ContentPanel: FC = () => {
     }, [queryResults, projectUuid, limit, sql]);
 
     const vizDataModel = useMemo(() => {
-        return getChartDataModel(resultsRunner, currentVizConfig, org.data);
-    }, [currentVizConfig, org.data, resultsRunner]);
+        return getChartDataModel(
+            resultsRunner,
+            currentFieldConfig,
+            selectedChartType ?? ChartKind.VERTICAL_BAR,
+        );
+    }, [currentFieldConfig, resultsRunner, selectedChartType]);
 
     const {
         loading: chartLoading,
@@ -303,8 +310,9 @@ export const ContentPanel: FC = () => {
         queryResults,
         resultsRunner,
         selectedChartType,
-        currentVizConfig,
         dispatch,
+        currentVizConfig,
+        currentDisplay,
     ]);
 
     useEffect(() => {
@@ -747,24 +755,6 @@ export const ContentPanel: FC = () => {
                                                     tableData?.columns ?? []
                                                 }
                                                 rows={tableData?.rows ?? []}
-                                                // TODO: col config
-                                                // columnsConfig={Object.fromEntries(
-                                                //     chartVizQuery.data.columns.map(
-                                                //         (field) => [
-                                                //             field.reference,
-                                                //             {
-                                                //                 visible:
-                                                //                     true,
-                                                //                 reference:
-                                                //                     field.reference,
-                                                //                 label: field.reference,
-                                                //                 frozen: false,
-                                                //                 // TODO: add aggregation
-                                                //                 // aggregation?: VizAggregationOptions;
-                                                //             },
-                                                //         ],
-                                                //     ),
-                                                // )}
                                                 flexProps={{
                                                     mah: '100%',
                                                 }}

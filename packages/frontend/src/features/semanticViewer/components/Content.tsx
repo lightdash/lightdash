@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
-import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import { selectChartFieldConfigByKind } from '../../../components/DataViz/store/selectors';
 import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -50,7 +50,7 @@ const Content: FC = () => {
         useState(false);
 
     const currentVizConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, activeChartKind),
+        selectChartFieldConfigByKind(state, activeChartKind),
     );
 
     const {

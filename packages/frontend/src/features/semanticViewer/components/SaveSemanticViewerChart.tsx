@@ -3,7 +3,7 @@ import { Button, Input, useMantineTheme } from '@mantine/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import { selectChartFieldConfigByKind } from '../../../components/DataViz/store/selectors';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSavedSemanticViewerChartUpdateMutation } from '../api/hooks';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -34,7 +34,7 @@ const SaveSemanticViewerChart: FC = () => {
         (state) => state.semanticViewer.activeChartKind,
     );
     const selectedChartConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, activeChartKind ?? ChartKind.TABLE),
+        selectChartFieldConfigByKind(state, activeChartKind ?? ChartKind.TABLE),
     );
 
     const handleOpenSaveModal = () => {

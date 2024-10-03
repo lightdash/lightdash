@@ -15,13 +15,19 @@ import {
 } from './actions/commonChartActions';
 
 export type TableVizState = {
-    config: VizTableConfig | undefined;
+    metadata: {
+        version: number;
+    };
+    columns: VizTableConfig['columns'] | undefined;
     display: VizTableDisplay;
     options: VizTableOptions;
 };
 
 const initialState: TableVizState = {
-    config: undefined,
+    metadata: {
+        version: 1,
+    },
+    columns: undefined,
     display: {},
     options: { defaultColumnConfig: undefined },
 };
@@ -31,24 +37,24 @@ export const tableVisSlice = createSlice({
     initialState,
     reducers: {
         updateFieldLabel: (
-            { config },
+            { columns },
             action: PayloadAction<Record<'reference' | 'label', string>>,
         ) => {
             const { reference, label } = action.payload;
-            if (config && config.columns[reference]) {
-                config.columns[reference].label = label;
+            if (columns && columns[reference]) {
+                columns[reference].label = label;
             }
         },
         updateColumnVisibility: (
-            { config },
+            { columns },
             action: PayloadAction<{
                 reference: string;
                 visible: boolean;
             }>,
         ) => {
             const { reference, visible } = action.payload;
-            if (config && config.columns[reference]) {
-                config.columns[reference].visible = visible;
+            if (columns && columns[reference]) {
+                columns[reference].visible = visible;
             }
         },
     },
@@ -64,16 +70,16 @@ export const tableVisSlice = createSlice({
                 Object.entries(action.payload.config.columns).length > 0;
 
             if (
-                (!state.config ||
-                    !isEqual(state.config, action.payload.config)) &&
+                (!state.columns ||
+                    !isEqual(state.columns, action.payload.config.columns)) &&
                 newConfigHasColumns
             ) {
-                state.config = action.payload.config;
+                state.columns = action.payload.config.columns;
             }
         });
         builder.addCase(setChartConfig, (state, action) => {
             if (isVizTableConfig(action.payload)) {
-                state.config = action.payload;
+                state.columns = action.payload.columns;
             }
         });
         builder.addCase(resetChartState, () => initialState);

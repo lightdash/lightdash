@@ -8,7 +8,6 @@ import {
     PieChartDataModel,
     TableDataModel,
     type IResultsRunner,
-    type Organization,
     type VizChartConfig,
 } from '@lightdash/common';
 
@@ -16,9 +15,7 @@ const getChartConfigAndOptions = (
     resultsRunner: IResultsRunner,
     chartType: ChartKind,
     currentVizConfig?: VizChartConfig,
-    organization?: Organization,
 ) => {
-
     switch (chartType) {
         case ChartKind.PIE:
             if (currentVizConfig && !isVizPieChartConfig(currentVizConfig)) {
@@ -31,8 +28,7 @@ const getChartConfigAndOptions = (
 
             const pieConfig = pieChartDataModel.mergeConfig(
                 chartType,
-                currentVizConfig?.fieldConfig,
-                currentVizConfig?.display,
+                currentVizConfig,
             );
 
             return {
@@ -50,7 +46,7 @@ const getChartConfigAndOptions = (
 
             const tableChartDataModel = new TableDataModel({
                 resultsRunner,
-                config: currentVizConfig,
+                columnsConfig: currentVizConfig?.columns,
             });
             return {
                 type: chartType,
@@ -65,14 +61,13 @@ const getChartConfigAndOptions = (
 
             const barChartModel = new CartesianChartDataModel({
                 resultsRunner,
-                config: currentVizConfig,
-                organization: organization,
+                fieldConfig: currentVizConfig?.fieldConfig,
+                type: chartType,
             });
 
             const barConfig = barChartModel.mergeConfig(
                 chartType,
-                currentVizConfig?.fieldConfig,
-                currentVizConfig?.display,
+                currentVizConfig,
             );
 
             return {
@@ -90,14 +85,13 @@ const getChartConfigAndOptions = (
 
             const lineChartModel = new CartesianChartDataModel({
                 resultsRunner,
-                config: currentVizConfig,
-                organization: organization,
+                fieldConfig: currentVizConfig?.fieldConfig,
+                type: chartType,
             });
 
             const lineConfig = lineChartModel.mergeConfig(
                 chartType,
-                currentVizConfig?.fieldConfig,
-                currentVizConfig?.display,
+                currentVizConfig,
             );
 
             return {

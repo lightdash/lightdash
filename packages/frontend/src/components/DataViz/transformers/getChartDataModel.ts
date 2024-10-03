@@ -1,63 +1,48 @@
 import {
     CartesianChartDataModel,
     ChartKind,
-    isVizBarChartConfig,
-    isVizLineChartConfig,
-    isVizPieChartConfig,
-    isVizTableConfig,
+    isPivotChartLayout,
     PieChartDataModel,
     TableDataModel,
     type IResultsRunner,
-    type Organization,
-    type VizChartConfig,
+    type PivotChartLayout,
+    type VizColumnsConfig,
 } from '@lightdash/common';
 
 const getChartDataModel = (
     resultsRunner: IResultsRunner,
-    config?: Omit<VizChartConfig, 'display'>,
-    organization?: Organization,
+    fieldConfig: PivotChartLayout | VizColumnsConfig | undefined,
+    type: ChartKind,
 ) => {
-    // TODO: this check is unnecessary
-    if (!organization) {
-        throw new Error('No config provided');
+    if (!isPivotChartLayout(fieldConfig)) {
+        return new TableDataModel({
+            resultsRunner,
+            columnsConfig: fieldConfig,
+        });
     }
 
-    switch (config?.type || ChartKind.TABLE) {
+    switch (type) {
         case ChartKind.PIE:
-            if (config && !isVizPieChartConfig(config)) {
-                throw new Error('Invalid config for pie chart');
-            }
+            return new PieChartDataModel({
+                resultsRunner,
+                fieldConfig: fieldConfig,
+            });
 
-            return new PieChartDataModel({ resultsRunner, config });
-        case ChartKind.TABLE:
-            if (config && !isVizTableConfig(config)) {
-                throw new Error('Invalid config for table');
-            }
-
-            return new TableDataModel({ resultsRunner, config });
         case ChartKind.VERTICAL_BAR:
-            if (config && !isVizBarChartConfig(config)) {
-                throw new Error('Invalid config for bar chart');
-            }
-
             return new CartesianChartDataModel({
                 resultsRunner,
-                config,
-                organization,
+                fieldConfig: fieldConfig,
+                type: ChartKind.VERTICAL_BAR,
             });
 
         case ChartKind.LINE:
-            if (config && !isVizLineChartConfig(config)) {
-                throw new Error('Invalid config for line chart');
-            }
-
             return new CartesianChartDataModel({
                 resultsRunner,
-                config,
-                organization,
+                fieldConfig: fieldConfig,
+                type: ChartKind.LINE,
             });
         default:
-            throw new Error(`Not implemented for chart: ${config}`);
+            throw new Error(`Not implemented for chart: ${type}`);
     }
 };
 

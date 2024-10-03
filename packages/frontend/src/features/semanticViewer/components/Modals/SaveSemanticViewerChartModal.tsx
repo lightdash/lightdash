@@ -19,7 +19,7 @@ import {
     SaveToSpace,
     validationSchema,
 } from '../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
-import { selectChartConfigByKind } from '../../../../components/DataViz/store/selectors';
+import { selectChartFieldConfigByKind } from '../../../../components/DataViz/store/selectors';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -56,7 +56,7 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
         (state) => state.semanticViewer.activeChartKind,
     );
     const selectedChartConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, activeChartKind ?? ChartKind.TABLE),
+        selectChartFieldConfigByKind(state, activeChartKind ?? ChartKind.TABLE),
     );
 
     const spacesQuery = useSpaceSummaries(projectUuid, true);

@@ -22,15 +22,19 @@ export const lineChartConfigSlice = createSlice({
             state.options = action.payload.options;
 
             // Only set the initial config if it's not already set and the fieldConfig is present
-            if (!state.config && action.payload.config.fieldConfig) {
-                state.config = action.payload.config;
+            if (!state.fieldConfig && action.payload.config.fieldConfig) {
+                state.fieldConfig = action.payload.config.fieldConfig;
+            }
+            if (!state.display && action.payload.config.display) {
+                state.display = action.payload.config.display;
             }
 
             state.errors = action.payload.errors;
         });
         builder.addCase(setChartConfig, (state, action) => {
             if (isVizLineChartConfig(action.payload)) {
-                state.config = action.payload;
+                state.fieldConfig = action.payload.fieldConfig;
+                state.display = action.payload.display;
             }
         });
         builder.addCase(resetChartState, () =>

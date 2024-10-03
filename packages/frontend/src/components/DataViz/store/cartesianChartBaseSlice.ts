@@ -1,30 +1,36 @@
 // This is explicit to exploring
 // Not needed when viewing a cartesian chart on a dashboard
 import {
+    ChartKind,
     isFormat,
     VIZ_DEFAULT_AGGREGATION,
     type CartesianChartDisplay,
     type PivotChartLayout,
     type VizAggregationOptions,
-    type VizBarChartConfig,
+    type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
-    type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 
 export type CartesianChartState = {
-    defaultLayout: PivotChartLayout | undefined;
-    config: VizBarChartConfig | VizLineChartConfig | undefined;
-    display: CartesianChartDisplay | undefined;
+    metadata: {
+        version: number;
+    };
+    type: ChartKind;
+    fieldConfig: VizCartesianChartConfig['fieldConfig'] | undefined;
+    display: VizCartesianChartConfig['display'] | undefined;
     options: VizCartesianChartOptions;
     errors: VizConfigErrors | undefined;
 };
 
 const initialState: CartesianChartState = {
-    defaultLayout: undefined,
-    config: undefined,
+    metadata: {
+        version: 1,
+    },
+    type: ChartKind.VERTICAL_BAR,
+    fieldConfig: undefined,
     display: {
         xAxis: {},
         yAxis: [],
@@ -48,28 +54,26 @@ export const cartesianChartConfigSlice = createSlice({
             );
 
             // NOTE: now setting a field instead of just a reference.
-            if (state.config?.fieldConfig && xField) {
-                state.config.fieldConfig.x = xField;
+            if (state.fieldConfig && xField) {
+                state.fieldConfig.x = xField;
             }
         },
 
         setGroupByReference: (
-            { config },
+            { fieldConfig },
             action: PayloadAction<{
                 reference: string;
             }>,
         ) => {
-            if (config?.fieldConfig) {
-                config.fieldConfig.groupBy = [
-                    { reference: action.payload.reference },
-                ];
+            if (fieldConfig) {
+                fieldConfig.groupBy = [{ reference: action.payload.reference }];
             }
         },
 
         // Setter
-        unsetGroupByReference: ({ config }) => {
-            if (config?.fieldConfig) {
-                config.fieldConfig.groupBy = undefined;
+        unsetGroupByReference: ({ fieldConfig }) => {
+            if (fieldConfig) {
+                fieldConfig.groupBy = undefined;
             }
         },
 
@@ -81,8 +85,8 @@ export const cartesianChartConfigSlice = createSlice({
                 index: number;
             }>,
         ) => {
-            if (state.config?.fieldConfig?.y) {
-                const yAxis = state.config.fieldConfig.y[action.payload.index];
+            if (state.fieldConfig?.y) {
+                const yAxis = state.fieldConfig.y[action.payload.index];
 
                 let matchingOption =
                     state.options.valuesLayoutOptions.preAggregated.find(
@@ -100,7 +104,7 @@ export const cartesianChartConfigSlice = createSlice({
                         matchingOption?.aggregationOptions?.[0] ??
                         VIZ_DEFAULT_AGGREGATION;
                 } else {
-                    state.config.fieldConfig.y.push({
+                    state.fieldConfig.y.push({
                         reference: action.payload.reference,
                         aggregation:
                             matchingOption?.aggregationOptions?.[0] ??
@@ -111,16 +115,16 @@ export const cartesianChartConfigSlice = createSlice({
         },
 
         setYAxisAggregation: (
-            { config },
+            { fieldConfig },
             action: PayloadAction<{
                 index: number;
                 aggregation: VizAggregationOptions;
             }>,
         ) => {
-            if (!config) return;
-            if (!config?.fieldConfig?.y) return;
+            if (!fieldConfig) return;
+            if (!fieldConfig?.y) return;
 
-            const yAxis = config.fieldConfig.y[action.payload.index];
+            const yAxis = fieldConfig.y[action.payload.index];
             if (yAxis) {
                 yAxis.aggregation = action.payload.aggregation;
             }
@@ -196,14 +200,14 @@ export const cartesianChartConfigSlice = createSlice({
         },
 
         addYAxisField: (state) => {
-            if (!state?.config?.fieldConfig) return;
+            if (!state?.fieldConfig) return;
 
             const allOptions = [
                 ...state.options.valuesLayoutOptions.preAggregated,
                 ...state.options.valuesLayoutOptions.customAggregations,
             ];
 
-            const yAxisFields = state.config.fieldConfig.y;
+            const yAxisFields = state.fieldConfig.y;
             const yAxisFieldsAvailable = allOptions.filter(
                 (option) =>
                     !yAxisFields
@@ -216,11 +220,11 @@ export const cartesianChartConfigSlice = createSlice({
             if (yAxisFieldsAvailable.length > 0) {
                 defaultYAxisField = yAxisFieldsAvailable[0];
             } else {
-                defaultYAxisField = state.config.fieldConfig.y[0];
+                defaultYAxisField = state.fieldConfig.y[0];
             }
 
             if (yAxisFields) {
-                state.config.fieldConfig.y.push({
+                state.fieldConfig.y.push({
                     reference: defaultYAxisField.reference,
                     aggregation: VIZ_DEFAULT_AGGREGATION,
                 });
@@ -228,10 +232,10 @@ export const cartesianChartConfigSlice = createSlice({
         },
 
         removeYAxisField: (state, action: PayloadAction<number>) => {
-            if (!state.config?.fieldConfig?.y) return;
+            if (!state.fieldConfig?.y) return;
 
             const index = action.payload;
-            state.config.fieldConfig.y.splice(index, 1);
+            state.fieldConfig.y.splice(index, 1);
 
             if (state.display) {
                 if (state.display.yAxis) {
@@ -258,16 +262,16 @@ export const cartesianChartConfigSlice = createSlice({
         },
 
         removeXAxisField: (state) => {
-            if (!state.config?.fieldConfig) return;
-            delete state.config.fieldConfig.x;
+            if (!state.fieldConfig) return;
+            delete state.fieldConfig.x;
         },
 
         setSortBy: (
-            { config },
+            { fieldConfig },
             action: PayloadAction<PivotChartLayout['sortBy']>,
         ) => {
-            if (!config?.fieldConfig) return;
-            config.fieldConfig.sortBy = action.payload;
+            if (!fieldConfig) return;
+            fieldConfig.sortBy = action.payload;
         },
 
         setStacked: ({ display }, action: PayloadAction<boolean>) => {
@@ -279,10 +283,10 @@ export const cartesianChartConfigSlice = createSlice({
         },
 
         setYAxisFormat: (
-            { config, display },
+            { fieldConfig, display },
             action: PayloadAction<{ format: string }>,
         ) => {
-            if (!config) return;
+            if (!fieldConfig) return;
             display = display || {};
 
             const validFormat = isFormat(action.payload.format)
@@ -304,9 +308,9 @@ export const cartesianChartConfigSlice = createSlice({
                         series.format = validFormat;
                     }
                 });
-            } else if (config.fieldConfig?.y[0].reference) {
+            } else if (fieldConfig?.y[0].reference) {
                 display.series = {
-                    [config.fieldConfig?.y[0].reference]: {
+                    [fieldConfig?.y[0].reference]: {
                         format: validFormat,
                         yAxisIndex: 0,
                     },
@@ -368,20 +372,20 @@ export const cartesianChartConfigSlice = createSlice({
             };
         },
         setSeriesColor: (
-            { config, display },
+            { fieldConfig, display },
             action: PayloadAction<{
                 reference: string;
                 color: string;
                 index?: number;
             }>,
         ) => {
-            if (!config) return;
+            if (!fieldConfig) return;
             display = display || {};
             display.yAxis = display.yAxis || [];
             display.series = display.series || {};
 
-            if (config.fieldConfig?.y.length === 1) {
-                const yReference = config.fieldConfig?.y[0].reference;
+            if (fieldConfig?.y.length === 1) {
+                const yReference = fieldConfig?.y[0].reference;
                 if (yReference) {
                     display.series[yReference] = {
                         ...display.series[yReference],

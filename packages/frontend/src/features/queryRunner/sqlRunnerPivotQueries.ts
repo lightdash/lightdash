@@ -78,11 +78,10 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
 > => {
     const index = fields.find((field) => field.name === query.pivot?.index[0]);
     const values = query.pivot?.values.map((value) => {
-        // TODO: 'metrics' instead of 'customMetrics' for now
-        // should this be different here or worked out in the model?
         const customMetric = query.customMetrics?.find(
             (metric) => metric.name === value,
         );
+        
         // This should never be true
         if (!customMetric || customMetric.baseDimension === undefined) {
             throw new Error(
