@@ -1,3 +1,10 @@
+## [0.1293.1](https://github.com/lightdash/lightdash/compare/0.1293.0...0.1293.1) (2024-10-03)
+
+
+### Bug Fixes
+
+* disable github button if not enabled ([#11778](https://github.com/lightdash/lightdash/issues/11778)) ([3738cbe](https://github.com/lightdash/lightdash/commit/3738cbe844b734d104be1640f2a5228bce5adaac))
+
 # [0.1293.0](https://github.com/lightdash/lightdash/compare/0.1292.2...0.1293.0) (2024-10-03)
 
 
