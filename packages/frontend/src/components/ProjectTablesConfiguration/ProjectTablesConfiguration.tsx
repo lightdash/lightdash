@@ -239,7 +239,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                             <DocumentationHelpButton href="https://docs.getdbt.com/reference/resource-configs/tags#examples" />
                                         </>
                                     }
-                                    description="Write a list of tags you want to include, separated by commas."
+                                    description="Write a list of tags you want to include, separated by commas. Virtual views are included by default."
                                     disabled={disabled}
                                 />
 
@@ -308,7 +308,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                 <Radio
                                     value={TableSelectionType.WITH_NAMES}
                                     label="Show models in this list"
-                                    description="Write a list of models you want to include, separated by commas."
+                                    description="Write a list of models you want to include, separated by commas. Virtual views are included by default."
                                     disabled={disabled}
                                 />
 

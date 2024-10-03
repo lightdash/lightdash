@@ -2841,13 +2841,17 @@ export class ProjectService extends BaseService {
                 tableSelection: { type, value },
             } = await this.getTablesConfiguration(user, projectUuid);
             if (type === TableSelectionType.WITH_TAGS) {
-                return allExploreSummaries.filter((explore) =>
-                    hasIntersection(explore.tags || [], value || []),
+                return allExploreSummaries.filter(
+                    (explore) =>
+                        hasIntersection(explore.tags || [], value || []) ||
+                        explore.type === ExploreType.CUSTOM, // Custom explores/Virtual views are included by default
                 );
             }
             if (type === TableSelectionType.WITH_NAMES) {
-                return allExploreSummaries.filter((explore) =>
-                    (value || []).includes(explore.name),
+                return allExploreSummaries.filter(
+                    (explore) =>
+                        (value || []).includes(explore.name) ||
+                        explore.type === ExploreType.CUSTOM, // Custom explores/Virtual views are included by default
                 );
             }
         }
