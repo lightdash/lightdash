@@ -12,7 +12,6 @@ import {
     Text,
     TextInput,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelp, IconTrash } from '@tabler/icons-react';
@@ -42,7 +41,6 @@ const CubeSemanticLayerForm: FC<Props> = ({
     onSubmit,
     onDelete,
 }) => {
-    const theme = useMantineTheme();
     const form = useForm<z.infer<typeof cubeSemanticLayerFormSchema>>({
         validate: zodResolver(cubeSemanticLayerFormSchema),
         initialValues: {
@@ -78,9 +76,6 @@ const CubeSemanticLayerForm: FC<Props> = ({
                             Service Token
                             <Tooltip
                                 maw={400}
-                                style={{
-                                    backgroundColor: theme.colors.dark[6],
-                                }}
                                 label={
                                     <Text fw={400}>
                                         The token can be found by logging into
@@ -109,9 +104,6 @@ const CubeSemanticLayerForm: FC<Props> = ({
                             Domain
                             <Tooltip
                                 maw={400}
-                                style={{
-                                    backgroundColor: theme.colors.dark[6],
-                                }}
                                 label={
                                     <Text fw={400}>
                                         The domain can be found by logging into

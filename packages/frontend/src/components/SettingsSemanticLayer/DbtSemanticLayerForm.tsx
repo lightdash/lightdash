@@ -127,7 +127,9 @@ const DbtSemanticLayerForm: FC<Props> = ({
                                             dbt Settings
                                         </Anchor>{' '}
                                         - token needs at least{' '}
-                                        <b>'semantic layer only'</b>{' '}
+                                        <Text span fw={500}>
+                                            'semantic layer only'
+                                        </Text>{' '}
                                         permissions.
                                     </Text>
                                 </HoverCard.Dropdown>
@@ -158,9 +160,6 @@ const DbtSemanticLayerForm: FC<Props> = ({
                             Environment ID
                             <Tooltip
                                 maw={400}
-                                style={{
-                                    backgroundColor: theme.colors.dark[6],
-                                }}
                                 label={
                                     <Text fw={400}>
                                         The unique identifier for the dbt
