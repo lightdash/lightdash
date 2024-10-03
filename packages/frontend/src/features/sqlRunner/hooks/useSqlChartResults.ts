@@ -1,4 +1,5 @@
 import {
+    ArgumentsOf,
     isApiSqlRunnerJobErrorResponse,
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
@@ -11,14 +12,12 @@ import { getSqlRunnerCompleteJob } from './requestUtils';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { type ResultsAndColumns } from './useSqlQueryRun';
 
-export const getSqlChartResults = async ({
-    projectUuid,
-    slug,
+const getSqlChartResults = async ({
+    url,
     getResultsFromStream,
     context,
 }: {
-    projectUuid: string;
-    slug: string;
+    url: string;
     getResultsFromStream: ReturnType<
         typeof useResultsFromStreamWorker
     >['getResultsFromStream'];
@@ -26,9 +25,7 @@ export const getSqlChartResults = async ({
 }) => {
     const scheduledJob = await lightdashApi<ApiJobScheduledResponse['results']>(
         {
-            url: `/projects/${projectUuid}/sqlRunner/saved/slug/${slug}/results-job${
-                context ? `?context=${context}` : ''
-            }`,
+            url: `${url}${context ? `?context=${context}` : ''}`,
             method: 'GET',
             body: undefined,
         },
@@ -38,16 +35,16 @@ export const getSqlChartResults = async ({
     if (isApiSqlRunnerJobErrorResponse(job)) {
         throw job;
     }
-    const url =
+    const fileUrl =
         isApiSqlRunnerJobSuccessResponse(job) &&
         job?.details &&
         !isErrorDetails(job.details)
             ? job.details.fileUrl
             : undefined;
-    const results = await getResultsFromStream(url);
+    const results = await getResultsFromStream(fileUrl);
 
     return {
-        fileUrl: url!,
+        fileUrl: fileUrl!,
         results,
         columns:
             isApiSqlRunnerJobSuccessResponse(job) &&
@@ -56,6 +53,46 @@ export const getSqlChartResults = async ({
                 ? job.details.columns
                 : [],
     };
+};
+
+export const getSqlChartResultsByUuid = async ({
+    projectUuid,
+    chartUuid,
+    getResultsFromStream,
+    context,
+}: {
+    projectUuid: string;
+    chartUuid: string;
+    getResultsFromStream: Parameters<
+        typeof getSqlChartResults
+    >[0]['getResultsFromStream'];
+    context: Parameters<typeof getSqlChartResults>[0]['context'];
+}) => {
+    return getSqlChartResults({
+        url: `/projects/${projectUuid}/sqlRunner/saved/${chartUuid}/results-job`,
+        getResultsFromStream,
+        context,
+    });
+};
+
+export const getSqlChartResultsBySlug = async ({
+    projectUuid,
+    slug,
+    getResultsFromStream,
+    context,
+}: {
+    projectUuid: string;
+    slug: string;
+    getResultsFromStream: Parameters<
+        typeof getSqlChartResults
+    >[0]['getResultsFromStream'];
+    context: Parameters<typeof getSqlChartResults>[0]['context'];
+}) => {
+    return getSqlChartResults({
+        url: `/projects/${projectUuid}/sqlRunner/saved/slug/${slug}/results-job`,
+        getResultsFromStream,
+        context,
+    });
 };
 
 /**
@@ -77,7 +114,7 @@ export const useSqlChartResults = (
     >(
         ['sqlChartResults', projectUuid, slug],
         () => {
-            return getSqlChartResults({
+            return getSqlChartResultsBySlug({
                 projectUuid,
                 slug: slug!,
                 getResultsFromStream,
