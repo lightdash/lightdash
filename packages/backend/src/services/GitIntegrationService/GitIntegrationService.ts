@@ -507,7 +507,9 @@ Affected charts:
     }
 
     private static removeExtraSlashes(str: string): string {
-        return str.replace(/\/{2,}/g, '/');
+        return str
+            .replace(/\/{2,}/g, '/') // Removes duplicated slashes
+            .replace(/^\//, ''); // Remove first / if it exists, this is needed to commit files in Github.
     }
 
     private static getFilePath(
@@ -518,10 +520,7 @@ Affected charts:
         const filePath = `${path}/models/lightdash/${snakeCaseName(
             name,
         )}.${extension}`;
-        return GitIntegrationService.removeExtraSlashes(filePath).replace(
-            /^\//,
-            '',
-        );
+        return GitIntegrationService.removeExtraSlashes(filePath);
     }
 
     private static async createSqlFile({
