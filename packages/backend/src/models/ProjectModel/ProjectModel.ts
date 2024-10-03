@@ -2108,4 +2108,60 @@ export class ProjectModel {
 
         return updatedProject;
     }
+
+    async updateVirtualView(
+        projectUuid: string,
+        payload: CreateCustomExplorePayload,
+        warehouseClient: WarehouseClient,
+    ) {
+        const translatedToExplore = createCustomExplore(
+            payload.name,
+            payload.sql,
+            payload.columns,
+            warehouseClient,
+        );
+
+        // insert into cached_explore
+        await this.database(CachedExploreTableName)
+            .insert({
+                project_uuid: projectUuid,
+                name: translatedToExplore.name,
+                table_names: Object.keys(translatedToExplore.tables || {}),
+                explore: JSON.stringify(translatedToExplore),
+            })
+            .onConflict(['project_uuid', 'name'])
+            .merge()
+            .returning(['name', 'cached_explore_uuid']);
+        const toAddToCached: Explore = {
+            name,
+            tags: [],
+            label: friendlyName(name),
+            tables: translatedToExplore.tables,
+            baseTable: name,
+            groupLabel: 'Custom explores',
+            joinedTables: [],
+            targetDatabase: SupportedDbtAdapter.POSTGRES,
+        };
+
+        // append to cached_explores
+        await this.database(CachedExploresTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                explores: this.database.raw(
+                    `
+                CASE
+                    WHEN explores IS NULL THEN ?::jsonb
+                    ELSE explores || ?::jsonb
+                END
+            `,
+                    [
+                        JSON.stringify([toAddToCached]),
+                        JSON.stringify([toAddToCached]),
+                    ],
+                ),
+            })
+            .returning('*');
+
+        return { name };
+    }
 }

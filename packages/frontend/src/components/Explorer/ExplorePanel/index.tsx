@@ -6,10 +6,24 @@ import {
     isCustomBinDimension,
     isCustomSqlDimension,
 } from '@lightdash/common';
-import { Skeleton, Stack } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
+import {
+    ActionIcon,
+    Box,
+    Group,
+    Menu,
+    Modal,
+    Skeleton,
+    Stack,
+    Text,
+    TextInput,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { IconDots, IconPencil, IconTableAlias } from '@tabler/icons-react';
+import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
+import SqlRunnerNewPage from '../../../pages/SqlRunnerNew';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailContext';
@@ -32,6 +46,8 @@ interface ExplorePanelProps {
 }
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
+    const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
+
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -56,6 +72,18 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         (context) => context.actions.toggleActiveField,
     );
     const { data: explore, status } = useExplore(activeTableName);
+
+    const form = useForm({
+        initialValues: {
+            name: '',
+        },
+    });
+
+    useEffect(() => {
+        if (explore?.name && !form.values.name) {
+            form.setFieldValue('name', explore.name);
+        }
+    }, [explore, explore?.name, form]);
 
     const missingFields = useMemo(() => {
         if (explore) {
@@ -120,23 +148,49 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     return (
         <>
-            <PageBreadcrumbs
-                size="md"
-                items={[
-                    ...(onBack
-                        ? [
-                              {
-                                  title: 'Tables',
-                                  onClick: onBack,
-                              },
-                          ]
-                        : []),
-                    {
-                        title: explore.label,
-                        active: true,
-                    },
-                ]}
-            />
+            <Box pos="relative">
+                <PageBreadcrumbs
+                    size="md"
+                    items={[
+                        ...(onBack
+                            ? [
+                                  {
+                                      title: 'Tables',
+                                      onClick: onBack,
+                                  },
+                              ]
+                            : []),
+                        {
+                            title: explore.label,
+                            active: true,
+                        },
+                    ]}
+                />
+                <Menu>
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="transparent"
+                            pos="absolute"
+                            top="0"
+                            right="0"
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconPencil} />}
+                            onClick={() => {
+                                setIsEditVirtualViewOpen(true);
+                            }}
+                        >
+                            <Text fz="xs" fw={500}>
+                                Edit virtual view
+                            </Text>
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+            </Box>
 
             <ItemDetailProvider>
                 <ExploreTree
@@ -149,6 +203,39 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     missingFields={missingFields}
                 />
             </ItemDetailProvider>
+
+            <Modal
+                opened={isEditVirtualViewOpen}
+                onClose={() => setIsEditVirtualViewOpen(false)}
+                title={
+                    <Group spacing="xs">
+                        <MantineIcon icon={IconTableAlias} />
+                        <Text fz="sm">Editing virtual view</Text>
+                        <TextInput
+                            size="xs"
+                            radius="md"
+                            {...form.getInputProps('name')}
+                        />
+                    </Group>
+                }
+                size="90vw"
+                styles={(theme) => ({
+                    header: {
+                        padding: `${theme.spacing.xs} ${theme.spacing.lg}`,
+                    },
+                    body: {
+                        padding: 0,
+                    },
+                })}
+            >
+                <SqlRunnerNewPage
+                    isEditMode
+                    virtualViewState={{
+                        name: explore.name,
+                        sql: explore.tables[activeTableName].sqlTable,
+                    }}
+                />
+            </Modal>
         </>
     );
 });

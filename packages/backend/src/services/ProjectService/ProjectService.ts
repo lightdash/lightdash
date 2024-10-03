@@ -4401,4 +4401,33 @@ export class ProjectService extends BaseService {
 
         return updatedProject;
     }
+
+    async updateVirtualView(
+        user: SessionUser,
+        projectUuid: string,
+        payload: CreateCustomExplorePayload,
+    ) {
+        const explore = await this.findExplores({
+            user,
+            projectUuid,
+            exploreNames: [payload.name],
+        });
+
+        if (user.ability.cannot('update', subject('Explore', explore))) {
+            throw new ForbiddenError();
+        }
+
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+        );
+
+        const updatedExplore = await this.projectModel.updateVirtualView(
+            projectUuid,
+            payload,
+            warehouseClient,
+        );
+
+        return updatedExplore;
+    }
 }

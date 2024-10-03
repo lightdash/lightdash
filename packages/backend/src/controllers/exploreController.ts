@@ -4,6 +4,7 @@ import {
     ApiExploreResults,
     ApiExploresResults,
     ApiSuccessEmpty,
+    CreateCustomExplorePayload,
     MetricQuery,
 } from '@lightdash/common';
 import {
@@ -185,6 +186,27 @@ export class ExploreController extends BaseController {
             results: {
                 jobId,
             },
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{exploreId}/updateVirtualView')
+    @OperationId('UpdateVirtualView')
+    async UpdateVirtualView(
+        @Path() exploreId: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateCustomExplorePayload,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .updateVirtualView(req.user!, projectUuid, body);
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }
