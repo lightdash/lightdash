@@ -2770,6 +2770,10 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "ExploreType": {
+                "enum": ["custom", "default"],
+                "type": "string"
+            },
             "Pick_Explore.SummaryExploreFields_": {
                 "properties": {
                     "name": {
@@ -2780,6 +2784,9 @@
                     },
                     "groupLabel": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
                     },
                     "tags": {
                         "items": {
@@ -2817,6 +2824,9 @@
                     },
                     "groupLabel": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
                     },
                     "tags": {
                         "items": {
@@ -3049,6 +3059,9 @@
             },
             "Explore": {
                 "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
+                    },
                     "sqlPath": {
                         "type": "string"
                     },
@@ -10184,7 +10197,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1290.0",
+        "version": "0.1292.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
