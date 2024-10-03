@@ -169,7 +169,11 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             );
 
         if (rawResponse.status === DbtQueryStatus.FAILED) {
-            throw new DbtError(rawResponse.error ?? undefined);
+            throw new DbtError(
+                this.transformers.errorToReadableError(
+                    rawResponse.error ?? undefined,
+                ),
+            );
         }
 
         const jsonResult = rawResponse.jsonResult
@@ -290,7 +294,8 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
         } catch (error) {
             // ! Collecting all errors, we might want to just send the first one so that the string isn't as big
             const errors: string[] | undefined = error?.response?.errors?.map(
-                (e: { message: string }) => e.message,
+                (e: { message: string }) =>
+                    this.transformers.errorToReadableError(e.message),
             );
 
             throw new DbtError(errors?.join('\n'));

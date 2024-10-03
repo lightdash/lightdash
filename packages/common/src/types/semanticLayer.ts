@@ -104,6 +104,7 @@ export interface SemanticLayerTransformer<
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
     mapResultsKeys: (key: string, query: SemanticLayerQuery) => string;
+    errorToReadableError: (errorMessage?: string) => string | undefined;
 }
 
 export interface SemanticLayerClientInfo {
