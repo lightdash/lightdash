@@ -329,7 +329,7 @@ Affected charts:
             );
         const [owner, repo] = project.dbtConnection.repository.split('/');
         const { branch } = project.dbtConnection;
-        const path = project.dbtConnection.project_sub_path?.replace(/^\//, '');
+        const path = project.dbtConnection.project_sub_path;
         return { owner, repo, branch, path };
     }
 
@@ -506,6 +506,24 @@ Affected charts:
         });
     }
 
+    private static removeExtraSlashes(str: string): string {
+        return str.replace(/\/{2,}/g, '/');
+    }
+
+    private static getFilePath(
+        path: string,
+        name: string,
+        extension: 'sql' | 'yml',
+    ) {
+        const filePath = `${path}/models/lightdash/${snakeCaseName(
+            name,
+        )}.${extension}`;
+        return GitIntegrationService.removeExtraSlashes(filePath).replace(
+            /^\//,
+            '',
+        );
+    }
+
     private static async createSqlFile({
         githubProps,
         name,
@@ -515,7 +533,11 @@ Affected charts:
         name: string;
         sql: string;
     }) {
-        const fileName = `models/${snakeCaseName(name)}.sql`;
+        const fileName = GitIntegrationService.getFilePath(
+            githubProps.path,
+            name,
+            'sql',
+        );
         const content = `
 {{
   config(
@@ -543,7 +565,11 @@ ${sql}
         name: string;
         columns: VizColumn[];
     }) {
-        const fileName = `models/${snakeCaseName(name)}.yml`;
+        const fileName = GitIntegrationService.getFilePath(
+            githubProps.path,
+            name,
+            'yml',
+        );
         const content = yaml.dump(
             {
                 version: 2,
@@ -646,14 +672,13 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
     ): Promise<ApiGithubDbtWritePreview['results']> {
         const { owner, repo, path } = await this.getProjectRepo(projectUuid);
 
-        const removeExtraSlashes = (str: string) => str.replace(/\/{2,}/g, '/');
         return {
             url: `https://github.com/${owner}/${repo}`,
             repo,
-            path: removeExtraSlashes(`${path}/models`),
+            path: `${path}/models/lightdash`,
             files: [
-                removeExtraSlashes(`${path}/models/${snakeCaseName(name)}.sql`),
-                removeExtraSlashes(`${path}/models/${snakeCaseName(name)}.yml`),
+                GitIntegrationService.getFilePath(path, name, 'sql'),
+                GitIntegrationService.getFilePath(path, name, 'yml'),
             ],
             owner,
         };
