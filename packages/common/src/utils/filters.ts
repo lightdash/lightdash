@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
+import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
 import { type Table } from '../types/explore';
 import {
     convertFieldRefToFieldId,
@@ -280,6 +281,9 @@ export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
     a.type === b.type && a.name === b.name;
 
 export const matchFieldByType = (a: Field) => (b: Field) => a.type === b.type;
+
+export const isTileFilterable = (tile: DashboardTile) =>
+    ![DashboardTileTypes.MARKDOWN, DashboardTileTypes.LOOM].includes(tile.type);
 
 const getDefaultTileTargets = (
     field: FilterableDimension | Metric | Field,
