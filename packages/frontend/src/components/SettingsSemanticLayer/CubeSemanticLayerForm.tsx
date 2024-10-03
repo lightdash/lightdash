@@ -42,7 +42,14 @@ const CubeSemanticLayerForm: FC<Props> = ({
     onDelete,
 }) => {
     const form = useForm<z.infer<typeof cubeSemanticLayerFormSchema>>({
-        validate: zodResolver(cubeSemanticLayerFormSchema),
+        validate: {
+            ...zodResolver(cubeSemanticLayerFormSchema),
+            // Custom validation for token since when there is no semanticLayerConnection it is required at the form level (there's also backend validation)
+            token: (value) =>
+                !semanticLayerConnection && value.length < 1
+                    ? 'Token is required'
+                    : null,
+        },
         initialValues: {
             type: SemanticLayerType.CUBE,
             token: '',

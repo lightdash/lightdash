@@ -55,7 +55,14 @@ const DbtSemanticLayerForm: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
     const form = useForm<z.infer<typeof dbtSemanticLayerFormSchema>>({
-        validate: zodResolver(dbtSemanticLayerFormSchema),
+        validate: {
+            ...zodResolver(dbtSemanticLayerFormSchema),
+            // Custom validation for token since when there is no semanticLayerConnection it is required at the form level (there's also backend validation)
+            token: (value) =>
+                !semanticLayerConnection && value.length < 1
+                    ? 'Token is required'
+                    : null,
+        },
         initialValues: {
             type: SemanticLayerType.DBT,
             token: '',
