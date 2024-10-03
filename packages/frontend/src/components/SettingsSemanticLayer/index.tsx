@@ -1,5 +1,13 @@
 import { assertUnreachable, SemanticLayerType } from '@lightdash/common';
-import { Avatar, Group, Select, Stack, Text, Title } from '@mantine/core';
+import {
+    Anchor,
+    Avatar,
+    Group,
+    Select,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { forwardRef, useState, type FC } from 'react';
 import { z } from 'zod';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -104,6 +112,13 @@ const SettingsSemanticLayer: FC<Props> = ({ projectUuid }) => {
                     Connect your third-party Semantic Layer so you can explore
                     and report on your metric definitions in Lightdash.
                 </Text>
+
+                <Anchor
+                    href="https://docs.lightdash.com/references/dbt-semantic-layer"
+                    target="_blank"
+                >
+                    Learn more
+                </Anchor>
             </Stack>
 
             <Stack>
