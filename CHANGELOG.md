@@ -1,3 +1,10 @@
+## [0.1294.1](https://github.com/lightdash/lightdash/compare/0.1294.0...0.1294.1) (2024-10-04)
+
+
+### Bug Fixes
+
+* bump snowflake sdk to 14 ([#11779](https://github.com/lightdash/lightdash/issues/11779)) ([e891522](https://github.com/lightdash/lightdash/commit/e8915222f2fb1f65ee1f2f71040719c8b97835c8))
+
 # [0.1294.0](https://github.com/lightdash/lightdash/compare/0.1293.4...0.1294.0) (2024-10-04)
 
 
