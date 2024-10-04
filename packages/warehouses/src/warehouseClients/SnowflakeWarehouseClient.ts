@@ -194,7 +194,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);
-            await Util.promisify(connection.connect)();
+            await Util.promisify(connection.connect.bind(connection))();
         } catch (e) {
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
@@ -377,7 +377,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 schema,
                 database,
             });
-            await Util.promisify(connection.connect)();
+            await Util.promisify(connection.connect.bind(connection))();
         } catch (e) {
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
