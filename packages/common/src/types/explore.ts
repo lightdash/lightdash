@@ -39,7 +39,7 @@ export type CompiledTable = TableBase & {
 };
 
 export enum ExploreType {
-    CUSTOM = 'custom',
+    VIRTUAL = 'virtual',
     DEFAULT = 'default',
 }
 

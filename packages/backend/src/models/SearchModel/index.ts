@@ -443,14 +443,14 @@ export class SearchModel {
                             hasIntersection(
                                 explore.tags || [],
                                 tableSelection.value || [],
-                            ) || explore.type === ExploreType.CUSTOM
+                            ) || explore.type === ExploreType.VIRTUAL
                         );
                     }
                     if (tableSelection.type === TableSelectionType.WITH_NAMES) {
                         return (
                             (tableSelection.value || []).includes(
                                 explore.name,
-                            ) || explore.type === ExploreType.CUSTOM
+                            ) || explore.type === ExploreType.VIRTUAL
                         );
                     }
                     return true;

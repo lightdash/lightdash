@@ -111,7 +111,7 @@ describe('ProjectModel', () => {
                 .select(
                     queryMatcher(CachedExploreTableName, [
                         projectUuid,
-                        ExploreType.CUSTOM,
+                        ExploreType.VIRTUAL,
                     ]),
                 )
                 .response([]);

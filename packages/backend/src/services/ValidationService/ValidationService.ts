@@ -134,13 +134,13 @@ export class ValidationService extends BaseService {
                                         tag,
                                     ),
                                 )) ||
-                            explore.type === ExploreType.CUSTOM, // Custom explores/Virtual views are included by default
+                            explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                     );
                     const exploreIsSelectedWithTags = explore.tags?.some(
                         (tag) =>
                             tablesConfiguration.tableSelection.value?.includes(
                                 tag,
-                            ) || explore.type === ExploreType.CUSTOM, // Custom explores/Virtual views are included by default
+                            ) || explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                     );
                     return (
                         hasSelectedJoinedExploredWithTags ||
@@ -156,12 +156,12 @@ export class ValidationService extends BaseService {
                                 tablesConfiguration.tableSelection.value?.includes(
                                     e.name,
                                 )) ||
-                            explore.type === ExploreType.CUSTOM, // Custom explores/Virtual views are included by default
+                            explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                     );
                     const exploreIsSelected =
                         tablesConfiguration.tableSelection.value?.includes(
                             explore.name,
-                        ) || explore.type === ExploreType.CUSTOM; // Custom explores/Virtual views are included by default
+                        ) || explore.type === ExploreType.VIRTUAL; // Custom explores/Virtual views are included by default
 
                     return hasSelectedJoinedExplored || exploreIsSelected;
                 default:

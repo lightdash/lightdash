@@ -939,7 +939,7 @@ export class ProjectModel {
                 )
                     .select('explore')
                     .where('project_uuid', projectUuid)
-                    .whereRaw("explore->>'type' = ?", [ExploreType.CUSTOM]);
+                    .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL]);
 
                 // delete previous individually cached explores
                 await this.database(CachedExploreTableName)

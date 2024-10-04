@@ -60,6 +60,6 @@ export const createCustomExplore = (
 
     return {
         ...explore,
-        type: ExploreType.CUSTOM,
+        type: ExploreType.VIRTUAL,
     };
 };

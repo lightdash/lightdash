@@ -2844,14 +2844,14 @@ export class ProjectService extends BaseService {
                 return allExploreSummaries.filter(
                     (explore) =>
                         hasIntersection(explore.tags || [], value || []) ||
-                        explore.type === ExploreType.CUSTOM, // Custom explores/Virtual views are included by default
+                        explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                 );
             }
             if (type === TableSelectionType.WITH_NAMES) {
                 return allExploreSummaries.filter(
                     (explore) =>
                         (value || []).includes(explore.name) ||
-                        explore.type === ExploreType.CUSTOM, // Custom explores/Virtual views are included by default
+                        explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                 );
             }
         }

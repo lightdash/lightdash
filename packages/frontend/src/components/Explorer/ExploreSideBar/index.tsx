@@ -89,7 +89,7 @@ const BasePanel = () => {
                                 acc[2],
                             ];
                         }
-                        if (explore.type === ExploreType.CUSTOM) {
+                        if (explore.type === ExploreType.VIRTUAL) {
                             return [acc[0], acc[1], [...acc[2], explore]];
                         }
                         return [acc[0], [...acc[1], explore], acc[2]];
