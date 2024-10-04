@@ -199,13 +199,13 @@ export const deployHandler = async (options: DeployHandlerOptions) => {
 
     await deploy(explores, { ...options, projectUuid });
 
+    const serverUrl = config.context?.serverUrl?.replace(/\/$/, '');
     const displayUrl = options.create
-        ? `${config.context?.serverUrl}/createProject/cli?projectUuid=${projectUuid}`
-        : `${config.context?.serverUrl}/projects/${projectUuid}/home`;
+        ? `${serverUrl}/createProject/cli?projectUuid=${projectUuid}`
+        : `${serverUrl}/projects/${projectUuid}/home`;
 
-    const sanitizedUrl = displayUrl.replace(/\/{2,}/g, '/'); // Remove double slashes
     console.error(`${styles.bold('Successfully deployed project:')}`);
     console.error('');
-    console.error(`      ${styles.bold(`⚡️ ${sanitizedUrl}`)}`);
+    console.error(`      ${styles.bold(`⚡️ ${displayUrl}`)}`);
     console.error('');
 };
