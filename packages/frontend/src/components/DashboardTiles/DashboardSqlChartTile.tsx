@@ -9,7 +9,6 @@ import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
-import { useOrganization } from '../../hooks/organization/useOrganization';
 import useSearchParams from '../../hooks/useSearchParams';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
@@ -56,7 +55,6 @@ const DashboardOptions = memo(
 
 const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
-    const { data: organization } = useOrganization();
     const { projectUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
@@ -74,7 +72,6 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         projectUuid,
         savedSqlUuid: savedSqlUuid,
         context,
-        organization,
     });
 
     if (isLoading) {
