@@ -4,7 +4,7 @@ export const getEmailDomain = (email: string): string => {
     }
 
     const domains = email.split('@');
-    if (domains.length !== 2) {
+    if (domains.length !== 2 || !domains[1]) {
         throw new Error(`Invalid email: ${email}`);
     }
     return domains[1].toLowerCase();
