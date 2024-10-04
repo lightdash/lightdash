@@ -484,8 +484,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         rudder: {
             writeKey:
-                process.env.RUDDERSTACK_WRITE_KEY ||
-                '1vqkSlWMVtYOl70rk3QSE0v1fqY',
+                process.env.RUDDERSTACK_WRITE_KEY === undefined
+                    ? '1vqkSlWMVtYOl70rk3QSE0v1fqY'
+                    : process.env.RUDDERSTACK_WRITE_KEY,
             dataPlaneUrl:
                 process.env.RUDDERSTACK_DATA_PLANE_URL ||
                 'https://analytics.lightdash.com',
