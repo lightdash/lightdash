@@ -147,7 +147,7 @@ const initialState: SemanticViewerState = {
         timeDimensions: [],
         filters: [],
         sortBy: [],
-        limit: undefined,
+        limit: 500,
     },
 
     saveModalOpen: false,

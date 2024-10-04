@@ -1,3 +1,10 @@
+# [0.1294.0](https://github.com/lightdash/lightdash/compare/0.1293.4...0.1294.0) (2024-10-04)
+
+
+### Features
+
+* show limit warning on button ([#11798](https://github.com/lightdash/lightdash/issues/11798)) ([2e8028b](https://github.com/lightdash/lightdash/commit/2e8028b38a4907332cf470e29d1518c77285f99d))
+
 ## [0.1293.4](https://github.com/lightdash/lightdash/compare/0.1293.3...0.1293.4) (2024-10-04)
 
 
