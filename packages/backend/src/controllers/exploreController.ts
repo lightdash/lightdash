@@ -21,7 +21,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { CsvService } from '../services/CsvService/CsvService';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,

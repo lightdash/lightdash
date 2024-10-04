@@ -2546,6 +2546,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExploreType: {
+        dataType: 'refEnum',
+        enums: ['virtual', 'default'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Explore.SummaryExploreFields_': {
         dataType: 'refAlias',
         type: {
@@ -2554,6 +2559,7 @@ const models: TsoaRoute.Models = {
                 name: { dataType: 'string', required: true },
                 label: { dataType: 'string', required: true },
                 groupLabel: { dataType: 'string' },
+                type: { ref: 'ExploreType' },
                 tags: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -2585,6 +2591,7 @@ const models: TsoaRoute.Models = {
                 name: { dataType: 'string', required: true },
                 label: { dataType: 'string', required: true },
                 groupLabel: { dataType: 'string' },
+                type: { ref: 'ExploreType' },
                 tags: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -2813,6 +2820,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                type: { ref: 'ExploreType' },
                 sqlPath: { dataType: 'string' },
                 ymlPath: { dataType: 'string' },
                 warehouse: { dataType: 'string' },

@@ -38,6 +38,11 @@ export type CompiledTable = TableBase & {
     uncompiledSqlWhere?: string;
 };
 
+export enum ExploreType {
+    VIRTUAL = 'virtual',
+    DEFAULT = 'default',
+}
+
 export type Explore = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
@@ -50,6 +55,7 @@ export type Explore = {
     warehouse?: string;
     ymlPath?: string;
     sqlPath?: string;
+    type?: ExploreType;
 };
 
 export enum InlineErrorType {
@@ -71,7 +77,7 @@ export const isExploreError = (
     explore: Explore | ExploreError,
 ): explore is ExploreError => 'errors' in explore;
 
-type SummaryExploreFields = 'name' | 'label' | 'tags' | 'groupLabel';
+type SummaryExploreFields = 'name' | 'label' | 'tags' | 'groupLabel' | 'type';
 type SummaryExploreErrorFields = SummaryExploreFields | 'errors';
 type SummaryExtraFields = {
     description?: string;
