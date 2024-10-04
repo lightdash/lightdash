@@ -96,6 +96,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
+    UpdateCustomExplorePayload,
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
@@ -2936,6 +2937,8 @@ export class ProjectService extends BaseService {
                     exploreNames,
                 );
 
+                console.log({ explores });
+
                 const userAttributes =
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
                         {
@@ -4406,5 +4409,36 @@ export class ProjectService extends BaseService {
             await this.projectModel.deleteSemanticLayerConnection(projectUuid);
 
         return updatedProject;
+    }
+
+    async updateVirtualView(
+        user: SessionUser,
+        projectUuid: string,
+        payload: UpdateCustomExplorePayload,
+    ) {
+        console.log({ payload, readyToFind: payload.exploreName });
+
+        const explore = await this.findExplores({
+            user,
+            projectUuid,
+            exploreNames: [payload.name],
+        });
+
+        // if (user.ability.cannot('update', subject('Explore', explore))) {
+        //     throw new ForbiddenError();
+        // }
+
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+        );
+
+        const updatedExplore = await this.projectModel.updateVirtualView(
+            projectUuid,
+            payload,
+            warehouseClient,
+        );
+
+        return updatedExplore;
     }
 }

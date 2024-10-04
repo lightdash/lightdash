@@ -2,9 +2,10 @@ import {
     type ApiCreateCustomExplore,
     type ApiError,
     type CreateCustomExplorePayload,
+    type UpdateCustomExplorePayload,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -61,6 +62,55 @@ export const useCreateCustomExplore = ({
         onError: () => {
             showToastError({
                 title: 'Error creating virtual view',
+            });
+        },
+    });
+};
+
+const updateCustomExplore = async ({
+    projectUuid,
+    name,
+    sql,
+    columns,
+    exploreName,
+}: {
+    projectUuid: string;
+} & UpdateCustomExplorePayload) =>
+    lightdashApi<ApiCreateCustomExplore['results']>({
+        url: `/projects/${projectUuid}/explores/updateVirtualView`,
+        // TODO: should be patch/put in probably in sqlRunnerController
+        method: 'POST',
+        body: JSON.stringify({
+            name,
+            sql,
+            columns,
+            exploreName,
+        }),
+    });
+
+export const useUpdateCustomExplore = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
+    return useMutation<
+        ApiCreateCustomExplore['results'],
+        ApiError,
+        { projectUuid: string } & UpdateCustomExplorePayload
+    >({
+        mutationFn: updateCustomExplore,
+        onSuccess: async ({ name }) => {
+            await queryClient.invalidateQueries({
+                queryKey: ['tables', projectUuid, 'filtered'],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['tables', name, projectUuid],
+            });
+            showToastSuccess({
+                title: 'Success! Virtual view updated',
+            });
+        },
+        onError: () => {
+            showToastError({
+                title: 'Error updating virtual view',
             });
         },
     });
