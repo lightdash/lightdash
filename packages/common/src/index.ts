@@ -126,8 +126,8 @@ import {
     type ApiSemanticViewerChartUpdate,
 } from './types/semanticLayer';
 import {
-    type ApiCreateCustomExplore,
     type ApiCreateSqlChart,
+    type ApiCreateVirtualView,
     type ApiGithubDbtWritePreview,
     type ApiSqlChart,
     type ApiSqlRunnerJobStatusResponse,
@@ -218,7 +218,6 @@ export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertToDbt';
-export * from './utils/customExplore';
 export * from './utils/dashboard';
 export * from './utils/email';
 export * from './utils/fields';
@@ -233,6 +232,7 @@ export * from './utils/semanticLayer';
 export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
+export * from './utils/virtualView';
 export * from './utils/warehouse';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/PieChartDataModel';
@@ -683,7 +683,7 @@ type ApiResults =
     | ApiSemanticViewerChartCreate['results']
     | ApiSemanticViewerChartGet['results']
     | ApiSemanticViewerChartUpdate['results']
-    | ApiCreateCustomExplore['results']
+    | ApiCreateVirtualView['results']
     | ApiGithubDbtWritePreview['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
