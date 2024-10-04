@@ -430,6 +430,7 @@ export class CartesianChartDataModel {
         const transformedData = this.pivotedChartData;
         if (
             !transformedData ||
+            !transformedData.indexColumn ||
             !transformedData.results ||
             !transformedData.results.length
         ) {
@@ -437,7 +438,10 @@ export class CartesianChartDataModel {
         }
 
         return {
-            columns: Object.keys(transformedData.results[0]) ?? [],
+            columns: [
+                transformedData.indexColumn.reference,
+                ...transformedData.valuesColumns,
+            ],
             rows: transformedData.results,
         };
     }
