@@ -1,3 +1,10 @@
+## [0.1293.4](https://github.com/lightdash/lightdash/compare/0.1293.3...0.1293.4) (2024-10-04)
+
+
+### Bug Fixes
+
+* persist virtual views when refreshing dbt ([#11772](https://github.com/lightdash/lightdash/issues/11772)) ([8a94e34](https://github.com/lightdash/lightdash/commit/8a94e34635f2a79fa26728f62c4d23ea8739e2d1))
+
 ## [0.1293.3](https://github.com/lightdash/lightdash/compare/0.1293.2...0.1293.3) (2024-10-04)
 
 
