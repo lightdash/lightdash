@@ -1,4 +1,3 @@
-import { ChartKind } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -19,7 +18,7 @@ import {
     SaveToSpace,
     validationSchema,
 } from '../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
-import { selectChartFieldConfigByKind } from '../../../../components/DataViz/store/selectors';
+import { selectCompleteConfigByKind } from '../../../../components/DataViz/store/selectors';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -56,7 +55,7 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
         (state) => state.semanticViewer.activeChartKind,
     );
     const selectedChartConfig = useAppSelector((state) =>
-        selectChartFieldConfigByKind(state, activeChartKind ?? ChartKind.TABLE),
+        selectCompleteConfigByKind(state, activeChartKind),
     );
 
     const spacesQuery = useSpaceSummaries(projectUuid, true);
@@ -138,25 +137,12 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
         const spaceUuid =
             newSpace?.uuid || form.values.spaceUuid || spacesQuery.data[0].uuid;
 
-        // TODO: this just maps axisType to type. We should make this kind of FE -> DB mapping
-        // more official, or (for now) use the older names.
-        const savedConfig = {
-            ...selectedChartConfig,
-            fieldConfig: {
-                ...selectedChartConfig?.fieldConfig,
-                x: {
-                    reference: selectedChartConfig?.fieldConfig?.x?.reference,
-                    type: selectedChartConfig?.fieldConfig?.x?.axisType,
-                },
-            },
-        };
-
         const newChart = await saveChart({
             name: form.values.name,
             description: form.values.description || '',
             semanticLayerView: semanticLayerView ?? null,
             semanticLayerQuery,
-            config: savedConfig,
+            config: selectedChartConfig,
             spaceUuid: spaceUuid,
         });
 
@@ -173,12 +159,12 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
         form.values.name,
         form.values.description,
         createSpace,
-        dispatch,
-        handleClose,
         saveChart,
         semanticLayerView,
         semanticLayerQuery,
         selectedChartConfig,
+        dispatch,
+        handleClose,
         onSave,
     ]);
 

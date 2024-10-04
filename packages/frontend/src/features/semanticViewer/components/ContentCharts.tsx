@@ -8,13 +8,13 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import {
     selectChartDisplayByKind,
     selectChartFieldConfigByKind,
+    selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 
-import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
 import { useAppSelector } from '../store/hooks';
 import {
@@ -36,7 +36,6 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const mantineTheme = useMantineTheme();
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const [openPanel, setOpenPanel] = useState<TabPanel>();
-    const org = useOrganization();
     const { results, columnNames, activeChartKind, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
@@ -44,15 +43,15 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const filters = useAppSelector(selectFilters);
     const sortBy = useAppSelector(selectSortBy);
 
-    // Get config. This could be a UUID fetch on dashboards
-    const vizConfig = useAppSelector((state) =>
-        selectChartFieldConfigByKind(
-            state,
-            state.semanticViewer.activeChartKind,
-        ),
+    const fieldConfig = useAppSelector((state) =>
+        selectChartFieldConfigByKind(state, activeChartKind),
     );
     const display = useAppSelector((state) =>
-        selectChartDisplayByKind(state, state.semanticViewer.activeChartKind),
+        selectChartDisplayByKind(state, activeChartKind),
+    );
+
+    const completeConfig = useAppSelector((state) =>
+        selectCompleteConfigByKind(state, activeChartKind),
     );
 
     const semanticLayerQuery = useAppSelector((state) =>
@@ -69,8 +68,12 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     }, [columnNames, fields, projectUuid, results]);
 
     const vizDataModel = useMemo(() => {
-        return getChartDataModel(resultsRunner, vizConfig, org.data);
-    }, [vizConfig, org.data, resultsRunner]);
+        return getChartDataModel(
+            resultsRunner,
+            fieldConfig,
+            activeChartKind ?? ChartKind.TABLE,
+        );
+    }, [fieldConfig, activeChartKind, resultsRunner]);
 
     const { loading: chartLoading, error: chartError } = useAsync(
         async () =>
@@ -82,8 +85,14 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         [semanticLayerQuery, vizDataModel],
     );
 
-    const spec = vizDataModel.getSpec(display);
-    const tableData = vizDataModel.getPivotedTableData();
+    const { spec, tableData } = useMemo(
+        () => ({
+            spec: vizDataModel.getSpec(display),
+            tableData: vizDataModel.getPivotedTableData(),
+        }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [vizDataModel, display, chartLoading],
+    );
 
     const handleOpenPanel = (panel: TabPanel) => {
         setOpenPanel(panel);
@@ -114,10 +123,10 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                         position: 'relative',
                     }}
                 >
-                    {vizConfig && isVizTableConfig(vizConfig) ? (
+                    {completeConfig && isVizTableConfig(completeConfig) ? (
                         <Table
                             resultsRunner={resultsRunner}
-                            columnsConfig={vizConfig.columns}
+                            columnsConfig={completeConfig.columns}
                             thSortConfig={tableVizSorts}
                             onTHClick={onTableHeaderClick}
                             flexProps={{
@@ -126,9 +135,9 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 sx: { flexGrow: 1 },
                             }}
                         />
-                    ) : vizConfig && !isVizTableConfig(vizConfig) ? (
+                    ) : completeConfig && !isVizTableConfig(completeConfig) ? (
                         <ChartView
-                            config={vizConfig} // Config only used for error messaging
+                            config={completeConfig} // Config only used for error messaging
                             spec={spec}
                             isLoading={chartLoading}
                             error={chartError}
@@ -143,7 +152,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                 </Panel>
 
                 {openPanel === TabPanel.VISUALIZATION_TABLE &&
-                    !isVizTableConfig(vizConfig) && (
+                    !isVizTableConfig(completeConfig) && (
                         <>
                             <Box
                                 component={PanelResizeHandle}

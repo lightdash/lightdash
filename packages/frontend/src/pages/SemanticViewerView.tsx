@@ -1,4 +1,8 @@
-import { assertUnreachable, ChartKind } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ChartKind,
+    isVizTableConfig,
+} from '@lightdash/common';
 import { Box, Group, SegmentedControl, Text } from '@mantine/core';
 import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
@@ -17,7 +21,6 @@ import {
 } from '../features/semanticViewer/api/hooks';
 import { HeaderView } from '../features/semanticViewer/components/Header/HeaderView';
 import { SemanticViewerResultsRunnerFrontend } from '../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
-import { useOrganization } from '../hooks/organization/useOrganization';
 
 enum ViewerTabs {
     VIZ = 'viz',
@@ -25,8 +28,6 @@ enum ViewerTabs {
 }
 
 const SemanticViewerViewPage = () => {
-    const org = useOrganization();
-
     const [activeViewerTab, setActiveViewerTab] = useState<ViewerTabs>(
         ViewerTabs.VIZ,
     );
@@ -84,14 +85,20 @@ const SemanticViewerViewPage = () => {
         chartResultsQuery.data,
     ]);
 
+    const chartFieldConfig = useMemo(() => {
+        return isVizTableConfig(chartQuery.data?.config)
+            ? chartQuery.data?.config.columns
+            : chartQuery.data?.config.fieldConfig;
+    }, [chartQuery.data]);
+
     const vizDataModel = useMemo(() => {
         if (!resultsRunner) return;
         return getChartDataModel(
             resultsRunner,
-            chartQuery.data?.config,
-            org.data,
+            chartFieldConfig,
+            chartQuery.data?.config.type ?? ChartKind.TABLE,
         );
-    }, [resultsRunner, chartQuery.data?.config, org.data]);
+    }, [resultsRunner, chartFieldConfig, chartQuery.data?.config.type]);
 
     const { loading: chartLoading, error: chartError } = useAsync(
         async () =>
@@ -102,6 +109,15 @@ const SemanticViewerViewPage = () => {
                 sql: savedSemanticLayerQuery?.sql ?? undefined,
             }),
         [vizDataModel, savedSemanticLayerQuery],
+    );
+
+    const { spec, tableData } = useMemo(
+        () => ({
+            spec: vizDataModel?.getSpec(chartQuery.data?.config.display),
+            tableData: vizDataModel?.getPivotedTableData(),
+        }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [vizDataModel, chartQuery.data?.config.display, chartLoading],
     );
 
     // TODO: add error state
@@ -125,9 +141,6 @@ const SemanticViewerViewPage = () => {
     if (chartType !== ChartKind.TABLE && chartLoading) {
         return null;
     }
-
-    const spec = vizDataModel.getSpec();
-    const tableData = vizDataModel?.getPivotedTableData();
 
     return (
         <Page

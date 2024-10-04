@@ -15,7 +15,6 @@ import {
     useSemanticLayerViewFields,
 } from '../../features/semanticViewer/api/hooks';
 import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
-import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -63,7 +62,6 @@ const ChartTileOptions = memo(
 
 const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
-    const org = useOrganization();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -118,14 +116,20 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         chartResultsQuery.data,
     ]);
 
+    const chartFieldConfig = useMemo(() => {
+        return isVizTableConfig(chartQuery.data?.config)
+            ? chartQuery.data?.config.columns
+            : chartQuery.data?.config.fieldConfig;
+    }, [chartQuery.data]);
+
     const vizDataModel = useMemo(() => {
         if (!resultsRunner) return;
         return getChartDataModel(
             resultsRunner,
-            chartQuery.data?.config,
-            org.data,
+            chartFieldConfig,
+            chartQuery.data?.config.type ?? ChartKind.TABLE,
         );
-    }, [resultsRunner, chartQuery.data?.config, org.data]);
+    }, [resultsRunner, chartFieldConfig, chartQuery.data?.config.type]);
 
     const { loading: chartLoading, error: chartError } = useAsync(
         async () =>
