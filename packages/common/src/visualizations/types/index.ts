@@ -127,7 +127,7 @@ export const isPivotChartLayout = (
         return false;
     }
 
-    if (!('y' in obj) || !('groupBy' in obj)) {
+    if (!('y' in obj) && !('groupBy' in obj) && !('x' in obj)) {
         return false;
     }
 

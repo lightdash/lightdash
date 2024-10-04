@@ -248,7 +248,9 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                     chartQuery.data.config.type === ChartKind.PIE) && (
                     <ChartView
                         config={chartQuery.data.config}
-                        spec={vizDataModel.getSpec()}
+                        spec={vizDataModel.getSpec(
+                            chartQuery.data.config.display,
+                        )}
                         isLoading={chartLoading}
                         error={chartError}
                         style={{

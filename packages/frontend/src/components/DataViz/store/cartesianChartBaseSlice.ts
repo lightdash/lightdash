@@ -31,11 +31,7 @@ const initialState: CartesianChartState = {
     },
     type: ChartKind.VERTICAL_BAR,
     fieldConfig: undefined,
-    display: {
-        xAxis: {},
-        yAxis: [],
-        series: {},
-    },
+    display: undefined,
     options: {
         indexLayoutOptions: [],
         valuesLayoutOptions: { preAggregated: [], customAggregations: [] },
