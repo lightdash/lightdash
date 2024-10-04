@@ -64,7 +64,6 @@ export class BaseResultsRunner implements IResultsRunner {
     // this is essentially a frontend only class. The backend would need it's own base.
     private readonly queryClient: QueryClient;
 
-    // MARSHALL REFACTOR: should take no arguments
     private readonly runPivotQuery: RunPivotQuery;
 
     constructor({
