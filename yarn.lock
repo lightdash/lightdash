@@ -7237,9 +7237,9 @@
     "@types/react" "*"
 
 "@types/react@*", "@types/react@^18.3.5":
-  version "18.3.8"
-  resolved "https://registry.yarnpkg.com/@types/react/-/react-18.3.8.tgz#1672ab19993f8aca7c7dc844c07d5d9e467d5a79"
-  integrity sha512-syBUrW3/XpnW4WJ41Pft+I+aPoDVbrBVQGEnbD7NijDGlVC+8gV/XKRY+7vMDlfPpbwYt0l1vd/Sj8bJGMbs9Q==
+  version "18.3.11"
+  resolved "https://registry.yarnpkg.com/@types/react/-/react-18.3.11.tgz#9d530601ff843ee0d7030d4227ea4360236bd537"
+  integrity sha512-r6QZ069rFTjrEYgFdOck1gK7FLVsgJE7tTz0pQBczlBNUhBNk0MQH4UbnFSwjpQLMkLzgqvBBa+qGpLje16eTQ==
   dependencies:
     "@types/prop-types" "*"
     csstype "^3.0.2"
@@ -9810,6 +9810,11 @@ csv-stringify@^6.2.4:
   version "6.2.4"
   resolved "https://registry.npmjs.org/csv-stringify/-/csv-stringify-6.2.4.tgz"
   integrity sha512-RVzGaBeHl0IspzOSiNr1e7XDM7ajuESlqetQbxH2pBPplIWycx0gAVclxNEa4lc91brK6LIE0PrdEoHtZYIHIQ==
+
+csv-stringify@^6.5.1:
+  version "6.5.1"
+  resolved "https://registry.yarnpkg.com/csv-stringify/-/csv-stringify-6.5.1.tgz#a31837dd35e34787e3c248159c982a21af964d94"
+  integrity sha512-+9lpZfwpLntpTIEpFbwQyWuW/hmI/eHuJZD1XzeZpfZTqkf1fyvBbBLXTJJMsBuuS11uTShMqPwzx4A6ffXgRQ==
 
 cuint@^0.2.2:
   version "0.2.2"
