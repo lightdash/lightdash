@@ -1177,10 +1177,7 @@ export class LightdashAnalytics extends Analytics {
 
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
         if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
-        if (
-            isUserUpdatedEvent(payload) &&
-            this.lightdashConfig.rudder.writeKey
-        ) {
+        if (isUserUpdatedEvent(payload)) {
             const basicEventProperties = {
                 is_tracking_anonymized: payload.properties.isTrackingAnonymized,
                 is_marketing_opted_in: payload.properties.isMarketingOptedIn,
