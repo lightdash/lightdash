@@ -200,9 +200,9 @@ export const semanticViewerSlice = createSlice({
 
                 if (chartData.results) {
                     state.results = chartData.results.results;
-                    state.columns = chartData.results.columns.map((column) => ({
-                        reference: column,
-                    }));
+                    state.columnNames = chartData.results.columns.map(
+                        (column) => column,
+                    );
                 }
             }
 
