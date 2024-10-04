@@ -1,11 +1,12 @@
 import { FeatureFlags, SessionUser } from '@lightdash/common';
 import { PostHog } from 'posthog-node';
 import { lightdashConfig } from './config/lightdashConfig';
+import Logger from './logging/logger';
 
 // How long to wait for Posthog to reply (in ms):
 const FLAG_CHECK_TIMEOUT = process.env.POSTHOG_CHECK_TIMEOUT
     ? parseInt(process.env.POSTHOG_CHECK_TIMEOUT, 10)
-    : 500; /* ms */
+    : 5000; // 5 seconds
 
 export const postHogClient = lightdashConfig.posthog.projectApiKey
     ? new PostHog(lightdashConfig.posthog.projectApiKey, {
@@ -48,9 +49,16 @@ export async function isFeatureFlagEnabled(
                   }
                 : {},
         ),
-        new Promise<boolean>((resolve) => {
+        new Promise<boolean>((_, reject) => {
             setTimeout(() => {
-                resolve(false);
+                Logger.error(
+                    `Timeout waiting for a feature flag with Posthog for flag "${flag}"`,
+                );
+                reject(
+                    new Error(
+                        `Timeout waiting for a feature flag check for flag "${flag}"`,
+                    ),
+                );
             }, FLAG_CHECK_TIMEOUT);
         }),
     ]);

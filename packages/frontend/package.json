@@ -71,7 +71,7 @@
         "monaco-editor": "^0.44.0",
         "monaco-sql-languages": "^0.12.2",
         "polished": "^4.2.2",
-        "posthog-js": "^1.161.5",
+        "posthog-js": "^1.166.1",
         "react": "^18.3.1",
         "react-ace": "^9.5.0",
         "react-countdown": "^2.3.5",
