@@ -1,3 +1,10 @@
+# [0.1295.0](https://github.com/lightdash/lightdash/compare/0.1294.1...0.1295.0) (2024-10-04)
+
+
+### Features
+
+* cli modern build ([#11810](https://github.com/lightdash/lightdash/issues/11810)) ([5fcdff7](https://github.com/lightdash/lightdash/commit/5fcdff708dbf982ab84a48e4f1995f83c9f5a687))
+
 ## [0.1294.1](https://github.com/lightdash/lightdash/compare/0.1294.0...0.1294.1) (2024-10-04)
 
 
