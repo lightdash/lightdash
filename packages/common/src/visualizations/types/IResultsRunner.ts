@@ -17,7 +17,7 @@ export interface IResultsRunner {
         context?: string, // TODO: pick up these changes in the pivot functions
     ): Promise<PivotChartData>;
 
-    getColumns(): string[];
+    getColumnNames(): string[];
 
     getRows(): RawResultRow[];
 

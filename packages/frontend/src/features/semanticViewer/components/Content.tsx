@@ -83,8 +83,20 @@ const Content: FC = () => {
     useEffect(() => {
         if (!resultsColumns || !resultsData) return;
 
+        // TODO: this shouldn't be calculated here, we should be getting this
+        // information fro the API
+        const vizColumns =
+            SemanticViewerResultsRunnerFrontend.convertColumnsToVizColumns(
+                fields,
+                resultsColumns,
+            );
+
         dispatch(
-            setResults({ results: resultsData, columnNames: resultsColumns }),
+            setResults({
+                results: resultsData,
+                columnNames: resultsColumns,
+                columns: vizColumns,
+            }),
         );
     }, [dispatch, resultsData, resultsColumns, fields]);
 

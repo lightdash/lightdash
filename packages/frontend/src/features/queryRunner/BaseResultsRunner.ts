@@ -18,7 +18,7 @@ import {
 } from '@lightdash/common';
 import { QueryClient } from '@tanstack/react-query';
 
-function getDimensionTypeFromSemanticLayerFieldType(
+export function getDimensionTypeFromSemanticLayerFieldType(
     type: SemanticLayerFieldType,
 ): DimensionType {
     switch (type) {
@@ -197,7 +197,7 @@ export class BaseResultsRunner implements IResultsRunner {
     }
 
     // used by the table viz only
-    getColumns(): string[] {
+    getColumnNames(): string[] {
         if (!this.rows.length) {
             return [];
         }

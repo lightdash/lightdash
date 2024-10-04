@@ -105,7 +105,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     // ! TODO: THIS SHOULD COME FROM THE CORRESPONDING TABLE DATA MODELS
     const tableVizSorts = useMemo(() => {
         return TableDataModel.getTableHeaderSortConfig(
-            resultsRunner.getColumns(),
+            resultsRunner.getColumnNames(),
             semanticLayerQuery,
         );
     }, [resultsRunner, semanticLayerQuery]);

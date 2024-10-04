@@ -27,7 +27,7 @@ export class TableDataModel {
     }
 
     private getColumns() {
-        return this.resultsRunner.getColumns();
+        return this.resultsRunner.getColumnNames();
     }
 
     public getVisibleColumns() {
