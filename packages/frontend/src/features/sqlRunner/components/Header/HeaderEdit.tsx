@@ -19,7 +19,7 @@ import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInf
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import {
     cartesianChartSelectors,
-    selectChartFieldConfigByKind,
+    selectCompleteConfigByKind,
 } from '../../../../components/DataViz/store/selectors';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { useUpdateSqlChartMutation } from '../../hooks/useSavedSqlCharts';
@@ -53,7 +53,7 @@ export const HeaderEdit: FC = () => {
     );
 
     const config = useAppSelector((state) =>
-        selectChartFieldConfigByKind(state, selectedChartType),
+        selectCompleteConfigByKind(state, selectedChartType),
     );
 
     const { mutate, isLoading } = useUpdateSqlChartMutation(

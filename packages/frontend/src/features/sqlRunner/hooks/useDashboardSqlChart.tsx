@@ -1,7 +1,7 @@
 import {
+    isVizTableConfig,
     type ApiError,
     type IResultsRunner,
-    type Organization,
     type SqlChart,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
@@ -15,13 +15,10 @@ export const useSavedSqlChartResults = ({
     savedSqlUuid,
     projectUuid,
     context,
-    organization,
 }: {
     savedSqlUuid?: string;
     projectUuid?: string;
     context?: string;
-    // TODO: wild that we need to drill the org here to render the chart
-    organization?: Organization;
 }) => {
     const { getResultsFromStream } = useResultsFromStreamWorker();
 
@@ -46,10 +43,15 @@ export const useSavedSqlChartResults = ({
             projectUuid: projectUuid,
             sql: chart.sql,
         });
+
+        const vizConfig = isVizTableConfig(chart.config)
+            ? chart.config.columns
+            : chart.config.fieldConfig;
+
         const vizDataModel = getChartDataModel(
             resultsRunner,
-            chart.config,
-            organization,
+            vizConfig,
+            chart.config.type,
         );
         // TODO: This should vary depending on the chart type, e.g. plain tables don't need to call this function.
         await vizDataModel.getPivotedChartData({
@@ -58,7 +60,7 @@ export const useSavedSqlChartResults = ({
             sortBy: [],
             filters: [],
         });
-        const chartSpec = vizDataModel.getSpec();
+        const chartSpec = vizDataModel.getSpec(chart.config.display);
         return {
             chart,
             chartSpec,

@@ -1,4 +1,4 @@
-import { isVizTableConfig } from '@lightdash/common';
+import { ChartKind, isVizTableConfig } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -24,6 +24,7 @@ import {
 import {
     selectChartDisplayByKind,
     selectChartFieldConfigByKind,
+    selectCompleteConfigByKind,
 } from '../components/DataViz/store/selectors';
 import getChartDataModel from '../components/DataViz/transformers/getChartDataModel';
 import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
@@ -46,7 +47,6 @@ import {
     setSavedChartData,
     setSqlRunnerResults,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
-import { useOrganization } from '../hooks/organization/useOrganization';
 
 enum TabOption {
     CHART = 'chart',
@@ -56,7 +56,6 @@ enum TabOption {
 
 const ViewSqlChart = () => {
     const dispatch = useAppDispatch();
-    const org = useOrganization();
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -68,12 +67,16 @@ const ViewSqlChart = () => {
     );
     const sql = useAppSelector((state) => state.sqlRunner.sql);
 
-    const currentVisConfig = useAppSelector((state) =>
+    const currentFieldConfig = useAppSelector((state) =>
         selectChartFieldConfigByKind(state, selectedChartType),
     );
 
     const currentDisplay = useAppSelector((state) =>
         selectChartDisplayByKind(state, selectedChartType),
+    );
+
+    const currentVizConfig = useAppSelector((state) =>
+        selectCompleteConfigByKind(state, selectedChartType),
     );
 
     const { error: chartError, data: sqlChart } = useSavedSqlChart({
@@ -119,8 +122,12 @@ const ViewSqlChart = () => {
     }, [data, projectUuid, sql]);
 
     const vizDataModel = useMemo(() => {
-        return getChartDataModel(resultsRunner, currentVisConfig, org.data);
-    }, [currentVisConfig, org.data, resultsRunner]);
+        return getChartDataModel(
+            resultsRunner,
+            currentFieldConfig,
+            selectedChartType ?? ChartKind.VERTICAL_BAR,
+        );
+    }, [currentFieldConfig, resultsRunner, selectedChartType]);
 
     const {
         loading: chartLoading,
@@ -234,9 +241,9 @@ const ViewSqlChart = () => {
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.CHART}
                             >
-                                {currentVisConfig && (
+                                {currentFieldConfig && (
                                     <>
-                                        {isVizTableConfig(currentVisConfig) &&
+                                        {isVizTableConfig(currentVizConfig) &&
                                             resultsTableConfig && (
                                                 <Table
                                                     resultsRunner={
@@ -246,9 +253,9 @@ const ViewSqlChart = () => {
                                                         // TODO: this is a temporary fix to handle the case where the columns config is not set
                                                         // TODO: ensure columns config is sent and processed in the backend correctly
                                                         Object.keys(
-                                                            currentVisConfig.columns,
+                                                            currentVizConfig.columns,
                                                         ).length > 0
-                                                            ? currentVisConfig.columns
+                                                            ? currentVizConfig.columns
                                                             : resultsTableConfig.columns
                                                     }
                                                     flexProps={{
@@ -256,12 +263,12 @@ const ViewSqlChart = () => {
                                                     }}
                                                 />
                                             )}
-                                        {!isVizTableConfig(currentVisConfig) &&
+                                        {!isVizTableConfig(currentVizConfig) &&
                                             data &&
                                             params.slug &&
                                             sql && (
                                                 <ChartView
-                                                    config={currentVisConfig}
+                                                    config={currentVizConfig}
                                                     spec={chartSpec}
                                                     isLoading={
                                                         isLoading ||
@@ -280,38 +287,20 @@ const ViewSqlChart = () => {
                             <ConditionalVisibility
                                 isVisible={activeTab === TabOption.RESULTS}
                             >
-                                {!isVizTableConfig(currentVisConfig) &&
+                                {!isVizTableConfig(currentVizConfig) &&
                                     tableData && (
                                         <ChartDataTable
                                             columnNames={
                                                 tableData?.columns ?? []
                                             }
                                             rows={tableData?.rows ?? []}
-                                            // TODO: col config
-                                            // columnsConfig={Object.fromEntries(
-                                            //     chartVizQuery.data.columns.map(
-                                            //         (field) => [
-                                            //             field.reference,
-                                            //             {
-                                            //                 visible:
-                                            //                     true,
-                                            //                 reference:
-                                            //                     field.reference,
-                                            //                 label: field.reference,
-                                            //                 frozen: false,
-                                            //                 // TODO: add aggregation
-                                            //                 // aggregation?: VizAggregationOptions;
-                                            //             },
-                                            //         ],
-                                            //     ),
-                                            // )}
                                             flexProps={{
                                                 mah: '100%',
                                             }}
                                         />
                                     )}
 
-                                {isVizTableConfig(currentVisConfig) &&
+                                {isVizTableConfig(currentVizConfig) &&
                                     resultsTableConfig && (
                                         <Table
                                             resultsRunner={resultsRunner}

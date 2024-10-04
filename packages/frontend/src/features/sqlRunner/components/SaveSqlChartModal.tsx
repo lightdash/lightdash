@@ -27,10 +27,7 @@ import {
     SaveToSpace,
     validationSchema,
 } from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
-import {
-    selectChartFieldConfigByKind,
-    selectCompleteConfigByKind,
-} from '../../../components/DataViz/store/selectors';
+import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
