@@ -208,6 +208,10 @@ export type CreateVirtualViewPayload = {
     columns: VizColumn[];
 };
 
+export type UpdateCustomExplorePayload = CreateCustomExplorePayload & {
+    exploreName: string;
+};
+
 export type ApiGithubDbtWriteBack = {
     status: 'ok';
     results: PullRequestCreated;

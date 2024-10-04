@@ -5,7 +5,9 @@ import { HeaderCreate } from './HeaderCreate';
 import { HeaderEdit } from './HeaderEdit';
 import { HeaderView } from './HeaderView';
 
-export const Header: FC<{ mode: 'create' | 'view' | 'edit' }> = ({ mode }) => {
+export const Header: FC<{
+    mode: 'create' | 'view' | 'edit';
+}> = ({ mode }) => {
     const isChartLoaded = useAppSelector(
         (state) => !!state.sqlRunner.savedSqlChart?.savedSqlUuid,
     );
