@@ -1167,6 +1167,8 @@ export class LightdashAnalytics extends Analytics {
     static anonymousId = process.env.LIGHTDASH_INSTALL_ID || uuidv4();
 
     identify(payload: Identify) {
+        if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
+
         super.identify({
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
@@ -1174,7 +1176,11 @@ export class LightdashAnalytics extends Analytics {
     }
 
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
-        if (isUserUpdatedEvent(payload)) {
+        if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
+        if (
+            isUserUpdatedEvent(payload) &&
+            this.lightdashConfig.rudder.writeKey
+        ) {
             const basicEventProperties = {
                 is_tracking_anonymized: payload.properties.isTrackingAnonymized,
                 is_marketing_opted_in: payload.properties.isMarketingOptedIn,
@@ -1220,6 +1226,8 @@ export class LightdashAnalytics extends Analytics {
     }
 
     group(payload: Group) {
+        if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
+
         super.group({
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
