@@ -1,3 +1,10 @@
+## [0.1295.2](https://github.com/lightdash/lightdash/compare/0.1295.1...0.1295.2) (2024-10-04)
+
+
+### Bug Fixes
+
+* lightdash cli erroring in github ci ([#11815](https://github.com/lightdash/lightdash/issues/11815)) ([cd37a9c](https://github.com/lightdash/lightdash/commit/cd37a9c6c40538b2e2f1f57a7436ad9316d813c7))
+
 ## [0.1295.1](https://github.com/lightdash/lightdash/compare/0.1295.0...0.1295.1) (2024-10-04)
 
 
