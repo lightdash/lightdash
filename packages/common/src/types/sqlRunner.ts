@@ -212,3 +212,14 @@ export type ApiGithubDbtWriteBack = {
     status: 'ok';
     results: PullRequestCreated;
 };
+
+export type ApiGithubDbtWritePreview = {
+    status: 'ok';
+    results: {
+        url: string;
+        repo: string;
+        path: string;
+        files: string[];
+        owner: string;
+    };
+};

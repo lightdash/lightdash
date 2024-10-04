@@ -344,6 +344,11 @@ export type SemanticViewerChartUpdateResult = {
     savedSemanticViewerChartVersionUuid: string | null;
 };
 
+export type SavedSemanticViewerChartResults = {
+    results: SemanticLayerResultRow[];
+    columns: string[];
+};
+
 export type ApiSemanticViewerChartCreate = {
     status: 'ok';
     results: SemanticViewerChartCreateResult;

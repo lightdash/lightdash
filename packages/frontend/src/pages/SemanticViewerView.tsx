@@ -3,13 +3,25 @@ import {
     ChartKind,
     isVizTableConfig,
 } from '@lightdash/common';
-import { Box, Group, SegmentedControl, Text } from '@mantine/core';
-import { IconChartHistogram, IconTable } from '@tabler/icons-react';
+import {
+    Box,
+    Center,
+    Group,
+    Loader,
+    SegmentedControl,
+    Text,
+} from '@mantine/core';
+import {
+    IconAlertCircle,
+    IconChartHistogram,
+    IconTable,
+} from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAsync } from 'react-use';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import getChartDataModel from '../components/DataViz/transformers/getChartDataModel';
 import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../components/DataViz/visualizations/ChartView';
@@ -120,27 +132,13 @@ const SemanticViewerViewPage = () => {
         [vizDataModel, chartQuery.data?.config.display, chartLoading],
     );
 
-    // TODO: add error state
-    if (
-        !vizDataModel ||
+    const hasError =
         chartQuery.isError ||
         fieldsQuery.isError ||
-        chartError
-    ) {
-        return null;
-    }
-
-    // TODO: add loading state
-    if (chartQuery.isLoading || fieldsQuery.isLoading) {
-        return null;
-    }
-
-    const chartType = chartQuery.data.config.type;
-
-    // TODO: add loading state
-    if (chartType !== ChartKind.TABLE && chartLoading) {
-        return null;
-    }
+        chartError ||
+        chartResultsQuery.isError;
+    const isLoading = fieldsQuery.isLoading || chartQuery.isLoading;
+    const chartType = chartQuery.data?.config.type;
 
     return (
         <Page
@@ -148,95 +146,121 @@ const SemanticViewerViewPage = () => {
             withFullHeight
             withPaddedContent
             header={
-                <HeaderView
-                    projectUuid={projectUuid}
-                    savedSemanticViewerChart={chartQuery.data}
-                />
+                chartQuery.isSuccess && (
+                    <HeaderView
+                        projectUuid={projectUuid}
+                        savedSemanticViewerChart={chartQuery.data}
+                    />
+                )
             }
         >
-            {chartType === ChartKind.TABLE ? null : (
-                <Box mb="lg">
-                    <SegmentedControl
-                        styles={(theme) => ({
-                            root: {
-                                backgroundColor: theme.colors.gray[2],
-                            },
-                        })}
-                        size="sm"
-                        radius="md"
-                        data={[
-                            {
-                                value: ViewerTabs.VIZ,
-                                label: (
-                                    <Group spacing="xs" noWrap>
-                                        <MantineIcon
-                                            icon={IconChartHistogram}
-                                        />
-                                        <Text>Chart</Text>
-                                    </Group>
-                                ),
-                            },
-                            {
-                                value: ViewerTabs.RESULTS,
-                                label: (
-                                    <Group spacing="xs" noWrap>
-                                        <MantineIcon icon={IconTable} />
-                                        <Text>Results</Text>
-                                    </Group>
-                                ),
-                            },
-                        ]}
-                        disabled={
-                            !chartQuery.isSuccess ||
-                            !fieldsQuery.isSuccess ||
-                            !resultsRunner
-                        }
-                        value={activeViewerTab}
-                        onChange={(value: ViewerTabs) =>
-                            setActiveViewerTab(value)
-                        }
-                    />
-                </Box>
-            )}
-
-            {activeViewerTab === ViewerTabs.VIZ ? (
-                chartType === ChartKind.VERTICAL_BAR ||
-                chartType === ChartKind.LINE ||
-                chartType === ChartKind.PIE ? (
-                    <Box h="100%" w="100%" mih="inherit" pos="relative">
-                        <ChartView
-                            config={chartQuery.data.config}
-                            spec={spec}
-                            isLoading={chartLoading}
-                            error={chartError}
-                            style={{
-                                minHeight: 'inherit',
-                                height: 'inherit',
-                                width: 'inherit',
-                            }}
-                        />
-                    </Box>
-                ) : chartType === ChartKind.TABLE ? (
-                    resultsRunner ? (
-                        <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
-                            {/* So that the Table tile isn't cropped by the overflow */}
-                            <Table
-                                resultsRunner={resultsRunner}
-                                columnsConfig={chartQuery.data.config.columns}
+            {hasError ? (
+                <SuboptimalState
+                    icon={IconAlertCircle}
+                    title={
+                        chartQuery.error?.error?.message ??
+                        fieldsQuery.error?.error?.message ??
+                        chartError?.message ??
+                        chartResultsQuery.error?.error?.message
+                    }
+                />
+            ) : isLoading ? (
+                <Center h="100%">
+                    <Loader color="gray" />
+                </Center>
+            ) : chartType ? (
+                <>
+                    {chartType === ChartKind.TABLE ? null : (
+                        <Box mb="lg">
+                            <SegmentedControl
+                                styles={(theme) => ({
+                                    root: {
+                                        backgroundColor: theme.colors.gray[2],
+                                    },
+                                })}
+                                size="sm"
+                                radius="md"
+                                data={[
+                                    {
+                                        value: ViewerTabs.VIZ,
+                                        label: (
+                                            <Group spacing="xs" noWrap>
+                                                <MantineIcon
+                                                    icon={IconChartHistogram}
+                                                />
+                                                <Text>Chart</Text>
+                                            </Group>
+                                        ),
+                                    },
+                                    {
+                                        value: ViewerTabs.RESULTS,
+                                        label: (
+                                            <Group spacing="xs" noWrap>
+                                                <MantineIcon icon={IconTable} />
+                                                <Text>Results</Text>
+                                            </Group>
+                                        ),
+                                    },
+                                ]}
+                                disabled={
+                                    !chartQuery.isSuccess ||
+                                    !fieldsQuery.isSuccess ||
+                                    !resultsRunner
+                                }
+                                value={activeViewerTab}
+                                onChange={(value: ViewerTabs) =>
+                                    setActiveViewerTab(value)
+                                }
                             />
                         </Box>
-                    ) : null
-                ) : (
-                    assertUnreachable(
-                        chartType,
-                        `Unknown chart type ${chartType}`,
-                    )
-                )
-            ) : activeViewerTab === ViewerTabs.RESULTS ? (
-                <ChartDataTable
-                    columnNames={tableData?.columns ?? []}
-                    rows={tableData?.rows ?? []}
-                />
+                    )}
+
+                    {activeViewerTab === ViewerTabs.VIZ ? (
+                        chartType === ChartKind.VERTICAL_BAR ||
+                        chartType === ChartKind.LINE ||
+                        chartType === ChartKind.PIE ? (
+                            <Box h="100%" w="100%" mih="inherit" pos="relative">
+                                <ChartView
+                                    config={chartQuery.data.config}
+                                    spec={spec}
+                                    isLoading={chartLoading}
+                                    error={chartError}
+                                    style={{
+                                        minHeight: 'inherit',
+                                        height: 'inherit',
+                                        width: 'inherit',
+                                    }}
+                                />
+                            </Box>
+                        ) : chartType === ChartKind.TABLE ? (
+                            resultsRunner ? (
+                                <Box
+                                    w="100%"
+                                    h="100%"
+                                    sx={{ overflow: 'auto' }}
+                                >
+                                    {/* So that the Table tile isn't cropped by the overflow */}
+                                    <Table
+                                        resultsRunner={resultsRunner}
+                                        columnsConfig={
+                                            chartQuery.data.config.columns
+                                        }
+                                    />
+                                </Box>
+                            ) : null
+                        ) : (
+                            assertUnreachable(
+                                chartType,
+                                `Unknown chart type ${chartType}`,
+                            )
+                        )
+                    ) : activeViewerTab === ViewerTabs.RESULTS ? (
+                        <ChartDataTable
+                            columnNames={tableData?.columns ?? []}
+                            rows={tableData?.rows ?? []}
+                        />
+                    ) : null}
+                </>
             ) : null}
         </Page>
     );

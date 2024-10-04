@@ -64,7 +64,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     getClientInfo() {
         return {
-            name: 'dbtCloud',
+            name: 'dbt',
             features: {
                 views: false,
             },

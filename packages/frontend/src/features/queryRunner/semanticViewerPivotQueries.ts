@@ -45,7 +45,7 @@ const getVizIndexTypeFromSemanticLayerFieldType = (
 };
 
 // TODO: can we set up the API so we dont need this?
-export const convertColumnNamesToVizColumns = (
+const convertColumnNamesToVizColumns = (
     fields: SemanticLayerField[],
     columnNames: string[],
 ): VizColumn[] => {
@@ -75,7 +75,7 @@ export const getPivotQueryFunctionForSemanticViewer = (
 ): RunPivotQuery => {
     return async (query: SemanticLayerQuery) => {
         // ! When there is pivotConfig.index (group by) then we cannot sort by anything other than pivotConfig.on (X field) -> this is because the results don't include those columns
-        // TODO: this needs to come back, but we don't have pivotConfig anymore
+        // TODO: This seems to work tout this, but might need to check
         // const pivotSorts =
         //     pivotConfig.index.length > 0
         //         ? this.query.sortBy.filter((s) =>

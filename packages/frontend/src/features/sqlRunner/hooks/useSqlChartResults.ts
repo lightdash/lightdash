@@ -1,5 +1,4 @@
 import {
-    ArgumentsOf,
     isApiSqlRunnerJobErrorResponse,
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
@@ -75,7 +74,7 @@ export const getSqlChartResultsByUuid = async ({
     });
 };
 
-export const getSqlChartResultsBySlug = async ({
+const getSqlChartResultsBySlug = async ({
     projectUuid,
     slug,
     getResultsFromStream,

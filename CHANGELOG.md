@@ -1,3 +1,85 @@
+## [0.1293.4](https://github.com/lightdash/lightdash/compare/0.1293.3...0.1293.4) (2024-10-04)
+
+
+### Bug Fixes
+
+* persist virtual views when refreshing dbt ([#11772](https://github.com/lightdash/lightdash/issues/11772)) ([8a94e34](https://github.com/lightdash/lightdash/commit/8a94e34635f2a79fa26728f62c4d23ea8739e2d1))
+
+## [0.1293.3](https://github.com/lightdash/lightdash/compare/0.1293.2...0.1293.3) (2024-10-04)
+
+
+### Bug Fixes
+
+* Improve domain check in emails  ([#11777](https://github.com/lightdash/lightdash/issues/11777)) ([f7c8b9f](https://github.com/lightdash/lightdash/commit/f7c8b9ff6e62ff0f5554c6ea92da963be42e1496))
+
+## [0.1293.2](https://github.com/lightdash/lightdash/compare/0.1293.1...0.1293.2) (2024-10-03)
+
+
+### Bug Fixes
+
+* write back GitHub path ([#11789](https://github.com/lightdash/lightdash/issues/11789)) ([94677bc](https://github.com/lightdash/lightdash/commit/94677bc5f2c977ac4667b395be103e64e5532704))
+
+## [0.1293.1](https://github.com/lightdash/lightdash/compare/0.1293.0...0.1293.1) (2024-10-03)
+
+
+### Bug Fixes
+
+* disable github button if not enabled ([#11778](https://github.com/lightdash/lightdash/issues/11778)) ([3738cbe](https://github.com/lightdash/lightdash/commit/3738cbe844b734d104be1640f2a5228bce5adaac))
+
+# [0.1293.0](https://github.com/lightdash/lightdash/compare/0.1292.2...0.1293.0) (2024-10-03)
+
+
+### Features
+
+* sl form improvements ([#11774](https://github.com/lightdash/lightdash/issues/11774)) ([e89269f](https://github.com/lightdash/lightdash/commit/e89269fd41a500b4631c13375096b8e27528e2eb))
+
+## [0.1292.2](https://github.com/lightdash/lightdash/compare/0.1292.1...0.1292.2) (2024-10-02)
+
+
+### Bug Fixes
+
+* friendly name yml ([#11773](https://github.com/lightdash/lightdash/issues/11773)) ([edd5671](https://github.com/lightdash/lightdash/commit/edd5671552e4f672f6c7215cc96ef0194278b34e))
+
+## [0.1292.1](https://github.com/lightdash/lightdash/compare/0.1292.0...0.1292.1) (2024-10-02)
+
+
+### Bug Fixes
+
+* github base64 key ([#11771](https://github.com/lightdash/lightdash/issues/11771)) ([8fb9567](https://github.com/lightdash/lightdash/commit/8fb95675bc9be3356d27da089a806f6468635078))
+
+# [0.1292.0](https://github.com/lightdash/lightdash/compare/0.1291.0...0.1292.0) (2024-10-02)
+
+
+### Bug Fixes
+
+* enable sql charts' csv exports and schedules ([#11701](https://github.com/lightdash/lightdash/issues/11701)) ([e543097](https://github.com/lightdash/lightdash/commit/e5430970bbb06d4027b37bf83e433cea5c7a792d))
+
+
+### Features
+
+* add csl form ([#11766](https://github.com/lightdash/lightdash/issues/11766)) ([f242104](https://github.com/lightdash/lightdash/commit/f2421043fad7e9036e872879cbe60214aec48ced))
+
+# [0.1291.0](https://github.com/lightdash/lightdash/compare/0.1290.0...0.1291.0) (2024-10-02)
+
+
+### Features
+
+* write back preview ([#11763](https://github.com/lightdash/lightdash/issues/11763)) ([3b5fe6e](https://github.com/lightdash/lightdash/commit/3b5fe6ef8522425b15fd621cbc0ba787b177adee))
+
+# [0.1290.0](https://github.com/lightdash/lightdash/compare/0.1289.0...0.1290.0) (2024-10-02)
+
+
+### Bug Fixes
+
+* semantic viewer edit mode result initialization ([#11761](https://github.com/lightdash/lightdash/issues/11761)) ([f5e11f9](https://github.com/lightdash/lightdash/commit/f5e11f9d57f2974b4bebdb3f138075756fd7fbd2))
+
+
+### Features
+
+* semantic layer config visual cues ([#11758](https://github.com/lightdash/lightdash/issues/11758)) ([8d88729](https://github.com/lightdash/lightdash/commit/8d887299a368ed24c6f9122f01d20b17b5805401))
+* semantic layer view mode load and error states ([#11759](https://github.com/lightdash/lightdash/issues/11759)) ([4e88fd3](https://github.com/lightdash/lightdash/commit/4e88fd3314813b0a857eafdc589fc45a4874546d))
+* semantic viewer menu copy ([#11757](https://github.com/lightdash/lightdash/issues/11757)) ([0c7e7f4](https://github.com/lightdash/lightdash/commit/0c7e7f47ba0399c6ea8ca6ec111d3d688c6fece5))
+
 # [0.1289.0](https://github.com/lightdash/lightdash/compare/0.1288.0...0.1289.0) (2024-10-02)
 
 

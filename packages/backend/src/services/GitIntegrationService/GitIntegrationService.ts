@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
+    ApiGithubDbtWritePreview,
     DbtModelNode,
     DbtProjectType,
     DimensionType,
@@ -328,7 +329,7 @@ Affected charts:
             );
         const [owner, repo] = project.dbtConnection.repository.split('/');
         const { branch } = project.dbtConnection;
-        const path = project.dbtConnection.project_sub_path?.replace(/^\//, '');
+        const path = project.dbtConnection.project_sub_path;
         return { owner, repo, branch, path };
     }
 
@@ -505,6 +506,23 @@ Affected charts:
         });
     }
 
+    private static removeExtraSlashes(str: string): string {
+        return str
+            .replace(/\/{2,}/g, '/') // Removes duplicated slashes
+            .replace(/^\//, ''); // Remove first / if it exists, this is needed to commit files in Github.
+    }
+
+    private static getFilePath(
+        path: string,
+        name: string,
+        extension: 'sql' | 'yml',
+    ) {
+        const filePath = `${path}/models/lightdash/${snakeCaseName(
+            name,
+        )}.${extension}`;
+        return GitIntegrationService.removeExtraSlashes(filePath);
+    }
+
     private static async createSqlFile({
         githubProps,
         name,
@@ -514,7 +532,11 @@ Affected charts:
         name: string;
         sql: string;
     }) {
-        const fileName = `models/${snakeCaseName(name)}.sql`;
+        const fileName = GitIntegrationService.getFilePath(
+            githubProps.path,
+            name,
+            'sql',
+        );
         const content = `
 {{
   config(
@@ -542,7 +564,11 @@ ${sql}
         name: string;
         columns: VizColumn[];
     }) {
-        const fileName = `models/${snakeCaseName(name)}.yml`;
+        const fileName = GitIntegrationService.getFilePath(
+            githubProps.path,
+            name,
+            'yml',
+        );
         const content = yaml.dump(
             {
                 version: 2,
@@ -550,7 +576,7 @@ ${sql}
                     {
                         name: snakeCaseName(name),
                         label: friendlyName(name),
-                        description: `SQL model for friendlyName(${name})`,
+                        description: `SQL model for ${friendlyName(name)}`,
                         columns: columns.map((c) => ({
                             name: c.reference,
                             meta: {
@@ -635,6 +661,25 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         return {
             prTitle: pullRequest.title,
             prUrl: pullRequest.html_url,
+        };
+    }
+
+    async writeBackPreview(
+        user: SessionUser,
+        projectUuid: string,
+        name: string,
+    ): Promise<ApiGithubDbtWritePreview['results']> {
+        const { owner, repo, path } = await this.getProjectRepo(projectUuid);
+
+        return {
+            url: `https://github.com/${owner}/${repo}`,
+            repo,
+            path: `${path}/models/lightdash`,
+            files: [
+                GitIntegrationService.getFilePath(path, name, 'sql'),
+                GitIntegrationService.getFilePath(path, name, 'yml'),
+            ],
+            owner,
         };
     }
 }

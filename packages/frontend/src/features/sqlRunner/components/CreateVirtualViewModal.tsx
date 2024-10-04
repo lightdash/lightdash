@@ -1,4 +1,4 @@
-import { snakeCaseName } from '@lightdash/common';
+import { DbtProjectType, snakeCaseName } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -14,6 +14,9 @@ import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useGitHubRepositories } from '../../../components/UserSettings/GithubSettingsPanel';
+import useHealth from '../../../hooks/health/useHealth';
+import { useProject } from '../../../hooks/useProject';
 import { useCreateCustomExplore } from '../hooks/useCustomExplore';
 import { useAppSelector } from '../store/hooks';
 
@@ -26,6 +29,7 @@ type FormValues = z.infer<typeof validationSchema>;
 type Props = ModalProps;
 
 export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
+    const health = useHealth();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
@@ -39,6 +43,16 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
         },
         validate: zodResolver(validationSchema),
     });
+
+    const { data: project } = useProject(projectUuid);
+    const { data: githubRepositories, isError } = useGitHubRepositories();
+
+    const canWriteToDbtProject = !!(
+        health.data?.hasGithub &&
+        githubRepositories !== undefined &&
+        !isError &&
+        project?.dbtConnection.type === DbtProjectType.GITHUB
+    );
 
     const handleSubmit = useCallback(
         async (data: { name: string }) => {
@@ -76,7 +90,11 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                         withinPortal
                         multiline
                         maw={300}
-                        label="Create a virtual view so others can reuse this query in Lightdash, but it won't be written to or managed in your dbt project."
+                        label={`Create a virtual view so others can reuse this query in Lightdash. The query won’t be saved to or managed in your dbt project. ${
+                            canWriteToDbtProject
+                                ? 'If you’re expecting to reuse this query regularly, we suggest writing it back to dbt.'
+                                : ''
+                        } `}
                     >
                         <MantineIcon
                             color="gray.7"
@@ -97,6 +115,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                         radius="md"
                         label="Name"
                         required
+                        // TODO - don't allow duplicate names
                         {...form.getInputProps('name')}
                     />
                 </Stack>

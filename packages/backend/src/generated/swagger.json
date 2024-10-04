@@ -2770,6 +2770,10 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "ExploreType": {
+                "enum": ["virtual", "default"],
+                "type": "string"
+            },
             "Pick_Explore.SummaryExploreFields_": {
                 "properties": {
                     "name": {
@@ -2780,6 +2784,9 @@
                     },
                     "groupLabel": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
                     },
                     "tags": {
                         "items": {
@@ -2817,6 +2824,9 @@
                     },
                     "groupLabel": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
                     },
                     "tags": {
                         "items": {
@@ -3049,6 +3059,9 @@
             },
             "Explore": {
                 "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
+                    },
                     "sqlPath": {
                         "type": "string"
                     },
@@ -8197,6 +8210,41 @@
                 "required": ["columns", "sql", "name"],
                 "type": "object"
             },
+            "ApiGithubDbtWritePreview": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "owner": {
+                                "type": "string"
+                            },
+                            "files": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "path": {
+                                "type": "string"
+                            },
+                            "repo": {
+                                "type": "string"
+                            },
+                            "url": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["owner", "files", "path", "repo", "url"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiGithubDbtWriteBack": {
                 "properties": {
                     "results": {
@@ -10186,7 +10234,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1289.0",
+        "version": "0.1293.4",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13582,6 +13630,43 @@
                         }
                     }
                 }
+            },
+            "delete": {
+                "operationId": "deleteProjectSemanticLayerConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {

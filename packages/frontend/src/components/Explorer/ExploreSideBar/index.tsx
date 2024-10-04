@@ -1,4 +1,11 @@
-import { ActionIcon, Skeleton, Stack, TextInput } from '@mantine/core';
+import {
+    ActionIcon,
+    Divider,
+    Skeleton,
+    Stack,
+    Text,
+    TextInput,
+} from '@mantine/core';
 import {
     IconAlertCircle,
     IconAlertTriangle,
@@ -9,7 +16,7 @@ import Fuse from 'fuse.js';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 
-import { type SummaryExplore } from '@lightdash/common';
+import { ExploreType, type SummaryExplore } from '@lightdash/common';
 import { useExplores } from '../../../hooks/useExplores';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import { TrackSection } from '../../../providers/TrackingProvider';
@@ -42,42 +49,56 @@ const BasePanel = () => {
     const [search, setSearch] = useState<string>('');
     const exploresResult = useExplores(projectUuid, true);
 
-    const [exploreGroupMap, ungroupedExplores] = useMemo(() => {
-        const validSearch = search ? search.toLowerCase() : '';
-        if (exploresResult.data) {
-            let explores = Object.values(exploresResult.data);
-            if (validSearch !== '') {
-                explores = new Fuse(Object.values(exploresResult.data), {
-                    keys: ['label'],
-                    ignoreLocation: true,
-                    threshold: 0.3,
-                })
-                    .search(validSearch)
-                    .map((res) => res.item);
-            }
+    const [exploreGroupMap, defaultUngroupedExplores, customUngroupedExplores] =
+        useMemo(() => {
+            const validSearch = search ? search.toLowerCase() : '';
+            if (exploresResult.data) {
+                let explores = Object.values(exploresResult.data);
+                if (validSearch !== '') {
+                    explores = new Fuse(Object.values(exploresResult.data), {
+                        keys: ['label'],
+                        ignoreLocation: true,
+                        threshold: 0.3,
+                    })
+                        .search(validSearch)
+                        .map((res) => res.item);
+                }
 
-            return explores.reduce<
-                [Record<string, SummaryExplore[]>, SummaryExplore[]]
-            >(
-                (acc, explore) => {
-                    if (explore.groupLabel) {
-                        return [
-                            {
-                                ...acc[0],
-                                [explore.groupLabel]: acc[0][explore.groupLabel]
-                                    ? [...acc[0][explore.groupLabel], explore]
-                                    : [explore],
-                            },
-                            acc[1],
-                        ];
-                    }
-                    return [acc[0], [...acc[1], explore]];
-                },
-                [{}, []],
-            );
-        }
-        return [{}, []];
-    }, [exploresResult.data, search]);
+                return explores.reduce<
+                    [
+                        Record<string, SummaryExplore[]>,
+                        SummaryExplore[],
+                        SummaryExplore[],
+                    ]
+                >(
+                    (acc, explore) => {
+                        if (explore.groupLabel) {
+                            return [
+                                {
+                                    ...acc[0],
+                                    [explore.groupLabel]: acc[0][
+                                        explore.groupLabel
+                                    ]
+                                        ? [
+                                              ...acc[0][explore.groupLabel],
+                                              explore,
+                                          ]
+                                        : [explore],
+                                },
+                                acc[1],
+                                acc[2],
+                            ];
+                        }
+                        if (explore.type === ExploreType.VIRTUAL) {
+                            return [acc[0], acc[1], [...acc[2], explore]];
+                        }
+                        return [acc[0], [...acc[1], explore], acc[2]];
+                    },
+                    [{}, [], []],
+                );
+            }
+            return [{}, [], []];
+        }, [exploresResult.data, search]);
 
     if (exploresResult.status === 'loading') {
         return <LoadingSkeleton />;
@@ -144,7 +165,32 @@ const BasePanel = () => {
                                         ))}
                                 </ExploreGroup>
                             ))}
-                        {ungroupedExplores
+                        {defaultUngroupedExplores
+                            .sort((a, b) => a.label.localeCompare(b.label))
+                            .map((explore) => (
+                                <ExploreNavLink
+                                    key={explore.name}
+                                    explore={explore}
+                                    query={search}
+                                    onClick={() => {
+                                        history.push(
+                                            `/projects/${projectUuid}/tables/${explore.name}`,
+                                        );
+                                    }}
+                                />
+                            ))}
+
+                        {customUngroupedExplores.length ? (
+                            <>
+                                <Divider size={0.5} c="gray.5" my="xs" />
+
+                                <Text fw={500} fz="xs" c="gray.6" mb="xs">
+                                    Virtual Views
+                                </Text>
+                            </>
+                        ) : null}
+
+                        {customUngroupedExplores
                             .sort((a, b) => a.label.localeCompare(b.label))
                             .map((explore) => (
                                 <ExploreNavLink

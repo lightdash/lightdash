@@ -18,11 +18,11 @@ const selectLineChartConfigState = (
 const selectPieChartConfigState = (
     state: RootState,
 ): RootState['pieChartConfig'] => state.pieChartConfig;
-export const selectTableVisConfigState = (
+const selectTableVisConfigState = (
     state: RootState,
 ): RootState['tableVisConfig'] => state.tableVisConfig;
 
-export const selectChartMetadataByKind = createSelector(
+const selectChartMetadataByKind = createSelector(
     [
         (state, chartKind) => chartKind,
         selectBarChartConfigState,
