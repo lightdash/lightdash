@@ -168,7 +168,7 @@ export const findAndUpdateModelYaml = async ({
             patchPathParts(patchPath);
         const projectSubpath =
             expectedYamlProject !== projectName
-                ? path.join('dbt_packages', expectedYamlProject)
+                ? path.join('dbt_packages', expectedYamlProject!)
                 : '.';
         const expectedYamlPath = path.join(
             projectDir,
