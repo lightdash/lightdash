@@ -910,7 +910,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
         granularity?: DateGranularity,
-    ): Explore {
+    ): any {
         if (granularity) {
             const timeDimensionsMap: Record<string, CompiledDimension> =
                 Object.values(explore.tables).reduce<
