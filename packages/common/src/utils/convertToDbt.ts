@@ -92,7 +92,7 @@ function updateModelNode(
             if (groupedMetricsByDimension[columnNode.name]) {
                 return updateColumnNode(
                     columnNode,
-                    groupedMetricsByDimension[columnNode.name],
+                    groupedMetricsByDimension[columnNode.name]!,
                 );
             }
             return columnNode;
@@ -112,7 +112,7 @@ export function findAndUpdateModelNodes(
         if (groupMetricsByTable[modelNode.name]) {
             return updateModelNode(
                 modelNode,
-                groupMetricsByTable[modelNode.name],
+                groupMetricsByTable[modelNode.name]!,
             );
         }
         return modelNode;

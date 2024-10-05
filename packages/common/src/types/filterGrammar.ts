@@ -226,7 +226,7 @@ export const parseFilters = (
     return rawFilters.reduce<MetricFilterRule[]>((acc, filter) => {
         if (Object.entries(filter).length !== 1) return acc;
 
-        const [key, value] = Object.entries(filter)[0];
+        const [key, value] = Object.entries(filter)[0]!;
 
         if (value === null) {
             return [

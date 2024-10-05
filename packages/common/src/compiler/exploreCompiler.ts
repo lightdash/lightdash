@@ -47,8 +47,8 @@ const getParsedReference = (ref: string, currentTable: string): Reference => {
             {},
         );
     }
-    const refTable = split.length === 1 ? currentTable : split[0];
-    const refName = split.length === 1 ? split[0] : split[1];
+    const refTable = split.length === 1 ? currentTable : split[0]!;
+    const refName = split.length === 1 ? split[0]! : split[1]!;
 
     return { refTable, refName };
 };
@@ -136,13 +136,13 @@ export class ExploreCompiler {
                 {},
             );
         }
-        const includedTables = joinedTables.reduce<Record<string, Table>>(
+        const includedTables = joinedTables.reduce<Record<string, Table> | any>(
             (prev, join) => {
-                const joinTableName = join.alias || tables[join.table].name;
+                const joinTableName = join.alias || tables[join.table]!.name;
                 const joinTableLabel =
                     join.label ||
                     (join.alias && friendlyName(join.alias)) ||
-                    tables[join.table].label;
+                    tables[join.table]!.label;
 
                 const requiredDimensionsForJoin = parseAllReferences(
                     join.sqlOn,
@@ -154,19 +154,19 @@ export class ExploreCompiler {
                     return acc;
                 }, []);
 
-                const tableDimensions = tables[join.table].dimensions;
+                const tableDimensions = tables[join.table]!.dimensions;
                 return {
                     ...prev,
                     [join.alias || join.table]: {
                         ...tables[join.table],
-                        originalName: tables[join.table].name,
+                        originalName: tables[join.table]!.name,
                         name: joinTableName,
                         label: joinTableLabel,
                         hidden: join.hidden,
                         dimensions: Object.keys(tableDimensions).reduce<
                             Record<string, Dimension>
                         >((acc, dimensionKey) => {
-                            const dimension = tableDimensions[dimensionKey];
+                            const dimension = tableDimensions[dimensionKey]!;
                             const isRequired =
                                 requiredDimensionsForJoin.includes(
                                     dimensionKey,
@@ -193,7 +193,7 @@ export class ExploreCompiler {
                                     ...dimension,
                                     hidden:
                                         join.hidden ||
-                                        dimension.hidden ||
+                                        dimension?.hidden ||
                                         !isVisible,
                                     table: joinTableName,
                                     tableLabel: joinTableLabel,
@@ -201,22 +201,22 @@ export class ExploreCompiler {
                             }
                             return acc;
                         }, {}),
-                        metrics: Object.keys(tables[join.table].metrics)
+                        metrics: Object.keys(tables[join.table!]!.metrics)
                             .filter(
                                 (d) =>
                                     join.fields === undefined ||
                                     join.fields.includes(d),
                             )
-                            .reduce<Record<string, Metric>>(
+                            .reduce<Record<string, Metric> | any>(
                                 (prevMetrics, metricKey) => {
                                     const metric =
-                                        tables[join.table].metrics[metricKey];
+                                        tables[join.table]!.metrics[metricKey];
                                     return {
                                         ...prevMetrics,
                                         [metricKey]: {
                                             ...metric,
                                             hidden:
-                                                !!join.hidden || metric.hidden,
+                                                !!join.hidden || metric!.hidden,
                                             table: joinTableName,
                                             tableLabel: joinTableLabel,
                                         },
@@ -267,7 +267,7 @@ export class ExploreCompiler {
             (prev, dimensionKey) => ({
                 ...prev,
                 [dimensionKey]: this.compileDimension(
-                    table.dimensions[dimensionKey],
+                    table.dimensions[dimensionKey]!,
                     tables,
                 ),
             }),
@@ -279,7 +279,7 @@ export class ExploreCompiler {
             (prev, metricKey) => ({
                 ...prev,
                 [metricKey]: this.compileMetric(
-                    table.metrics[metricKey],
+                    table.metrics[metricKey]!,
                     tables,
                 ),
             }),

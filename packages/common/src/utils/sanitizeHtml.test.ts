@@ -145,7 +145,7 @@ describe('sanitizeHtml', () => {
 
             invalidTags.forEach(([tag, expected]) => {
                 expect(
-                    sanitizeHtml(tag, HTML_SANITIZE_MARKDOWN_TILE_RULES),
+                    sanitizeHtml(tag!, HTML_SANITIZE_MARKDOWN_TILE_RULES),
                 ).toEqual(expected);
             });
         });
@@ -179,7 +179,7 @@ describe('sanitizeHtml', () => {
 
             disallowedTags.forEach(([tag, expected]) => {
                 expect(
-                    sanitizeHtml(tag, HTML_SANITIZE_MARKDOWN_TILE_RULES),
+                    sanitizeHtml(tag!, HTML_SANITIZE_MARKDOWN_TILE_RULES),
                 ).toEqual(expected);
             });
         });

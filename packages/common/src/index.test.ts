@@ -113,7 +113,7 @@ describe('Password Validation', () => {
             const result = getPasswordSchema().safeParse(password);
             expect(result.success).toBe(false);
             if (!result.success) {
-                expect(result.error.errors[0].message).toBe(
+                expect(result.error.errors[0]!.message).toBe(
                     'must contain a letter',
                 );
             }
@@ -126,7 +126,7 @@ describe('Password Validation', () => {
             const result = getPasswordSchema().safeParse(password);
             expect(result.success).toBe(false);
             if (!result.success) {
-                expect(result.error.errors[0].message).toBe(
+                expect(result.error.errors[0]!.message).toBe(
                     'must contain a number or symbol',
                 );
             }
@@ -139,7 +139,7 @@ describe('Password Validation', () => {
             const result = getPasswordSchema().safeParse(password);
             expect(result.success).toBe(false);
             if (!result.success) {
-                expect(result.error.errors[0].message).toBe(
+                expect(result.error.errors[0]!.message).toBe(
                     'must be at least 8 characters long',
                 );
             }

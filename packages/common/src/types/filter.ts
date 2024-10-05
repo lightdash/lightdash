@@ -337,7 +337,7 @@ export const convertDashboardFiltersParamToDashboardFilters = (
                     tileTargets: f.tileTargets.reduce<
                         Record<string, DashboardTileTarget>
                     >((tileTargetsResult, tileTarget) => {
-                        const targetName = Object.keys(tileTarget)[0];
+                        const targetName = Object.keys(tileTarget)[0]!;
                         const targetValue = Object.values(tileTarget)[0];
                         if (isDashboardTileTargetFilterOverride(tileTarget)) {
                             return {

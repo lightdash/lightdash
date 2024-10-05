@@ -9,7 +9,7 @@ export function getHumanReadableCronExpression(cronExpression: string) {
         .replaceAll(' PM', ' PM (UTC)')
         .replaceAll(' AM', ' AM (UTC)');
 
-    return valueWithUTC[0].toLowerCase() + valueWithUTC.slice(1);
+    return valueWithUTC[0]!.toLowerCase() + valueWithUTC.slice(1);
 }
 
 export function isValidFrequency(cronExpression: string): boolean {
@@ -24,9 +24,9 @@ export function isValidFrequency(cronExpression: string): boolean {
     }
     const [minutePart] = cronParts;
     if (
-        minutePart.includes('/') ||
-        minutePart.includes(',') ||
-        minutePart.includes('-')
+        minutePart?.includes('/') ||
+        minutePart?.includes(',') ||
+        minutePart?.includes('-')
     ) {
         // We don't care about the values in the intervals
         return false;

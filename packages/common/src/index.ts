@@ -885,12 +885,12 @@ export const getResultValueArray = (
                     if (!minMax[key]) {
                         minMax[key] = { min: numericValue, max: numericValue };
                     } else {
-                        minMax[key].min = Math.min(
-                            minMax[key].min,
+                        minMax[key]!.min = Math.min(
+                            minMax[key]!.min,
                             numericValue,
                         );
-                        minMax[key].max = Math.max(
-                            minMax[key].max,
+                        minMax[key]!.max = Math.max(
+                            minMax[key]!.max,
                             numericValue,
                         );
                     }
@@ -947,14 +947,14 @@ export const getAxisName = ({
     itemsMap: ItemsMap | undefined;
 }): string | undefined => {
     const defaultItem = itemsMap
-        ? itemsMap[(series || [])[0]?.encode[axisReference].field]
+        ? itemsMap[(series || [])[0]?.encode[axisReference].field!]
         : undefined;
     const dateGroupName = defaultItem
         ? getDateGroupLabel(defaultItem)
         : undefined;
     const fallbackSeriesName: string | undefined =
         series && series.length === 1
-            ? series[0].name ||
+            ? series[0]?.name ||
               (defaultItem && getItemLabelWithoutTableName(defaultItem))
             : undefined;
 
@@ -1091,7 +1091,7 @@ export function formatRows(
         Object.keys(row).reduce<ResultRow>((acc, columnName) => {
             const col = row[columnName];
 
-            const item = itemsMap[columnName];
+            const item = itemsMap[columnName]!;
             return {
                 ...acc,
                 [columnName]: {
