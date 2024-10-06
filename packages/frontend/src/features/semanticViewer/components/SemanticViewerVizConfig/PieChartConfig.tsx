@@ -15,14 +15,14 @@ export const PieChartConfig = ({ columns }: { columns: VizColumn[] }) => {
     const dispatch = useVizDispatch();
 
     const groupField = useVizSelector(
-        (state) => state.pieChartConfig.config?.fieldConfig?.x?.reference,
+        (state) => state.pieChartConfig.fieldConfig?.x?.reference,
     );
     const groupFieldOptions = useVizSelector(
         (state) => state.pieChartConfig.options.groupFieldOptions,
     );
 
     const aggregateField = useVizSelector(
-        (state) => state.pieChartConfig.config?.fieldConfig?.y[0],
+        (state) => state.pieChartConfig.fieldConfig?.y[0],
     );
 
     const aggregateFieldOptions = useVizSelector(

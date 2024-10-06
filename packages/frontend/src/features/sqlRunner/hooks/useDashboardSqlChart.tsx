@@ -1,90 +1,87 @@
-import { ChartKind, type ApiError, type SqlChart } from '@lightdash/common';
+import {
+    isVizTableConfig,
+    type ApiError,
+    type IResultsRunner,
+    type SqlChart,
+} from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
-import { getSqlChartResults } from './useSqlChartResults';
-import { type ResultsAndColumns } from './useSqlQueryRun';
+import { getSqlChartResultsByUuid } from './useSqlChartResults';
 
-const getDashboardSqlChartAndPossibleResults = async ({
-    projectUuid,
-    savedSqlUuid,
-    getResultsFromStream,
-    context,
-}: {
-    projectUuid: string;
-    savedSqlUuid: string;
-    getResultsFromStream: ReturnType<
-        typeof useResultsFromStreamWorker
-    >['getResultsFromStream'];
-    context: string | undefined;
-}): Promise<{ resultsAndColumns: ResultsAndColumns; chart: SqlChart }> => {
-    const chart = await fetchSavedSqlChart({
-        projectUuid,
-        uuid: savedSqlUuid,
-    });
-
-    const hasResultsHandledInChart = chart.config.type !== ChartKind.TABLE;
-
-    if (hasResultsHandledInChart) {
-        return {
-            chart,
-            resultsAndColumns: {
-                fileUrl: undefined,
-                results: [],
-                columns: [],
-            },
-        };
-    }
-
-    const resultsTest = await getSqlChartResults({
-        projectUuid,
-        slug: chart.slug,
-        getResultsFromStream,
-        context,
-    });
-
-    return {
-        chart,
-        resultsAndColumns: {
-            fileUrl: resultsTest.fileUrl,
-            results: resultsTest.results,
-            columns: resultsTest.columns,
-        },
-    };
-};
-
-/**
- * Fetches the chart and possible results of a SQL query from the SQL runner - used in Dashboards
- * If the chart is not of type ChartKind.TABLE, we return empty results & columns
- * @param savedSqlUuid - The UUID of the saved SQL query.
- * @param projectUuid - The UUID of the project.
- * @returns The chart and results of the SQL query
- */
-export const useDashboardSqlChart = ({
+export const useSavedSqlChartResults = ({
     savedSqlUuid,
     projectUuid,
     context,
 }: {
-    savedSqlUuid: string | null;
-    projectUuid: string;
-    context: string | undefined;
+    savedSqlUuid?: string;
+    projectUuid?: string;
+    context?: string;
 }) => {
     const { getResultsFromStream } = useResultsFromStreamWorker();
+    const { data: organization } = useOrganization();
+
+    const work = async () => {
+        if (!savedSqlUuid || !projectUuid) {
+            return;
+        }
+        const chart = await fetchSavedSqlChart({
+            projectUuid: projectUuid,
+            uuid: savedSqlUuid,
+        });
+        // TODO: can we eliminate this extra call? We don't need these results
+        const chartResults = await getSqlChartResultsByUuid({
+            projectUuid: projectUuid,
+            chartUuid: savedSqlUuid,
+            getResultsFromStream,
+            context,
+        });
+        const resultsRunner = new SqlRunnerResultsRunnerFrontend({
+            rows: chartResults.results,
+            columns: chartResults.columns,
+            projectUuid: projectUuid,
+            sql: chart.sql,
+        });
+
+        const vizConfig = isVizTableConfig(chart.config)
+            ? chart.config.columns
+            : chart.config.fieldConfig;
+
+        const vizDataModel = getChartDataModel(
+            resultsRunner,
+            vizConfig,
+            chart.config.type,
+        );
+        // TODO: This should vary depending on the chart type, e.g. plain tables don't need to call this function.
+        await vizDataModel.getPivotedChartData({
+            limit: chart.limit,
+            sql: chart.sql,
+            sortBy: [],
+            filters: [],
+        });
+        const chartSpec = vizDataModel.getSpec(
+            chart.config.display,
+            organization?.chartColors,
+        );
+        return {
+            chart,
+            chartSpec,
+            resultsRunner,
+        };
+    };
+
     return useQuery<
-        { resultsAndColumns: ResultsAndColumns; chart: SqlChart },
-        ApiError & { slug?: string }
-    >(
-        ['sqlChartResults', projectUuid, savedSqlUuid, context],
-        () => {
-            return getDashboardSqlChartAndPossibleResults({
-                projectUuid,
-                savedSqlUuid: savedSqlUuid!,
-                getResultsFromStream,
-                context,
-            });
-        },
-        {
-            enabled: Boolean(savedSqlUuid) && Boolean(projectUuid),
-        },
-    );
+        | undefined
+        | {
+              chart: SqlChart;
+              chartSpec: Record<string, any>;
+              resultsRunner: IResultsRunner;
+          },
+        ApiError
+    >(['savedSqlChart', projectUuid, savedSqlUuid, context], work, {
+        enabled: Boolean(savedSqlUuid) && Boolean(projectUuid),
+    });
 };

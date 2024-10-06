@@ -1,6 +1,5 @@
 import {
     SortByDirection,
-    type IResultsRunner,
     type RawResultRow,
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
@@ -8,6 +7,7 @@ import {
 import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
+import { useMemo } from 'react';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
@@ -17,37 +17,33 @@ import {
     TABLE_HEADER_BG,
     Tr,
 } from '../../common/Table/Table.styles';
-import { useTableDataModel } from '../hooks/useTableDataModel';
+import { useVirtualTable } from '../hooks/useVirtualTable';
 
-type TableProps<T extends IResultsRunner> = {
-    columnsConfig: VizColumnsConfig;
-    resultsRunner: T;
+type TableProps = {
+    columnNames: string[];
+    rows: RawResultRow[];
+    columnsConfig?: VizColumnsConfig;
     flexProps?: FlexProps;
     thSortConfig?: VizTableHeaderSortConfig;
     onTHClick?: (fieldName: string) => void;
 };
 
-export const Table = <T extends IResultsRunner>({
-    resultsRunner,
+// This is a simple table that is set up to be virtualized from basically
+// just rows and columns. It is currently used to render the table data from charts.
+// TODO: Ideally we could use this for what DataViz/Table is doing and
+// not use a TableDataModel within that
+export const ChartDataTable = ({
+    columnNames,
+    rows,
     columnsConfig,
     flexProps,
     thSortConfig,
     onTHClick,
-}: TableProps<T>) => {
-    const {
-        tableWrapperRef,
-        getColumnsCount,
-        getTableData,
-        paddingTop,
-        paddingBottom,
-    } = useTableDataModel({
-        config: {
-            columns: columnsConfig,
-        },
-        resultsRunner,
-    });
+}: TableProps) => {
+    const { tableWrapperRef, getTableData, paddingTop, paddingBottom } =
+        useVirtualTable({ columnNames, rows, config: columnsConfig });
 
-    const columnsCount = getColumnsCount();
+    const columnsCount = useMemo(() => columnNames.length, [columnNames]);
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
     return (
@@ -93,7 +89,7 @@ export const Table = <T extends IResultsRunner>({
                                         }
                                     >
                                         <Group spacing="two" fz={13}>
-                                            {columnsConfig[header.id]
+                                            {columnsConfig?.[header.id]
                                                 ?.aggregation && (
                                                 <Badge
                                                     size="sm"
@@ -101,13 +97,14 @@ export const Table = <T extends IResultsRunner>({
                                                     radius="xs"
                                                 >
                                                     {
-                                                        columnsConfig[header.id]
-                                                            ?.aggregation
+                                                        columnsConfig?.[
+                                                            header.id
+                                                        ]?.aggregation
                                                     }
                                                 </Badge>
                                             )}
                                             {/* TODO: do we need to check if it's a
-                                        placeholder? */}
+                                      placeholder? */}
                                             {flexRender(
                                                 header.column.columnDef.header,
                                                 header.getContext(),

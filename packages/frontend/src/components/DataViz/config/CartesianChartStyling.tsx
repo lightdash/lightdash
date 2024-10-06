@@ -39,14 +39,14 @@ export const CartesianChartStyling = ({
 
     const series: ConfigurableSeries[] = useMemo(() => {
         if (
-            !currentConfig?.config?.fieldConfig?.y ||
-            currentConfig?.config?.fieldConfig?.y.length <= 1
+            !currentConfig?.fieldConfig?.y ||
+            currentConfig?.fieldConfig?.y.length <= 1
         ) {
             return [];
         }
-        return currentConfig?.config?.fieldConfig?.y.map((f, index) => {
+        return currentConfig?.fieldConfig?.y.map((f, index) => {
             const foundSeries = Object.values(
-                currentConfig?.config?.display?.series || {},
+                currentConfig?.display?.series || {},
             ).find((s) => s.yAxisIndex === index);
 
             const seriesFormat = foundSeries?.format;
@@ -63,35 +63,31 @@ export const CartesianChartStyling = ({
                 type: seriesType,
             };
         });
-    }, [
-        colors,
-        currentConfig?.config?.display?.series,
-        currentConfig?.config?.fieldConfig?.y,
-    ]);
+    }, [colors, currentConfig?.display?.series, currentConfig?.fieldConfig?.y]);
 
     const xAxisLabel = useMemo(() => {
         return (
-            currentConfig?.config?.display?.xAxis?.label ??
-            currentConfig?.config?.fieldConfig?.x?.reference
+            currentConfig?.display?.xAxis?.label ??
+            currentConfig?.fieldConfig?.x?.reference
         );
     }, [currentConfig]);
     const yAxisLabel = useMemo(() => {
         return (
-            currentConfig?.config?.display?.yAxis?.[0]?.label ??
-            currentConfig?.config?.fieldConfig?.y?.[0]?.reference
+            currentConfig?.display?.yAxis?.[0]?.label ??
+            currentConfig?.fieldConfig?.y?.[0]?.reference
         );
     }, [currentConfig]);
     const yAxisLabelColor = useMemo(
         () =>
-            currentConfig?.config?.fieldConfig?.y?.[0]?.reference &&
-            currentConfig?.config?.display?.series?.[
-                currentConfig.config.fieldConfig?.y[0].reference
+            currentConfig?.fieldConfig?.y?.[0]?.reference &&
+            currentConfig?.display?.series?.[
+                currentConfig.fieldConfig?.y[0].reference
             ]?.color,
 
         [currentConfig],
     );
 
-    const yAxisPosition = currentConfig?.config?.display?.yAxis?.[0]?.position;
+    const yAxisPosition = currentConfig?.display?.yAxis?.[0]?.position;
 
     return (
         <Stack spacing="xs">
@@ -100,7 +96,7 @@ export const CartesianChartStyling = ({
                     <Config.Label>{`Stacking`}</Config.Label>
                     <SegmentedControl
                         radius="md"
-                        disabled={!currentConfig?.config?.fieldConfig?.groupBy}
+                        disabled={!currentConfig?.fieldConfig?.groupBy}
                         data={[
                             {
                                 value: 'None',
@@ -112,9 +108,7 @@ export const CartesianChartStyling = ({
                             },
                         ]}
                         defaultValue={
-                            currentConfig?.config?.display?.stack
-                                ? 'Stacked'
-                                : 'None'
+                            currentConfig?.display?.stack ? 'Stacked' : 'None'
                         }
                         onChange={(value) =>
                             dispatch(actions.setStacked(value === 'Stacked'))
@@ -150,17 +144,16 @@ export const CartesianChartStyling = ({
                                     color={yAxisLabelColor ?? colors[0]}
                                     onColorChange={(color) => {
                                         if (
-                                            !currentConfig?.config?.fieldConfig
-                                                ?.y[0].reference
+                                            !currentConfig?.fieldConfig?.y[0]
+                                                .reference
                                         )
                                             return;
                                         dispatch(
                                             actions.setSeriesColor({
                                                 color,
                                                 reference:
-                                                    currentConfig?.config
-                                                        ?.fieldConfig?.y[0]
-                                                        .reference,
+                                                    currentConfig?.fieldConfig
+                                                        ?.y[0].reference,
                                             }),
                                         );
                                     }}
@@ -186,8 +179,7 @@ export const CartesianChartStyling = ({
                             <Config.Label>{`Format`}</Config.Label>
                             <CartesianChartFormatConfig
                                 format={
-                                    currentConfig?.config?.display?.yAxis?.[0]
-                                        ?.format
+                                    currentConfig?.display?.yAxis?.[0]?.format
                                 }
                                 onChangeFormat={(value) => {
                                     dispatch(

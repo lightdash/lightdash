@@ -466,13 +466,22 @@ export class SavedSqlService extends BaseService {
     async getSqlChartResultJob(
         user: SessionUser,
         projectUuid: string,
-        slug: string,
+        slug?: string,
+        chartUuid?: string,
         context?: QueryExecutionContext,
     ): Promise<{ jobId: string }> {
-        const savedChart = await this.savedSqlModel.getBySlug(
-            projectUuid,
-            slug,
-        );
+        let savedChart;
+        if (chartUuid) {
+            savedChart = await this.savedSqlModel.getByUuid(chartUuid, {
+                projectUuid,
+            });
+        }
+        if (slug) {
+            savedChart = await this.savedSqlModel.getBySlug(projectUuid, slug);
+        }
+        if (!savedChart) {
+            throw new Error('Either chartUuid or slug must be provided');
+        }
 
         const { hasAccess: hasViewAccess } = await this.hasSavedChartAccess(
             user,

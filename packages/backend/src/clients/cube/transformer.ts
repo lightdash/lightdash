@@ -16,8 +16,8 @@ import {
     getAvailableSemanticLayerFilterOperators,
     SemanticLayerField,
     SemanticLayerFieldType,
-    SemanticLayerSortByDirection,
     SemanticLayerTransformer,
+    SortByDirection,
 } from '@lightdash/common';
 import {
     getCubeFilterFromSemanticLayerFilter,
@@ -27,12 +27,12 @@ import {
 } from './typeTransformers';
 
 function getCubeQueryOrder(
-    direction: SemanticLayerSortByDirection,
+    direction: SortByDirection,
 ): QueryOrder {
     switch (direction) {
-        case SemanticLayerSortByDirection.ASC:
+        case SortByDirection.ASC:
             return 'asc';
-        case SemanticLayerSortByDirection.DESC:
+        case SortByDirection.DESC:
             return 'desc';
         default:
             return assertUnreachable(

@@ -17,11 +17,11 @@ import { Config } from '../../../../components/VisualizationConfigs/common/Confi
 const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
     const dispatch = useVizDispatch();
 
-    const tableVisConfig = useVizSelector(
-        (state) => state.tableVisConfig.config,
+    const columnsConfig = useVizSelector(
+        (state) => state.tableVisConfig.columns,
     );
 
-    if (!tableVisConfig) {
+    if (!columnsConfig) {
         return null;
     }
 
@@ -38,7 +38,7 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                 <Config.Section>
                     <Config.Heading>Column labels</Config.Heading>
 
-                    {Object.keys(tableVisConfig.columns).map((reference) => {
+                    {Object.keys(columnsConfig).map((reference) => {
                         const fieldType = columns?.find(
                             (c) => c.reference === reference,
                         )?.type;
@@ -47,7 +47,7 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                             <TextInput
                                 key={reference}
                                 radius="md"
-                                value={tableVisConfig.columns[reference].label}
+                                value={columnsConfig[reference].label}
                                 icon={
                                     fieldType && (
                                         <TableFieldIcon fieldType={fieldType} />
@@ -60,7 +60,7 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                                 updateColumnVisibility({
                                                     reference,
                                                     visible:
-                                                        !tableVisConfig.columns[
+                                                        !columnsConfig[
                                                             reference
                                                         ].visible,
                                                 }),
@@ -69,9 +69,7 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                     >
                                         <MantineIcon
                                             icon={
-                                                tableVisConfig.columns[
-                                                    reference
-                                                ].visible
+                                                columnsConfig[reference].visible
                                                     ? IconEye
                                                     : IconEyeOff
                                             }

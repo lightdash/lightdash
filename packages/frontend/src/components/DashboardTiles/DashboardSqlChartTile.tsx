@@ -6,16 +6,14 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
-import { memo, useMemo, type FC } from 'react';
+import { memo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
-import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
+import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
 import useSearchParams from '../../hooks/useSearchParams';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { useChartViz } from '../DataViz/hooks/useChartViz';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
@@ -57,19 +55,12 @@ const DashboardOptions = memo(
 
 const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
-
     const { projectUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
     const context = useSearchParams('context') || undefined;
-    const savedSqlUuid = tile.properties.savedSqlUuid;
-    const { data, isLoading, error } = useDashboardSqlChart({
-        projectUuid,
-        savedSqlUuid,
-        context,
-    });
-
+    const savedSqlUuid = tile.properties.savedSqlUuid || undefined;
     const canManageSqlRunner = user.data?.ability?.can(
         'manage',
         subject('SqlRunner', {
@@ -77,33 +68,9 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             projectUuid,
         }),
     );
-
-    const sqlRunnerChartData = useMemo(
-        () => ({
-            results: data?.resultsAndColumns.results ?? [],
-            columns: data?.resultsAndColumns.columns ?? [],
-        }),
-        [data],
-    );
-
-    const resultsRunner = useMemo(
-        () =>
-            new SqlRunnerResultsRunner({
-                rows: sqlRunnerChartData.results,
-                columns: sqlRunnerChartData.columns,
-            }),
-        [sqlRunnerChartData],
-    );
-
-    const [chartVizQuery, chartSpec] = useChartViz({
+    const { data, isLoading, error } = useSavedSqlChartResults({
         projectUuid,
-        resultsRunner,
-        config: data?.chart.config,
-        uuid: savedSqlUuid ?? undefined,
-        sql: data?.chart.sql,
-        slug: data?.chart.slug,
-        limit: data?.chart.limit,
-        additionalQueryKey: [data?.chart.slug, data?.chart.sql, savedSqlUuid],
+        savedSqlUuid: savedSqlUuid,
         context,
     });
 
@@ -127,18 +94,20 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 chartName={tile.properties.chartName ?? ''}
                 tile={tile}
                 title={tile.properties.title || tile.properties.chartName || ''}
-                titleHref={`/projects/${projectUuid}/sql-runner/${error.slug}`}
                 {...rest}
-                extraMenuItems={
-                    canManageSqlRunner &&
-                    error.slug && (
-                        <DashboardOptions
-                            isEditMode={isEditMode}
-                            projectUuid={projectUuid}
-                            slug={error.slug}
-                        />
-                    )
-                }
+                // TODO: re-enable these in the case where chart metadata was available but not results
+                // Improved error handling to allow user to enter edit mode and fix the issue
+                // titleHref={`/projects/${projectUuid}/sql-runner/${error.slug}`}
+                // extraMenuItems={
+                //     canManageSqlRunner &&
+                //     error.slug && (
+                //         <DashboardOptions
+                //             isEditMode={isEditMode}
+                //             projectUuid={projectUuid}
+                //             slug={error.slug}
+                //         />
+                //     )
+                // }
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
@@ -171,7 +140,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                     // So that the Table tile isn't cropped by the overflow
                     <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
                         <Table
-                            resultsRunner={resultsRunner}
+                            resultsRunner={data.resultsRunner}
                             columnsConfig={data.chart.config.columns}
                             flexProps={{
                                 mah: '100%',
@@ -185,9 +154,9 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                     data.chart.config.type === ChartKind.PIE) && (
                     <ChartView
                         config={data.chart.config}
-                        spec={chartSpec}
-                        isLoading={chartVizQuery.isFetching}
-                        error={chartVizQuery.error}
+                        spec={data.chartSpec}
+                        isLoading={false}
+                        error={undefined}
                         style={{
                             minHeight: 'inherit',
                             height: '100%',

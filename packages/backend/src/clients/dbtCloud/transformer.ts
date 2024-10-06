@@ -8,7 +8,7 @@ import {
     FieldType as FieldKind,
     getAvailableSemanticLayerFilterOperators,
     SemanticLayerField,
-    SemanticLayerSortByDirection,
+    SortByDirection,
     SemanticLayerTransformer,
     SemanticLayerView,
 } from '@lightdash/common';
@@ -86,7 +86,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
             orderBy: query.sortBy.map((sort) => {
                 const { name, kind, direction } = sort;
                 const descending =
-                    direction === SemanticLayerSortByDirection.DESC;
+                    direction === SortByDirection.DESC;
 
                 switch (kind) {
                     case FieldKind.DIMENSION:

@@ -1,14 +1,22 @@
-import { ChartKind, isVizTableConfig } from '@lightdash/common';
+import { ChartKind, isVizTableConfig, TableDataModel } from '@lightdash/common';
 import { Box, Tabs, useMantineTheme } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { useAsync } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
-import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
+import {
+    selectChartDisplayByKind,
+    selectChartFieldConfigByKind,
+    selectCompleteConfigByKind,
+} from '../../../components/DataViz/store/selectors';
+import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
+
+import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
 import { useAppSelector } from '../store/hooks';
 import {
     selectFilters,
@@ -27,31 +35,66 @@ type ContentChartsProps = {
 
 const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const mantineTheme = useMantineTheme();
+    const { data: organization } = useOrganization();
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
-    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
-
-    const { results, columns, activeChartKind, fields } = useAppSelector(
+    const [openPanel, setOpenPanel] = useState<TabPanel>();
+    const { results, columnNames, activeChartKind, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
     const filters = useAppSelector(selectFilters);
     const sortBy = useAppSelector(selectSortBy);
 
-    const resultsRunner = useMemo(() => {
-        return new SemanticViewerResultsRunner({
-            query: semanticQuery,
-            rows: results ?? [],
-            columns: columns ?? [],
-            projectUuid,
-            fields,
-        });
-    }, [columns, fields, projectUuid, results, semanticQuery]);
-
-    const vizConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, state.semanticViewer.activeChartKind),
+    const fieldConfig = useAppSelector((state) =>
+        selectChartFieldConfigByKind(state, activeChartKind),
+    );
+    const display = useAppSelector((state) =>
+        selectChartDisplayByKind(state, activeChartKind),
     );
 
-    const [openPanel, setOpenPanel] = useState<TabPanel>();
+    const completeConfig = useAppSelector((state) =>
+        selectCompleteConfigByKind(state, activeChartKind),
+    );
+
+    const semanticLayerQuery = useAppSelector((state) =>
+        selectSemanticLayerQuery(state),
+    );
+
+    const resultsRunner = useMemo(() => {
+        return new SemanticViewerResultsRunnerFrontend({
+            rows: results ?? [],
+            columnNames: columnNames ?? [],
+            fields,
+            projectUuid,
+        });
+    }, [columnNames, fields, projectUuid, results]);
+
+    const vizDataModel = useMemo(() => {
+        return getChartDataModel(
+            resultsRunner,
+            fieldConfig,
+            activeChartKind ?? ChartKind.TABLE,
+        );
+    }, [fieldConfig, activeChartKind, resultsRunner]);
+
+    const { loading: chartLoading, error: chartError } = useAsync(
+        async () =>
+            vizDataModel.getPivotedChartData({
+                ...semanticLayerQuery,
+                filters,
+                sortBy,
+            }),
+        [semanticLayerQuery, vizDataModel],
+    );
+
+    const { spec, tableData } = useMemo(
+        () => ({
+            spec: vizDataModel.getSpec(display, organization?.chartColors),
+            tableData: vizDataModel.getPivotedTableData(),
+        }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [vizDataModel, display, chartLoading],
+    );
 
     const handleOpenPanel = (panel: TabPanel) => {
         setOpenPanel(panel);
@@ -61,32 +104,13 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         setOpenPanel(undefined);
     };
 
-    const [chartVizQuery, chartSpec] = useChartViz({
-        resultsRunner,
-        config: vizConfig,
-        projectUuid,
-        additionalQueryKey: [filters, sortBy],
-    });
-
-    const pivotResultsRunner = useMemo(() => {
-        return new SemanticViewerResultsRunner({
-            projectUuid,
-            query: semanticQuery,
-            rows: chartVizQuery.data?.results ?? [],
-            columns: chartVizQuery.data?.columns ?? [],
-            fields: fields,
-        });
-    }, [
-        chartVizQuery.data?.columns,
-        chartVizQuery.data?.results,
-        projectUuid,
-        semanticQuery,
-        fields,
-    ]);
-
-    const thSortConfig = useMemo(() => {
-        return resultsRunner.getTableHeaderSortConfig();
-    }, [resultsRunner]);
+    // ! TODO: THIS SHOULD COME FROM THE CORRESPONDING TABLE DATA MODELS
+    const tableVizSorts = useMemo(() => {
+        return TableDataModel.getTableHeaderSortConfig(
+            resultsRunner.getColumnNames(),
+            semanticLayerQuery,
+        );
+    }, [resultsRunner, semanticLayerQuery]);
 
     return (
         <>
@@ -101,11 +125,11 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                         position: 'relative',
                     }}
                 >
-                    {vizConfig && isVizTableConfig(vizConfig) ? (
+                    {completeConfig && isVizTableConfig(completeConfig) ? (
                         <Table
                             resultsRunner={resultsRunner}
-                            columnsConfig={vizConfig.columns}
-                            thSortConfig={thSortConfig}
+                            columnsConfig={completeConfig.columns}
+                            thSortConfig={tableVizSorts}
                             onTHClick={onTableHeaderClick}
                             flexProps={{
                                 m: '-1px',
@@ -113,12 +137,12 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 sx: { flexGrow: 1 },
                             }}
                         />
-                    ) : vizConfig && !isVizTableConfig(vizConfig) ? (
+                    ) : completeConfig && !isVizTableConfig(completeConfig) ? (
                         <ChartView
-                            config={vizConfig}
-                            spec={chartSpec}
-                            isLoading={chartVizQuery.isFetching}
-                            error={chartVizQuery.error}
+                            config={completeConfig} // Config only used for error messaging
+                            spec={spec}
+                            isLoading={chartLoading}
+                            error={chartError}
                             style={{
                                 flexGrow: 1,
                                 width: '100%',
@@ -130,7 +154,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                 </Panel>
 
                 {openPanel === TabPanel.VISUALIZATION_TABLE &&
-                    !isVizTableConfig(vizConfig) && (
+                    !isVizTableConfig(completeConfig) && (
                         <>
                             <Box
                                 component={PanelResizeHandle}
@@ -156,24 +180,11 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
                                 minSize={10}
                                 onCollapse={() => setOpenPanel(undefined)}
                             >
-                                <Table
-                                    resultsRunner={pivotResultsRunner}
-                                    thSortConfig={thSortConfig}
-                                    columnsConfig={Object.fromEntries(
-                                        chartVizQuery.data?.columns.map(
-                                            (field) => [
-                                                field.reference,
-                                                {
-                                                    visible: true,
-                                                    reference: field.reference,
-                                                    label: field.reference,
-                                                    frozen: false,
-                                                    // TODO: add aggregation
-                                                    // aggregation?: VizAggregationOptions;
-                                                },
-                                            ],
-                                        ) ?? [],
-                                    )}
+                                <ChartDataTable
+                                    columnNames={tableData?.columns ?? []}
+                                    rows={tableData?.rows ?? []}
+                                    onTHClick={onTableHeaderClick}
+                                    thSortConfig={tableVizSorts}
                                 />
                             </Panel>
                         </>

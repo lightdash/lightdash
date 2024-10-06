@@ -1,4 +1,4 @@
-import { type DimensionType } from '../../types/field';
+import { DimensionType } from '../../types/field';
 import { type RawResultRow } from '../../types/results';
 import { ChartKind } from '../../types/savedCharts';
 import { type CartesianChartDisplay } from '../CartesianChartDataModel';
@@ -38,14 +38,35 @@ export enum VizIndexType {
     CATEGORY = 'category',
 }
 
+export function getColumnAxisType(column: VizColumn): VizIndexType {
+    switch (column.type) {
+        case DimensionType.DATE:
+        case DimensionType.TIMESTAMP:
+            return VizIndexType.TIME;
+        case DimensionType.BOOLEAN:
+        case DimensionType.NUMBER:
+        case DimensionType.STRING:
+        default:
+            return VizIndexType.CATEGORY;
+    }
+}
+
 export type VizIndexLayoutOptions = {
-    type: VizIndexType;
+    axisType: VizIndexType;
+    dimensionType: DimensionType;
+    aggregationOptions?: VizAggregationOptions[];
     reference: string;
 };
 
 export type VizValuesLayoutOptions = {
     reference: string;
+    aggregation: VizAggregationOptions; // Currently not available in Semantic viewer API
     aggregationOptions?: VizAggregationOptions[];
+};
+
+// A custom metric is a dimension + aggregation type
+export type VizCustomMetricLayoutOptions = VizIndexLayoutOptions & {
+    aggregation: VizAggregationOptions;
 };
 
 export type VizPivotLayoutOptions = {
@@ -56,23 +77,14 @@ export type VizSortBy = {
     reference: string;
     direction: SortByDirection;
 };
-export type VizChartLayout = {
-    x:
-        | {
-              reference: string;
-              type: VizIndexType;
-          }
-        | undefined;
-    y: {
-        reference: string;
-        aggregation?: VizAggregationOptions;
-    }[];
-    groupBy: { reference: string }[] | undefined;
-    sortBy?: VizSortBy[];
-};
 
 export type VizPieChartDisplay = {
     isDonut?: boolean;
+};
+
+export type VizTableDisplay = {
+    // TODO: split table display config out of table config
+    // On vis column config, visible, label and frozen, at least seem like display options
 };
 
 export type PivotIndexColum =
@@ -87,15 +99,54 @@ export type PivotChartData = {
     columns: VizColumn[];
 };
 
+// TODO: This type is used by both the cartesian and pie chart data models,
+// even though it is clearly a cartesian type. Pie should have something that doesn't
+// include the x and y options. A future improvement would be to have different
+// layout types for chart types that are very different. OR have a more generic
+// layout type that can be used for both, but that might break down anyway with
+// future chart types (maps, funnel, sankey, etc).
+export type PivotChartLayout = {
+    x:
+        | {
+              reference: string;
+              type: VizIndexType;
+          }
+        | undefined;
+    y: {
+        reference: string;
+        aggregation: VizAggregationOptions;
+    }[];
+    groupBy: { reference: string }[] | undefined;
+    sortBy?: VizSortBy[];
+};
+
+export const isPivotChartLayout = (
+    obj: PivotChartLayout | VizColumnsConfig | undefined,
+): obj is PivotChartLayout => {
+    if (typeof obj !== 'object' || obj === null) {
+        return false;
+    }
+
+    if (!('y' in obj) && !('groupBy' in obj) && !('x' in obj)) {
+        return false;
+    }
+
+    return true;
+};
+
 export type VizCartesianChartOptions = {
     indexLayoutOptions: VizIndexLayoutOptions[];
-    valuesLayoutOptions: VizValuesLayoutOptions[];
+    valuesLayoutOptions: {
+        preAggregated: VizValuesLayoutOptions[];
+        customAggregations: VizCustomMetricLayoutOptions[];
+    };
     pivotLayoutOptions: VizPivotLayoutOptions[];
 };
 
 export type VizPieChartOptions = {
     groupFieldOptions: VizIndexLayoutOptions[];
     metricFieldOptions: VizValuesLayoutOptions[];
+    customMetricFieldOptions: VizCustomMetricLayoutOptions[];
 };
 
 export type VizColumnConfig = {
@@ -127,33 +178,35 @@ export type VizBaseConfig = {
 
 export type VizCartesianChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR | ChartKind.LINE;
-    fieldConfig: VizChartLayout | undefined;
+    fieldConfig: PivotChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizBarChartConfig = VizBaseConfig & {
     type: ChartKind.VERTICAL_BAR;
-    fieldConfig: VizChartLayout | undefined;
+    fieldConfig: PivotChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizLineChartConfig = VizBaseConfig & {
     type: ChartKind.LINE;
-    fieldConfig: VizChartLayout | undefined; // PR NOTE: types are identical
+    fieldConfig: PivotChartLayout | undefined;
     display: CartesianChartDisplay | undefined;
 };
 
 export type VizPieChartConfig = VizBaseConfig & {
     type: ChartKind.PIE;
-    fieldConfig: VizChartLayout | undefined; // PR NOTE: this will break serialization to the database (types are different)
+    fieldConfig: PivotChartLayout | undefined;
     display: VizPieChartDisplay | undefined;
 };
 
 export type VizTableConfig = VizBaseConfig & {
     type: ChartKind.TABLE;
     columns: VizTableColumnsConfig['columns'];
+    display: VizTableDisplay | undefined;
 };
 
+// TODO: this is a duplicate of VizChartConfig
 export type AllVizChartConfig =
     | VizBarChartConfig
     | VizLineChartConfig
@@ -193,7 +246,10 @@ export type VizConfigErrors = {
     indexFieldError?: {
         reference: string;
     };
-    valuesFieldError?: {
+    metricFieldError?: {
+        references: string[];
+    };
+    customMetricFieldError?: {
         references: string[];
     };
     groupByFieldError?: {

@@ -10,7 +10,7 @@ type Props = {
     config: AllVizChartConfig | undefined;
     spec: EChartsReactProps['option'] | undefined;
     isLoading: boolean;
-    error: Error | null;
+    error?: Error | null;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
 const ChartView = memo<Props>(

@@ -1,41 +1,31 @@
 import {
     type PivotChartData,
-    type VizCartesianChartOptions,
-    type VizConfigErrors,
+    type VizCustomMetricLayoutOptions,
+    type VizIndexLayoutOptions,
+    type VizValuesLayoutOptions,
 } from '.';
 import { type RawResultRow } from '../../types/results';
+import { type SemanticLayerQuery } from '../../types/semanticLayer';
 
-export interface IResultsRunner<TPivotChartLayout> {
-    // Includes bar, chart, line, pie, scatter, and table v1(?)
+export type RunPivotQuery = (
+    query: SemanticLayerQuery,
+) => Promise<PivotChartData>;
+
+export interface IResultsRunner {
     getPivotedVisualizationData(
-        config: TPivotChartLayout,
-        sql?: string,
-        projectUuid?: string,
-        limit?: number,
-        slug?: string,
-        uuid?: string,
-        context?: string,
+        query: SemanticLayerQuery,
+        context?: string, // TODO: pick up these changes in the pivot functions
     ): Promise<PivotChartData>;
 
-    defaultPivotChartLayout(): TPivotChartLayout | undefined;
-
-    mergePivotChartLayout(
-        existingConfig?: TPivotChartLayout,
-    ): TPivotChartLayout | undefined;
-
-    pivotChartOptions(): VizCartesianChartOptions;
-
-    getPivotChartLayoutErrors(
-        config: TPivotChartLayout | undefined,
-    ): VizConfigErrors | undefined;
-
-    getColumns(): string[];
-
-    getColumnsAccessorFn(
-        column: string,
-    ): (row: RawResultRow) => RawResultRow[string];
+    getColumnNames(): string[];
 
     getRows(): RawResultRow[];
+
+    getPivotQueryDimensions(): VizIndexLayoutOptions[];
+
+    getPivotQueryMetrics(): VizValuesLayoutOptions[];
+
+    getPivotQueryCustomMetrics(): VizCustomMetricLayoutOptions[];
 
     // TODO: other runner types
     // getPivotTableData() // includes subtotalling etc.

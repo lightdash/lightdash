@@ -318,7 +318,6 @@ export const {
     setProjectUuid,
     setFetchResultsOnLoad,
     setSqlRunnerResults,
-    setFileUrl,
     updateName,
     setSql,
     setSqlLimit,

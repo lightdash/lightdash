@@ -8,17 +8,19 @@ import { Box } from '@mantine/core';
 import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
+import { useAsync } from 'react-use';
 import {
     useSavedSemanticViewerChart,
     useSavedSemanticViewerChartResults,
     useSemanticLayerViewFields,
 } from '../../features/semanticViewer/api/hooks';
-import { SemanticViewerResultsRunner } from '../../features/semanticViewer/runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { useChartViz } from '../DataViz/hooks/useChartViz';
+import getChartDataModel from '../DataViz/transformers/getChartDataModel';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
@@ -61,6 +63,9 @@ const ChartTileOptions = memo(
 
 const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
+
+    const { data: organization } = useOrganization();
+
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const savedSemanticViewerChartUuid =
@@ -86,45 +91,59 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         { enabled: chartQuery.isSuccess },
     );
 
+    const semanticLayerQuery = useMemo(() => {
+        return chartQuery.data?.semanticLayerQuery;
+    }, [chartQuery.data?.semanticLayerQuery]);
+
     const resultsRunner = useMemo(() => {
         if (
-            !chartQuery.isSuccess ||
             !fieldsQuery.isSuccess ||
+            !chartQuery.isSuccess ||
             !chartResultsQuery.isSuccess
         ) {
             return;
         }
 
-        const vizColumns =
-            SemanticViewerResultsRunner.convertColumnsToVizColumns(
-                fieldsQuery.data,
-                chartResultsQuery.data.columns,
-            );
-
-        return new SemanticViewerResultsRunner({
+        return new SemanticViewerResultsRunnerFrontend({
             projectUuid,
             fields: fieldsQuery.data,
-            query: chartQuery.data.semanticLayerQuery,
             rows: chartResultsQuery.data.results,
-            columns: vizColumns,
+            columnNames: chartResultsQuery.data.columns,
         });
     }, [
         projectUuid,
-        chartQuery.data,
-        chartQuery.isSuccess,
-        chartResultsQuery.data,
-        chartResultsQuery.isSuccess,
-        fieldsQuery.data,
         fieldsQuery.isSuccess,
+        fieldsQuery.data,
+        chartQuery.isSuccess,
+        chartResultsQuery.isSuccess,
+        chartResultsQuery.data,
     ]);
 
-    const [chartVizQuery, chartSpec] = useChartViz({
-        projectUuid,
-        resultsRunner,
-        uuid: savedSemanticViewerChartUuid ?? undefined,
-        config: chartQuery.data?.config,
-        slug: chartQuery.data?.slug,
-    });
+    const chartFieldConfig = useMemo(() => {
+        return isVizTableConfig(chartQuery.data?.config)
+            ? chartQuery.data?.config.columns
+            : chartQuery.data?.config.fieldConfig;
+    }, [chartQuery.data]);
+
+    const vizDataModel = useMemo(() => {
+        if (!resultsRunner) return;
+        return getChartDataModel(
+            resultsRunner,
+            chartFieldConfig,
+            chartQuery.data?.config.type ?? ChartKind.TABLE,
+        );
+    }, [resultsRunner, chartFieldConfig, chartQuery.data?.config.type]);
+
+    const { loading: chartLoading, error: chartError } = useAsync(
+        async () =>
+            vizDataModel?.getPivotedChartData({
+                filters: semanticLayerQuery?.filters ?? [],
+                sortBy: semanticLayerQuery?.sortBy ?? [],
+                limit: semanticLayerQuery?.limit ?? undefined,
+                sql: semanticLayerQuery?.sql ?? undefined,
+            }),
+        [vizDataModel, semanticLayerQuery],
+    );
 
     const savedChartSpaceUserAccess =
         chartQuery.isSuccess && chartQuery.data.space.userAccess
@@ -152,7 +171,9 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     if (
         chartQuery.isLoading ||
         fieldsQuery.isLoading ||
-        chartResultsQuery.isLoading
+        chartResultsQuery.isLoading ||
+        chartLoading ||
+        !vizDataModel
     ) {
         return (
             <TileBase
@@ -230,9 +251,12 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                     chartQuery.data.config.type === ChartKind.PIE) && (
                     <ChartView
                         config={chartQuery.data.config}
-                        spec={chartSpec}
-                        isLoading={chartVizQuery.isLoading}
-                        error={chartVizQuery.error}
+                        spec={vizDataModel.getSpec(
+                            chartQuery.data.config.display,
+                            organization?.chartColors,
+                        )}
+                        isLoading={chartLoading}
+                        error={chartError}
                         style={{
                             minHeight: 'inherit',
                             height: '100%',
