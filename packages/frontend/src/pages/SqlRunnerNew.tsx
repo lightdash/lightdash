@@ -3,12 +3,15 @@ import { ActionIcon, Group, Paper, Stack, Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useHistory, useLocation, useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
-import { setChartConfig } from '../components/DataViz/store/actions/commonChartActions';
+import {
+    resetChartState,
+    setChartConfig,
+} from '../components/DataViz/store/actions/commonChartActions';
 import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
@@ -24,6 +27,8 @@ import {
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
+    setSql,
+    setWarehouseConnectionType,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { useProject } from '../hooks/useProject';
 
@@ -33,11 +38,15 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
 
     const params = useParams<{ projectUuid: string; slug?: string }>();
 
+    const location = useLocation<{ sql?: string }>();
+    const history = useHistory();
+
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const { data: project } = useProject(projectUuid);
 
     useUnmount(() => {
         dispatch(resetState());
+        dispatch(resetChartState());
     });
 
     useEffect(() => {
@@ -46,6 +55,15 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
             dispatch(setFetchResultsOnLoad(!!isEditMode));
         }
     }, [dispatch, params.projectUuid, projectUuid, isEditMode]);
+
+    // Use the SQL string from the location state if available
+    useEffect(() => {
+        if (location.state?.sql) {
+            dispatch(setSql(location.state.sql));
+            // clear the location state - this prevents state from being preserved on page refresh
+            history.replace({ ...location, state: undefined });
+        }
+    }, [dispatch, location, history]);
 
     const { data, error: chartError } = useSavedSqlChart({
         projectUuid,
@@ -61,6 +79,9 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
 
     useEffect(() => {
         if (project?.warehouseConnection?.type) {
+            dispatch(
+                setWarehouseConnectionType(project.warehouseConnection.type),
+            );
             dispatch(
                 setQuoteChar(
                     getFieldQuoteChar(project?.warehouseConnection?.type),
@@ -81,14 +102,10 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
             header={<Header mode={params.slug ? 'edit' : 'create'} />}
             isSidebarOpen={isLeftSidebarOpen}
             sidebar={<Sidebar setSidebarOpen={setLeftSidebarOpen} />}
-            sidebarProps={{
-                cardProps: {
-                    p: 0,
-                },
-            }}
+            noSidebarPadding
         >
             <Group
-                align={'stretch'}
+                align="stretch"
                 grow
                 spacing="none"
                 p={0}
@@ -132,4 +149,5 @@ const SqlRunnerNewPage = ({ isEditMode }: { isEditMode?: boolean }) => {
         </Provider>
     );
 };
+
 export default SqlRunnerNewPage;

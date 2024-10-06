@@ -4,6 +4,7 @@ import {
     VIZ_DEFAULT_AGGREGATION,
     type VizAggregationOptions,
     type VizChartLayout,
+    type VizConfigErrors,
     type VizIndexType,
     type VizPieChartConfig,
     type VizPieChartOptions,
@@ -11,6 +12,7 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import {
+    resetChartState,
     setChartConfig,
     setChartOptionsAndConfig,
 } from './actions/commonChartActions';
@@ -19,6 +21,7 @@ export type PieChartState = {
     defaultFieldConfig: VizChartLayout | undefined;
     config: VizPieChartConfig | undefined;
     options: VizPieChartOptions;
+    errors: VizConfigErrors | undefined;
 };
 
 const initialState: PieChartState = {
@@ -28,6 +31,7 @@ const initialState: PieChartState = {
         groupFieldOptions: [],
         metricFieldOptions: [],
     },
+    errors: undefined,
 };
 
 export const pieChartConfigSlice = createSlice({
@@ -101,6 +105,7 @@ export const pieChartConfigSlice = createSlice({
                 state.config = action.payload;
             }
         });
+        builder.addCase(resetChartState, () => initialState);
     },
 });
 export const { setGroupFieldIds, setYAxisReference, setYAxisAggregation } =

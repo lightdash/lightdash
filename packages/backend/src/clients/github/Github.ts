@@ -4,7 +4,9 @@ import { Octokit as OctokitRest } from '@octokit/rest';
 
 const { createAppAuth } = require('@octokit/auth-app');
 
-const privateKey = process.env.GITHUB_PRIVATE_KEY;
+const privateKey = process.env.GITHUB_PRIVATE_KEY
+    ? Buffer.from(process.env.GITHUB_PRIVATE_KEY, 'base64').toString('utf-8')
+    : undefined;
 const appId = process.env.GITHUB_APP_ID;
 
 export const githubApp =
@@ -46,7 +48,7 @@ export const getOctokitRestForApp = (installationId: string) => {
         authStrategy: createAppAuth,
         auth: {
             appId,
-            privateKey: process.env.GITHUB_PRIVATE_KEY,
+            privateKey,
             installationId,
         },
     });
@@ -87,7 +89,7 @@ export const getLastCommit = async ({
     owner: string;
     repo: string;
     branch: string;
-    token: string;
+    token: string; // TODO use installationId instead, to act as a bot
 }) => {
     const response = await new OctokitRest().rest.repos.listCommits({
         owner,
@@ -138,22 +140,21 @@ export const createBranch = async ({
     repo,
     sha,
     branchName,
-    token,
+    installationId,
 }: {
     owner: string;
     repo: string;
     sha: string;
     branchName: string;
-    token: string;
+    installationId: string;
 }) => {
-    const { octokit, headers } = getOctokitRestForUser(token);
+    const octokit = getOctokitRestForApp(installationId);
 
     const response = await octokit.rest.git.createRef({
         owner,
         repo,
         ref: `refs/heads/${branchName}`,
         sha,
-        headers,
     });
     return response;
 };
@@ -198,4 +199,65 @@ export const updateFile = async ({
         },
     });
     return response;
+};
+
+export const createFile = async ({
+    owner,
+    repo,
+    fileName,
+    content,
+    branch,
+    message,
+    installationId,
+}: {
+    owner: string;
+    repo: string;
+    fileName: string;
+    content: string;
+    branch: string;
+    message: string;
+    installationId: string;
+}) => {
+    const octokit = getOctokitRestForApp(installationId);
+
+    const response = await octokit.rest.repos.createOrUpdateFileContents({
+        owner,
+        repo,
+        path: fileName,
+        message,
+        content: Buffer.from(content, 'utf-8').toString('base64'),
+        branch,
+    });
+    return response;
+};
+
+export const createPullRequest = async ({
+    owner,
+    repo,
+    title,
+    body,
+    head,
+    base,
+    installationId,
+}: {
+    owner: string;
+    repo: string;
+    title: string;
+    body: string;
+    head: string;
+    base: string;
+    installationId: string;
+}) => {
+    const octokit = getOctokitRestForApp(installationId);
+
+    const response = await octokit.rest.pulls.create({
+        owner,
+        repo,
+        title,
+        body,
+        head,
+        base,
+    });
+
+    return response.data;
 };

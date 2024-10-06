@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { DashboardTileTypes } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -32,7 +33,7 @@ export const HeaderView: FC = () => {
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
     );
-    const isAddToDashboard = useAppSelector(
+    const isAddToDashboardModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.addToDashboard.isOpen,
     );
     const onCloseAddToDashboardModal = useCallback(() => {
@@ -168,6 +169,7 @@ export const HeaderView: FC = () => {
                     </Group>
                 </Group>
             </Paper>
+
             <DeleteSqlChartModal
                 projectUuid={projectUuid}
                 savedSqlUuid={savedSqlChart.savedSqlUuid}
@@ -176,11 +178,12 @@ export const HeaderView: FC = () => {
                 onClose={onCloseDeleteModal}
                 onSuccess={() => history.push(`/projects/${projectUuid}/home`)}
             />
-            {isAddToDashboard && (
+            {isAddToDashboardModalOpen && (
                 <AddTilesToDashboardModal
                     isOpen={true}
                     projectUuid={projectUuid}
-                    savedSqlChartUuid={savedSqlChart.savedSqlUuid}
+                    uuid={savedSqlChart.savedSqlUuid}
+                    dashboardTileType={DashboardTileTypes.SQL_CHART}
                     onClose={onCloseAddToDashboardModal}
                 />
             )}

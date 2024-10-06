@@ -11,6 +11,7 @@ import { LoadingChart } from '../SimpleChart';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
+import MinimalCellContextMenu from './MinimalCellContextMenu';
 
 type SimpleTableProps = {
     isDashboard: boolean;
@@ -89,6 +90,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             getFieldLabel={getFieldLabel}
                             getField={getField}
                             hideRowNumbers={hideRowNumbers}
+                            showSubtotals={showSubtotals}
                         />
                         {showResultsTotal && (
                             <Flex justify="flex-end" pt="xxs" align="center">
@@ -134,6 +136,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 }}
                 cellContextMenu={(props) => {
                     if (isSqlRunner) return <>{props.children}</>;
+                    if (minimal) {
+                        return <MinimalCellContextMenu {...props} />;
+                    }
                     if (isDashboard && tileUuid) {
                         return (
                             <DashboardCellContextMenu

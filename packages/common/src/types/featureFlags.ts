@@ -33,4 +33,14 @@ export enum FeatureFlags {
 
     /* Send local timezone to the warehouse session */
     EnableUserTimezones = 'enable-user-timezones',
+
+    /**
+     * Enable saving custom explores from the SQL Runner
+     */
+    SaveCustomExploreFromSqlRunner = 'save-custom-explore-from-sql-runner',
+
+    /**
+     * Enable the semantic layer
+     */
+    SemanticLayerEnabled = 'semantic-layer-enabled',
 }

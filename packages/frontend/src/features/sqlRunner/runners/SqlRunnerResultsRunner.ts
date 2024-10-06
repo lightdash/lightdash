@@ -16,12 +16,16 @@ import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
 
 const schedulePivotSqlJob = async ({
     projectUuid,
+    context,
     ...payload
 }: {
     projectUuid: string;
+    context?: string;
 } & SqlRunnerPivotQueryBody) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
-        url: `/projects/${projectUuid}/sqlRunner/runPivotQuery`,
+        url: `/projects/${projectUuid}/sqlRunner/runPivotQuery${
+            context ? `?context=${context}` : ''
+        }`,
         method: 'POST',
         body: JSON.stringify(payload),
     });
@@ -29,12 +33,18 @@ const schedulePivotSqlJob = async ({
 type PivotQueryFn = (
     args: SqlRunnerPivotQueryBody & {
         projectUuid: string;
+        context?: string;
     },
 ) => Promise<Omit<PivotChartData, 'columns'>>;
 
-const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
+const pivotQueryFn: PivotQueryFn = async ({
+    projectUuid,
+    context,
+    ...args
+}) => {
     const scheduledJob = await schedulePivotSqlJob({
         projectUuid,
+        context,
         ...args,
     });
 
@@ -43,12 +53,12 @@ const pivotQueryFn: PivotQueryFn = async ({ projectUuid, ...args }) => {
     if (isApiSqlRunnerJobPivotQuerySuccessResponse(job)) {
         const url =
             job.details && !isErrorDetails(job.details)
-                ? job.details.url
+                ? job.details.fileUrl
                 : undefined;
         const results = await getResultsFromStream<RawResultRow>(url);
 
         return {
-            url,
+            fileUrl: url,
             results,
             indexColumn: job.details.indexColumn,
             valuesColumns: job.details.valuesColumns,
@@ -72,17 +82,17 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
         limit: number,
         slug?: string,
         uuid?: string,
+        context?: string,
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
-                url: undefined,
+                fileUrl: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
                 columns: [],
             };
         }
-
         const pivotResults = await pivotQueryFn({
             projectUuid,
             slug,
@@ -98,6 +108,8 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
             })),
             groupByColumns: config.groupBy,
             limit,
+            sortBy: config.sortBy,
+            context,
         });
 
         const columns: VizColumn[] = [
@@ -110,7 +122,7 @@ export class SqlRunnerResultsRunner extends ResultsRunner {
         }));
 
         return {
-            url: pivotResults.url,
+            fileUrl: pivotResults.fileUrl,
             results: pivotResults.results,
             indexColumn: pivotResults.indexColumn,
             valuesColumns: pivotResults.valuesColumns,

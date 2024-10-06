@@ -27,7 +27,7 @@ const getGithubRepositories = async () =>
         body: undefined,
     });
 
-const useGitHubRepositories = () =>
+export const useGitHubRepositories = () =>
     useQuery<GitRepo[], ApiError>({
         queryKey: ['github_branches'],
         queryFn: () => getGithubRepositories(),

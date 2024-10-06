@@ -3,6 +3,8 @@ import {
     DimensionType,
     FieldType,
     SemanticLayerFieldType,
+    SemanticLayerSortByDirection,
+    SortByDirection,
     VizIndexType,
     type PivotChartData,
     type RawResultRow,
@@ -13,6 +15,7 @@ import {
     type VizColumn,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
+    type VizTableHeaderSortConfig,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { ResultsRunner } from '../../../components/DataViz/transformers/ResultsRunner';
@@ -174,27 +177,22 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         fields: SemanticLayerField[],
         columns: string[],
     ): VizColumn[] {
-        return columns
-            .map<VizColumn | undefined>((column) => {
-                const field =
-                    SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
-                        fields,
-                        column,
-                    );
-                if (!field) {
-                    return;
-                }
-
-                const dimType = getDimensionTypeFromSemanticLayerFieldType(
-                    field.type,
+        return columns.map<VizColumn>((column) => {
+            const field =
+                SemanticViewerResultsRunner.findSemanticLayerFieldFromColumn(
+                    fields,
+                    column,
                 );
 
-                return {
-                    reference: column,
-                    type: dimType,
-                };
-            })
-            .filter((c): c is VizColumn => Boolean(c));
+            const dimType = getDimensionTypeFromSemanticLayerFieldType(
+                field?.type ?? SemanticLayerFieldType.STRING,
+            );
+
+            return {
+                reference: column,
+                type: dimType,
+            };
+        });
     }
 
     private static findSemanticLayerFieldFromColumn(
@@ -211,7 +209,7 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
     ): Promise<PivotChartData> {
         if (config.x === undefined || config.y.length === 0) {
             return {
-                url: undefined,
+                fileUrl: undefined,
                 results: [],
                 indexColumn: undefined,
                 valuesColumns: [],
@@ -220,10 +218,20 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         }
 
         const pivotConfig = transformChartLayoutToSemanticPivot(config);
+
+        // ! When there is pivotConfig.index (group by) then we cannot sort by anything other than pivotConfig.on (X field) -> this is because the results don't include those columns
+        const pivotSorts =
+            pivotConfig.index.length > 0
+                ? this.query.sortBy.filter((s) =>
+                      pivotConfig.on.includes(s.name),
+                  )
+                : this.query.sortBy;
+
         const pivotedResults = await apiGetSemanticLayerQueryResults({
             projectUuid: this.projectUuid,
             query: {
                 ...this.query,
+                sortBy: pivotSorts,
                 pivot: pivotConfig,
             },
         });
@@ -255,11 +263,48 @@ export class SemanticViewerResultsRunner extends ResultsRunner {
         );
 
         return {
-            url: undefined,
+            fileUrl: undefined,
             results,
             indexColumn,
             valuesColumns,
             columns: vizColumns,
         };
+    }
+
+    private transformSemanticLayerSort(
+        sortDirection?: SemanticLayerSortByDirection,
+    ) {
+        if (!sortDirection) {
+            return;
+        }
+
+        switch (sortDirection) {
+            case SemanticLayerSortByDirection.ASC:
+                return SortByDirection.ASC;
+            case SemanticLayerSortByDirection.DESC:
+                return SortByDirection.DESC;
+            default:
+                return assertUnreachable(
+                    sortDirection,
+                    `Unknown sort direction: ${sortDirection}`,
+                );
+        }
+    }
+
+    getTableHeaderSortConfig(): VizTableHeaderSortConfig {
+        return this.columns.reduce<VizTableHeaderSortConfig>((acc, col) => {
+            const sortBy = this.query.sortBy.find(
+                (sort) => sort.name === col.reference,
+            );
+
+            return {
+                ...acc,
+                [col.reference]: {
+                    direction: this.transformSemanticLayerSort(
+                        sortBy?.direction,
+                    ),
+                },
+            };
+        }, {});
     }
 }

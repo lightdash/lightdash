@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ChartKind,
     isVizTableConfig,
-    type DashboardSqlChartTile as DashboardSqlChartTileType,
+    type DashboardSqlChartTile,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
@@ -10,6 +10,7 @@ import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
 import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
+import useSearchParams from '../../hooks/useSearchParams';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -24,7 +25,7 @@ interface Props
         React.ComponentProps<typeof TileBase>,
         'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
     > {
-    tile: DashboardSqlChartTileType;
+    tile: DashboardSqlChartTile;
     minimal?: boolean;
 }
 
@@ -54,21 +55,19 @@ const DashboardOptions = memo(
     ),
 );
 
-export const DashboardSqlChartTile: FC<Props> = ({
-    tile,
-    isEditMode,
-    ...rest
-}) => {
+const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
 
     const { projectUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
+    const context = useSearchParams('context') || undefined;
     const savedSqlUuid = tile.properties.savedSqlUuid;
     const { data, isLoading, error } = useDashboardSqlChart({
         projectUuid,
         savedSqlUuid,
+        context,
     });
 
     const canManageSqlRunner = user.data?.ability?.can(
@@ -104,6 +103,8 @@ export const DashboardSqlChartTile: FC<Props> = ({
         sql: data?.chart.sql,
         slug: data?.chart.slug,
         limit: data?.chart.limit,
+        additionalQueryKey: [data?.chart.slug, data?.chart.sql, savedSqlUuid],
+        context,
     });
 
     if (isLoading) {
@@ -185,7 +186,7 @@ export const DashboardSqlChartTile: FC<Props> = ({
                     <ChartView
                         config={data.chart.config}
                         spec={chartSpec}
-                        isLoading={chartVizQuery.isLoading}
+                        isLoading={chartVizQuery.isFetching}
                         error={chartVizQuery.error}
                         style={{
                             minHeight: 'inherit',
@@ -197,3 +198,5 @@ export const DashboardSqlChartTile: FC<Props> = ({
         </TileBase>
     );
 };
+
+export default SqlChartTile;

@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ChartSourceType,
+    convertChartSourceTypeToDashboardTileType,
     ResourceViewItemType,
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
@@ -99,52 +100,57 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
         onAction({ type: ResourceViewItemAction.CLOSE });
     }, [onAction]);
 
+    const moveToSpace = useCallback(
+        (
+            item: ResourceViewChartItem | ResourceViewDashboardItem,
+            spaceUuid: string,
+        ) => {
+            switch (item.type) {
+                case ResourceViewItemType.CHART:
+                    if (item.data.source === ChartSourceType.SQL) {
+                        return updateSqlChart({
+                            savedSqlUuid: item.data.uuid,
+                            unversionedData: {
+                                name: item.data.name,
+                                description: item.data.description || null,
+                                spaceUuid: spaceUuid,
+                            },
+                        });
+                    }
+                    return moveChart({
+                        uuid: item.data.uuid,
+                        spaceUuid,
+                    });
+                case ResourceViewItemType.DASHBOARD:
+                    return moveDashboard({
+                        uuid: item.data.uuid,
+                        name: item.data.name,
+                        spaceUuid,
+                    });
+                default:
+                    return assertUnreachable(
+                        item,
+                        'Resource type not supported',
+                    );
+            }
+        },
+        [moveChart, moveDashboard, updateSqlChart],
+    );
+
     const handleCreateSpace = useCallback(
         (space: Space | null) => {
             if (!space) return;
             if (action.type !== ResourceViewItemAction.CREATE_SPACE) return;
 
-            onAction({
-                type: ResourceViewItemAction.MOVE_TO_SPACE,
-                item: action.item,
-                data: { spaceUuid: space.uuid },
-            });
+            moveToSpace(action.item, space.uuid);
         },
-        [onAction, action],
+        [action, moveToSpace],
     );
 
     const handleMoveToSpace = useCallback(() => {
         if (action.type !== ResourceViewItemAction.MOVE_TO_SPACE) return;
-
-        switch (action.item.type) {
-            case ResourceViewItemType.CHART:
-                if (action.item.data.source === ChartSourceType.SQL) {
-                    return updateSqlChart({
-                        savedSqlUuid: action.item.data.uuid,
-                        unversionedData: {
-                            name: action.item.data.name,
-                            description: action.item.data.description || null,
-                            spaceUuid: action.data.spaceUuid,
-                        },
-                    });
-                }
-                return moveChart({
-                    uuid: action.item.data.uuid,
-                    ...action.data,
-                });
-            case ResourceViewItemType.DASHBOARD:
-                return moveDashboard({
-                    uuid: action.item.data.uuid,
-                    name: action.item.data.name,
-                    ...action.data,
-                });
-            default:
-                return assertUnreachable(
-                    action.item,
-                    'Resource type not supported',
-                );
-        }
-    }, [action, moveChart, moveDashboard, updateSqlChart]);
+        moveToSpace(action.item, action.data.spaceUuid);
+    }, [action, moveToSpace]);
 
     const handlePinToHomepage = useCallback(() => {
         if (action.type !== ResourceViewItemAction.PIN_TO_HOMEPAGE) return;
@@ -272,23 +278,17 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                     );
             }
         case ResourceViewItemAction.ADD_TO_DASHBOARD:
-            return (
+            return action.item.data.source ? (
                 <AddTilesToDashboardModal
                     isOpen
                     projectUuid={projectUuid}
-                    savedSqlChartUuid={
-                        action.item.data.source === ChartSourceType.SQL
-                            ? action.item.data.uuid
-                            : undefined
-                    }
-                    savedChartUuid={
-                        action.item.data.source === ChartSourceType.DBT_EXPLORE
-                            ? action.item.data.uuid
-                            : undefined
-                    }
+                    uuid={action.item.data.uuid}
+                    dashboardTileType={convertChartSourceTypeToDashboardTileType(
+                        action.item.data.source,
+                    )}
                     onClose={handleReset}
                 />
-            );
+            ) : null;
         case ResourceViewItemAction.CREATE_SPACE:
             return (
                 <SpaceActionModal

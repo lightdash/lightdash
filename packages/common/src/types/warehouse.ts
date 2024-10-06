@@ -15,10 +15,19 @@ export type WarehouseCatalog = {
     };
 };
 
+export type WarehouseTablesCatalog = {
+    [database: string]: {
+        [schema: string]: {
+            [table: string]: { partitionColumn?: PartitionColumn };
+        };
+    };
+};
+
 export type WarehouseTables = {
     database: string;
     schema: string;
     table: string;
+    partitionColumn?: PartitionColumn;
 }[];
 
 export type WarehouseResults = {
@@ -41,7 +50,7 @@ export interface WarehouseClient {
         streamCallback: (data: WarehouseResults) => void,
         options: {
             values?: any[];
-            tags?: Record<string, string>;
+            tags: Record<string, string>;
             timezone?: string;
         },
     ): Promise<void>;
@@ -56,7 +65,7 @@ export interface WarehouseClient {
      */
     runQuery(
         sql: string,
-        tags?: Record<string, string>,
+        tags: Record<string, string>,
         timezone?: string,
         values?: any[],
     ): Promise<WarehouseResults>;
@@ -100,7 +109,22 @@ export type ApiWarehouseCatalog = {
     results: WarehouseCatalog;
 };
 
+export type ApiWarehouseTablesCatalog = {
+    status: 'ok';
+    results: WarehouseTablesCatalog;
+};
+
 export type ApiWarehouseTableFields = {
     status: 'ok';
     results: WarehouseTableSchema;
+};
+
+export enum PartitionType {
+    DATE = 'DATE',
+    RANGE = 'RANGE',
+}
+
+export type PartitionColumn = {
+    partitionType: PartitionType;
+    field: string;
 };

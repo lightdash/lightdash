@@ -140,6 +140,7 @@ export type DashboardScheduler = SchedulerBase & {
     dashboardUuid: string;
     filters?: SchedulerFilterRule[];
     customViewportWidth?: number;
+    selectedTabs?: string[];
 };
 
 export type Scheduler = ChartScheduler | DashboardScheduler;

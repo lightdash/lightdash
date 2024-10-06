@@ -56,6 +56,10 @@ export class PieChartDataModel
         };
     }
 
+    getConfigErrors() {
+        return this.resultsRunner.getPivotChartLayoutErrors(this.fieldConfig);
+    }
+
     async getTransformedData(
         layout: VizChartLayout | undefined,
         sql?: string,
