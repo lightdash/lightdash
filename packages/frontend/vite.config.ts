@@ -19,12 +19,19 @@ export default defineConfig({
             forceBuildCDN: true,
             languageWorkers: ['json'],
         }),
-        VitePWA({ registerType: 'autoUpdate',  manifest: {
-            name: 'Lightdash',
-            short_name: 'Lightdash',
-            description: 'Self-serve BI to 10x your data team',
-            theme_color: '#ffffff',        
-          }, }),
+        VitePWA({
+            registerType: 'autoUpdate',
+            manifest: {
+                name: 'Lightdash',
+                short_name: 'Lightdash',
+                description: 'Self-serve BI to 10x your data team',
+                theme_color: '#ffffff',
+            },
+            workbox: {
+                maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+            },
+            workboxPluginMode: 'GenerateSW',
+        }),
     ],
     css: {
         transformer: 'lightningcss',
