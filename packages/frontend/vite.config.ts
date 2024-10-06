@@ -1,10 +1,10 @@
 import reactPlugin from '@vitejs/plugin-react';
 import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
+import { VitePWA } from 'vite-plugin-pwa';
 import svgrPlugin from 'vite-plugin-svgr';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { defineConfig } from 'vitest/config';
-import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
     plugins: [
