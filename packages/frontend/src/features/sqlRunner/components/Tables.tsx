@@ -1,3 +1,4 @@
+import { PartitionType, type PartitionColumn } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -22,6 +23,7 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -35,10 +37,36 @@ interface TableItemProps extends BoxProps {
     schema: string;
     database: string;
     isActive: boolean;
+    partitionColumn: PartitionColumn | undefined;
 }
 
+const partitionFilter = (partitionColumn: PartitionColumn | undefined) => {
+    if (partitionColumn) {
+        const hint =
+            partitionColumn.partitionType === PartitionType.DATE
+                ? `This table has a date partition on this field`
+                : `This table has a range partition on this field`;
+
+        const defaultValue =
+            partitionColumn.partitionType === PartitionType.DATE
+                ? `'${dayjs().format('YYYY-MM-DD')}'` // Default to today's date
+                : `0`;
+
+        return `\nWHERE ${partitionColumn.field} = ${defaultValue} -- ${hint}`;
+    }
+    return '';
+};
+
 const TableItem: FC<TableItemProps> = memo(
-    ({ table, search, schema, database, isActive, ...rest }) => {
+    ({
+        table,
+        search,
+        schema,
+        database,
+        isActive,
+        partitionColumn,
+        ...rest
+    }) => {
         const { ref: hoverRef, hovered } = useHover();
         const { ref: truncatedRef, isTruncated } =
             useIsTruncated<HTMLDivElement>();
@@ -51,7 +79,13 @@ const TableItem: FC<TableItemProps> = memo(
                 <UnstyledButton
                     onClick={() => {
                         if (!sql || sql.match(/SELECT \* FROM (.+)/)) {
-                            dispatch(setSql(`SELECT * FROM ${quotedTable}`));
+                            dispatch(
+                                setSql(
+                                    `SELECT * FROM ${quotedTable} ${partitionFilter(
+                                        partitionColumn,
+                                    )}`,
+                                ),
+                            );
                         }
 
                         dispatch(toggleActiveTable({ table, schema }));
@@ -184,6 +218,7 @@ const Table: FC<{
                         table={table}
                         schema={`${schema}`}
                         database={database}
+                        partitionColumn={tables[table].partitionColumn}
                         ml="sm"
                     />
                 ))}

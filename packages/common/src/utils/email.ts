@@ -3,11 +3,11 @@ export const getEmailDomain = (email: string): string => {
         throw new Error(`Invalid email, contains whitespace: ${email}`);
     }
 
-    const domain = email.split('@')[1];
-    if (!domain) {
+    const domains = email.split('@');
+    if (domains.length !== 2 || !domains[1]) {
         throw new Error(`Invalid email: ${email}`);
     }
-    return domain.toLowerCase();
+    return domains[1].toLowerCase();
 };
 
 const EMAIL_PROVIDER_LIST = [

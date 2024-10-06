@@ -24,6 +24,7 @@ import {
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
+    type DashboardBasicDetailsWithTileTypes,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { v4 as uuidv4 } from 'uuid';
@@ -103,6 +104,9 @@ export class DashboardService extends BaseService {
         dashboard: DashboardDAO,
     ): CreateDashboardOrVersionEvent['properties'] {
         return {
+            title: dashboard.name,
+            description: dashboard.description,
+
             projectId: dashboard.projectUuid,
             dashboardId: dashboard.uuid,
             filtersCount: dashboard.filters
@@ -155,7 +159,7 @@ export class DashboardService extends BaseService {
         projectUuid: string,
         chartUuid?: string,
         includePrivate?: boolean,
-    ): Promise<DashboardBasicDetails[]> {
+    ): Promise<DashboardBasicDetailsWithTileTypes[]> {
         const dashboards = await this.dashboardModel.getAllByProject(
             projectUuid,
             chartUuid,
@@ -483,6 +487,7 @@ export class DashboardService extends BaseService {
         const existingDashboardDao = await this.dashboardModel.getById(
             dashboardUuid,
         );
+
         const canUpdateDashboardInCurrentSpace = user.ability.can(
             'update',
             subject('Dashboard', {
@@ -495,6 +500,7 @@ export class DashboardService extends BaseService {
                 ),
             }),
         );
+
         if (!canUpdateDashboardInCurrentSpace) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
@@ -553,7 +559,33 @@ export class DashboardService extends BaseService {
                 },
             });
         }
+
         if (isDashboardVersionedFields(dashboard)) {
+            const dashboardTileTypes = Array.from(
+                new Set(dashboard.tiles.map((t) => t.type)),
+            );
+
+            // INFO: this should be removed once we have one semantic layer per project.
+            if (
+                dashboardTileTypes.includes(
+                    DashboardTileTypes.SEMANTIC_VIEWER_CHART,
+                )
+            ) {
+                if (
+                    dashboardTileTypes.includes(DashboardTileTypes.SAVED_CHART)
+                ) {
+                    throw new ParameterError(
+                        'Dashboard cannot have both Semantic Viewer and Lightdash Explore charts',
+                    );
+                }
+
+                if (dashboardTileTypes.includes(DashboardTileTypes.SQL_CHART)) {
+                    throw new ParameterError(
+                        'Dashboard cannot have both Semantic Viewer and Sql charts',
+                    );
+                }
+            }
+
             const updatedDashboard = await this.dashboardModel.addVersion(
                 dashboardUuid,
                 {

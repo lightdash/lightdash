@@ -180,7 +180,19 @@ const useTableConfig = (
         });
     }, [columnOrder, itemsMap]);
 
-    const canUseSubtotals = dimensions.length > 1;
+    const numUnpivotedDimensions =
+        dimensions.length - (pivotDimensions?.length || 0);
+
+    const canUseSubtotals = useMemo(() => {
+        return !metricsAsRows && numUnpivotedDimensions > 1;
+    }, [metricsAsRows, numUnpivotedDimensions]);
+
+    // Once dimensions are loaded, if there are not enough dimensions to use subtotals then
+    // turn off "Show subtotals" so that "Show metrics as rows" can be enabled.
+    useEffect(() => {
+        if (dimensions.length > 0 && numUnpivotedDimensions < 2)
+            setShowSubtotals(false);
+    }, [dimensions.length, numUnpivotedDimensions]);
 
     const { data: totalCalculations } = useCalculateTotal(
         savedChartUuid
@@ -320,6 +332,8 @@ const useTableConfig = (
                 options: {
                     maxColumns: pivotTableMaxColumnLimit,
                 },
+                getField,
+                getFieldLabel,
             })
             .then((data) => {
                 setPivotTableData({
@@ -343,6 +357,7 @@ const useTableConfig = (
         selectedItemIds,
         isColumnVisible,
         getField,
+        getFieldLabel,
         tableChartConfig?.showColumnCalculation,
         tableChartConfig?.showRowCalculation,
         worker,

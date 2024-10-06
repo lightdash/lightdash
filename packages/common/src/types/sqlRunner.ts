@@ -1,10 +1,17 @@
-import { type ApiError, type PivotChartData } from '..';
+import {
+    type ApiError,
+    type Explore,
+    type PivotChartData,
+    type PullRequestCreated,
+    type QueryExecutionContext,
+} from '..';
 import {
     type PivotIndexColum,
     type VizAggregationOptions,
     type VizBaseConfig,
     type VizCartesianChartConfig,
     type VizChartConfig,
+    type VizChartLayout,
     type VizColumn,
     type VizPieChartConfig,
     type VizTableConfig,
@@ -23,7 +30,7 @@ export type SqlRunnerPayload = {
     userUuid: string;
     organizationUuid: string | undefined;
     sqlChartUuid?: string;
-    context: 'sqlChartView' | 'sqlRunner' | 'dashboardView'; // TODO: move scheduler types to Backend package. Can't import QueryExecutionProperties from LightdashAnalytics
+    context: QueryExecutionContext;
 } & SqlRunnerBody;
 
 type ApiSqlRunnerPivotQueryPayload = {
@@ -33,6 +40,7 @@ type ApiSqlRunnerPivotQueryPayload = {
         aggregation: VizAggregationOptions;
     }[];
     groupByColumns: { reference: string }[] | undefined;
+    sortBy: VizChartLayout['sortBy'] | undefined;
 };
 
 export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
@@ -186,5 +194,32 @@ export type ApiUpdateSqlChart = {
     results: {
         savedSqlUuid: string;
         savedSqlVersionUuid: string | null;
+    };
+};
+
+export type ApiCreateCustomExplore = {
+    status: 'ok';
+    results: Pick<Explore, 'name'>;
+};
+
+export type CreateCustomExplorePayload = {
+    name: string;
+    sql: string;
+    columns: VizColumn[];
+};
+
+export type ApiGithubDbtWriteBack = {
+    status: 'ok';
+    results: PullRequestCreated;
+};
+
+export type ApiGithubDbtWritePreview = {
+    status: 'ok';
+    results: {
+        url: string;
+        repo: string;
+        path: string;
+        files: string[];
+        owner: string;
     };
 };

@@ -59,6 +59,7 @@ import {
 } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import { generateUniqueSlug } from '../utils/SlugUtils';
 import { SpaceModel } from './SpaceModel';
 
 type DbSavedChartDetails = {
@@ -332,7 +333,7 @@ export const createSavedChart = async (
                 getChartKind(chartConfig.type, chartConfig.config) ||
                 ChartKind.VERTICAL_BAR,
             last_version_updated_by_user_uuid: userUuid,
-            slug,
+            slug: await generateUniqueSlug(trx, SavedChartsTableName, slug),
         };
         if (dashboardUuid) {
             chart = {

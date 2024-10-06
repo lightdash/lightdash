@@ -1,12 +1,16 @@
 import {
+    ApiCreateCustomExplore,
     ApiCreateSqlChart,
     ApiErrorPayload,
+    ApiGithubDbtWriteBack,
+    ApiGithubDbtWritePreview,
     ApiJobScheduledResponse,
     ApiSqlChart,
     ApiSuccessEmpty,
     ApiUpdateSqlChart,
-    ApiWarehouseCatalog,
     ApiWarehouseTableFields,
+    ApiWarehouseTablesCatalog,
+    CreateCustomExplorePayload,
     CreateSqlChart,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
@@ -31,6 +35,10 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import {
+    getContextFromHeader,
+    getContextFromQueryOrHeader,
+} from '../analytics/LightdashAnalytics';
+import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
@@ -53,7 +61,7 @@ export class SqlRunnerController extends BaseController {
     async getTables(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiWarehouseCatalog> {
+    ): Promise<ApiWarehouseTablesCatalog> {
         this.setStatus(200);
         return {
             status: 'ok',
@@ -139,7 +147,12 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getResultJobFromSqlPivotQuery(req.user!, projectUuid, body),
+                .getResultJobFromSqlPivotQuery(
+                    req.user!,
+                    projectUuid,
+                    body,
+                    getContextFromQueryOrHeader(req),
+                ),
         };
     }
 
@@ -241,12 +254,16 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
-
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getSqlChartResultJob(req.user!, projectUuid, slug),
+                .getSqlChartResultJob(
+                    req.user!,
+                    projectUuid,
+                    slug,
+                    getContextFromQueryOrHeader(req),
+                ),
         };
     }
 
@@ -361,6 +378,100 @@ export class SqlRunnerController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Create a custom explore
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('create-custom-explore')
+    @OperationId('createCustomExplore')
+    async createCustomExplore(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateCustomExplorePayload,
+    ): Promise<ApiCreateCustomExplore> {
+        this.setStatus(200);
+        const { name, sql, columns } = body;
+
+        const exploreName = await this.services
+            .getProjectService()
+            .createCustomExplore(req.user!, projectUuid, {
+                name,
+                sql,
+                columns,
+            });
+
+        return {
+            status: 'ok',
+            results: exploreName,
+        };
+    }
+
+    /**
+     * Preview write back from SQL runner
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('preview')
+    @OperationId('writeBackPreview')
+    async writeBackPreview(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateCustomExplorePayload,
+    ): Promise<ApiGithubDbtWritePreview> {
+        this.setStatus(200);
+        const { name } = body;
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .writeBackPreview(req.user!, projectUuid, name),
+        };
+    }
+
+    /**
+     * Write back from SQL runner
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('pull-request')
+    @OperationId('writeBackCreatePr')
+    async writeBackCreatePr(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateCustomExplorePayload,
+    ): Promise<ApiGithubDbtWriteBack> {
+        this.setStatus(200);
+        const { name, sql, columns } = body;
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .createPullRequestFromSql(
+                    req.user!,
+                    projectUuid,
+                    name,
+                    sql,
+                    columns,
+                ),
         };
     }
 }

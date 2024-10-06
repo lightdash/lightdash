@@ -7,6 +7,7 @@ import {
     type VizBarChartConfig,
     type VizCartesianChartOptions,
     type VizChartLayout,
+    type VizConfigErrors,
     type VizLineChartConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
@@ -16,6 +17,7 @@ export type CartesianChartState = {
     defaultLayout: VizChartLayout | undefined;
     config: VizBarChartConfig | VizLineChartConfig | undefined;
     options: VizCartesianChartOptions;
+    errors: VizConfigErrors | undefined;
 };
 
 const initialState: CartesianChartState = {
@@ -26,6 +28,7 @@ const initialState: CartesianChartState = {
         valuesLayoutOptions: [],
         pivotLayoutOptions: [],
     },
+    errors: undefined,
 };
 
 export const cartesianChartConfigSlice = createSlice({
@@ -107,16 +110,14 @@ export const cartesianChartConfigSlice = createSlice({
         },
         setXAxisLabel: (
             { config },
-            action: PayloadAction<CartesianChartDisplay['xAxis']>,
+            action: PayloadAction<
+                Pick<Required<CartesianChartDisplay>['xAxis'], 'label'>
+            >,
         ) => {
             if (!config) return;
-            if (!config.display) {
-                config.display = {
-                    xAxis: action.payload,
-                };
-            } else {
-                config.display.xAxis = action.payload;
-            }
+            if (!config.display) config.display = {};
+            if (!config.display.xAxis) config.display.xAxis = {};
+            config.display.xAxis.label = action.payload.label;
         },
         setYAxisLabel: (
             { config },
@@ -235,6 +236,14 @@ export const cartesianChartConfigSlice = createSlice({
             if (!state.config?.fieldConfig) return;
             delete state.config.fieldConfig.x;
         },
+        setSortBy: (
+            { config },
+            action: PayloadAction<VizChartLayout['sortBy']>,
+        ) => {
+            if (!config?.fieldConfig) return;
+            config.fieldConfig.sortBy = action.payload;
+        },
+
         setStacked: ({ config }, action: PayloadAction<boolean>) => {
             if (!config) return;
 
@@ -286,7 +295,10 @@ export const cartesianChartConfigSlice = createSlice({
                 reference: string;
             }>,
         ) => {
-            if (!config?.display) return;
+            if (!config) return;
+            config.display = config.display || {};
+            config.display.yAxis = config.display.yAxis || [];
+            config.display.series = config.display.series || {};
 
             const { index, format, reference } = action.payload;
             const validFormat = isFormat(format) ? format : undefined;
@@ -305,6 +317,29 @@ export const cartesianChartConfigSlice = createSlice({
                     format: validFormat,
                 };
             }
+        },
+        setSeriesChartType: (
+            { config },
+            action: PayloadAction<{
+                index: number;
+                type: NonNullable<
+                    CartesianChartDisplay['series']
+                >[number]['type'];
+                reference: string;
+            }>,
+        ) => {
+            if (!config) return;
+            config.display = config.display || {};
+            config.display.series = config.display.series || {};
+
+            const { index, type, reference } = action.payload;
+
+            config.display.series = config.display.series || {};
+            config.display.series[reference] = {
+                ...config.display.series[reference],
+                yAxisIndex: index,
+                type,
+            };
         },
         setSeriesColor: (
             { config },

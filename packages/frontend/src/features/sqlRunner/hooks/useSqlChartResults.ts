@@ -15,16 +15,20 @@ export const getSqlChartResults = async ({
     projectUuid,
     slug,
     getResultsFromStream,
+    context,
 }: {
     projectUuid: string;
     slug: string;
     getResultsFromStream: ReturnType<
         typeof useResultsFromStreamWorker
     >['getResultsFromStream'];
+    context: string | undefined;
 }) => {
     const scheduledJob = await lightdashApi<ApiJobScheduledResponse['results']>(
         {
-            url: `/projects/${projectUuid}/sqlRunner/saved/slug/${slug}/results-job`,
+            url: `/projects/${projectUuid}/sqlRunner/saved/slug/${slug}/results-job${
+                context ? `?context=${context}` : ''
+            }`,
             method: 'GET',
             body: undefined,
         },
@@ -43,7 +47,7 @@ export const getSqlChartResults = async ({
     const results = await getResultsFromStream(url);
 
     return {
-        url: url!,
+        fileUrl: url!,
         results,
         columns:
             isApiSqlRunnerJobSuccessResponse(job) &&
@@ -64,10 +68,11 @@ export const getSqlChartResults = async ({
 export const useSqlChartResults = (
     projectUuid: string,
     slug: string | undefined,
+    context?: string,
 ) => {
     const { getResultsFromStream } = useResultsFromStreamWorker();
     return useQuery<
-        (ResultsAndColumns & { url: string }) | undefined,
+        (ResultsAndColumns & { fileUrl: string }) | undefined,
         ApiError
     >(
         ['sqlChartResults', projectUuid, slug],
@@ -76,10 +81,11 @@ export const useSqlChartResults = (
                 projectUuid,
                 slug: slug!,
                 getResultsFromStream,
+                context,
             });
         },
         {
-            enabled: Boolean(slug),
+            enabled: Boolean(slug) && Boolean(projectUuid),
         },
     );
 };

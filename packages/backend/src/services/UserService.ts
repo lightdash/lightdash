@@ -291,15 +291,27 @@ export class UserService extends BaseService {
     }
 
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
-        if (user.organizationUuid) {
-            if (user.ability.cannot('delete', 'OrganizationMemberProfile')) {
+        const [orgForUser] = await this.userModel.getOrganizationsForUser(
+            userUuidToDelete,
+        );
+        if (orgForUser.organizationUuid) {
+            // We assume only one org per user
+
+            if (
+                user.ability.cannot(
+                    'delete',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: orgForUser.organizationUuid,
+                    }),
+                )
+            ) {
                 throw new ForbiddenError();
             }
 
             // Race condition between check and delete
             const [admin, ...remainingAdmins] =
                 await this.organizationMemberProfileModel.getOrganizationAdmins(
-                    user.organizationUuid,
+                    orgForUser.organizationUuid,
                 );
             if (
                 remainingAdmins.length === 0 &&
@@ -369,6 +381,18 @@ export class UserService extends BaseService {
             userUuid = pendingUser.userUuid;
         } else {
             userUuid = existingUserWithEmail.userUuid;
+        }
+
+        if (existingUserWithEmail && !existingUserWithEmail?.organizationUuid) {
+            Logger.warn(
+                `User with email ${email} already exists but has no org, so we invite them to join`,
+            );
+            await this.userModel.joinOrg(
+                existingUserWithEmail.userUuid,
+                organizationUuid,
+                userRole,
+                undefined,
+            );
         }
 
         const inviteLink = await this.inviteLinkModel.upsert(

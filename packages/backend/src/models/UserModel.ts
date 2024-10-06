@@ -4,6 +4,7 @@ import {
     CreateUserWithRole,
     ForbiddenError,
     getUserAbilityBuilder,
+    InvalidUser,
     isOpenIdUser,
     LightdashMode,
     LightdashUser,
@@ -632,7 +633,7 @@ export class UserModel {
             .select('*', 'organizations.created_at as organization_created_at');
 
         if (user === undefined) {
-            throw new NotFoundError(
+            throw new InvalidUser(
                 `Cannot find user with uuid ${userUuid} and org ${organizationUuid}`,
             );
         }

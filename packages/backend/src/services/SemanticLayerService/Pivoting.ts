@@ -5,6 +5,8 @@ export function pivotResults(
     results: SemanticLayerResultRow[],
     { values, ...options }: SemanticLayerPivot,
 ): SemanticLayerResultRow[] {
+    if (values.length === 0) return results;
+
     return pl
         .DataFrame(results)
         .pivot(values, {

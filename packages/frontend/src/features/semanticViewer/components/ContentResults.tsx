@@ -3,6 +3,7 @@ import { IconCodeCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
 import { useAppSelector } from '../store/hooks';
@@ -17,14 +18,17 @@ enum TabPanel {
     SQL = 'SQL',
 }
 
-const ContentResults: FC = () => {
+type ContentResultsProps = {
+    onTableHeaderClick: (fieldName: string) => void;
+};
+
+const ContentResults: FC<ContentResultsProps> = ({ onTableHeaderClick }) => {
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
+    const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
     const { results, columns, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
-
-    const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
 
     const [openPanel, setOpenPanel] = useState<TabPanel>();
 
@@ -52,6 +56,10 @@ const ContentResults: FC = () => {
         fields,
     ]);
 
+    const thSortConfig = useMemo(() => {
+        return resultsRunner.getTableHeaderSortConfig();
+    }, [resultsRunner]);
+
     return (
         <>
             <PanelGroup direction="vertical">
@@ -61,28 +69,37 @@ const ContentResults: FC = () => {
                     minSize={30}
                     style={{ display: 'flex' }}
                 >
-                    <Table
-                        resultsRunner={resultsRunner}
-                        columnsConfig={resultsTableVizConfig.columns}
-                        flexProps={{
-                            m: '-1px',
-                        }}
-                    />
+                    {results.length > 0 ? (
+                        <Table
+                            resultsRunner={resultsRunner}
+                            columnsConfig={resultsTableVizConfig.columns}
+                            thSortConfig={thSortConfig}
+                            onTHClick={onTableHeaderClick}
+                            flexProps={{
+                                m: '-1px',
+                            }}
+                        />
+                    ) : (
+                        <SuboptimalState
+                            title="No results"
+                            description="Select fields and adjust filters to see results."
+                        />
+                    )}
                 </Panel>
 
                 {openPanel === TabPanel.SQL && (
                     <>
                         <Box
                             component={PanelResizeHandle}
-                            bg="gray.3"
-                            h="two"
+                            bg="gray.2"
+                            h="xs"
                             sx={(theme) => ({
                                 transition: 'background-color 0.2s ease-in-out',
                                 '&[data-resize-handle-state="hover"]': {
-                                    backgroundColor: theme.colors.gray[5],
+                                    backgroundColor: theme.colors.gray[3],
                                 },
                                 '&[data-resize-handle-state="drag"]': {
-                                    backgroundColor: theme.colors.gray[8],
+                                    backgroundColor: theme.colors.gray[4],
                                 },
                             })}
                         />

@@ -9,12 +9,7 @@ In Lightdash, metrics are used to summarize dimensions or, sometimes, other metr
 
 ---
 
-## Adding metrics to your project
-
-There are two ways to add metrics to your project in Lightdash:
-
-1. (**Suggested**) [Using the `meta` tag](#using-the-meta-tag)
-2. [Using dbt's Semantic Layer](#using-dbts-semantic-layer) (this integration is in public beta in Lightdash)
+## Adding metrics to your project using the `meta` tag.
 
 ### 1. Using the column `meta` tag (Suggested)
 
@@ -51,10 +46,6 @@ models:
           type: count_distinct
           sql: ${TABLE}.user_id
 ```
-
-### 3. Using dbt's Semantic Layer
-
-Lightdash is dbt Semantic Layer ready and the integration is now available in public preview for Lightdash Cloud users. You can query your Semantic Layer via the Lightdash UI. To learn more about the Semantic Layer integration, click [here](/references/dbt-semantic-layer).
 
 ## Metric Categories
 

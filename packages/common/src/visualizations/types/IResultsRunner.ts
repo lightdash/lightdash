@@ -1,4 +1,8 @@
-import { type PivotChartData, type VizCartesianChartOptions } from '.';
+import {
+    type PivotChartData,
+    type VizCartesianChartOptions,
+    type VizConfigErrors,
+} from '.';
 import { type RawResultRow } from '../../types/results';
 
 export interface IResultsRunner<TPivotChartLayout> {
@@ -10,6 +14,7 @@ export interface IResultsRunner<TPivotChartLayout> {
         limit?: number,
         slug?: string,
         uuid?: string,
+        context?: string,
     ): Promise<PivotChartData>;
 
     defaultPivotChartLayout(): TPivotChartLayout | undefined;
@@ -19,6 +24,10 @@ export interface IResultsRunner<TPivotChartLayout> {
     ): TPivotChartLayout | undefined;
 
     pivotChartOptions(): VizCartesianChartOptions;
+
+    getPivotChartLayoutErrors(
+        config: TPivotChartLayout | undefined,
+    ): VizConfigErrors | undefined;
 
     getColumns(): string[];
 

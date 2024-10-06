@@ -741,6 +741,15 @@ describe('Project member permissions', () => {
                 ability.can('manage', subject('SqlRunner', { projectUuid })),
             ).toEqual(false);
         });
+
+        it('can use the SemanticViewer', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SemanticViewer', { projectUuid }),
+                ),
+            ).toEqual(true);
+        });
     });
 
     describe('when user is an developer', () => {
@@ -751,6 +760,15 @@ describe('Project member permissions', () => {
         it('can use SQL runner', () => {
             expect(
                 ability.can('manage', subject('SqlRunner', { projectUuid })),
+            ).toEqual(true);
+        });
+
+        it('can use the SemanticViewer', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SemanticViewer', { projectUuid }),
+                ),
             ).toEqual(true);
         });
     });
@@ -1107,6 +1125,12 @@ describe('Project member permissions', () => {
             expect(
                 ability.can('manage', subject('SqlRunner', { projectUuid })),
             ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SemanticViewer', { projectUuid }),
+                ),
+            ).toEqual(false);
         });
         it('can download CSV', () => {
             expect(
@@ -1159,6 +1183,9 @@ describe('Project member permissions', () => {
             ).toEqual(true);
             expect(
                 ability.can('view', subject('Project', { projectUuid })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('SemanticViewer', { projectUuid })),
             ).toEqual(true);
         });
         it('can not view private resources', () => {
@@ -1258,6 +1285,12 @@ describe('Project member permissions', () => {
             ).toEqual(false);
             expect(
                 ability.can('manage', subject('SqlRunner', { projectUuid })),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SemanticViewer', { projectUuid }),
+                ),
             ).toEqual(false);
         });
         it('can download CSV', () => {

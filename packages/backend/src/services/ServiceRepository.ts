@@ -22,6 +22,7 @@ import { PinningService } from './PinningService/PinningService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
+import { SavedSemanticViewerChartService } from './SavedSemanticViewerChartService/SavedSemanticViewerChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
@@ -72,6 +73,7 @@ interface ServiceManifest {
     savedSqlService: SavedSqlService;
     contentService: ContentService;
     semanticLayerService: SemanticLayerService;
+    savedSemanticViewerChartService: SavedSemanticViewerChartService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -243,8 +245,10 @@ export class ServiceRepository
                     s3Client: this.clients.getS3Client(),
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
@@ -676,9 +680,24 @@ export class ServiceRepository
                     downloadFileModel: this.models.getDownloadFileModel(),
 
                     schedulerClient: this.clients.getSchedulerClient(),
-                    cubeClient: this.clients.getCubeClient(),
-                    dbtCloudClient: this.clients.getDbtCloudGraphqlClient(),
                     s3Client: this.clients.getS3Client(),
+
+                    savedSemanticViewerChartService:
+                        this.getSavedSemanticViewerChartService(),
+                }),
+        );
+    }
+
+    public getSavedSemanticViewerChartService(): SavedSemanticViewerChartService {
+        return this.getService(
+            'savedSemanticViewerChartService',
+            () =>
+                new SavedSemanticViewerChartService({
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    savedSemanticViewerChartModel:
+                        this.models.getSavedSemanticViewerChartModel(),
+                    spaceModel: this.models.getSpaceModel(),
                 }),
         );
     }

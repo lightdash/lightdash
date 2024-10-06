@@ -9,12 +9,14 @@ const getDashboardSqlChartAndPossibleResults = async ({
     projectUuid,
     savedSqlUuid,
     getResultsFromStream,
+    context,
 }: {
     projectUuid: string;
     savedSqlUuid: string;
     getResultsFromStream: ReturnType<
         typeof useResultsFromStreamWorker
     >['getResultsFromStream'];
+    context: string | undefined;
 }): Promise<{ resultsAndColumns: ResultsAndColumns; chart: SqlChart }> => {
     const chart = await fetchSavedSqlChart({
         projectUuid,
@@ -27,6 +29,7 @@ const getDashboardSqlChartAndPossibleResults = async ({
         return {
             chart,
             resultsAndColumns: {
+                fileUrl: undefined,
                 results: [],
                 columns: [],
             },
@@ -37,11 +40,13 @@ const getDashboardSqlChartAndPossibleResults = async ({
         projectUuid,
         slug: chart.slug,
         getResultsFromStream,
+        context,
     });
 
     return {
         chart,
         resultsAndColumns: {
+            fileUrl: resultsTest.fileUrl,
             results: resultsTest.results,
             columns: resultsTest.columns,
         },
@@ -58,21 +63,24 @@ const getDashboardSqlChartAndPossibleResults = async ({
 export const useDashboardSqlChart = ({
     savedSqlUuid,
     projectUuid,
+    context,
 }: {
     savedSqlUuid: string | null;
     projectUuid: string;
+    context: string | undefined;
 }) => {
     const { getResultsFromStream } = useResultsFromStreamWorker();
     return useQuery<
         { resultsAndColumns: ResultsAndColumns; chart: SqlChart },
         ApiError & { slug?: string }
     >(
-        ['sqlChartResults', projectUuid, savedSqlUuid],
+        ['sqlChartResults', projectUuid, savedSqlUuid, context],
         () => {
             return getDashboardSqlChartAndPossibleResults({
                 projectUuid,
                 savedSqlUuid: savedSqlUuid!,
                 getResultsFromStream,
+                context,
             });
         },
         {

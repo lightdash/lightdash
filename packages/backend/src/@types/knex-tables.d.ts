@@ -17,10 +17,6 @@ import {
     DashboardViewsTableName,
     DashboardViewTable,
 } from '../database/entities/dashboards';
-import {
-    DbtCloudIntegrationsTable,
-    DbtCloudIntegrationsTableName,
-} from '../database/entities/dbtCloudIntegrations';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
 import {
     InviteLinkTable,
@@ -163,6 +159,12 @@ import {
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
 import {
+    SavedSemanticViewerChartsTable,
+    SavedSemanticViewerChartsTableName,
+    SavedSemanticViewerChartVersionsTable,
+    SavedSemanticViewerChartVersionsTableName,
+} from '../database/entities/savedSemanticViewerCharts';
+import {
     SavedSqlTable,
     SavedSqlTableName,
     SavedSqlVersionsTable,
@@ -224,6 +226,8 @@ declare module 'knex/types/tables' {
         [SavedChartAdditionalMetricTableName]: SavedChartAdditionalMetricTable;
         [SavedSqlTableName]: SavedSqlTable;
         [SavedSqlVersionsTableName]: SavedSqlVersionsTable;
+        [SavedSemanticViewerChartsTableName]: SavedSemanticViewerChartsTable;
+        [SavedSemanticViewerChartVersionsTableName]: SavedSemanticViewerChartVersionsTable;
         [SpaceTableName]: SpaceTable;
         [DashboardsTableName]: DashboardTable;
         [DashboardVersionsTableName]: DashboardVersionTable;
@@ -246,7 +250,6 @@ declare module 'knex/types/tables' {
         [PersonalAccessTokenTableName]: PersonalAccessTokenTable;
         [ProjectMembershipsTableName]: ProjectMembershipsTable;
         [ProjectGroupAccessTableName]: ProjectGroupAccessTable;
-        [DbtCloudIntegrationsTableName]: DbtCloudIntegrationsTable;
         [ShareTableName]: ShareTable;
         [SpaceUserAccessTableName]: SpaceUserAccessTable;
         [SlackAuthTokensTableName]: SlackAuthTokensTable;

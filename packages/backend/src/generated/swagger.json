@@ -532,7 +532,13 @@
                 "type": "object"
             },
             "DashboardTileTypes": {
-                "enum": ["saved_chart", "sql_chart", "markdown", "loom"],
+                "enum": [
+                    "saved_chart",
+                    "sql_chart",
+                    "semantic_viewer_chart",
+                    "markdown",
+                    "loom"
+                ],
                 "type": "string"
             },
             "Required_CreateDashboardTileBase_": {
@@ -739,6 +745,51 @@
                     }
                 ]
             },
+            "DashboardTileTypes.SEMANTIC_VIEWER_CHART": {
+                "enum": ["semantic_viewer_chart"],
+                "type": "string"
+            },
+            "DashboardSemanticViewerChartTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "chartName": {
+                                "type": "string"
+                            },
+                            "savedSemanticViewerChartUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "chartName",
+                            "savedSemanticViewerChartUuid"
+                        ],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.SEMANTIC_VIEWER_CHART"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardSemanticViewerChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTileProperties"
+                    }
+                ]
+            },
             "DashboardTile": {
                 "anyOf": [
                     {
@@ -752,6 +803,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardSqlChartTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTile"
                     }
                 ]
             },
@@ -2704,47 +2758,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_CreateDbtCloudIntegration.metricsJobId_": {
-                "properties": {
-                    "metricsJobId": {
-                        "type": "string",
-                        "description": "Job id for a dbt cloud job containing a compiled dbt project with available dbt metrics"
-                    }
-                },
-                "required": ["metricsJobId"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "DbtCloudIntegration": {
-                "$ref": "#/components/schemas/Pick_CreateDbtCloudIntegration.metricsJobId_",
-                "description": "Configuration for a Lightdash integration with dbt Cloud"
-            },
-            "ApiDbtCloudIntegrationSettings": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DbtCloudIntegration"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
-            "ApiDbtCloudSettingsDeleteSuccess": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
             "ApiSuccessEmpty": {
                 "properties": {
                     "results": {},
@@ -2757,6 +2770,10 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "ExploreType": {
+                "enum": ["virtual", "default"],
+                "type": "string"
+            },
             "Pick_Explore.SummaryExploreFields_": {
                 "properties": {
                     "name": {
@@ -2767,6 +2784,9 @@
                     },
                     "groupLabel": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
                     },
                     "tags": {
                         "items": {
@@ -2804,6 +2824,9 @@
                     },
                     "groupLabel": {
                         "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
                     },
                     "tags": {
                         "items": {
@@ -3036,6 +3059,9 @@
             },
             "Explore": {
                 "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/ExploreType"
+                    },
                     "sqlPath": {
                         "type": "string"
                     },
@@ -4345,7 +4371,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ChartSourceType": {
-                "enum": ["dbt_explore", "sql"],
+                "enum": ["dbt_explore", "sql", "semantic_layer"],
                 "type": "string"
             },
             "ResourceViewChartItem": {
@@ -5251,8 +5277,62 @@
                 "enum": ["v1.4", "v1.5", "v1.6", "v1.7", "v1.8"],
                 "type": "string"
             },
+            "SemanticLayerType.DBT": {
+                "enum": ["DBT"],
+                "type": "string"
+            },
+            "DbtSemanticLayerConnection": {
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "environmentId": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/SemanticLayerType.DBT"
+                    }
+                },
+                "required": ["token", "domain", "environmentId", "type"],
+                "type": "object"
+            },
+            "SemanticLayerType.CUBE": {
+                "enum": ["CUBE"],
+                "type": "string"
+            },
+            "CubeSemanticLayerConnection": {
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/SemanticLayerType.CUBE"
+                    }
+                },
+                "required": ["token", "domain", "type"],
+                "type": "object"
+            },
+            "SemanticLayerConnection": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DbtSemanticLayerConnection"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CubeSemanticLayerConnection"
+                    }
+                ]
+            },
             "Project": {
                 "properties": {
+                    "semanticLayerConnection": {
+                        "$ref": "#/components/schemas/SemanticLayerConnection"
+                    },
                     "dbtVersion": {
                         "$ref": "#/components/schemas/SupportedDbtVersions"
                     },
@@ -6475,6 +6555,12 @@
                     },
                     {
                         "properties": {
+                            "selectedTabs": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "customViewportWidth": {
                                 "type": "number",
                                 "format": "double"
@@ -7234,21 +7320,35 @@
                 "required": ["spaceRole", "groupUuid"],
                 "type": "object"
             },
-            "WarehouseTableSchema": {
-                "properties": {},
-                "additionalProperties": {
-                    "$ref": "#/components/schemas/DimensionType"
+            "PartitionType": {
+                "enum": ["DATE", "RANGE"],
+                "type": "string"
+            },
+            "PartitionColumn": {
+                "properties": {
+                    "field": {
+                        "type": "string"
+                    },
+                    "partitionType": {
+                        "$ref": "#/components/schemas/PartitionType"
+                    }
                 },
+                "required": ["field", "partitionType"],
                 "type": "object"
             },
-            "WarehouseCatalog": {
+            "WarehouseTablesCatalog": {
                 "properties": {},
                 "additionalProperties": {
                     "properties": {},
                     "additionalProperties": {
                         "properties": {},
                         "additionalProperties": {
-                            "$ref": "#/components/schemas/WarehouseTableSchema"
+                            "properties": {
+                                "partitionColumn": {
+                                    "$ref": "#/components/schemas/PartitionColumn"
+                                }
+                            },
+                            "type": "object"
                         },
                         "type": "object"
                     },
@@ -7256,10 +7356,10 @@
                 },
                 "type": "object"
             },
-            "ApiWarehouseCatalog": {
+            "ApiWarehouseTablesCatalog": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/WarehouseCatalog"
+                        "$ref": "#/components/schemas/WarehouseTablesCatalog"
                     },
                     "status": {
                         "type": "string",
@@ -7268,6 +7368,13 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "WarehouseTableSchema": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DimensionType"
+                },
                 "type": "object"
             },
             "ApiWarehouseTableFields": {
@@ -7323,8 +7430,30 @@
                 "enum": ["sum", "count", "avg", "min", "max", "any"],
                 "type": "string"
             },
+            "SortByDirection": {
+                "enum": ["ASC", "DESC"],
+                "type": "string"
+            },
+            "VizSortBy": {
+                "properties": {
+                    "direction": {
+                        "$ref": "#/components/schemas/SortByDirection"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["direction", "reference"],
+                "type": "object"
+            },
             "ApiSqlRunnerPivotQueryPayload": {
                 "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
                     "groupByColumns": {
                         "items": {
                             "properties": {
@@ -7398,6 +7527,12 @@
             },
             "VizChartLayout": {
                 "properties": {
+                    "sortBy": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizSortBy"
+                        },
+                        "type": "array"
+                    },
                     "groupBy": {
                         "items": {
                             "properties": {
@@ -7464,6 +7599,16 @@
                         "properties": {},
                         "additionalProperties": {
                             "properties": {
+                                "type": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ChartKind.LINE"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                                        }
+                                    ]
+                                },
                                 "color": {
                                     "type": "string"
                                 },
@@ -7508,7 +7653,6 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["type"],
                         "type": "object"
                     }
                 },
@@ -8003,6 +8147,109 @@
                         "$ref": "#/components/schemas/UpdateUnversionedSqlChart"
                     }
                 },
+                "type": "object"
+            },
+            "Pick_Explore.name_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiCreateCustomExplore": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Pick_Explore.name_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "VizColumn": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reference"],
+                "type": "object"
+            },
+            "CreateCustomExplorePayload": {
+                "properties": {
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizColumn"
+                        },
+                        "type": "array"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["columns", "sql", "name"],
+                "type": "object"
+            },
+            "ApiGithubDbtWritePreview": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "owner": {
+                                "type": "string"
+                            },
+                            "files": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "path": {
+                                "type": "string"
+                            },
+                            "repo": {
+                                "type": "string"
+                            },
+                            "url": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["owner", "files", "path", "repo", "url"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGithubDbtWriteBack": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/PullRequestCreated"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
@@ -9027,7 +9274,12 @@
                         "nullable": false
                     },
                     "results": {
-                        "$ref": "#/components/schemas/SemanticLayerClientInfo"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerClientInfo"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": ["status", "results"],
@@ -9072,15 +9324,15 @@
                 ],
                 "type": "string"
             },
-            "SemanticLayerStringFilterOperator": {
-                "enum": ["IS", "IS NOT"],
+            "SemanticLayerFilterBaseOperator": {
+                "enum": ["IS", "IS_NOT"],
                 "type": "string"
             },
             "SemanticLayerField": {
                 "properties": {
                     "availableOperators": {
                         "items": {
-                            "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
+                            "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
                         },
                         "type": "array"
                     },
@@ -9171,6 +9423,161 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "SemanticLayerFilterBase": {
+                "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/SemanticLayerFieldType"
+                    },
+                    "fieldKind": {
+                        "$ref": "#/components/schemas/FieldType"
+                    },
+                    "fieldRef": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldType", "fieldKind", "fieldRef", "uuid"],
+                "type": "object"
+            },
+            "SemanticLayerFieldType.STRING": {
+                "enum": ["string"],
+                "type": "string"
+            },
+            "SemanticLayerStringFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "operator": {
+                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            },
+                            "fieldType": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldType.STRING"
+                            }
+                        },
+                        "required": ["values", "operator", "fieldType"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerFieldType.TIME": {
+                "enum": ["time"],
+                "type": "string"
+            },
+            "SemanticLayerExactTimeFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "properties": {
+                                    "time": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["time"],
+                                "type": "object"
+                            },
+                            "operator": {
+                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            },
+                            "fieldType": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldType.TIME"
+                            }
+                        },
+                        "required": ["values", "operator", "fieldType"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerFilterRelativeTimeValue": {
+                "enum": ["TODAY", "YESTERDAY", "LAST_7_DAYS", "LAST_30_DAYS"],
+                "type": "string"
+            },
+            "SemanticLayerRelativeTimeFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
+                    },
+                    {
+                        "properties": {
+                            "values": {
+                                "properties": {
+                                    "relativeTime": {
+                                        "$ref": "#/components/schemas/SemanticLayerFilterRelativeTimeValue"
+                                    }
+                                },
+                                "required": ["relativeTime"],
+                                "type": "object"
+                            },
+                            "operator": {
+                                "$ref": "#/components/schemas/SemanticLayerFilterBaseOperator"
+                            },
+                            "fieldType": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldType.TIME"
+                            }
+                        },
+                        "required": ["values", "operator", "fieldType"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerTimeFilter": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerExactTimeFilter"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerRelativeTimeFilter"
+                    }
+                ]
+            },
+            "SemanticLayerFilterTypes": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerStringFilter"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerTimeFilter"
+                    }
+                ]
+            },
+            "SemanticLayerFilter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerFilterTypes"
+                    },
+                    {
+                        "properties": {
+                            "or": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SemanticLayerFilter"
+                                },
+                                "type": "array"
+                            },
+                            "and": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SemanticLayerFilter"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "Pick_SemanticLayerField.name-or-kind_": {
                 "properties": {
                     "name": {
@@ -9228,84 +9635,8 @@
                 "required": ["values", "index", "on"],
                 "type": "object"
             },
-            "SemanticLayerFilterBase": {
-                "properties": {
-                    "fieldType": {
-                        "$ref": "#/components/schemas/SemanticLayerFieldType"
-                    },
-                    "fieldKind": {
-                        "$ref": "#/components/schemas/FieldType"
-                    },
-                    "field": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["fieldType", "fieldKind", "field", "uuid"],
-                "type": "object"
-            },
-            "SemanticLayerStringFilter": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerFilterBase"
-                    },
-                    {
-                        "properties": {
-                            "values": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "operator": {
-                                "$ref": "#/components/schemas/SemanticLayerStringFilterOperator"
-                            }
-                        },
-                        "required": ["values", "operator"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerFilterTypes": {
-                "$ref": "#/components/schemas/SemanticLayerStringFilter"
-            },
-            "SemanticLayerFilter": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerFilterTypes"
-                    },
-                    {
-                        "properties": {
-                            "or": {
-                                "items": {
-                                    "$ref": "#/components/schemas/SemanticLayerFilter"
-                                },
-                                "type": "array"
-                            },
-                            "and": {
-                                "items": {
-                                    "$ref": "#/components/schemas/SemanticLayerFilter"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
             "SemanticLayerQuery": {
                 "properties": {
-                    "filters": {
-                        "items": {
-                            "$ref": "#/components/schemas/SemanticLayerFilter"
-                        },
-                        "type": "array"
-                    },
-                    "pivot": {
-                        "$ref": "#/components/schemas/SemanticLayerPivot"
-                    },
                     "timezone": {
                         "type": "string"
                     },
@@ -9313,9 +9644,18 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "pivot": {
+                        "$ref": "#/components/schemas/SemanticLayerPivot"
+                    },
                     "sortBy": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerSortBy"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerFilter"
                         },
                         "type": "array"
                     },
@@ -9339,12 +9679,281 @@
                     }
                 },
                 "required": [
-                    "filters",
                     "sortBy",
+                    "filters",
                     "metrics",
                     "timeDimensions",
                     "dimensions"
                 ],
+                "type": "object"
+            },
+            "SemanticViewerChartCreateResult": {
+                "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
+                    "savedSemanticViewerChartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["slug", "savedSemanticViewerChartUuid"],
+                "type": "object"
+            },
+            "ApiSemanticViewerChartCreate": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticViewerChartCreateResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticViewerChartCreate": {
+                "properties": {
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/VizChartConfig"
+                    },
+                    "semanticLayerQuery": {
+                        "$ref": "#/components/schemas/SemanticLayerQuery"
+                    },
+                    "semanticLayerView": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "spaceUuid",
+                    "config",
+                    "semanticLayerQuery",
+                    "semanticLayerView",
+                    "description",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "AllVizChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBarChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizLineChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizPieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizTableConfig"
+                    }
+                ]
+            },
+            "SavedSemanticViewerChart": {
+                "properties": {
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "organization": {
+                        "$ref": "#/components/schemas/Pick_Organization.organizationUuid_"
+                    },
+                    "project": {
+                        "$ref": "#/components/schemas/Pick_Project.projectUuid_"
+                    },
+                    "dashboard": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "space": {
+                        "$ref": "#/components/schemas/Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_"
+                    },
+                    "lastUpdatedBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "semanticLayerQuery": {
+                        "$ref": "#/components/schemas/SemanticLayerQuery"
+                    },
+                    "semanticLayerView": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/AllVizChartConfig"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "savedSemanticViewerChartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "lastViewedAt",
+                    "firstViewedAt",
+                    "views",
+                    "organization",
+                    "project",
+                    "dashboard",
+                    "space",
+                    "lastUpdatedBy",
+                    "lastUpdatedAt",
+                    "createdBy",
+                    "createdAt",
+                    "chartKind",
+                    "semanticLayerQuery",
+                    "semanticLayerView",
+                    "config",
+                    "slug",
+                    "description",
+                    "name",
+                    "savedSemanticViewerChartUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSemanticViewerChartGet": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SavedSemanticViewerChart"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticViewerChartUpdateResult": {
+                "properties": {
+                    "savedSemanticViewerChartVersionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedSemanticViewerChartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "savedSemanticViewerChartVersionUuid",
+                    "savedSemanticViewerChartUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSemanticViewerChartUpdate": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticViewerChartUpdateResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SemanticViewerChartUpdate": {
+                "properties": {
+                    "versionedData": {
+                        "properties": {
+                            "chartKind": {
+                                "$ref": "#/components/schemas/ChartKind"
+                            },
+                            "config": {
+                                "$ref": "#/components/schemas/VizChartConfig"
+                            },
+                            "semanticLayerQuery": {
+                                "$ref": "#/components/schemas/SemanticLayerQuery"
+                            },
+                            "semanticLayerView": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "chartKind",
+                            "config",
+                            "semanticLayerQuery",
+                            "semanticLayerView"
+                        ],
+                        "type": "object"
+                    },
+                    "unversionedData": {
+                        "properties": {
+                            "spaceUuid": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["spaceUuid", "description", "name"],
+                        "type": "object"
+                    }
+                },
                 "type": "object"
             },
             "ValidationTarget": {
@@ -9588,7 +10197,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1249.0",
+        "version": "0.1293.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -10181,124 +10790,6 @@
                         "description": "dashboardUuid for the dashboard to check diff",
                         "in": "path",
                         "name": "dashboardUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/integrations/dbt-cloud/settings": {
-            "get": {
-                "operationId": "getDbtCloudIntegrationSettings",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiDbtCloudIntegrationSettings"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get the current dbt Cloud integration settings for a project",
-                "tags": ["Integrations"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "the uuid of the project",
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            },
-            "post": {
-                "operationId": "updateDbtCloudIntegrationSettings",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiDbtCloudIntegrationSettings"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Update the dbt Cloud integration settings for a project",
-                "tags": ["Integrations"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "the uuid of the project",
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            },
-            "delete": {
-                "operationId": "deleteDbtCloudIntegrationSettings",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiDbtCloudSettingsDeleteSuccess"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Remove the dbt Cloud integration settings for a project",
-                "tags": ["Integrations"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -11464,71 +11955,6 @@
                         }
                     }
                 ]
-            }
-        },
-        "/api/v1/projects/{projectUuid}/dbtsemanticlayer": {
-            "post": {
-                "operationId": "GetDbtSemanticLayerData",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Get DbtSemanticLayer data",
-                "tags": ["DbtSemanticLayer"],
-                "security": [],
-                "parameters": [
-                    {
-                        "description": "the projectId",
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "description": "graphql query",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "operationName": {
-                                        "type": "string",
-                                        "enum": [
-                                            "GetFields",
-                                            "CreateQuery",
-                                            "GetQueryResults"
-                                        ]
-                                    },
-                                    "query": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["query"],
-                                "type": "object",
-                                "description": "graphql query"
-                            }
-                        }
-                    }
-                }
             }
         },
         "/api/v1/notifications": {
@@ -13118,6 +13544,92 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-layer-connection": {
+            "patch": {
+                "operationId": "updateProjectSemanticLayerConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticLayerConnection"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteProjectSemanticLayerConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {

@@ -583,6 +583,30 @@ export const getChartKind = (
     }
 };
 
+export const getEChartsChartTypeFromChartKind = (
+    chartKind:
+        | ChartKind.VERTICAL_BAR
+        | ChartKind.LINE
+        | ChartKind.AREA
+        | ChartKind.SCATTER,
+): CartesianSeriesType => {
+    switch (chartKind) {
+        case ChartKind.VERTICAL_BAR:
+            return CartesianSeriesType.BAR;
+        case ChartKind.LINE:
+            return CartesianSeriesType.LINE;
+        case ChartKind.AREA:
+            return CartesianSeriesType.AREA;
+        case ChartKind.SCATTER:
+            return CartesianSeriesType.SCATTER;
+        default:
+            return assertUnreachable(
+                chartKind,
+                `Unknown chart kind: ${chartKind}`,
+            );
+    }
+};
+
 export type ChartSummary = Pick<
     SavedChart,
     | 'uuid'

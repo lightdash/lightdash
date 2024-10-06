@@ -159,7 +159,8 @@ const Invite: FC = () => {
         health.data?.auth.google.enabled ||
         health.data?.auth.okta.enabled ||
         health.data?.auth.oneLogin.enabled ||
-        health.data?.auth.azuread.enabled;
+        health.data?.auth.azuread.enabled ||
+        health.data?.auth.oidc.enabled;
     const ssoLogins = ssoAvailable && (
         <Stack>
             {Object.values(OpenIdIdentityIssuerType).map((providerName) => (
