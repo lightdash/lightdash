@@ -47,6 +47,7 @@ import {
     setSavedChartData,
     setSqlRunnerResults,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { useOrganization } from '../hooks/organization/useOrganization';
 
 enum TabOption {
     CHART = 'chart',
@@ -56,6 +57,7 @@ enum TabOption {
 
 const ViewSqlChart = () => {
     const dispatch = useAppDispatch();
+    const { data: organization } = useOrganization();
     const params = useParams<{ projectUuid: string; slug?: string }>();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -151,11 +153,14 @@ const ViewSqlChart = () => {
             };
 
         return {
-            chartSpec: vizDataModel.getSpec(currentDisplay),
+            chartSpec: vizDataModel.getSpec(
+                currentDisplay,
+                organization?.chartColors,
+            ),
             tableData: vizDataModel.getPivotedTableData(),
             fileUrl: vizDataModel.getDataDownloadUrl(),
         };
-    }, [vizDataModel, currentDisplay, chartData]);
+    }, [chartData, vizDataModel, currentDisplay, organization?.chartColors]);
 
     const [echartsInstance, setEchartsInstance] = useState<EChartsInstance>();
 

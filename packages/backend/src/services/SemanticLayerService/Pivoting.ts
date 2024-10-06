@@ -11,7 +11,6 @@ export function pivotResults(
     return pl
         .DataFrame(results)
         .pivot(values, {
-            // POLARS IMPLEMENTATION IS BACKWARDS! (this is the opposite of their docs)
             on,
             index,
         })

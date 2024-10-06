@@ -33,6 +33,7 @@ import {
 } from '../features/semanticViewer/api/hooks';
 import { HeaderView } from '../features/semanticViewer/components/Header/HeaderView';
 import { SemanticViewerResultsRunnerFrontend } from '../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
+import { useOrganization } from '../hooks/organization/useOrganization';
 
 enum ViewerTabs {
     VIZ = 'viz',
@@ -40,6 +41,7 @@ enum ViewerTabs {
 }
 
 const SemanticViewerViewPage = () => {
+    const { data: organization } = useOrganization();
     const [activeViewerTab, setActiveViewerTab] = useState<ViewerTabs>(
         ViewerTabs.VIZ,
     );
@@ -125,7 +127,10 @@ const SemanticViewerViewPage = () => {
 
     const { spec, tableData } = useMemo(
         () => ({
-            spec: vizDataModel?.getSpec(chartQuery.data?.config.display),
+            spec: vizDataModel?.getSpec(
+                chartQuery.data?.config.display,
+                organization?.chartColors,
+            ),
             tableData: vizDataModel?.getPivotedTableData(),
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps

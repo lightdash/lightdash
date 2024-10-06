@@ -455,7 +455,6 @@ export class CartesianChartDataModel {
         return transformedData.fileUrl;
     }
 
-    // TODO: make sure to pass colors to this
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],

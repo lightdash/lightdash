@@ -53,6 +53,7 @@ import { ChartDataTable } from '../../../components/DataViz/visualizations/Chart
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useSqlQueryRun,
@@ -75,6 +76,7 @@ export const DEFAULT_SQL_LIMIT = 500;
 
 export const ContentPanel: FC = () => {
     const dispatch = useAppDispatch();
+    const { data: organization } = useOrganization();
     const { showToastError } = useToaster();
     const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
     const resultsPanelRef = useRef<ImperativePanelHandle>(null);
@@ -287,11 +289,14 @@ export const ContentPanel: FC = () => {
             };
 
         return {
-            chartSpec: vizDataModel.getSpec(currentDisplay),
+            chartSpec: vizDataModel.getSpec(
+                currentDisplay,
+                organization?.chartColors,
+            ),
             tableData: vizDataModel.getPivotedTableData(),
             chartFileUrl: vizDataModel.getDataDownloadUrl(),
         };
-    }, [vizDataModel, currentDisplay, chartData]);
+    }, [vizDataModel, currentDisplay, chartData, organization?.chartColors]);
     const resultsFileUrl = useMemo(() => queryResults?.fileUrl, [queryResults]);
 
     useEffect(() => {

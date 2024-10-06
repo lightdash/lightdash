@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
@@ -21,6 +22,7 @@ export const useSavedSqlChartResults = ({
     context?: string;
 }) => {
     const { getResultsFromStream } = useResultsFromStreamWorker();
+    const { data: organization } = useOrganization();
 
     const work = async () => {
         if (!savedSqlUuid || !projectUuid) {
@@ -60,7 +62,10 @@ export const useSavedSqlChartResults = ({
             sortBy: [],
             filters: [],
         });
-        const chartSpec = vizDataModel.getSpec(chart.config.display);
+        const chartSpec = vizDataModel.getSpec(
+            chart.config.display,
+            organization?.chartColors,
+        );
         return {
             chart,
             chartSpec,

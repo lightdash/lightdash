@@ -15,6 +15,7 @@ import {
     useSemanticLayerViewFields,
 } from '../../features/semanticViewer/api/hooks';
 import { SemanticViewerResultsRunnerFrontend } from '../../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -62,6 +63,8 @@ const ChartTileOptions = memo(
 
 const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
+
+    const { data: organization } = useOrganization();
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -250,6 +253,7 @@ const SemanticViewerChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                         config={chartQuery.data.config}
                         spec={vizDataModel.getSpec(
                             chartQuery.data.config.display,
+                            organization?.chartColors,
                         )}
                         isLoading={chartLoading}
                         error={chartError}

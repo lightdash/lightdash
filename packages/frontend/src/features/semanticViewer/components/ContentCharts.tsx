@@ -15,6 +15,7 @@ import { ChartDataTable } from '../../../components/DataViz/visualizations/Chart
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
 import { useAppSelector } from '../store/hooks';
 import {
@@ -34,6 +35,7 @@ type ContentChartsProps = {
 
 const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
     const mantineTheme = useMantineTheme();
+    const { data: organization } = useOrganization();
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const [openPanel, setOpenPanel] = useState<TabPanel>();
     const { results, columnNames, activeChartKind, fields } = useAppSelector(
@@ -87,7 +89,7 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
 
     const { spec, tableData } = useMemo(
         () => ({
-            spec: vizDataModel.getSpec(display),
+            spec: vizDataModel.getSpec(display, organization?.chartColors),
             tableData: vizDataModel.getPivotedTableData(),
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
