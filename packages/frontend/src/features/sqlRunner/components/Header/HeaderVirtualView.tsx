@@ -77,6 +77,7 @@ export const HeaderVirtualView: FC<{
             </Group>
 
             <Button
+                mr="lg"
                 size="xs"
                 variant="default"
                 onClick={handleUpdateVirtualView}

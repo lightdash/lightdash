@@ -10,7 +10,9 @@ import {
 import {
     ActionIcon,
     Box,
+    Button,
     Center,
+    Group,
     Loader,
     Menu,
     Modal,
@@ -18,7 +20,7 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { IconDots, IconPencil } from '@tabler/icons-react';
+import { IconAlertCircle, IconDots, IconPencil } from '@tabler/icons-react';
 import {
     lazy,
     memo,
@@ -57,6 +59,7 @@ interface ExplorePanelProps {
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
+    const [isClosingConfirmation, setIsClosingConfirmation] = useState(false);
     const [, startTransition] = useTransition();
 
     const activeTableName = useExplorerContext(
@@ -134,6 +137,15 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         }
     }, [explore, additionalMetrics, metrics, dimensions, customDimensions]);
 
+    const handleCloseEditVirtualView = () => {
+        if (isClosingConfirmation) {
+            setIsEditVirtualViewOpen(false);
+            setIsClosingConfirmation(false);
+        } else {
+            setIsClosingConfirmation(true);
+        }
+    };
+
     if (status === 'loading') {
         return <LoadingSkeleton />;
     }
@@ -210,8 +222,15 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             {isEditVirtualViewOpen && (
                 <Modal
                     opened={isEditVirtualViewOpen}
-                    onClose={() => setIsEditVirtualViewOpen(false)}
-                    title={null}
+                    onClose={handleCloseEditVirtualView}
+                    title={
+                        isClosingConfirmation ? (
+                            <Group spacing="xs">
+                                <MantineIcon icon={IconAlertCircle} />
+                                <Text fw={500}>You have unsaved changes</Text>
+                            </Group>
+                        ) : null
+                    }
                     size="95vw"
                     yOffset="3vh"
                     xOffset="2vw"
@@ -220,29 +239,66 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             padding: `${theme.spacing.xs} ${theme.spacing.lg}`,
                         },
                         body: {
-                            padding: 0,
+                            padding: isClosingConfirmation
+                                ? theme.spacing.md
+                                : 0,
+                        },
+                        // TODO: This is a hack to position the close button a bit better with the Save button
+                        close: {
+                            position: 'absolute',
+                            top: theme.spacing.xs,
+                            right: theme.spacing.xs,
                         },
                     })}
-                    withCloseButton={false}
                 >
-                    <Suspense
-                        fallback={
-                            <Center h="95vh" w="95vw">
-                                <Stack align="center" justify="center">
-                                    <Loader variant="bars" />
-                                    <Text fw={500}>Loading SQL Runner...</Text>
-                                </Stack>
-                            </Center>
-                        }
-                    >
-                        <SqlRunnerNewPage
-                            isEditMode
-                            virtualViewState={{
-                                name: explore.name,
-                                sql: explore.tables[activeTableName].sqlTable,
-                            }}
-                        />
-                    </Suspense>
+                    {isClosingConfirmation ? (
+                        <Stack>
+                            <Text fz="sm">
+                                Are you sure you want to close? Your changes
+                                will be lost.
+                            </Text>
+                            <Group position="right">
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        setIsClosingConfirmation(false)
+                                    }
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    color="red"
+                                    onClick={() =>
+                                        setIsEditVirtualViewOpen(false)
+                                    }
+                                >
+                                    Close
+                                </Button>
+                            </Group>
+                        </Stack>
+                    ) : (
+                        <Suspense
+                            fallback={
+                                <Center h="95vh" w="95vw">
+                                    <Stack align="center" justify="center">
+                                        <Loader variant="bars" />
+                                        <Text fw={500}>
+                                            Loading SQL Runner...
+                                        </Text>
+                                    </Stack>
+                                </Center>
+                            }
+                        >
+                            <SqlRunnerNewPage
+                                isEditMode
+                                virtualViewState={{
+                                    name: explore.name,
+                                    sql: explore.tables[activeTableName]
+                                        .sqlTable,
+                                }}
+                            />
+                        </Suspense>
+                    )}
                 </Modal>
             )}
         </>
