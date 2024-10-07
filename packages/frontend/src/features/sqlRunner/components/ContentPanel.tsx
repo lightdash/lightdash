@@ -325,6 +325,11 @@ export const ContentPanel: FC = () => {
                                 disabled={!hasErrors || mode === 'virtualView'}
                             >
                                 <SegmentedControl
+                                    display={
+                                        mode === 'virtualView'
+                                            ? 'none'
+                                            : undefined
+                                    }
                                     styles={(theme) => ({
                                         root: {
                                             backgroundColor:
@@ -367,38 +372,30 @@ export const ContentPanel: FC = () => {
                                                 </Tooltip>
                                             ),
                                         },
-                                        ...(mode === 'default'
-                                            ? [
-                                                  {
-                                                      value: EditorTabs.VISUALIZATION,
-                                                      label: (
-                                                          <Tooltip
-                                                              disabled={
-                                                                  !!queryResults?.results
-                                                              }
-                                                              variant="xs"
-                                                              withinPortal
-                                                              label="Run a query to see the chart"
-                                                          >
-                                                              <Group
-                                                                  spacing={4}
-                                                                  noWrap
-                                                              >
-                                                                  <MantineIcon
-                                                                      color="gray.6"
-                                                                      icon={
-                                                                          IconChartHistogram
-                                                                      }
-                                                                  />
-                                                                  <Text>
-                                                                      Chart
-                                                                  </Text>
-                                                              </Group>
-                                                          </Tooltip>
-                                                      ),
-                                                  },
-                                              ]
-                                            : []),
+
+                                        {
+                                            value: EditorTabs.VISUALIZATION,
+                                            label: (
+                                                <Tooltip
+                                                    disabled={
+                                                        !!queryResults?.results
+                                                    }
+                                                    variant="xs"
+                                                    withinPortal
+                                                    label="Run a query to see the chart"
+                                                >
+                                                    <Group spacing={4} noWrap>
+                                                        <MantineIcon
+                                                            color="gray.6"
+                                                            icon={
+                                                                IconChartHistogram
+                                                            }
+                                                        />
+                                                        <Text>Chart</Text>
+                                                    </Group>
+                                                </Tooltip>
+                                            ),
+                                        },
                                     ]}
                                     value={activeEditorTab}
                                     onChange={(value: EditorTabs) => {
