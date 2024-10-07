@@ -480,7 +480,7 @@ export const parseConfig = (): LightdashConfig => {
             : undefined,
         posthog: {
             projectApiKey: process.env.POSTHOG_PROJECT_API_KEY || '',
-            apiHost: process.env.POSTHOG_API_HOST || 'https://app.posthog.com',
+            apiHost: process.env.POSTHOG_API_HOST || 'https://us.i.posthog.com',
         },
         rudder: {
             writeKey:
