@@ -76,7 +76,7 @@ const SqlRunnerNew = ({
             dispatch(
                 setFetchResultsOnLoad({
                     shouldFetch: !!isEditMode || !!virtualViewState,
-                    shouldOpenChartOnLoad: !virtualViewState,
+                    shouldOpenChartOnLoad: !virtualViewState && !!isEditMode,
                 }),
             );
         }
