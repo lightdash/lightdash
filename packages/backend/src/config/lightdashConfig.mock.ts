@@ -99,10 +99,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     maxPayloadSize: '',
     pivotTable: { maxColumnLimit: 0 },
-    posthog: {
-        projectApiKey: '',
-        apiHost: '',
-    },
+    posthog: undefined,
     resultsCache: { cacheStateTimeSeconds: 0, enabled: false, s3: {} },
     rudder: {
         writeKey: '',

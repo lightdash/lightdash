@@ -37,8 +37,8 @@ import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
 type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 
 export const HeaderCreate: FC = () => {
-    const isSaveCustomExploreFromSqlRunnerEnabled = useFeatureFlagEnabled(
-        FeatureFlags.SaveCustomExploreFromSqlRunner,
+    const isSaveVirtualViewFromSqlRunnerEnabled = useFeatureFlagEnabled(
+        FeatureFlags.SaveVirtualViewFromSqlRunner,
     );
     const dispatch = useAppDispatch();
     const name = useAppSelector((state) => state.sqlRunner.name);
@@ -158,7 +158,7 @@ export const HeaderCreate: FC = () => {
                             >
                                 {getCtaLabels(ctaAction).label}
                             </Button>
-                            {isSaveCustomExploreFromSqlRunnerEnabled && (
+                            {isSaveVirtualViewFromSqlRunnerEnabled && (
                                 <Menu
                                     withinPortal
                                     disabled={!loadedColumns}

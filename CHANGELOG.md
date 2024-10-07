@@ -1,3 +1,101 @@
+## [0.1296.2](https://github.com/lightdash/lightdash/compare/0.1296.1...0.1296.2) (2024-10-07)
+
+
+### Bug Fixes
+
+* check if file exists in github ([#11832](https://github.com/lightdash/lightdash/issues/11832)) ([3d453f6](https://github.com/lightdash/lightdash/commit/3d453f69d09bde3c5b4e8ed492e8b866ff391b7a))
+
+## [0.1296.1](https://github.com/lightdash/lightdash/compare/0.1296.0...0.1296.1) (2024-10-07)
+
+
+### Bug Fixes
+
+* posthog silent fails ([#11818](https://github.com/lightdash/lightdash/issues/11818)) ([af7ca61](https://github.com/lightdash/lightdash/commit/af7ca619237ca351c2cbed6e0afd4487f60c92f9))
+
+# [0.1296.0](https://github.com/lightdash/lightdash/compare/0.1295.6...0.1296.0) (2024-10-07)
+
+
+### Features
+
+* allow editing a virtual view in explore view ([#11811](https://github.com/lightdash/lightdash/issues/11811)) ([ae2acce](https://github.com/lightdash/lightdash/commit/ae2accee555393f7a8835ebb8ed4f18607557edf))
+
+## [0.1295.6](https://github.com/lightdash/lightdash/compare/0.1295.5...0.1295.6) (2024-10-07)
+
+
+### Bug Fixes
+
+* improve git delete flow ([#11828](https://github.com/lightdash/lightdash/issues/11828)) ([3e41b5e](https://github.com/lightdash/lightdash/commit/3e41b5edd3a856672ab181d8e327bbc84432a674))
+
+## [0.1295.5](https://github.com/lightdash/lightdash/compare/0.1295.4...0.1295.5) (2024-10-07)
+
+
+### Bug Fixes
+
+* add errors to github config page ([#11826](https://github.com/lightdash/lightdash/issues/11826)) ([a2426d2](https://github.com/lightdash/lightdash/commit/a2426d2d70e067dc80fe8d50fb594afbee87d0d7))
+
+## [0.1295.4](https://github.com/lightdash/lightdash/compare/0.1295.3...0.1295.4) (2024-10-07)
+
+
+### Bug Fixes
+
+* sql runner csv comma stringify ([#11814](https://github.com/lightdash/lightdash/issues/11814)) ([05ae3f9](https://github.com/lightdash/lightdash/commit/05ae3f9cffec8a27750d295ba134fe40a00d6a53))
+
+## [0.1295.3](https://github.com/lightdash/lightdash/compare/0.1295.2...0.1295.3) (2024-10-04)
+
+
+### Bug Fixes
+
+* pin github actions core version ([#11821](https://github.com/lightdash/lightdash/issues/11821)) ([eb3d729](https://github.com/lightdash/lightdash/commit/eb3d72984e5cb7df19ee4e11006b9610a60aa3cc))
+
+## [0.1295.2](https://github.com/lightdash/lightdash/compare/0.1295.1...0.1295.2) (2024-10-04)
+
+
+### Bug Fixes
+
+* lightdash cli erroring in github ci ([#11815](https://github.com/lightdash/lightdash/issues/11815)) ([cd37a9c](https://github.com/lightdash/lightdash/commit/cd37a9c6c40538b2e2f1f57a7436ad9316d813c7))
+
+## [0.1295.1](https://github.com/lightdash/lightdash/compare/0.1295.0...0.1295.1) (2024-10-04)
+
+
+### Bug Fixes
+
+* remove double slashes CLI ([#11807](https://github.com/lightdash/lightdash/issues/11807)) ([db8a2be](https://github.com/lightdash/lightdash/commit/db8a2be920126a1ba767b4e7c678244c522f76c7))
+
+# [0.1295.0](https://github.com/lightdash/lightdash/compare/0.1294.1...0.1295.0) (2024-10-04)
+
+
+### Features
+
+* cli modern build ([#11810](https://github.com/lightdash/lightdash/issues/11810)) ([5fcdff7](https://github.com/lightdash/lightdash/commit/5fcdff708dbf982ab84a48e4f1995f83c9f5a687))
+
+## [0.1294.1](https://github.com/lightdash/lightdash/compare/0.1294.0...0.1294.1) (2024-10-04)
+
+
+### Bug Fixes
+
+* bump snowflake sdk to 14 ([#11779](https://github.com/lightdash/lightdash/issues/11779)) ([e891522](https://github.com/lightdash/lightdash/commit/e8915222f2fb1f65ee1f2f71040719c8b97835c8))
+
+# [0.1294.0](https://github.com/lightdash/lightdash/compare/0.1293.4...0.1294.0) (2024-10-04)
+
+
+### Features
+
+* show limit warning on button ([#11798](https://github.com/lightdash/lightdash/issues/11798)) ([2e8028b](https://github.com/lightdash/lightdash/commit/2e8028b38a4907332cf470e29d1518c77285f99d))
+
+## [0.1293.4](https://github.com/lightdash/lightdash/compare/0.1293.3...0.1293.4) (2024-10-04)
+
+
+### Bug Fixes
+
+* persist virtual views when refreshing dbt ([#11772](https://github.com/lightdash/lightdash/issues/11772)) ([8a94e34](https://github.com/lightdash/lightdash/commit/8a94e34635f2a79fa26728f62c4d23ea8739e2d1))
+
+## [0.1293.3](https://github.com/lightdash/lightdash/compare/0.1293.2...0.1293.3) (2024-10-04)
+
+
+### Bug Fixes
+
+* Improve domain check in emails  ([#11777](https://github.com/lightdash/lightdash/issues/11777)) ([f7c8b9f](https://github.com/lightdash/lightdash/commit/f7c8b9ff6e62ff0f5554c6ea92da963be42e1496))
+
 ## [0.1293.2](https://github.com/lightdash/lightdash/compare/0.1293.1...0.1293.2) (2024-10-03)
 
 

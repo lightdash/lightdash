@@ -27,13 +27,23 @@ const getGithubRepositories = async () =>
         body: undefined,
     });
 
-export const useGitHubRepositories = () =>
-    useQuery<GitRepo[], ApiError>({
+export const useGitHubRepositories = () => {
+    const { showToastApiError } = useToaster();
+
+    return useQuery<GitRepo[], ApiError>({
         queryKey: ['github_branches'],
         queryFn: () => getGithubRepositories(),
         retry: false,
-    });
+        onError: ({ error }) => {
+            if (error.statusCode === 404) return; // Ignore missing installation errors
 
+            showToastApiError({
+                title: 'Failed to get GitHub integration',
+                apiError: error,
+            });
+        },
+    });
+};
 const deleteGithubInstallation = async () =>
     lightdashApi<null>({
         url: `/github/uninstall`,
@@ -123,6 +133,19 @@ const GithubSettingsPanel: FC = () => {
                                 variant="default"
                                 href={GITHUB_INSTALL_URL}
                                 leftIcon={<MantineIcon icon={IconRefresh} />}
+                                onClick={() => {
+                                    deleteGithubInstallationMutation.mutate(
+                                        undefined,
+                                        {
+                                            onSuccess: () => {
+                                                window.open(
+                                                    GITHUB_INSTALL_URL,
+                                                    '_blank',
+                                                );
+                                            },
+                                        },
+                                    );
+                                }}
                             >
                                 Reinstall
                             </Button>

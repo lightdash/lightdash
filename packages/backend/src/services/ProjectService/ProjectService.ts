@@ -14,12 +14,12 @@ import {
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    CreateCustomExplorePayload,
     createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
     CreateSnowflakeCredentials,
+    CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     CustomFormatType,
     DashboardAvailableFilters,
@@ -35,6 +35,7 @@ import {
     DownloadFileType,
     Explore,
     ExploreError,
+    ExploreType,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -98,6 +99,7 @@ import {
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
+    UpdateVirtualViewPayload,
     UserAttributeValueMap,
     UserWarehouseCredentials,
     VizColumn,
@@ -2826,6 +2828,7 @@ export class ProjectService extends BaseService {
                                 explore.tables[explore.baseTable].schema,
                             description:
                                 explore.tables[explore.baseTable].description,
+                            type: explore.type ?? ExploreType.DEFAULT,
                         },
                     ];
                 }
@@ -2839,13 +2842,17 @@ export class ProjectService extends BaseService {
                 tableSelection: { type, value },
             } = await this.getTablesConfiguration(user, projectUuid);
             if (type === TableSelectionType.WITH_TAGS) {
-                return allExploreSummaries.filter((explore) =>
-                    hasIntersection(explore.tags || [], value || []),
+                return allExploreSummaries.filter(
+                    (explore) =>
+                        hasIntersection(explore.tags || [], value || []) ||
+                        explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                 );
             }
             if (type === TableSelectionType.WITH_NAMES) {
-                return allExploreSummaries.filter((explore) =>
-                    (value || []).includes(explore.name),
+                return allExploreSummaries.filter(
+                    (explore) =>
+                        (value || []).includes(explore.name) ||
+                        explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                 );
             }
         }
@@ -4349,21 +4356,21 @@ export class ProjectService extends BaseService {
         }, []);
     }
 
-    async createCustomExplore(
+    async createVirtualView(
         user: SessionUser,
         projectUuid: string,
-        payload: CreateCustomExplorePayload,
+        payload: CreateVirtualViewPayload,
     ) {
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
         );
-        const explore = await this.projectModel.createCustomExplore(
+        const virtualView = await this.projectModel.createVirtualView(
             projectUuid,
             payload,
             warehouseClient,
         );
-        return explore;
+        return virtualView;
     }
 
     async updateSemanticLayerConnection(
@@ -4400,5 +4407,46 @@ export class ProjectService extends BaseService {
             await this.projectModel.deleteSemanticLayerConnection(projectUuid);
 
         return updatedProject;
+    }
+
+    async updateVirtualView(
+        user: SessionUser,
+        projectUuid: string,
+        payload: UpdateVirtualViewPayload,
+    ) {
+        const explore = await this.findExplores({
+            user,
+            projectUuid,
+            exploreNames: [payload.name],
+        });
+
+        if (!explore) {
+            throw new NotFoundError('Explore not found');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+        );
+
+        const updatedExplore = await this.projectModel.updateVirtualView(
+            projectUuid,
+            payload,
+            warehouseClient,
+        );
+
+        return updatedExplore;
     }
 }

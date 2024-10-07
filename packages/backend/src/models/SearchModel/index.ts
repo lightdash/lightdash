@@ -2,6 +2,7 @@ import {
     DashboardSearchResult,
     Explore,
     ExploreError,
+    ExploreType,
     FieldSearchResult,
     hasIntersection,
     isDimension,
@@ -438,14 +439,18 @@ export class SearchModel {
             return explores[0].explores.filter(
                 (explore: Explore | ExploreError) => {
                     if (tableSelection.type === TableSelectionType.WITH_TAGS) {
-                        return hasIntersection(
-                            explore.tags || [],
-                            tableSelection.value || [],
+                        return (
+                            hasIntersection(
+                                explore.tags || [],
+                                tableSelection.value || [],
+                            ) || explore.type === ExploreType.VIRTUAL
                         );
                     }
                     if (tableSelection.type === TableSelectionType.WITH_NAMES) {
-                        return (tableSelection.value || []).includes(
-                            explore.name,
+                        return (
+                            (tableSelection.value || []).includes(
+                                explore.name,
+                            ) || explore.type === ExploreType.VIRTUAL
                         );
                     }
                     return true;

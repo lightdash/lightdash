@@ -1,14 +1,14 @@
 import {
     AlreadyExistsError,
     assertUnreachable,
-    createCustomExplore,
-    CreateCustomExplorePayload,
     CreateProject,
+    createVirtualView,
+    CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     DbtProjectConfig,
     Explore,
     ExploreError,
-    friendlyName,
+    ExploreType,
     generateSlug,
     isExploreError,
     NotExistsError,
@@ -30,6 +30,7 @@ import {
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
+    UpdateVirtualViewPayload,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
@@ -41,8 +42,7 @@ import {
     WarehouseCatalog,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
-import knex, { Knex } from 'knex';
-import { omit } from 'lodash';
+import { Knex } from 'knex';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
@@ -933,6 +933,12 @@ export class ProjectModel {
             'ProjectModel.saveExploresToCache',
             {},
             async () => {
+                // Get custom explores/virtual views before deleting them
+                const virtualViews = await this.database(CachedExploreTableName)
+                    .select('explore')
+                    .where('project_uuid', projectUuid)
+                    .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL]);
+
                 // delete previous individually cached explores
                 await this.database(CachedExploreTableName)
                     .where('project_uuid', projectUuid)
@@ -940,7 +946,7 @@ export class ProjectModel {
 
                 // We don't support multiple explores with the same name at the moment
                 const uniqueExplores = uniqWith(
-                    explores,
+                    [...explores, ...virtualViews.map((e) => e.explore)],
                     (a, b) => a.name === b.name,
                 );
 
@@ -2026,41 +2032,31 @@ export class ProjectModel {
         return warehouseClientFromCredentials(credentials);
     }
 
-    async createCustomExplore(
+    async createVirtualView(
         projectUuid: string,
-        { name, sql, columns }: CreateCustomExplorePayload,
+        { name, sql, columns }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
     ): Promise<Pick<Explore, 'name'>> {
-        const translatedToExplore = createCustomExplore(
+        const virtualView = createVirtualView(
             name,
             sql,
             columns,
             warehouseClient,
         );
 
-        // insert into cached_explore
+        // insert virtual view into cached_explore
         await this.database(CachedExploreTableName)
             .insert({
                 project_uuid: projectUuid,
-                name: translatedToExplore.name,
-                table_names: Object.keys(translatedToExplore.tables || {}),
-                explore: JSON.stringify(translatedToExplore),
+                name: virtualView.name,
+                table_names: Object.keys(virtualView.tables || {}),
+                explore: virtualView,
             })
             .onConflict(['project_uuid', 'name'])
             .merge()
             .returning(['name', 'cached_explore_uuid']);
-        const toAddToCached: Explore = {
-            name,
-            tags: [],
-            label: friendlyName(name),
-            tables: translatedToExplore.tables,
-            baseTable: name,
-            groupLabel: 'Custom explores',
-            joinedTables: [],
-            targetDatabase: SupportedDbtAdapter.POSTGRES,
-        };
 
-        // append to cached_explores
+        // append virtual view to cached_explores
         await this.database(CachedExploresTableName)
             .where('project_uuid', projectUuid)
             .update({
@@ -2072,14 +2068,74 @@ export class ProjectModel {
                 END
             `,
                     [
-                        JSON.stringify([toAddToCached]),
-                        JSON.stringify([toAddToCached]),
+                        JSON.stringify([virtualView]),
+                        JSON.stringify([virtualView]),
                     ],
                 ),
             })
             .returning('*');
 
         return { name };
+    }
+
+    async updateVirtualView(
+        projectUuid: string,
+        payload: UpdateVirtualViewPayload,
+        warehouseClient: WarehouseClient,
+    ) {
+        const translatedToExplore = createVirtualView(
+            payload.name,
+            payload.sql,
+            payload.columns,
+            warehouseClient,
+        );
+
+        // insert into cached_explore
+        await this.database(CachedExploreTableName)
+            .update({
+                project_uuid: projectUuid,
+                name: translatedToExplore.name,
+                table_names: Object.keys(translatedToExplore.tables || {}),
+                explore: JSON.stringify(translatedToExplore),
+            })
+            .where('project_uuid', projectUuid)
+            .andWhere('name', payload.name)
+            .returning(['name', 'cached_explore_uuid']);
+
+        // append to cached_explores if it doesn't exist; otherwise, update
+        await this.database(CachedExploresTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                explores: this.database.raw(
+                    `
+                    CASE
+                        WHEN explores IS NULL THEN ?::jsonb
+                        ELSE (
+                            SELECT jsonb_agg(
+                                CASE
+                                    WHEN (value->>'name') = ? THEN ?::jsonb
+                                    ELSE value
+                                END
+                            )
+                            FROM jsonb_array_elements(
+                                CASE
+                                    WHEN jsonb_typeof(explores) = 'array' THEN explores
+                                    ELSE '[]'::jsonb
+                                END
+                            )
+                        )
+                    END
+                `,
+                    [
+                        JSON.stringify([translatedToExplore]),
+                        translatedToExplore.name,
+                        JSON.stringify(translatedToExplore),
+                    ],
+                ),
+            })
+            .returning('*');
+
+        return { name: translatedToExplore.name };
     }
 
     async updateSemanticLayerConnection(

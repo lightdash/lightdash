@@ -623,7 +623,7 @@ export default class App {
         }
         if (postHogClient) {
             try {
-                await postHogClient.shutdownAsync();
+                await postHogClient.shutdown();
                 Logger.info('Stopped PostHog Client');
             } catch (e) {
                 Logger.error('Error stopping PostHog Client', e);

@@ -1,5 +1,5 @@
 import { ExploreCompiler } from '../compiler/exploreCompiler';
-import { type Explore, type Table } from '../types/explore';
+import { ExploreType, type Explore, type Table } from '../types/explore';
 import {
     DimensionType,
     FieldType,
@@ -10,8 +10,8 @@ import { type WarehouseClient } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
 import { getFieldQuoteChar } from './warehouse';
 
-export const createCustomExplore = (
-    customExploreName: string,
+export const createVirtualView = (
+    virtualViewName: string,
     sql: string,
     columns: VizColumn[],
     warehouseClient: WarehouseClient,
@@ -26,10 +26,10 @@ export const createCustomExplore = (
                 name: column.reference,
                 label: friendlyName(column.reference),
                 type: column.type ?? DimensionType.STRING,
-                table: customExploreName,
+                table: virtualViewName,
                 fieldType: FieldType.DIMENSION,
                 sql: `${fieldQuoteChar}${column.reference}${fieldQuoteChar}`,
-                tableLabel: friendlyName(customExploreName),
+                tableLabel: friendlyName(virtualViewName),
                 hidden: false,
             };
             return acc;
@@ -38,8 +38,8 @@ export const createCustomExplore = (
     );
 
     const compiledTable: Table = {
-        name: customExploreName,
-        label: friendlyName(customExploreName),
+        name: virtualViewName,
+        label: friendlyName(virtualViewName),
         sqlTable: `(${sql})`, // Wrap the sql in a subquery to avoid issues with reserved words
         dimensions,
         metrics: {},
@@ -49,14 +49,19 @@ export const createCustomExplore = (
     };
 
     const explore = exploreCompiler.compileExplore({
-        name: customExploreName,
-        label: friendlyName(customExploreName),
+        name: virtualViewName,
+        label: friendlyName(virtualViewName),
         tags: [],
-        baseTable: customExploreName,
+        baseTable: virtualViewName,
         joinedTables: [],
-        tables: { [customExploreName]: compiledTable },
+        tables: { [virtualViewName]: compiledTable },
         targetDatabase: warehouseClient.getAdapterType(),
     });
 
-    return explore;
+    const virtualView = {
+        ...explore,
+        type: ExploreType.VIRTUAL,
+    };
+
+    return virtualView;
 };

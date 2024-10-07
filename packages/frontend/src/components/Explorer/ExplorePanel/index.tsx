@@ -1,18 +1,44 @@
 import {
     convertFieldRefToFieldId,
+    ExploreType,
     getAllReferences,
     getItemId,
     getVisibleFields,
     isCustomBinDimension,
     isCustomSqlDimension,
 } from '@lightdash/common';
-import { Skeleton, Stack } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Center,
+    Group,
+    Loader,
+    Menu,
+    Modal,
+    Skeleton,
+    Stack,
+    Text,
+} from '@mantine/core';
+import { IconAlertCircle, IconDots, IconPencil } from '@tabler/icons-react';
+import {
+    lazy,
+    memo,
+    Suspense,
+    useMemo,
+    useState,
+    useTransition,
+    type FC,
+} from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
+import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailContext';
+
+const SqlRunnerNewPage = lazy(() => import('../../../pages/SqlRunnerNew'));
+
 const LoadingSkeleton = () => (
     <Stack>
         <Skeleton h="md" />
@@ -32,6 +58,10 @@ interface ExplorePanelProps {
 }
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
+    const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
+    const [isClosingConfirmation, setIsClosingConfirmation] = useState(false);
+    const [, startTransition] = useTransition();
+
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -107,6 +137,15 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         }
     }, [explore, additionalMetrics, metrics, dimensions, customDimensions]);
 
+    const handleCloseEditVirtualView = () => {
+        if (isClosingConfirmation) {
+            setIsEditVirtualViewOpen(false);
+            setIsClosingConfirmation(false);
+        } else {
+            setIsClosingConfirmation(true);
+        }
+    };
+
     if (status === 'loading') {
         return <LoadingSkeleton />;
     }
@@ -120,23 +159,53 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     return (
         <>
-            <PageBreadcrumbs
-                size="md"
-                items={[
-                    ...(onBack
-                        ? [
-                              {
-                                  title: 'Tables',
-                                  onClick: onBack,
-                              },
-                          ]
-                        : []),
-                    {
-                        title: explore.label,
-                        active: true,
-                    },
-                ]}
-            />
+            <Box pos="relative">
+                <PageBreadcrumbs
+                    size="md"
+                    items={[
+                        ...(onBack
+                            ? [
+                                  {
+                                      title: 'Tables',
+                                      onClick: onBack,
+                                  },
+                              ]
+                            : []),
+                        {
+                            title: explore.label,
+                            active: true,
+                        },
+                    ]}
+                />
+                {explore.type === ExploreType.VIRTUAL && (
+                    <Menu withArrow offset={-2}>
+                        <Menu.Target>
+                            <ActionIcon
+                                variant="transparent"
+                                pos="absolute"
+                                top="0"
+                                right="0"
+                            >
+                                <MantineIcon icon={IconDots} />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Item
+                                icon={<MantineIcon icon={IconPencil} />}
+                                onClick={() => {
+                                    startTransition(() => {
+                                        setIsEditVirtualViewOpen(true);
+                                    });
+                                }}
+                            >
+                                <Text fz="xs" fw={500}>
+                                    Edit virtual view
+                                </Text>
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
+                )}
+            </Box>
 
             <ItemDetailProvider>
                 <ExploreTree
@@ -149,6 +218,89 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     missingFields={missingFields}
                 />
             </ItemDetailProvider>
+
+            {isEditVirtualViewOpen && (
+                <Modal
+                    opened={isEditVirtualViewOpen}
+                    onClose={handleCloseEditVirtualView}
+                    title={
+                        isClosingConfirmation ? (
+                            <Group spacing="xs">
+                                <MantineIcon icon={IconAlertCircle} />
+                                <Text fw={500}>You have unsaved changes</Text>
+                            </Group>
+                        ) : null
+                    }
+                    size="95vw"
+                    yOffset="3vh"
+                    xOffset="2vw"
+                    styles={(theme) => ({
+                        header: {
+                            padding: `${theme.spacing.xs} ${theme.spacing.lg}`,
+                        },
+                        body: {
+                            padding: isClosingConfirmation
+                                ? theme.spacing.md
+                                : 0,
+                        },
+                        // TODO: This is a hack to position the close button a bit better with the Save button
+                        close: {
+                            position: 'absolute',
+                            top: theme.spacing.xs,
+                            right: theme.spacing.xs,
+                        },
+                    })}
+                >
+                    {isClosingConfirmation ? (
+                        <Stack>
+                            <Text fz="sm">
+                                Are you sure you want to close? Your changes
+                                will be lost.
+                            </Text>
+                            <Group position="right">
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        setIsClosingConfirmation(false)
+                                    }
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    color="red"
+                                    onClick={() =>
+                                        setIsEditVirtualViewOpen(false)
+                                    }
+                                >
+                                    Close
+                                </Button>
+                            </Group>
+                        </Stack>
+                    ) : (
+                        <Suspense
+                            fallback={
+                                <Center h="95vh" w="95vw">
+                                    <Stack align="center" justify="center">
+                                        <Loader variant="bars" />
+                                        <Text fw={500}>
+                                            Loading SQL Runner...
+                                        </Text>
+                                    </Stack>
+                                </Center>
+                            }
+                        >
+                            <SqlRunnerNewPage
+                                isEditMode
+                                virtualViewState={{
+                                    name: explore.name,
+                                    sql: explore.tables[activeTableName]
+                                        .sqlTable,
+                                }}
+                            />
+                        </Suspense>
+                    )}
+                </Modal>
+            )}
         </>
     );
 });

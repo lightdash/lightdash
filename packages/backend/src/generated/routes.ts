@@ -2546,6 +2546,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExploreType: {
+        dataType: 'refEnum',
+        enums: ['virtual', 'default'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Explore.SummaryExploreFields_': {
         dataType: 'refAlias',
         type: {
@@ -2554,6 +2559,7 @@ const models: TsoaRoute.Models = {
                 name: { dataType: 'string', required: true },
                 label: { dataType: 'string', required: true },
                 groupLabel: { dataType: 'string' },
+                type: { ref: 'ExploreType' },
                 tags: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -2585,6 +2591,7 @@ const models: TsoaRoute.Models = {
                 name: { dataType: 'string', required: true },
                 label: { dataType: 'string', required: true },
                 groupLabel: { dataType: 'string' },
+                type: { ref: 'ExploreType' },
                 tags: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -2813,6 +2820,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                type: { ref: 'ExploreType' },
                 sqlPath: { dataType: 'string' },
                 ymlPath: { dataType: 'string' },
                 warehouse: { dataType: 'string' },
@@ -7394,7 +7402,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiCreateCustomExplore: {
+    ApiCreateVirtualView: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -7418,7 +7426,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CreateCustomExplorePayload: {
+    CreateVirtualViewPayload: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -7431,6 +7439,31 @@ const models: TsoaRoute.Models = {
                 sql: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_UpdateVirtualViewPayload.Exclude_keyofUpdateVirtualViewPayload.name__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    sql: { dataType: 'string', required: true },
+                    columns: {
+                        dataType: 'array',
+                        array: { dataType: 'refAlias', ref: 'VizColumn' },
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_UpdateVirtualViewPayload.name_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_UpdateVirtualViewPayload.Exclude_keyofUpdateVirtualViewPayload.name__',
             validators: {},
         },
     },
@@ -16134,13 +16167,13 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/projects/:projectUuid/sqlRunner/create-custom-explore',
+        '/api/v1/projects/:projectUuid/sqlRunner/virtual-view',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
         ...fetchMiddlewares<RequestHandler>(
-            SqlRunnerController.prototype.createCustomExplore,
+            SqlRunnerController.prototype.createVirtualView,
         ),
 
-        async function SqlRunnerController_createCustomExplore(
+        async function SqlRunnerController_createVirtualView(
             request: any,
             response: any,
             next: any,
@@ -16162,7 +16195,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'CreateCustomExplorePayload',
+                    ref: 'CreateVirtualViewPayload',
                 },
             };
 
@@ -16185,7 +16218,76 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.createCustomExplore.apply(
+                const promise = controller.createVirtualView.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.put(
+        '/api/v1/projects/:projectUuid/sqlRunner/virtual-view/:name',
+        ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SqlRunnerController.prototype.updateVirtualView,
+        ),
+
+        async function SqlRunnerController_updateVirtualView(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                name: {
+                    in: 'path',
+                    name: 'name',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'Omit_UpdateVirtualViewPayload.name_',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SqlRunnerController>(
+                        SqlRunnerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.updateVirtualView.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -16225,7 +16327,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'CreateCustomExplorePayload',
+                    ref: 'CreateVirtualViewPayload',
                 },
             };
 
@@ -16288,7 +16390,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'CreateCustomExplorePayload',
+                    ref: 'CreateVirtualViewPayload',
                 },
             };
 
