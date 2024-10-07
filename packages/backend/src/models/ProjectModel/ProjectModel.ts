@@ -2102,7 +2102,7 @@ export class ProjectModel {
             .andWhere('name', payload.name)
             .returning(['name', 'cached_explore_uuid']);
 
-        // append to cached_explores
+        // append to cached_explores if it doesn't exist; otherwise, update
         await this.database(CachedExploresTableName)
             .where('project_uuid', projectUuid)
             .update({

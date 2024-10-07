@@ -4422,9 +4422,21 @@ export class ProjectService extends BaseService {
             exploreNames: [payload.name],
         });
 
-        // if (user.ability.cannot('update', subject('Explore', explore))) {
-        //     throw new ForbiddenError();
-        // }
+        if (!explore) {
+            throw new NotFoundError('Explore not found');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
