@@ -6,7 +6,7 @@ import Logger from './logging/logger';
 // How long to wait for Posthog to reply (in ms):
 const FLAG_CHECK_TIMEOUT = process.env.POSTHOG_CHECK_TIMEOUT
     ? parseInt(process.env.POSTHOG_CHECK_TIMEOUT, 10)
-    : 5000; // 5 seconds
+    : 5000; // 5 seconds by default
 
 export const postHogClient = lightdashConfig.posthog
     ? new PostHog(lightdashConfig.posthog.projectApiKey, {
@@ -24,8 +24,10 @@ export async function isFeatureFlagEnabled(
     user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     {
         throwOnTimeout = false, // New option added here
+        timeoutMilliseconds = FLAG_CHECK_TIMEOUT,
     }: {
         throwOnTimeout?: boolean;
+        timeoutMilliseconds?: number;
     } = {},
 ): Promise<boolean> {
     /** If we don't have a PostHog client instance, we return false for all checks */
@@ -58,12 +60,12 @@ export async function isFeatureFlagEnabled(
 
                     resolve(false);
                 }
-            }, FLAG_CHECK_TIMEOUT);
+            }, timeoutMilliseconds);
         });
 
     /**
      * Check if this flag is enabled via Posthog. The check must resolve within
-     * FLAG_CHECK_TIMEOUT, otherwise we handle it based on throwOnTimeout.
+     * timeoutMilliseconds, otherwise we handle it based on throwOnTimeout.
      * If the check resolves before the timeout, we clear the timeout.
      */
     const featureFlagPromise = async () => {
