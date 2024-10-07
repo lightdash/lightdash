@@ -14,12 +14,12 @@ import {
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    CreateCustomExplorePayload,
     createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
     CreateSnowflakeCredentials,
+    CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     CustomFormatType,
     DashboardAvailableFilters,
@@ -4355,21 +4355,21 @@ export class ProjectService extends BaseService {
         }, []);
     }
 
-    async createCustomExplore(
+    async createVirtualView(
         user: SessionUser,
         projectUuid: string,
-        payload: CreateCustomExplorePayload,
+        payload: CreateVirtualViewPayload,
     ) {
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
         );
-        const explore = await this.projectModel.createCustomExplore(
+        const virtualView = await this.projectModel.createVirtualView(
             projectUuid,
             payload,
             warehouseClient,
         );
-        return explore;
+        return virtualView;
     }
 
     async updateSemanticLayerConnection(

@@ -1,4 +1,9 @@
-import { ApiSuccessEmpty, ForbiddenError, GitRepo } from '@lightdash/common';
+import {
+    ApiSuccessEmpty,
+    ForbiddenError,
+    GitRepo,
+    NotFoundError,
+} from '@lightdash/common';
 import { Octokit as OctokitRest } from '@octokit/rest';
 import {
     Delete,
@@ -158,25 +163,11 @@ export class GithubInstallController extends BaseController {
     }> {
         this.setStatus(200);
 
-        // todo: move all to service
-        const installationId = await this.services
-            .getGithubAppService()
-            .getInstallationId(req.user!);
-
-        if (installationId === undefined)
-            throw new Error('Invalid Github installation id');
-        const appOctokit = getOctokitRestForApp(installationId);
-
-        const { data } =
-            await appOctokit.apps.listReposAccessibleToInstallation();
-
         return {
             status: 'ok',
-            results: data.repositories.map((repo) => ({
-                name: repo.name,
-                ownerLogin: repo.owner.login,
-                fullName: repo.full_name,
-            })),
+            results: await this.services
+                .getGithubAppService()
+                .getRepos(req.user!),
         };
     }
 }

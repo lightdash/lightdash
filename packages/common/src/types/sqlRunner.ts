@@ -197,12 +197,12 @@ export type ApiUpdateSqlChart = {
     };
 };
 
-export type ApiCreateCustomExplore = {
+export type ApiCreateVirtualView = {
     status: 'ok';
     results: Pick<Explore, 'name'>;
 };
 
-export type CreateCustomExplorePayload = {
+export type CreateVirtualViewPayload = {
     name: string;
     sql: string;
     columns: VizColumn[];
