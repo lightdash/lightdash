@@ -1,4 +1,8 @@
-import { NotFoundError } from '@lightdash/common';
+import {
+    AlreadyExistsError,
+    NotFoundError,
+    ParameterError,
+} from '@lightdash/common';
 import { App } from '@octokit/app';
 import { Octokit as OctokitRest } from '@octokit/rest';
 
@@ -260,4 +264,35 @@ export const createPullRequest = async ({
     });
 
     return response.data;
+};
+
+export const checkFileDoesNotExist = async ({
+    owner,
+    repo,
+    path,
+    installationId,
+    branch,
+}: {
+    owner: string;
+    repo: string;
+    path: string;
+    installationId: string;
+    branch: string;
+}): Promise<boolean> => {
+    const octokit = getOctokitRestForApp(installationId);
+
+    try {
+        await octokit.rest.repos.getContent({
+            owner,
+            repo,
+            path,
+            branch,
+        });
+        throw new AlreadyExistsError(`File "${path}" already exists in Github`);
+    } catch (error) {
+        if (error.status === 404) {
+            return true;
+        }
+        throw error;
+    }
 };

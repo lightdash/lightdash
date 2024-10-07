@@ -23,6 +23,7 @@ import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
 import {
+    checkFileDoesNotExist,
     createBranch,
     createFile,
     createPullRequest,
@@ -537,6 +538,7 @@ Affected charts:
             name,
             'sql',
         );
+        await checkFileDoesNotExist({ ...githubProps, path: fileName });
         const content = `
 {{
   config(
@@ -569,6 +571,8 @@ ${sql}
             name,
             'yml',
         );
+        await checkFileDoesNotExist({ ...githubProps, path: fileName });
+
         const content = yaml.dump(
             {
                 version: 2,
