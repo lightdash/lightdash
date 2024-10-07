@@ -1,13 +1,21 @@
+import { SES } from '@aws-sdk/client-ses';
 import * as nodemailer from 'nodemailer';
 import EmailClient from './EmailClient';
 import {
-    expectedTransporterArgs,
-    expectedTransporterWithOauth2Args,
-    expectedTransporterWithSecurePortArgs,
+    expectedSesClientConfig,
+    expectedSesClientConfigWithCredentials,
+    expectedSesTransporterArgs,
+    expectedSesTransporterArgsWithOptions,
+    expectedSMTPTransporterArgs,
+    expectedSMTPTransporterWithOauth2Args,
+    expectedSMTPTransporterWithSecurePortArgs,
     lightdashConfigWithBasicSMTP,
-    lightdashConfigWithNoSMTP,
+    lightdashConfigWithNoSMTPOrSes,
     lightdashConfigWithOauth2SMTP,
     lightdashConfigWithSecurePortSMTP,
+    lightdashConfigWithSes,
+    lightdashConfigWithSesCredentials,
+    lightdashConfigWithSesOptions,
     passwordResetLinkMock,
 } from './EmailClient.mock';
 
@@ -19,14 +27,18 @@ jest.mock('nodemailer', () => ({
     })),
 }));
 
+jest.mock('@aws-sdk/client-ses', () => ({
+    SES: jest.fn(),
+}));
+
 describe('EmailClient', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
     describe('Create transporter', () => {
-        test('should not create a transporter when there is no smtp configs', async () => {
+        test('should not create a transporter when there is no smtp or ses configs', async () => {
             const client = new EmailClient({
-                lightdashConfig: lightdashConfigWithNoSMTP,
+                lightdashConfig: lightdashConfigWithNoSMTPOrSes,
             });
             expect(nodemailer.createTransport).toHaveBeenCalledTimes(0);
             expect(client.transporter).toBeUndefined();
@@ -37,7 +49,7 @@ describe('EmailClient', () => {
             });
             expect(nodemailer.createTransport).toHaveBeenCalledTimes(1);
             expect(nodemailer.createTransport).toHaveBeenCalledWith(
-                ...expectedTransporterArgs,
+                ...expectedSMTPTransporterArgs,
             );
         });
         test('should create transported with secure connection when using port 465', async () => {
@@ -46,7 +58,7 @@ describe('EmailClient', () => {
             });
             expect(nodemailer.createTransport).toHaveBeenCalledTimes(1);
             expect(nodemailer.createTransport).toHaveBeenCalledWith(
-                ...expectedTransporterWithSecurePortArgs,
+                ...expectedSMTPTransporterWithSecurePortArgs,
             );
         });
         test('should create transported with Oauth2', async () => {
@@ -55,8 +67,40 @@ describe('EmailClient', () => {
             });
             expect(nodemailer.createTransport).toHaveBeenCalledTimes(1);
             expect(nodemailer.createTransport).toHaveBeenCalledWith(
-                ...expectedTransporterWithOauth2Args,
+                ...expectedSMTPTransporterWithOauth2Args,
             );
+        });
+        test('should create an SES transporter', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithSes,
+            });
+            expect(nodemailer.createTransport).toHaveBeenCalledTimes(1);
+            expect(nodemailer.createTransport).toHaveBeenCalledWith(
+                ...expectedSesTransporterArgs,
+            );
+            expect(SES).toHaveBeenCalledWith(expectedSesClientConfig);
+        });
+        test('should create an SES transporter with credentials', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithSesCredentials,
+            });
+            expect(nodemailer.createTransport).toHaveBeenCalledTimes(1);
+            expect(nodemailer.createTransport).toHaveBeenCalledWith(
+                ...expectedSesTransporterArgs,
+            );
+            expect(SES).toHaveBeenCalledWith(
+                expectedSesClientConfigWithCredentials,
+            );
+        });
+        test('should create an SES transporter with options', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithSesOptions,
+            });
+            expect(nodemailer.createTransport).toHaveBeenCalledTimes(1);
+            expect(nodemailer.createTransport).toHaveBeenCalledWith(
+                ...expectedSesTransporterArgsWithOptions,
+            );
+            expect(SES).toHaveBeenCalledWith(expectedSesClientConfig);
         });
     });
     describe('Send emails', () => {

@@ -359,11 +359,12 @@ export const jobError: Job = {
     ],
 };
 
-export const lightdashConfigWithNoSMTP: Pick<
+export const lightdashConfigWithNoSMTPOrSes: Pick<
     LightdashConfig,
-    'smtp' | 'siteUrl' | 'query'
+    'smtp' | 'ses' | 'siteUrl' | 'query'
 > = {
     smtp: undefined,
+    ses: undefined,
     siteUrl: 'https://test.lightdash.cloud',
     query: {
         maxLimit: 100,

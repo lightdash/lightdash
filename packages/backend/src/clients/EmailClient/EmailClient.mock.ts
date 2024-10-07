@@ -1,4 +1,10 @@
-import { LightdashConfig, SmtpConfig } from '../../config/parseConfig';
+import { SendRawEmailCommand, SES } from '@aws-sdk/client-ses';
+import type { Options as SESTransportOptions } from 'nodemailer/lib/ses-transport';
+import {
+    LightdashConfig,
+    SesConfig,
+    SmtpConfig,
+} from '../../config/parseConfig';
 
 export const passwordResetLinkMock = {
     code: 'code',
@@ -8,11 +14,14 @@ export const passwordResetLinkMock = {
     isExpired: false,
 };
 
-export const lightdashConfigWithNoSMTP: Pick<
+type LightdashConfigEmailClientMock = Pick<
     LightdashConfig,
-    'smtp' | 'siteUrl' | 'query'
-> = {
+    'smtp' | 'ses' | 'siteUrl' | 'query'
+>;
+
+export const lightdashConfigWithNoSMTPOrSes: LightdashConfigEmailClientMock = {
     smtp: undefined,
+    ses: undefined,
     siteUrl: 'https://test.lightdash.cloud',
     query: {
         maxLimit: 100,
@@ -37,12 +46,66 @@ const smtpBase: SmtpConfig = {
     allowInvalidCertificate: false,
 };
 
-export const lightdashConfigWithBasicSMTP: Pick<
-    LightdashConfig,
-    'smtp' | 'siteUrl' | 'query'
-> = {
+export const lightdashConfigWithBasicSMTP: LightdashConfigEmailClientMock = {
     smtp: {
         ...smtpBase,
+    },
+    ses: undefined,
+    siteUrl: 'https://test.lightdash.cloud',
+    query: {
+        maxLimit: 100,
+        csvCellsLimit: 100,
+        timezone: undefined,
+    },
+};
+
+export const lightdashConfigWithOauth2SMTP: LightdashConfigEmailClientMock = {
+    smtp: {
+        ...smtpBase,
+        auth: {
+            user: 'user',
+            pass: undefined,
+            accessToken: 'accessToken',
+        },
+    },
+    ses: undefined,
+    siteUrl: 'https://test.lightdash.cloud',
+    query: {
+        maxLimit: 100,
+        csvCellsLimit: 100,
+        timezone: undefined,
+    },
+};
+
+export const lightdashConfigWithSecurePortSMTP: LightdashConfigEmailClientMock =
+    {
+        smtp: {
+            ...smtpBase,
+            port: 465,
+        },
+        ses: undefined,
+        siteUrl: 'https://test.lightdash.cloud',
+        query: {
+            maxLimit: 100,
+            csvCellsLimit: 100,
+            timezone: undefined,
+        },
+    };
+
+const SesBase: SesConfig = {
+    region: 'us-east-1',
+    endpoint: 'http://email.us-east-1.amazonaws.com',
+    sender: {
+        name: 'name',
+        email: 'email',
+    },
+    options: undefined,
+};
+
+export const lightdashConfigWithSes: LightdashConfigEmailClientMock = {
+    smtp: undefined,
+    ses: {
+        ...SesBase,
     },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
@@ -52,16 +115,28 @@ export const lightdashConfigWithBasicSMTP: Pick<
     },
 };
 
-export const lightdashConfigWithOauth2SMTP: Pick<
-    LightdashConfig,
-    'smtp' | 'siteUrl' | 'query'
-> = {
-    smtp: {
-        ...smtpBase,
-        auth: {
-            user: 'user',
-            pass: undefined,
-            accessToken: 'accessToken',
+export const lightdashConfigWithSesCredentials: LightdashConfigEmailClientMock =
+    {
+        smtp: undefined,
+        ses: {
+            ...SesBase,
+            accessKey: 'foo',
+            secretKey: 'bar',
+        },
+        siteUrl: 'https://test.lightdash.cloud',
+        query: {
+            maxLimit: 100,
+            csvCellsLimit: 100,
+            timezone: undefined,
+        },
+    };
+
+export const lightdashConfigWithSesOptions: LightdashConfigEmailClientMock = {
+    smtp: undefined,
+    ses: {
+        ...SesBase,
+        options: {
+            configurationSetName: 'a-config-set',
         },
     },
     siteUrl: 'https://test.lightdash.cloud',
@@ -72,23 +147,7 @@ export const lightdashConfigWithOauth2SMTP: Pick<
     },
 };
 
-export const lightdashConfigWithSecurePortSMTP: Pick<
-    LightdashConfig,
-    'smtp' | 'siteUrl' | 'query'
-> = {
-    smtp: {
-        ...smtpBase,
-        port: 465,
-    },
-    siteUrl: 'https://test.lightdash.cloud',
-    query: {
-        maxLimit: 100,
-        csvCellsLimit: 100,
-        timezone: undefined,
-    },
-};
-
-export const expectedTransporterArgs = [
+export const expectedSMTPTransporterArgs = [
     {
         host: smtpBase.host,
         port: smtpBase.port,
@@ -105,23 +164,65 @@ export const expectedTransporterArgs = [
     },
 ];
 
-export const expectedTransporterWithOauth2Args = [
+export const expectedSMTPTransporterWithOauth2Args = [
     {
-        ...expectedTransporterArgs[0],
+        ...expectedSMTPTransporterArgs[0],
         auth: {
             type: 'OAuth2',
             user: lightdashConfigWithOauth2SMTP.smtp?.auth.user,
             accessToken: lightdashConfigWithOauth2SMTP.smtp?.auth.accessToken,
         },
     },
-    expectedTransporterArgs[1],
+    expectedSMTPTransporterArgs[1],
 ];
 
-export const expectedTransporterWithSecurePortArgs = [
+export const expectedSMTPTransporterWithSecurePortArgs = [
     {
-        ...expectedTransporterArgs[0],
+        ...expectedSMTPTransporterArgs[0],
         port: 465,
         secure: true,
     },
-    expectedTransporterArgs[1],
+    expectedSMTPTransporterArgs[1],
 ];
+
+export const expectedSesTransporterArgs = [
+    {
+        SES: {
+            ses: expect.any(SES),
+            aws: { SendRawEmailCommand },
+        },
+        ses: undefined,
+    } as SESTransportOptions,
+    {
+        from: `"${SesBase.sender.name}" <${SesBase.sender.email}>`,
+    },
+];
+
+export const expectedSesTransporterArgsWithOptions = [
+    {
+        SES: {
+            ses: expect.any(SES),
+            aws: { SendRawEmailCommand },
+        },
+        ses: {
+            ConfigurationSetName: 'a-config-set',
+        },
+    } as SESTransportOptions,
+    {
+        from: `"${SesBase.sender.name}" <${SesBase.sender.email}>`,
+    },
+];
+
+export const expectedSesClientConfig = {
+    region: SesBase.region,
+    apiVersion: '2006-03-02',
+    endpoint: SesBase.endpoint,
+};
+
+export const expectedSesClientConfigWithCredentials = {
+    ...expectedSesClientConfig,
+    credentials: {
+        accessKeyId: 'foo',
+        secretAccessKey: 'bar',
+    },
+};

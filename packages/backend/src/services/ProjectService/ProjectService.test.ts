@@ -37,7 +37,7 @@ import {
     expectedExploreSummaryFilteredByName,
     expectedExploreSummaryFilteredByTags,
     job,
-    lightdashConfigWithNoSMTP,
+    lightdashConfigWithNoSMTPOrSes,
     metricQueryMock,
     projectSummary,
     projectWithSensitiveFields,
@@ -101,7 +101,7 @@ describe('ProjectService', () => {
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         jobModel: jobModel as unknown as JobModel,
         emailClient: new EmailClient({
-            lightdashConfig: lightdashConfigWithNoSMTP,
+            lightdashConfig: lightdashConfigWithNoSMTPOrSes,
         }),
         spaceModel: spaceModel as unknown as SpaceModel,
         sshKeyPairModel: {} as SshKeyPairModel,

@@ -135,7 +135,7 @@ export class HealthService extends BaseService {
                     enabled: !!this.lightdashConfig.auth.oidc.clientId,
                 },
             },
-            hasEmailClient: !!this.lightdashConfig.smtp,
+            hasEmailClient: !!this.lightdashConfig.smtp || !!this.lightdashConfig.ses,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
             hasGroups: await this.hasGroups(user),
