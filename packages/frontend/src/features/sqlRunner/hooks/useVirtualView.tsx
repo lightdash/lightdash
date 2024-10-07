@@ -1,23 +1,23 @@
 import {
-    type ApiCreateCustomExplore,
+    type ApiCreateVirtualView,
     type ApiError,
-    type CreateCustomExplorePayload,
+    type CreateVirtualViewPayload,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
-const createCustomExplore = async ({
+const createVirtualView = async ({
     projectUuid,
     name,
     sql,
     columns,
 }: {
     projectUuid: string;
-} & CreateCustomExplorePayload) =>
-    lightdashApi<ApiCreateCustomExplore['results']>({
-        url: `/projects/${projectUuid}/sqlRunner/create-custom-explore`,
+} & CreateVirtualViewPayload) =>
+    lightdashApi<ApiCreateVirtualView['results']>({
+        url: `/projects/${projectUuid}/sqlRunner/create-virtual-view`,
         method: 'POST',
         body: JSON.stringify({
             name,
@@ -29,20 +29,20 @@ const createCustomExplore = async ({
 /**
  * Create a virtual view (a.k.a. custom explore) - users can query from them in the Explore view
  */
-export const useCreateCustomExplore = ({
+export const useCreateVirtualView = ({
     projectUuid,
 }: {
     projectUuid: string;
 }) => {
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
-        ApiCreateCustomExplore['results'],
+        ApiCreateVirtualView['results'],
         ApiError,
         {
             projectUuid: string;
-        } & CreateCustomExplorePayload
+        } & CreateVirtualViewPayload
     >({
-        mutationFn: createCustomExplore,
+        mutationFn: createVirtualView,
         onSuccess: (data) => {
             showToastSuccess({
                 title: 'Success! Virtual view created',

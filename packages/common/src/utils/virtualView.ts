@@ -10,7 +10,7 @@ import { type WarehouseClient } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
 import { getFieldQuoteChar } from './warehouse';
 
-export const createCustomExplore = (
+export const createVirtualView = (
     customExploreName: string,
     sql: string,
     columns: VizColumn[],
@@ -58,8 +58,10 @@ export const createCustomExplore = (
         targetDatabase: warehouseClient.getAdapterType(),
     });
 
-    return {
+    const virtualView = {
         ...explore,
         type: ExploreType.VIRTUAL,
     };
+
+    return virtualView;
 };

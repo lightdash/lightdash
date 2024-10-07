@@ -1,9 +1,9 @@
 import {
     AlreadyExistsError,
     assertUnreachable,
-    createCustomExplore,
-    CreateCustomExplorePayload,
     CreateProject,
+    createVirtualView,
+    CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     DbtProjectConfig,
     Explore,
@@ -41,8 +41,7 @@ import {
     WarehouseCatalog,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
-import knex, { Knex } from 'knex';
-import { omit } from 'lodash';
+import { Knex } from 'knex';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
@@ -934,9 +933,7 @@ export class ProjectModel {
             {},
             async () => {
                 // Get custom explores/virtual views before deleting them
-                const customExplores = await this.database(
-                    CachedExploreTableName,
-                )
+                const virtualViews = await this.database(CachedExploreTableName)
                     .select('explore')
                     .where('project_uuid', projectUuid)
                     .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL]);
@@ -948,7 +945,7 @@ export class ProjectModel {
 
                 // We don't support multiple explores with the same name at the moment
                 const uniqueExplores = uniqWith(
-                    [...explores, ...customExplores.map((e) => e.explore)],
+                    [...explores, ...virtualViews.map((e) => e.explore)],
                     (a, b) => a.name === b.name,
                 );
 
@@ -2034,31 +2031,31 @@ export class ProjectModel {
         return warehouseClientFromCredentials(credentials);
     }
 
-    async createCustomExplore(
+    async createVirtualView(
         projectUuid: string,
-        { name, sql, columns }: CreateCustomExplorePayload,
+        { name, sql, columns }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
     ): Promise<Pick<Explore, 'name'>> {
-        const customExplore = createCustomExplore(
+        const virtualView = createVirtualView(
             name,
             sql,
             columns,
             warehouseClient,
         );
 
-        // insert into cached_explore
+        // insert virtual view into cached_explore
         await this.database(CachedExploreTableName)
             .insert({
                 project_uuid: projectUuid,
-                name: customExplore.name,
-                table_names: Object.keys(customExplore.tables || {}),
-                explore: customExplore,
+                name: virtualView.name,
+                table_names: Object.keys(virtualView.tables || {}),
+                explore: virtualView,
             })
             .onConflict(['project_uuid', 'name'])
             .merge()
             .returning(['name', 'cached_explore_uuid']);
 
-        // append to cached_explores
+        // append virtual view to cached_explores
         await this.database(CachedExploresTableName)
             .where('project_uuid', projectUuid)
             .update({
@@ -2070,8 +2067,8 @@ export class ProjectModel {
                 END
             `,
                     [
-                        JSON.stringify([customExplore]),
-                        JSON.stringify([customExplore]),
+                        JSON.stringify([virtualView]),
+                        JSON.stringify([virtualView]),
                     ],
                 ),
             })
