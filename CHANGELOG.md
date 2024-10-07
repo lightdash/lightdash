@@ -1,3 +1,10 @@
+## [0.1295.4](https://github.com/lightdash/lightdash/compare/0.1295.3...0.1295.4) (2024-10-07)
+
+
+### Bug Fixes
+
+* sql runner csv comma stringify ([#11814](https://github.com/lightdash/lightdash/issues/11814)) ([05ae3f9](https://github.com/lightdash/lightdash/commit/05ae3f9cffec8a27750d295ba134fe40a00d6a53))
+
 ## [0.1295.3](https://github.com/lightdash/lightdash/compare/0.1295.2...0.1295.3) (2024-10-04)
 
 

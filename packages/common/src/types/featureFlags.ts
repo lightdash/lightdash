@@ -35,9 +35,9 @@ export enum FeatureFlags {
     EnableUserTimezones = 'enable-user-timezones',
 
     /**
-     * Enable saving custom explores from the SQL Runner
+     * Enable saving virtual views/custom explores from the SQL Runner
      */
-    SaveCustomExploreFromSqlRunner = 'save-custom-explore-from-sql-runner',
+    SaveVirtualViewFromSqlRunner = 'save-custom-explore-from-sql-runner',
 
     /**
      * Enable the semantic layer

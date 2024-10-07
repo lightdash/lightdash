@@ -7402,7 +7402,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiCreateCustomExplore: {
+    ApiCreateVirtualView: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -7426,7 +7426,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CreateCustomExplorePayload: {
+    CreateVirtualViewPayload: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -16142,13 +16142,13 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/projects/:projectUuid/sqlRunner/create-custom-explore',
+        '/api/v1/projects/:projectUuid/sqlRunner/create-virtual-view',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
         ...fetchMiddlewares<RequestHandler>(
-            SqlRunnerController.prototype.createCustomExplore,
+            SqlRunnerController.prototype.createVirtualView,
         ),
 
-        async function SqlRunnerController_createCustomExplore(
+        async function SqlRunnerController_createVirtualView(
             request: any,
             response: any,
             next: any,
@@ -16170,7 +16170,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'CreateCustomExplorePayload',
+                    ref: 'CreateVirtualViewPayload',
                 },
             };
 
@@ -16193,7 +16193,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.createCustomExplore.apply(
+                const promise = controller.createVirtualView.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -16233,7 +16233,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'CreateCustomExplorePayload',
+                    ref: 'CreateVirtualViewPayload',
                 },
             };
 
@@ -16296,7 +16296,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'CreateCustomExplorePayload',
+                    ref: 'CreateVirtualViewPayload',
                 },
             };
 

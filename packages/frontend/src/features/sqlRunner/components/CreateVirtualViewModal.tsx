@@ -17,7 +17,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useGitHubRepositories } from '../../../components/UserSettings/GithubSettingsPanel';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
-import { useCreateCustomExplore } from '../hooks/useCustomExplore';
+import { useCreateVirtualView } from '../hooks/useVirtualView';
 import { useAppSelector } from '../store/hooks';
 
 const validationSchema = z.object({
@@ -33,8 +33,8 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
-    const { mutateAsync: createCustomExplore, isLoading: isLoadingVirtual } =
-        useCreateCustomExplore({
+    const { mutateAsync: createVirtualView, isLoading: isLoadingVirtual } =
+        useCreateVirtualView({
             projectUuid,
         });
     const form = useForm<FormValues>({
@@ -60,7 +60,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                 return;
             }
 
-            await createCustomExplore({
+            await createVirtualView({
                 name: snakeCaseName(data.name),
                 sql,
                 columns,
@@ -69,7 +69,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
 
             onClose();
         },
-        [columns, onClose, projectUuid, sql, createCustomExplore],
+        [columns, onClose, projectUuid, sql, createVirtualView],
     );
 
     return (
