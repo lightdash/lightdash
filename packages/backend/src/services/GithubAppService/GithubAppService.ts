@@ -1,5 +1,12 @@
 import { subject } from '@casl/ability';
-import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
+import {
+    ForbiddenError,
+    isUserWithOrg,
+    MissingConfigError,
+    NotFoundError,
+    SessionUser,
+} from '@lightdash/common';
+import { getOctokitRestForApp } from '../../clients/github/Github';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
@@ -96,5 +103,39 @@ export class GithubAppService extends BaseService {
         return this.githubAppInstallationsModel.deleteInstallation(
             user.organizationUuid,
         );
+    }
+
+    async getRepos(user: SessionUser) {
+        if (!isUserWithOrg(user)) {
+            throw new Error('User is not part of an organization');
+        }
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const installationId = await this.getInstallationId(user);
+
+        if (installationId === undefined)
+            throw new NotFoundError('Missing Github installation');
+        const appOctokit = getOctokitRestForApp(installationId);
+
+        try {
+            const { data } =
+                await appOctokit.apps.listReposAccessibleToInstallation();
+            return data.repositories.map((repo) => ({
+                name: repo.name,
+                ownerLogin: repo.owner.login,
+                fullName: repo.full_name,
+            }));
+        } catch (error) {
+            console.error('Github api error', error);
+            throw new MissingConfigError('Invalid Github integration config');
+        }
     }
 }
