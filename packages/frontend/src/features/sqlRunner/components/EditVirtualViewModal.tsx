@@ -49,7 +49,7 @@ export const EditVirtualViewModal: FC<Props> = ({
             xOffset="2vw"
             styles={(theme) => ({
                 header: {
-                    padding: 0,
+                    padding: isClosingConfirmation ? theme.spacing.md : 0,
                 },
                 body: {
                     padding: isClosingConfirmation ? theme.spacing.md : 0,
@@ -71,13 +71,18 @@ export const EditVirtualViewModal: FC<Props> = ({
                     <Group position="right">
                         <Button
                             variant="outline"
-                            onClick={() => setIsClosingConfirmation(false)}
+                            onClick={() => {
+                                setIsClosingConfirmation(false);
+                            }}
                         >
                             Cancel
                         </Button>
                         <Button
                             color="red"
-                            onClick={() => setIsEditVirtualViewOpen(false)}
+                            onClick={() => {
+                                setIsEditVirtualViewOpen(false);
+                                setIsClosingConfirmation(false);
+                            }}
                         >
                             Close
                         </Button>
