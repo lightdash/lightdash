@@ -61,6 +61,7 @@
         "colorjs.io": "^0.4.5",
         "cron-converter": "^2.0.0",
         "cronstrue": "^2.22.0",
+        "csv-stringify": "^6.5.1",
         "dayjs": "^1.11.10",
         "echarts": "^5.4.3",
         "echarts-for-react": "^3.0.2",
