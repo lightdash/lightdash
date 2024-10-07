@@ -118,7 +118,6 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                         radius="md"
                         label="Name"
                         required
-                        // TODO - don't allow duplicate names
                         {...form.getInputProps('name')}
                         error={!!error?.error}
                     />
