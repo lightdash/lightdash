@@ -1,3 +1,10 @@
+## [0.1296.2](https://github.com/lightdash/lightdash/compare/0.1296.1...0.1296.2) (2024-10-07)
+
+
+### Bug Fixes
+
+* check if file exists in github ([#11832](https://github.com/lightdash/lightdash/issues/11832)) ([3d453f6](https://github.com/lightdash/lightdash/commit/3d453f69d09bde3c5b4e8ed492e8b866ff391b7a))
+
 ## [0.1296.1](https://github.com/lightdash/lightdash/compare/0.1296.0...0.1296.1) (2024-10-07)
 
 
