@@ -35,7 +35,7 @@ export const useCreateVirtualView = ({
 }: {
     projectUuid: string;
 }) => {
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiCreateVirtualView['results'],
         ApiError,
@@ -59,9 +59,10 @@ export const useCreateVirtualView = ({
                 },
             });
         },
-        onError: () => {
-            showToastError({
+        onError: ({ error }) => {
+            showToastApiError({
                 title: 'Error creating virtual view',
+                apiError: error,
             });
         },
     });
