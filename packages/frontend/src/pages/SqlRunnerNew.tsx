@@ -164,10 +164,12 @@ const SqlRunnerNew = ({
                                 label={'Open sidebar'}
                                 position="right"
                             >
-                                <ActionIcon size="sm">
+                                <ActionIcon
+                                    size="sm"
+                                    onClick={() => setLeftSidebarOpen(true)}
+                                >
                                     <MantineIcon
                                         icon={IconLayoutSidebarLeftExpand}
-                                        onClick={() => setLeftSidebarOpen(true)}
                                     />
                                 </ActionIcon>
                             </Tooltip>
