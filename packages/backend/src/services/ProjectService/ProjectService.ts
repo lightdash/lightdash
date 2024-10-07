@@ -99,6 +99,7 @@ import {
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
+    UpdateVirtualViewPayload,
     UserAttributeValueMap,
     UserWarehouseCredentials,
     VizColumn,
@@ -4406,5 +4407,46 @@ export class ProjectService extends BaseService {
             await this.projectModel.deleteSemanticLayerConnection(projectUuid);
 
         return updatedProject;
+    }
+
+    async updateVirtualView(
+        user: SessionUser,
+        projectUuid: string,
+        payload: UpdateVirtualViewPayload,
+    ) {
+        const explore = await this.findExplores({
+            user,
+            projectUuid,
+            exploreNames: [payload.name],
+        });
+
+        if (!explore) {
+            throw new NotFoundError('Explore not found');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+        );
+
+        const updatedExplore = await this.projectModel.updateVirtualView(
+            projectUuid,
+            payload,
+            warehouseClient,
+        );
+
+        return updatedExplore;
     }
 }

@@ -11,7 +11,7 @@ import { type VizColumn } from '../visualizations/types';
 import { getFieldQuoteChar } from './warehouse';
 
 export const createVirtualView = (
-    customExploreName: string,
+    virtualViewName: string,
     sql: string,
     columns: VizColumn[],
     warehouseClient: WarehouseClient,
@@ -26,10 +26,10 @@ export const createVirtualView = (
                 name: column.reference,
                 label: friendlyName(column.reference),
                 type: column.type ?? DimensionType.STRING,
-                table: customExploreName,
+                table: virtualViewName,
                 fieldType: FieldType.DIMENSION,
                 sql: `${fieldQuoteChar}${column.reference}${fieldQuoteChar}`,
-                tableLabel: friendlyName(customExploreName),
+                tableLabel: friendlyName(virtualViewName),
                 hidden: false,
             };
             return acc;
@@ -38,8 +38,8 @@ export const createVirtualView = (
     );
 
     const compiledTable: Table = {
-        name: customExploreName,
-        label: friendlyName(customExploreName),
+        name: virtualViewName,
+        label: friendlyName(virtualViewName),
         sqlTable: `(${sql})`, // Wrap the sql in a subquery to avoid issues with reserved words
         dimensions,
         metrics: {},
@@ -49,12 +49,12 @@ export const createVirtualView = (
     };
 
     const explore = exploreCompiler.compileExplore({
-        name: customExploreName,
-        label: friendlyName(customExploreName),
+        name: virtualViewName,
+        label: friendlyName(virtualViewName),
         tags: [],
-        baseTable: customExploreName,
+        baseTable: virtualViewName,
         joinedTables: [],
-        tables: { [customExploreName]: compiledTable },
+        tables: { [virtualViewName]: compiledTable },
         targetDatabase: warehouseClient.getAdapterType(),
     });
 

@@ -2,9 +2,10 @@ import {
     type ApiCreateVirtualView,
     type ApiError,
     type CreateVirtualViewPayload,
+    type UpdateVirtualViewPayload,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -17,7 +18,7 @@ const createVirtualView = async ({
     projectUuid: string;
 } & CreateVirtualViewPayload) =>
     lightdashApi<ApiCreateVirtualView['results']>({
-        url: `/projects/${projectUuid}/sqlRunner/create-virtual-view`,
+        url: `/projects/${projectUuid}/sqlRunner/virtual-view`,
         method: 'POST',
         body: JSON.stringify({
             name,
@@ -61,6 +62,51 @@ export const useCreateVirtualView = ({
         onError: () => {
             showToastError({
                 title: 'Error creating virtual view',
+            });
+        },
+    });
+};
+
+const updateVirtualView = async ({
+    projectUuid,
+    name,
+    sql,
+    columns,
+}: {
+    projectUuid: string;
+} & UpdateVirtualViewPayload) =>
+    lightdashApi<ApiCreateVirtualView['results']>({
+        url: `/projects/${projectUuid}/sqlRunner/virtual-view/${name}`,
+        method: 'PUT',
+        body: JSON.stringify({
+            sql,
+            columns,
+        }),
+    });
+
+export const useUpdateVirtualView = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
+    return useMutation<
+        ApiCreateVirtualView['results'],
+        ApiError,
+        { projectUuid: string } & UpdateVirtualViewPayload
+    >({
+        mutationFn: updateVirtualView,
+        onSuccess: async ({ name }) => {
+            await queryClient.invalidateQueries({
+                queryKey: ['tables', projectUuid, 'filtered'],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: ['tables', name, projectUuid],
+            });
+            showToastSuccess({
+                title: 'Success! Virtual view updated',
+            });
+        },
+        onError: () => {
+            showToastError({
+                title: 'Error updating virtual view',
             });
         },
     });

@@ -30,6 +30,7 @@ import {
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
+    UpdateVirtualViewPayload,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
@@ -2075,6 +2076,66 @@ export class ProjectModel {
             .returning('*');
 
         return { name };
+    }
+
+    async updateVirtualView(
+        projectUuid: string,
+        payload: UpdateVirtualViewPayload,
+        warehouseClient: WarehouseClient,
+    ) {
+        const translatedToExplore = createVirtualView(
+            payload.name,
+            payload.sql,
+            payload.columns,
+            warehouseClient,
+        );
+
+        // insert into cached_explore
+        await this.database(CachedExploreTableName)
+            .update({
+                project_uuid: projectUuid,
+                name: translatedToExplore.name,
+                table_names: Object.keys(translatedToExplore.tables || {}),
+                explore: JSON.stringify(translatedToExplore),
+            })
+            .where('project_uuid', projectUuid)
+            .andWhere('name', payload.name)
+            .returning(['name', 'cached_explore_uuid']);
+
+        // append to cached_explores if it doesn't exist; otherwise, update
+        await this.database(CachedExploresTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                explores: this.database.raw(
+                    `
+                    CASE
+                        WHEN explores IS NULL THEN ?::jsonb
+                        ELSE (
+                            SELECT jsonb_agg(
+                                CASE
+                                    WHEN (value->>'name') = ? THEN ?::jsonb
+                                    ELSE value
+                                END
+                            )
+                            FROM jsonb_array_elements(
+                                CASE
+                                    WHEN jsonb_typeof(explores) = 'array' THEN explores
+                                    ELSE '[]'::jsonb
+                                END
+                            )
+                        )
+                    END
+                `,
+                    [
+                        JSON.stringify([translatedToExplore]),
+                        translatedToExplore.name,
+                        JSON.stringify(translatedToExplore),
+                    ],
+                ),
+            })
+            .returning('*');
+
+        return { name: translatedToExplore.name };
     }
 
     async updateSemanticLayerConnection(
