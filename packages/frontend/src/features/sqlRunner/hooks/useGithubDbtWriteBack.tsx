@@ -42,11 +42,10 @@ export const useGithubDbtWriteBack = () => {
         onSuccess: (data) => {
             window.open(data.prUrl, '_blank');
         },
-        onError: () => {
-            // TODO: Handle more specific error messages
+        onError: (e) => {
             showToastError({
                 title: 'Failed to create a pull request',
-                subtitle: 'Please check your Github settings.',
+                subtitle: e.error.message,
             });
         },
     });
