@@ -8,7 +8,7 @@ const FLAG_CHECK_TIMEOUT = process.env.POSTHOG_CHECK_TIMEOUT
     ? parseInt(process.env.POSTHOG_CHECK_TIMEOUT, 10)
     : 5000; // 5 seconds
 
-export const postHogClient = lightdashConfig.posthog.projectApiKey
+export const postHogClient = lightdashConfig.posthog
     ? new PostHog(lightdashConfig.posthog.projectApiKey, {
           host: lightdashConfig.posthog.apiHost,
       })

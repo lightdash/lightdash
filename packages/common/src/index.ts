@@ -795,10 +795,12 @@ export type HealthState = {
             loginPath: string;
         };
     };
-    posthog: {
-        projectApiKey: string;
-        apiHost: string;
-    };
+    posthog:
+        | {
+              projectApiKey: string;
+              apiHost: string;
+          }
+        | undefined;
     siteUrl: string;
     intercom: {
         appId: string;
