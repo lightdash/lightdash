@@ -2937,8 +2937,6 @@ export class ProjectService extends BaseService {
                     exploreNames,
                 );
 
-                console.log({ explores });
-
                 const userAttributes =
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
                         {
