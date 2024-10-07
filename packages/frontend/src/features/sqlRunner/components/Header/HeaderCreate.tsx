@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { DbtProjectType, FeatureFlags } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -21,6 +21,7 @@ import { useGitHubRepositories } from '../../../../components/UserSettings/Githu
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
+import { useProject } from '../../../../hooks/useProject';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     DEFAULT_NAME,
@@ -40,6 +41,9 @@ export const HeaderCreate: FC = () => {
     const isSaveVirtualViewFromSqlRunnerEnabled = useFeatureFlagEnabled(
         FeatureFlags.SaveVirtualViewFromSqlRunner,
     );
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const { data: project } = useProject(projectUuid);
+
     const dispatch = useAppDispatch();
     const name = useAppSelector((state) => state.sqlRunner.name);
     const loadedColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
@@ -50,7 +54,8 @@ export const HeaderCreate: FC = () => {
 
     const isGithubIntegrationEnabled =
         useFeatureFlagEnabled(FeatureFlags.CustomSQLEnabled) &&
-        health?.data?.hasGithub;
+        health?.data?.hasGithub &&
+        project?.dbtConnection.type === DbtProjectType.GITHUB;
     const { isError: githubIsNotInstalled } = useGitHubRepositories();
 
     const isCreateVirtualViewModalOpen = useAppSelector(
