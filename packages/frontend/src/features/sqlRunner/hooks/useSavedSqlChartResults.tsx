@@ -23,9 +23,8 @@ export const useSavedSqlChartResults = ({
     projectUuid?: string;
     context?: string;
 }) => {
-    const { getResultsFromStream } = useResultsFromStreamWorker();
-
     // Separate chart results into two steps to provide a better loading + error experiences
+    const { getResultsFromStream } = useResultsFromStreamWorker();
 
     // Step 1: Get the chart
     const chartQuery = useQuery<SqlChart, Partial<ApiError>>(
@@ -57,6 +56,8 @@ export const useSavedSqlChartResults = ({
         async () => {
             // Safe to assume these are defined because of the enabled flag
             const chart = chartQuery.data!;
+
+            // TODO: This shouldn't be needed - it gets the raw unpivoted results
             const chartResults = await getSqlChartResultsByUuid({
                 projectUuid: projectUuid!,
                 chartUuid: chart.savedSqlUuid,
@@ -88,13 +89,16 @@ export const useSavedSqlChartResults = ({
             const chartUnderlyingData = vizDataModel.getPivotedTableData();
             return {
                 chartSpec: vizDataModel.getSpec(chart.config.display),
-                fileUrl: chartResults.fileUrl,
+                fileUrl: vizDataModel.getDataDownloadUrl()!, // TODO: this is known if the results have been fetched - can we improve the types on vizdatamodel?
                 resultsRunner,
                 chartUnderlyingData,
             };
         },
         {
-            enabled: !!chartQuery.data && !!projectUuid && !!savedSqlUuid,
+            enabled:
+                !!chartQuery.data &&
+                !!projectUuid &&
+                (!!savedSqlUuid || !!slug),
         },
     );
     return {

@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import type { EChartsInstance } from 'echarts-for-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { ConditionalVisibility } from '../components/common/ConditionalVisibility';
@@ -24,7 +24,11 @@ import { ResultsDownload } from '../features/sqlRunner/components/Download/Resul
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChartResults } from '../features/sqlRunner/hooks/useSavedSqlChartResults';
 import { store } from '../features/sqlRunner/store';
-import { useAppSelector } from '../features/sqlRunner/store/hooks';
+import { useAppDispatch } from '../features/sqlRunner/store/hooks';
+import {
+    setProjectUuid,
+    setSavedChartData,
+} from '../features/sqlRunner/store/sqlRunnerSlice';
 
 enum TabOption {
     CHART = 'chart',
@@ -34,8 +38,8 @@ enum TabOption {
 
 const ViewSqlChart = () => {
     const params = useParams<{ projectUuid: string; slug?: string }>();
+    const dispatch = useAppDispatch();
     const [activeTab, setActiveTab] = useState<TabOption>(TabOption.CHART);
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
 
     const [echartsInstance, setEchartsInstance] = useState<EChartsInstance>();
 
@@ -52,9 +56,19 @@ const ViewSqlChart = () => {
             isFetching: isChartResultsFetching,
         },
     } = useSavedSqlChartResults({
-        projectUuid,
+        projectUuid: params.projectUuid,
         slug: params.slug,
     });
+
+    // TODO: remove state sync - this is because the <Header /> component depends on the Redux state
+    useEffect(() => {
+        if (chartData) {
+            dispatch(setSavedChartData(chartData));
+        }
+        if (params.projectUuid) {
+            dispatch(setProjectUuid(params.projectUuid));
+        }
+    }, [dispatch, chartData, params.projectUuid]);
 
     return (
         <Page
