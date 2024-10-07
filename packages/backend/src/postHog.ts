@@ -38,22 +38,28 @@ export async function isFeatureFlagEnabled(
      * Timeout should be cleared if the check resolves before the timeout
      */
     let timeout: NodeJS.Timeout;
-    const timeoutPromise = new Promise<boolean>((resolve, reject) => {
-        timeout = setTimeout(() => {
-            Logger.error(
-                `Timeout waiting for a feature flag with Posthog for flag "${flag}"`,
-            );
-            if (throwOnTimeout) {
-                reject(
-                    new Error(
-                        `Timeout waiting for a feature flag check for flag "${flag}"`,
-                    ),
-                );
-            } else {
-                resolve(false);
-            }
-        }, FLAG_CHECK_TIMEOUT);
-    });
+    const timeoutPromise = () =>
+        new Promise<boolean>((resolve, reject) => {
+            timeout = setTimeout(() => {
+                if (throwOnTimeout) {
+                    Logger.error(
+                        `Timeout waiting for a feature flag with Posthog for flag "${flag}"`,
+                    );
+
+                    reject(
+                        new Error(
+                            `Timeout waiting for a feature flag check for flag "${flag}"`,
+                        ),
+                    );
+                } else {
+                    Logger.error(
+                        `Silently ignoring timeout waiting for a feature flag with Posthog for flag "${flag}"`,
+                    );
+
+                    resolve(false);
+                }
+            }, FLAG_CHECK_TIMEOUT);
+        });
 
     /**
      * Check if this flag is enabled via Posthog. The check must resolve within
@@ -78,20 +84,11 @@ export async function isFeatureFlagEnabled(
         return result;
     };
 
-    try {
-        // Await the race between the feature flag promise and the timeout
-        const isEnabled = await Promise.race([
-            featureFlagPromise,
-            timeoutPromise,
-        ]);
-        // isFeatureEnabled returns boolean | undefined, so we force it into a boolean:
-        return !!isEnabled;
-    } catch (error) {
-        if (throwOnTimeout) {
-            // Re-throw the error to be handled by the caller
-            throw error;
-        }
-        // If not throwing on timeout, return false
-        return false;
-    }
+    const isEnabled = await Promise.race([
+        timeoutPromise(),
+        featureFlagPromise(),
+    ]);
+
+    // isFeatureEnabled returns boolean | undefined, so we force it into a boolean:
+    return !!isEnabled;
 }
