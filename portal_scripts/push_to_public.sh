@@ -13,18 +13,30 @@ get_restricted_content () {
 }
 
 save_code_diff () {
-  git diff public/main ':(exclude).security_config/' ':(exclude)portal_scripts/' > $TEMP_PATCH_LOCATION
-  echo "$(cat $TEMP_PATCH_LOCATION)"
+    BRANCH_EXISTS=$1
+    NEW_BRANCH_NAME=$2
+    if $BRANCH_EXISTS; then
+        git diff public/$NEW_BRANCH_NAME ':(exclude).security_config/' ':(exclude)portal_scripts/' > $TEMP_PATCH_LOCATION
+    else
+        git diff public/main ':(exclude).security_config/' ':(exclude)portal_scripts/' > $TEMP_PATCH_LOCATION
+    fi
+    echo "$(cat $TEMP_PATCH_LOCATION)"
 }
 
 delete_code_diff () {
-  rm $TEMP_PATCH_LOCATION
+    rm $TEMP_PATCH_LOCATION
 }
 
 print_code_diff_no_ignore () {
-  echo "vvvvvvv DIFF FROM PUBLIC vvvvvvv"
-  git --no-pager diff public/main
-  echo "^^^^^^^ DIFF FROM PUBLIC ^^^^^^^"
+    BRANCH_EXISTS=$1
+    NEW_BRANCH_NAME=$2
+    echo "vvvvvvv DIFF FROM YOUR PUBLIC vvvvvvv"
+    if $BRANCH_EXISTS; then
+        git --no-pager diff public/$NEW_BRANCH_NAME
+    else
+        git --no-pager diff public/main
+    fi
+    echo "^^^^^^^ DIFF FROM YOUR PUBLIC ^^^^^^^"
 }
 
 if ! test -f $PWD/yarn.lock; then
@@ -138,23 +150,21 @@ while true; do
     break
 done
 
-CODE_DIFF=$(save_code_diff)
-RESTRICTED_WORDS_IN_CODE=$(get_restricted_content "$CODE_DIFF")
-if [[ $RESTRICTED_WORDS_IN_CODE ]]; then
-    echo "vvvvvvv Code changes must not use restricted words vvvvvvv"
-    echo "$RESTRICTED_WORDS_IN_CODE"
-    echo "^^^^^^^ Code changes must not use restricted words ^^^^^^^"
-    delete_code_diff
-    exit 1
-fi
-
-read -p "Enter branch name to be displayed publicly: " NEW_BRANCH_NAME
+echo "vvvvvvv Local branches"
+git branch
+echo "^^^^^^^ Local branches"
+read -p "Enter a new branch name to be displayed publicly or use an existing name if this updates an existing public branch: " NEW_BRANCH_NAME
 RESTRICTED_WORDS_IN_BRANCH_NAME=$(get_restricted_content "$NEW_BRANCH_NAME")
 if [[ $RESTRICTED_WORDS_IN_BRANCH_NAME ]]; then
     echo "vvvvvvv Branch name must not use restricted words vvvvvvv"
     echo "$RESTRICTED_WORDS_IN_BRANCH_NAME"
     echo "^^^^^^^ Branch name must not use restricted words ^^^^^^^"
     exit 1
+fi
+
+BRANCH_EXISTS=$(git show-ref --quiet refs/heads/$NEW_BRANCH_NAME)
+if $BRANCH_EXISTS; then
+    echo "#### Using existing branch: $NEW_BRANCH_NAME"
 fi
 
 read -p "Enter commit message to be displayed publicly: " COMMIT_MESSAGE
@@ -166,13 +176,29 @@ if [[ $RESTRICTED_WORDS_IN_COMMIT_MESSAGE ]]; then
     exit 1
 fi
 
-git checkout -q public/main
-git checkout -b $NEW_BRANCH_NAME
+CODE_DIFF=$(save_code_diff "$BRANCH_EXISTS" "$NEW_BRANCH_NAME")
+
+RESTRICTED_WORDS_IN_CODE=$(get_restricted_content "$CODE_DIFF")
+if [[ $RESTRICTED_WORDS_IN_CODE ]]; then
+    echo "vvvvvvv Code changes must not use restricted words vvvvvvv"
+    echo "$RESTRICTED_WORDS_IN_CODE"
+    echo "^^^^^^^ Code changes must not use restricted words ^^^^^^^"
+    delete_code_diff
+    exit 1
+fi
+
+if $BRANCH_EXISTS; then
+    git checkout $NEW_BRANCH_NAME
+else
+    git checkout -q public/main
+    git checkout -b $NEW_BRANCH_NAME
+fi
+
 git apply $TEMP_PATCH_LOCATION
 git add .
 git commit -m "$COMMIT_MESSAGE"
 
-print_code_diff_no_ignore
+print_code_diff_no_ignore "$BRANCH_EXISTS" "$NEW_BRANCH_NAME"
 
 echo "#### Push the above changes to public GitHub? (y/n)"
 FINAL_OK=""
