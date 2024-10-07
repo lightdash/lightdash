@@ -10,7 +10,7 @@ import { IconTableAlias } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { useUpdateCustomExplore } from '../../hooks/useCustomExplore';
+import { useUpdateVirtualView } from '../../hooks/useVirtualView';
 import { useAppSelector } from '../../store/hooks';
 import { SqlQueryBeforeSaveAlert } from '../SqlQueryBeforeSaveAlert';
 
@@ -25,19 +25,18 @@ export const HeaderVirtualView: FC<{
         (state) => state.sqlRunner.hasUnrunChanges,
     );
 
-    const { mutateAsync: updateCustomExplore, isLoading } =
-        useUpdateCustomExplore(projectUuid);
+    const { mutateAsync: updateVirtualView, isLoading } =
+        useUpdateVirtualView(projectUuid);
 
     const handleUpdateVirtualView = async () => {
         if (!columns) {
             return;
         }
-        await updateCustomExplore({
+        await updateVirtualView({
             projectUuid,
-            exploreName: virtualViewState.name,
             // TODO: Allow editing name
             name: virtualViewState.name,
-            sql: sql,
+            sql,
             columns,
         });
 

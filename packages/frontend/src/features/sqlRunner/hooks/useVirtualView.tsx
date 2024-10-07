@@ -2,7 +2,7 @@ import {
     type ApiCreateVirtualView,
     type ApiError,
     type CreateVirtualViewPayload,
-    type UpdateCustomExplorePayload,
+    type UpdateVirtualViewPayload,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -18,7 +18,7 @@ const createVirtualView = async ({
     projectUuid: string;
 } & CreateVirtualViewPayload) =>
     lightdashApi<ApiCreateVirtualView['results']>({
-        url: `/projects/${projectUuid}/sqlRunner/create-virtual-view`,
+        url: `/projects/${projectUuid}/sqlRunner/virtual-view`,
         method: 'POST',
         body: JSON.stringify({
             name,
@@ -67,36 +67,32 @@ export const useCreateVirtualView = ({
     });
 };
 
-const updateCustomExplore = async ({
+const updateVirtualView = async ({
     projectUuid,
     name,
     sql,
     columns,
-    exploreName,
 }: {
     projectUuid: string;
-} & UpdateCustomExplorePayload) =>
+} & UpdateVirtualViewPayload) =>
     lightdashApi<ApiCreateVirtualView['results']>({
-        url: `/projects/${projectUuid}/explores/updateVirtualView`,
-        // TODO: should be patch/put in probably in sqlRunnerController
-        method: 'POST',
+        url: `/projects/${projectUuid}/sqlRunner/virtual-view/${name}`,
+        method: 'PUT',
         body: JSON.stringify({
-            name,
             sql,
             columns,
-            exploreName,
         }),
     });
 
-export const useUpdateCustomExplore = (projectUuid: string) => {
+export const useUpdateVirtualView = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
         ApiCreateVirtualView['results'],
         ApiError,
-        { projectUuid: string } & UpdateCustomExplorePayload
+        { projectUuid: string } & UpdateVirtualViewPayload
     >({
-        mutationFn: updateCustomExplore,
+        mutationFn: updateVirtualView,
         onSuccess: async ({ name }) => {
             await queryClient.invalidateQueries({
                 queryKey: ['tables', projectUuid, 'filtered'],

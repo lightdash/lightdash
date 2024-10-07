@@ -2860,73 +2860,6 @@ const models: TsoaRoute.Models = {
         type: { dataType: 'string', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Explore.name_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: { name: { dataType: 'string', required: true } },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiCreateCustomExplore: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: { ref: 'Pick_Explore.name_', required: true },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizColumn: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                type: { ref: 'DimensionType' },
-                reference: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CreateCustomExplorePayload: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                columns: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'VizColumn' },
-                    required: true,
-                },
-                sql: { dataType: 'string', required: true },
-                name: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    UpdateCustomExplorePayload: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'CreateCustomExplorePayload' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        exploreName: { dataType: 'string', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     GitRepo: {
         dataType: 'refAlias',
         type: {
@@ -7510,6 +7443,31 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_UpdateVirtualViewPayload.Exclude_keyofUpdateVirtualViewPayload.name__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    sql: { dataType: 'string', required: true },
+                    columns: {
+                        dataType: 'array',
+                        array: { dataType: 'refAlias', ref: 'VizColumn' },
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_UpdateVirtualViewPayload.name_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_UpdateVirtualViewPayload.Exclude_keyofUpdateVirtualViewPayload.name__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGithubDbtWritePreview: {
         dataType: 'refAlias',
         type: {
@@ -10337,68 +10295,6 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.DownloadCsvFromExplore.apply(
-                    controller,
-                    validatedArgs as any,
-                );
-                promiseHandler(controller, promise, response, 200, next);
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.post(
-        '/api/v1/projects/:projectUuid/explores/updateVirtualView',
-        ...fetchMiddlewares<RequestHandler>(ExploreController),
-        ...fetchMiddlewares<RequestHandler>(
-            ExploreController.prototype.UpdateVirtualView,
-        ),
-
-        async function ExploreController_UpdateVirtualView(
-            request: any,
-            response: any,
-            next: any,
-        ) {
-            const args = {
-                projectUuid: {
-                    in: 'path',
-                    name: 'projectUuid',
-                    required: true,
-                    dataType: 'string',
-                },
-                req: {
-                    in: 'request',
-                    name: 'req',
-                    required: true,
-                    dataType: 'object',
-                },
-                body: {
-                    in: 'body',
-                    name: 'body',
-                    required: true,
-                    ref: 'UpdateCustomExplorePayload',
-                },
-            };
-
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = getValidatedArgs(args, request, response);
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any = await container.get<ExploreController>(
-                    ExploreController,
-                );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                const promise = controller.UpdateVirtualView.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -16271,7 +16167,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/projects/:projectUuid/sqlRunner/create-virtual-view',
+        '/api/v1/projects/:projectUuid/sqlRunner/virtual-view',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
         ...fetchMiddlewares<RequestHandler>(
             SqlRunnerController.prototype.createVirtualView,
@@ -16323,6 +16219,75 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.createVirtualView.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.put(
+        '/api/v1/projects/:projectUuid/sqlRunner/virtual-view/:name',
+        ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SqlRunnerController.prototype.updateVirtualView,
+        ),
+
+        async function SqlRunnerController_updateVirtualView(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                name: {
+                    in: 'path',
+                    name: 'name',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'Omit_UpdateVirtualViewPayload.name_',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SqlRunnerController>(
+                        SqlRunnerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.updateVirtualView.apply(
                     controller,
                     validatedArgs as any,
                 );

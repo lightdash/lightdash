@@ -28,9 +28,9 @@ import {
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
-    UpdateCustomExplorePayload,
     UpdateMetadata,
     UpdateProject,
+    UpdateVirtualViewPayload,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
@@ -2080,10 +2080,10 @@ export class ProjectModel {
 
     async updateVirtualView(
         projectUuid: string,
-        payload: UpdateCustomExplorePayload,
+        payload: UpdateVirtualViewPayload,
         warehouseClient: WarehouseClient,
     ) {
-        const translatedToExplore = createCustomExplore(
+        const translatedToExplore = createVirtualView(
             payload.name,
             payload.sql,
             payload.columns,

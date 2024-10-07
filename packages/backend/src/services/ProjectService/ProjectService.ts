@@ -96,10 +96,10 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
-    UpdateCustomExplorePayload,
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
+    UpdateVirtualViewPayload,
     UserAttributeValueMap,
     UserWarehouseCredentials,
     VizColumn,
@@ -4414,10 +4414,8 @@ export class ProjectService extends BaseService {
     async updateVirtualView(
         user: SessionUser,
         projectUuid: string,
-        payload: UpdateCustomExplorePayload,
+        payload: UpdateVirtualViewPayload,
     ) {
-        console.log({ payload, readyToFind: payload.exploreName });
-
         const explore = await this.findExplores({
             user,
             projectUuid,

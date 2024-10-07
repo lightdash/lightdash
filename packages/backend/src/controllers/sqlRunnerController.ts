@@ -14,8 +14,8 @@ import {
     CreateVirtualViewPayload,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
-    UpdateCustomExplorePayload,
     UpdateSqlChart,
+    UpdateVirtualViewPayload,
 } from '@lightdash/common';
 import {
     Body,
@@ -390,7 +390,7 @@ export class SqlRunnerController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Post('create-virtual-view')
+    @Post('virtual-view')
     @OperationId('createVirtualView')
     async createVirtualView(
         @Path() projectUuid: string,
@@ -416,22 +416,26 @@ export class SqlRunnerController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Put('update-virtualView')
-    @OperationId('UpdateVirtualView')
-    async UpdateVirtualView(
+    @Put('virtual-view/{name}')
+    @OperationId('updateVirtualView')
+    async updateVirtualView(
         @Path() projectUuid: string,
+        @Path() name: string,
         @Request() req: express.Request,
-        @Body() body: UpdateCustomExplorePayload,
-    ): Promise<ApiCreateCustomExplore> {
+        @Body() body: Omit<UpdateVirtualViewPayload, 'name'>,
+    ): Promise<ApiCreateVirtualView> {
         this.setStatus(200);
-        const { name } = await this.services
+        const { name: virtualViewName } = await this.services
             .getProjectService()
-            .updateVirtualView(req.user!, projectUuid, body);
+            .updateVirtualView(req.user!, projectUuid, {
+                ...body,
+                name,
+            });
 
         return {
             status: 'ok',
             results: {
-                name,
+                name: virtualViewName,
             },
         };
     }
