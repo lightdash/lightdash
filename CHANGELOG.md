@@ -1,3 +1,10 @@
+## [0.1295.5](https://github.com/lightdash/lightdash/compare/0.1295.4...0.1295.5) (2024-10-07)
+
+
+### Bug Fixes
+
+* add errors to github config page ([#11826](https://github.com/lightdash/lightdash/issues/11826)) ([a2426d2](https://github.com/lightdash/lightdash/commit/a2426d2d70e067dc80fe8d50fb594afbee87d0d7))
+
 ## [0.1295.4](https://github.com/lightdash/lightdash/compare/0.1295.3...0.1295.4) (2024-10-07)
 
 
