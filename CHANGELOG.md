@@ -1,3 +1,10 @@
+## [0.1296.1](https://github.com/lightdash/lightdash/compare/0.1296.0...0.1296.1) (2024-10-07)
+
+
+### Bug Fixes
+
+* posthog silent fails ([#11818](https://github.com/lightdash/lightdash/issues/11818)) ([af7ca61](https://github.com/lightdash/lightdash/commit/af7ca619237ca351c2cbed6e0afd4487f60c92f9))
+
 # [0.1296.0](https://github.com/lightdash/lightdash/compare/0.1295.6...0.1296.0) (2024-10-07)
 
 
