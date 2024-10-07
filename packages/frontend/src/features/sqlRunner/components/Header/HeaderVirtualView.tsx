@@ -5,9 +5,7 @@ import {
     HoverCard,
     LoadingOverlay,
     Text,
-    TextInput,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
 import { IconTableAlias } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
@@ -29,11 +27,6 @@ export const HeaderVirtualView: FC<{
 
     const { mutateAsync: updateCustomExplore, isLoading } =
         useUpdateCustomExplore(projectUuid);
-    const form = useForm({
-        initialValues: {
-            name: virtualViewState.name,
-        },
-    });
 
     const handleUpdateVirtualView = async () => {
         if (!columns) {
@@ -42,7 +35,8 @@ export const HeaderVirtualView: FC<{
         await updateCustomExplore({
             projectUuid,
             exploreName: virtualViewState.name,
-            name: form.values.name,
+            // TODO: Allow editing name
+            name: virtualViewState.name,
             sql: sql,
             columns,
         });
@@ -68,20 +62,10 @@ export const HeaderVirtualView: FC<{
                 <Group spacing="xs">
                     <MantineIcon icon={IconTableAlias} />
                     <Text fz="sm" fw={500}>
-                        Editing virtual view
+                        {/* TODO: Allow editing name */}
+                        Editing {virtualViewState.name}
                     </Text>
                 </Group>
-                <form
-                    onSubmit={form.onSubmit((values) => {
-                        console.log(values);
-                    })}
-                >
-                    <TextInput
-                        size="xs"
-                        radius="md"
-                        {...form.getInputProps('name')}
-                    />
-                </form>
             </Group>
             <HoverCard disabled={!hasUnrunChanges} withArrow>
                 <HoverCard.Target>

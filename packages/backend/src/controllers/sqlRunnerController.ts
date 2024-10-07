@@ -14,6 +14,7 @@ import {
     CreateVirtualViewPayload,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
+    UpdateCustomExplorePayload,
     UpdateSqlChart,
 } from '@lightdash/common';
 import {
@@ -26,6 +27,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -34,10 +36,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import {
-    getContextFromHeader,
-    getContextFromQueryOrHeader,
-} from '../analytics/LightdashAnalytics';
+import { getContextFromQueryOrHeader } from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -412,6 +411,28 @@ export class SqlRunnerController extends BaseController {
         return {
             status: 'ok',
             results: virtualViewName,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('update-virtualView')
+    @OperationId('UpdateVirtualView')
+    async UpdateVirtualView(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: UpdateCustomExplorePayload,
+    ): Promise<ApiCreateCustomExplore> {
+        this.setStatus(200);
+        const { name } = await this.services
+            .getProjectService()
+            .updateVirtualView(req.user!, projectUuid, body);
+
+        return {
+            status: 'ok',
+            results: {
+                name,
+            },
         };
     }
 
