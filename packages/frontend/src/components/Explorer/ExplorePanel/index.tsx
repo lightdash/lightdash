@@ -178,7 +178,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     ]}
                 />
                 {explore.type === ExploreType.VIRTUAL && (
-                    <Menu>
+                    <Menu withArrow offset={-2}>
                         <Menu.Target>
                             <ActionIcon
                                 variant="transparent"
