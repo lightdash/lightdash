@@ -1,3 +1,10 @@
+## [0.1295.6](https://github.com/lightdash/lightdash/compare/0.1295.5...0.1295.6) (2024-10-07)
+
+
+### Bug Fixes
+
+* improve git delete flow ([#11828](https://github.com/lightdash/lightdash/issues/11828)) ([3e41b5e](https://github.com/lightdash/lightdash/commit/3e41b5edd3a856672ab181d8e327bbc84432a674))
+
 ## [0.1295.5](https://github.com/lightdash/lightdash/compare/0.1295.4...0.1295.5) (2024-10-07)
 
 
