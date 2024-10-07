@@ -140,7 +140,7 @@ export class GithubInstallController extends BaseController {
         await this.services
             .getGithubAppService()
             .deleteAppInstallation(req.user!);
-        // todo: uninstall app with octokit
+
         this.setStatus(200);
         return {
             status: 'ok',

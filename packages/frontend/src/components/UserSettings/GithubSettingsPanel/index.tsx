@@ -123,6 +123,19 @@ const GithubSettingsPanel: FC = () => {
                                 variant="default"
                                 href={GITHUB_INSTALL_URL}
                                 leftIcon={<MantineIcon icon={IconRefresh} />}
+                                onClick={() => {
+                                    deleteGithubInstallationMutation.mutate(
+                                        undefined,
+                                        {
+                                            onSuccess: () => {
+                                                window.open(
+                                                    GITHUB_INSTALL_URL,
+                                                    '_blank',
+                                                );
+                                            },
+                                        },
+                                    );
+                                }}
                             >
                                 Reinstall
                             </Button>

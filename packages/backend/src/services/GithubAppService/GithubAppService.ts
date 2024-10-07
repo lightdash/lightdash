@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
+import { getOctokitRestForApp } from '../../clients/github/Github';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
@@ -93,6 +94,17 @@ export class GithubAppService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        // Delete app in github
+        try {
+            const installationId = await this.getInstallationId(user);
+            const appOctokit = getOctokitRestForApp(installationId!);
+            await appOctokit.apps.deleteInstallation({
+                installation_id: parseInt(installationId!, 10),
+            });
+        } catch (error) {
+            console.error('Github api error when uninstalling app', error);
+        }
+
         return this.githubAppInstallationsModel.deleteInstallation(
             user.organizationUuid,
         );
