@@ -1,3 +1,10 @@
+# [0.1296.0](https://github.com/lightdash/lightdash/compare/0.1295.6...0.1296.0) (2024-10-07)
+
+
+### Features
+
+* allow editing a virtual view in explore view ([#11811](https://github.com/lightdash/lightdash/issues/11811)) ([ae2acce](https://github.com/lightdash/lightdash/commit/ae2accee555393f7a8835ebb8ed4f18607557edf))
+
 ## [0.1295.6](https://github.com/lightdash/lightdash/compare/0.1295.5...0.1295.6) (2024-10-07)
 
 
