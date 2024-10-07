@@ -218,6 +218,7 @@ export const HeaderVirtualView: FC<{
 
         if (handleDiff && initialColumns) {
             const diffs = compareColumns(initialColumns, columnsFromQuery);
+            // TODO: Add check for existing charts and/or dashboards that use the virtual view
 
             if (!diffs || diffs.length === 0) {
                 await updateVirtualView({
