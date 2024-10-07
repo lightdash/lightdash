@@ -1,18 +1,12 @@
-import {
-    Box,
-    Button,
-    Group,
-    HoverCard,
-    LoadingOverlay,
-    Text,
-} from '@mantine/core';
+import { type VizColumn } from '@lightdash/common';
+import { Button, Group, LoadingOverlay, Text } from '@mantine/core';
 import { IconTableAlias } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useSqlQueryRun } from '../../hooks/useSqlQueryRun';
 import { useUpdateVirtualView } from '../../hooks/useVirtualView';
 import { useAppSelector } from '../../store/hooks';
-import { SqlQueryBeforeSaveAlert } from '../SqlQueryBeforeSaveAlert';
 
 export const HeaderVirtualView: FC<{
     virtualViewState: { name: string; sql: string };
@@ -25,22 +19,37 @@ export const HeaderVirtualView: FC<{
         (state) => state.sqlRunner.hasUnrunChanges,
     );
 
-    const { mutateAsync: updateVirtualView, isLoading } =
+    const { mutateAsync: runQuery, isLoading: isRunningQuery } =
+        useSqlQueryRun(projectUuid);
+
+    const { mutateAsync: updateVirtualView, isLoading: isUpdatingVirtualView } =
         useUpdateVirtualView(projectUuid);
 
     const handleUpdateVirtualView = async () => {
         if (!columns) {
             return;
         }
+
+        let columnsFromQuery: VizColumn[] | undefined = columns;
+
+        // Run query to get schema if there are unrun changes - the table schema is not sufficient if the query is generating new columns
+        if (hasUnrunChanges) {
+            const results = await runQuery({ sql, limit: 1 });
+            if (results) {
+                columnsFromQuery = results.columns;
+            }
+        }
+
         await updateVirtualView({
             projectUuid,
             // TODO: Allow editing name
             name: virtualViewState.name,
             sql,
-            columns,
+            columns: columnsFromQuery,
         });
 
-        history.push(`/projects/${projectUuid}/tables`);
+        // Refresh the page to show the new virtual view
+        history.go(0);
     };
     return (
         <Group
@@ -52,7 +61,7 @@ export const HeaderVirtualView: FC<{
             })}
         >
             <LoadingOverlay
-                visible={isLoading}
+                visible={isRunningQuery || isUpdatingVirtualView}
                 loaderProps={{
                     variant: 'bars',
                 }}
@@ -66,23 +75,14 @@ export const HeaderVirtualView: FC<{
                     </Text>
                 </Group>
             </Group>
-            <HoverCard disabled={!hasUnrunChanges} withArrow>
-                <HoverCard.Target>
-                    <Box>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            onClick={handleUpdateVirtualView}
-                            disabled={hasUnrunChanges}
-                        >
-                            Save
-                        </Button>
-                    </Box>
-                </HoverCard.Target>
-                <HoverCard.Dropdown p={0} bg="yellow.0">
-                    <SqlQueryBeforeSaveAlert withDescription={false} />
-                </HoverCard.Dropdown>
-            </HoverCard>
+
+            <Button
+                size="xs"
+                variant="default"
+                onClick={handleUpdateVirtualView}
+            >
+                Save
+            </Button>
         </Group>
     );
 };
