@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
@@ -25,6 +26,9 @@ export const useSavedSqlChartResults = ({
 }) => {
     // Separate chart results into two steps to provide a better loading + error experiences
     const { getResultsFromStream } = useResultsFromStreamWorker();
+
+    // Needed for organization colors
+    const { data: organization } = useOrganization();
 
     // Step 1: Get the chart
     const chartQuery = useQuery<SqlChart, Partial<ApiError>>(
@@ -88,7 +92,10 @@ export const useSavedSqlChartResults = ({
             });
             const chartUnderlyingData = vizDataModel.getPivotedTableData();
             return {
-                chartSpec: vizDataModel.getSpec(chart.config.display),
+                chartSpec: vizDataModel.getSpec(
+                    chart.config.display,
+                    organization?.chartColors,
+                ),
                 fileUrl: vizDataModel.getDataDownloadUrl()!, // TODO: this is known if the results have been fetched - can we improve the types on vizdatamodel?
                 resultsRunner,
                 chartUnderlyingData,
