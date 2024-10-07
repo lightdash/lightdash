@@ -197,7 +197,7 @@ export type LightdashConfig = {
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
     rudder: RudderConfig;
-    posthog: PosthogConfig;
+    posthog: PosthogConfig | undefined;
     mode: LightdashMode;
     sentry: SentryConfig;
     auth: AuthConfig;
@@ -478,10 +478,13 @@ export const parseConfig = (): LightdashConfig => {
                   },
               }
             : undefined,
-        posthog: {
-            projectApiKey: process.env.POSTHOG_PROJECT_API_KEY || '',
-            apiHost: process.env.POSTHOG_API_HOST || 'https://app.posthog.com',
-        },
+        posthog:
+            process.env.POSTHOG_PROJECT_API_KEY && process.env.POSTHOG_API_HOST
+                ? {
+                      projectApiKey: process.env.POSTHOG_PROJECT_API_KEY,
+                      apiHost: process.env.POSTHOG_API_HOST,
+                  }
+                : undefined,
         rudder: {
             writeKey:
                 process.env.RUDDERSTACK_WRITE_KEY === undefined
