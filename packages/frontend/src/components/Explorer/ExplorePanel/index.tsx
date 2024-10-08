@@ -7,37 +7,16 @@ import {
     isCustomBinDimension,
     isCustomSqlDimension,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Center,
-    Group,
-    Loader,
-    Menu,
-    Modal,
-    Skeleton,
-    Stack,
-    Text,
-} from '@mantine/core';
-import { IconAlertCircle, IconDots, IconPencil } from '@tabler/icons-react';
-import {
-    lazy,
-    memo,
-    Suspense,
-    useMemo,
-    useState,
-    useTransition,
-    type FC,
-} from 'react';
+import { ActionIcon, Box, Menu, Skeleton, Stack, Text } from '@mantine/core';
+import { IconDots, IconPencil } from '@tabler/icons-react';
+import { memo, useMemo, useState, useTransition, type FC } from 'react';
+import { EditVirtualViewModal } from '../../../features/sqlRunner/components/EditVirtualViewModal';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailContext';
-
-const SqlRunnerNewPage = lazy(() => import('../../../pages/SqlRunnerNew'));
 
 const LoadingSkeleton = () => (
     <Stack>
@@ -220,86 +199,15 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             </ItemDetailProvider>
 
             {isEditVirtualViewOpen && (
-                <Modal
+                <EditVirtualViewModal
                     opened={isEditVirtualViewOpen}
                     onClose={handleCloseEditVirtualView}
-                    title={
-                        isClosingConfirmation ? (
-                            <Group spacing="xs">
-                                <MantineIcon icon={IconAlertCircle} />
-                                <Text fw={500}>You have unsaved changes</Text>
-                            </Group>
-                        ) : null
-                    }
-                    size="95vw"
-                    yOffset="3vh"
-                    xOffset="2vw"
-                    styles={(theme) => ({
-                        header: {
-                            padding: `${theme.spacing.xs} ${theme.spacing.lg}`,
-                        },
-                        body: {
-                            padding: isClosingConfirmation
-                                ? theme.spacing.md
-                                : 0,
-                        },
-                        // TODO: This is a hack to position the close button a bit better with the Save button
-                        close: {
-                            position: 'absolute',
-                            top: theme.spacing.xs,
-                            right: theme.spacing.xs,
-                        },
-                    })}
-                >
-                    {isClosingConfirmation ? (
-                        <Stack>
-                            <Text fz="sm">
-                                Are you sure you want to close? Your changes
-                                will be lost.
-                            </Text>
-                            <Group position="right">
-                                <Button
-                                    variant="outline"
-                                    onClick={() =>
-                                        setIsClosingConfirmation(false)
-                                    }
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    color="red"
-                                    onClick={() =>
-                                        setIsEditVirtualViewOpen(false)
-                                    }
-                                >
-                                    Close
-                                </Button>
-                            </Group>
-                        </Stack>
-                    ) : (
-                        <Suspense
-                            fallback={
-                                <Center h="95vh" w="95vw">
-                                    <Stack align="center" justify="center">
-                                        <Loader variant="bars" />
-                                        <Text fw={500}>
-                                            Loading SQL Runner...
-                                        </Text>
-                                    </Stack>
-                                </Center>
-                            }
-                        >
-                            <SqlRunnerNewPage
-                                isEditMode
-                                virtualViewState={{
-                                    name: explore.name,
-                                    sql: explore.tables[activeTableName]
-                                        .sqlTable,
-                                }}
-                            />
-                        </Suspense>
-                    )}
-                </Modal>
+                    isClosingConfirmation={isClosingConfirmation}
+                    setIsClosingConfirmation={setIsClosingConfirmation}
+                    activeTableName={activeTableName}
+                    setIsEditVirtualViewOpen={setIsEditVirtualViewOpen}
+                    explore={explore}
+                />
             )}
         </>
     );
