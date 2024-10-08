@@ -415,9 +415,16 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const { organizationUuid } = user;
         if (
-            user.ability.cannot('create', 'Job') ||
-            user.ability.cannot('create', 'Project')
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid }),
+            ) ||
+            user.ability.cannot(
+                'create',
+                subject('Project', { organizationUuid }),
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -457,7 +464,7 @@ export class ProjectService extends BaseService {
 
         if (data.upstreamProjectUuid) {
             try {
-                const { organizationUuid } = await this.projectModel.getSummary(
+                const projectSummary = await this.projectModel.getSummary(
                     data.upstreamProjectUuid,
                 );
                 // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
@@ -465,7 +472,7 @@ export class ProjectService extends BaseService {
                     user.ability.cannot(
                         'create',
                         subject('Project', {
-                            organizationUuid,
+                            organizationUuid: projectSummary.organizationUuid,
                             projectUuid: data.upstreamProjectUuid,
                         }),
                     )
@@ -501,9 +508,16 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const { organizationUuid } = user;
         if (
-            user.ability.cannot('create', 'Job') ||
-            user.ability.cannot('create', 'Project')
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid }),
+            ) ||
+            user.ability.cannot(
+                'create',
+                subject('Project', { organizationUuid }),
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -2647,7 +2661,10 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
         if (
-            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid, projectUuid }),
+            ) ||
             user.ability.cannot(
                 'manage',
                 subject('CompileProject', {
@@ -2695,7 +2712,10 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
         if (
-            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid, projectUuid }),
+            ) ||
             user.ability.cannot(
                 'manage',
                 subject('CompileProject', {

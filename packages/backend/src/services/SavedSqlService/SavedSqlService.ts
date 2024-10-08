@@ -379,7 +379,10 @@ export class SavedSqlService extends BaseService {
             projectUuid,
         );
         if (
-            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid, projectUuid }),
+            ) ||
             user.ability.cannot(
                 'manage',
                 subject('SqlRunner', {
@@ -441,7 +444,10 @@ export class SavedSqlService extends BaseService {
             }
         } else if (
             // If it's not a saved chart, check if the user has access to run a pivot query
-            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid, projectUuid }),
+            ) ||
             user.ability.cannot(
                 'manage',
                 subject('SqlRunner', {

@@ -339,10 +339,17 @@ export class UserService extends BaseService {
         user: SessionUser,
         createInviteLink: CreateInviteLink,
     ): Promise<InviteLink> {
-        if (user.ability.cannot('create', 'InviteLink')) {
+        // We assume users can only have one org
+        const { organizationUuid } = user;
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('InviteLink', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
-        const { organizationUuid } = user;
         const { expiresAt, email, role } = createInviteLink;
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
@@ -365,7 +372,10 @@ export class UserService extends BaseService {
         }
 
         let userUuid: string;
-        const userRole = user.ability.can('manage', 'OrganizationMemberProfile')
+        const userRole = user.ability.can(
+            'manage',
+            subject('OrganizationMemberProfile', { organizationUuid }),
+        )
             ? role || OrganizationMemberRole.MEMBER
             : OrganizationMemberRole.MEMBER;
         if (!existingUserWithEmail) {
@@ -428,8 +438,15 @@ export class UserService extends BaseService {
     }
 
     async revokeAllInviteLinks(user: SessionUser) {
+        // We assume users can only have one org
         const { organizationUuid } = user;
-        if (user.ability.cannot('delete', 'InviteLink')) {
+
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('InviteLink', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         if (organizationUuid === undefined) {
