@@ -4424,12 +4424,13 @@ export class ProjectService extends BaseService {
     async updateVirtualView(
         user: SessionUser,
         projectUuid: string,
+        exploreName: string,
         payload: UpdateVirtualViewPayload,
     ) {
         const explore = await this.findExplores({
             user,
             projectUuid,
-            exploreNames: [payload.name],
+            exploreNames: [exploreName],
         });
 
         if (!explore) {
@@ -4455,6 +4456,7 @@ export class ProjectService extends BaseService {
 
         const updatedExplore = await this.projectModel.updateVirtualView(
             projectUuid,
+            exploreName,
             payload,
             warehouseClient,
         );

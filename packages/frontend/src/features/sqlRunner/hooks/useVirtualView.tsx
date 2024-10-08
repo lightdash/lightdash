@@ -69,17 +69,20 @@ export const useCreateVirtualView = ({
 };
 
 const updateVirtualView = async ({
+    exploreName,
     projectUuid,
     name,
     sql,
     columns,
 }: {
+    exploreName: string;
     projectUuid: string;
 } & UpdateVirtualViewPayload) =>
     lightdashApi<ApiCreateVirtualView['results']>({
-        url: `/projects/${projectUuid}/sqlRunner/virtual-view/${name}`,
+        url: `/projects/${projectUuid}/sqlRunner/virtual-view/${exploreName}`,
         method: 'PUT',
         body: JSON.stringify({
+            name,
             sql,
             columns,
         }),
@@ -91,7 +94,7 @@ export const useUpdateVirtualView = (projectUuid: string) => {
     return useMutation<
         ApiCreateVirtualView['results'],
         ApiError,
-        { projectUuid: string } & UpdateVirtualViewPayload
+        { projectUuid: string; exploreName: string } & UpdateVirtualViewPayload
     >({
         mutationFn: updateVirtualView,
         onSuccess: async ({ name }) => {

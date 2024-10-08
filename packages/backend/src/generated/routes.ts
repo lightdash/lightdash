@@ -7443,29 +7443,9 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_UpdateVirtualViewPayload.Exclude_keyofUpdateVirtualViewPayload.name__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    sql: { dataType: 'string', required: true },
-                    columns: {
-                        dataType: 'array',
-                        array: { dataType: 'refAlias', ref: 'VizColumn' },
-                        required: true,
-                    },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_UpdateVirtualViewPayload.name_': {
+    UpdateVirtualViewPayload: {
         dataType: 'refAlias',
-        type: {
-            ref: 'Pick_UpdateVirtualViewPayload.Exclude_keyofUpdateVirtualViewPayload.name__',
-            validators: {},
-        },
+        type: { ref: 'CreateVirtualViewPayload', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGithubDbtWritePreview: {
@@ -16264,7 +16244,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'Omit_UpdateVirtualViewPayload.name_',
+                    ref: 'UpdateVirtualViewPayload',
                 },
             };
 
