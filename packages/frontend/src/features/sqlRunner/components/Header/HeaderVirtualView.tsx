@@ -20,6 +20,7 @@ import {
 import { memo, useEffect, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import useToaster from '../../../../hooks/toaster/useToaster';
 import { useSqlQueryRun } from '../../hooks/useSqlQueryRun';
 import { useUpdateVirtualView } from '../../hooks/useVirtualView';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
@@ -167,6 +168,7 @@ const ColumnDiffModal: FC<
 export const HeaderVirtualView: FC<{
     virtualViewState: { name: string; sql: string };
 }> = ({ virtualViewState }) => {
+    const { showToastError } = useToaster();
     const dispatch = useAppDispatch();
     const [initialColumns, setInitialColumns] = useState<
         VizColumn[] | undefined
@@ -209,10 +211,20 @@ export const HeaderVirtualView: FC<{
 
         let columnsFromQuery: VizColumn[] | undefined = columns;
         if (hasUnrunChanges) {
-            const results = await runQuery({ sql, limit: 1 });
-            if (results) {
-                dispatch(setSqlRunnerResults(results));
-                columnsFromQuery = results.columns;
+            try {
+                const results = await runQuery({ sql, limit: 1 });
+
+                if (results) {
+                    dispatch(setSqlRunnerResults(results));
+                    columnsFromQuery = results.columns;
+                }
+            } catch (error) {
+                showToastError({
+                    title: 'Error running query',
+                    subtitle:
+                        'There was an error running the query. Please check your SQL and try again.',
+                });
+                return;
             }
         }
 
