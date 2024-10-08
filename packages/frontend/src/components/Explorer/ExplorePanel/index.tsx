@@ -12,7 +12,6 @@ import { IconDots, IconPencil } from '@tabler/icons-react';
 import { memo, useMemo, useState, useTransition, type FC } from 'react';
 import { EditVirtualViewModal } from '../../../features/sqlRunner/components/EditVirtualViewModal';
 import { useExplore } from '../../../hooks/useExplore';
-import useSearchParams from '../../../hooks/useSearchParams';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
@@ -38,17 +37,9 @@ interface ExplorePanelProps {
 }
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
-    const hasUnsavedChanges = !!useSearchParams('create_saved_chart_version');
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
     const [, startTransition] = useTransition();
 
-    const [modalStep, setModalStep] = useState<
-        'unsavedChanges' | 'closingConfirmation' | 'editVirtualView' | undefined
-    >(undefined);
-
-    const clearQuery = useExplorerContext(
-        (context) => context.actions.clearQuery,
-    );
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -124,20 +115,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         }
     }, [explore, additionalMetrics, metrics, dimensions, customDimensions]);
 
-    const handleCloseEditVirtualView = () => {
-        if (modalStep === 'closingConfirmation') {
-            setIsEditVirtualViewOpen(false);
-            setModalStep(undefined);
-        } else {
-            setModalStep('closingConfirmation');
-        }
-    };
-
-    const resetModalState = () => {
-        setModalStep(undefined);
-        setIsEditVirtualViewOpen(false);
-    };
-
     if (status === 'loading') {
         return <LoadingSkeleton />;
     }
@@ -186,11 +163,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 icon={<MantineIcon icon={IconPencil} />}
                                 onClick={() => {
                                     startTransition(() => {
-                                        setModalStep(
-                                            hasUnsavedChanges
-                                                ? 'unsavedChanges'
-                                                : 'editVirtualView',
-                                        );
                                         setIsEditVirtualViewOpen(true);
                                     });
                                 }}
@@ -219,9 +191,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             {isEditVirtualViewOpen && (
                 <EditVirtualViewModal
                     opened={isEditVirtualViewOpen}
-                    onClose={handleCloseEditVirtualView}
-                    isClosingConfirmation={isClosingConfirmation}
-                    setIsClosingConfirmation={setIsClosingConfirmation}
+                    onClose={() => setIsEditVirtualViewOpen(false)}
                     activeTableName={activeTableName}
                     setIsEditVirtualViewOpen={setIsEditVirtualViewOpen}
                     explore={explore}
