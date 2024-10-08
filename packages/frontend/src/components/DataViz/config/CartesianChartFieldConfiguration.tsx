@@ -278,6 +278,8 @@ export const CartesianChartFieldConfiguration = ({
         cartesianChartSelectors.getErrors(state, selectedChartType),
     );
 
+    console.log({ errors });
+
     return (
         <Stack spacing="sm">
             <Config>

@@ -6633,8 +6633,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                uuid: { dataType: 'string' },
-                slug: { dataType: 'string' },
                 limit: { dataType: 'double' },
                 sql: { dataType: 'string', required: true },
             },

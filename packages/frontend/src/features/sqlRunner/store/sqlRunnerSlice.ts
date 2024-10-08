@@ -1,6 +1,7 @@
 import {
     ChartKind,
     WarehouseTypes,
+    type RawResultRow,
     type SqlChart,
     type VizColumn,
     type VizTableColumnsConfig,
@@ -8,8 +9,10 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { createSelector } from 'reselect';
 import { format, type FormatOptionsWithLanguage } from 'sql-formatter';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
+import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
 
 export enum EditorTabs {
@@ -106,6 +109,7 @@ export interface SqlRunnerState {
     quoteChar: string;
     warehouseConnectionType: WarehouseTypes | undefined;
     sqlColumns: VizColumn[] | undefined;
+    sqlRows: RawResultRow[] | undefined;
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
 }
@@ -152,6 +156,7 @@ const initialState: SqlRunnerState = {
     quoteChar: '"',
     warehouseConnectionType: undefined,
     sqlColumns: undefined,
+    sqlRows: undefined,
     activeConfigs: [ChartKind.VERTICAL_BAR],
     fetchResultsOnLoad: false,
 };
@@ -163,6 +168,28 @@ const sqlHistoryReducer = createHistoryReducer<string | undefined>({
 export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
+    selectors: {
+        selectFetchResultsOnLoad: (state) => state.fetchResultsOnLoad,
+        selectProjectUuid: (state) => state.projectUuid,
+        selectSql: (state) => state.sql,
+        selectActiveChartType: (state) => state.selectedChartType,
+        selectActiveEditorTab: (state) => state.activeEditorTab,
+        selectLimit: (state) => state.limit,
+        selectResultsTableConfig: (state) => state.resultsTableConfig,
+        selectSavedSqlChart: (state) => state.savedSqlChart,
+        selectColumns: (state) => state.sqlColumns,
+        selectRows: (state) => state.sqlRows,
+        selectSqlQueryResults: (state) => {
+            if (state.sqlColumns === undefined || state.sqlRows === undefined) {
+                return undefined;
+            }
+            return {
+                columns: state.sqlColumns,
+                fileUrl: state.fileUrl,
+                results: state.sqlRows,
+            };
+        },
+    },
     reducers: {
         resetState: () => initialState,
         setProjectUuid: (state, action: PayloadAction<string>) => {
@@ -170,12 +197,9 @@ export const sqlRunnerSlice = createSlice({
         },
         setFetchResultsOnLoad: (state, action: PayloadAction<boolean>) => {
             state.fetchResultsOnLoad = action.payload;
-            if (action.payload === true) {
+            if (action.payload) {
                 state.activeEditorTab = EditorTabs.VISUALIZATION;
             }
-        },
-        setFileUrl: (state, action: PayloadAction<string>) => {
-            state.fileUrl = action.payload;
         },
         setSqlRunnerResults: (
             state,
@@ -229,6 +253,16 @@ export const sqlRunnerSlice = createSlice({
                 });
                 state.hasUnrunChanges = false;
             }
+            state.sqlRows = action.payload.results;
+            state.fileUrl = action.payload.fileUrl;
+
+            const resultsRunner = new SqlRunnerResultsRunnerFrontend({
+                columns: action.payload.columns,
+                rows: action.payload.results,
+                limit: state.limit,
+                sql: state.sql,
+                projectUuid: state.projectUuid,
+            });
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
@@ -329,3 +363,30 @@ export const {
     setQuoteChar,
     setWarehouseConnectionType,
 } = sqlRunnerSlice.actions;
+
+export const {
+    selectFetchResultsOnLoad,
+    selectSql,
+    selectProjectUuid,
+    selectActiveChartType,
+    selectLimit,
+    selectResultsTableConfig,
+    selectActiveEditorTab,
+    selectSavedSqlChart,
+    selectColumns,
+    selectRows,
+    selectSqlQueryResults,
+} = sqlRunnerSlice.selectors;
+
+export const selectSqlRunnerResultsRunner = createSelector(
+    [selectColumns, selectRows, selectProjectUuid, selectLimit, selectSql],
+    (columns, rows, projectUuid, limit, sql) => {
+        return new SqlRunnerResultsRunnerFrontend({
+            columns: columns || [],
+            rows: rows || [],
+            projectUuid,
+            limit,
+            sql,
+        });
+    },
+);

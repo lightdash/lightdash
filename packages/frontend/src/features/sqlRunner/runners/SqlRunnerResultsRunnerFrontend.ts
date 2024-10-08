@@ -35,16 +35,12 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         projectUuid,
         limit,
         sql,
-        slug,
-        uuid,
     }: {
         columns: VizColumn[];
         rows: RawResultRow[];
         projectUuid: string;
         limit?: number;
         sql: string;
-        slug?: string;
-        uuid?: string;
     }) {
         const fields: SemanticLayerField[] = columns.map((column) => ({
             kind: FieldType.DIMENSION,
@@ -54,7 +50,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
             ),
             visible: true,
             label: column.reference,
-            // why are these required?
+            // TODO: why are these required?
             availableGranularities: [],
             availableOperators: [],
         }));
@@ -64,8 +60,6 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
             columnNames: fields.map((field) => field.name),
             runPivotQuery: getPivotQueryFunctionForSqlRunner({
                 projectUuid,
-                slug,
-                uuid,
                 limit,
                 sql,
                 fields,

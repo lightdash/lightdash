@@ -81,7 +81,7 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
         const customMetric = query.customMetrics?.find(
             (metric) => metric.name === value,
         );
-        
+
         // This should never be true
         if (!customMetric || customMetric.baseDimension === undefined) {
             throw new Error(
@@ -121,8 +121,6 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
 // TEMPORARY
 export const getPivotQueryFunctionForSqlRunner = ({
     projectUuid,
-    slug,
-    uuid,
     limit,
     sortBy,
     sql,
@@ -130,8 +128,6 @@ export const getPivotQueryFunctionForSqlRunner = ({
     context,
 }: {
     projectUuid: string;
-    slug?: string;
-    uuid?: string;
     limit?: number;
     sql: string;
     sortBy?: VizSortBy[];
@@ -139,7 +135,6 @@ export const getPivotQueryFunctionForSqlRunner = ({
     context?: string;
 }): RunPivotQuery => {
     return async (query: SemanticLayerQuery) => {
-
         const index = query.pivot?.index[0];
         if (index === undefined) {
             return {
@@ -154,8 +149,6 @@ export const getPivotQueryFunctionForSqlRunner = ({
             convertSemanticLayerQueryToSqlRunnerPivotQuery(query, fields);
         const pivotResults = await pivotQueryFn({
             projectUuid,
-            slug,
-            uuid,
             sql,
             indexColumn,
             valuesColumns,

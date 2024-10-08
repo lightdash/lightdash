@@ -7393,12 +7393,6 @@
             },
             "SqlRunnerBody": {
                 "properties": {
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
                     "limit": {
                         "type": "number",
                         "format": "double"

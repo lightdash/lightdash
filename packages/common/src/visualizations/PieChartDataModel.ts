@@ -123,7 +123,7 @@ export class PieChartDataModel {
                 version: 1,
             },
             type: chartKind,
-            fieldConfig: mergedLayout,
+            fieldConfig: mergedLayout ?? currentVizConfig?.fieldConfig,
             display: currentVizConfig?.display ?? {},
         };
     }
