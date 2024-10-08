@@ -441,6 +441,33 @@ export class SqlRunnerController extends BaseController {
     }
 
     /**
+     * Delete a virtual-view
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('virtual-view/{name}')
+    @OperationId('deleteVirtualView')
+    async deleteVirtualView(
+        @Path() projectUuid: string,
+        @Path() name: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .deleteVirtualView(req.user!, projectUuid, name);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
      * Preview write back from SQL runner
      */
     @Middlewares([

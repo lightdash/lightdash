@@ -1,11 +1,13 @@
 import {
     type ApiCreateVirtualView,
     type ApiError,
+    type ApiSuccessEmpty,
     type CreateVirtualViewPayload,
     type UpdateVirtualViewPayload,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -108,6 +110,48 @@ export const useUpdateVirtualView = (projectUuid: string) => {
         onError: () => {
             showToastError({
                 title: 'Error updating virtual view',
+            });
+        },
+    });
+};
+
+const deleteVirtualView = async ({
+    projectUuid,
+    name,
+}: {
+    projectUuid: string;
+    name: string;
+}) =>
+    lightdashApi<ApiSuccessEmpty>({
+        url: `/projects/${projectUuid}/sqlRunner/virtual-view/${name}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteVirtualView = (projectUuid: string) => {
+    const history = useHistory();
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastError } = useToaster();
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { projectUuid: string; name: string }
+    >({
+        mutationFn: deleteVirtualView,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: ['tables', projectUuid, 'filtered'],
+            });
+
+            showToastSuccess({
+                title: 'Success! Virtual view deleted',
+            });
+
+            history.push(`/projects/${projectUuid}/tables`);
+        },
+        onError: () => {
+            showToastError({
+                title: 'Error deleting virtual view',
             });
         },
     });
