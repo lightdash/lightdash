@@ -202,14 +202,12 @@ export class CartesianChartDataModel {
         const { indexLayoutOptions, valuesLayoutOptions, pivotLayoutOptions } =
             this.getChartOptions();
 
-        console.log({ fieldConfig, indexLayoutOptions });
         const indexFieldError = Boolean(
             fieldConfig?.x?.reference &&
                 indexLayoutOptions.find(
                     (x) => x.reference === fieldConfig?.x?.reference,
                 ) === undefined,
         );
-        console.log(indexFieldError);
 
         const metricFieldError = Boolean(
             fieldConfig?.y?.some(

@@ -305,8 +305,7 @@ export const ContentPanel: FC = () => {
     const resultsFileUrl = useMemo(() => queryResults?.fileUrl, [queryResults]);
 
     useEffect(() => {
-        if (!queryResults || !resultsRunner || !selectedChartType) return;
-
+        if (!resultsRunner || !selectedChartType) return;
         // Return a merged configuration for the specific chart
         // based on the new results runner, this has info on available fields
         // (which in the sql runner changes on executing the sql query)
@@ -323,11 +322,8 @@ export const ContentPanel: FC = () => {
             currentVizConfig,
         );
 
-        console.log({ currentVizConfig, chartResultOptions });
-
         dispatch(setChartOptionsAndConfig(chartResultOptions));
     }, [
-        queryResults,
         resultsRunner,
         selectedChartType,
         dispatch,
