@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
+    AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
     ApiChartAndResults,
@@ -4361,6 +4362,17 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         payload: CreateVirtualViewPayload,
     ) {
+        const explore = await this.findExplores({
+            user,
+            projectUuid,
+            exploreNames: [snakeCaseName(payload.name)],
+        });
+
+        if (Object.keys(explore).length > 0) {
+            throw new AlreadyExistsError(
+                'Virtual view with this name already exists',
+            );
+        }
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),

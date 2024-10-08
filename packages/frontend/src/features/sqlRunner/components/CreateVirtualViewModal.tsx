@@ -33,10 +33,13 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
-    const { mutateAsync: createVirtualView, isLoading: isLoadingVirtual } =
-        useCreateVirtualView({
-            projectUuid,
-        });
+    const {
+        mutateAsync: createVirtualView,
+        isLoading: isLoadingVirtual,
+        error,
+    } = useCreateVirtualView({
+        projectUuid,
+    });
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
@@ -115,8 +118,8 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                         radius="md"
                         label="Name"
                         required
-                        // TODO - don't allow duplicate names
                         {...form.getInputProps('name')}
+                        error={!!error?.error}
                     />
                 </Stack>
 
