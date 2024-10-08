@@ -10,12 +10,13 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { lazy, Suspense, type FC } from 'react';
+import { lazy, Suspense, useState, type FC } from 'react';
+import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useSearchParams from '../../../hooks/useSearchParams';
+import { useExplorerContext } from '../../../providers/ExplorerProvider';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
-    isClosingConfirmation: boolean;
-    setIsClosingConfirmation: (value: boolean) => void;
     activeTableName: string;
     setIsEditVirtualViewOpen: (value: boolean) => void;
     explore: Explore;
@@ -26,33 +27,53 @@ const SqlRunnerNewPage = lazy(() => import('../../../pages/SqlRunnerNew'));
 export const EditVirtualViewModal: FC<Props> = ({
     opened,
     onClose,
-    isClosingConfirmation,
-    setIsClosingConfirmation,
     activeTableName,
-    setIsEditVirtualViewOpen,
     explore,
 }) => {
+    const hasUnsavedChanges = !!useSearchParams('create_saved_chart_version');
+
+    const [modalStep, setModalStep] = useState<
+        'unsavedChanges' | 'closingConfirmation' | 'editVirtualView' | undefined
+    >(hasUnsavedChanges ? 'unsavedChanges' : 'editVirtualView');
+
+    const clearQuery = useExplorerContext(
+        (context) => context.actions.clearQuery,
+    );
+
+    const handleClose = () => {
+        if (modalStep === 'closingConfirmation') {
+            setModalStep(undefined);
+            onClose();
+        } else if (modalStep === 'editVirtualView') {
+            setModalStep('closingConfirmation');
+        }
+    };
+
     return (
         <Modal
             opened={opened}
-            onClose={onClose}
+            onClose={handleClose}
             title={
-                isClosingConfirmation ? (
+                modalStep === 'closingConfirmation' ||
+                modalStep === 'unsavedChanges' ? (
                     <Group spacing="xs">
                         <MantineIcon icon={IconAlertCircle} />
                         <Text fw={500}>You have unsaved changes</Text>
                     </Group>
                 ) : null
             }
-            size="95vw"
-            yOffset="3vh"
-            xOffset="2vw"
+            size={modalStep === 'editVirtualView' ? '97vw' : 'lg'}
+            yOffset={modalStep === 'editVirtualView' ? '3vh' : undefined}
+            xOffset={modalStep === 'editVirtualView' ? '2vw' : undefined}
+            centered={modalStep !== 'editVirtualView'}
             styles={(theme) => ({
                 header: {
-                    padding: isClosingConfirmation ? theme.spacing.md : 0,
+                    padding:
+                        modalStep === 'editVirtualView' ? 0 : theme.spacing.md,
                 },
                 body: {
-                    padding: isClosingConfirmation ? theme.spacing.md : 0,
+                    padding:
+                        modalStep === 'editVirtualView' ? 0 : theme.spacing.md,
                 },
                 // TODO: This is a hack to position the close button a bit better with the Save button
                 close: {
@@ -62,33 +83,29 @@ export const EditVirtualViewModal: FC<Props> = ({
                 },
             })}
         >
-            {isClosingConfirmation ? (
+            <ConditionalVisibility isVisible={modalStep === 'unsavedChanges'}>
                 <Stack>
                     <Text fz="sm">
-                        Are you sure you want to close? Your changes will be
-                        lost.
+                        Your changes will be lost. Save them before continuing.
                     </Text>
                     <Group position="right">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setIsClosingConfirmation(false);
-                            }}
-                        >
+                        <Button variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
                         <Button
-                            color="red"
+                            color="orange"
                             onClick={() => {
-                                setIsEditVirtualViewOpen(false);
-                                setIsClosingConfirmation(false);
+                                clearQuery();
+
+                                setModalStep('editVirtualView');
                             }}
                         >
-                            Close
+                            Discard & continue
                         </Button>
                     </Group>
                 </Stack>
-            ) : (
+            </ConditionalVisibility>
+            <ConditionalVisibility isVisible={modalStep === 'editVirtualView'}>
                 <Suspense
                     fallback={
                         <Center h="95vh" w="95vw">
@@ -107,7 +124,28 @@ export const EditVirtualViewModal: FC<Props> = ({
                         }}
                     />
                 </Suspense>
-            )}
+            </ConditionalVisibility>
+            <ConditionalVisibility
+                isVisible={modalStep === 'closingConfirmation'}
+            >
+                <Stack>
+                    <Text fz="sm">
+                        Are you sure you want to close? Your changes will be
+                        lost.
+                    </Text>
+                    <Group position="right">
+                        <Button
+                            variant="outline"
+                            onClick={() => setModalStep('editVirtualView')}
+                        >
+                            Cancel
+                        </Button>
+                        <Button color="red" onClick={onClose}>
+                            Close
+                        </Button>
+                    </Group>
+                </Stack>
+            </ConditionalVisibility>
         </Modal>
     );
 };

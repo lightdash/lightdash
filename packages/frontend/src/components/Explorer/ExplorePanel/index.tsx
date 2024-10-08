@@ -38,7 +38,6 @@ interface ExplorePanelProps {
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
-    const [isClosingConfirmation, setIsClosingConfirmation] = useState(false);
     const [, startTransition] = useTransition();
 
     const activeTableName = useExplorerContext(
@@ -116,15 +115,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         }
     }, [explore, additionalMetrics, metrics, dimensions, customDimensions]);
 
-    const handleCloseEditVirtualView = () => {
-        if (isClosingConfirmation) {
-            setIsEditVirtualViewOpen(false);
-            setIsClosingConfirmation(false);
-        } else {
-            setIsClosingConfirmation(true);
-        }
-    };
-
     if (status === 'loading') {
         return <LoadingSkeleton />;
     }
@@ -201,9 +191,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             {isEditVirtualViewOpen && (
                 <EditVirtualViewModal
                     opened={isEditVirtualViewOpen}
-                    onClose={handleCloseEditVirtualView}
-                    isClosingConfirmation={isClosingConfirmation}
-                    setIsClosingConfirmation={setIsClosingConfirmation}
+                    onClose={() => setIsEditVirtualViewOpen(false)}
                     activeTableName={activeTableName}
                     setIsEditVirtualViewOpen={setIsEditVirtualViewOpen}
                     explore={explore}
