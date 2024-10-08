@@ -1,3 +1,10 @@
+## [0.1298.1](https://github.com/lightdash/lightdash/compare/0.1298.0...0.1298.1) (2024-10-08)
+
+
+### Bug Fixes
+
+* add missing subject to casl methods ([#11804](https://github.com/lightdash/lightdash/issues/11804)) ([cc2000c](https://github.com/lightdash/lightdash/commit/cc2000ce551dc128e8b1af996f64c4c40f74654b))
+
 # [0.1298.0](https://github.com/lightdash/lightdash/compare/0.1297.2...0.1298.0) (2024-10-08)
 
 
