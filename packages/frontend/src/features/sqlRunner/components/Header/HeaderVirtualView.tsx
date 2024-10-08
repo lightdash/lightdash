@@ -1,4 +1,4 @@
-import { type VizColumn } from '@lightdash/common';
+import { isApiError, type VizColumn } from '@lightdash/common';
 import {
     Button,
     Collapse,
@@ -218,12 +218,13 @@ export const HeaderVirtualView: FC<{
                     dispatch(setSqlRunnerResults(results));
                     columnsFromQuery = results.columns;
                 }
-            } catch (error) {
-                showToastError({
-                    title: 'Error running query',
-                    subtitle:
-                        'There was an error running the query. Please check your SQL and try again.',
-                });
+            } catch (error: unknown) {
+                if (isApiError(error)) {
+                    showToastError({
+                        title: 'Error running query',
+                        subtitle: error.error.message,
+                    });
+                }
                 return;
             }
         }
