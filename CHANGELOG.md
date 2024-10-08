@@ -1,3 +1,10 @@
+# [0.1297.0](https://github.com/lightdash/lightdash/compare/0.1296.2...0.1297.0) (2024-10-08)
+
+
+### Features
+
+* alert users on changes to virtual view ([#11837](https://github.com/lightdash/lightdash/issues/11837)) ([db8a4d7](https://github.com/lightdash/lightdash/commit/db8a4d7f03c0a445178af3eca6dfe7deab5ea570))
+
 ## [0.1296.2](https://github.com/lightdash/lightdash/compare/0.1296.1...0.1296.2) (2024-10-07)
 
 
