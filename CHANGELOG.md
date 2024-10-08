@@ -1,3 +1,10 @@
+# [0.1298.0](https://github.com/lightdash/lightdash/compare/0.1297.2...0.1298.0) (2024-10-08)
+
+
+### Features
+
+* warn users that changes will be discarded before editing ([#11838](https://github.com/lightdash/lightdash/issues/11838)) ([400dab1](https://github.com/lightdash/lightdash/commit/400dab1379fdde165006f7ab159cec55bce79e97))
+
 ## [0.1297.2](https://github.com/lightdash/lightdash/compare/0.1297.1...0.1297.2) (2024-10-08)
 
 
