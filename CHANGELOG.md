@@ -1,3 +1,10 @@
+## [0.1297.1](https://github.com/lightdash/lightdash/compare/0.1297.0...0.1297.1) (2024-10-08)
+
+
+### Bug Fixes
+
+* alert on duplicate name virtual view creation ([#11833](https://github.com/lightdash/lightdash/issues/11833)) ([57fee98](https://github.com/lightdash/lightdash/commit/57fee98f925b363b2b7bd7d051f7e99b2bdceb48))
+
 # [0.1297.0](https://github.com/lightdash/lightdash/compare/0.1296.2...0.1297.0) (2024-10-08)
 
 
