@@ -1,3 +1,10 @@
+## [0.1297.2](https://github.com/lightdash/lightdash/compare/0.1297.1...0.1297.2) (2024-10-08)
+
+
+### Bug Fixes
+
+* disable write back if project is not github ([#11836](https://github.com/lightdash/lightdash/issues/11836)) ([3bed36f](https://github.com/lightdash/lightdash/commit/3bed36f62a582405cb20b7e4da5a63b4c64e8fa8))
+
 ## [0.1297.1](https://github.com/lightdash/lightdash/compare/0.1297.0...0.1297.1) (2024-10-08)
 
 
