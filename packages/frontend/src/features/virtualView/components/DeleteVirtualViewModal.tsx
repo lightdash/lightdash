@@ -1,7 +1,7 @@
 import { Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useDeleteVirtualView } from '../hooks/useVirtualView';
+import { useDeleteVirtualView } from '../../virtualView/hooks/useVirtualView';
 
 export const DeleteVirtualViewModal = ({
     opened,

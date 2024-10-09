@@ -15,7 +15,6 @@ import {
 import { Sidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
-import { HeaderVirtualView } from '../features/sqlRunner/components/Header/HeaderVirtualView';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { store } from '../features/sqlRunner/store';
 import {
@@ -32,6 +31,7 @@ import {
     setSql,
     setWarehouseConnectionType,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { HeaderVirtualView } from '../features/virtualView';
 import { useProject } from '../hooks/useProject';
 
 const SqlRunnerNew = ({

@@ -28,14 +28,14 @@ import {
 } from '@tabler/icons-react';
 import { memo, useEffect, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
-import MantineIcon from '../../../../components/common/MantineIcon';
-import useToaster from '../../../../hooks/toaster/useToaster';
-import { useValidationWithResults } from '../../../../hooks/validation/useValidation';
-import { useSqlQueryRun } from '../../hooks/useSqlQueryRun';
-import { useUpdateVirtualView } from '../../hooks/useVirtualView';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { setSqlRunnerResults } from '../../store/sqlRunnerSlice';
-import { compareColumns, type ColumnDiff } from '../../utils/compareColumns';
+import MantineIcon from '../../../components/common/MantineIcon';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { useValidationWithResults } from '../../../hooks/validation/useValidation';
+import { useSqlQueryRun } from '../../sqlRunner/hooks/useSqlQueryRun';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { setSqlRunnerResults } from '../../sqlRunner/store/sqlRunnerSlice';
+import { useUpdateVirtualView } from '../hooks/useVirtualView';
+import { compareColumns, type ColumnDiff } from '../utils/compareColumns';
 
 const DiffListItem: FC<{ diff: ColumnDiff }> = memo(({ diff }) => {
     return (
