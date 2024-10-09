@@ -1,3 +1,10 @@
+## [0.1301.1](https://github.com/lightdash/lightdash/compare/0.1301.0...0.1301.1) (2024-10-09)
+
+
+### Bug Fixes
+
+* hide edit/delete virtual view if no permission to ([#11858](https://github.com/lightdash/lightdash/issues/11858)) ([f233907](https://github.com/lightdash/lightdash/commit/f23390706c94834843de74d041eeabad2610ce99))
+
 # [0.1301.0](https://github.com/lightdash/lightdash/compare/0.1300.1...0.1301.0) (2024-10-09)
 
 
