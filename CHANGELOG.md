@@ -1,3 +1,10 @@
+# [0.1299.0](https://github.com/lightdash/lightdash/compare/0.1298.1...0.1299.0) (2024-10-09)
+
+
+### Features
+
+* allow deleting virtual views ([#11854](https://github.com/lightdash/lightdash/issues/11854)) ([0b2ee32](https://github.com/lightdash/lightdash/commit/0b2ee325873b1b10b4e2164b12bdb9efab7dcc9b))
+
 ## [0.1298.1](https://github.com/lightdash/lightdash/compare/0.1298.0...0.1298.1) (2024-10-08)
 
 
