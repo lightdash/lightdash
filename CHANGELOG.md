@@ -1,3 +1,10 @@
+# [0.1300.0](https://github.com/lightdash/lightdash/compare/0.1299.1...0.1300.0) (2024-10-09)
+
+
+### Features
+
+* rename virtual explore ([#11853](https://github.com/lightdash/lightdash/issues/11853)) ([eaa3596](https://github.com/lightdash/lightdash/commit/eaa35960b6fc9160aa280c5d9d9dfed1b3a0357b))
+
 ## [0.1299.1](https://github.com/lightdash/lightdash/compare/0.1299.0...0.1299.1) (2024-10-09)
 
 
