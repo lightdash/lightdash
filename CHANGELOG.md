@@ -1,3 +1,10 @@
+## [0.1300.1](https://github.com/lightdash/lightdash/compare/0.1300.0...0.1300.1) (2024-10-09)
+
+
+### Bug Fixes
+
+* show semantic layer results and sql errors in suboptimal state ([#11792](https://github.com/lightdash/lightdash/issues/11792)) ([d2a8615](https://github.com/lightdash/lightdash/commit/d2a8615f7b3765d2d78cd713eb27e5672259b1ff))
+
 # [0.1300.0](https://github.com/lightdash/lightdash/compare/0.1299.1...0.1300.0) (2024-10-09)
 
 
