@@ -2,21 +2,27 @@ import {
     createTemporaryVirtualView,
     friendlyName,
     isApiError,
+    isChartValidationError,
     ValidationTarget,
     type Explore,
+    type ValidationErrorChartResponse,
     type ValidationResponse,
     type VizColumn,
 } from '@lightdash/common';
 import {
+    Anchor,
     Button,
+    Center,
     Collapse,
     Group,
     List,
+    Loader,
     LoadingOverlay,
     Modal,
     Stack,
     Text,
     TextInput,
+    Tooltip,
     type ModalProps,
 } from '@mantine/core';
 import {
@@ -26,7 +32,8 @@ import {
     IconTableAlias,
     IconTrash,
 } from '@tabler/icons-react';
-import { memo, useEffect, useState, type FC } from 'react';
+import { groupBy } from 'lodash';
+import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -76,19 +83,89 @@ const DiffListItem: FC<{ diff: ColumnDiff }> = memo(({ diff }) => {
     );
 });
 
-const ColumnDiffModal: FC<
+const ChartErrorListItem: FC<{
+    chartErrors: ValidationErrorChartResponse[];
+    projectUuid: string;
+}> = ({ chartErrors, projectUuid }) => {
+    const firstError = chartErrors[0];
+    const errorMessages = chartErrors.map((error) => error.error);
+
+    return (
+        <List.Item
+            icon={<MantineIcon icon={IconAlertHexagon} color="orange" />}
+            styles={{
+                itemWrapper: {
+                    alignItems: 'center',
+                },
+            }}
+        >
+            {/* Necessary for correct alignment between the icon and the text */}
+            <Text lh={0}>
+                <Tooltip
+                    variant="xs"
+                    withinPortal
+                    label={
+                        <Stack spacing={0}>
+                            {errorMessages.map((message, index) => (
+                                <Text fz={11} key={index}>
+                                    {message}
+                                </Text>
+                            ))}
+                        </Stack>
+                    }
+                    withArrow
+                    position="right"
+                    multiline
+                    width={300}
+                >
+                    <Anchor
+                        href={`/projects/${projectUuid}/saved/${firstError.chartUuid}`}
+                        target="_blank"
+                        fz="xs"
+                        fw={500}
+                    >
+                        {firstError.name}
+                    </Anchor>
+                </Tooltip>
+            </Text>
+        </List.Item>
+    );
+};
+
+// TODO: Move to separate component
+const ChangesReviewModal: FC<
     Pick<ModalProps, 'opened' | 'onClose'> & {
         columnDiffs: ColumnDiff[];
+        chartValidationErrors: ValidationResponse[] | undefined;
         onSave: () => void;
     }
-> = ({ opened, onClose, columnDiffs, onSave }) => {
+> = ({ opened, onClose, columnDiffs, chartValidationErrors, onSave }) => {
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const newColumnsAddedNr = columnDiffs.filter(
         (diff) => diff.type === 'added',
     ).length;
     const affectedColumns = columnDiffs.filter((diff) => diff.type !== 'added');
+
     const isDiffListTruncated = affectedColumns.length > 3;
-    const [showAllChanges, setShowAllChanges] = useState(false);
+    const [showAllDiffs, setShowAllDiffs] = useState(false);
     const visibleDiffs = affectedColumns.slice(0, 3);
+
+    const groupedChartErrors = useMemo(() => {
+        if (!chartValidationErrors) return {};
+        return groupBy(
+            chartValidationErrors.filter(
+                (error): error is ValidationErrorChartResponse =>
+                    isChartValidationError(error),
+            ),
+            'chartUuid',
+        );
+    }, [chartValidationErrors]);
+
+    const chartErrorEntries = Object.entries(groupedChartErrors);
+    const isChartErrorsListTruncated = chartErrorEntries.length > 3;
+    const [showAllChartErrors, setShowAllChartErrors] = useState(false);
+    const visibleChartErrors = chartErrorEntries.slice(0, 3);
+
     return (
         <Modal
             opened={opened}
@@ -100,7 +177,7 @@ const ColumnDiffModal: FC<
                 </Group>
             }
         >
-            <Stack>
+            <Stack spacing="xs">
                 <Text fz="xs">Your changes rename or delete a field.</Text>
 
                 <Stack
@@ -133,7 +210,7 @@ const ColumnDiffModal: FC<
                     </List>
                     {isDiffListTruncated && (
                         <>
-                            <Collapse in={showAllChanges}>
+                            <Collapse in={showAllDiffs}>
                                 <List>
                                     {affectedColumns
                                         .slice(3)
@@ -150,16 +227,76 @@ const ColumnDiffModal: FC<
                                 ml="auto"
                                 variant="default"
                                 size="xs"
-                                onClick={() =>
-                                    setShowAllChanges(!showAllChanges)
-                                }
+                                onClick={() => setShowAllDiffs(!showAllDiffs)}
                             >
-                                {showAllChanges ? 'Show Less' : 'Show More'}
+                                {showAllDiffs ? 'Show Less' : 'Show More'}
                             </Button>
                         </>
                     )}
                 </Stack>
-                <Text fz="xs" fw={500}>
+                {chartErrorEntries.length > 0 && (
+                    <>
+                        <Text fz="xs">
+                            The following charts will be affected:
+                        </Text>
+                        <Stack
+                            spacing={0}
+                            sx={(theme) => ({
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                                borderRadius: theme.radius.md,
+                                padding: theme.spacing.xs,
+                                backgroundColor: theme.colors.gray[0],
+                            })}
+                        >
+                            <List>
+                                {visibleChartErrors.map(
+                                    ([chartUuid, errors]) => (
+                                        <ChartErrorListItem
+                                            key={chartUuid}
+                                            chartErrors={errors}
+                                            projectUuid={projectUuid}
+                                        />
+                                    ),
+                                )}
+                            </List>
+                            {isChartErrorsListTruncated && (
+                                <>
+                                    <Collapse in={showAllChartErrors}>
+                                        <List>
+                                            {chartErrorEntries
+                                                .slice(3)
+                                                .map(([chartUuid, errors]) => (
+                                                    <ChartErrorListItem
+                                                        key={chartUuid}
+                                                        chartErrors={errors}
+                                                        projectUuid={
+                                                            projectUuid
+                                                        }
+                                                    />
+                                                ))}
+                                        </List>
+                                    </Collapse>
+                                    <Button
+                                        compact
+                                        ml="auto"
+                                        variant="default"
+                                        size="xs"
+                                        onClick={() =>
+                                            setShowAllChartErrors(
+                                                !showAllChartErrors,
+                                            )
+                                        }
+                                    >
+                                        {showAllChartErrors
+                                            ? 'Show Less'
+                                            : 'Show More'}
+                                    </Button>
+                                </>
+                            )}
+                        </Stack>
+                    </>
+                )}
+                <Text fz="xs" fw={500} mt="md">
                     These changes could break existing content using this
                     virtual view. <br />
                     Are you sure you want to save these changes?
@@ -185,6 +322,9 @@ export const HeaderVirtualView: FC<{
     >(undefined);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     const [columnDiffs, setColumnDiffs] = useState<ColumnDiff[]>([]);
+    const [chartValidationErrors, setChartValidationErrors] = useState<
+        ValidationResponse[] | undefined
+    >(undefined);
 
     const [showWarningModal, setShowWarningModal] = useState(false);
     const history = useHistory();
@@ -193,7 +333,7 @@ export const HeaderVirtualView: FC<{
     const hasUnrunChanges = useAppSelector(
         (state) => state.sqlRunner.hasUnrunChanges,
     );
-    const { mutateAsync: getValidation } =
+    const { mutateAsync: getValidation, isPolling: isRunningValidation } =
         useValidationWithResults(projectUuid);
 
     const { mutateAsync: runQuery, isLoading: isRunningQuery } =
@@ -260,9 +400,8 @@ export const HeaderVirtualView: FC<{
                     });
                     history.go(0);
                 } else {
-                    // Show warning
-                    console.warn('Validation errors', response);
                     if (handleDiff && initialColumns) {
+                        setChartValidationErrors(response);
                         const diffs = compareColumns(
                             initialColumns,
                             columnsFromQuery,
@@ -306,11 +445,21 @@ export const HeaderVirtualView: FC<{
             })}
         >
             <LoadingOverlay
-                visible={isRunningQuery || isUpdatingVirtualView}
-                loaderProps={{
-                    variant: 'bars',
-                }}
+                visible={
+                    isRunningValidation ||
+                    isRunningQuery ||
+                    isUpdatingVirtualView
+                }
+                loader={
+                    <Center h="95vh" w="95vw">
+                        <Stack align="center" justify="center">
+                            <Loader />
+                            <Text fw={500}>Validating your changes...</Text>
+                        </Stack>
+                    </Center>
+                }
             />
+
             <Group spacing="xs">
                 <Group spacing="xs">
                     <MantineIcon icon={IconTableAlias} />
@@ -332,11 +481,13 @@ export const HeaderVirtualView: FC<{
             >
                 Save
             </Button>
-            <ColumnDiffModal
+
+            <ChangesReviewModal
                 opened={showWarningModal}
                 onSave={() => handleUpdateVirtualView({ handleDiff: false })}
                 onClose={() => setShowWarningModal(false)}
                 columnDiffs={columnDiffs}
+                chartValidationErrors={chartValidationErrors}
             />
         </Group>
     );
