@@ -18,6 +18,7 @@ export const createVirtualView = (
     sql: string,
     columns: VizColumn[],
     warehouseClient: WarehouseClient,
+    label?: string,
 ): Explore => {
     const exploreCompiler = new ExploreCompiler(warehouseClient);
 
@@ -42,7 +43,7 @@ export const createVirtualView = (
 
     const compiledTable: Table = {
         name: virtualViewName,
-        label: friendlyName(virtualViewName),
+        label: label || friendlyName(virtualViewName),
         sqlTable: `(${sql})`, // Wrap the sql in a subquery to avoid issues with reserved words
         dimensions,
         metrics: {},
@@ -53,7 +54,7 @@ export const createVirtualView = (
 
     const explore = exploreCompiler.compileExplore({
         name: virtualViewName,
-        label: friendlyName(virtualViewName),
+        label: label || friendlyName(virtualViewName),
         tags: [],
         baseTable: virtualViewName,
         joinedTables: [],

@@ -1,3 +1,24 @@
+## [0.1300.1](https://github.com/lightdash/lightdash/compare/0.1300.0...0.1300.1) (2024-10-09)
+
+
+### Bug Fixes
+
+* show semantic layer results and sql errors in suboptimal state ([#11792](https://github.com/lightdash/lightdash/issues/11792)) ([d2a8615](https://github.com/lightdash/lightdash/commit/d2a8615f7b3765d2d78cd713eb27e5672259b1ff))
+
+# [0.1300.0](https://github.com/lightdash/lightdash/compare/0.1299.1...0.1300.0) (2024-10-09)
+
+
+### Features
+
+* rename virtual explore ([#11853](https://github.com/lightdash/lightdash/issues/11853)) ([eaa3596](https://github.com/lightdash/lightdash/commit/eaa35960b6fc9160aa280c5d9d9dfed1b3a0357b))
+
+## [0.1299.1](https://github.com/lightdash/lightdash/compare/0.1299.0...0.1299.1) (2024-10-09)
+
+
+### Bug Fixes
+
+* look for materialized view columns in pg_attribute and pg_matviews ([#11856](https://github.com/lightdash/lightdash/issues/11856)) ([8ac6245](https://github.com/lightdash/lightdash/commit/8ac62457657faf8272f153dbca35378f46deab14))
+
 # [0.1299.0](https://github.com/lightdash/lightdash/compare/0.1298.1...0.1299.0) (2024-10-09)
 
 

@@ -422,15 +422,12 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Path() name: string,
         @Request() req: express.Request,
-        @Body() body: Omit<UpdateVirtualViewPayload, 'name'>,
+        @Body() body: UpdateVirtualViewPayload,
     ): Promise<ApiCreateVirtualView> {
         this.setStatus(200);
         const { name: virtualViewName } = await this.services
             .getProjectService()
-            .updateVirtualView(req.user!, projectUuid, {
-                ...body,
-                name,
-            });
+            .updateVirtualView(req.user!, projectUuid, name, body);
 
         return {
             status: 'ok',

@@ -324,6 +324,24 @@ export class PostgresClient<
             WHERE table_catalog IN (${Array.from(databases)})
               AND table_schema IN (${Array.from(schemas)})
               AND table_name IN (${Array.from(tables)})
+
+            UNION ALL
+
+            SELECT mv.matviewowner AS table_catalog,
+                n.nspname AS table_schema,
+                c.relname AS table_name,
+                a.attname AS column_name,
+                pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type
+            FROM pg_catalog.pg_attribute a
+            JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+            JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
+            JOIN pg_catalog.pg_matviews mv ON n.nspname = mv.schemaname AND c.relname = mv.matviewname
+            WHERE c.relkind = 'm'
+            AND mv.matviewowner IN (${Array.from(databases)})
+            AND n.nspname IN (${Array.from(schemas)})
+            AND c.relname IN (${Array.from(tables)})
+            AND a.attnum > 0
+            AND NOT a.attisdropped;
         `;
 
         const { rows } = await this.runQuery(query);
