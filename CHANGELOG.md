@@ -1,3 +1,10 @@
+## [0.1299.1](https://github.com/lightdash/lightdash/compare/0.1299.0...0.1299.1) (2024-10-09)
+
+
+### Bug Fixes
+
+* look for materialized view columns in pg_attribute and pg_matviews ([#11856](https://github.com/lightdash/lightdash/issues/11856)) ([8ac6245](https://github.com/lightdash/lightdash/commit/8ac62457657faf8272f153dbca35378f46deab14))
+
 # [0.1299.0](https://github.com/lightdash/lightdash/compare/0.1298.1...0.1299.0) (2024-10-09)
 
 
