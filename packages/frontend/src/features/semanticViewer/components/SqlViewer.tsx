@@ -1,6 +1,8 @@
 import { Box, getDefaultZIndex, LoadingOverlay } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { type FC } from 'react';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerSql } from '../api/hooks';
 import { useAppSelector } from '../store/hooks';
 import {
@@ -13,6 +15,7 @@ const SqlViewer: FC = () => {
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const selectedFields = useAppSelector(selectAllSelectedFieldNames);
+    const { showToastError } = useToaster();
 
     const sql = useSemanticLayerSql(
         { projectUuid, query: semanticQuery },
@@ -20,7 +23,9 @@ const SqlViewer: FC = () => {
     );
 
     if (sql.isError) {
-        throw sql.error;
+        showToastError({
+            title: 'Failed to generate SQL',
+        });
     }
 
     return (
@@ -32,9 +37,20 @@ const SqlViewer: FC = () => {
                 loaderProps={{ color: 'gray', size: 'sm' }}
             />
 
-            <Prism m={0} radius={0} language="sql" withLineNumbers>
-                {sql.data ?? ''}
-            </Prism>
+            {!sql.isError ? (
+                <Prism m={0} radius={0} language="sql" withLineNumbers>
+                    {sql.data ?? ''}
+                </Prism>
+            ) : (
+                <SuboptimalState
+                    title="Failed to generate SQL"
+                    description={
+                        sql.error.error.statusCode !== 500
+                            ? sql.error.error.message
+                            : 'There might be something wrong with the selected fields'
+                    }
+                />
+            )}
         </Box>
     );
 };

@@ -19,6 +19,10 @@ import {
     getSemanticLayerTypeFromDbtType,
 } from './typeTransformers';
 
+enum DbtErrorMessageMatcher {
+    JOIN_PATH = 'unable to join all items in request',
+}
+
 export const dbtCloudTransfomers: SemanticLayerTransformer<
     SemanticLayerView,
     DbtGraphQLCreateQueryArgs | DbtGraphQLCompileSqlArgs,
@@ -132,5 +136,16 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
         }
 
         return key.toLowerCase();
+    },
+    errorToReadableError: (errorMessage) => {
+        if (!errorMessage) return undefined;
+
+        const lowerCaseMessage = errorMessage.toLowerCase();
+
+        if (lowerCaseMessage.includes(DbtErrorMessageMatcher.JOIN_PATH)) {
+            return 'Query error: no join path found between selected fields.';
+        }
+
+        return errorMessage;
     },
 };
