@@ -40,6 +40,8 @@ services:
       - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
       - SCHEDULER_ENABLED=true
       - GROUPS_ENABLED=${GROUPS_ENABLED:-false}
+      - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
+      - POSTHOG_API_HOST=${POSTHOG_API_HOST}
     volumes:
       - "${DBT_PROJECT_DIR}:/usr/app/dbt"
     ports:
