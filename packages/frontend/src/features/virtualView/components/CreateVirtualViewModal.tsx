@@ -17,8 +17,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useGitHubRepositories } from '../../../components/UserSettings/GithubSettingsPanel';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCreateVirtualView } from '../hooks/useVirtualView';
-import { useAppSelector } from '../store/hooks';
 
 const validationSchema = z.object({
     name: z.string().min(1),

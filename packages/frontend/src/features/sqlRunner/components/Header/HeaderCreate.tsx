@@ -22,6 +22,7 @@ import { EditableText } from '../../../../components/VisualizationConfigs/common
 import useHealth from '../../../../hooks/health/useHealth';
 import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../../hooks/useProject';
+import { CreateVirtualViewModal } from '../../../virtualView';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     DEFAULT_NAME,
@@ -31,7 +32,6 @@ import {
     updateName,
 } from '../../store/sqlRunnerSlice';
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
-import { CreateVirtualViewModal } from '../CreateVirtualViewModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
 

@@ -12,8 +12,10 @@ import { ActionIcon, Box, Menu, Skeleton, Stack, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { memo, useMemo, useState, useTransition, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { DeleteVirtualViewModal } from '../../../features/sqlRunner/components/DeleteVirtualViewModal';
-import { EditVirtualViewModal } from '../../../features/sqlRunner/components/EditVirtualViewModal';
+import {
+    DeleteVirtualViewModal,
+    EditVirtualViewModal,
+} from '../../../features/virtualView';
 import { useExplore } from '../../../hooks/useExplore';
 import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
