@@ -1,4 +1,5 @@
 import { ExploreCompiler } from '../compiler/exploreCompiler';
+import { SupportedDbtAdapter } from '../types/dbt';
 import { ExploreType, type Explore, type Table } from '../types/explore';
 import {
     DimensionType,
@@ -6,8 +7,10 @@ import {
     friendlyName,
     type Dimension,
 } from '../types/field';
+import { WarehouseTypes } from '../types/projects';
 import { type WarehouseClient } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
+import { WeekDay } from './timeFrames';
 import { getFieldQuoteChar } from './warehouse';
 
 export const createVirtualView = (
@@ -64,4 +67,46 @@ export const createVirtualView = (
     };
 
     return virtualView;
+};
+
+export const createTemporaryVirtualView = (
+    virtualViewName: string,
+    sql: string,
+    columns: VizColumn[],
+): Explore => {
+    // Create a fake warehouseClient for compilation purposes
+    const fakeWarehouseClient: WarehouseClient = {
+        credentials: {
+            type: WarehouseTypes.BIGQUERY,
+            project: '',
+            dataset: '',
+            timeoutSeconds: 0,
+            priority: 'interactive',
+            keyfileContents: {},
+            retries: 3,
+            location: '',
+            maximumBytesBilled: 0,
+        },
+        getCatalog: async () => ({}),
+        streamQuery: async () => {},
+        runQuery: async () => ({ fields: {}, rows: [] }),
+        test: async () => {},
+        getStartOfWeek: () => WeekDay.MONDAY,
+        getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+        getStringQuoteChar: () => "'",
+        getEscapeStringQuoteChar: () => "''",
+        getMetricSql: () => '',
+        concatString: (...args) => args.join(''),
+        getAllTables: async () => [],
+        getFields: async () => ({}),
+        parseWarehouseCatalog: () => ({}),
+        parseError: (error) => error,
+    };
+
+    return createVirtualView(
+        virtualViewName,
+        sql,
+        columns,
+        fakeWarehouseClient,
+    );
 };
