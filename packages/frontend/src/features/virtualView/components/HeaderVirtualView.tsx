@@ -254,7 +254,7 @@ export const HeaderVirtualView: FC<{
                     await updateVirtualView({
                         exploreName: virtualViewState.name,
                         projectUuid,
-                        name: virtualViewState.name,
+                        name,
                         sql,
                         columns,
                     });
