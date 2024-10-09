@@ -4446,14 +4446,14 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         payload: UpdateVirtualViewPayload,
     ) {
-        const explore = await this.findExplores({
+        const virtualView = await this.findExplores({
             user,
             projectUuid,
             exploreNames: [payload.name],
         });
 
-        if (!explore) {
-            throw new NotFoundError('Explore not found');
+        if (!virtualView) {
+            throw new NotFoundError('Virtual view not found');
         }
 
         const { organizationUuid } =
@@ -4480,5 +4480,25 @@ export class ProjectService extends BaseService {
         );
 
         return updatedExplore;
+    }
+
+    async deleteVirtualView(
+        user: SessionUser,
+        projectUuid: string,
+        name: string,
+    ) {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.projectModel.deleteVirtualView(projectUuid, name);
     }
 }

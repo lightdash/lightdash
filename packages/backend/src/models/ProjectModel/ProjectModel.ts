@@ -2138,6 +2138,30 @@ export class ProjectModel {
         return { name: translatedToExplore.name };
     }
 
+    async deleteVirtualView(projectUuid: string, name: string) {
+        // remove from cached_explore
+        await this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL])
+            .andWhere('name', name)
+            .delete();
+
+        // Remove from cached_explores
+        await this.database(CachedExploresTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                explores: this.database.raw(
+                    `
+                    COALESCE(
+                        jsonb_agg(value) FILTER (WHERE value->>'name' != ?),
+                        '[]'::jsonb
+                    )
+                `,
+                    [name],
+                ),
+            });
+    }
+
     async updateSemanticLayerConnection(
         projectUuid: string,
         connection: SemanticLayerConnection | undefined,

@@ -8,8 +8,10 @@ import {
     isCustomSqlDimension,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Skeleton, Stack, Text } from '@mantine/core';
-import { IconDots, IconPencil } from '@tabler/icons-react';
+import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { memo, useMemo, useState, useTransition, type FC } from 'react';
+import { useParams } from 'react-router-dom';
+import { DeleteVirtualViewModal } from '../../../features/sqlRunner/components/DeleteVirtualViewModal';
 import { EditVirtualViewModal } from '../../../features/sqlRunner/components/EditVirtualViewModal';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -38,8 +40,11 @@ interface ExplorePanelProps {
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
+    const [isDeleteVirtualViewOpen, setIsDeleteVirtualViewOpen] =
+        useState(false);
     const [, startTransition] = useTransition();
 
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const activeTableName = useExplorerContext(
         (context) => context.state.unsavedChartVersion.tableName,
     );
@@ -171,6 +176,17 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                     Edit virtual view
                                 </Text>
                             </Menu.Item>
+                            <Menu.Item
+                                icon={<MantineIcon icon={IconTrash} />}
+                                color="red"
+                                onClick={() => {
+                                    setIsDeleteVirtualViewOpen(true);
+                                }}
+                            >
+                                <Text fz="xs" fw={500}>
+                                    Delete
+                                </Text>
+                            </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>
                 )}
@@ -195,6 +211,14 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     activeTableName={activeTableName}
                     setIsEditVirtualViewOpen={setIsEditVirtualViewOpen}
                     explore={explore}
+                />
+            )}
+            {isDeleteVirtualViewOpen && (
+                <DeleteVirtualViewModal
+                    opened={isDeleteVirtualViewOpen}
+                    onClose={() => setIsDeleteVirtualViewOpen(false)}
+                    virtualViewName={activeTableName}
+                    projectUuid={projectUuid}
                 />
             )}
         </>
