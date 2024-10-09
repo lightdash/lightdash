@@ -4383,6 +4383,17 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         payload: CreateVirtualViewPayload,
     ) {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('VirtualView', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const explore = await this.findExplores({
             user,
             projectUuid,
@@ -4464,7 +4475,7 @@ export class ProjectService extends BaseService {
         if (
             user.ability.cannot(
                 'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
+                subject('VirtualView', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -4496,7 +4507,7 @@ export class ProjectService extends BaseService {
         if (
             user.ability.cannot(
                 'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
+                subject('VirtualView', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();

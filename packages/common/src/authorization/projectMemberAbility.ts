@@ -155,6 +155,9 @@ export const projectMemberAbilities: Record<
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
+        can('manage', 'VirtualView', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'CustomSql', {
             projectUuid: member.projectUuid,
         });
