@@ -2,7 +2,10 @@ import { subject } from '@casl/ability';
 import {
     type ApiError,
     type ApiJobScheduledResponse,
+    type Explore,
+    type ExploreError,
     type ValidationResponse,
+    type ValidationTarget,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -22,9 +25,12 @@ const LAST_VALIDATION_NOTIFICATION_KEY = 'lastValidationTimestamp';
 const getValidation = async (
     projectUuid: string,
     fromSettings: boolean,
+    jobId?: string,
 ): Promise<ValidationResponse[]> =>
     lightdashApi<ValidationResponse[]>({
-        url: `/projects/${projectUuid}/validate?fromSettings=${fromSettings.toString()}`,
+        url: `/projects/${projectUuid}/validate?fromSettings=${fromSettings.toString()}&${
+            jobId ? `jobId=${jobId}` : ''
+        }`,
         method: 'GET',
         body: undefined,
     });
@@ -76,13 +82,18 @@ export const useValidation = (
     });
 };
 
+type ValidationBody = {
+    explores?: (Explore | ExploreError)[];
+    validationTargets?: ValidationTarget[];
+};
 const updateValidation = async (
     projectUuid: string,
+    body: ValidationBody = {},
 ): Promise<ApiJobScheduledResponse['results']> =>
     lightdashApi<ApiJobScheduledResponse['results']>({
         url: `/projects/${projectUuid}/validate`,
         method: 'POST',
-        body: undefined,
+        body: JSON.stringify(body),
     });
 
 export const useValidationMutation = (
@@ -193,4 +204,44 @@ export const useDeleteValidation = (projectUuid: string) => {
             },
         },
     );
+};
+
+export const useValidationWithResults = (projectUuid: string) => {
+    const { showToastError, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiJobScheduledResponse['results'],
+        ApiError,
+        ValidationBody & {
+            onComplete: (response: ValidationResponse[]) => Promise<void>;
+        }
+    >({
+        mutationFn: (validationBody) =>
+            updateValidation(projectUuid, validationBody),
+        onSuccess: (data, validationBody) => {
+            // Wait until validation is complete
+            pollJobStatus(data.jobId)
+                .then(async () => {
+                    // Get results from validation and return on callback
+                    const validationResponse = await getValidation(
+                        projectUuid,
+                        false,
+                        data.jobId,
+                    );
+                    await validationBody.onComplete(validationResponse);
+                })
+                .catch((error: Error) => {
+                    showToastError({
+                        title: 'Unable to get validation',
+                        subtitle: error.message,
+                    });
+                });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to get validation',
+                apiError: error,
+            });
+        },
+    });
 };

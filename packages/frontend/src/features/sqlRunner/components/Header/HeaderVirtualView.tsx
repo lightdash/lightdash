@@ -1,4 +1,12 @@
-import { friendlyName, isApiError, type VizColumn } from '@lightdash/common';
+import {
+    createTemporaryVirtualView,
+    friendlyName,
+    isApiError,
+    ValidationTarget,
+    type Explore,
+    type ValidationResponse,
+    type VizColumn,
+} from '@lightdash/common';
 import {
     Button,
     Collapse,
@@ -22,6 +30,7 @@ import { memo, useEffect, useState, type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useValidationWithResults } from '../../../../hooks/validation/useValidation';
 import { useSqlQueryRun } from '../../hooks/useSqlQueryRun';
 import { useUpdateVirtualView } from '../../hooks/useVirtualView';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
@@ -178,13 +187,14 @@ export const HeaderVirtualView: FC<{
     const [columnDiffs, setColumnDiffs] = useState<ColumnDiff[]>([]);
 
     const [showWarningModal, setShowWarningModal] = useState(false);
-
     const history = useHistory();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const hasUnrunChanges = useAppSelector(
         (state) => state.sqlRunner.hasUnrunChanges,
     );
+    const { mutateAsync: getValidation } =
+        useValidationWithResults(projectUuid);
 
     const { mutateAsync: runQuery, isLoading: isRunningQuery } =
         useSqlQueryRun(projectUuid);
@@ -210,8 +220,7 @@ export const HeaderVirtualView: FC<{
         if (!columns) {
             return;
         }
-
-        let columnsFromQuery: VizColumn[] | undefined = columns;
+        let columnsFromQuery: VizColumn[] = columns;
         if (hasUnrunChanges) {
             try {
                 const results = await runQuery({ sql, limit: 1 });
@@ -231,33 +240,60 @@ export const HeaderVirtualView: FC<{
             }
         }
 
-        if (handleDiff && initialColumns) {
-            const diffs = compareColumns(initialColumns, columnsFromQuery);
-            // TODO: Add check for existing charts and/or dashboards that use the virtual view
+        const virtualExplore: Explore = createTemporaryVirtualView(
+            virtualViewState.name,
+            sql,
+            columnsFromQuery,
+        );
+        await getValidation({
+            explores: [virtualExplore],
+            validationTargets: [ValidationTarget.CHARTS],
+            onComplete: async (response: ValidationResponse[]) => {
+                if (response.length === 0) {
+                    // No errors , we don't need to show warning
+                    await updateVirtualView({
+                        exploreName: virtualViewState.name,
+                        projectUuid,
+                        name: virtualViewState.name,
+                        sql,
+                        columns,
+                    });
+                    history.go(0);
+                } else {
+                    // Show warning
+                    console.warn('Validation errors', response);
+                    if (handleDiff && initialColumns) {
+                        const diffs = compareColumns(
+                            initialColumns,
+                            columnsFromQuery,
+                        );
 
-            if (!diffs || diffs.length === 0) {
-                await updateVirtualView({
-                    exploreName: virtualViewState.name,
-                    projectUuid,
-                    name,
-                    sql,
-                    columns: columnsFromQuery,
-                });
-                history.go(0);
-            } else {
-                setColumnDiffs(diffs);
-                setShowWarningModal(true);
-            }
-        } else {
-            await updateVirtualView({
-                exploreName: virtualViewState.name,
-                projectUuid,
-                name,
-                sql,
-                columns,
-            });
-            history.go(0);
-        }
+                        if (!diffs || diffs.length === 0) {
+                            await updateVirtualView({
+                                exploreName: virtualViewState.name,
+                                projectUuid,
+                                name,
+                                sql,
+                                columns: columnsFromQuery,
+                            });
+                            history.go(0);
+                        } else {
+                            setColumnDiffs(diffs);
+                            setShowWarningModal(true);
+                        }
+                    } else {
+                        await updateVirtualView({
+                            exploreName: virtualViewState.name,
+                            projectUuid,
+                            name: virtualViewState.name,
+                            sql,
+                            columns,
+                        });
+                        history.go(0);
+                    }
+                }
+            },
+        });
     };
 
     return (
