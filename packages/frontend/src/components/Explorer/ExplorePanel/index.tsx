@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     convertFieldRefToFieldId,
     ExploreType,
@@ -14,6 +15,7 @@ import { useParams } from 'react-router-dom';
 import { DeleteVirtualViewModal } from '../../../features/sqlRunner/components/DeleteVirtualViewModal';
 import { EditVirtualViewModal } from '../../../features/sqlRunner/components/EditVirtualViewModal';
 import { useExplore } from '../../../hooks/useExplore';
+import { useApp } from '../../../providers/AppProvider';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
@@ -69,6 +71,15 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         (context) => context.actions.toggleActiveField,
     );
     const { data: explore, status } = useExplore(activeTableName);
+
+    const { user } = useApp();
+    const canManageVirtualViews = user.data?.ability?.can(
+        'manage',
+        subject('VirtualView', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const missingFields = useMemo(() => {
         if (explore) {
@@ -151,7 +162,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         },
                     ]}
                 />
-                {explore.type === ExploreType.VIRTUAL && (
+                {canManageVirtualViews && explore.type === ExploreType.VIRTUAL && (
                     <Menu withArrow offset={-2}>
                         <Menu.Target>
                             <ActionIcon

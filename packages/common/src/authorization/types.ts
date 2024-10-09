@@ -45,6 +45,7 @@ type Subject =
     | 'CustomSql'
     | 'CompileProject'
     | 'SemanticViewer'
+    | 'VirtualView'
     | 'all';
 
 type PossibleAbilities = [
