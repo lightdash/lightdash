@@ -1,3 +1,15 @@
+# [0.1301.0](https://github.com/lightdash/lightdash/compare/0.1300.1...0.1301.0) (2024-10-09)
+
+
+### Bug Fixes
+
+* make update accept partial ([#11775](https://github.com/lightdash/lightdash/issues/11775)) ([6150039](https://github.com/lightdash/lightdash/commit/6150039c08b4d522a31aea10372423e1b8fc4310))
+
+
+### Features
+
+* validate before editing virtual view ([#11860](https://github.com/lightdash/lightdash/issues/11860)) ([99f29d1](https://github.com/lightdash/lightdash/commit/99f29d1b2680cd6393e629fe48761ad780863f62))
+
 ## [0.1300.1](https://github.com/lightdash/lightdash/compare/0.1300.0...0.1300.1) (2024-10-09)
 
 
