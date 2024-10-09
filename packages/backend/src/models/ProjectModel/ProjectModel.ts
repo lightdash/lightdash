@@ -13,6 +13,7 @@ import {
     isExploreError,
     NotExistsError,
     OrganizationProject,
+    ParameterError,
     PreviewContentMapping,
     Project,
     ProjectGroupAccess,
@@ -37,12 +38,14 @@ import {
     type CubeSemanticLayerConnection,
     type DbtSemanticLayerConnection,
     type SemanticLayerConnection,
+    type SemanticLayerConnectionUpdate,
 } from '@lightdash/common';
 import {
     WarehouseCatalog,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
+import { merge } from 'lodash';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
@@ -83,7 +86,6 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { generateUniqueSlug } from '../../utils/SlugUtils';
 import { convertExploresToCatalog } from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
@@ -2164,15 +2166,59 @@ export class ProjectModel {
             });
     }
 
+    private static isSemanticLayerConnectionValid(
+        semanticLayerConnection: SemanticLayerConnectionUpdate,
+    ): boolean {
+        const { type } = semanticLayerConnection;
+        switch (type) {
+            case SemanticLayerType.DBT:
+                return Boolean(
+                    semanticLayerConnection.domain &&
+                        semanticLayerConnection.environmentId &&
+                        semanticLayerConnection.token,
+                );
+            case SemanticLayerType.CUBE:
+                return Boolean(
+                    semanticLayerConnection.domain &&
+                        semanticLayerConnection.token,
+                );
+            default:
+                return assertUnreachable(
+                    type,
+                    `Unknown semantic layer connection type: ${type}`,
+                );
+        }
+    }
+
     async updateSemanticLayerConnection(
         projectUuid: string,
-        connection: SemanticLayerConnection | undefined,
+        connectionUpdate: SemanticLayerConnectionUpdate,
     ) {
+        const { semanticLayerConnection: currentSemanticLayerConnection } =
+            await this.getWithSensitiveFields(projectUuid);
+
+        // ? Merging so the partial update only overwrites the existing properties, even when the current connection is undefined since merge will take ALL properties
+        const shouldMerge =
+            !currentSemanticLayerConnection ||
+            connectionUpdate.type === currentSemanticLayerConnection.type;
+
+        const updatedSemanticLayerConnection = shouldMerge
+            ? merge(currentSemanticLayerConnection, connectionUpdate)
+            : connectionUpdate;
+
+        if (
+            !ProjectModel.isSemanticLayerConnectionValid(
+                updatedSemanticLayerConnection,
+            )
+        ) {
+            throw new ParameterError('Invalid semantic layer connection');
+        }
+
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
-                semantic_layer_connection: connection
-                    ? this.encryptionUtil.encrypt(JSON.stringify(connection))
-                    : null,
+                semantic_layer_connection: this.encryptionUtil.encrypt(
+                    JSON.stringify(updatedSemanticLayerConnection),
+                ),
             })
             .where('project_uuid', projectUuid)
             .returning('*');

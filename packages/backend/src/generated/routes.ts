@@ -5447,6 +5447,73 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_DbtSemanticLayerConnection_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'SemanticLayerType.DBT' },
+                environmentId: { dataType: 'string' },
+                domain: { dataType: 'string' },
+                token: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CubeSemanticLayerConnection_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'SemanticLayerType.CUBE' },
+                domain: { dataType: 'string' },
+                token: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerConnectionUpdate: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'Partial_DbtSemanticLayerConnection_' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                type: {
+                                    ref: 'SemanticLayerType.DBT',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'Partial_CubeSemanticLayerConnection_' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                type: {
+                                    ref: 'SemanticLayerType.CUBE',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CacheMetadata: {
         dataType: 'refAlias',
         type: {
@@ -13386,7 +13453,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'SemanticLayerConnection',
+                    ref: 'SemanticLayerConnectionUpdate',
                 },
                 req: {
                     in: 'request',

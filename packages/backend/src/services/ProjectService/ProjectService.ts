@@ -110,6 +110,7 @@ import {
     WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
+    type SemanticLayerConnectionUpdate,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -4408,7 +4409,7 @@ export class ProjectService extends BaseService {
     async updateSemanticLayerConnection(
         user: SessionUser,
         projectUuid: string,
-        payload: SemanticLayerConnection | undefined,
+        payload: SemanticLayerConnectionUpdate,
     ) {
         const project = await this.projectModel.getSummary(projectUuid);
 
