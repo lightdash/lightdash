@@ -1,4 +1,4 @@
-import { isApiError, type VizColumn } from '@lightdash/common';
+import { friendlyName, isApiError, type VizColumn } from '@lightdash/common';
 import {
     Button,
     Collapse,
@@ -8,6 +8,7 @@ import {
     Modal,
     Stack,
     Text,
+    TextInput,
     type ModalProps,
 } from '@mantine/core';
 import {
@@ -199,6 +200,7 @@ export const HeaderVirtualView: FC<{
             setInitialColumns(columns);
         }
     }, [initialColumns, columns]);
+    const [name, setName] = useState(friendlyName(virtualViewState.name));
 
     const handleUpdateVirtualView = async ({
         handleDiff,
@@ -235,8 +237,9 @@ export const HeaderVirtualView: FC<{
 
             if (!diffs || diffs.length === 0) {
                 await updateVirtualView({
+                    exploreName: virtualViewState.name,
                     projectUuid,
-                    name: virtualViewState.name,
+                    name,
                     sql,
                     columns: columnsFromQuery,
                 });
@@ -247,8 +250,9 @@ export const HeaderVirtualView: FC<{
             }
         } else {
             await updateVirtualView({
+                exploreName: virtualViewState.name,
                 projectUuid,
-                name: virtualViewState.name,
+                name,
                 sql,
                 columns,
             });
@@ -274,10 +278,13 @@ export const HeaderVirtualView: FC<{
             <Group spacing="xs">
                 <Group spacing="xs">
                     <MantineIcon icon={IconTableAlias} />
-                    <Text fz="sm" fw={500}>
-                        {/* TODO: Allow editing name */}
-                        Editing {virtualViewState.name}
-                    </Text>
+                    Editing
+                    <TextInput
+                        fz="sm"
+                        fw={500}
+                        value={name}
+                        onChange={(e) => setName(e.currentTarget.value)}
+                    />
                 </Group>
             </Group>
 

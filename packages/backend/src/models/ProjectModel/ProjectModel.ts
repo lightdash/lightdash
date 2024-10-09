@@ -2080,26 +2080,28 @@ export class ProjectModel {
 
     async updateVirtualView(
         projectUuid: string,
+        exploreName: string,
         payload: UpdateVirtualViewPayload,
         warehouseClient: WarehouseClient,
     ) {
         const translatedToExplore = createVirtualView(
-            payload.name,
+            exploreName,
             payload.sql,
             payload.columns,
             warehouseClient,
+            payload.name, // label
         );
 
         // insert into cached_explore
         await this.database(CachedExploreTableName)
             .update({
                 project_uuid: projectUuid,
-                name: translatedToExplore.name,
+                name: exploreName,
                 table_names: Object.keys(translatedToExplore.tables || {}),
-                explore: JSON.stringify(translatedToExplore),
+                explore: translatedToExplore,
             })
             .where('project_uuid', projectUuid)
-            .andWhere('name', payload.name)
+            .andWhere('name', exploreName)
             .returning(['name', 'cached_explore_uuid']);
 
         // append to cached_explores if it doesn't exist; otherwise, update
