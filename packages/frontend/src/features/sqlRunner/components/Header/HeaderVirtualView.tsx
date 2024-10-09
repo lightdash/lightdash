@@ -220,7 +220,7 @@ export const HeaderVirtualView: FC<{
         if (!columns) {
             return;
         }
-        let columnsFromQuery: VizColumn[] | undefined = columns;
+        let columnsFromQuery: VizColumn[] = columns;
         if (hasUnrunChanges) {
             try {
                 const results = await runQuery({ sql, limit: 1 });
