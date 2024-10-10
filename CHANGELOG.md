@@ -1,3 +1,10 @@
+## [0.1302.5](https://github.com/lightdash/lightdash/compare/0.1302.4...0.1302.5) (2024-10-10)
+
+
+### Bug Fixes
+
+* do not use server_version_num ([#11888](https://github.com/lightdash/lightdash/issues/11888)) ([c43dbc3](https://github.com/lightdash/lightdash/commit/c43dbc3cffdbfa08e751e6f63e4a65dfe95495d6))
+
 ## [0.1302.4](https://github.com/lightdash/lightdash/compare/0.1302.3...0.1302.4) (2024-10-10)
 
 
