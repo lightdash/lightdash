@@ -1,6 +1,7 @@
 import { type AbilityBuilder } from '@casl/ability';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
 import { type ProjectMemberRole } from '../types/projectMemberRole';
+import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { type MemberAbility } from './types';
 
@@ -194,6 +195,9 @@ export const projectMemberAbilities: Record<
         projectMemberAbilities.developer(member, { can });
         can('manage', 'Project', {
             projectUuid: member.projectUuid,
+        });
+        can('create', 'Project', {
+            type: ProjectType.PREVIEW,
         });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,

@@ -424,7 +424,10 @@ export class ProjectService extends BaseService {
             ) ||
             user.ability.cannot(
                 'create',
-                subject('Project', { organizationUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    type: data.type,
+                }),
             )
         ) {
             throw new ForbiddenError();
