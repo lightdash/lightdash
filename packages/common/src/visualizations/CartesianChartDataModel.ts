@@ -75,7 +75,7 @@ export class CartesianChartDataModel
                 colorPalette[
                     this.colorMap.size % ECHARTS_DEFAULT_COLORS.length // This ensures we cycle through the colors if we have more series than colors
                 ];
-            this.colorMap.set(genericIdentifier, color);
+            this.colorMap.set(genericIdentifier, color!);
         }
         return this.colorMap.get(genericIdentifier)!;
     }
@@ -273,7 +273,7 @@ export class CartesianChartDataModel
                         (display?.yAxis && display.yAxis[0]?.label) ||
                         friendlyName(
                             transformedData.valuesColumns.length === 1
-                                ? transformedData.valuesColumns[0]
+                                ? transformedData.valuesColumns[0]!
                                 : '',
                         ),
                     nameLocation: 'center',

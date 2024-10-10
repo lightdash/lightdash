@@ -107,7 +107,7 @@ export class PieChartDataModel
                             ? result[transformedData.indexColumn.reference]
                             : '-',
                         groupId: transformedData.indexColumn?.reference,
-                        value: result[transformedData.valuesColumns[0]],
+                        value: result[transformedData.valuesColumns[0]!],
                     })),
                 },
             ],

@@ -156,7 +156,7 @@ export const replaceDimensionInExplore = (
         [dimension.table]: {
             ...explore.tables[dimension.table],
             dimensions: {
-                ...explore.tables[dimension.table].dimensions,
+                ...explore.tables[dimension.table]?.dimensions,
                 [dimension.name]: dimension,
             },
         },

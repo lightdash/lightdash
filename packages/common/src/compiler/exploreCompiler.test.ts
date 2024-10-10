@@ -311,7 +311,7 @@ describe('Compile metrics with filters', () => {
     test('should show filters as columns metric1', () => {
         expect(
             compiler.compileMetric(
-                tablesWithMetricsWithFilters.table1.metrics.metric1,
+                tablesWithMetricsWithFilters.table1!.metrics.metric1!,
                 tablesWithMetricsWithFilters,
             ).compiledSql,
         ).toStrictEqual(
@@ -321,7 +321,7 @@ describe('Compile metrics with filters', () => {
     test('should show filters as columns metric2', () => {
         expect(
             compiler.compileMetric(
-                tablesWithMetricsWithFilters.table2.metrics.metric2,
+                tablesWithMetricsWithFilters.table2!.metrics.metric2!,
                 tablesWithMetricsWithFilters,
             ).compiledSql,
         ).toStrictEqual(
@@ -332,7 +332,7 @@ describe('Compile metrics with filters', () => {
     test('should show filters as columns metric with sql', () => {
         expect(
             compiler.compileMetric(
-                tablesWithMetricsWithFilters.table1.metrics.metric_with_sql,
+                tablesWithMetricsWithFilters.table1!.metrics.metric_with_sql!,
                 tablesWithMetricsWithFilters,
             ).compiledSql,
         ).toStrictEqual(
