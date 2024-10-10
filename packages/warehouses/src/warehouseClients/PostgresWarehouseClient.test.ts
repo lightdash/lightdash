@@ -60,7 +60,7 @@ describe('PostgresWarehouseClient', () => {
                                 const mockedStream = new PassThrough();
                                 setTimeout(() => {
                                     mockedStream.emit('data', {
-                                        row: { supports_matviews: true },
+                                        row: { version: 'PostgreSQL 15.4' },
                                         fields: [],
                                     });
                                     mockedStream.end();
