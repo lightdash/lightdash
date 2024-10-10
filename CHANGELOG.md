@@ -1,3 +1,10 @@
+## [0.1302.2](https://github.com/lightdash/lightdash/compare/0.1302.1...0.1302.2) (2024-10-10)
+
+
+### Bug Fixes
+
+* download csv from chart on dashboard ([#11873](https://github.com/lightdash/lightdash/issues/11873)) ([56b611d](https://github.com/lightdash/lightdash/commit/56b611def96a929d97cefb305a234404edafd1b0))
+
 ## [0.1302.1](https://github.com/lightdash/lightdash/compare/0.1302.0...0.1302.1) (2024-10-10)
 
 
