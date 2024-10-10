@@ -827,6 +827,61 @@ export class CsvService extends BaseService {
         }
     }
 
+    /**
+     * This method is used to schedule a CSV download for a chart.
+     * It will unfold all the arguments required to schedule a CSV download from a chartUuid
+     * This will allow users to download CSVs with custom dimensions
+     * We check permissions on scheduleDownloadCsv call
+     */
+    async scheduleDownloadCsvForChart(
+        user: SessionUser,
+        chartUuid: string,
+        onlyRaw: boolean,
+        csvLimit: number | null | undefined,
+        tileUuid?: string,
+        dashboardFilters?: DashboardFilters,
+    ) {
+        const chart = await this.savedChartModel.get(chartUuid);
+        const { projectUuid, name, tableName, metricQuery, tableConfig } =
+            chart;
+        const explore = await this.projectService.getExplore(
+            user,
+            projectUuid,
+            tableName,
+        );
+
+        const dashboardFiltersForTile =
+            tileUuid && dashboardFilters
+                ? getDashboardFiltersForTileAndTables(
+                      tileUuid,
+                      Object.keys(explore.tables),
+                      dashboardFilters,
+                  )
+                : undefined;
+
+        const metricQueryWithDashboardFilters = dashboardFiltersForTile
+            ? addDashboardFiltersToMetricQuery(
+                  metricQuery,
+                  dashboardFiltersForTile,
+              )
+            : metricQuery;
+
+        return this.scheduleDownloadCsv(user, {
+            userUuid: user.userUuid,
+            projectUuid,
+            exploreId: tableName,
+            metricQuery: metricQueryWithDashboardFilters,
+            onlyRaw,
+            csvLimit,
+            showTableNames: true,
+            customLabels: undefined,
+            columnOrder: tableConfig.columnOrder,
+            hiddenFields: undefined,
+            chartName: name,
+            fromSavedChart: true,
+        });
+    }
+
     async scheduleDownloadCsv(
         user: SessionUser,
         csvOptions: DownloadMetricCsv,
@@ -843,7 +898,9 @@ export class CsvService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // If the request comes from a saved chart, we allow using custom dimensions, as the metricQuery was not modified by the user
         if (
+            !csvOptions.fromSavedChart &&
             csvOptions.metricQuery.customDimensions?.some(
                 isCustomSqlDimension,
             ) &&
@@ -897,6 +954,7 @@ export class CsvService extends BaseService {
             columnOrder,
             hiddenFields,
             chartName,
+            fromSavedChart,
         }: DownloadMetricCsv,
     ) {
         const user = await this.userModel.findSessionUserByUUID(userUuid);
@@ -914,6 +972,7 @@ export class CsvService extends BaseService {
         }
 
         if (
+            !fromSavedChart &&
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             user.ability.cannot(
                 'manage',

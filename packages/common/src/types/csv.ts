@@ -12,4 +12,5 @@ export type DownloadMetricCsv = {
     columnOrder: string[];
     hiddenFields: string[] | undefined;
     chartName: string | undefined;
+    fromSavedChart: boolean;
 };

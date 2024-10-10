@@ -10269,7 +10269,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1298.0",
+        "version": "0.1301.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -14287,6 +14287,88 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/saved/{chartUuid}/downloadCsv": {
+            "post": {
+                "operationId": "DownloadCsvFromSavedChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "properties": {
+                                                "jobId": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": ["jobId"],
+                                            "type": "object"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Download a CSV from a saved chart uuid",
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "csvLimit": {
+                                        "type": "number",
+                                        "format": "double",
+                                        "nullable": true
+                                    },
+                                    "onlyRaw": {
+                                        "type": "boolean"
+                                    },
+                                    "tileUuid": {
+                                        "type": "string"
+                                    },
+                                    "dashboardFilters": {}
+                                },
+                                "required": ["onlyRaw", "dashboardFilters"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/schedulers/{projectUuid}/logs": {
