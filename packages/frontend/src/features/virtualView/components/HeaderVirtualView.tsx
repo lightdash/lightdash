@@ -39,8 +39,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useValidationWithResults } from '../../../hooks/validation/useValidation';
 import { useSqlQueryRun } from '../../sqlRunner/hooks/useSqlQueryRun';
-import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
-import { setSqlRunnerResults } from '../../sqlRunner/store/sqlRunnerSlice';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateVirtualView } from '../hooks/useVirtualView';
 import { compareColumns, type ColumnDiff } from '../utils/compareColumns';
 
@@ -316,7 +315,7 @@ export const HeaderVirtualView: FC<{
     virtualViewState: { name: string; sql: string };
 }> = ({ virtualViewState }) => {
     const { showToastError } = useToaster();
-    const dispatch = useAppDispatch();
+
     const [initialColumns, setInitialColumns] = useState<
         VizColumn[] | undefined
     >(undefined);
@@ -330,12 +329,9 @@ export const HeaderVirtualView: FC<{
     const history = useHistory();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const hasUnrunChanges = useAppSelector(
-        (state) => state.sqlRunner.hasUnrunChanges,
-    );
+
     const { mutateAsync: getValidation, isPolling: isRunningValidation } =
         useValidationWithResults(projectUuid);
-
     const { mutateAsync: runQuery, isLoading: isRunningQuery } =
         useSqlQueryRun(projectUuid);
 
@@ -357,34 +353,58 @@ export const HeaderVirtualView: FC<{
     }: {
         handleDiff: boolean;
     }) => {
-        if (!columns) {
-            return;
-        }
-        let columnsFromQuery: VizColumn[] = columns;
-        if (hasUnrunChanges) {
-            try {
-                const results = await runQuery({ sql, limit: 1 });
+        let columnsFromQuery: VizColumn[];
+        // Get columns from query regardless of whether the query has run or not
+        try {
+            const results = await runQuery({ sql, limit: 1 });
 
-                if (results) {
-                    dispatch(setSqlRunnerResults(results));
-                    columnsFromQuery = results.columns;
-                }
-            } catch (error: unknown) {
-                if (isApiError(error)) {
-                    showToastError({
-                        title: 'Error running query',
-                        subtitle: error.error.message,
-                    });
-                }
+            if (results) {
+                columnsFromQuery = results.columns;
+            } else {
+                showToastError({
+                    title: 'Error running query',
+                    subtitle: 'No results returned',
+                });
                 return;
             }
+        } catch (error: unknown) {
+            if (isApiError(error)) {
+                showToastError({
+                    title: 'Error running query',
+                    subtitle: error.error.message,
+                });
+            }
+            return;
         }
 
+        // It's possible that the query returned no columns
+        if (!columnsFromQuery) {
+            return showToastError({
+                title: 'Error running query',
+                subtitle: 'No columns returned',
+            });
+        }
+
+        // If the user has accepted the diff, we update the virtual view and refresh the page
+        if (!handleDiff) {
+            await updateVirtualView({
+                exploreName: virtualViewState.name,
+                projectUuid,
+                name,
+                sql,
+                columns: columnsFromQuery,
+            });
+            return history.go(0);
+        }
+
+        // Create a temporary virtual view so that we can create a preview validation
         const virtualExplore: Explore = createTemporaryVirtualView(
             virtualViewState.name,
             sql,
             columnsFromQuery,
         );
+
+        // Validate the virtual view
         await getValidation({
             explores: [virtualExplore],
             validationTargets: [ValidationTarget.CHARTS],
@@ -396,7 +416,7 @@ export const HeaderVirtualView: FC<{
                         projectUuid,
                         name,
                         sql,
-                        columns,
+                        columns: columnsFromQuery,
                     });
                     history.go(0);
                 } else {
@@ -407,6 +427,7 @@ export const HeaderVirtualView: FC<{
                             columnsFromQuery,
                         );
 
+                        // If there are no diffs, we update the virtual view and refresh the page
                         if (!diffs || diffs.length === 0) {
                             await updateVirtualView({
                                 exploreName: virtualViewState.name,
@@ -417,18 +438,10 @@ export const HeaderVirtualView: FC<{
                             });
                             history.go(0);
                         } else {
+                            // If there are diffs, we show the warning modal
                             setColumnDiffs(diffs);
                             setShowWarningModal(true);
                         }
-                    } else {
-                        await updateVirtualView({
-                            exploreName: virtualViewState.name,
-                            projectUuid,
-                            name: virtualViewState.name,
-                            sql,
-                            columns,
-                        });
-                        history.go(0);
                     }
                 }
             },
