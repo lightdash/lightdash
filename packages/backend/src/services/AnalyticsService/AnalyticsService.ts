@@ -33,7 +33,12 @@ export class AnalyticsService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
         if (
-            user.ability.cannot('view', subject('Analytics', { projectUuid }))
+            user.ability.cannot(
+                'view',
+                subject('Analytics', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
         ) {
             throw new ForbiddenError();
         }
