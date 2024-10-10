@@ -1,3 +1,10 @@
+## [0.1301.2](https://github.com/lightdash/lightdash/compare/0.1301.1...0.1301.2) (2024-10-10)
+
+
+### Bug Fixes
+
+* sql runner warehouse schema insert in batches ([#11870](https://github.com/lightdash/lightdash/issues/11870)) ([aa424b5](https://github.com/lightdash/lightdash/commit/aa424b5f56b0d96bd7345f7d09e18b5c010542d4))
+
 ## [0.1301.1](https://github.com/lightdash/lightdash/compare/0.1301.0...0.1301.1) (2024-10-09)
 
 
