@@ -1,3 +1,10 @@
+## [0.1302.4](https://github.com/lightdash/lightdash/compare/0.1302.3...0.1302.4) (2024-10-10)
+
+
+### Bug Fixes
+
+* add previewPlan to render yml ([#11887](https://github.com/lightdash/lightdash/issues/11887)) ([901a209](https://github.com/lightdash/lightdash/commit/901a209f9ad88ac7bb56ee255849c6f55ca484e7))
+
 ## [0.1302.3](https://github.com/lightdash/lightdash/compare/0.1302.2...0.1302.3) (2024-10-10)
 
 
