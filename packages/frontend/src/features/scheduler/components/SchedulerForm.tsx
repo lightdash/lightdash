@@ -119,6 +119,8 @@ const DEFAULT_VALUES_ALERT = {
     notificationFrequency: NotificationFrequency.ONCE,
 };
 
+const MAX_SLACK_CHANNELS = 100000;
+
 const thresholdOperatorOptions = [
     { label: 'is greater than', value: ThresholdOperator.GREATER_THAN },
     { label: 'is less than', value: ThresholdOperator.LESS_THAN },
@@ -383,6 +385,10 @@ const SchedulerForm: FC<Props> = ({
 
     const [showFormatting, setShowFormatting] = useState(false);
 
+    const [search, setSearch] = useState('');
+
+    const debounceSetSearch = debounce((val) => setSearch(val), 500);
+
     const numericMetrics = {
         ...getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem),
         ...getTableCalculationsFromItemsMap(itemsMap),
@@ -399,7 +405,7 @@ const SchedulerForm: FC<Props> = ({
         return SlackStates.SUCCESS;
     }, [isInitialLoading, organizationHasSlack, slackInstallation]);
 
-    const slackChannelsQuery = useSlackChannels({
+    const slackChannelsQuery = useSlackChannels(search, {
         enabled: organizationHasSlack,
     });
 
@@ -421,6 +427,9 @@ const SchedulerForm: FC<Props> = ({
             })
             .concat(privateChannels);
     }, [slackChannelsQuery?.data, privateChannels]);
+
+    let responsiveChannelsSearchEnabled =
+        slackChannels.length >= MAX_SLACK_CHANNELS || search.length > 0; // enable responvive channels search if there are more than MAX_SLACK_CHANNELS defined channels
 
     const handleSendNow = useCallback(() => {
         if (form.isValid()) {
@@ -983,6 +992,7 @@ const SchedulerForm: FC<Props> = ({
                                                         data={slackChannels}
                                                         searchable
                                                         creatable
+                                                        limit={10}
                                                         withinPortal
                                                         value={
                                                             form.values
@@ -1013,6 +1023,17 @@ const SchedulerForm: FC<Props> = ({
                                                                 ],
                                                             );
                                                             return newItem;
+                                                        }}
+                                                        onSearchChange={(
+                                                            val,
+                                                        ) => {
+                                                            if (
+                                                                responsiveChannelsSearchEnabled
+                                                            ) {
+                                                                debounceSetSearch(
+                                                                    val,
+                                                                );
+                                                            }
                                                         }}
                                                         onChange={(val) => {
                                                             form.setFieldValue(

@@ -50,7 +50,7 @@ const Schedulers: FC<SchedulersProps> = ({
     const { data: slackInstallation } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
-    const { data: allSlackChannels } = useSlackChannels({
+    const { data: allSlackChannels } = useSlackChannels('', {
         enabled: organizationHasSlack,
     });
 
