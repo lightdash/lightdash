@@ -1,3 +1,10 @@
+## [0.1302.1](https://github.com/lightdash/lightdash/compare/0.1302.0...0.1302.1) (2024-10-10)
+
+
+### Bug Fixes
+
+* project admin can create preview projects ([#11877](https://github.com/lightdash/lightdash/issues/11877)) ([723341a](https://github.com/lightdash/lightdash/commit/723341a4bf4733dc509d9e72853a13f0df556115))
+
 # [0.1302.0](https://github.com/lightdash/lightdash/compare/0.1301.2...0.1302.0) (2024-10-10)
 
 
