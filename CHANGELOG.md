@@ -1,3 +1,10 @@
+## [0.1302.3](https://github.com/lightdash/lightdash/compare/0.1302.2...0.1302.3) (2024-10-10)
+
+
+### Bug Fixes
+
+* check for pgversion before querying for matviews ([#11886](https://github.com/lightdash/lightdash/issues/11886)) ([ad36560](https://github.com/lightdash/lightdash/commit/ad3656011c5a565aad2db1fc3fb1cd0c38055a14))
+
 ## [0.1302.2](https://github.com/lightdash/lightdash/compare/0.1302.1...0.1302.2) (2024-10-10)
 
 
