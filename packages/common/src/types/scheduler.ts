@@ -388,6 +388,7 @@ export type DownloadCsvPayload = {
     customLabels: Record<string, string> | undefined;
     hiddenFields: string[] | undefined;
     chartName: string | undefined;
+    fromSavedChart: boolean;
 };
 
 export type ApiCsvUrlResponse = {
