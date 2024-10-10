@@ -1,3 +1,10 @@
+# [0.1302.0](https://github.com/lightdash/lightdash/compare/0.1301.2...0.1302.0) (2024-10-10)
+
+
+### Features
+
+* validate before editing virtual view ([#11868](https://github.com/lightdash/lightdash/issues/11868)) ([9e5fab3](https://github.com/lightdash/lightdash/commit/9e5fab3081b1745dff9cc77f494d369e8bd0e846))
+
 ## [0.1301.2](https://github.com/lightdash/lightdash/compare/0.1301.1...0.1301.2) (2024-10-10)
 
 
