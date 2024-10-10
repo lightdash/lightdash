@@ -13,11 +13,18 @@ import {
     CalculateTotalFromQuery,
     CreateProjectMember,
     DbtExposure,
-    SemanticLayerConnection,
+    isDuplicateDashboardParams,
+    ParameterError,
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
+    type ApiCreateDashboardResponse,
+    type ApiGetDashboardsResponse,
+    type ApiUpdateDashboardsResponse,
+    type CreateDashboard,
+    type DuplicateDashboardParams,
     type SemanticLayerConnectionUpdate,
+    type UpdateMultipleDashboards,
 } from '@lightdash/common';
 import {
     Body,
@@ -29,6 +36,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -503,6 +511,111 @@ export class ProjectController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/dashboards')
+    @OperationId('getDashboards')
+    async getDashboards(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetDashboardsResponse> {
+        this.setStatus(200);
+
+        const chartUuid: string | undefined =
+            typeof req.query.chartUuid === 'string'
+                ? req.query.chartUuid.toString()
+                : undefined;
+
+        const includePrivate = req.query.includePrivate !== 'false';
+
+        const results = await this.services
+            .getDashboardService()
+            .getAllByProject(req.user!, projectUuid, chartUuid, includePrivate);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('{projectUuid}/dashboards')
+    @OperationId('createDashboard')
+    async createDashboard(
+        @Path() projectUuid: string,
+        @Body() body: DuplicateDashboardParams | CreateDashboard,
+        @Request() req: express.Request,
+        @Query() duplicateFrom?: string,
+    ): Promise<ApiCreateDashboardResponse> {
+        const dashboardService = this.services.getDashboardService();
+        this.setStatus(201);
+
+        let results: ApiCreateDashboardResponse['results'];
+
+        if (duplicateFrom) {
+            if (!isDuplicateDashboardParams(body)) {
+                throw new ParameterError(
+                    'Invalid parameters to duplicate dashbaord',
+                );
+            }
+
+            results = await dashboardService.duplicate(
+                req.user!,
+                projectUuid,
+                duplicateFrom.toString(),
+                body,
+            );
+        } else {
+            if (isDuplicateDashboardParams(body)) {
+                throw new ParameterError(
+                    'Invalid parameters to duplicate dashbaord',
+                );
+            }
+
+            results = await dashboardService.create(
+                req.user!,
+                projectUuid,
+                body,
+            );
+        }
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/dashboards')
+    @OperationId('updateDashboards')
+    async updateDashboards(
+        @Path() projectUuid: string,
+        @Body() body: UpdateMultipleDashboards[],
+        @Request() req: express.Request,
+    ): Promise<ApiUpdateDashboardsResponse> {
+        console.log(body);
+        this.setStatus(200);
+
+        const results = await this.services
+            .getDashboardService()
+            .updateMultiple(req.user!, projectUuid, body);
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 }

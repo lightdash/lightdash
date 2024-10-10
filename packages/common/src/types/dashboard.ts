@@ -288,3 +288,29 @@ export const hasChartsInDashboard = (dashboard: DashboardDAO) =>
     dashboard.tiles.some(
         (tile) => isChartTile(tile) && tile.properties.belongsToDashboard,
     );
+
+export type ApiGetDashboardsResponse = {
+    status: 'ok';
+    results: DashboardBasicDetailsWithTileTypes[];
+};
+
+export type ApiCreateDashboardResponse = {
+    status: 'ok';
+    results: Dashboard;
+};
+
+export type ApiUpdateDashboardsResponse = {
+    status: 'ok';
+    results: Dashboard[];
+};
+
+export type DuplicateDashboardParams = {
+    dashboardName: string;
+    dashboardDesc: string;
+};
+
+export function isDuplicateDashboardParams(
+    params: DuplicateDashboardParams | CreateDashboard,
+): params is DuplicateDashboardParams {
+    return 'dashboardName' in params && 'dashboardDesc' in params;
+}

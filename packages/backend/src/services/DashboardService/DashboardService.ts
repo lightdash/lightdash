@@ -25,6 +25,7 @@ import {
     UpdateDashboard,
     UpdateMultipleDashboards,
     type DashboardBasicDetailsWithTileTypes,
+    type DuplicateDashboardParams,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import { v4 as uuidv4 } from 'uuid';
@@ -329,7 +330,7 @@ export class DashboardService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         dashboardUuid: string,
-        data: { dashboardName: string; dashboardDesc: string },
+        data: DuplicateDashboardParams,
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getById(dashboardUuid);
         const space = await this.spaceModel.getSpaceSummary(
