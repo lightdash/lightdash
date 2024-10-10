@@ -177,6 +177,7 @@ export class ExploreController extends BaseController {
                 columnOrder,
                 hiddenFields,
                 chartName: body.chartName,
+                fromSavedChart: false,
             });
 
         return {
