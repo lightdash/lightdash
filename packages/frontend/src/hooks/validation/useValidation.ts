@@ -13,6 +13,7 @@ import {
     useQueryClient,
     type UseQueryResult,
 } from '@tanstack/react-query';
+import { useState } from 'react';
 import useLocalStorageState from 'use-local-storage-state';
 import { lightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
@@ -208,8 +209,9 @@ export const useDeleteValidation = (projectUuid: string) => {
 
 export const useValidationWithResults = (projectUuid: string) => {
     const { showToastError, showToastApiError } = useToaster();
+    const [isPolling, setIsPolling] = useState(false);
 
-    return useMutation<
+    const mutation = useMutation<
         ApiJobScheduledResponse['results'],
         ApiError,
         ValidationBody & {
@@ -219,6 +221,7 @@ export const useValidationWithResults = (projectUuid: string) => {
         mutationFn: (validationBody) =>
             updateValidation(projectUuid, validationBody),
         onSuccess: (data, validationBody) => {
+            setIsPolling(true);
             // Wait until validation is complete
             pollJobStatus(data.jobId)
                 .then(async () => {
@@ -235,6 +238,9 @@ export const useValidationWithResults = (projectUuid: string) => {
                         title: 'Unable to get validation',
                         subtitle: error.message,
                     });
+                })
+                .finally(() => {
+                    setIsPolling(false);
                 });
         },
         onError: ({ error }) => {
@@ -242,6 +248,9 @@ export const useValidationWithResults = (projectUuid: string) => {
                 title: 'Failed to get validation',
                 apiError: error,
             });
+            setIsPolling(false);
         },
     });
+
+    return { ...mutation, isPolling };
 };
