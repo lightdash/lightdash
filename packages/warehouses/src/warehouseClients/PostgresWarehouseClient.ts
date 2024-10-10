@@ -314,6 +314,16 @@ export class PostgresClient<
         if (databases.size <= 0 || schemas.size <= 0 || tables.size <= 0) {
             return {};
         }
+
+        const { rows: pgVersionRows } = await this.runQuery('SELECT version()');
+        const pgVersionString = pgVersionRows[0]?.version ?? '';
+        const versionRegex = /PostgreSQL (\d+)\./;
+        const versionMatch = pgVersionString.match(versionRegex);
+        const supportsMatviews =
+            versionMatch && versionMatch[1]
+                ? parseInt(versionMatch[1], 10) >= 12
+                : false;
+
         const query = `
             SELECT table_catalog,
                    table_schema,
@@ -324,6 +334,9 @@ export class PostgresClient<
             WHERE table_catalog IN (${Array.from(databases)})
               AND table_schema IN (${Array.from(schemas)})
               AND table_name IN (${Array.from(tables)})
+            ${
+                supportsMatviews
+                    ? `
 
             UNION ALL
 
@@ -341,8 +354,9 @@ export class PostgresClient<
             AND n.nspname IN (${Array.from(schemas)})
             AND c.relname IN (${Array.from(tables)})
             AND a.attnum > 0
-            AND NOT a.attisdropped;
-        `;
+            AND NOT a.attisdropped`
+                    : ''
+            }`;
 
         const { rows } = await this.runQuery(query);
         const catalog = rows.reduce(
