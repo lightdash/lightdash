@@ -315,11 +315,14 @@ export class PostgresClient<
             return {};
         }
 
-        const { rows: supportsMatViewsRows } = await this.runQuery(
-            `SELECT current_setting('server_version_num')::integer >= 120000 as supports_matviews`,
-        );
+        const { rows: pgVersionRows } = await this.runQuery('SELECT version()');
+        const pgVersionString = pgVersionRows[0]?.version ?? '';
+        const versionRegex = /PostgreSQL (\d+)\./;
+        const versionMatch = pgVersionString.match(versionRegex);
         const supportsMatviews =
-            supportsMatViewsRows[0]?.supports_matviews ?? false;
+            versionMatch && versionMatch[1]
+                ? parseInt(versionMatch[1], 10) >= 12
+                : false;
 
         const query = `
             SELECT table_catalog,
