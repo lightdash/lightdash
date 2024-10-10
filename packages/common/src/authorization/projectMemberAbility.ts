@@ -193,11 +193,11 @@ export const projectMemberAbilities: Record<
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
-        can('manage', 'Project', {
-            projectUuid: member.projectUuid,
-        });
         can('create', 'Project', {
             type: ProjectType.PREVIEW,
+        });
+        can('manage', 'Project', {
+            projectUuid: member.projectUuid,
         });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
