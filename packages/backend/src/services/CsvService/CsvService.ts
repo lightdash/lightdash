@@ -3,6 +3,7 @@ import {
     addDashboardFiltersToMetricQuery,
     ApiSqlQueryResults,
     applyDimensionOverrides,
+    ChartType,
     DashboardFilters,
     DateGranularity,
     DimensionType,
@@ -842,13 +843,25 @@ export class CsvService extends BaseService {
         dashboardFilters?: DashboardFilters,
     ) {
         const chart = await this.savedChartModel.get(chartUuid);
-        const { projectUuid, name, tableName, metricQuery, tableConfig } =
-            chart;
+        const {
+            projectUuid,
+            name,
+            tableName,
+            metricQuery,
+            tableConfig,
+            chartConfig,
+        } = chart;
         const explore = await this.projectService.getExplore(
             user,
             projectUuid,
             tableName,
         );
+
+        const showTableNames = isTableChartConfig(chartConfig.config)
+            ? chartConfig.config.showTableNames ?? false
+            : true;
+        const customLabels = getCustomLabelsFromTableConfig(chartConfig.config);
+        const hiddenFields = getHiddenTableFields(chartConfig);
 
         const dashboardFiltersForTile =
             tileUuid && dashboardFilters
@@ -873,10 +886,10 @@ export class CsvService extends BaseService {
             metricQuery: metricQueryWithDashboardFilters,
             onlyRaw,
             csvLimit,
-            showTableNames: true,
-            customLabels: undefined,
+            showTableNames,
+            customLabels,
             columnOrder: tableConfig.columnOrder,
-            hiddenFields: undefined,
+            hiddenFields,
             chartName: name,
             fromSavedChart: true,
         });
