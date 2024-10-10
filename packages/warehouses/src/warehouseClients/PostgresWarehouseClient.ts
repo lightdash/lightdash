@@ -319,7 +319,7 @@ export class PostgresClient<
             `SELECT current_setting('server_version_num')::integer >= 120000 as supports_matviews`,
         );
         const supportsMatviews =
-            supportsMatViewsRows[0]?.supports_matviews ?? '';
+            supportsMatViewsRows[0]?.supports_matviews ?? false;
 
         const query = `
             SELECT table_catalog,
