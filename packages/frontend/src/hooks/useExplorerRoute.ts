@@ -2,6 +2,7 @@ import {
     ChartType,
     CustomDimensionType,
     DateGranularity,
+    isCartesianChartConfig,
     type CreateSavedChartVersion,
     type CustomBinDimension,
     type CustomDimension,
@@ -44,10 +45,32 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     createSavedChart: CreateSavedChartVersion,
 ): { pathname: string; search: string } => {
     const newParams = new URLSearchParams();
-    newParams.set(
-        'create_saved_chart_version',
-        JSON.stringify(createSavedChart),
-    );
+
+    let stringifiedChart = JSON.stringify(createSavedChart);
+    const stringifiedChartSize = stringifiedChart.length;
+    if (
+        stringifiedChartSize > 3000 &&
+        isCartesianChartConfig(createSavedChart.chartConfig.config)
+    ) {
+        console.warn(
+            `Chart config is too large to store in url "${stringifiedChartSize}", removing series to reduce size`,
+        );
+        const reducedCreateSavedChart = {
+            ...createSavedChart,
+            chartConfig: {
+                ...createSavedChart.chartConfig,
+                config: {
+                    ...createSavedChart.chartConfig.config,
+                    eChartsConfig: {},
+                },
+            },
+        };
+        stringifiedChart = JSON.stringify(reducedCreateSavedChart);
+        console.info(
+            `Reduced chart config size from "${stringifiedChartSize}" to "${stringifiedChart.length}"`,
+        );
+    }
+    newParams.set('create_saved_chart_version', stringifiedChart);
 
     return {
         pathname: `/projects/${projectUuid}/tables/${createSavedChart.tableName}`,
