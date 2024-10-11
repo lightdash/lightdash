@@ -50,7 +50,7 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
-import { intersection, isEqual } from 'lodash';
+import { debounce, intersection, isEqual } from 'lodash';
 import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
@@ -429,7 +429,7 @@ const SchedulerForm: FC<Props> = ({
     }, [slackChannelsQuery?.data, privateChannels]);
 
     let responsiveChannelsSearchEnabled =
-        slackChannels.length >= MAX_SLACK_CHANNELS || search.length > 0; // enable responvive channels search if there are more than MAX_SLACK_CHANNELS defined channels
+        slackChannels.length >= MAX_SLACK_CHANNELS || search.length > 0; // enable responvive channel search if there are more than MAX_SLACK_CHANNELS defined channels
 
     const handleSendNow = useCallback(() => {
         if (form.isValid()) {
