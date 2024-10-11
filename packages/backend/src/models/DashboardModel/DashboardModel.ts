@@ -30,6 +30,7 @@ import {
     SessionUser,
     UnexpectedServerError,
     UpdateMultipleDashboards,
+    type DashboardBasicDetailsWithTileTypes,
     type DashboardFilters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -321,10 +322,27 @@ export class DashboardModel {
             .where({ dashboard_version_id: versionId.dashboard_version_id });
     }
 
+    // TODO: This can be removed once we can have a semantic layer as a project connection
+    private async getDashboardVersionTileTypes(dashboardVersionId: number) {
+        const tileTypes = await this.database(DashboardTilesTableName)
+            .select<
+                {
+                    type: DashboardTileTypes;
+                }[]
+            >(`${DashboardTilesTableName}.type`)
+            .where(
+                `${DashboardTilesTableName}.dashboard_version_id`,
+                dashboardVersionId,
+            )
+            .distinctOn(`${DashboardTilesTableName}.type`);
+
+        return tileTypes.map((t) => t.type);
+    }
+
     async getAllByProject(
         projectUuid: string,
         chartUuid?: string,
-    ): Promise<DashboardBasicDetails[]> {
+    ): Promise<DashboardBasicDetailsWithTileTypes[]> {
         const cteTableName = 'cte';
         const dashboardsQuery = this.database
             .with(cteTableName, (queryBuilder) => {
@@ -441,48 +459,59 @@ export class DashboardModel {
         }
         const dashboards = await dashboardsQuery.from(cteTableName);
 
-        return dashboards.map(
-            ({
-                name,
-                description,
-                dashboard_uuid,
-                created_at,
-                project_uuid,
-                user_uuid,
-                first_name,
-                last_name,
-                organization_uuid,
-                space_uuid,
-                pinned_list_uuid,
-                order,
-                views_count,
-                first_viewed_at,
-                validation_errors,
-            }) => ({
-                organizationUuid: organization_uuid,
-                name,
-                description,
-                uuid: dashboard_uuid,
-                updatedAt: created_at,
-                projectUuid: project_uuid,
-                updatedByUser: {
-                    userUuid: user_uuid,
-                    firstName: first_name,
-                    lastName: last_name,
+        return Promise.all(
+            dashboards.map(
+                async ({
+                    name,
+                    description,
+                    dashboard_uuid,
+                    created_at,
+                    project_uuid,
+                    user_uuid,
+                    first_name,
+                    last_name,
+                    organization_uuid,
+                    space_uuid,
+                    pinned_list_uuid,
+                    order,
+                    views_count,
+                    first_viewed_at,
+                    validation_errors,
+                    dashboard_version_id,
+                }) => {
+                    // TODO: This can be removed once we can have a semantic layer as a project connection
+                    const tileTypes = await this.getDashboardVersionTileTypes(
+                        dashboard_version_id,
+                    );
+
+                    return {
+                        organizationUuid: organization_uuid,
+                        name,
+                        description,
+                        uuid: dashboard_uuid,
+                        updatedAt: created_at,
+                        projectUuid: project_uuid,
+                        updatedByUser: {
+                            userUuid: user_uuid,
+                            firstName: first_name,
+                            lastName: last_name,
+                        },
+                        spaceUuid: space_uuid,
+                        pinnedListUuid: pinned_list_uuid,
+                        pinnedListOrder: order,
+                        views: views_count,
+                        firstViewedAt: first_viewed_at,
+                        validationErrors: validation_errors?.map(
+                            (error: DbValidationTable) => ({
+                                validationId: error.validation_id,
+                                error: error.error,
+                                createdAt: error.created_at,
+                            }),
+                        ),
+                        tileTypes,
+                    };
                 },
-                spaceUuid: space_uuid,
-                pinnedListUuid: pinned_list_uuid,
-                pinnedListOrder: order,
-                views: views_count,
-                firstViewedAt: first_viewed_at,
-                validationErrors: validation_errors?.map(
-                    (error: DbValidationTable) => ({
-                        validationId: error.validation_id,
-                        error: error.error,
-                        createdAt: error.created_at,
-                    }),
-                ),
-            }),
+            ),
         );
     }
 

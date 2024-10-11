@@ -9,6 +9,7 @@ import {
     DashboardTileTarget,
     Explore,
     ExploreError,
+    ExploreType,
     ForbiddenError,
     getFilterRules,
     getItemId,
@@ -125,20 +126,21 @@ export class ValidationService extends BaseService {
                 case TableSelectionType.WITH_TAGS:
                     const hasSelectedJoinedExploredWithTags = explores.some(
                         (e) =>
-                            e.joinedTables?.some(
+                            (e.joinedTables?.some(
                                 (jt) => jt.table === explore.name,
                             ) &&
-                            e.tags?.some((tag) =>
-                                tablesConfiguration.tableSelection.value?.includes(
-                                    tag,
-                                ),
-                            ),
+                                e.tags?.some((tag) =>
+                                    tablesConfiguration.tableSelection.value?.includes(
+                                        tag,
+                                    ),
+                                )) ||
+                            explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                     );
                     const exploreIsSelectedWithTags = explore.tags?.some(
                         (tag) =>
                             tablesConfiguration.tableSelection.value?.includes(
                                 tag,
-                            ),
+                            ) || explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                     );
                     return (
                         hasSelectedJoinedExploredWithTags ||
@@ -148,17 +150,18 @@ export class ValidationService extends BaseService {
                 case TableSelectionType.WITH_NAMES:
                     const hasSelectedJoinedExplored = explores.some(
                         (e) =>
-                            e.joinedTables?.some(
+                            (e.joinedTables?.some(
                                 (jt) => jt.table === explore.name,
                             ) &&
-                            tablesConfiguration.tableSelection.value?.includes(
-                                e.name,
-                            ),
+                                tablesConfiguration.tableSelection.value?.includes(
+                                    e.name,
+                                )) ||
+                            explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                     );
                     const exploreIsSelected =
                         tablesConfiguration.tableSelection.value?.includes(
                             explore.name,
-                        );
+                        ) || explore.type === ExploreType.VIRTUAL; // Custom explores/Virtual views are included by default
 
                     return hasSelectedJoinedExplored || exploreIsSelected;
                 default:
@@ -207,164 +210,179 @@ export class ValidationService extends BaseService {
             string,
             { dimensionIds: string[]; metricIds: string[] }
         >,
+        selectedExplores?: (Explore | ExploreError)[],
     ): Promise<CreateChartValidation[]> {
         const charts = await this.savedChartModel.findChartsForValidation(
             projectUuid,
         );
-
-        const results = charts.flatMap(
-            ({
-                uuid,
-                name,
-                tableName,
-                sorts,
-                filters,
-                dimensions,
-                metrics,
-                customBinDimensions,
-                customSqlDimensions,
-                customMetrics,
-                customMetricsBaseDimensions,
-                tableCalculations,
-            }) => {
-                const availableDimensionIds =
-                    exploreFields[tableName]?.dimensionIds || [];
-                const availableCustomDimensionIds = [
-                    ...customBinDimensions,
-                    ...customSqlDimensions,
-                ];
-                const availableMetricIds =
-                    exploreFields[tableName]?.metricIds || [];
-
-                const allItemIdsAvailableInChart = [
-                    ...availableDimensionIds,
-                    ...availableMetricIds,
-                    ...tableCalculations,
-                    ...customMetrics,
-                    ...availableCustomDimensionIds,
-                ];
-
-                const commonValidation = {
-                    chartUuid: uuid,
+        // Only validate charts that are using selected explores
+        const results = charts
+            .filter((c) => {
+                if (selectedExplores === undefined) return true;
+                return selectedExplores.some((explore) => {
+                    if (isExploreError(explore)) return false;
+                    return explore.baseTable === c.tableName;
+                });
+            })
+            .flatMap(
+                ({
+                    uuid,
                     name,
-                    projectUuid,
-                    source: ValidationSourceType.Chart,
-                    chartName: name,
-                };
-                const containsFieldId = ({
-                    acc,
-                    fieldIds,
-                    fieldId,
-                    error,
-                    errorType,
-                    fieldName,
-                }: {
-                    acc: CreateChartValidation[];
-                    fieldIds: string[];
-                    fieldId: string;
-                } & Pick<
-                    CreateChartValidation,
-                    'error' | 'errorType' | 'fieldName'
-                >) => {
-                    if (!fieldIds?.includes(fieldId)) {
-                        return [
-                            ...acc,
-                            {
-                                ...commonValidation,
-                                errorType,
-                                error,
-                                fieldName,
-                            },
-                        ];
-                    }
-                    return acc;
-                };
+                    tableName,
+                    sorts,
+                    filters,
+                    dimensions,
+                    metrics,
+                    customBinDimensions,
+                    customSqlDimensions,
+                    customMetrics,
+                    customMetricsBaseDimensions,
+                    tableCalculations,
+                }) => {
+                    const availableDimensionIds =
+                        exploreFields[tableName]?.dimensionIds || [];
+                    const availableCustomDimensionIds = [
+                        ...customBinDimensions,
+                        ...customSqlDimensions,
+                    ];
+                    const availableMetricIds =
+                        exploreFields[tableName]?.metricIds || [];
 
-                const dimensionErrors = dimensions.reduce<
-                    CreateChartValidation[]
-                >(
-                    (acc, field) =>
-                        containsFieldId({
-                            acc,
-                            fieldIds: [
-                                ...availableDimensionIds,
-                                ...availableCustomDimensionIds,
-                            ],
-                            fieldId: field,
-                            error: `Dimension error: the field '${field}' no longer exists`,
-                            errorType: ValidationErrorType.Dimension,
-                            fieldName: field,
-                        }),
-                    [],
-                );
-                const metricErrors = metrics.reduce<CreateChartValidation[]>(
-                    (acc, field) =>
-                        containsFieldId({
-                            acc,
-                            fieldIds: [...availableMetricIds, ...customMetrics],
-                            fieldId: field,
-                            error: `Metric error: the field '${field}' no longer exists`,
-                            errorType: ValidationErrorType.Metric,
-                            fieldName: field,
-                        }),
-                    [],
-                );
-                const customMetricsErrors = customMetricsBaseDimensions.reduce<
-                    CreateChartValidation[]
-                >(
-                    (acc, field) =>
-                        containsFieldId({
-                            acc,
-                            fieldIds: [
-                                ...availableDimensionIds,
-                                ...availableCustomDimensionIds, // Custom dimensions can be used as base dimensions for custom metrics
-                            ],
-                            fieldId: field,
-                            error: `Custom metric error: the base dimension '${field}' no longer exists`,
-                            errorType: ValidationErrorType.CustomMetric,
-                            fieldName: field,
-                        }),
+                    const allItemIdsAvailableInChart = [
+                        ...availableDimensionIds,
+                        ...availableMetricIds,
+                        ...tableCalculations,
+                        ...customMetrics,
+                        ...availableCustomDimensionIds,
+                    ];
 
-                    [],
-                );
+                    const commonValidation = {
+                        chartUuid: uuid,
+                        name,
+                        projectUuid,
+                        source: ValidationSourceType.Chart,
+                        chartName: name,
+                    };
+                    const containsFieldId = ({
+                        acc,
+                        fieldIds,
+                        fieldId,
+                        error,
+                        errorType,
+                        fieldName,
+                    }: {
+                        acc: CreateChartValidation[];
+                        fieldIds: string[];
+                        fieldId: string;
+                    } & Pick<
+                        CreateChartValidation,
+                        'error' | 'errorType' | 'fieldName'
+                    >) => {
+                        if (!fieldIds?.includes(fieldId)) {
+                            return [
+                                ...acc,
+                                {
+                                    ...commonValidation,
+                                    errorType,
+                                    error,
+                                    fieldName,
+                                },
+                            ];
+                        }
+                        return acc;
+                    };
 
-                const filterErrors = getFilterRules(filters).reduce<
-                    CreateChartValidation[]
-                >(
-                    (acc, field) =>
-                        containsFieldId({
-                            acc,
-                            fieldIds: allItemIdsAvailableInChart,
-                            fieldId: field.target.fieldId,
-                            error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
-                            errorType: ValidationErrorType.Filter,
-                            fieldName: field.target.fieldId,
-                        }),
-                    [],
-                );
+                    const dimensionErrors = dimensions.reduce<
+                        CreateChartValidation[]
+                    >(
+                        (acc, field) =>
+                            containsFieldId({
+                                acc,
+                                fieldIds: [
+                                    ...availableDimensionIds,
+                                    ...availableCustomDimensionIds,
+                                ],
+                                fieldId: field,
+                                error: `Dimension error: the field '${field}' no longer exists`,
+                                errorType: ValidationErrorType.Dimension,
+                                fieldName: field,
+                            }),
+                        [],
+                    );
+                    const metricErrors = metrics.reduce<
+                        CreateChartValidation[]
+                    >(
+                        (acc, field) =>
+                            containsFieldId({
+                                acc,
+                                fieldIds: [
+                                    ...availableMetricIds,
+                                    ...customMetrics,
+                                ],
+                                fieldId: field,
+                                error: `Metric error: the field '${field}' no longer exists`,
+                                errorType: ValidationErrorType.Metric,
+                                fieldName: field,
+                            }),
+                        [],
+                    );
+                    const customMetricsErrors =
+                        customMetricsBaseDimensions.reduce<
+                            CreateChartValidation[]
+                        >(
+                            (acc, field) =>
+                                containsFieldId({
+                                    acc,
+                                    fieldIds: [
+                                        ...availableDimensionIds,
+                                        ...availableCustomDimensionIds, // Custom dimensions can be used as base dimensions for custom metrics
+                                    ],
+                                    fieldId: field,
+                                    error: `Custom metric error: the base dimension '${field}' no longer exists`,
+                                    errorType: ValidationErrorType.CustomMetric,
+                                    fieldName: field,
+                                }),
 
-                const sortErrors = sorts.reduce<CreateChartValidation[]>(
-                    (acc, field) =>
-                        containsFieldId({
-                            acc,
-                            fieldIds: allItemIdsAvailableInChart,
-                            fieldId: field,
-                            error: `Sorting error: the field '${field}' no longer exists`,
-                            errorType: ValidationErrorType.Sorting,
-                            fieldName: field,
-                        }),
-                    [],
-                );
+                            [],
+                        );
 
-                return [
-                    ...dimensionErrors,
-                    ...metricErrors,
-                    ...filterErrors,
-                    ...sortErrors,
-                    ...customMetricsErrors,
-                ];
-            },
-        );
+                    const filterErrors = getFilterRules(filters).reduce<
+                        CreateChartValidation[]
+                    >(
+                        (acc, field) =>
+                            containsFieldId({
+                                acc,
+                                fieldIds: allItemIdsAvailableInChart,
+                                fieldId: field.target.fieldId,
+                                error: `Filter error: the field '${field.target.fieldId}' no longer exists`,
+                                errorType: ValidationErrorType.Filter,
+                                fieldName: field.target.fieldId,
+                            }),
+                        [],
+                    );
+
+                    const sortErrors = sorts.reduce<CreateChartValidation[]>(
+                        (acc, field) =>
+                            containsFieldId({
+                                acc,
+                                fieldIds: allItemIdsAvailableInChart,
+                                fieldId: field,
+                                error: `Sorting error: the field '${field}' no longer exists`,
+                                errorType: ValidationErrorType.Sorting,
+                                fieldName: field,
+                            }),
+                        [],
+                    );
+
+                    return [
+                        ...dimensionErrors,
+                        ...metricErrors,
+                        ...filterErrors,
+                        ...sortErrors,
+                        ...customMetricsErrors,
+                    ];
+                },
+            );
 
         return results;
     }
@@ -586,7 +604,11 @@ export class ValidationService extends BaseService {
             !hasValidationTargets ||
             validationTargets.has(ValidationTarget.CHARTS) ||
             validationTargets.has(ValidationTarget.DASHBOARDS) // chartErrors are reused for dashboard validation
-                ? await this.validateCharts(projectUuid, exploreFields)
+                ? await this.validateCharts(
+                      projectUuid,
+                      exploreFields,
+                      compiledExplores,
+                  )
                 : [];
 
         const dashboardErrors =

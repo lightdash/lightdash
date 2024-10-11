@@ -126,8 +126,9 @@ import {
     type ApiSemanticViewerChartUpdate,
 } from './types/semanticLayer';
 import {
-    type ApiCreateCustomExplore,
     type ApiCreateSqlChart,
+    type ApiCreateVirtualView,
+    type ApiGithubDbtWritePreview,
     type ApiSqlChart,
     type ApiSqlRunnerJobStatusResponse,
     type ApiUpdateSqlChart,
@@ -217,7 +218,6 @@ export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertToDbt';
-export * from './utils/customExplore';
 export * from './utils/dashboard';
 export * from './utils/email';
 export * from './utils/fields';
@@ -232,6 +232,7 @@ export * from './utils/semanticLayer';
 export * from './utils/slugs';
 export * from './utils/time';
 export * from './utils/timeFrames';
+export * from './utils/virtualView';
 export * from './utils/warehouse';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/PieChartDataModel';
@@ -682,7 +683,8 @@ type ApiResults =
     | ApiSemanticViewerChartCreate['results']
     | ApiSemanticViewerChartGet['results']
     | ApiSemanticViewerChartUpdate['results']
-    | ApiCreateCustomExplore['results'];
+    | ApiCreateVirtualView['results']
+    | ApiGithubDbtWritePreview['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
@@ -793,10 +795,12 @@ export type HealthState = {
             loginPath: string;
         };
     };
-    posthog: {
-        projectApiKey: string;
-        apiHost: string;
-    };
+    posthog:
+        | {
+              projectApiKey: string;
+              apiHost: string;
+          }
+        | undefined;
     siteUrl: string;
     intercom: {
         appId: string;
@@ -1132,4 +1136,25 @@ export const deepEqual = (
             (!areObjects && val1 !== val2)
         );
     });
+};
+
+export const getProjectDirectory = (
+    dbtConnection?: DbtProjectConfig,
+): string | undefined => {
+    if (!dbtConnection) return undefined;
+
+    switch (dbtConnection.type) {
+        case DbtProjectType.DBT:
+            return dbtConnection.project_dir;
+        case DbtProjectType.GITHUB:
+        case DbtProjectType.GITLAB:
+        case DbtProjectType.BITBUCKET:
+        case DbtProjectType.AZURE_DEVOPS:
+            return dbtConnection.project_sub_path;
+        case DbtProjectType.DBT_CLOUD_IDE:
+        case DbtProjectType.NONE:
+            return undefined;
+        default:
+            return undefined;
+    }
 };

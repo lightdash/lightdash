@@ -93,7 +93,10 @@ export interface SqlRunnerState {
         addToDashboard: {
             isOpen: boolean;
         };
-        saveCustomExploreModal: {
+        createVirtualViewModal: {
+            isOpen: boolean;
+        };
+        writeBackToDbtModal: {
             isOpen: boolean;
         };
         chartErrorsAlert: {
@@ -105,9 +108,11 @@ export interface SqlRunnerState {
     sqlColumns: VizColumn[] | undefined;
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
+    mode: 'default' | 'virtualView';
 }
 
 const initialState: SqlRunnerState = {
+    mode: 'default',
     projectUuid: '',
     activeTable: undefined,
     activeSchema: undefined,
@@ -136,7 +141,10 @@ const initialState: SqlRunnerState = {
         addToDashboard: {
             isOpen: false,
         },
-        saveCustomExploreModal: {
+        createVirtualViewModal: {
+            isOpen: false,
+        },
+        writeBackToDbtModal: {
             isOpen: false,
         },
         chartErrorsAlert: {
@@ -162,9 +170,15 @@ export const sqlRunnerSlice = createSlice({
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
-        setFetchResultsOnLoad: (state, action: PayloadAction<boolean>) => {
-            state.fetchResultsOnLoad = action.payload;
-            if (action.payload === true) {
+        setFetchResultsOnLoad: (
+            state,
+            action: PayloadAction<{
+                shouldFetch: boolean;
+                shouldOpenChartOnLoad: boolean;
+            }>,
+        ) => {
+            state.fetchResultsOnLoad = action.payload.shouldFetch;
+            if (action.payload.shouldOpenChartOnLoad) {
                 state.activeEditorTab = EditorTabs.VISUALIZATION;
             }
         },
@@ -226,6 +240,9 @@ export const sqlRunnerSlice = createSlice({
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
+        },
+        setMode: (state, action: PayloadAction<'default' | 'virtualView'>) => {
+            state.mode = action.payload;
         },
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
@@ -323,4 +340,5 @@ export const {
     resetState,
     setQuoteChar,
     setWarehouseConnectionType,
+    setMode,
 } = sqlRunnerSlice.actions;

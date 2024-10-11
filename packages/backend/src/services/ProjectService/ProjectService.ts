@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     addDashboardFiltersToMetricQuery,
+    AlreadyExistsError,
     AlreadyProcessingError,
     AndFilterGroup,
     ApiChartAndResults,
@@ -14,12 +15,12 @@ import {
     convertCustomMetricToDbt,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    CreateCustomExplorePayload,
     createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
     CreateSnowflakeCredentials,
+    CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     CustomFormatType,
     DashboardAvailableFilters,
@@ -35,6 +36,7 @@ import {
     DownloadFileType,
     Explore,
     ExploreError,
+    ExploreType,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -98,6 +100,7 @@ import {
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
+    UpdateVirtualViewPayload,
     UserAttributeValueMap,
     UserWarehouseCredentials,
     VizColumn,
@@ -107,6 +110,7 @@ import {
     WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
+    type SemanticLayerConnectionUpdate,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -412,9 +416,19 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const { organizationUuid } = user;
         if (
-            user.ability.cannot('create', 'Job') ||
-            user.ability.cannot('create', 'Project')
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid }),
+            ) ||
+            user.ability.cannot(
+                'create',
+                subject('Project', {
+                    organizationUuid,
+                    type: data.type,
+                }),
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -454,7 +468,7 @@ export class ProjectService extends BaseService {
 
         if (data.upstreamProjectUuid) {
             try {
-                const { organizationUuid } = await this.projectModel.getSummary(
+                const projectSummary = await this.projectModel.getSummary(
                     data.upstreamProjectUuid,
                 );
                 // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
@@ -462,7 +476,7 @@ export class ProjectService extends BaseService {
                     user.ability.cannot(
                         'create',
                         subject('Project', {
-                            organizationUuid,
+                            organizationUuid: projectSummary.organizationUuid,
                             projectUuid: data.upstreamProjectUuid,
                         }),
                     )
@@ -498,9 +512,16 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const { organizationUuid } = user;
         if (
-            user.ability.cannot('create', 'Job') ||
-            user.ability.cannot('create', 'Project')
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid }),
+            ) ||
+            user.ability.cannot(
+                'create',
+                subject('Project', { organizationUuid }),
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -2644,7 +2665,10 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
         if (
-            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid, projectUuid }),
+            ) ||
             user.ability.cannot(
                 'manage',
                 subject('CompileProject', {
@@ -2692,7 +2716,10 @@ export class ProjectService extends BaseService {
             projectUuid,
         );
         if (
-            user.ability.cannot('create', 'Job') ||
+            user.ability.cannot(
+                'create',
+                subject('Job', { organizationUuid, projectUuid }),
+            ) ||
             user.ability.cannot(
                 'manage',
                 subject('CompileProject', {
@@ -2826,6 +2853,7 @@ export class ProjectService extends BaseService {
                                 explore.tables[explore.baseTable].schema,
                             description:
                                 explore.tables[explore.baseTable].description,
+                            type: explore.type ?? ExploreType.DEFAULT,
                         },
                     ];
                 }
@@ -2839,13 +2867,17 @@ export class ProjectService extends BaseService {
                 tableSelection: { type, value },
             } = await this.getTablesConfiguration(user, projectUuid);
             if (type === TableSelectionType.WITH_TAGS) {
-                return allExploreSummaries.filter((explore) =>
-                    hasIntersection(explore.tags || [], value || []),
+                return allExploreSummaries.filter(
+                    (explore) =>
+                        hasIntersection(explore.tags || [], value || []) ||
+                        explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                 );
             }
             if (type === TableSelectionType.WITH_NAMES) {
-                return allExploreSummaries.filter((explore) =>
-                    (value || []).includes(explore.name),
+                return allExploreSummaries.filter(
+                    (explore) =>
+                        (value || []).includes(explore.name) ||
+                        explore.type === ExploreType.VIRTUAL, // Custom explores/Virtual views are included by default
                 );
             }
         }
@@ -4349,27 +4381,49 @@ export class ProjectService extends BaseService {
         }, []);
     }
 
-    async createCustomExplore(
+    async createVirtualView(
         user: SessionUser,
         projectUuid: string,
-        payload: CreateCustomExplorePayload,
+        payload: CreateVirtualViewPayload,
     ) {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('VirtualView', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const explore = await this.findExplores({
+            user,
+            projectUuid,
+            exploreNames: [snakeCaseName(payload.name)],
+        });
+
+        if (Object.keys(explore).length > 0) {
+            throw new AlreadyExistsError(
+                'Virtual view with this name already exists',
+            );
+        }
         const { warehouseClient } = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials(projectUuid, user.userUuid),
         );
-        const explore = await this.projectModel.createCustomExplore(
+        const virtualView = await this.projectModel.createVirtualView(
             projectUuid,
             payload,
             warehouseClient,
         );
-        return explore;
+        return virtualView;
     }
 
     async updateSemanticLayerConnection(
         user: SessionUser,
         projectUuid: string,
-        payload: SemanticLayerConnection | undefined,
+        payload: SemanticLayerConnectionUpdate,
     ) {
         const project = await this.projectModel.getSummary(projectUuid);
 
@@ -4384,5 +4438,84 @@ export class ProjectService extends BaseService {
             );
 
         return updatedProject;
+    }
+
+    async deleteSemanticLayerConnection(
+        user: SessionUser,
+        projectUuid: string,
+    ) {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        if (user.ability.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        const updatedProject =
+            await this.projectModel.deleteSemanticLayerConnection(projectUuid);
+
+        return updatedProject;
+    }
+
+    async updateVirtualView(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        payload: UpdateVirtualViewPayload,
+    ) {
+        const virtualView = await this.findExplores({
+            user,
+            projectUuid,
+            exploreNames: [exploreName],
+        });
+
+        if (!virtualView) {
+            throw new NotFoundError('Virtual view not found');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('VirtualView', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            await this.getWarehouseCredentials(projectUuid, user.userUuid),
+        );
+
+        const updatedExplore = await this.projectModel.updateVirtualView(
+            projectUuid,
+            exploreName,
+            payload,
+            warehouseClient,
+        );
+
+        return updatedExplore;
+    }
+
+    async deleteVirtualView(
+        user: SessionUser,
+        projectUuid: string,
+        name: string,
+    ) {
+        const { organizationUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('VirtualView', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.projectModel.deleteVirtualView(projectUuid, name);
     }
 }

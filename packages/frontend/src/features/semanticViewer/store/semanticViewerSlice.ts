@@ -6,6 +6,7 @@ import {
     SemanticLayerSortByDirection,
     type RawResultRow,
     type SavedSemanticViewerChart,
+    type SavedSemanticViewerChartResults,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
     type SemanticLayerFilter,
@@ -145,7 +146,7 @@ const initialState: SemanticViewerState = {
         timeDimensions: [],
         filters: [],
         sortBy: [],
-        limit: undefined,
+        limit: 500,
     },
 
     saveModalOpen: false,
@@ -175,20 +176,33 @@ export const semanticViewerSlice = createSlice({
             action: PayloadAction<{
                 projectUuid: string;
                 info: SemanticLayerClientInfo;
-                chart: SavedSemanticViewerChart | undefined;
+                chartData:
+                    | {
+                          chart: SavedSemanticViewerChart;
+                          results: SavedSemanticViewerChartResults | undefined;
+                      }
+                    | undefined;
             }>,
         ) => {
-            const { projectUuid, info, chart } = action.payload;
+            const { projectUuid, info, chartData } = action.payload;
 
             state.info = { ...info, projectUuid };
 
-            if (chart) {
+            if (chartData) {
                 state.savedSemanticViewerChartUuid =
-                    chart.savedSemanticViewerChartUuid;
-                state.name = chart.name;
-                state.semanticLayerQuery = chart.semanticLayerQuery;
-                state.semanticLayerView = chart.semanticLayerView ?? '';
-                state.activeChartKind = chart.chartKind;
+                    chartData.chart.savedSemanticViewerChartUuid;
+                state.name = chartData.chart.name;
+                state.semanticLayerQuery = chartData.chart.semanticLayerQuery;
+                state.semanticLayerView =
+                    chartData.chart.semanticLayerView ?? '';
+                state.activeChartKind = chartData.chart.chartKind;
+
+                if (chartData.results) {
+                    state.results = chartData.results.results;
+                    state.columns = chartData.results.columns.map((column) => ({
+                        reference: column,
+                    }));
+                }
             }
 
             state.status = SemanticViewerStateStatus.INITIALIZED;

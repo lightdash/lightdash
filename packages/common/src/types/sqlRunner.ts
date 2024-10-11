@@ -2,6 +2,7 @@ import {
     type ApiError,
     type Explore,
     type PivotChartData,
+    type PullRequestCreated,
     type QueryExecutionContext,
 } from '..';
 import {
@@ -196,13 +197,31 @@ export type ApiUpdateSqlChart = {
     };
 };
 
-export type ApiCreateCustomExplore = {
+export type ApiCreateVirtualView = {
     status: 'ok';
     results: Pick<Explore, 'name'>;
 };
 
-export type CreateCustomExplorePayload = {
+export type CreateVirtualViewPayload = {
     name: string;
     sql: string;
     columns: VizColumn[];
+};
+
+export type UpdateVirtualViewPayload = CreateVirtualViewPayload;
+
+export type ApiGithubDbtWriteBack = {
+    status: 'ok';
+    results: PullRequestCreated;
+};
+
+export type ApiGithubDbtWritePreview = {
+    status: 'ok';
+    results: {
+        url: string;
+        repo: string;
+        path: string;
+        files: string[];
+        owner: string;
+    };
 };

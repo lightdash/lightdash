@@ -2546,6 +2546,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExploreType: {
+        dataType: 'refEnum',
+        enums: ['virtual', 'default'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Explore.SummaryExploreFields_': {
         dataType: 'refAlias',
         type: {
@@ -2554,6 +2559,7 @@ const models: TsoaRoute.Models = {
                 name: { dataType: 'string', required: true },
                 label: { dataType: 'string', required: true },
                 groupLabel: { dataType: 'string' },
+                type: { ref: 'ExploreType' },
                 tags: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -2585,6 +2591,7 @@ const models: TsoaRoute.Models = {
                 name: { dataType: 'string', required: true },
                 label: { dataType: 'string', required: true },
                 groupLabel: { dataType: 'string' },
+                type: { ref: 'ExploreType' },
                 tags: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -2813,6 +2820,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                type: { ref: 'ExploreType' },
                 sqlPath: { dataType: 'string' },
                 ymlPath: { dataType: 'string' },
                 warehouse: { dataType: 'string' },
@@ -5439,6 +5447,73 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_DbtSemanticLayerConnection_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'SemanticLayerType.DBT' },
+                environmentId: { dataType: 'string' },
+                domain: { dataType: 'string' },
+                token: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CubeSemanticLayerConnection_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'SemanticLayerType.CUBE' },
+                domain: { dataType: 'string' },
+                token: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerConnectionUpdate: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'Partial_DbtSemanticLayerConnection_' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                type: {
+                                    ref: 'SemanticLayerType.DBT',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+                {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'Partial_CubeSemanticLayerConnection_' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                type: {
+                                    ref: 'SemanticLayerType.CUBE',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CacheMetadata: {
         dataType: 'refAlias',
         type: {
@@ -7394,7 +7469,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiCreateCustomExplore: {
+    ApiCreateVirtualView: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -7418,7 +7493,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    CreateCustomExplorePayload: {
+    CreateVirtualViewPayload: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -7430,6 +7505,49 @@ const models: TsoaRoute.Models = {
                 },
                 sql: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateVirtualViewPayload: {
+        dataType: 'refAlias',
+        type: { ref: 'CreateVirtualViewPayload', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGithubDbtWritePreview: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        owner: { dataType: 'string', required: true },
+                        files: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        path: { dataType: 'string', required: true },
+                        repo: { dataType: 'string', required: true },
+                        url: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGithubDbtWriteBack: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'PullRequestCreated', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -8332,7 +8450,14 @@ const models: TsoaRoute.Models = {
         dataType: 'refObject',
         properties: {
             status: { dataType: 'enum', enums: ['ok'], required: true },
-            results: { ref: 'SemanticLayerClientInfo', required: true },
+            results: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'SemanticLayerClientInfo' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
         },
         additionalProperties: true,
     },
@@ -13328,7 +13453,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'SemanticLayerConnection',
+                    ref: 'SemanticLayerConnectionUpdate',
                 },
                 req: {
                     in: 'request',
@@ -13358,6 +13483,63 @@ export function RegisterRoutes(app: express.Router) {
 
                 const promise =
                     controller.updateProjectSemanticLayerConnection.apply(
+                        controller,
+                        validatedArgs as any,
+                    );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.delete(
+        '/api/v1/projects/:projectUuid/semantic-layer-connection',
+        ...fetchMiddlewares<RequestHandler>(ProjectController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectController.prototype.deleteProjectSemanticLayerConnection,
+        ),
+
+        async function ProjectController_deleteProjectSemanticLayerConnection(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any = await container.get<ProjectController>(
+                    ProjectController,
+                );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise =
+                    controller.deleteProjectSemanticLayerConnection.apply(
                         controller,
                         validatedArgs as any,
                     );
@@ -14064,6 +14246,83 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.promoteChartDiff.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/saved/:chartUuid/downloadCsv',
+        ...fetchMiddlewares<RequestHandler>(SavedChartController),
+        ...fetchMiddlewares<RequestHandler>(
+            SavedChartController.prototype.DownloadCsvFromSavedChart,
+        ),
+
+        async function SavedChartController_DownloadCsvFromSavedChart(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                chartUuid: {
+                    in: 'path',
+                    name: 'chartUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        csvLimit: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'double' },
+                                { dataType: 'enum', enums: [null] },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        onlyRaw: { dataType: 'boolean', required: true },
+                        tileUuid: { dataType: 'string' },
+                        dashboardFilters: { dataType: 'any', required: true },
+                    },
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SavedChartController>(
+                        SavedChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.DownloadCsvFromSavedChart.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -16033,13 +16292,13 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/projects/:projectUuid/sqlRunner/create-custom-explore',
+        '/api/v1/projects/:projectUuid/sqlRunner/virtual-view',
         ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
         ...fetchMiddlewares<RequestHandler>(
-            SqlRunnerController.prototype.createCustomExplore,
+            SqlRunnerController.prototype.createVirtualView,
         ),
 
-        async function SqlRunnerController_createCustomExplore(
+        async function SqlRunnerController_createVirtualView(
             request: any,
             response: any,
             next: any,
@@ -16061,7 +16320,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'CreateCustomExplorePayload',
+                    ref: 'CreateVirtualViewPayload',
                 },
             };
 
@@ -16084,7 +16343,265 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.createCustomExplore.apply(
+                const promise = controller.createVirtualView.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.put(
+        '/api/v1/projects/:projectUuid/sqlRunner/virtual-view/:name',
+        ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SqlRunnerController.prototype.updateVirtualView,
+        ),
+
+        async function SqlRunnerController_updateVirtualView(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                name: {
+                    in: 'path',
+                    name: 'name',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'UpdateVirtualViewPayload',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SqlRunnerController>(
+                        SqlRunnerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.updateVirtualView.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.delete(
+        '/api/v1/projects/:projectUuid/sqlRunner/virtual-view/:name',
+        ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SqlRunnerController.prototype.deleteVirtualView,
+        ),
+
+        async function SqlRunnerController_deleteVirtualView(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                name: {
+                    in: 'path',
+                    name: 'name',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SqlRunnerController>(
+                        SqlRunnerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.deleteVirtualView.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/projects/:projectUuid/sqlRunner/preview',
+        ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SqlRunnerController.prototype.writeBackPreview,
+        ),
+
+        async function SqlRunnerController_writeBackPreview(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'CreateVirtualViewPayload',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SqlRunnerController>(
+                        SqlRunnerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.writeBackPreview.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.post(
+        '/api/v1/projects/:projectUuid/sqlRunner/pull-request',
+        ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SqlRunnerController.prototype.writeBackCreatePr,
+        ),
+
+        async function SqlRunnerController_writeBackCreatePr(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    required: true,
+                    ref: 'CreateVirtualViewPayload',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SqlRunnerController>(
+                        SqlRunnerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.writeBackCreatePr.apply(
                     controller,
                     validatedArgs as any,
                 );

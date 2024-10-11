@@ -204,7 +204,13 @@ export class OrganizationService extends BaseService {
         searchQuery?: string,
     ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
-        if (user.ability.cannot('view', 'OrganizationMemberProfile')) {
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('OrganizationMemberProfile', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         if (organizationUuid === undefined) {

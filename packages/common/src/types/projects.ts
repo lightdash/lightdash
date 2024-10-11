@@ -313,6 +313,10 @@ export type SemanticLayerConnection =
     | DbtSemanticLayerConnection
     | CubeSemanticLayerConnection;
 
+export type SemanticLayerConnectionUpdate =
+    | (Partial<DbtSemanticLayerConnection> & { type: SemanticLayerType.DBT })
+    | (Partial<CubeSemanticLayerConnection> & { type: SemanticLayerType.CUBE });
+
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
@@ -351,4 +355,6 @@ export type PreviewContentMapping = {
     spaces: IdContentMapping[];
     dashboards: IdContentMapping[];
     dashboardVersions: IdContentMapping[];
+    savedSql: IdContentMapping[];
+    savedSqlVersions: IdContentMapping[];
 };

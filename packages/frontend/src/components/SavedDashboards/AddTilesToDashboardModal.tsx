@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     DashboardTileTypes,
     getDefaultChartTileSize,
+    type DashboardBasicDetailsWithTileTypes,
     type DashboardTile,
 } from '@lightdash/common';
 import {
@@ -11,9 +12,11 @@ import {
     Modal,
     Select,
     Stack,
+    Text,
     Textarea,
     TextInput,
     Title,
+    Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
@@ -21,7 +24,14 @@ import {
     IconLayoutDashboard,
     IconPlus,
 } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { v4 as uuid4 } from 'uuid';
 import { useSavedSemanticViewerChart } from '../../features/semanticViewer/api/hooks';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
@@ -46,6 +56,32 @@ interface AddTilesToDashboardModalProps {
     dashboardTileType: DashboardTileTypes;
     onClose?: () => void;
 }
+
+interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
+    label: string;
+    value: string;
+    disabled?: boolean;
+    spaceUuid: string;
+}
+
+const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
+    ({ label, disabled, ...others }: ItemProps, ref) => (
+        <div ref={ref} {...others}>
+            <Tooltip
+                label={
+                    'Dashboard has charts created from a different semantic layer connection'
+                }
+                disabled={!disabled}
+                position="top-start"
+                withinPortal
+            >
+                <Text c={disabled ? 'dimmed' : 'gray.8'} fw={500} fz="xs">
+                    {label}
+                </Text>
+            </Tooltip>
+        </div>
+    ),
+);
 
 const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     isOpen,
@@ -184,6 +220,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             },
             true, // includePrivateSpaces
         );
+
     const { data: spaces, isInitialLoading: isLoadingSpaces } =
         useSpaceSummaries(projectUuid, true, {
             staleTime: 0,
@@ -196,11 +233,51 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
 
     const currentSpace = spaces?.find((s) => s.uuid === tile?.props.spaceUuid);
 
+    const isDashboardSelectItemDisabled = useCallback(
+        (dashboard: DashboardBasicDetailsWithTileTypes) => {
+            switch (dashboardTileType) {
+                case DashboardTileTypes.SAVED_CHART:
+                case DashboardTileTypes.SQL_CHART:
+                    return dashboard.tileTypes.includes(
+                        DashboardTileTypes.SEMANTIC_VIEWER_CHART,
+                    );
+                case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
+                    return (
+                        dashboard.tileTypes.includes(
+                            DashboardTileTypes.SAVED_CHART,
+                        ) ||
+                        dashboard.tileTypes.includes(
+                            DashboardTileTypes.SQL_CHART,
+                        )
+                    );
+                case DashboardTileTypes.LOOM:
+                case DashboardTileTypes.MARKDOWN:
+                    return false;
+                default:
+                    return assertUnreachable(
+                        dashboardTileType,
+                        `Unknown tile type: ${dashboardTileType}`,
+                    );
+            }
+        },
+        [dashboardTileType],
+    );
+
+    const dashboardSelectItems = useMemo(() => {
+        return (
+            dashboards?.map<ItemProps>((d) => ({
+                value: d.uuid,
+                label: d.name,
+                group: spaces?.find((s) => s.uuid === d.spaceUuid)?.name,
+                disabled: isDashboardSelectItemDisabled(d),
+                spaceUuid: d.spaceUuid, // ? Adding spaceUuid here for simplicity of selecting the default value in the select
+            })) ?? []
+        );
+    }, [dashboards, isDashboardSelectItemDisabled, spaces]);
+
     const form = useForm({
         initialValues: {
-            dashboardUuid:
-                dashboards?.find((d) => d.spaceUuid === currentSpace?.uuid)
-                    ?.uuid ?? '',
+            dashboardUuid: '',
             dashboardName: '',
             dashboardDescription: '',
             spaceUuid: currentSpace?.uuid ?? '',
@@ -279,6 +356,20 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         },
     );
 
+    const defaultSelectValue = useMemo(
+        () =>
+            dashboardSelectItems.find(
+                (d) => d.spaceUuid === currentSpace?.uuid && !d.disabled,
+            )?.value,
+        [currentSpace?.uuid, dashboardSelectItems],
+    );
+
+    useEffect(() => {
+        if (defaultSelectValue && !form.values.dashboardUuid) {
+            form.setValues({ dashboardUuid: defaultSelectValue });
+        }
+    }, [defaultSelectValue, form]);
+
     if (isLoadingDashboards || !dashboards || isLoadingSpaces || !spaces) {
         return null;
     }
@@ -310,19 +401,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             <Select
                                 id="select-dashboard"
                                 label="Select a dashboard"
-                                data={dashboards.map((d) => ({
-                                    value: d.uuid,
-                                    label: d.name,
-                                    group: spaces.find(
-                                        (s) => s.uuid === d.spaceUuid,
-                                    )?.name,
-                                }))}
-                                defaultValue={
-                                    dashboards.find(
-                                        (d) =>
-                                            d.spaceUuid === currentSpace?.uuid,
-                                    )?.uuid
-                                }
+                                data={dashboardSelectItems}
                                 searchable
                                 nothingFound="No matching dashboards found"
                                 filter={(value, dashboard) =>
@@ -332,6 +411,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                                 }
                                 withinPortal
                                 required
+                                itemComponent={SelectItem}
                                 {...form.getInputProps('dashboardUuid')}
                             />
                             <Anchor

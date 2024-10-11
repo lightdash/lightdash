@@ -55,6 +55,7 @@ const Content: FC = () => {
         data: requestData,
         refetch: runSemanticViewerQuery,
         isFetching: isRunningSemanticLayerQuery,
+        error: requestDataError,
     } = useSemanticLayerQueryResults(
         {
             projectUuid,
@@ -66,10 +67,9 @@ const Content: FC = () => {
                 (semanticQuery.dimensions.length > 0 ||
                     semanticQuery.timeDimensions.length > 0 ||
                     semanticQuery.metrics.length > 0),
-            onError: (data) => {
+            onError: () => {
                 showToastError({
-                    title: 'Could not fetch SQL query results',
-                    subtitle: data.error.message,
+                    title: 'Failed to fetch results',
                 });
             },
         },
@@ -208,7 +208,10 @@ const Content: FC = () => {
                     />
                 </Center>
             ) : activeEditorTab === EditorTabs.QUERY ? (
-                <ContentResults onTableHeaderClick={handleSortField} />
+                <ContentResults
+                    onTableHeaderClick={handleSortField}
+                    resultsError={requestDataError ?? undefined}
+                />
             ) : activeEditorTab === EditorTabs.VIZ ? (
                 <ContentCharts onTableHeaderClick={handleSortField} />
             ) : null}

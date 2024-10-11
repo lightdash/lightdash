@@ -184,4 +184,5 @@ export const cubeTransfomers: SemanticLayerTransformer<
 
         return key.toLowerCase();
     },
+    errorToReadableError: (errorMessage) => errorMessage,
 };

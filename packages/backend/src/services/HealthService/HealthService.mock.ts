@@ -51,10 +51,7 @@ export const BaseResponse: HealthState = {
     pivotTable: {
         maxColumnLimit: 0,
     },
-    posthog: {
-        apiHost: '',
-        projectApiKey: '',
-    },
+    posthog: undefined,
     pylon: {
         appId: '',
     },

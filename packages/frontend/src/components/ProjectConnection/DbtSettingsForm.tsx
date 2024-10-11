@@ -8,9 +8,9 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { Select, Stack, TextInput } from '@mantine/core';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import { useApp } from '../../providers/AppProvider';
 import FormSection from '../ReactHookForm/FormSection';
 import { MultiKeyValuePairsInput } from '../ReactHookForm/MultiKeyValuePairsInput';

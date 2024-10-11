@@ -197,7 +197,7 @@ export type LightdashConfig = {
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
     rudder: RudderConfig;
-    posthog: PosthogConfig;
+    posthog: PosthogConfig | undefined;
     mode: LightdashMode;
     sentry: SentryConfig;
     auth: AuthConfig;
@@ -269,6 +269,9 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     logging: LoggingConfig;
+    github: {
+        appName: string;
+    };
 };
 
 export type SlackConfig = {
@@ -476,14 +479,18 @@ export const parseConfig = (): LightdashConfig => {
                   },
               }
             : undefined,
-        posthog: {
-            projectApiKey: process.env.POSTHOG_PROJECT_API_KEY || '',
-            apiHost: process.env.POSTHOG_API_HOST || 'https://app.posthog.com',
-        },
+        posthog:
+            process.env.POSTHOG_PROJECT_API_KEY && process.env.POSTHOG_API_HOST
+                ? {
+                      projectApiKey: process.env.POSTHOG_PROJECT_API_KEY,
+                      apiHost: process.env.POSTHOG_API_HOST,
+                  }
+                : undefined,
         rudder: {
             writeKey:
-                process.env.RUDDERSTACK_WRITE_KEY ||
-                '1vqkSlWMVtYOl70rk3QSE0v1fqY',
+                process.env.RUDDERSTACK_WRITE_KEY === undefined
+                    ? '1vqkSlWMVtYOl70rk3QSE0v1fqY'
+                    : process.env.RUDDERSTACK_WRITE_KEY,
             dataPlaneUrl:
                 process.env.RUDDERSTACK_DATA_PLANE_URL ||
                 'https://analytics.lightdash.com',
@@ -609,7 +616,10 @@ export const parseConfig = (): LightdashConfig => {
             },
         },
         intercom: {
-            appId: process.env.INTERCOM_APP_ID || 'zppxyjpp',
+            appId:
+                process.env.INTERCOM_APP_ID === undefined
+                    ? 'zppxyjpp'
+                    : process.env.INTERCOM_APP_ID,
             apiBase:
                 process.env.INTERCOM_APP_BASE || 'https://api-iam.intercom.io',
         },
@@ -767,6 +777,9 @@ export const parseConfig = (): LightdashConfig => {
                     ? undefined
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
+        },
+        github: {
+            appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',
         },
     };
 };

@@ -100,12 +100,13 @@ export const getChartIcon = (chartKind: ChartKind | undefined) => {
     }
 };
 
-export const ChartIcon: FC<{ chartKind: ChartKind | undefined }> = ({
-    chartKind,
-}) => (
+export const ChartIcon: FC<{
+    chartKind: ChartKind | undefined;
+    color?: string;
+}> = ({ chartKind, color }) => (
     <IconBox
         icon={getChartIcon(chartKind)}
-        color="blue.8"
+        color={color ?? 'blue.8'}
         transform={
             chartKind === ChartKind.HORIZONTAL_BAR ? 'rotate(90)' : undefined
         }

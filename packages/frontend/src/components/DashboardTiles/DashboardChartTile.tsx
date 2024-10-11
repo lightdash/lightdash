@@ -19,6 +19,7 @@ import {
     type Dashboard,
     type DashboardChartTile as IDashboardChartTile,
     type DashboardFilterRule,
+    type DashboardFilters,
     type Field,
     type FilterDashboardToRule,
     type ItemsMap,
@@ -58,7 +59,7 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
-import { downloadCsv } from '../../api/csv';
+import { downloadCsvFromSavedChart } from '../../api/csv';
 import { DashboardTileComments } from '../../features/comments';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
@@ -96,40 +97,37 @@ import TileBase from './TileBase/index';
 
 interface ExportResultAsCSVModalProps {
     projectUuid: string;
-    savedChart: SavedChart;
+    chartUuid: string;
+    dashboardFilters?: DashboardFilters;
+    tileUuid?: string;
+    // Csv properties
     rows: ApiChartAndResults['rows'];
     onClose: () => void;
     onConfirm: () => void;
 }
 
 const ExportResultAsCSVModal: FC<ExportResultAsCSVModalProps> = ({
-    savedChart,
+    projectUuid,
+    chartUuid,
+    dashboardFilters,
+    tileUuid,
     rows,
     onClose,
     onConfirm,
 }) => {
-    const getCsvLink = async (limit: number | null, onlyRaw: boolean) => {
-        return downloadCsv({
-            projectUuid: savedChart.projectUuid,
-            tableId: savedChart.tableName,
-            query: savedChart.metricQuery,
-            csvLimit: limit,
-            onlyRaw: onlyRaw,
-            columnOrder: savedChart.tableConfig.columnOrder,
-            showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? savedChart.chartConfig.config.showTableNames ?? false
-                : true,
-            customLabels: getCustomLabelsFromTableConfig(
-                savedChart.chartConfig.config,
-            ),
-            hiddenFields: getHiddenTableFields(savedChart.chartConfig),
-            chartName: savedChart.name,
+    const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
+        return downloadCsvFromSavedChart({
+            chartUuid,
+            dashboardFilters,
+            tileUuid,
+            onlyRaw,
+            csvLimit,
         });
     };
 
     return (
         <ExportCSVModal
-            projectUuid={savedChart.projectUuid}
+            projectUuid={projectUuid}
             opened
             rows={rows}
             getCsvLink={getCsvLink}
@@ -1024,7 +1022,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             {isCSVExportModalOpen ? (
                 <ExportResultAsCSVModal
                     projectUuid={projectUuid}
-                    savedChart={chartWithDashboardFilters}
+                    chartUuid={chart.uuid}
+                    tileUuid={tileUuid}
+                    dashboardFilters={appliedDashboardFilters}
                     rows={rows}
                     onClose={() => setIsCSVExportModalOpen(false)}
                     onConfirm={() => setIsCSVExportModalOpen(false)}

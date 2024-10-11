@@ -3,7 +3,8 @@ import cypressSplit from 'cypress-split';
 import { unlinkSync } from 'fs';
 
 export default defineConfig({
-    viewportWidth: 1080,
+    viewportWidth: 1920,
+    viewportHeight: 1080,
     defaultCommandTimeout: 10000,
     retries: {
         runMode: 2,
@@ -21,8 +22,27 @@ export default defineConfig({
             'analytics.lightdash.com',
         ],
         trashAssetsBeforeRuns: true,
+        experimentalMemoryManagement: true,
         setupNodeEvents(on, config) {
             cypressSplit(on, config);
+
+            on('before:browser:launch', (browser, launchOptions) => {
+                if (['chrome', 'edge'].includes(browser.name)) {
+                    if (browser.isHeadless) {
+                        launchOptions.args.push('--no-sandbox');
+                        launchOptions.args.push(
+                            '--disable-gl-drawing-for-tests',
+                        );
+                        launchOptions.args.push('--disable-gpu');
+                    }
+
+                    launchOptions.args.push(
+                        '--js-flags=--max-old-space-size=3500',
+                    );
+                }
+
+                return launchOptions;
+            });
 
             // Delete videos for specs without failing or retried tests
             // https://docs.cypress.io/guides/guides/screenshots-and-videos#Delete-videos-for-specs-without-failing-or-retried-tests

@@ -50,32 +50,57 @@ describe('PostgresWarehouseClient', () => {
     });
     it('expect schema with postgres types mapped to dimension types', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
-        (pg.Pool as unknown as jest.Mock).mockImplementationOnce(() => ({
-            connect: jest.fn((callback) => {
-                callback(
-                    null,
-                    {
-                        query: jest.fn(() => {
-                            const mockedStream = new PassThrough();
-                            setTimeout(() => {
-                                columns.forEach((column) => {
+        (pg.Pool as unknown as jest.Mock)
+            .mockImplementationOnce(() => ({
+                connect: jest.fn((callback) => {
+                    callback(
+                        null,
+                        {
+                            query: jest.fn(() => {
+                                const mockedStream = new PassThrough();
+                                setTimeout(() => {
                                     mockedStream.emit('data', {
-                                        row: column,
+                                        row: { version: 'PostgreSQL 15.4' },
                                         fields: [],
                                     });
-                                });
-                                mockedStream.end();
-                            }, 100);
-                            return mockedStream;
-                        }),
-                        on: jest.fn(async () => undefined),
-                    },
-                    jest.fn(),
-                );
-            }),
-            end: jest.fn(async () => undefined),
-            on: jest.fn(async () => undefined),
-        }));
+                                    mockedStream.end();
+                                }, 100);
+                                return mockedStream;
+                            }),
+                            on: jest.fn(async () => undefined),
+                        },
+                        jest.fn(),
+                    );
+                }),
+                end: jest.fn(async () => undefined),
+                on: jest.fn(async () => undefined),
+            }))
+            .mockImplementationOnce(() => ({
+                connect: jest.fn((callback) => {
+                    callback(
+                        null,
+                        {
+                            query: jest.fn(() => {
+                                const mockedStream = new PassThrough();
+                                setTimeout(() => {
+                                    columns.forEach((column) => {
+                                        mockedStream.emit('data', {
+                                            row: column,
+                                            fields: [],
+                                        });
+                                    });
+                                    mockedStream.end();
+                                }, 100);
+                                return mockedStream;
+                            }),
+                            on: jest.fn(async () => undefined),
+                        },
+                        jest.fn(),
+                    );
+                }),
+                end: jest.fn(async () => undefined),
+                on: jest.fn(async () => undefined),
+            }));
         expect(await warehouse.getCatalog(config)).toEqual(
             expectedWarehouseSchema,
         );

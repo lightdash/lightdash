@@ -5,11 +5,11 @@ import {
     type ApiSemanticViewerChartUpdate,
     type PivotChartData,
     type SavedSemanticViewerChart,
+    type SavedSemanticViewerChartResults,
     type SemanticLayerClientInfo,
     type SemanticLayerField,
     type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
-    type SemanticLayerResultRow,
     type SemanticLayerView,
     type SemanticViewerChartCreate,
     type SemanticViewerChartUpdate,
@@ -35,14 +35,13 @@ import {
 
 type SemanticLayerInfoParams = {
     projectUuid: string;
-    useQueryParams?: UseQueryOptions<SemanticLayerClientInfo, ApiError>;
 };
 
-export const useSemanticLayerInfo = ({
-    projectUuid,
-    useQueryParams,
-}: SemanticLayerInfoParams) =>
-    useQuery<SemanticLayerClientInfo, ApiError>({
+export const useSemanticLayerInfo = (
+    { projectUuid }: SemanticLayerInfoParams,
+    useQueryParams?: UseQueryOptions<SemanticLayerClientInfo | null, ApiError>,
+) =>
+    useQuery<SemanticLayerClientInfo | null, ApiError>({
         queryKey: [projectUuid, 'semanticLayer', 'info'],
         queryFn: () => apiGetSemanticLayerInfo({ projectUuid }),
         ...useQueryParams,
@@ -204,11 +203,6 @@ export const useSavedSemanticViewerChart = (
             ...useQueryParams,
         },
     );
-};
-
-type SavedSemanticViewerChartResults = {
-    results: SemanticLayerResultRow[];
-    columns: string[];
 };
 
 /**

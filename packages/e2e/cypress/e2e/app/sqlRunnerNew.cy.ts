@@ -31,6 +31,7 @@ describe('SQL Runner (new)', () => {
 
     it('Should verify that the query is autocompleted, run, and the results are displayed', () => {
         // Verify the autocomplete SQL query
+        cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
         cy.contains('orders').click();
         cy.contains(
@@ -92,6 +93,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('Run query').should('be.disabled');
 
         // Verify that the query is run
+        cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
         cy.contains('customers').click();
         cy.contains(
@@ -144,6 +146,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('Run query').should('be.disabled');
 
         // Verify that the query is run
+        cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
         cy.contains('customers').click();
         cy.contains(
@@ -196,6 +199,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('Run query').should('be.disabled');
 
         // Verify that the query is run
+        cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
         cy.contains('customers').click();
         cy.contains(
@@ -230,9 +234,8 @@ describe('SQL Runner (new)', () => {
 
         cy.contains('label', 'SQL').click();
         cy.get('.monaco-editor').should('be.visible');
-        cy.get('.monaco-editor').type('{selectall}{backspace}');
         cy.get('.monaco-editor')
-            .type(`SELECT * FROM "${schema}"."jaffle"."orders"`)
+            .type(`{selectall}{del}SELECT * FROM "${schema}"."jaffle"."orders"`)
             .wait(1000);
         cy.contains('Run query').click();
         cy.get('table thead th').eq(0).should('contain.text', 'order_id');
@@ -271,6 +274,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('Run query').should('be.disabled');
 
         // Verify that the query is run
+        cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
         cy.contains('customers').click();
         cy.contains(
