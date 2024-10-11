@@ -992,7 +992,7 @@ const SchedulerForm: FC<Props> = ({
                                                         data={slackChannels}
                                                         searchable
                                                         creatable
-                                                        limit={10}
+                                                        limit={500}
                                                         withinPortal
                                                         value={
                                                             form.values
