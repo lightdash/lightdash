@@ -182,7 +182,7 @@ const SlackSettingsPanel: FC = () => {
                                 placeholder="Select a channel"
                                 searchable
                                 clearable
-                                limit={10}
+                                limit={500}
                                 nothingFound="No channels found"
                                 data={slackChannelOptions}
                                 {...form.getInputProps('notificationChannel')}
