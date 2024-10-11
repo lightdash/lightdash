@@ -51,7 +51,6 @@ import {
 } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { debounce, intersection, isEqual } from 'lodash';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
@@ -62,6 +61,7 @@ import { hasRequiredScopes } from '../../../components/UserSettings/SlackSetting
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
