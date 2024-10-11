@@ -1,3 +1,10 @@
+## [0.1302.6](https://github.com/lightdash/lightdash/compare/0.1302.5...0.1302.6) (2024-10-11)
+
+
+### Bug Fixes
+
+* reduce url on explore ([#11889](https://github.com/lightdash/lightdash/issues/11889)) ([733907c](https://github.com/lightdash/lightdash/commit/733907c4ff5c42a938bd1aac33fb4b2d8286e551))
+
 ## [0.1302.5](https://github.com/lightdash/lightdash/compare/0.1302.4...0.1302.5) (2024-10-10)
 
 
