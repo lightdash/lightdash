@@ -1,3 +1,10 @@
+## [0.1302.7](https://github.com/lightdash/lightdash/compare/0.1302.6...0.1302.7) (2024-10-11)
+
+
+### Bug Fixes
+
+* always run query before validating diffs ([#11874](https://github.com/lightdash/lightdash/issues/11874)) ([b3ba9ea](https://github.com/lightdash/lightdash/commit/b3ba9ea2f7a810e4f567c69924b735abc8f3f2ab))
+
 ## [0.1302.6](https://github.com/lightdash/lightdash/compare/0.1302.5...0.1302.6) (2024-10-11)
 
 
