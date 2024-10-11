@@ -104,6 +104,7 @@ export interface SemanticLayerTransformer<
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
     mapResultsKeys: (key: string, query: SemanticLayerQuery) => string;
+    errorToReadableError: (errorMessage?: string) => string | undefined;
 }
 
 export interface SemanticLayerClientInfo {
@@ -118,7 +119,7 @@ export interface SemanticLayerClientInfo {
 
 export interface ApiSemanticLayerClientInfo {
     status: 'ok';
-    results: SemanticLayerClientInfo;
+    results: SemanticLayerClientInfo | null;
 }
 
 export interface SemanticLayerClient {
@@ -341,6 +342,11 @@ export type SemanticViewerChartUpdate = {
 export type SemanticViewerChartUpdateResult = {
     savedSemanticViewerChartUuid: string;
     savedSemanticViewerChartVersionUuid: string | null;
+};
+
+export type SavedSemanticViewerChartResults = {
+    results: SemanticLayerResultRow[];
+    columns: string[];
 };
 
 export type ApiSemanticViewerChartCreate = {

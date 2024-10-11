@@ -1,11 +1,28 @@
-import { FeatureFlags } from '@lightdash/common';
-import { Button, Group, Paper, Tooltip } from '@mantine/core';
-import { IconSparkles } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
+import { DbtProjectType, FeatureFlags } from '@lightdash/common';
+import {
+    Button,
+    Group,
+    Menu,
+    Paper,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconBrandGithub,
+    IconChevronDown,
+    IconDeviceFloppy,
+    IconTableAlias,
+} from '@tabler/icons-react';
+import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
+import { useGitHubRepositories } from '../../../../components/UserSettings/GithubSettingsPanel';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
+import useHealth from '../../../../hooks/health/useHealth';
 import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
+import { useProject } from '../../../../hooks/useProject';
+import { CreateVirtualViewModal } from '../../../virtualView';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     DEFAULT_NAME,
@@ -15,21 +32,37 @@ import {
     updateName,
 } from '../../store/sqlRunnerSlice';
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
-import { SaveCustomExploreModal } from '../SaveCustomExploreModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
+import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
+
+type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 
 export const HeaderCreate: FC = () => {
-    const isSaveCustomExploreFromSqlRunnerEnabled = useFeatureFlagEnabled(
-        FeatureFlags.SaveCustomExploreFromSqlRunner,
+    const isSaveVirtualViewFromSqlRunnerEnabled = useFeatureFlagEnabled(
+        FeatureFlags.SaveVirtualViewFromSqlRunner,
     );
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const { data: project } = useProject(projectUuid);
+
     const dispatch = useAppDispatch();
     const name = useAppSelector((state) => state.sqlRunner.name);
     const loadedColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
-    const isSaveCustomExploreModalOpen = useAppSelector(
-        (state) => state.sqlRunner.modals.saveCustomExploreModal.isOpen,
+    const health = useHealth();
+
+    const isGithubIntegrationEnabled =
+        useFeatureFlagEnabled(FeatureFlags.CustomSQLEnabled) &&
+        health?.data?.hasGithub &&
+        project?.dbtConnection.type === DbtProjectType.GITHUB;
+    const { isError: githubIsNotInstalled } = useGitHubRepositories();
+
+    const isCreateVirtualViewModalOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.createVirtualViewModal.isOpen,
+    );
+    const isWriteBackToDbtModalOpen = useAppSelector(
+        (state) => state.sqlRunner.modals.writeBackToDbtModal.isOpen,
     );
     const isChartErrorsAlertOpen = useAppSelector(
         (state) => state.sqlRunner.modals.chartErrorsAlert.isOpen,
@@ -37,8 +70,11 @@ export const HeaderCreate: FC = () => {
     const onCloseSaveModal = useCallback(() => {
         dispatch(toggleModal('saveChartModal'));
     }, [dispatch]);
-    const onCloseSaveCustomExploreModal = useCallback(() => {
-        dispatch(toggleModal('saveCustomExploreModal'));
+    const onCloseCreateVirtualViewModal = useCallback(() => {
+        dispatch(toggleModal('createVirtualViewModal'));
+    }, [dispatch]);
+    const onCloseWriteBackToDbtModal = useCallback(() => {
+        dispatch(toggleModal('writeBackToDbtModal'));
     }, [dispatch]);
 
     const selectedChartType = useAppSelector(
@@ -49,13 +85,57 @@ export const HeaderCreate: FC = () => {
             !!cartesianChartSelectors.getErrors(state, selectedChartType),
     );
 
-    const onSaveClick = useCallback(() => {
-        if (hasErrors) {
-            dispatch(toggleModal('chartErrorsAlert'));
-        } else {
-            dispatch(toggleModal('saveChartModal'));
+    const [ctaAction, setCtaAction] = useState<CtaAction>('save');
+
+    const handleCtaClick = useCallback(() => {
+        switch (ctaAction) {
+            case 'save':
+                if (hasErrors) {
+                    dispatch(toggleModal('chartErrorsAlert'));
+                } else {
+                    dispatch(toggleModal('saveChartModal'));
+                }
+                break;
+            case 'createVirtualView':
+                dispatch(toggleModal('createVirtualViewModal'));
+                break;
+            case 'writeBackToDbt':
+                dispatch(toggleModal('writeBackToDbtModal'));
+                break;
         }
-    }, [dispatch, hasErrors]);
+    }, [ctaAction, dispatch, hasErrors]);
+
+    const getCtaLabels = useCallback((action: CtaAction) => {
+        switch (action) {
+            case 'save':
+                return {
+                    label: 'Save chart',
+                    description: 'Save as an adhoc query',
+                };
+            case 'createVirtualView':
+                return {
+                    label: 'Create virtual view',
+                    description: 'Save as a reusable query',
+                };
+            case 'writeBackToDbt':
+                return {
+                    label: 'Write back to dbt',
+                    description: 'Save as a model in dbt',
+                };
+        }
+    }, []);
+
+    const getCtaIcon = useCallback((action: CtaAction) => {
+        switch (action) {
+            case 'save':
+                return <MantineIcon icon={IconDeviceFloppy} />;
+            case 'createVirtualView':
+                return <MantineIcon icon={IconTableAlias} />;
+            case 'writeBackToDbt':
+                return <MantineIcon icon={IconBrandGithub} />;
+        }
+    }, []);
+
     return (
         <>
             <Paper shadow="none" radius={0} px="md" py="xs" withBorder>
@@ -73,46 +153,159 @@ export const HeaderCreate: FC = () => {
                     </Group>
 
                     <Group>
-                        {isSaveCustomExploreFromSqlRunnerEnabled && (
-                            <Tooltip
-                                label="You can save your query as a custom explore for future use"
-                                position="bottom"
-                                withArrow
-                                variant="xs"
+                        <Button.Group>
+                            <Button
+                                variant="default"
+                                size="xs"
+                                leftIcon={getCtaIcon(ctaAction)}
+                                disabled={!loadedColumns}
+                                onClick={handleCtaClick}
                             >
-                                <Button
-                                    radius="md"
-                                    color="indigo.6"
-                                    variant="light"
-                                    size="xs"
-                                    leftIcon={
-                                        <MantineIcon
-                                            size={12}
-                                            icon={IconSparkles}
-                                        />
-                                    }
-                                    onClick={() => {
-                                        dispatch(
-                                            toggleModal(
-                                                'saveCustomExploreModal',
-                                            ),
-                                        );
-                                    }}
+                                {getCtaLabels(ctaAction).label}
+                            </Button>
+                            {isSaveVirtualViewFromSqlRunnerEnabled && (
+                                <Menu
+                                    withinPortal
                                     disabled={!loadedColumns}
+                                    position="bottom-end"
+                                    withArrow
+                                    shadow="md"
+                                    offset={2}
+                                    arrowOffset={10}
                                 >
-                                    Create custom explore
-                                </Button>
-                            </Tooltip>
-                        )}
+                                    <Menu.Target>
+                                        <Button
+                                            size="xs"
+                                            p={4}
+                                            disabled={!loadedColumns}
+                                            variant="default"
+                                        >
+                                            <MantineIcon
+                                                icon={IconChevronDown}
+                                                size="sm"
+                                            />
+                                        </Button>
+                                    </Menu.Target>
 
-                        <Button
-                            color={'green.7'}
-                            size="xs"
-                            disabled={!loadedColumns}
-                            onClick={onSaveClick}
-                        >
-                            Save
-                        </Button>
+                                    <Menu.Dropdown>
+                                        <Menu.Item
+                                            onClick={() => {
+                                                setCtaAction('save');
+                                            }}
+                                        >
+                                            <Stack spacing="two">
+                                                <Text
+                                                    fz="xs"
+                                                    fw={600}
+                                                    c={
+                                                        ctaAction === 'save'
+                                                            ? 'blue'
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {getCtaLabels('save').label}
+                                                </Text>
+                                                <Text fz={10} c="gray.6">
+                                                    {
+                                                        getCtaLabels('save')
+                                                            .description
+                                                    }
+                                                </Text>
+                                            </Stack>
+                                        </Menu.Item>
+
+                                        <Menu.Item
+                                            onClick={() => {
+                                                setCtaAction(
+                                                    'createVirtualView',
+                                                );
+                                            }}
+                                        >
+                                            <Stack spacing="two">
+                                                <Text
+                                                    fw={600}
+                                                    fz="xs"
+                                                    c={
+                                                        ctaAction ===
+                                                        'createVirtualView'
+                                                            ? 'blue'
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {
+                                                        getCtaLabels(
+                                                            'createVirtualView',
+                                                        ).label
+                                                    }
+                                                </Text>
+                                                <Text fz={10} c="gray.6">
+                                                    {
+                                                        getCtaLabels(
+                                                            'createVirtualView',
+                                                        ).description
+                                                    }
+                                                </Text>
+                                            </Stack>
+                                        </Menu.Item>
+
+                                        {isGithubIntegrationEnabled && (
+                                            <Tooltip
+                                                label={
+                                                    'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
+                                                }
+                                                position="top"
+                                                withArrow
+                                                withinPortal
+                                                disabled={!githubIsNotInstalled}
+                                            >
+                                                <Group>
+                                                    <Menu.Item
+                                                        disabled={
+                                                            githubIsNotInstalled
+                                                        }
+                                                        onClick={() => {
+                                                            setCtaAction(
+                                                                'writeBackToDbt',
+                                                            );
+                                                        }}
+                                                    >
+                                                        <Stack spacing="two">
+                                                            <Text
+                                                                fw={600}
+                                                                fz="xs"
+                                                                c={
+                                                                    ctaAction ===
+                                                                    'writeBackToDbt'
+                                                                        ? 'blue'
+                                                                        : undefined
+                                                                }
+                                                            >
+                                                                {
+                                                                    getCtaLabels(
+                                                                        'writeBackToDbt',
+                                                                    ).label
+                                                                }
+                                                            </Text>
+                                                            <Text
+                                                                fz={10}
+                                                                c="gray.6"
+                                                            >
+                                                                {
+                                                                    getCtaLabels(
+                                                                        'writeBackToDbt',
+                                                                    )
+                                                                        .description
+                                                                }
+                                                            </Text>
+                                                        </Stack>
+                                                    </Menu.Item>
+                                                </Group>
+                                            </Tooltip>
+                                        )}
+                                    </Menu.Dropdown>
+                                </Menu>
+                            )}
+                        </Button.Group>
                     </Group>
                 </Group>
             </Paper>
@@ -121,10 +314,16 @@ export const HeaderCreate: FC = () => {
                 opened={isSaveModalOpen}
                 onClose={onCloseSaveModal}
             />
-            <SaveCustomExploreModal
-                key={`${isSaveCustomExploreModalOpen}-saveCustomExploreModal`}
-                opened={isSaveCustomExploreModalOpen}
-                onClose={onCloseSaveCustomExploreModal}
+            <CreateVirtualViewModal
+                key={`${isCreateVirtualViewModalOpen}-createVirtualViewModal`}
+                opened={isCreateVirtualViewModalOpen}
+                onClose={onCloseCreateVirtualViewModal}
+            />
+
+            <WriteBackToDbtModal
+                key={`${isWriteBackToDbtModalOpen}-writeBackToDbtModal`}
+                opened={isWriteBackToDbtModalOpen}
+                onClose={onCloseWriteBackToDbtModal}
             />
             <ChartErrorsAlert
                 opened={isChartErrorsAlertOpen}

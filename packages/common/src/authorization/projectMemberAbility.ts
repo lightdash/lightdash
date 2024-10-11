@@ -1,6 +1,7 @@
 import { type AbilityBuilder } from '@casl/ability';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
 import { type ProjectMemberRole } from '../types/projectMemberRole';
+import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { type MemberAbility } from './types';
 
@@ -155,6 +156,9 @@ export const projectMemberAbilities: Record<
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
+        can('manage', 'VirtualView', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'CustomSql', {
             projectUuid: member.projectUuid,
         });
@@ -189,6 +193,9 @@ export const projectMemberAbilities: Record<
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
+        can('create', 'Project', {
+            type: ProjectType.PREVIEW,
+        });
         can('manage', 'Project', {
             projectUuid: member.projectUuid,
         });

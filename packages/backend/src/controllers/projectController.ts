@@ -17,6 +17,7 @@ import {
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
+    type SemanticLayerConnectionUpdate,
 } from '@lightdash/common';
 import {
     Body,
@@ -466,7 +467,7 @@ export class ProjectController extends BaseController {
     @OperationId('updateProjectSemanticLayerConnection')
     async updateProjectSemanticLayerConnection(
         @Path() projectUuid: string,
-        @Body() body: SemanticLayerConnection,
+        @Body() body: SemanticLayerConnectionUpdate,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
@@ -474,6 +475,30 @@ export class ProjectController extends BaseController {
         await this.services
             .getProjectService()
             .updateSemanticLayerConnection(req.user!, projectUuid, body);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('{projectUuid}/semantic-layer-connection')
+    @OperationId('deleteProjectSemanticLayerConnection')
+    async deleteProjectSemanticLayerConnection(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.services
+            .getProjectService()
+            .deleteSemanticLayerConnection(req.user!, projectUuid);
 
         return {
             status: 'ok',

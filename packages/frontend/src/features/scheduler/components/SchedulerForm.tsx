@@ -62,6 +62,7 @@ import { hasRequiredScopes } from '../../../components/UserSettings/SlackSetting
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';

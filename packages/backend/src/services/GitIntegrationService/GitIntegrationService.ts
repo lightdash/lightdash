@@ -1,11 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
+    ApiGithubDbtWritePreview,
     DbtModelNode,
     DbtProjectType,
     DimensionType,
     findAndUpdateModelNodes,
     ForbiddenError,
+    friendlyName,
     GitIntegrationConfiguration,
     isUserWithOrg,
     lightdashDbtYamlSchema,
@@ -13,12 +15,18 @@ import {
     PullRequestCreated,
     SavedChart,
     SessionUser,
+    snakeCaseName,
     UnexpectedServerError,
+    VizColumn,
 } from '@lightdash/common';
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
+import { nanoid } from 'nanoid';
 import {
+    checkFileDoesNotExist,
     createBranch,
+    createFile,
+    createPullRequest,
     getFileContent,
     getLastCommit,
     getOrRefreshToken,
@@ -39,6 +47,15 @@ type GitIntegrationServiceArguments = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
 };
 
+type GithubProps = {
+    owner: string;
+    repo: string;
+    branch: string;
+    token: string;
+    path: string;
+    installationId: string;
+    quoteChar: `"` | `'`;
+};
 // TODO move this to common and refactor cli
 type YamlColumnMeta = {
     dimension?: {
@@ -84,6 +101,17 @@ export class GitIntegrationService extends BaseService {
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
     }
 
+    async getInstallationId(user: SessionUser) {
+        const installationId =
+            await this.githubAppInstallationsModel.getInstallationId(
+                user.organizationUuid!,
+            );
+        if (!installationId) {
+            throw new Error('Invalid Github installation id');
+        }
+        return installationId;
+    }
+
     async getConfiguration(
         user: SessionUser,
         projectUuid: string,
@@ -127,12 +155,16 @@ export class GitIntegrationService extends BaseService {
         repo,
         mainBranch,
         token,
+        installationId,
+        branchName,
     }: {
+        branchName: string;
         owner: string;
         repo: string;
         mainBranch: string;
         token: string;
-    }): Promise<string> {
+        installationId: string;
+    }) {
         const { sha: commitSha } = await getLastCommit({
             owner,
             repo,
@@ -140,15 +172,13 @@ export class GitIntegrationService extends BaseService {
             token,
         });
         // create branch in git
-        const branchName = `add-custom-metrics-${Date.now()}`;
         const newBranch = await createBranch({
             branchName,
             owner,
             repo,
             sha: commitSha,
-            token,
+            installationId,
         });
-        return branchName;
     }
 
     async getPullRequestDetails({
@@ -300,7 +330,8 @@ Affected charts:
             );
         const [owner, repo] = project.dbtConnection.repository.split('/');
         const { branch } = project.dbtConnection;
-        return { owner, repo, branch };
+        const path = project.dbtConnection.project_sub_path;
+        return { owner, repo, branch, path };
     }
 
     async getOrUpdateToken(organizationUuid: string) {
@@ -349,11 +380,16 @@ Affected charts:
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
         const token = await this.getOrUpdateToken(user.organizationUuid!);
 
-        const branchName = await GitIntegrationService.createBranch({
+        const installationId = await this.getInstallationId(user);
+        const branchName = `add-custom-metrics-${Date.now()}`;
+
+        await GitIntegrationService.createBranch({
+            branchName,
             owner,
             repo,
             mainBranch: branch,
             token,
+            installationId,
         });
 
         await this.updateFileForCustomMetrics({
@@ -438,12 +474,16 @@ Affected charts:
         const { owner, repo, branch } = await this.getProjectRepo(projectUuid);
 
         const token = await this.getOrUpdateToken(user.organizationUuid!);
+        const installationId = await this.getInstallationId(user);
+        const branchName = `add-custom-metrics-${Date.now()}`;
 
-        const branchName = await GitIntegrationService.createBranch({
+        await GitIntegrationService.createBranch({
+            branchName,
             owner,
             repo,
             mainBranch: branch,
             token,
+            installationId,
         });
         await this.updateFileForCustomMetrics({
             user,
@@ -465,5 +505,185 @@ Affected charts:
             chart: undefined,
             projectUuid,
         });
+    }
+
+    private static removeExtraSlashes(str: string): string {
+        return str
+            .replace(/\/{2,}/g, '/') // Removes duplicated slashes
+            .replace(/^\//, ''); // Remove first / if it exists, this is needed to commit files in Github.
+    }
+
+    private static getFilePath(
+        path: string,
+        name: string,
+        extension: 'sql' | 'yml',
+    ) {
+        const filePath = `${path}/models/lightdash/${snakeCaseName(
+            name,
+        )}.${extension}`;
+        return GitIntegrationService.removeExtraSlashes(filePath);
+    }
+
+    private static async createSqlFile({
+        githubProps,
+        name,
+        sql,
+    }: {
+        githubProps: GithubProps;
+        name: string;
+        sql: string;
+    }) {
+        const fileName = GitIntegrationService.getFilePath(
+            githubProps.path,
+            name,
+            'sql',
+        );
+        await checkFileDoesNotExist({ ...githubProps, path: fileName });
+        const content = `
+{{
+  config(
+    tags=['created-by-lightdash']
+  )
+}}
+  
+${sql}
+`;
+
+        return createFile({
+            ...githubProps,
+            fileName,
+            content,
+            message: `Created file ${fileName} `,
+        });
+    }
+
+    private static async createYmlFile({
+        githubProps,
+        name,
+        columns,
+    }: {
+        githubProps: GithubProps;
+        name: string;
+        columns: VizColumn[];
+    }) {
+        const fileName = GitIntegrationService.getFilePath(
+            githubProps.path,
+            name,
+            'yml',
+        );
+        await checkFileDoesNotExist({ ...githubProps, path: fileName });
+
+        const content = yaml.dump(
+            {
+                version: 2,
+                models: [
+                    {
+                        name: snakeCaseName(name),
+                        label: friendlyName(name),
+                        description: `SQL model for ${friendlyName(name)}`,
+                        columns: columns.map((c) => ({
+                            name: c.reference,
+                            meta: {
+                                dimension: {
+                                    type: c.type,
+                                },
+                            },
+                        })),
+                    },
+                ],
+            },
+            {
+                quotingType: githubProps.quoteChar,
+            },
+        );
+
+        return createFile({
+            ...githubProps,
+            fileName,
+            content,
+            message: `Created file ${fileName} `,
+        });
+    }
+
+    async createPullRequestFromSql(
+        user: SessionUser,
+        projectUuid: string,
+        name: string,
+        sql: string,
+        columns: VizColumn[],
+        quoteChar: `"` | `'` = '"',
+    ): Promise<PullRequestCreated> {
+        const { owner, repo, branch, path } = await this.getProjectRepo(
+            projectUuid,
+        );
+        const installationId = await this.getInstallationId(user);
+
+        const token = await this.getOrUpdateToken(user.organizationUuid!);
+        const userName = `${snakeCaseName(
+            user.firstName[0] || '',
+        )}${snakeCaseName(user.lastName)}`;
+        const branchName = `lightdash-${userName}-${nanoid(4)}`;
+
+        await GitIntegrationService.createBranch({
+            branchName,
+            owner,
+            repo,
+            mainBranch: branch,
+            token,
+            installationId,
+        });
+        const githubProps: GithubProps = {
+            owner,
+            repo,
+            branch: branchName,
+            token,
+            path,
+            installationId,
+            quoteChar,
+        };
+        await GitIntegrationService.createSqlFile({
+            githubProps,
+            name,
+            sql,
+        });
+        await GitIntegrationService.createYmlFile({
+            githubProps,
+            name,
+            columns,
+        });
+        const pullRequest = await createPullRequest({
+            ...githubProps,
+            title: `Creates \`${name}\` SQL and YML model`,
+            body: `Created by Lightdash, this pull request introduces a new SQL file and a corresponding Lightdash \`.yml\` configuration file.
+ 
+Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+            `,
+            head: branchName,
+            base: branch,
+        });
+
+        return {
+            prTitle: pullRequest.title,
+            prUrl: pullRequest.html_url,
+        };
+    }
+
+    async writeBackPreview(
+        user: SessionUser,
+        projectUuid: string,
+        name: string,
+    ): Promise<ApiGithubDbtWritePreview['results']> {
+        const { owner, repo, path } = await this.getProjectRepo(projectUuid);
+
+        return {
+            url: `https://github.com/${owner}/${repo}`,
+            repo,
+            path: `${path}/models/lightdash`,
+            files: [
+                GitIntegrationService.getFilePath(path, name, 'sql'),
+                GitIntegrationService.getFilePath(path, name, 'yml'),
+            ],
+            owner,
+        };
     }
 }

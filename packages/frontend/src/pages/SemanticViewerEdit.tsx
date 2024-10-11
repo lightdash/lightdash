@@ -43,14 +43,17 @@ const SemanticViewerEditorPageWithStore = () => {
 
     const infoQuery = useSemanticLayerInfo({ projectUuid });
 
+    const isSemanticLayerConnected =
+        infoQuery.isSuccess && infoQuery.data !== undefined;
+
     const chartQuery = useSavedSemanticViewerChart(
         { projectUuid, findBy: { slug: savedSemanticViewerChartSlug } },
-        { enabled: !!savedSemanticViewerChartSlug },
+        { enabled: isSemanticLayerConnected && !!savedSemanticViewerChartSlug },
     );
 
     const chartResultsQuery = useSavedSemanticViewerChartResults(
         { projectUuid, findBy: { slug: savedSemanticViewerChartSlug } },
-        { enabled: !!savedSemanticViewerChartSlug },
+        { enabled: isSemanticLayerConnected && !!savedSemanticViewerChartSlug },
     );
 
     const fieldsQuery = useSemanticLayerViewFields(
@@ -119,6 +122,12 @@ const SemanticViewerEditorPageWithStore = () => {
     );
 
     useEffect(() => {
+        if (infoQuery.isSuccess && !infoQuery.data) {
+            history.replace(`/projects/${projectUuid}`);
+        }
+    }, [infoQuery.isSuccess, infoQuery.data, history, projectUuid]);
+
+    useEffect(() => {
         if (semanticViewerState === SemanticViewerStateStatus.INITIALIZED) {
             return;
         }
@@ -128,6 +137,8 @@ const SemanticViewerEditorPageWithStore = () => {
             savedSemanticViewerChartSlug &&
             chartQuery.isSuccess &&
             infoQuery.isSuccess &&
+            chartResultsQuery.isSuccess &&
+            infoQuery.data &&
             resultsRunner
         ) {
             const chartResultOptions = getChartConfigAndOptions(
@@ -141,18 +152,25 @@ const SemanticViewerEditorPageWithStore = () => {
                 initializeSemanticViewer({
                     projectUuid,
                     info: infoQuery.data,
-                    chart: chartQuery.data,
+                    chartData: {
+                        chart: chartQuery.data,
+                        results: chartResultsQuery.data,
+                    },
                 }),
             );
         }
 
         // If we don't have a saved chart, initialize the viewer with an empty chart
-        if (!savedSemanticViewerChartSlug && infoQuery.isSuccess) {
+        if (
+            !savedSemanticViewerChartSlug &&
+            infoQuery.isSuccess &&
+            infoQuery.data
+        ) {
             dispatch(
                 initializeSemanticViewer({
                     projectUuid,
                     info: infoQuery.data,
-                    chart: undefined,
+                    chartData: undefined,
                 }),
             );
             if (!!rootRouteMatch) {
@@ -171,6 +189,8 @@ const SemanticViewerEditorPageWithStore = () => {
         chartQuery.isSuccess,
         chartQuery.data,
         resultsRunner,
+        chartResultsQuery.isSuccess,
+        chartResultsQuery.data,
     ]);
 
     // TODO: add error state

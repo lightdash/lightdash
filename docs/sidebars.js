@@ -222,6 +222,11 @@ module.exports = {
                         'references/dbt-projects',
                         {
                             type: 'doc',
+                            id: 'references/dbt-semantic-layer',
+                            label: 'dbt Semantic Layer',
+                        },
+                        {
+                            type: 'doc',
                             id: 'references/slack-integration',
                             label: 'Slack',
                         },

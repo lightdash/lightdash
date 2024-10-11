@@ -106,15 +106,17 @@ export class CatalogService<
         explore: Pick<SummaryExplore, 'tags' | 'name'>,
     ) {
         // Optimization tip:
-        // Perhaps we should filter these in catalong on `index` rather than in real time (requires dbt refresh on table config changes)
+        // Perhaps we should filter these in catalog on `index` rather than in real time (requires dbt refresh on table config changes)
         const {
             tableSelection: { type, value },
         } = tablesConfiguration;
 
         if (type === TableSelectionType.WITH_TAGS) {
+            // TODO: Add support for custom explores - don't filter them out
             return hasIntersection(explore.tags || [], value || []);
         }
         if (type === TableSelectionType.WITH_NAMES) {
+            // TODO: Add support for custom explores - don't filter them out
             return (value || []).includes(explore.name);
         }
         return true;

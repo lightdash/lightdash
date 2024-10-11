@@ -178,6 +178,9 @@ export const organizationMemberAbilities: Record<
     },
     developer(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
+        can('manage', 'VirtualView', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'CustomSql', {
             organizationUuid: member.organizationUuid,
         });

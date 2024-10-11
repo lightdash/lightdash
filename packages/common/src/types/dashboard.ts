@@ -211,6 +211,10 @@ export type DashboardBasicDetails = Pick<
     | 'pinnedListOrder'
 > & { validationErrors?: ValidationSummary[] };
 
+export type DashboardBasicDetailsWithTileTypes = DashboardBasicDetails & {
+    tileTypes: DashboardTileTypes[];
+};
+
 export type SpaceDashboard = DashboardBasicDetails;
 
 export type DashboardUnversionedFields = Pick<

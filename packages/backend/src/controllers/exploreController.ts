@@ -21,7 +21,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { CsvService } from '../services/CsvService/CsvService';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -178,6 +177,7 @@ export class ExploreController extends BaseController {
                 columnOrder,
                 hiddenFields,
                 chartName: body.chartName,
+                fromSavedChart: false,
             });
 
         return {

@@ -1,18 +1,19 @@
 import {
     AlreadyExistsError,
     assertUnreachable,
-    createCustomExplore,
-    CreateCustomExplorePayload,
     CreateProject,
+    createVirtualView,
+    CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     DbtProjectConfig,
     Explore,
     ExploreError,
-    friendlyName,
+    ExploreType,
     generateSlug,
     isExploreError,
     NotExistsError,
     OrganizationProject,
+    ParameterError,
     PreviewContentMapping,
     Project,
     ProjectGroupAccess,
@@ -30,19 +31,21 @@ import {
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
+    UpdateVirtualViewPayload,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
     type CubeSemanticLayerConnection,
     type DbtSemanticLayerConnection,
     type SemanticLayerConnection,
+    type SemanticLayerConnectionUpdate,
 } from '@lightdash/common';
 import {
     WarehouseCatalog,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
-import { omit } from 'lodash';
+import { merge } from 'lodash';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
@@ -76,6 +79,7 @@ import {
     InsertChart,
     SavedChartCustomSqlDimensionsTableName,
 } from '../../database/entities/savedCharts';
+import { DbSavedSql, InsertSql } from '../../database/entities/savedSql';
 import { DbSpace } from '../../database/entities/spaces';
 import { DbUser } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
@@ -931,6 +935,12 @@ export class ProjectModel {
             'ProjectModel.saveExploresToCache',
             {},
             async () => {
+                // Get custom explores/virtual views before deleting them
+                const virtualViews = await this.database(CachedExploreTableName)
+                    .select('explore')
+                    .where('project_uuid', projectUuid)
+                    .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL]);
+
                 // delete previous individually cached explores
                 await this.database(CachedExploreTableName)
                     .where('project_uuid', projectUuid)
@@ -938,7 +948,7 @@ export class ProjectModel {
 
                 // We don't support multiple explores with the same name at the moment
                 const uniqueExplores = uniqWith(
-                    explores,
+                    [...explores, ...virtualViews.map((e) => e.explore)],
                     (a, b) => a.name === b.name,
                 );
 
@@ -1336,6 +1346,183 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
+            // .dP"Y8    db    Yb    dP 888888 8888b.      .dP"Y8  dP"Yb  88
+            // `Ybo."   dPYb    Yb  dP  88__    8I  Yb     `Ybo." dP   Yb 88
+            // o.`Y8b  dP__Yb    YbdP   88""    8I  dY     o.`Y8b Yb b dP 88  .o
+            // 8bodP' dP""""Yb    YP    888888 8888Y"      8bodP'  `"YoYo 88ood8
+
+            // Get all the saved SQLs
+            const savedSQLs = await trx('saved_sql')
+                .leftJoin('spaces', 'saved_sql.space_uuid', 'spaces.space_uuid')
+                .whereIn('saved_sql.space_uuid', spaceUuids)
+                .andWhere('spaces.project_id', projectId)
+                .select<DbSavedSql[]>('saved_sql.*');
+
+            Logger.info(
+                `Duplicating ${savedSQLs.length} SQL queries on ${previewProjectUuid}`,
+            );
+
+            // Define the type for the new saved SQLs
+            type CloneSavedSQL = InsertSql & {
+                saved_sql_uuid?: string;
+                search_vector?: string;
+            };
+
+            // Create a function to create the saved SQLs
+            const createSavedSQLs = async (savedSQLList: DbSavedSql[]) => {
+                if (savedSQLList.length === 0) {
+                    return [];
+                }
+                // Create an array of promises for generating slugs and mapping saved SQLs
+                const mappedSavedSQLsPromises = savedSQLList.map(async (d) => {
+                    if (!d.space_uuid) {
+                        throw new Error(
+                            `Chart ${d.saved_sql_uuid} has no space_uuid`,
+                        );
+                    }
+                    // Generate the slug asynchronously
+                    // const uniqueSlug = await generateUniqueSlug(
+                    //     trx,
+                    //     'saved_sql',
+                    //     d.slug, // using the existing slug as a base - preventing naming duplicates
+                    // );
+                    // Map the saved SQL to the new saved SQL
+                    const createSavedSQL: CloneSavedSQL = {
+                        ...d,
+                        project_uuid: previewProjectUuid,
+                        space_uuid: getNewSpaceUuid(d.space_uuid),
+                        // slug: uniqueSlug,
+                        search_vector: undefined,
+                        saved_sql_uuid: undefined,
+                        dashboard_uuid: null,
+                    };
+                    delete createSavedSQL.search_vector;
+                    delete createSavedSQL.saved_sql_uuid;
+                    return createSavedSQL;
+                });
+                // Resolve all promises
+                const mappedSavedSQLs = await Promise.all(
+                    mappedSavedSQLsPromises,
+                );
+                // Insert all the saved SQLs after they have been mapped and return the result
+                const newSavedSQLs = await trx('saved_sql')
+                    .insert(mappedSavedSQLs)
+                    .returning('*');
+                return newSavedSQLs;
+            };
+
+            // Create the saved SQLs
+            const newSavedSQLs = await createSavedSQLs(savedSQLs);
+
+            // Create a mapping of the old saved SQLs to the new saved SQLs
+            const savedSQLInDashboards = await trx('saved_sql')
+                .leftJoin(
+                    'dashboards',
+                    'saved_sql.dashboard_uuid',
+                    'dashboards.dashboard_uuid',
+                )
+                .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+                .where('spaces.project_id', projectId)
+                .andWhere('saved_sql.space_uuid', null)
+                .select<DbSavedSql[]>('saved_sql.*');
+
+            Logger.info(
+                `Duplicating ${savedSQLInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+            );
+
+            // Create the saved SQLs in the dashboards
+            const newSavedSQLInDashboards =
+                savedSQLInDashboards.length > 0
+                    ? await trx('saved_sql')
+                          .insert(
+                              savedSQLInDashboards.map((d) => {
+                                  if (!d.dashboard_uuid) {
+                                      throw new Error(
+                                          `Chart ${d.saved_sql_uuid} has no dashboard_uuid`,
+                                      );
+                                  }
+                                  const createSavedSQL: CloneSavedSQL = {
+                                      ...d,
+                                      dashboard_uuid: d.dashboard_uuid,
+                                      search_vector: undefined,
+                                      saved_sql_uuid: undefined,
+                                      space_uuid: null,
+                                  };
+                                  delete createSavedSQL.search_vector;
+                                  delete createSavedSQL.saved_sql_uuid;
+                                  return createSavedSQL;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+
+            // Create a mapping of the old saved SQLs to the new saved SQLs
+            const savedSQLInSpacesMapping = savedSQLs.map((c, i) => ({
+                id: c.saved_sql_uuid,
+                newId: newSavedSQLs[i].saved_sql_uuid,
+            }));
+            const savedSQLInDashboardsMapping = savedSQLInDashboards.map(
+                (c, i) => ({
+                    id: c.saved_sql_uuid,
+                    newId: newSavedSQLInDashboards[i].saved_sql_uuid,
+                }),
+            );
+            const savedSQLMapping = [
+                ...savedSQLInSpacesMapping,
+                ...savedSQLInDashboardsMapping,
+            ];
+
+            const savedSQLUuids = savedSQLMapping.map((c) => c.id);
+
+            // Get the last saved SQL version by uuid and created_at
+            const lastSavedSQLVersionEntries = await trx('saved_sql_versions')
+                .whereIn('saved_sql_uuid', savedSQLUuids)
+                .select('saved_sql_uuid')
+                .max('created_at as latest_created_at')
+                .groupBy('saved_sql_uuid');
+
+            // Now query the full records for each saved_sql_uuid where created_at is the latest
+            const savedSQLVersions = await trx('saved_sql_versions')
+                .whereIn(
+                    'saved_sql_uuid',
+                    lastSavedSQLVersionEntries.map((d) => d.saved_sql_uuid),
+                )
+                .select('*');
+
+            const newSavedSQLVersions =
+                savedSQLVersions.length > 0
+                    ? await trx('saved_sql_versions')
+                          .insert(
+                              savedSQLVersions.map((d) => {
+                                  const newSavedSQLUuid = savedSQLMapping.find(
+                                      (m) => m.id === d.saved_sql_uuid,
+                                  )?.newId;
+                                  if (!newSavedSQLUuid) {
+                                      throw new Error(
+                                          `Cannot find new saved SQL uuid for ${d.saved_sql_uuid}`,
+                                      );
+                                  }
+                                  const createSavedSQLVersion = {
+                                      ...d,
+                                      saved_sql_version_uuid: undefined,
+                                      saved_sql_uuid: newSavedSQLUuid,
+                                  };
+                                  delete createSavedSQLVersion.saved_sql_version_uuid;
+                                  return createSavedSQLVersion;
+                              }),
+                          )
+                          .returning('*')
+                    : [];
+
+            const savedSQLVersionMapping = savedSQLVersions.map((c, i) => ({
+                id: c.saved_sql_version_uuid,
+                newId: newSavedSQLVersions[i].saved_sql_version_uuid,
+            }));
+
+            //  dP""b8 88  88    db    88""Yb 888888 .dP"Y8
+            // dP   `" 88  88   dPYb   88__dP   88   `Ybo."
+            // Yb      888888  dP__Yb  88"Yb    88   o.`Y8b
+            //  YboodP 88  88 dP""""Yb 88  Yb   88   8bodP'
             const charts = await trx('saved_queries')
                 .leftJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
                 .whereIn('saved_queries.space_id', spaceIds)
@@ -1548,6 +1735,10 @@ export class ProjectModel {
                 { filters: (value: any) => JSON.stringify(value) },
             );
 
+            // 8888b.     db    .dP"Y8 88  88 88""Yb  dP"Yb     db    88""Yb 8888b.  .dP"Y8
+            //  8I  Yb   dPYb   `Ybo." 88  88 88__dP dP   Yb   dPYb   88__dP  8I  Yb `Ybo."
+            //  8I  dY  dP__Yb  o.`Y8b 888888 88""Yb Yb   dP  dP__Yb  88"Yb   8I  dY o.`Y8b
+            // 8888Y"  dP""""Yb 8bodP' 88  88 88oodP  YbodP  dP""""Yb 88  Yb 8888Y"  8bodP'
             const dashboards = await trx('dashboards')
                 .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
                 .whereIn('dashboards.space_id', spaceIds)
@@ -1727,6 +1918,29 @@ export class ProjectModel {
             );
             await Promise.all(updateChartInDashboards);
 
+            // update saved_sqls in dashboards
+            const updateSavedSQLInDashboards = newSavedSQLInDashboards.map(
+                (chart) => {
+                    const newDashboardUuid = dashboardMapping.find(
+                        (m) => m.uuid === chart.dashboard_uuid,
+                    )?.newUuid;
+
+                    if (!newDashboardUuid) {
+                        // The dashboard was not copied, perhaps becuase it belongs to a space the user doesn't have access to
+                        // We delete this chart in dashboard
+                        return trx('saved_sql')
+                            .where('saved_sql_uuid', chart.saved_sql_uuid)
+                            .delete();
+                    }
+                    return trx('saved_sql')
+                        .update({
+                            dashboard_uuid: newDashboardUuid,
+                        })
+                        .where('saved_sql_uuid', chart.saved_sql_uuid);
+                },
+            );
+            await Promise.all(updateSavedSQLInDashboards);
+
             const newDashboardTiles =
                 dashboardTiles.length > 0
                     ? await trx('dashboard_tiles')
@@ -1773,6 +1987,13 @@ export class ProjectModel {
                             )?.newId,
                         }),
 
+                        // only applied to saved sql tiles
+                        ...(d.saved_sql_uuid && {
+                            saved_sql_uuid: savedSQLMapping.find(
+                                (c) => c.id === d.saved_sql_uuid,
+                            )?.newId,
+                        }),
+
                         dashboard_version_id: dashboardVersionsMapping.find(
                             (m) => m.id === d.dashboard_version_id,
                         )?.newId!,
@@ -1787,6 +2008,7 @@ export class ProjectModel {
             await copyDashboardTileContent('dashboard_tile_charts');
             await copyDashboardTileContent('dashboard_tile_looms');
             await copyDashboardTileContent('dashboard_tile_markdowns');
+            await copyDashboardTileContent('dashboard_tile_sql_charts');
 
             const contentMapping: PreviewContentMapping = {
                 charts: chartMapping,
@@ -1794,6 +2016,8 @@ export class ProjectModel {
                 spaces: spaceMapping,
                 dashboards: dashboardMapping,
                 dashboardVersions: dashboardVersionsMapping,
+                savedSql: savedSQLMapping,
+                savedSqlVersions: savedSQLVersionMapping,
             };
             // Insert mapping on database
             await trx('preview_content').insert({
@@ -1810,41 +2034,31 @@ export class ProjectModel {
         return warehouseClientFromCredentials(credentials);
     }
 
-    async createCustomExplore(
+    async createVirtualView(
         projectUuid: string,
-        { name, sql, columns }: CreateCustomExplorePayload,
+        { name, sql, columns }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
     ): Promise<Pick<Explore, 'name'>> {
-        const translatedToExplore = createCustomExplore(
+        const virtualView = createVirtualView(
             name,
             sql,
             columns,
             warehouseClient,
         );
 
-        // insert into cached_explore
+        // insert virtual view into cached_explore
         await this.database(CachedExploreTableName)
             .insert({
                 project_uuid: projectUuid,
-                name: translatedToExplore.name,
-                table_names: Object.keys(translatedToExplore.tables || {}),
-                explore: JSON.stringify(translatedToExplore),
+                name: virtualView.name,
+                table_names: Object.keys(virtualView.tables || {}),
+                explore: virtualView,
             })
             .onConflict(['project_uuid', 'name'])
             .merge()
             .returning(['name', 'cached_explore_uuid']);
-        const toAddToCached: Explore = {
-            name,
-            tags: [],
-            label: friendlyName(name),
-            tables: translatedToExplore.tables,
-            baseTable: name,
-            groupLabel: 'Custom explores',
-            joinedTables: [],
-            targetDatabase: SupportedDbtAdapter.POSTGRES,
-        };
 
-        // append to cached_explores
+        // append virtual view to cached_explores
         await this.database(CachedExploresTableName)
             .where('project_uuid', projectUuid)
             .update({
@@ -1856,8 +2070,8 @@ export class ProjectModel {
                 END
             `,
                     [
-                        JSON.stringify([toAddToCached]),
-                        JSON.stringify([toAddToCached]),
+                        JSON.stringify([virtualView]),
+                        JSON.stringify([virtualView]),
                     ],
                 ),
             })
@@ -1866,15 +2080,156 @@ export class ProjectModel {
         return { name };
     }
 
+    async updateVirtualView(
+        projectUuid: string,
+        exploreName: string,
+        payload: UpdateVirtualViewPayload,
+        warehouseClient: WarehouseClient,
+    ) {
+        const translatedToExplore = createVirtualView(
+            exploreName,
+            payload.sql,
+            payload.columns,
+            warehouseClient,
+            payload.name, // label
+        );
+
+        // insert into cached_explore
+        await this.database(CachedExploreTableName)
+            .update({
+                project_uuid: projectUuid,
+                name: exploreName,
+                table_names: Object.keys(translatedToExplore.tables || {}),
+                explore: translatedToExplore,
+            })
+            .where('project_uuid', projectUuid)
+            .andWhere('name', exploreName)
+            .returning(['name', 'cached_explore_uuid']);
+
+        // append to cached_explores if it doesn't exist; otherwise, update
+        await this.database(CachedExploresTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                explores: this.database.raw(
+                    `
+                    CASE
+                        WHEN explores IS NULL THEN ?::jsonb
+                        ELSE (
+                            SELECT jsonb_agg(
+                                CASE
+                                    WHEN (value->>'name') = ? THEN ?::jsonb
+                                    ELSE value
+                                END
+                            )
+                            FROM jsonb_array_elements(
+                                CASE
+                                    WHEN jsonb_typeof(explores) = 'array' THEN explores
+                                    ELSE '[]'::jsonb
+                                END
+                            )
+                        )
+                    END
+                `,
+                    [
+                        JSON.stringify([translatedToExplore]),
+                        translatedToExplore.name,
+                        JSON.stringify(translatedToExplore),
+                    ],
+                ),
+            })
+            .returning('*');
+
+        return { name: translatedToExplore.name };
+    }
+
+    async deleteVirtualView(projectUuid: string, name: string) {
+        // remove from cached_explore
+        await this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL])
+            .andWhere('name', name)
+            .delete();
+
+        // Remove from cached_explores
+        await this.database(CachedExploresTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                explores: this.database.raw(
+                    `
+                    COALESCE(
+                        jsonb_agg(value) FILTER (WHERE value->>'name' != ?),
+                        '[]'::jsonb
+                    )
+                `,
+                    [name],
+                ),
+            });
+    }
+
+    private static isSemanticLayerConnectionValid(
+        semanticLayerConnection: SemanticLayerConnectionUpdate,
+    ): boolean {
+        const { type } = semanticLayerConnection;
+        switch (type) {
+            case SemanticLayerType.DBT:
+                return Boolean(
+                    semanticLayerConnection.domain &&
+                        semanticLayerConnection.environmentId &&
+                        semanticLayerConnection.token,
+                );
+            case SemanticLayerType.CUBE:
+                return Boolean(
+                    semanticLayerConnection.domain &&
+                        semanticLayerConnection.token,
+                );
+            default:
+                return assertUnreachable(
+                    type,
+                    `Unknown semantic layer connection type: ${type}`,
+                );
+        }
+    }
+
     async updateSemanticLayerConnection(
         projectUuid: string,
-        connection: SemanticLayerConnection | undefined,
+        connectionUpdate: SemanticLayerConnectionUpdate,
     ) {
+        const { semanticLayerConnection: currentSemanticLayerConnection } =
+            await this.getWithSensitiveFields(projectUuid);
+
+        // ? Merging so the partial update only overwrites the existing properties, even when the current connection is undefined since merge will take ALL properties
+        const shouldMerge =
+            !currentSemanticLayerConnection ||
+            connectionUpdate.type === currentSemanticLayerConnection.type;
+
+        const updatedSemanticLayerConnection = shouldMerge
+            ? merge(currentSemanticLayerConnection, connectionUpdate)
+            : connectionUpdate;
+
+        if (
+            !ProjectModel.isSemanticLayerConnectionValid(
+                updatedSemanticLayerConnection,
+            )
+        ) {
+            throw new ParameterError('Invalid semantic layer connection');
+        }
+
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
-                semantic_layer_connection: connection
-                    ? this.encryptionUtil.encrypt(JSON.stringify(connection))
-                    : null,
+                semantic_layer_connection: this.encryptionUtil.encrypt(
+                    JSON.stringify(updatedSemanticLayerConnection),
+                ),
+            })
+            .where('project_uuid', projectUuid)
+            .returning('*');
+
+        return updatedProject;
+    }
+
+    async deleteSemanticLayerConnection(projectUuid: string) {
+        const [updatedProject] = await this.database(ProjectTableName)
+            .update({
+                semantic_layer_connection: null,
             })
             .where('project_uuid', projectUuid)
             .returning('*');

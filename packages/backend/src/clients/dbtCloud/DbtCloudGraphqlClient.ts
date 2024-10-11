@@ -1,4 +1,5 @@
 import {
+    DbtError,
     DbtGraphQLCompileSqlArgs,
     DbtGraphQLCompileSqlResponse,
     DbtGraphQLCreateQueryArgs,
@@ -64,7 +65,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     getClientInfo() {
         return {
-            name: 'dbtCloud',
+            name: 'dbt',
             features: {
                 views: false,
             },
@@ -168,8 +169,10 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             );
 
         if (rawResponse.status === DbtQueryStatus.FAILED) {
-            throw new Error(
-                `DBT Query failed with error: ${rawResponse.error}`,
+            throw new DbtError(
+                this.transformers.errorToReadableError(
+                    rawResponse.error ?? undefined,
+                ),
             );
         }
 
@@ -281,12 +284,22 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 }
             }`;
 
-        const { compileSql } =
-            await this.runGraphQlQuery<DbtGraphQLCompileSqlResponse>(
-                compileSqlQuery,
+        try {
+            const response =
+                await this.runGraphQlQuery<DbtGraphQLCompileSqlResponse>(
+                    compileSqlQuery,
+                );
+
+            return this.transformers.sqlToString(response.compileSql.sql);
+        } catch (error) {
+            // ! Collecting all errors, we might want to just send the first one so that the string isn't as big
+            const errors: string[] | undefined = error?.response?.errors?.map(
+                (e: { message: string }) =>
+                    this.transformers.errorToReadableError(e.message),
             );
 
-        return this.transformers.sqlToString(compileSql.sql);
+            throw new DbtError(errors?.join('\n'));
+        }
     }
 
     async getMetrics() {

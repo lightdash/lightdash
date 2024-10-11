@@ -82,6 +82,8 @@ export const ContentPanel: FC = () => {
         MonacoHighlightChar | undefined
     >(undefined);
 
+    const mode = useAppSelector((state) => state.sqlRunner.mode);
+
     const {
         ref: inputSectionRef,
         width: inputSectionWidth,
@@ -171,10 +173,10 @@ export const ContentPanel: FC = () => {
     useEffect(() => {
         if (fetchResultsOnLoad && !queryResults) {
             void handleRunQuery(sql);
-        } else if (fetchResultsOnLoad && queryResults) {
+        } else if (fetchResultsOnLoad && queryResults && mode === 'default') {
             dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
         }
-    }, [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch, sql]);
+    }, [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch, sql, mode]);
 
     const resultsRunner = useMemo(() => {
         if (!queryResults) return;
@@ -320,9 +322,14 @@ export const ContentPanel: FC = () => {
                             <Indicator
                                 color="red.6"
                                 offset={10}
-                                disabled={!hasErrors}
+                                disabled={!hasErrors || mode === 'virtualView'}
                             >
                                 <SegmentedControl
+                                    display={
+                                        mode === 'virtualView'
+                                            ? 'none'
+                                            : undefined
+                                    }
                                     styles={(theme) => ({
                                         root: {
                                             backgroundColor:
@@ -365,6 +372,7 @@ export const ContentPanel: FC = () => {
                                                 </Tooltip>
                                             ),
                                         },
+
                                         {
                                             value: EditorTabs.VISUALIZATION,
                                             label: (
@@ -434,11 +442,13 @@ export const ContentPanel: FC = () => {
                                     echartsInstance={activeEchartsInstance}
                                 />
                             ) : (
-                                <ResultsDownload
-                                    fileUrl={resultsFileUrl}
-                                    columns={queryResults?.columns ?? []}
-                                    chartName={savedSqlChart?.name}
-                                />
+                                mode === 'default' && (
+                                    <ResultsDownload
+                                        fileUrl={resultsFileUrl}
+                                        columns={queryResults?.columns ?? []}
+                                        chartName={savedSqlChart?.name}
+                                    />
+                                )
                             )}
                         </Group>
                     </Group>
