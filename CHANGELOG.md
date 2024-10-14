@@ -1,3 +1,10 @@
+## [0.1303.3](https://github.com/lightdash/lightdash/compare/0.1303.2...0.1303.3) (2024-10-14)
+
+
+### Bug Fixes
+
+* delete user on cancel registration ([#11923](https://github.com/lightdash/lightdash/issues/11923)) ([c4424d2](https://github.com/lightdash/lightdash/commit/c4424d2b06e38f131f38b5a9fa5620bd8d19129d))
+
 ## [0.1303.2](https://github.com/lightdash/lightdash/compare/0.1303.1...0.1303.2) (2024-10-14)
 
 
