@@ -1,3 +1,15 @@
+# [0.1303.0](https://github.com/lightdash/lightdash/compare/0.1302.7...0.1303.0) (2024-10-14)
+
+
+### Bug Fixes
+
+* databricks sql runner catalog ([#11911](https://github.com/lightdash/lightdash/issues/11911)) ([a6a0ec2](https://github.com/lightdash/lightdash/commit/a6a0ec2c550f6cd731f5f8965d538969a4e545c9))
+
+
+### Features
+
+* improve get slack channels performance for large workspace ([#11737](https://github.com/lightdash/lightdash/issues/11737)) ([e7645a5](https://github.com/lightdash/lightdash/commit/e7645a5366f76b66d0366f251af2fd6c117848f1))
+
 ## [0.1302.7](https://github.com/lightdash/lightdash/compare/0.1302.6...0.1302.7) (2024-10-11)
 
 
