@@ -63,7 +63,6 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
                         style={{
                             display: 'flex',
                             flexDirection: 'column',
-                            padding: '0px 14px',
                         }}
                     >
                         <Tables />
@@ -103,7 +102,6 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
                                 style={{
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    padding: '0px 14px',
                                 }}
                             >
                                 <TableFields />

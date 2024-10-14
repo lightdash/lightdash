@@ -246,40 +246,44 @@ export const Tables: FC = () => {
 
     return (
         <>
-            <TextInput
-                size="xs"
-                disabled={!data && !debouncedSearch}
-                icon={
-                    isLoading ? (
-                        <Loader size="xs" />
-                    ) : (
-                        <MantineIcon icon={IconSearch} />
-                    )
-                }
-                rightSection={
-                    search ? (
-                        <ActionIcon size="xs" onClick={() => setSearch('')}>
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    ) : null
-                }
-                placeholder="Search tables"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                styles={(theme) => ({
-                    input: {
-                        borderRadius: theme.radius.md,
-                        border: `1px solid ${theme.colors.gray[3]}`,
-                    },
-                })}
-            />
+            <Box px="sm">
+                <TextInput
+                    size="xs"
+                    disabled={!data && !debouncedSearch}
+                    icon={
+                        isLoading ? (
+                            <Loader size="xs" />
+                        ) : (
+                            <MantineIcon icon={IconSearch} />
+                        )
+                    }
+                    rightSection={
+                        search ? (
+                            <ActionIcon size="xs" onClick={() => setSearch('')}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                    placeholder="Search tables"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    styles={(theme) => ({
+                        input: {
+                            borderRadius: theme.radius.md,
+                            border: `1px solid ${theme.colors.gray[3]}`,
+                        },
+                    })}
+                />
+            </Box>
 
             <ScrollArea
                 offsetScrollbars
                 variant="primary"
                 className="only-vertical"
+                pl="sm"
                 sx={{ flex: 1 }}
                 type="auto"
+                scrollbarSize={8}
             >
                 {isSuccess &&
                     data &&
