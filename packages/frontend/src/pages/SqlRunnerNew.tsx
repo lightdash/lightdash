@@ -32,6 +32,7 @@ import {
     setWarehouseConnectionType,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { HeaderVirtualView } from '../features/virtualView';
+import { type VirtualViewState } from '../features/virtualView/components/HeaderVirtualView';
 import { useProject } from '../hooks/useProject';
 
 const SqlRunnerNew = ({
@@ -39,10 +40,7 @@ const SqlRunnerNew = ({
     virtualViewState,
 }: {
     isEditMode?: boolean;
-    virtualViewState?: {
-        name: string;
-        sql: string;
-    };
+    virtualViewState?: VirtualViewState;
 }) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -187,10 +185,7 @@ const SqlRunnerNewPage = ({
     virtualViewState,
 }: {
     isEditMode?: boolean;
-    virtualViewState?: {
-        name: string;
-        sql: string;
-    };
+    virtualViewState?: VirtualViewState;
 }) => {
     return (
         <Provider store={store}>

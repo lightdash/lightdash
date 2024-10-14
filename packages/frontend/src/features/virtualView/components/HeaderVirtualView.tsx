@@ -43,6 +43,12 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateVirtualView } from '../hooks/useVirtualView';
 import { compareColumns, type ColumnDiff } from '../utils/compareColumns';
 
+export type VirtualViewState = {
+    name: string;
+    label: string;
+    sql: string;
+};
+
 const DiffListItem: FC<{ diff: ColumnDiff }> = memo(({ diff }) => {
     return (
         <List.Item
@@ -312,7 +318,7 @@ const ChangesReviewModal: FC<
 };
 
 export const HeaderVirtualView: FC<{
-    virtualViewState: { name: string; sql: string };
+    virtualViewState: VirtualViewState;
 }> = ({ virtualViewState }) => {
     const { showToastError } = useToaster();
 
@@ -346,7 +352,9 @@ export const HeaderVirtualView: FC<{
             setInitialColumns(columns);
         }
     }, [initialColumns, columns]);
-    const [name, setName] = useState(friendlyName(virtualViewState.name));
+    const [name, setName] = useState(
+        virtualViewState.label || friendlyName(virtualViewState.name),
+    );
 
     const handleUpdateVirtualView = async ({
         handleDiff,

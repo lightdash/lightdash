@@ -120,6 +120,7 @@ export const EditVirtualViewModal: FC<Props> = ({
                         isEditMode
                         virtualViewState={{
                             name: explore.name,
+                            label: explore.label,
                             sql: explore.tables[activeTableName].sqlTable,
                         }}
                     />
