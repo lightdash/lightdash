@@ -1,6 +1,8 @@
 import AccessSQLRunner from './assets/access-sql-runner.jpg';
 import SQLRunnerComponents from './assets/sql-runner-components.jpg';
-import ShareSQLRunnerChart from './assets/share-sql-runner-chart.jpg';
+import QueryHistory from './assets/query-history.jpg';
+import BuildChartSQLRunner from './assets/build-chart-sql-runner.jpg';
+import CreateVirtualView from './assets/create-virtual-view.jpg';
 
 # SQL Runner
 
@@ -9,14 +11,14 @@ The SQL runner is used to build ad-hoc queries or charts using totally custom SQ
 A query built in the SQL runner can be:
 
 - used to power a single saved chart
-- created into a virtual view 
+- turned into a virtual view so it becomes a reusable table
 - written back to dbt as a model
 
 Only users with [`developer` or `admin` access](/references/roles) can use the SQL runner.
 
-## Getting started with the SQL runner
+## Getting started with the SQL Runner
 
-The SQL runner can be accessed from the `new` --> `Query using SQL runner` option in your navigation bar.
+The SQL Runner can be accessed from the `new` --> `Query using SQL Runner` option in your navigation bar.
 
 <img
   src={AccessSQLRunner}
@@ -25,7 +27,7 @@ The SQL runner can be accessed from the `new` --> `Query using SQL runner` optio
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-Once you're in the SQL runner, you'll see four key components:
+Once you're in the SQL Runner, you'll see four key components:
 
 1. A list of tables in your data warehouse that Lightdash has access to (based on your data warehouse connection in Lightdash).
 2. The schema of a selected table.
@@ -39,19 +41,63 @@ Once you're in the SQL runner, you'll see four key components:
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
+To build a query in the SQL Runner, just write your query in the SQL query builder, then hit `run query` to see the results. 
 
-## Sharing a chart from the SQL runner
-
-Once you've created your chart, you're able to share it either by:
-
-1. Sharing the link in the browser
-2. Sharing the link from the `copy link` button
+You can access your **query history** from your latest SQL Runner session by clicking on the `query history` button beside `run query`.
 
 <img
-  src={ShareSQLRunnerChart}
-  width="990"
-  height="646"
+  src={QueryHistory}
+  width="822"
+  height="304"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-It is not possible to save a chart from the SQL runner or add it to a dashboard.
+Once you've run your query, you can either:
+
+1. [Build and save a **chart** from your query](#building-charts-in-the-sql-runner)
+2. [Create a **Virtual View** so your query becomes a reusable table in Lightdash](#virtual-views)
+3. **Write-back to dbt** so your query is saved as a governed model.
+
+## Saved charts in the SQL Runner
+
+Once you've run your query, you can build a chart by clicking on the `chart` tab in the SQL Runner. 
+
+The charts in the SQL Runner are built from the data that you generated in your query. The chart builder automatically aggregates the data from your query results using the aggregation type that you choose. Depending on the column type, the aggregation options are:
+
+- count (which is a distinct count and will ignore duplicates)
+- any (which will count and include duplicates)
+- sum
+- average
+- max
+- min
+
+<img
+  src={BuildChartSQLRunner}
+  width="1080"
+  height="593"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once you've configured your chart, you can save it, add it to a space, and add it to a dashboard by hitting `save chart`.
+
+## Virtual Views
+
+Virtual Views allow other users to reuse your custom SQL queries in Lightdash. They get listed in your `Tables` in Lightdash and can be used like the tables in Lightdash that come from your dbt project.
+
+::: info
+
+A Virtual View won't be saved to or managed in your dbt project. If you're expecting to use this query regularly, we recommend writing it back to dbt.
+
+:::
+
+To create a Virtual View from the SQL Runner, select the `Create Virtual View` option from the save drop-down.
+
+<img
+  src={CreateVirtualView}
+  width="826"
+  height="353"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+
+
