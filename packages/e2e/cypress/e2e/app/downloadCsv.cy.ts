@@ -86,13 +86,13 @@ describe('Download CSV on Dashboards', () => {
         'Should download a CSV from dashboard',
         { retries: 3, pageLoadTimeout: 1000 },
         () => {
-            const downloadUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/payments/downloadCsv`;
+            const downloadUrl = `/api/v1/saved/*/downloadCsv`;
             cy.intercept({
                 method: 'POST',
                 url: downloadUrl,
             }).as('apiDownloadCsv');
 
-            // wiat for the dashboard to load
+            // wait for the dashboard to load
             cy.findByText('Loading dashboards').should('not.exist');
 
             cy.contains('a', 'Jaffle dashboard').click();
