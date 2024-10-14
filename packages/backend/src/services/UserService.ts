@@ -294,7 +294,9 @@ export class UserService extends BaseService {
         const [orgForUser] = await this.userModel.getOrganizationsForUser(
             userUuidToDelete,
         );
-        if (orgForUser.organizationUuid) {
+        // The user might not have an org yet
+        // This is expected on the "Cancel registration" flow on single org instances.
+        if (orgForUser?.organizationUuid) {
             // We assume only one org per user
 
             if (
