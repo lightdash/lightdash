@@ -1,3 +1,10 @@
+## [0.1303.2](https://github.com/lightdash/lightdash/compare/0.1303.1...0.1303.2) (2024-10-14)
+
+
+### Bug Fixes
+
+* improve query for removing specific explore from cached_explores ([#11917](https://github.com/lightdash/lightdash/issues/11917)) ([f2fcaf5](https://github.com/lightdash/lightdash/commit/f2fcaf5abb23469115a83276f307b815fcc05341))
+
 ## [0.1303.1](https://github.com/lightdash/lightdash/compare/0.1303.0...0.1303.1) (2024-10-14)
 
 
