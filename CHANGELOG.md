@@ -1,3 +1,10 @@
+# [0.1304.0](https://github.com/lightdash/lightdash/compare/0.1303.3...0.1304.0) (2024-10-14)
+
+
+### Features
+
+* polish save changes flow in virtual view modal ([#11922](https://github.com/lightdash/lightdash/issues/11922)) ([aaa8cb5](https://github.com/lightdash/lightdash/commit/aaa8cb53561f08cb4b8bb2f217660810abe1cf46))
+
 ## [0.1303.3](https://github.com/lightdash/lightdash/compare/0.1303.2...0.1303.3) (2024-10-14)
 
 
