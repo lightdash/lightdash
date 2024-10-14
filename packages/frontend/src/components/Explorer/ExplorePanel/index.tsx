@@ -40,8 +40,6 @@ const LoadingSkeleton = () => (
 
 interface ExplorePanelProps {
     onBack?: () => void;
-    isEditVirtualViewOpen: boolean;
-    setIsEditVirtualViewOpen: (isOpen: boolean) => void;
 }
 
 const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
