@@ -1,3 +1,11 @@
+## [0.1303.1](https://github.com/lightdash/lightdash/compare/0.1303.0...0.1303.1) (2024-10-14)
+
+
+### Bug Fixes
+
+* display label in text input when editing virtual view ([#11918](https://github.com/lightdash/lightdash/issues/11918)) ([5fef9c3](https://github.com/lightdash/lightdash/commit/5fef9c3f9539c73f3516c11f50a4cb2e5d5a0d99))
+* set metadata project from the dataset project instead of BigQuery client which can be undefined ([#11920](https://github.com/lightdash/lightdash/issues/11920)) ([afe4c21](https://github.com/lightdash/lightdash/commit/afe4c2108f33cce09eb86784198a10767d82916b))
+
 # [0.1303.0](https://github.com/lightdash/lightdash/compare/0.1302.7...0.1303.0) (2024-10-14)
 
 
