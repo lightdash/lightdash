@@ -4,11 +4,17 @@ import ShareSQLRunnerChart from './assets/share-sql-runner-chart.jpg';
 
 # SQL Runner
 
-The SQL runner is used to build ad-hoc queries or charts using totally custom SQL. Charts built using the SQL runner can be shared, but can't be saved or added to a dashboard.
+The SQL runner is used to build ad-hoc queries or charts using totally custom SQL. 
+
+A query built in the SQL runner can be:
+
+- used to power a single saved chart
+- created into a virtual view 
+- written back to dbt as a model
 
 Only users with [`developer` or `admin` access](/references/roles) can use the SQL runner.
 
-## Building a chart using the SQL runner
+## Getting started with the SQL runner
 
 The SQL runner can be accessed from the `new` --> `Query using SQL runner` option in your navigation bar.
 
@@ -19,23 +25,20 @@ The SQL runner can be accessed from the `new` --> `Query using SQL runner` optio
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-Once you're in the SQL runner, you'll see two key components:
+Once you're in the SQL runner, you'll see four key components:
 
-1. A list of tables that correspond to all of the models in your connected dbt project.
-2. A SQL query builder.
+1. A list of tables in your data warehouse that Lightdash has access to (based on your data warehouse connection in Lightdash).
+2. The schema of a selected table.
+3. The SQL query builder. 
+4. The results from your latest SQL query.
 
 <img
   src={SQLRunnerComponents}
-  width="981"
-  height="652"
+  width="1082"
+  height="591"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-Only tables included in your dbt project are shown in the sidebar, but you can query any tables that your Lightdash data warehouse connection has access to (this is based on the data warehouse credentials that you setup in your project connection settings).
-
-Once you've run your query, you'll see the query's results and a chart created in the `chart` panel.
-
-We assume that any numeric type values in your query results are metrics and non-numeric values are dimensions. If you need to have a numeric value treated as a dimension (e.g. for pivoting), then we recommend casting your numeric values as strings, like: `CAST(my_number_value AS STRING) AS my_number_value`.
 
 ## Sharing a chart from the SQL runner
 
