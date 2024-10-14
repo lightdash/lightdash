@@ -2156,9 +2156,13 @@ export class ProjectModel {
             .update({
                 explores: this.database.raw(
                     `
-                    COALESCE(
-                        jsonb_agg(value) FILTER (WHERE value->>'name' != ?),
-                        '[]'::jsonb
+                    (
+                        SELECT COALESCE(
+                            jsonb_agg(explore_obj),
+                            '[]'::jsonb
+                        )
+                        FROM jsonb_array_elements(explores) AS explore_obj
+                        WHERE explore_obj->>'name' != ?
                     )
                 `,
                     [name],
