@@ -3053,8 +3053,10 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.TRINO:
                 return credentials.dbname;
             case WarehouseTypes.SNOWFLAKE:
-            case WarehouseTypes.DATABRICKS:
                 return credentials.database.toLowerCase();
+
+            case WarehouseTypes.DATABRICKS:
+                return credentials.catalog;
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }
@@ -3217,6 +3219,7 @@ export class ProjectService extends BaseService {
         );
 
         await sshTunnel.disconnect();
+
         return warehouseCatalog[database][schemaName][tableName];
     }
 
