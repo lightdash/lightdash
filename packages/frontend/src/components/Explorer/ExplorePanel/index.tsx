@@ -8,7 +8,7 @@ import {
     isCustomBinDimension,
     isCustomSqlDimension,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Skeleton, Stack, Text } from '@mantine/core';
+import { ActionIcon, Group, Menu, Skeleton, Stack, Text } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
 import { memo, useMemo, useState, useTransition, type FC } from 'react';
 import { useParams } from 'react-router-dom';
@@ -146,7 +146,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     return (
         <>
-            <Box pos="relative">
+            <Group position="apart">
                 <PageBreadcrumbs
                     size="md"
                     items={[
@@ -167,12 +167,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 {canManageVirtualViews && explore.type === ExploreType.VIRTUAL && (
                     <Menu withArrow offset={-2}>
                         <Menu.Target>
-                            <ActionIcon
-                                variant="transparent"
-                                pos="absolute"
-                                top="0"
-                                right="0"
-                            >
+                            <ActionIcon variant="transparent">
                                 <MantineIcon icon={IconDots} />
                             </ActionIcon>
                         </Menu.Target>
@@ -203,7 +198,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         </Menu.Dropdown>
                     </Menu>
                 )}
-            </Box>
+            </Group>
 
             <ItemDetailProvider>
                 <ExploreTree
