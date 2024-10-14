@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
+    Box,
     Button,
     Center,
     Collapse,
@@ -47,6 +48,7 @@ export type VirtualViewState = {
     name: string;
     label: string;
     sql: string;
+    onCloseEditVirtualView: () => void;
 };
 
 const DiffListItem: FC<{ diff: ColumnDiff }> = memo(({ diff }) => {
@@ -335,6 +337,9 @@ export const HeaderVirtualView: FC<{
     const history = useHistory();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const hasUnrunChanges = useAppSelector(
+        (state) => state.sqlRunner.hasUnrunChanges,
+    );
 
     const { mutateAsync: getValidation, isPolling: isRunningValidation } =
         useValidationWithResults(projectUuid);
@@ -456,6 +461,10 @@ export const HeaderVirtualView: FC<{
         });
     };
 
+    const hasChanges = useMemo(() => {
+        return name !== virtualViewState.label || hasUnrunChanges;
+    }, [name, virtualViewState.label, hasUnrunChanges]);
+
     return (
         <Group
             p="md"
@@ -494,14 +503,39 @@ export const HeaderVirtualView: FC<{
                 </Group>
             </Group>
 
-            <Button
-                mr="lg"
-                size="xs"
-                variant="default"
-                onClick={() => handleUpdateVirtualView({ handleDiff: true })}
-            >
-                Save
-            </Button>
+            <Group spacing="sm">
+                <Tooltip
+                    variant="xs"
+                    label="No changes to save"
+                    disabled={hasChanges}
+                >
+                    <Box>
+                        <Button
+                            size="xs"
+                            disabled={
+                                isRunningValidation ||
+                                isRunningQuery ||
+                                !hasChanges
+                            }
+                            onClick={() =>
+                                handleUpdateVirtualView({ handleDiff: true })
+                            }
+                            color="green"
+                        >
+                            Save
+                        </Button>
+                    </Box>
+                </Tooltip>
+                <Button
+                    size="xs"
+                    variant="default"
+                    onClick={() => {
+                        virtualViewState.onCloseEditVirtualView();
+                    }}
+                >
+                    Cancel
+                </Button>
+            </Group>
 
             <ChangesReviewModal
                 opened={showWarningModal}

@@ -33,7 +33,7 @@ export const EditVirtualViewModal: FC<Props> = ({
     const hasUnsavedChanges = !!useSearchParams('create_saved_chart_version');
 
     const [modalStep, setModalStep] = useState<
-        'unsavedChanges' | 'closingConfirmation' | 'editVirtualView' | undefined
+        'unsavedChanges' | 'editVirtualView' | undefined
     >(hasUnsavedChanges ? 'unsavedChanges' : 'editVirtualView');
 
     const clearQuery = useExplorerContext(
@@ -41,20 +41,19 @@ export const EditVirtualViewModal: FC<Props> = ({
     );
 
     const handleClose = () => {
-        if (modalStep === 'closingConfirmation') {
+        if (modalStep === 'editVirtualView') {
             setModalStep(undefined);
             onClose();
-        } else if (modalStep === 'editVirtualView') {
-            setModalStep('closingConfirmation');
         }
     };
 
     return (
         <Modal
             opened={opened}
+            closeOnClickOutside={false}
+            withCloseButton={false}
             onClose={handleClose}
             title={
-                modalStep === 'closingConfirmation' ||
                 modalStep === 'unsavedChanges' ? (
                     <Group spacing="xs">
                         <MantineIcon icon={IconAlertCircle} />
@@ -74,12 +73,6 @@ export const EditVirtualViewModal: FC<Props> = ({
                 body: {
                     padding:
                         modalStep === 'editVirtualView' ? 0 : theme.spacing.md,
-                },
-                // TODO: This is a hack to position the close button a bit better with the Save button
-                close: {
-                    position: 'absolute',
-                    top: 2,
-                    right: 2,
                 },
             })}
         >
@@ -122,30 +115,10 @@ export const EditVirtualViewModal: FC<Props> = ({
                             name: explore.name,
                             label: explore.label,
                             sql: explore.tables[activeTableName].sqlTable,
+                            onCloseEditVirtualView: onClose,
                         }}
                     />
                 </Suspense>
-            </ConditionalVisibility>
-            <ConditionalVisibility
-                isVisible={modalStep === 'closingConfirmation'}
-            >
-                <Stack>
-                    <Text fz="sm">
-                        Are you sure you want to close? Your changes will be
-                        lost.
-                    </Text>
-                    <Group position="right">
-                        <Button
-                            variant="outline"
-                            onClick={() => setModalStep('editVirtualView')}
-                        >
-                            Cancel
-                        </Button>
-                        <Button color="red" onClick={onClose}>
-                            Close
-                        </Button>
-                    </Group>
-                </Stack>
             </ConditionalVisibility>
         </Modal>
     );
