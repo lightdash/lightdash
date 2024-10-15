@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     DashboardTileTypes,
     getDefaultChartTileSize,
     type CreateSavedChartVersion,
@@ -49,34 +50,36 @@ export enum SaveDestination {
 }
 
 export const validationSchema = z.object({
-    name: z.string().nonempty(),
-    spaceUuid: z.string().optional(),
-    dashboardUuid: z.string().optional(),
-    dashboardName: z.string().optional(),
-    description: z.string().optional(),
-    newSpaceName: z.string().or(z.null()).optional(),
-    saveDestination: z
-        .nativeEnum(SaveDestination)
-        .default(SaveDestination.Space),
+    name: z.string().min(1),
+    description: z.string().nullable(),
+
+    // for saving to dashboard
+    dashboardUuid: z.string().nullable(),
+    // for saving to space
+    spaceUuid: z.string().nullable(),
+    // for creating a new space and saving to it
+    newSpaceName: z.string().min(1).nullable(),
 });
 
 export type FormValues = z.infer<typeof validationSchema>;
 
 export type SaveToSpaceProps = {
     form: UseFormReturnType<FormValues>;
+    isLoading: boolean;
     spaces: SpaceSummary[] | undefined;
     projectUuid: string;
 };
 
 export const SaveToSpace: FC<SaveToSpaceProps> = ({
     form,
+    isLoading,
     spaces,
     projectUuid,
 }) => {
     const { user } = useApp();
     const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
     const isCreatingNewSpace =
-        shouldCreateNewSpace || !spaces || spaces.length === 0;
+        shouldCreateNewSpace || (spaces && spaces.length === 0);
 
     if (isCreatingNewSpace) {
         return (
@@ -87,15 +90,17 @@ export const SaveToSpace: FC<SaveToSpaceProps> = ({
                     description="Create a new space to add this chart to"
                     placeholder="eg. KPIs"
                     {...form.getInputProps('newSpaceName')}
+                    value={form.values.newSpaceName ?? ''}
                 />
                 <Button
+                    disabled={isLoading}
                     size="xs"
                     variant="default"
                     mr="auto"
                     compact
                     onClick={() => {
                         setShouldCreateNewSpace(false);
-                        form.setFieldValue('newSpaceName', undefined);
+                        form.setFieldValue('newSpaceName', null);
                     }}
                     leftIcon={<MantineIcon icon={IconArrowLeft} />}
                 >
@@ -113,12 +118,14 @@ export const SaveToSpace: FC<SaveToSpaceProps> = ({
                 label="Space"
                 description="Select a space to save the chart directly to"
                 withinPortal
-                data={spaces.map((space) => ({
-                    value: space.uuid,
-                    label: space.name,
-                }))}
+                data={
+                    spaces?.map((space) => ({
+                        value: space.uuid,
+                        label: space.name,
+                    })) ?? []
+                }
                 {...form.getInputProps('spaceUuid')}
-                required={form.values.saveDestination === SaveDestination.Space}
+                required
             />
             <Can
                 I="create"
@@ -128,6 +135,7 @@ export const SaveToSpace: FC<SaveToSpaceProps> = ({
                 })}
             >
                 <Button
+                    disabled={isLoading}
                     size="xs"
                     variant="default"
                     mr="auto"
@@ -144,33 +152,30 @@ export const SaveToSpace: FC<SaveToSpaceProps> = ({
 
 type SaveToDashboardProps = Pick<SaveToSpaceProps, 'form' | 'spaces'> & {
     dashboards: DashboardBasicDetails[] | undefined;
-    isLoadingDashboards: boolean;
+    isLoading: boolean;
 };
 
 const SaveToDashboard: FC<SaveToDashboardProps> = ({
     form,
     spaces,
     dashboards,
-    isLoadingDashboards,
+    isLoading,
 }) => {
-    if (!dashboards) return null;
-
     return (
         <Select
             description="Select a dashboard to save the chart directly to"
             id="select-dashboard"
             label="Dashboard"
             size="xs"
-            data={dashboards.map((d) => ({
-                value: d.uuid,
-                label: d.name,
-                group: (spaces ?? []).find((s) => s.uuid === d.spaceUuid)?.name,
-            }))}
-            rightSection={isLoadingDashboards && <Loader size="xs" />}
-            defaultValue={
-                dashboards.find((d) => d.spaceUuid === form.values.spaceUuid)
-                    ?.uuid
+            data={
+                dashboards?.map((d) => ({
+                    value: d.uuid,
+                    label: d.name,
+                    group: (spaces ?? []).find((s) => s.uuid === d.spaceUuid)
+                        ?.name,
+                })) ?? []
             }
+            rightSection={isLoading && <Loader size="xs" />}
             searchable
             nothingFound="No matching dashboards found"
             filter={(value, dashboard) =>
@@ -179,7 +184,7 @@ const SaveToDashboard: FC<SaveToDashboardProps> = ({
                     .includes(value.toLowerCase().trim())
             }
             withinPortal
-            required={form.values.saveDestination === SaveDestination.Dashboard}
+            required
             {...form.getInputProps('dashboardUuid')}
         />
     );
@@ -207,9 +212,14 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
     const { user } = useApp();
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { mutateAsync: createChart } = useCreateMutation();
+    const { mutateAsync: createChart, isLoading: isSavingChart } =
+        useCreateMutation();
+    const { mutateAsync: createSpace, isLoading: isSavingSpace } =
+        useSpaceCreateMutation(projectUuid);
 
-    const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
+    const [saveDestination, setSaveDestination] = useState<SaveDestination>(
+        SaveDestination.Space,
+    );
 
     const form = useForm<FormValues>({
         validate: zodResolver(validationSchema),
@@ -217,7 +227,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
 
     const {
         data: dashboards,
-        isInitialLoading: isLoadingDashboards,
+        isLoading: isLoadingDashboards,
         isSuccess: isDashboardsSuccess,
     } = useDashboards(projectUuid, {
         staleTime: 0,
@@ -225,7 +235,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
 
     const {
         data: spaces,
-        isInitialLoading: isLoadingSpaces,
+        isLoading: isLoadingSpaces,
         isSuccess: isSpacesSuccess,
     } = useSpaceSummaries(projectUuid, true, {
         select: (data) =>
@@ -243,50 +253,42 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
     });
 
     useEffect(() => {
+        if (!isSpacesSuccess || !isDashboardsSuccess) return;
         if (form.initialized) return;
 
-        if (isSpacesSuccess && isDashboardsSuccess) {
-            let initialSpaceUuid;
+        const isValidDefaultSpaceUuid = spaces.some(
+            (space) => space.uuid === defaultSpaceUuid,
+        );
 
-            const isValidDefaultSpaceUuid = spaces.some(
-                (space) => space.uuid === defaultSpaceUuid,
-            );
+        const initialSpaceUuid = isValidDefaultSpaceUuid
+            ? defaultSpaceUuid
+            : spaces[0].uuid;
 
-            if (spaces && spaces.length > 0) {
-                initialSpaceUuid = isValidDefaultSpaceUuid
-                    ? defaultSpaceUuid
-                    : spaces[0].uuid;
-            }
+        const initialValues: FormValues = {
+            name: '',
+            description: null,
 
-            let initialValues = {
-                name: '',
-                saveDestination: SaveDestination.Space,
-                ...(dashboardInfoFromSavedData.dashboardUuid && {
-                    dashboardUuid: dashboardInfoFromSavedData.dashboardUuid,
-                }),
-                ...(dashboardInfoFromSavedData.dashboardName && {
-                    dashboardName: dashboardInfoFromSavedData.dashboardName,
-                }),
-                ...(initialSpaceUuid && { spaceUuid: initialSpaceUuid }),
-            };
+            newSpaceName: null,
 
-            form.initialize(initialValues);
-        }
+            dashboardUuid: dashboardInfoFromSavedData.dashboardUuid,
+            spaceUuid: initialSpaceUuid ?? null,
+        };
+
+        form.initialize(initialValues);
     }, [
-        dashboardInfoFromSavedData.dashboardName,
+        form,
         dashboardInfoFromSavedData.dashboardUuid,
         defaultSpaceUuid,
-        form,
         isDashboardsSuccess,
         isSpacesSuccess,
         spaces,
     ]);
 
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
-        form.values.dashboardUuid,
+        form.values.dashboardUuid ?? undefined,
     );
     const { data: selectedDashboard } = useDashboardQuery(
-        form.values.dashboardUuid,
+        form.values.dashboardUuid ?? undefined,
     );
 
     const handleOnSubmit = useCallback(
@@ -296,14 +298,14 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
              * Create chart
              * Save to dashboard by creating a new tile and then updating the dashboard by sending it to the bottom
              */
-            if (values.saveDestination === SaveDestination.Dashboard) {
+            if (saveDestination === SaveDestination.Dashboard) {
                 if (!selectedDashboard) {
                     throw new Error('Expected dashboard');
                 }
                 savedQuery = await createChart({
                     ...savedData,
                     name: values.name,
-                    description: values.description,
+                    description: values.description ?? undefined,
                     dashboardUuid: values.dashboardUuid,
                 });
                 const firstTab = selectedDashboard.tabs?.[0];
@@ -332,7 +334,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
              * Create space if user wants to create a new space
              * Save to space by creating a new chart
              */
-            if (values.saveDestination === SaveDestination.Space) {
+            if (saveDestination === SaveDestination.Space) {
                 let newSpace = values.newSpaceName
                     ? await createSpace({
                           name: values.newSpaceName,
@@ -340,12 +342,14 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                           isPrivate: true,
                       })
                     : undefined;
-                const spaceUuid = newSpace?.uuid || values.spaceUuid;
+
+                const spaceUuid =
+                    newSpace?.uuid ?? values.spaceUuid ?? undefined;
 
                 savedQuery = await createChart({
                     ...savedData,
                     name: values.name,
-                    description: values.description,
+                    description: values.description ?? undefined,
                     spaceUuid,
                     dashboardUuid: undefined,
                 });
@@ -357,18 +361,27 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
             }
         },
         [
-            createSpace,
+            saveDestination,
             selectedDashboard,
             createChart,
             savedData,
             updateDashboard,
+            createSpace,
             onConfirm,
         ],
     );
 
+    const isLoading =
+        !form.initialized ||
+        isLoadingDashboards ||
+        isLoadingSpaces ||
+        isSavingChart ||
+        isSavingSpace;
+
     return (
         <form onSubmit={form.onSubmit((values) => handleOnSubmit(values))}>
-            <LoadingOverlay visible={isLoadingSpaces} />
+            <LoadingOverlay visible={isLoading} />
+
             <Box p="md">
                 <Stack spacing="xs">
                     <TextInput
@@ -376,6 +389,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                         placeholder="eg. How many weekly active users do we have?"
                         required
                         {...form.getInputProps('name')}
+                        value={form.values.name ?? ''}
                         data-testid="ChartCreateModal/NameInput"
                     />
                     <Textarea
@@ -384,14 +398,17 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                         autosize
                         maxRows={3}
                         {...form.getInputProps('description')}
+                        value={form.values.description ?? ''}
                     />
                 </Stack>
 
                 <Stack spacing="sm" mt="sm">
                     <Radio.Group
                         size="xs"
-                        value={form.values.saveDestination}
-                        {...form.getInputProps('saveDestination')}
+                        value={saveDestination}
+                        onChange={(value: SaveDestination) =>
+                            setSaveDestination(value)
+                        }
                     >
                         <Group spacing="xs" mb="xs">
                             <Text fw={500}>Save to</Text>
@@ -416,22 +433,28 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                                 })}
                             />
                         </Group>
-                        {form.values.saveDestination ===
-                            SaveDestination.Space && (
+
+                        {saveDestination === SaveDestination.Space ? (
                             <SaveToSpace
                                 projectUuid={projectUuid}
                                 form={form}
+                                isLoading={isLoadingSpaces}
                                 spaces={spaces}
                             />
-                        )}
-                        {form.values.saveDestination ===
-                            SaveDestination.Dashboard && (
+                        ) : saveDestination === SaveDestination.Dashboard ? (
                             <SaveToDashboard
                                 form={form}
+                                isLoading={
+                                    isLoadingDashboards || isLoadingSpaces
+                                }
                                 spaces={spaces}
                                 dashboards={dashboards}
-                                isLoadingDashboards={isLoadingDashboards}
                             />
+                        ) : (
+                            assertUnreachable(
+                                saveDestination,
+                                `Unknown save destination ${saveDestination}`,
+                            )
                         )}
                     </Radio.Group>
                 </Stack>
@@ -451,15 +474,14 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
 
                 <Button
                     type="submit"
+                    loading={isSavingChart || isSavingSpace}
                     disabled={
                         !form.values.name ||
                         (!form.values.newSpaceName &&
-                            form.values.saveDestination ===
-                                SaveDestination.Space &&
+                            saveDestination === SaveDestination.Space &&
                             !form.values.spaceUuid) ||
                         (!form.values.dashboardUuid &&
-                            form.values.saveDestination ===
-                                SaveDestination.Dashboard)
+                            saveDestination === SaveDestination.Dashboard)
                     }
                 >
                     Save
