@@ -16,7 +16,7 @@ export interface LightdashUser {
     isSetupComplete: boolean;
     role?: OrganizationMemberRole;
     isActive: boolean;
-    isVerified: boolean;
+    isVerified?: boolean;
 }
 
 export type LightdashUserWithOrg = Required<LightdashUser>;
