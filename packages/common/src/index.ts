@@ -798,7 +798,8 @@ export type HealthState = {
     posthog:
         | {
               projectApiKey: string;
-              apiHost: string;
+              feApiHost: string;
+              beApiHost: string;
           }
         | undefined;
     siteUrl: string;

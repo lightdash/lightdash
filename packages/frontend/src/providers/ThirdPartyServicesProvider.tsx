@@ -107,7 +107,7 @@ const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
             <PostHogProvider
                 apiKey={health.data?.posthog?.projectApiKey || ''}
                 options={{
-                    api_host: health.data?.posthog?.apiHost,
+                    api_host: health.data?.posthog?.feApiHost,
                     autocapture: false,
                     capture_pageview: false,
                 }}

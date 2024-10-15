@@ -1,3 +1,17 @@
+# [0.1305.0](https://github.com/lightdash/lightdash/compare/0.1304.3...0.1305.0) (2024-10-15)
+
+
+### Features
+
+* remove feature flag save-custom-explore-from-sql-runner ([#11940](https://github.com/lightdash/lightdash/issues/11940)) ([33e1890](https://github.com/lightdash/lightdash/commit/33e189092f7d3ea461ff66b7a23395170e7a843f))
+
+## [0.1304.3](https://github.com/lightdash/lightdash/compare/0.1304.2...0.1304.3) (2024-10-15)
+
+
+### Bug Fixes
+
+* trino sql runner tables ([#11936](https://github.com/lightdash/lightdash/issues/11936)) ([5307821](https://github.com/lightdash/lightdash/commit/53078211524a58cf8421b0a1f9b6927bf2c8f739))
+
 ## [0.1304.2](https://github.com/lightdash/lightdash/compare/0.1304.1...0.1304.2) (2024-10-15)
 
 
