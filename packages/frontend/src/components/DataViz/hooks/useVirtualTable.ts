@@ -13,8 +13,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
 
-// This just makes a virtual table from rows and columns. It's very 
-// similar to useTableDataModel, 
+// This just makes a virtual table from rows and columns. It's very similar to useTableDataModel.
 export const useVirtualTable = ({
     columnNames,
     rows,

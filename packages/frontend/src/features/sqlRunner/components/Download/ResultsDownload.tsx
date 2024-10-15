@@ -18,7 +18,11 @@ type Props = {
     chartName?: string;
 };
 
-export const ResultsDownload: FC<Props> = ({ fileUrl, columnNames, chartName }) => {
+export const ResultsDownload: FC<Props> = ({
+    fileUrl,
+    columnNames,
+    chartName,
+}) => {
     const [customLimit, setCustomLimit] = useState(DEFAULT_SQL_LIMIT);
     const { handleDownload, isLoading } = useDownloadResults({
         fileUrl,
