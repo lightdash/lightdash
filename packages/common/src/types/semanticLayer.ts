@@ -5,6 +5,7 @@ import type {
     LightdashUser,
     Organization,
     Project,
+    QueryExecutionContext,
     SpaceSummary,
     VizChartConfig,
 } from '..';
@@ -143,9 +144,10 @@ export interface SemanticLayerClient {
 
 export type SemanticLayerQueryPayload = {
     projectUuid: string;
+    organizationUuid: string;
     userUuid: string;
     query: SemanticLayerQuery;
-    context: 'semanticViewer';
+    context: QueryExecutionContext.SEMANTIC_VIEWER;
 };
 
 export const isSemanticLayerTimeDimension = (
