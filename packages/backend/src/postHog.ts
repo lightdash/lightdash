@@ -10,7 +10,7 @@ const FLAG_CHECK_TIMEOUT = process.env.POSTHOG_CHECK_TIMEOUT
 
 export const postHogClient = lightdashConfig.posthog
     ? new PostHog(lightdashConfig.posthog.projectApiKey, {
-          host: lightdashConfig.posthog.apiHost,
+          host: lightdashConfig.posthog.beApiHost,
       })
     : undefined;
 
