@@ -38,9 +38,6 @@ import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
 type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 
 export const HeaderCreate: FC = () => {
-    const isSaveVirtualViewFromSqlRunnerEnabled = useFeatureFlagEnabled(
-        FeatureFlags.SaveVirtualViewFromSqlRunner,
-    );
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: project } = useProject(projectUuid);
 
@@ -163,148 +160,143 @@ export const HeaderCreate: FC = () => {
                             >
                                 {getCtaLabels(ctaAction).label}
                             </Button>
-                            {isSaveVirtualViewFromSqlRunnerEnabled && (
-                                <Menu
-                                    withinPortal
-                                    disabled={!loadedColumns}
-                                    position="bottom-end"
-                                    withArrow
-                                    shadow="md"
-                                    offset={2}
-                                    arrowOffset={10}
-                                >
-                                    <Menu.Target>
-                                        <Button
-                                            size="xs"
-                                            p={4}
-                                            disabled={!loadedColumns}
-                                            variant="default"
-                                        >
-                                            <MantineIcon
-                                                icon={IconChevronDown}
-                                                size="sm"
-                                            />
-                                        </Button>
-                                    </Menu.Target>
+                            <Menu
+                                withinPortal
+                                disabled={!loadedColumns}
+                                position="bottom-end"
+                                withArrow
+                                shadow="md"
+                                offset={2}
+                                arrowOffset={10}
+                            >
+                                <Menu.Target>
+                                    <Button
+                                        size="xs"
+                                        p={4}
+                                        disabled={!loadedColumns}
+                                        variant="default"
+                                    >
+                                        <MantineIcon
+                                            icon={IconChevronDown}
+                                            size="sm"
+                                        />
+                                    </Button>
+                                </Menu.Target>
 
-                                    <Menu.Dropdown>
-                                        <Menu.Item
-                                            onClick={() => {
-                                                setCtaAction('save');
-                                            }}
-                                        >
-                                            <Stack spacing="two">
-                                                <Text
-                                                    fz="xs"
-                                                    fw={600}
-                                                    c={
-                                                        ctaAction === 'save'
-                                                            ? 'blue'
-                                                            : undefined
-                                                    }
-                                                >
-                                                    {getCtaLabels('save').label}
-                                                </Text>
-                                                <Text fz={10} c="gray.6">
-                                                    {
-                                                        getCtaLabels('save')
-                                                            .description
-                                                    }
-                                                </Text>
-                                            </Stack>
-                                        </Menu.Item>
-
-                                        <Menu.Item
-                                            onClick={() => {
-                                                setCtaAction(
-                                                    'createVirtualView',
-                                                );
-                                            }}
-                                        >
-                                            <Stack spacing="two">
-                                                <Text
-                                                    fw={600}
-                                                    fz="xs"
-                                                    c={
-                                                        ctaAction ===
-                                                        'createVirtualView'
-                                                            ? 'blue'
-                                                            : undefined
-                                                    }
-                                                >
-                                                    {
-                                                        getCtaLabels(
-                                                            'createVirtualView',
-                                                        ).label
-                                                    }
-                                                </Text>
-                                                <Text fz={10} c="gray.6">
-                                                    {
-                                                        getCtaLabels(
-                                                            'createVirtualView',
-                                                        ).description
-                                                    }
-                                                </Text>
-                                            </Stack>
-                                        </Menu.Item>
-
-                                        {isGithubIntegrationEnabled && (
-                                            <Tooltip
-                                                label={
-                                                    'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
+                                <Menu.Dropdown>
+                                    <Menu.Item
+                                        onClick={() => {
+                                            setCtaAction('save');
+                                        }}
+                                    >
+                                        <Stack spacing="two">
+                                            <Text
+                                                fz="xs"
+                                                fw={600}
+                                                c={
+                                                    ctaAction === 'save'
+                                                        ? 'blue'
+                                                        : undefined
                                                 }
-                                                position="top"
-                                                withArrow
-                                                withinPortal
-                                                disabled={!githubIsNotInstalled}
                                             >
-                                                <Group>
-                                                    <Menu.Item
-                                                        disabled={
-                                                            githubIsNotInstalled
-                                                        }
-                                                        onClick={() => {
-                                                            setCtaAction(
-                                                                'writeBackToDbt',
-                                                            );
-                                                        }}
-                                                    >
-                                                        <Stack spacing="two">
-                                                            <Text
-                                                                fw={600}
-                                                                fz="xs"
-                                                                c={
-                                                                    ctaAction ===
-                                                                    'writeBackToDbt'
-                                                                        ? 'blue'
-                                                                        : undefined
-                                                                }
-                                                            >
-                                                                {
-                                                                    getCtaLabels(
-                                                                        'writeBackToDbt',
-                                                                    ).label
-                                                                }
-                                                            </Text>
-                                                            <Text
-                                                                fz={10}
-                                                                c="gray.6"
-                                                            >
-                                                                {
-                                                                    getCtaLabels(
-                                                                        'writeBackToDbt',
-                                                                    )
-                                                                        .description
-                                                                }
-                                                            </Text>
-                                                        </Stack>
-                                                    </Menu.Item>
-                                                </Group>
-                                            </Tooltip>
-                                        )}
-                                    </Menu.Dropdown>
-                                </Menu>
-                            )}
+                                                {getCtaLabels('save').label}
+                                            </Text>
+                                            <Text fz={10} c="gray.6">
+                                                {
+                                                    getCtaLabels('save')
+                                                        .description
+                                                }
+                                            </Text>
+                                        </Stack>
+                                    </Menu.Item>
+
+                                    <Menu.Item
+                                        onClick={() => {
+                                            setCtaAction('createVirtualView');
+                                        }}
+                                    >
+                                        <Stack spacing="two">
+                                            <Text
+                                                fw={600}
+                                                fz="xs"
+                                                c={
+                                                    ctaAction ===
+                                                    'createVirtualView'
+                                                        ? 'blue'
+                                                        : undefined
+                                                }
+                                            >
+                                                {
+                                                    getCtaLabels(
+                                                        'createVirtualView',
+                                                    ).label
+                                                }
+                                            </Text>
+                                            <Text fz={10} c="gray.6">
+                                                {
+                                                    getCtaLabels(
+                                                        'createVirtualView',
+                                                    ).description
+                                                }
+                                            </Text>
+                                        </Stack>
+                                    </Menu.Item>
+
+                                    {isGithubIntegrationEnabled && (
+                                        <Tooltip
+                                            label={
+                                                'Please enable Github integration to write back to dbt in Settings > Integrations > Github'
+                                            }
+                                            position="top"
+                                            withArrow
+                                            withinPortal
+                                            disabled={!githubIsNotInstalled}
+                                        >
+                                            <Group>
+                                                <Menu.Item
+                                                    disabled={
+                                                        githubIsNotInstalled
+                                                    }
+                                                    onClick={() => {
+                                                        setCtaAction(
+                                                            'writeBackToDbt',
+                                                        );
+                                                    }}
+                                                >
+                                                    <Stack spacing="two">
+                                                        <Text
+                                                            fw={600}
+                                                            fz="xs"
+                                                            c={
+                                                                ctaAction ===
+                                                                'writeBackToDbt'
+                                                                    ? 'blue'
+                                                                    : undefined
+                                                            }
+                                                        >
+                                                            {
+                                                                getCtaLabels(
+                                                                    'writeBackToDbt',
+                                                                ).label
+                                                            }
+                                                        </Text>
+                                                        <Text
+                                                            fz={10}
+                                                            c="gray.6"
+                                                        >
+                                                            {
+                                                                getCtaLabels(
+                                                                    'writeBackToDbt',
+                                                                ).description
+                                                            }
+                                                        </Text>
+                                                    </Stack>
+                                                </Menu.Item>
+                                            </Group>
+                                        </Tooltip>
+                                    )}
+                                </Menu.Dropdown>
+                            </Menu>
                         </Button.Group>
                     </Group>
                 </Group>
