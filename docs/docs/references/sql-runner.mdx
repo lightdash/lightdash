@@ -1,16 +1,23 @@
 import AccessSQLRunner from './assets/access-sql-runner.jpg';
 import SQLRunnerComponents from './assets/sql-runner-components.jpg';
-import ShareSQLRunnerChart from './assets/share-sql-runner-chart.jpg';
+import QueryHistory from './assets/query-history.jpg';
+import BuildChartSQLRunner from './assets/build-chart-sql-runner.jpg';
 
 # SQL Runner
 
-The SQL runner is used to build ad-hoc queries or charts using totally custom SQL. Charts built using the SQL runner can be shared, but can't be saved or added to a dashboard.
+The SQL runner is used to build ad-hoc queries or charts using totally custom SQL. 
+
+A query built in the SQL runner can be:
+
+- used to power a single saved chart
+- turned into a virtual view so it becomes a reusable table
+- written back to dbt as a model
 
 Only users with [`developer` or `admin` access](/references/roles) can use the SQL runner.
 
-## Building a chart using the SQL runner
+## Getting started with the SQL Runner
 
-The SQL runner can be accessed from the `new` --> `Query using SQL runner` option in your navigation bar.
+The SQL Runner can be accessed from the `new` --> `Query using SQL Runner` option in your navigation bar.
 
 <img
   src={AccessSQLRunner}
@@ -19,36 +26,56 @@ The SQL runner can be accessed from the `new` --> `Query using SQL runner` optio
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-Once you're in the SQL runner, you'll see two key components:
+Once you're in the SQL Runner, you'll see four key components:
 
-1. A list of tables that correspond to all of the models in your connected dbt project.
-2. A SQL query builder.
+1. A list of tables in your data warehouse that Lightdash has access to (based on your data warehouse connection in Lightdash).
+2. The schema of a selected table.
+3. The SQL query builder. 
+4. The results from your latest SQL query.
 
 <img
   src={SQLRunnerComponents}
-  width="981"
-  height="652"
+  width="1082"
+  height="591"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-Only tables included in your dbt project are shown in the sidebar, but you can query any tables that your Lightdash data warehouse connection has access to (this is based on the data warehouse credentials that you setup in your project connection settings).
+To build a query in the SQL Runner, just write your query in the SQL query builder, then hit `run query` to see the results. 
 
-Once you've run your query, you'll see the query's results and a chart created in the `chart` panel.
-
-We assume that any numeric type values in your query results are metrics and non-numeric values are dimensions. If you need to have a numeric value treated as a dimension (e.g. for pivoting), then we recommend casting your numeric values as strings, like: `CAST(my_number_value AS STRING) AS my_number_value`.
-
-## Sharing a chart from the SQL runner
-
-Once you've created your chart, you're able to share it either by:
-
-1. Sharing the link in the browser
-2. Sharing the link from the `copy link` button
+You can access your **query history** from your latest SQL Runner session by clicking on the `query history` button beside `run query`.
 
 <img
-  src={ShareSQLRunnerChart}
-  width="990"
-  height="646"
+  src={QueryHistory}
+  width="822"
+  height="304"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-It is not possible to save a chart from the SQL runner or add it to a dashboard.
+Once you've run your query, you can either:
+
+1. [Build and save a **chart** from your query](#building-charts-in-the-sql-runner)
+2. [Create a **Virtual View** so your query becomes a reusable table in Lightdash](/references/virtual-views)
+3. [**Write-back to dbt** so your query is saved as a governed model.](/references/dbt-write-back)
+
+## Saved charts in the SQL Runner
+
+Once you've run your query, you can build a chart by clicking on the `chart` tab in the SQL Runner. 
+
+The charts in the SQL Runner are built from the data that you generated in your query. The chart builder automatically aggregates the data from your query results using the aggregation type that you choose. Depending on the column type, the aggregation options are:
+
+- count (which is a distinct count and will ignore duplicates)
+- any (which will count and include duplicates)
+- sum
+- average
+- max
+- min
+
+<img
+  src={BuildChartSQLRunner}
+  width="1080"
+  height="593"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Once you've configured your chart, you can save it, add it to a space, and add it to a dashboard by hitting `save chart`.
+

@@ -173,7 +173,27 @@ module.exports = {
                             id: 'references/validating-your-content',
                             label: 'Validator',
                         },
-                        'references/sql-runner',
+                        {
+                            type: 'category',
+                            label: 'SQL Runner',
+                            items: [
+                                {
+                                    type: 'doc',
+                                    id: 'references/sql-runner',
+                                    label: 'SQL Runner',
+                                },
+                                {
+                                    type: 'doc',
+                                    id: 'references/virtual-views',
+                                    label: 'Virtual Views',
+                                },
+                                {
+                                    type: 'doc',
+                                    id: 'references/dbt-write-back',
+                                    label: 'dbt Write Back',
+                                },
+                            ]
+                        },
                         'references/sql-variables',
                     ],
                 },
