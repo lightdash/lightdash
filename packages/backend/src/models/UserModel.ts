@@ -66,6 +66,7 @@ export type DbUserDetails = {
     is_setup_complete: boolean;
     role?: OrganizationMemberRole;
     is_active: boolean;
+    is_verified: boolean;
 };
 
 export const mapDbUserDetailsToLightdashUser = (
@@ -83,6 +84,7 @@ export const mapDbUserDetailsToLightdashUser = (
     isSetupComplete: user.is_setup_complete,
     role: user.role,
     isActive: user.is_active,
+    isVerified: user.is_verified,
 });
 
 const userDetailsQueryBuilder = (

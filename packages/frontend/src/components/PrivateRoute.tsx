@@ -45,11 +45,7 @@ const PrivateRoute: FC<
                     return <PageSpinner />;
                 }
 
-                if (
-                    !emailStatus.data?.isVerified &&
-                    isEmailServerConfigured &&
-                    !data?.isSetupComplete
-                ) {
+                if (!emailStatus.data?.isVerified && isEmailServerConfigured) {
                     return (
                         <Redirect
                             to={{

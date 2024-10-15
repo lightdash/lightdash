@@ -34,6 +34,7 @@ import { UserModel } from '../models/UserModel';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    isIdentified,
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
@@ -46,7 +47,7 @@ export class UserController extends BaseController {
      * Get authenticated user
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isIdentified])
     @Get('/')
     @OperationId('GetAuthenticatedUser')
     async getAuthenticatedUser(
@@ -98,9 +99,10 @@ export class UserController extends BaseController {
     /**
      * Create a new one-time passcode for the current user's primary email.
      * The user will receive an email with the passcode.
+     * User only needs to be authenticated (with userUuid), but not verified (isAuthenticated)
      * @param req express request
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([isIdentified, unauthorisedInDemo])
     @Put('/me/email/otp')
     @OperationId('CreateEmailOneTimePasscode')
     async createEmailOneTimePasscode(
@@ -121,7 +123,7 @@ export class UserController extends BaseController {
      * @param req express request
      * @param passcode the one-time passcode sent to the user's primary email
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([isIdentified])
     @Get('/me/email/status')
     @OperationId('GetEmailVerificationStatus')
     async getEmailVerificationStatus(
