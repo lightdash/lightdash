@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    isVizCartesianChartConfig,
     isVizTableConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -269,7 +270,16 @@ export const ContentPanel: FC = () => {
         [activeEditorTab],
     );
 
-    const resultsRunner = useAppSelector(selectSqlRunnerResultsRunner);
+    const sortBy = useMemo(() => {
+        if (isVizCartesianChartConfig(currentVizConfig)) {
+            return currentVizConfig.fieldConfig?.sortBy;
+        }
+        return undefined;
+    }, [currentVizConfig]);
+
+    const resultsRunner = useAppSelector((state) =>
+        selectSqlRunnerResultsRunner(state, sortBy),
+    );
 
     const vizDataModel = useMemo(() => {
         return getChartDataModel(

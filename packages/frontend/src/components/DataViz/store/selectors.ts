@@ -175,7 +175,12 @@ const getValuesLayoutOptions = createSelector(
 
 const getXAxisField = createSelector(
     [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
-    (chartState) => chartState?.fieldConfig?.x,
+    (chartState) => ({
+        ...chartState?.fieldConfig?.x,
+        sortBy: chartState?.fieldConfig?.sortBy?.find(
+            (sort) => sort.reference === chartState?.fieldConfig?.x?.reference,
+        ),
+    }),
 );
 
 const getYAxisFields = createSelector(

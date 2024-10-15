@@ -117,7 +117,7 @@ const XFieldAxisConfig = ({
     error,
 }: {
     columns: VizColumn[];
-    field: PivotChartLayout['x'] | undefined;
+    field: ReturnType<typeof cartesianChartSelectors.getXAxisField> | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
     error: VizConfigErrors['indexFieldError'];
@@ -166,11 +166,15 @@ const XFieldAxisConfig = ({
                                 label: 'Descending',
                             },
                         ]}
+                        value={field.sortBy?.direction ?? null}
                         onChange={(direction: SortByDirection) => {
+                            if (!field.reference) {
+                                return;
+                            }
                             dispatch(
                                 actions.setSortBy([
                                     {
-                                        reference: field?.reference,
+                                        reference: field.reference,
                                         direction,
                                     },
                                 ]),

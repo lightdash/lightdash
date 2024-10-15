@@ -4,6 +4,7 @@ import {
     type RawResultRow,
     type SqlChart,
     type VizColumn,
+    type VizSortBy,
     type VizTableColumnsConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -377,7 +378,6 @@ export const {
     selectResultsTableConfig,
     selectActiveEditorTab,
     selectSavedSqlChart,
-
     selectSqlQueryResults,
 } = sqlRunnerSlice.selectors;
 
@@ -388,14 +388,16 @@ export const selectSqlRunnerResultsRunner = createSelector(
         selectProjectUuid,
         selectLimit,
         selectSql,
+        (_state, sortBy?: VizSortBy[]) => sortBy,
     ],
-    (columns, rows, projectUuid, limit, sql) => {
+    (columns, rows, projectUuid, limit, sql, sortBy) => {
         return new SqlRunnerResultsRunnerFrontend({
             columns: columns || [],
             rows: rows || [],
             projectUuid,
             limit,
             sql,
+            sortBy,
         });
     },
 );

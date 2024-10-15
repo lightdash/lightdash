@@ -6,6 +6,7 @@ import {
     type RawResultRow,
     type SemanticLayerField,
     type VizColumn,
+    type VizSortBy,
 } from '@lightdash/common';
 import { BaseResultsRunner } from '../../queryRunner/BaseResultsRunner';
 import { getPivotQueryFunctionForSqlRunner } from '../../queryRunner/sqlRunnerPivotQueries';
@@ -35,12 +36,14 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         projectUuid,
         limit,
         sql,
+        sortBy,
     }: {
         columns: VizColumn[];
         rows: RawResultRow[];
         projectUuid: string;
         limit?: number;
         sql: string;
+        sortBy?: VizSortBy[];
     }) {
         const fields: SemanticLayerField[] = columns.map((column) => ({
             kind: FieldType.DIMENSION,
@@ -63,6 +66,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
                 limit,
                 sql,
                 fields,
+                sortBy,
             }),
         });
     }
