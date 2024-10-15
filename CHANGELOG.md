@@ -1,3 +1,10 @@
+## [0.1304.2](https://github.com/lightdash/lightdash/compare/0.1304.1...0.1304.2) (2024-10-15)
+
+
+### Bug Fixes
+
+* update explore when metric query changes instead of on success ([#11916](https://github.com/lightdash/lightdash/issues/11916)) ([1bbeda9](https://github.com/lightdash/lightdash/commit/1bbeda91441a091bc906670258ae4767b0ba639d))
+
 ## [0.1304.1](https://github.com/lightdash/lightdash/compare/0.1304.0...0.1304.1) (2024-10-15)
 
 
