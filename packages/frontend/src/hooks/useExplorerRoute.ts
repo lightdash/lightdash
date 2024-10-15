@@ -156,7 +156,7 @@ export const useExplorerRoute = () => {
 
     // Update url params based on pristine state
     useEffect(() => {
-        if (metricQuery) {
+        if (metricQuery && unsavedChartVersion.tableName) {
             history.replace(
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
