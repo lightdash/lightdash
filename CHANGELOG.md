@@ -1,3 +1,10 @@
+## [0.1304.1](https://github.com/lightdash/lightdash/compare/0.1304.0...0.1304.1) (2024-10-15)
+
+
+### Bug Fixes
+
+* page spinner px rem inconsistencies ([#11927](https://github.com/lightdash/lightdash/issues/11927)) ([51f3d43](https://github.com/lightdash/lightdash/commit/51f3d4362ebe3747d699b058800356e3763a402d))
+
 # [0.1304.0](https://github.com/lightdash/lightdash/compare/0.1303.3...0.1304.0) (2024-10-14)
 
 
