@@ -1,4 +1,5 @@
 import {
+    isVizCartesianChartConfig,
     isVizTableConfig,
     type ApiError,
     type IResultsRunner,
@@ -73,6 +74,9 @@ export const useSavedSqlChartResults = ({
                 columns: chartResults.columns,
                 projectUuid: projectUuid!,
                 sql: chart.sql,
+                ...(isVizCartesianChartConfig(chart.config) && {
+                    sortBy: chart.config.fieldConfig?.sortBy,
+                }),
             });
 
             const vizConfig = isVizTableConfig(chart.config)
