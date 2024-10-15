@@ -313,7 +313,8 @@ export type RudderConfig = {
 
 export type PosthogConfig = {
     projectApiKey: string;
-    apiHost: string;
+    feApiHost: string;
+    beApiHost: string;
 };
 
 type JwtKeySetConfig = {
@@ -480,10 +481,13 @@ export const parseConfig = (): LightdashConfig => {
               }
             : undefined,
         posthog:
-            process.env.POSTHOG_PROJECT_API_KEY && process.env.POSTHOG_API_HOST
+            process.env.POSTHOG_PROJECT_API_KEY &&
+            process.env.POSTHOG_FE_API_HOST &&
+            process.env.POSTHOG_BE_API_HOST
                 ? {
                       projectApiKey: process.env.POSTHOG_PROJECT_API_KEY,
-                      apiHost: process.env.POSTHOG_API_HOST,
+                      feApiHost: process.env.POSTHOG_FE_API_HOST,
+                      beApiHost: process.env.POSTHOG_BE_API_HOST,
                   }
                 : undefined,
         rudder: {
