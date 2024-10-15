@@ -172,7 +172,6 @@ export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
     initialState,
     selectors: {
-        selectFetchResultsOnLoad: (state) => state.fetchResultsOnLoad,
         selectProjectUuid: (state) => state.projectUuid,
         selectSql: (state) => state.sql,
         selectActiveChartType: (state) => state.selectedChartType,
@@ -370,7 +369,6 @@ export const {
 } = sqlRunnerSlice.actions;
 
 export const {
-    selectFetchResultsOnLoad,
     selectSql,
     selectProjectUuid,
     selectActiveChartType,
