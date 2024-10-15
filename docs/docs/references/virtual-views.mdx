@@ -1,0 +1,46 @@
+import CreateVirtualView from './assets/create-virtual-view.jpg';
+import UsingVirtualViews from './assets/using-virtual-views.jpg';
+import EditDeleteVirtualView from './assets/edit-delete-virtual-view.jpg';
+
+# Virtual Views
+
+Virtual Views are created in the [SQL Runner](/references/sql-runner) and allow other users to reuse your custom SQL queries in Lightdash. They get listed in your `Tables` and can be used like the tables that come from your dbt project.
+
+:::info
+
+A Virtual View won't be saved to or managed in your dbt project. If you're expecting to use this query regularly, we recommend [writing it back to dbt](/references/dbt-write-back).
+
+:::
+
+## Create a Virtual View
+
+To create a Virtual View from the SQL Runner, select the `Create Virtual View` option from the `save` drop-down.
+
+<img
+  src={CreateVirtualView}
+  width="826"
+  height="353"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Your Virtual View will appear in the list of Tables available to explore in Lightdash. Everyone in your team can use Virtual Views to build queries and charts just like they would any other Table.
+
+<img
+  src={UsingVirtualViews}
+  width="1202"
+  height="532"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+## Edit or delete a Virtual View
+
+To edit a Virtual View, you need to open it in the Explorer, then beside the name, there's a three-dot-menu where you can choose to `edit` or `delete` the Virtual View.
+
+<img
+  src={EditDeleteVirtualView}
+  width="592"
+  height="270"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+Any changes you make will affect all existing content built using the Virtual View.

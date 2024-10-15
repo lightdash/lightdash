@@ -1,4 +1,5 @@
 import { type RawResultRow } from '@lightdash/common';
+import { stringify } from 'csv-stringify/browser/esm';
 import { useCallback } from 'react';
 import { useAppSelector } from '../store/hooks';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
@@ -42,12 +43,27 @@ export const useDownloadResults = ({
             return;
         }
 
-        const csvContent = [
-            columnNames.join(','),
-            ...results.map((row) =>
-                columnNames.map((reference) => row[reference] || '-').join(','),
-            ),
-        ].join('\n');
+        const csvHeader = columnNames;
+        const csvBody = results.map((row) =>
+            csvHeader.map((reference) => row[reference] || '-'),
+        );
+        const csvContent: string = await new Promise<string>(
+            (resolve, reject) => {
+                stringify(
+                    [csvHeader, ...csvBody],
+                    {
+                        delimiter: ',',
+                    },
+                    (err, output) => {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            resolve(output);
+                        }
+                    },
+                );
+            },
+        );
 
         const blob = new Blob([csvContent], {
             type: 'text/csv;charset=utf-8;',

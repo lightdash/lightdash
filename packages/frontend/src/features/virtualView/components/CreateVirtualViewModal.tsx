@@ -17,8 +17,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useGitHubRepositories } from '../../../components/UserSettings/GithubSettingsPanel';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
-import { useCreateCustomExplore } from '../hooks/useCustomExplore';
-import { useAppSelector } from '../store/hooks';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useCreateVirtualView } from '../hooks/useVirtualView';
 
 const validationSchema = z.object({
     name: z.string().min(1),
@@ -33,10 +33,13 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
-    const { mutateAsync: createCustomExplore, isLoading: isLoadingVirtual } =
-        useCreateCustomExplore({
-            projectUuid,
-        });
+    const {
+        mutateAsync: createVirtualView,
+        isLoading: isLoadingVirtual,
+        error,
+    } = useCreateVirtualView({
+        projectUuid,
+    });
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
@@ -60,7 +63,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                 return;
             }
 
-            await createCustomExplore({
+            await createVirtualView({
                 name: snakeCaseName(data.name),
                 sql,
                 columns,
@@ -69,7 +72,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
 
             onClose();
         },
-        [columns, onClose, projectUuid, sql, createCustomExplore],
+        [columns, onClose, projectUuid, sql, createVirtualView],
     );
 
     return (
@@ -115,8 +118,8 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                         radius="md"
                         label="Name"
                         required
-                        // TODO - don't allow duplicate names
                         {...form.getInputProps('name')}
+                        error={!!error?.error}
                     />
                 </Stack>
 

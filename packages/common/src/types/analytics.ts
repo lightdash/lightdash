@@ -58,4 +58,5 @@ export enum QueryExecutionContext {
     CALCULATE_TOTAL = 'calculateTotal',
     API = 'api',
     CLI = 'cli',
+    SEMANTIC_VIEWER = 'semanticViewer',
 }

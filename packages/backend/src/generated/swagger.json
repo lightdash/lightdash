@@ -6043,6 +6043,513 @@
                 },
                 "type": "object"
             },
+            "Partial_DbtSemanticLayerConnection_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/SemanticLayerType.DBT"
+                    },
+                    "environmentId": {
+                        "type": "string"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "Partial_CubeSemanticLayerConnection_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/SemanticLayerType.CUBE"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "SemanticLayerConnectionUpdate": {
+                "anyOf": [
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Partial_DbtSemanticLayerConnection_"
+                            },
+                            {
+                                "properties": {
+                                    "type": {
+                                        "$ref": "#/components/schemas/SemanticLayerType.DBT"
+                                    }
+                                },
+                                "required": ["type"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Partial_CubeSemanticLayerConnection_"
+                            },
+                            {
+                                "properties": {
+                                    "type": {
+                                        "$ref": "#/components/schemas/SemanticLayerType.CUBE"
+                                    }
+                                },
+                                "required": ["type"],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "uuid",
+                    "spaceUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "pinnedListUuid",
+                    "updatedAt",
+                    "views",
+                    "firstViewedAt",
+                    "pinnedListOrder"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DashboardBasicDetails": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_"
+                    },
+                    {
+                        "properties": {
+                            "validationErrors": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ValidationSummary"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardBasicDetailsWithTileTypes": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardBasicDetails"
+                    },
+                    {
+                        "properties": {
+                            "tileTypes": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardTileTypes"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["tileTypes"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiGetDashboardsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardBasicDetailsWithTileTypes"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Dashboard": {
+                "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
+                    "access": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceShare"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "isPrivate": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "tabs": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTab"
+                        },
+                        "type": "array"
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "firstViewedAt": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTile"
+                        },
+                        "type": "array"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "dashboardVersionId": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "slug",
+                    "access",
+                    "isPrivate",
+                    "tabs",
+                    "pinnedListOrder",
+                    "pinnedListUuid",
+                    "firstViewedAt",
+                    "views",
+                    "spaceName",
+                    "spaceUuid",
+                    "filters",
+                    "tiles",
+                    "updatedAt",
+                    "name",
+                    "uuid",
+                    "dashboardVersionId",
+                    "projectUuid",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiCreateDashboardResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Dashboard"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "DuplicateDashboardParams": {
+                "properties": {
+                    "dashboardDesc": {
+                        "type": "string"
+                    },
+                    "dashboardName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["dashboardDesc", "dashboardName"],
+                "type": "object"
+            },
+            "CreateDashboardTileBase": {
+                "properties": {
+                    "tabUuid": {
+                        "type": "string"
+                    },
+                    "w": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "h": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "y": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "x": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["w", "h", "y", "x", "type"],
+                "type": "object"
+            },
+            "CreateDashboardChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardChartTileProperties"
+                    }
+                ]
+            },
+            "CreateDashboardMarkdownTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardMarkdownTileProperties"
+                    }
+                ]
+            },
+            "CreateDashboardLoomTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardLoomTileProperties"
+                    }
+                ]
+            },
+            "CreateDashboardSqlChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSqlChartTileProperties"
+                    }
+                ]
+            },
+            "CreateDashboardSemanticViewerChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTileProperties"
+                    }
+                ]
+            },
+            "Pick_UpdatedByUser.userUuid_": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CreateDashboard": {
+                "properties": {
+                    "tabs": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTab"
+                        },
+                        "type": "array"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/Pick_UpdatedByUser.userUuid_"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "tiles": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardChartTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardMarkdownTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardLoomTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardSqlChartTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardSemanticViewerChartTile"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tabs", "tiles", "name"],
+                "type": "object"
+            },
+            "ApiUpdateDashboardsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/Dashboard"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_Dashboard.uuid-or-name-or-description-or-spaceUuid_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid", "spaceUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "UpdateMultipleDashboards": {
+                "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name-or-description-or-spaceUuid_"
+            },
             "CacheMetadata": {
                 "properties": {
                     "cacheHit": {
@@ -7065,92 +7572,6 @@
                 "required": ["appProfilePhotoUrl", "notificationChannel"],
                 "type": "object"
             },
-            "Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "updatedByUser": {
-                        "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "name",
-                    "uuid",
-                    "spaceUuid",
-                    "projectUuid",
-                    "organizationUuid",
-                    "pinnedListUuid",
-                    "updatedAt",
-                    "views",
-                    "firstViewedAt",
-                    "pinnedListOrder"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "DashboardBasicDetails": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name-or-description-or-updatedAt-or-projectUuid-or-updatedByUser-or-organizationUuid-or-spaceUuid-or-views-or-firstViewedAt-or-pinnedListUuid-or-pinnedListOrder_"
-                    },
-                    {
-                        "properties": {
-                            "validationErrors": {
-                                "items": {
-                                    "$ref": "#/components/schemas/ValidationSummary"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
             "SpaceDashboard": {
                 "$ref": "#/components/schemas/DashboardBasicDetails"
             },
@@ -8160,7 +8581,7 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "ApiCreateCustomExplore": {
+            "ApiCreateVirtualView": {
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/Pick_Explore.name_"
@@ -8186,7 +8607,7 @@
                 "required": ["reference"],
                 "type": "object"
             },
-            "CreateCustomExplorePayload": {
+            "CreateVirtualViewPayload": {
                 "properties": {
                     "columns": {
                         "items": {
@@ -8203,6 +8624,9 @@
                 },
                 "required": ["columns", "sql", "name"],
                 "type": "object"
+            },
+            "UpdateVirtualViewPayload": {
+                "$ref": "#/components/schemas/CreateVirtualViewPayload"
             },
             "ApiGithubDbtWritePreview": {
                 "properties": {
@@ -10228,7 +10652,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1294.0",
+        "version": "0.1304.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13619,7 +14043,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/SemanticLayerConnection"
+                                "$ref": "#/components/schemas/SemanticLayerConnectionUpdate"
                             }
                         }
                     }
@@ -13661,6 +14085,157 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dashboards": {
+            "get": {
+                "operationId": "getDashboards",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetDashboardsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createDashboard",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateDashboardResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "duplicateFrom",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/DuplicateDashboardParams"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/CreateDashboard"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "updateDashboards",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpdateDashboardsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "items": {
+                                    "$ref": "#/components/schemas/UpdateMultipleDashboards"
+                                },
+                                "type": "array"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {
@@ -14248,6 +14823,88 @@
                 ]
             }
         },
+        "/api/v1/saved/{chartUuid}/downloadCsv": {
+            "post": {
+                "operationId": "DownloadCsvFromSavedChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "properties": {
+                                                "jobId": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": ["jobId"],
+                                            "type": "object"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Download a CSV from a saved chart uuid",
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "csvLimit": {
+                                        "type": "number",
+                                        "format": "double",
+                                        "nullable": true
+                                    },
+                                    "onlyRaw": {
+                                        "type": "boolean"
+                                    },
+                                    "tileUuid": {
+                                        "type": "string"
+                                    },
+                                    "dashboardFilters": {}
+                                },
+                                "required": ["onlyRaw", "dashboardFilters"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/schedulers/{projectUuid}/logs": {
             "get": {
                 "operationId": "getSchedulerLogs",
@@ -14722,7 +15379,16 @@
                 "description": "Get slack channels",
                 "tags": ["Integrations"],
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/slack/custom-settings": {

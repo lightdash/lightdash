@@ -1,3 +1,4 @@
+import type { ApiError } from '@lightdash/common';
 import { TableDataModel } from '@lightdash/common';
 import { Box, Tabs, Text } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
@@ -20,10 +21,14 @@ enum TabPanel {
 }
 
 type ContentResultsProps = {
+    resultsError?: ApiError;
     onTableHeaderClick: (fieldName: string) => void;
 };
 
-const ContentResults: FC<ContentResultsProps> = ({ onTableHeaderClick }) => {
+const ContentResults: FC<ContentResultsProps> = ({
+    onTableHeaderClick,
+    resultsError,
+}) => {
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
 
     const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
@@ -70,7 +75,15 @@ const ContentResults: FC<ContentResultsProps> = ({ onTableHeaderClick }) => {
                     minSize={30}
                     style={{ display: 'flex' }}
                 >
-                    {results.length > 0 ? (
+                    {resultsError ? (
+                        <SuboptimalState
+                            title="Failed to fetch results"
+                            description={
+                                resultsError.error.message ??
+                                'Please check your filters and field selection.'
+                            }
+                        />
+                    ) : results.length > 0 ? (
                         <Table
                             resultsRunner={resultsRunner}
                             columnsConfig={resultsTableVizConfig.columns}

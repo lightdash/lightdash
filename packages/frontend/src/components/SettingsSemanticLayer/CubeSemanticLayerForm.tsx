@@ -21,7 +21,7 @@ import MantineIcon from '../common/MantineIcon';
 
 export const cubeSemanticLayerFormSchema = z.object({
     type: z.literal(SemanticLayerType.CUBE),
-    token: z.string().min(1, 'Service token is required'),
+    token: z.string(),
     domain: z
         .string()
         .url({ message: 'Domain must be a valid URL' })
@@ -42,7 +42,14 @@ const CubeSemanticLayerForm: FC<Props> = ({
     onDelete,
 }) => {
     const form = useForm<z.infer<typeof cubeSemanticLayerFormSchema>>({
-        validate: zodResolver(cubeSemanticLayerFormSchema),
+        validate: {
+            ...zodResolver(cubeSemanticLayerFormSchema),
+            // Custom validation for token since when there is no semanticLayerConnection it is required at the form level (there's also backend validation)
+            token: (value) =>
+                !semanticLayerConnection && value.length < 1
+                    ? 'Token is required'
+                    : null,
+        },
         initialValues: {
             type: SemanticLayerType.CUBE,
             token: '',

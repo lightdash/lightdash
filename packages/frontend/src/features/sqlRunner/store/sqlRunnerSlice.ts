@@ -112,9 +112,11 @@ export interface SqlRunnerState {
     sqlRows: RawResultRow[] | undefined;
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
+    mode: 'default' | 'virtualView';
 }
 
 const initialState: SqlRunnerState = {
+    mode: 'default',
     projectUuid: '',
     activeTable: undefined,
     activeSchema: undefined,
@@ -195,9 +197,15 @@ export const sqlRunnerSlice = createSlice({
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
-        setFetchResultsOnLoad: (state, action: PayloadAction<boolean>) => {
-            state.fetchResultsOnLoad = action.payload;
-            if (action.payload) {
+        setFetchResultsOnLoad: (
+            state,
+            action: PayloadAction<{
+                shouldFetch: boolean;
+                shouldOpenChartOnLoad: boolean;
+            }>,
+        ) => {
+            state.fetchResultsOnLoad = action.payload.shouldFetch;
+            if (action.payload.shouldOpenChartOnLoad) {
                 state.activeEditorTab = EditorTabs.VISUALIZATION;
             }
         },
@@ -255,17 +263,12 @@ export const sqlRunnerSlice = createSlice({
             }
             state.sqlRows = action.payload.results;
             state.fileUrl = action.payload.fileUrl;
-
-            const resultsRunner = new SqlRunnerResultsRunnerFrontend({
-                columns: action.payload.columns,
-                rows: action.payload.results,
-                limit: state.limit,
-                sql: state.sql,
-                projectUuid: state.projectUuid,
-            });
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
+        },
+        setMode: (state, action: PayloadAction<'default' | 'virtualView'>) => {
+            state.mode = action.payload;
         },
         setSql: (state, action: PayloadAction<string>) => {
             state.sql = action.payload;
@@ -362,6 +365,7 @@ export const {
     resetState,
     setQuoteChar,
     setWarehouseConnectionType,
+    setMode,
 } = sqlRunnerSlice.actions;
 
 export const {
@@ -373,13 +377,18 @@ export const {
     selectResultsTableConfig,
     selectActiveEditorTab,
     selectSavedSqlChart,
-    selectColumns,
-    selectRows,
+
     selectSqlQueryResults,
 } = sqlRunnerSlice.selectors;
 
 export const selectSqlRunnerResultsRunner = createSelector(
-    [selectColumns, selectRows, selectProjectUuid, selectLimit, selectSql],
+    [
+        sqlRunnerSlice.selectors.selectColumns,
+        sqlRunnerSlice.selectors.selectRows,
+        selectProjectUuid,
+        selectLimit,
+        selectSql,
+    ],
     (columns, rows, projectUuid, limit, sql) => {
         return new SqlRunnerResultsRunnerFrontend({
             columns: columns || [],

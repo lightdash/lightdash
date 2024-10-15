@@ -1,6 +1,6 @@
 import {
-    ApiCreateCustomExplore,
     ApiCreateSqlChart,
+    ApiCreateVirtualView,
     ApiErrorPayload,
     ApiGithubDbtWriteBack,
     ApiGithubDbtWritePreview,
@@ -10,11 +10,12 @@ import {
     ApiUpdateSqlChart,
     ApiWarehouseTableFields,
     ApiWarehouseTablesCatalog,
-    CreateCustomExplorePayload,
     CreateSqlChart,
+    CreateVirtualViewPayload,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
     UpdateSqlChart,
+    UpdateVirtualViewPayload,
 } from '@lightdash/common';
 import {
     Body,
@@ -26,6 +27,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -34,10 +36,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import {
-    getContextFromHeader,
-    getContextFromQueryOrHeader,
-} from '../analytics/LightdashAnalytics';
+import { getContextFromQueryOrHeader } from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -413,7 +412,7 @@ export class SqlRunnerController extends BaseController {
     }
 
     /**
-     * Create a custom explore
+     * Create a virtual-view
      * @param req express request
      */
     @Middlewares([
@@ -422,19 +421,19 @@ export class SqlRunnerController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Post('create-custom-explore')
-    @OperationId('createCustomExplore')
-    async createCustomExplore(
+    @Post('virtual-view')
+    @OperationId('createVirtualView')
+    async createVirtualView(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: CreateCustomExplorePayload,
-    ): Promise<ApiCreateCustomExplore> {
+        @Body() body: CreateVirtualViewPayload,
+    ): Promise<ApiCreateVirtualView> {
         this.setStatus(200);
         const { name, sql, columns } = body;
 
-        const exploreName = await this.services
+        const virtualViewName = await this.services
             .getProjectService()
-            .createCustomExplore(req.user!, projectUuid, {
+            .createVirtualView(req.user!, projectUuid, {
                 name,
                 sql,
                 columns,
@@ -442,7 +441,57 @@ export class SqlRunnerController extends BaseController {
 
         return {
             status: 'ok',
-            results: exploreName,
+            results: virtualViewName,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('virtual-view/{name}')
+    @OperationId('updateVirtualView')
+    async updateVirtualView(
+        @Path() projectUuid: string,
+        @Path() name: string,
+        @Request() req: express.Request,
+        @Body() body: UpdateVirtualViewPayload,
+    ): Promise<ApiCreateVirtualView> {
+        this.setStatus(200);
+        const { name: virtualViewName } = await this.services
+            .getProjectService()
+            .updateVirtualView(req.user!, projectUuid, name, body);
+
+        return {
+            status: 'ok',
+            results: {
+                name: virtualViewName,
+            },
+        };
+    }
+
+    /**
+     * Delete a virtual-view
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('virtual-view/{name}')
+    @OperationId('deleteVirtualView')
+    async deleteVirtualView(
+        @Path() projectUuid: string,
+        @Path() name: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .deleteVirtualView(req.user!, projectUuid, name);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 
@@ -460,7 +509,7 @@ export class SqlRunnerController extends BaseController {
     async writeBackPreview(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: CreateCustomExplorePayload,
+        @Body() body: CreateVirtualViewPayload,
     ): Promise<ApiGithubDbtWritePreview> {
         this.setStatus(200);
         const { name } = body;
@@ -487,7 +536,7 @@ export class SqlRunnerController extends BaseController {
     async writeBackCreatePr(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Body() body: CreateCustomExplorePayload,
+        @Body() body: CreateVirtualViewPayload,
     ): Promise<ApiGithubDbtWriteBack> {
         this.setStatus(200);
         const { name, sql, columns } = body;

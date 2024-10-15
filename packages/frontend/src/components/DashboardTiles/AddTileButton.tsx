@@ -19,10 +19,10 @@ import {
     IconPlus,
     IconVideo,
 } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';

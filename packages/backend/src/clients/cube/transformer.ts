@@ -26,9 +26,7 @@ import {
     getSemanticLayerTypeFromCubeType,
 } from './typeTransformers';
 
-function getCubeQueryOrder(
-    direction: SortByDirection,
-): QueryOrder {
+function getCubeQueryOrder(direction: SortByDirection): QueryOrder {
     switch (direction) {
         case SortByDirection.ASC:
             return 'asc';
@@ -184,4 +182,5 @@ export const cubeTransfomers: SemanticLayerTransformer<
 
         return key.toLowerCase();
     },
+    errorToReadableError: (errorMessage) => errorMessage,
 };

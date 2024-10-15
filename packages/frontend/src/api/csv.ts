@@ -2,6 +2,7 @@ import {
     type ApiCsvUrlResponse,
     type ApiDownloadCsv,
     type ApiScheduledDownloadCsv,
+    type DashboardFilters,
     type MetricQuery,
 } from '@lightdash/common';
 
@@ -51,6 +52,38 @@ export const downloadCsv = async ({
         }),
     });
 };
+
+export const downloadCsvFromSavedChart = async ({
+    chartUuid,
+    dashboardFilters,
+    tileUuid,
+    csvLimit,
+    onlyRaw,
+}: {
+    chartUuid: string;
+    dashboardFilters?: DashboardFilters;
+    tileUuid?: string;
+    // Csv properties
+    onlyRaw: boolean;
+    csvLimit: number | null | undefined;
+}) => {
+    /* TODO fix dashboardFilters timezone 
+    const timezoneFixQuery = {
+        ...query,
+        filters: convertDateFilters(query.filters),
+    };*/
+    return lightdashApi<ApiScheduledDownloadCsv>({
+        url: `/saved/${chartUuid}/downloadCsv`,
+        method: 'POST',
+        body: JSON.stringify({
+            dashboardFilters,
+            tileUuid,
+            csvLimit,
+            onlyRaw,
+        }),
+    });
+};
+
 export const getCsvFileUrl = async ({ jobId }: ApiScheduledDownloadCsv) =>
     lightdashApi<ApiDownloadCsv>({
         url: `/csv/${jobId}`,

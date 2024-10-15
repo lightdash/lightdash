@@ -1,3 +1,280 @@
+## [0.1304.2](https://github.com/lightdash/lightdash/compare/0.1304.1...0.1304.2) (2024-10-15)
+
+
+### Bug Fixes
+
+* update explore when metric query changes instead of on success ([#11916](https://github.com/lightdash/lightdash/issues/11916)) ([1bbeda9](https://github.com/lightdash/lightdash/commit/1bbeda91441a091bc906670258ae4767b0ba639d))
+
+## [0.1304.1](https://github.com/lightdash/lightdash/compare/0.1304.0...0.1304.1) (2024-10-15)
+
+
+### Bug Fixes
+
+* page spinner px rem inconsistencies ([#11927](https://github.com/lightdash/lightdash/issues/11927)) ([51f3d43](https://github.com/lightdash/lightdash/commit/51f3d4362ebe3747d699b058800356e3763a402d))
+
+# [0.1304.0](https://github.com/lightdash/lightdash/compare/0.1303.3...0.1304.0) (2024-10-14)
+
+
+### Features
+
+* polish save changes flow in virtual view modal ([#11922](https://github.com/lightdash/lightdash/issues/11922)) ([aaa8cb5](https://github.com/lightdash/lightdash/commit/aaa8cb53561f08cb4b8bb2f217660810abe1cf46))
+
+## [0.1303.3](https://github.com/lightdash/lightdash/compare/0.1303.2...0.1303.3) (2024-10-14)
+
+
+### Bug Fixes
+
+* delete user on cancel registration ([#11923](https://github.com/lightdash/lightdash/issues/11923)) ([c4424d2](https://github.com/lightdash/lightdash/commit/c4424d2b06e38f131f38b5a9fa5620bd8d19129d))
+
+## [0.1303.2](https://github.com/lightdash/lightdash/compare/0.1303.1...0.1303.2) (2024-10-14)
+
+
+### Bug Fixes
+
+* improve query for removing specific explore from cached_explores ([#11917](https://github.com/lightdash/lightdash/issues/11917)) ([f2fcaf5](https://github.com/lightdash/lightdash/commit/f2fcaf5abb23469115a83276f307b815fcc05341))
+
+## [0.1303.1](https://github.com/lightdash/lightdash/compare/0.1303.0...0.1303.1) (2024-10-14)
+
+
+### Bug Fixes
+
+* display label in text input when editing virtual view ([#11918](https://github.com/lightdash/lightdash/issues/11918)) ([5fef9c3](https://github.com/lightdash/lightdash/commit/5fef9c3f9539c73f3516c11f50a4cb2e5d5a0d99))
+* set metadata project from the dataset project instead of BigQuery client which can be undefined ([#11920](https://github.com/lightdash/lightdash/issues/11920)) ([afe4c21](https://github.com/lightdash/lightdash/commit/afe4c2108f33cce09eb86784198a10767d82916b))
+
+# [0.1303.0](https://github.com/lightdash/lightdash/compare/0.1302.7...0.1303.0) (2024-10-14)
+
+
+### Bug Fixes
+
+* databricks sql runner catalog ([#11911](https://github.com/lightdash/lightdash/issues/11911)) ([a6a0ec2](https://github.com/lightdash/lightdash/commit/a6a0ec2c550f6cd731f5f8965d538969a4e545c9))
+
+
+### Features
+
+* improve get slack channels performance for large workspace ([#11737](https://github.com/lightdash/lightdash/issues/11737)) ([e7645a5](https://github.com/lightdash/lightdash/commit/e7645a5366f76b66d0366f251af2fd6c117848f1))
+
+## [0.1302.7](https://github.com/lightdash/lightdash/compare/0.1302.6...0.1302.7) (2024-10-11)
+
+
+### Bug Fixes
+
+* always run query before validating diffs ([#11874](https://github.com/lightdash/lightdash/issues/11874)) ([b3ba9ea](https://github.com/lightdash/lightdash/commit/b3ba9ea2f7a810e4f567c69924b735abc8f3f2ab))
+
+## [0.1302.6](https://github.com/lightdash/lightdash/compare/0.1302.5...0.1302.6) (2024-10-11)
+
+
+### Bug Fixes
+
+* reduce url on explore ([#11889](https://github.com/lightdash/lightdash/issues/11889)) ([733907c](https://github.com/lightdash/lightdash/commit/733907c4ff5c42a938bd1aac33fb4b2d8286e551))
+
+## [0.1302.5](https://github.com/lightdash/lightdash/compare/0.1302.4...0.1302.5) (2024-10-10)
+
+
+### Bug Fixes
+
+* do not use server_version_num ([#11888](https://github.com/lightdash/lightdash/issues/11888)) ([c43dbc3](https://github.com/lightdash/lightdash/commit/c43dbc3cffdbfa08e751e6f63e4a65dfe95495d6))
+
+## [0.1302.4](https://github.com/lightdash/lightdash/compare/0.1302.3...0.1302.4) (2024-10-10)
+
+
+### Bug Fixes
+
+* add previewPlan to render yml ([#11887](https://github.com/lightdash/lightdash/issues/11887)) ([901a209](https://github.com/lightdash/lightdash/commit/901a209f9ad88ac7bb56ee255849c6f55ca484e7))
+
+## [0.1302.3](https://github.com/lightdash/lightdash/compare/0.1302.2...0.1302.3) (2024-10-10)
+
+
+### Bug Fixes
+
+* check for pgversion before querying for matviews ([#11886](https://github.com/lightdash/lightdash/issues/11886)) ([ad36560](https://github.com/lightdash/lightdash/commit/ad3656011c5a565aad2db1fc3fb1cd0c38055a14))
+
+## [0.1302.2](https://github.com/lightdash/lightdash/compare/0.1302.1...0.1302.2) (2024-10-10)
+
+
+### Bug Fixes
+
+* download csv from chart on dashboard ([#11873](https://github.com/lightdash/lightdash/issues/11873)) ([56b611d](https://github.com/lightdash/lightdash/commit/56b611def96a929d97cefb305a234404edafd1b0))
+
+## [0.1302.1](https://github.com/lightdash/lightdash/compare/0.1302.0...0.1302.1) (2024-10-10)
+
+
+### Bug Fixes
+
+* project admin can create preview projects ([#11877](https://github.com/lightdash/lightdash/issues/11877)) ([723341a](https://github.com/lightdash/lightdash/commit/723341a4bf4733dc509d9e72853a13f0df556115))
+
+# [0.1302.0](https://github.com/lightdash/lightdash/compare/0.1301.2...0.1302.0) (2024-10-10)
+
+
+### Features
+
+* validate before editing virtual view ([#11868](https://github.com/lightdash/lightdash/issues/11868)) ([9e5fab3](https://github.com/lightdash/lightdash/commit/9e5fab3081b1745dff9cc77f494d369e8bd0e846))
+
+## [0.1301.2](https://github.com/lightdash/lightdash/compare/0.1301.1...0.1301.2) (2024-10-10)
+
+
+### Bug Fixes
+
+* sql runner warehouse schema insert in batches ([#11870](https://github.com/lightdash/lightdash/issues/11870)) ([aa424b5](https://github.com/lightdash/lightdash/commit/aa424b5f56b0d96bd7345f7d09e18b5c010542d4))
+
+## [0.1301.1](https://github.com/lightdash/lightdash/compare/0.1301.0...0.1301.1) (2024-10-09)
+
+
+### Bug Fixes
+
+* hide edit/delete virtual view if no permission to ([#11858](https://github.com/lightdash/lightdash/issues/11858)) ([f233907](https://github.com/lightdash/lightdash/commit/f23390706c94834843de74d041eeabad2610ce99))
+
+# [0.1301.0](https://github.com/lightdash/lightdash/compare/0.1300.1...0.1301.0) (2024-10-09)
+
+
+### Bug Fixes
+
+* make update accept partial ([#11775](https://github.com/lightdash/lightdash/issues/11775)) ([6150039](https://github.com/lightdash/lightdash/commit/6150039c08b4d522a31aea10372423e1b8fc4310))
+
+
+### Features
+
+* validate before editing virtual view ([#11860](https://github.com/lightdash/lightdash/issues/11860)) ([99f29d1](https://github.com/lightdash/lightdash/commit/99f29d1b2680cd6393e629fe48761ad780863f62))
+
+## [0.1300.1](https://github.com/lightdash/lightdash/compare/0.1300.0...0.1300.1) (2024-10-09)
+
+
+### Bug Fixes
+
+* show semantic layer results and sql errors in suboptimal state ([#11792](https://github.com/lightdash/lightdash/issues/11792)) ([d2a8615](https://github.com/lightdash/lightdash/commit/d2a8615f7b3765d2d78cd713eb27e5672259b1ff))
+
+# [0.1300.0](https://github.com/lightdash/lightdash/compare/0.1299.1...0.1300.0) (2024-10-09)
+
+
+### Features
+
+* rename virtual explore ([#11853](https://github.com/lightdash/lightdash/issues/11853)) ([eaa3596](https://github.com/lightdash/lightdash/commit/eaa35960b6fc9160aa280c5d9d9dfed1b3a0357b))
+
+## [0.1299.1](https://github.com/lightdash/lightdash/compare/0.1299.0...0.1299.1) (2024-10-09)
+
+
+### Bug Fixes
+
+* look for materialized view columns in pg_attribute and pg_matviews ([#11856](https://github.com/lightdash/lightdash/issues/11856)) ([8ac6245](https://github.com/lightdash/lightdash/commit/8ac62457657faf8272f153dbca35378f46deab14))
+
+# [0.1299.0](https://github.com/lightdash/lightdash/compare/0.1298.1...0.1299.0) (2024-10-09)
+
+
+### Features
+
+* allow deleting virtual views ([#11854](https://github.com/lightdash/lightdash/issues/11854)) ([0b2ee32](https://github.com/lightdash/lightdash/commit/0b2ee325873b1b10b4e2164b12bdb9efab7dcc9b))
+
+## [0.1298.1](https://github.com/lightdash/lightdash/compare/0.1298.0...0.1298.1) (2024-10-08)
+
+
+### Bug Fixes
+
+* add missing subject to casl methods ([#11804](https://github.com/lightdash/lightdash/issues/11804)) ([cc2000c](https://github.com/lightdash/lightdash/commit/cc2000ce551dc128e8b1af996f64c4c40f74654b))
+
+# [0.1298.0](https://github.com/lightdash/lightdash/compare/0.1297.2...0.1298.0) (2024-10-08)
+
+
+### Features
+
+* warn users that changes will be discarded before editing ([#11838](https://github.com/lightdash/lightdash/issues/11838)) ([400dab1](https://github.com/lightdash/lightdash/commit/400dab1379fdde165006f7ab159cec55bce79e97))
+
+## [0.1297.2](https://github.com/lightdash/lightdash/compare/0.1297.1...0.1297.2) (2024-10-08)
+
+
+### Bug Fixes
+
+* disable write back if project is not github ([#11836](https://github.com/lightdash/lightdash/issues/11836)) ([3bed36f](https://github.com/lightdash/lightdash/commit/3bed36f62a582405cb20b7e4da5a63b4c64e8fa8))
+
+## [0.1297.1](https://github.com/lightdash/lightdash/compare/0.1297.0...0.1297.1) (2024-10-08)
+
+
+### Bug Fixes
+
+* alert on duplicate name virtual view creation ([#11833](https://github.com/lightdash/lightdash/issues/11833)) ([57fee98](https://github.com/lightdash/lightdash/commit/57fee98f925b363b2b7bd7d051f7e99b2bdceb48))
+
+# [0.1297.0](https://github.com/lightdash/lightdash/compare/0.1296.2...0.1297.0) (2024-10-08)
+
+
+### Features
+
+* alert users on changes to virtual view ([#11837](https://github.com/lightdash/lightdash/issues/11837)) ([db8a4d7](https://github.com/lightdash/lightdash/commit/db8a4d7f03c0a445178af3eca6dfe7deab5ea570))
+
+## [0.1296.2](https://github.com/lightdash/lightdash/compare/0.1296.1...0.1296.2) (2024-10-07)
+
+
+### Bug Fixes
+
+* check if file exists in github ([#11832](https://github.com/lightdash/lightdash/issues/11832)) ([3d453f6](https://github.com/lightdash/lightdash/commit/3d453f69d09bde3c5b4e8ed492e8b866ff391b7a))
+
+## [0.1296.1](https://github.com/lightdash/lightdash/compare/0.1296.0...0.1296.1) (2024-10-07)
+
+
+### Bug Fixes
+
+* posthog silent fails ([#11818](https://github.com/lightdash/lightdash/issues/11818)) ([af7ca61](https://github.com/lightdash/lightdash/commit/af7ca619237ca351c2cbed6e0afd4487f60c92f9))
+
+# [0.1296.0](https://github.com/lightdash/lightdash/compare/0.1295.6...0.1296.0) (2024-10-07)
+
+
+### Features
+
+* allow editing a virtual view in explore view ([#11811](https://github.com/lightdash/lightdash/issues/11811)) ([ae2acce](https://github.com/lightdash/lightdash/commit/ae2accee555393f7a8835ebb8ed4f18607557edf))
+
+## [0.1295.6](https://github.com/lightdash/lightdash/compare/0.1295.5...0.1295.6) (2024-10-07)
+
+
+### Bug Fixes
+
+* improve git delete flow ([#11828](https://github.com/lightdash/lightdash/issues/11828)) ([3e41b5e](https://github.com/lightdash/lightdash/commit/3e41b5edd3a856672ab181d8e327bbc84432a674))
+
+## [0.1295.5](https://github.com/lightdash/lightdash/compare/0.1295.4...0.1295.5) (2024-10-07)
+
+
+### Bug Fixes
+
+* add errors to github config page ([#11826](https://github.com/lightdash/lightdash/issues/11826)) ([a2426d2](https://github.com/lightdash/lightdash/commit/a2426d2d70e067dc80fe8d50fb594afbee87d0d7))
+
+## [0.1295.4](https://github.com/lightdash/lightdash/compare/0.1295.3...0.1295.4) (2024-10-07)
+
+
+### Bug Fixes
+
+* sql runner csv comma stringify ([#11814](https://github.com/lightdash/lightdash/issues/11814)) ([05ae3f9](https://github.com/lightdash/lightdash/commit/05ae3f9cffec8a27750d295ba134fe40a00d6a53))
+
+## [0.1295.3](https://github.com/lightdash/lightdash/compare/0.1295.2...0.1295.3) (2024-10-04)
+
+
+### Bug Fixes
+
+* pin github actions core version ([#11821](https://github.com/lightdash/lightdash/issues/11821)) ([eb3d729](https://github.com/lightdash/lightdash/commit/eb3d72984e5cb7df19ee4e11006b9610a60aa3cc))
+
+## [0.1295.2](https://github.com/lightdash/lightdash/compare/0.1295.1...0.1295.2) (2024-10-04)
+
+
+### Bug Fixes
+
+* lightdash cli erroring in github ci ([#11815](https://github.com/lightdash/lightdash/issues/11815)) ([cd37a9c](https://github.com/lightdash/lightdash/commit/cd37a9c6c40538b2e2f1f57a7436ad9316d813c7))
+
+## [0.1295.1](https://github.com/lightdash/lightdash/compare/0.1295.0...0.1295.1) (2024-10-04)
+
+
+### Bug Fixes
+
+* remove double slashes CLI ([#11807](https://github.com/lightdash/lightdash/issues/11807)) ([db8a2be](https://github.com/lightdash/lightdash/commit/db8a2be920126a1ba767b4e7c678244c522f76c7))
+
+# [0.1295.0](https://github.com/lightdash/lightdash/compare/0.1294.1...0.1295.0) (2024-10-04)
+
+
+### Features
+
+* cli modern build ([#11810](https://github.com/lightdash/lightdash/issues/11810)) ([5fcdff7](https://github.com/lightdash/lightdash/commit/5fcdff708dbf982ab84a48e4f1995f83c9f5a687))
+
+## [0.1294.1](https://github.com/lightdash/lightdash/compare/0.1294.0...0.1294.1) (2024-10-04)
+
+
+### Bug Fixes
+
+* bump snowflake sdk to 14 ([#11779](https://github.com/lightdash/lightdash/issues/11779)) ([e891522](https://github.com/lightdash/lightdash/commit/e8915222f2fb1f65ee1f2f71040719c8b97835c8))
+
 # [0.1294.0](https://github.com/lightdash/lightdash/compare/0.1293.4...0.1294.0) (2024-10-04)
 
 

@@ -11,6 +11,7 @@ import {
     Middlewares,
     OperationId,
     Put,
+    Query,
     Request,
     Response,
     Route,
@@ -39,6 +40,7 @@ export class SlackController extends BaseController {
     @OperationId('getSlackChannels')
     async get(
         @Request() req: express.Request,
+        @Query() search?: string,
     ): Promise<ApiSlackChannelsResponse> {
         this.setStatus(200);
         const organizationUuid = req.user?.organizationUuid;
@@ -47,7 +49,7 @@ export class SlackController extends BaseController {
             status: 'ok',
             results: await req.clients
                 .getSlackClient()
-                .getChannels(organizationUuid),
+                .getChannels(organizationUuid, search),
         };
     }
 

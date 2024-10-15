@@ -148,10 +148,19 @@ export class HealthService extends BaseService {
         return (
             this.lightdashConfig.groups.enabled ||
             (user
-                ? await isFeatureFlagEnabled(FeatureFlags.UserGroupsEnabled, {
-                      userUuid: user.userUuid,
-                      organizationUuid: user.organizationUuid,
-                  })
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.UserGroupsEnabled,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          // because we are checking this in the health check, we don't want to throw an error
+                          // nor do we want to wait too long
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
                 : false)
         );
     }

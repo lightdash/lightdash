@@ -197,7 +197,7 @@ export type LightdashConfig = {
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
     rudder: RudderConfig;
-    posthog: PosthogConfig;
+    posthog: PosthogConfig | undefined;
     mode: LightdashMode;
     sentry: SentryConfig;
     auth: AuthConfig;
@@ -282,6 +282,7 @@ export type SlackConfig = {
     appToken?: string;
     port: number;
     socketMode?: boolean;
+    channelsCachedTime: number;
 };
 export type HeadlessBrowserConfig = {
     host?: string;
@@ -478,14 +479,18 @@ export const parseConfig = (): LightdashConfig => {
                   },
               }
             : undefined,
-        posthog: {
-            projectApiKey: process.env.POSTHOG_PROJECT_API_KEY || '',
-            apiHost: process.env.POSTHOG_API_HOST || 'https://app.posthog.com',
-        },
+        posthog:
+            process.env.POSTHOG_PROJECT_API_KEY && process.env.POSTHOG_API_HOST
+                ? {
+                      projectApiKey: process.env.POSTHOG_PROJECT_API_KEY,
+                      apiHost: process.env.POSTHOG_API_HOST,
+                  }
+                : undefined,
         rudder: {
             writeKey:
-                process.env.RUDDERSTACK_WRITE_KEY ||
-                '1vqkSlWMVtYOl70rk3QSE0v1fqY',
+                process.env.RUDDERSTACK_WRITE_KEY === undefined
+                    ? '1vqkSlWMVtYOl70rk3QSE0v1fqY'
+                    : process.env.RUDDERSTACK_WRITE_KEY,
             dataPlaneUrl:
                 process.env.RUDDERSTACK_DATA_PLANE_URL ||
                 'https://analytics.lightdash.com',
@@ -611,7 +616,10 @@ export const parseConfig = (): LightdashConfig => {
             },
         },
         intercom: {
-            appId: process.env.INTERCOM_APP_ID || 'zppxyjpp',
+            appId:
+                process.env.INTERCOM_APP_ID === undefined
+                    ? 'zppxyjpp'
+                    : process.env.INTERCOM_APP_ID,
             apiBase:
                 process.env.INTERCOM_APP_BASE || 'https://api-iam.intercom.io',
         },
@@ -713,6 +721,10 @@ export const parseConfig = (): LightdashConfig => {
             appToken: process.env.SLACK_APP_TOKEN,
             port: parseInt(process.env.SLACK_PORT || '4351', 10),
             socketMode: process.env.SLACK_SOCKET_MODE === 'true',
+            channelsCachedTime: parseInt(
+                process.env.SLACK_CHANNELS_CACHED_TIME || '600000',
+                10,
+            ), // 10 minutes
         },
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',

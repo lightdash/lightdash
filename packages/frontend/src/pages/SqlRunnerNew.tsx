@@ -24,17 +24,27 @@ import {
 import {
     resetState,
     setFetchResultsOnLoad,
+    setMode,
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
     setSql,
     setWarehouseConnectionType,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
+import { HeaderVirtualView } from '../features/virtualView';
+import { type VirtualViewState } from '../features/virtualView/components/HeaderVirtualView';
 import { useProject } from '../hooks/useProject';
 
-const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
+const SqlRunnerNew = ({
+    isEditMode,
+    virtualViewState,
+}: {
+    isEditMode?: boolean;
+    virtualViewState?: VirtualViewState;
+}) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const mode = useAppSelector((state) => state.sqlRunner.mode);
 
     const params = useParams<{ projectUuid: string; slug?: string }>();
 
@@ -50,11 +60,31 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
     });
 
     useEffect(() => {
+        if (virtualViewState) {
+            // remove wrapping parenthesis if they exist
+            const sql = virtualViewState.sql.replace(/^[()]+|[()]+$/g, '');
+            dispatch(setSql(sql));
+            dispatch(setMode('virtualView'));
+        }
+    }, [dispatch, virtualViewState]);
+
+    useEffect(() => {
         if (!projectUuid && params.projectUuid) {
             dispatch(setProjectUuid(params.projectUuid));
-            dispatch(setFetchResultsOnLoad(!!isEditMode));
+            dispatch(
+                setFetchResultsOnLoad({
+                    shouldFetch: !!isEditMode || !!virtualViewState,
+                    shouldOpenChartOnLoad: !virtualViewState && !!isEditMode,
+                }),
+            );
         }
-    }, [dispatch, params.projectUuid, projectUuid, isEditMode]);
+    }, [
+        dispatch,
+        params.projectUuid,
+        projectUuid,
+        isEditMode,
+        virtualViewState,
+    ]);
 
     // Use the SQL string from the location state if available
     useEffect(() => {
@@ -99,7 +129,13 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
             title="SQL Runner"
             noContentPadding
             flexContent
-            header={<Header mode={params.slug ? 'edit' : 'create'} />}
+            header={
+                mode === 'virtualView' && virtualViewState ? (
+                    <HeaderVirtualView virtualViewState={virtualViewState} />
+                ) : (
+                    <Header mode={params.slug ? 'edit' : 'create'} />
+                )
+            }
             isSidebarOpen={isLeftSidebarOpen}
             sidebar={<Sidebar setSidebarOpen={setLeftSidebarOpen} />}
             noSidebarPadding
@@ -126,10 +162,12 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
                                 label={'Open sidebar'}
                                 position="right"
                             >
-                                <ActionIcon size="sm">
+                                <ActionIcon
+                                    size="sm"
+                                    onClick={() => setLeftSidebarOpen(true)}
+                                >
                                     <MantineIcon
                                         icon={IconLayoutSidebarLeftExpand}
-                                        onClick={() => setLeftSidebarOpen(true)}
                                     />
                                 </ActionIcon>
                             </Tooltip>
@@ -142,10 +180,19 @@ const SqlRunnerNew = ({ isEditMode }: { isEditMode?: boolean }) => {
     );
 };
 
-const SqlRunnerNewPage = ({ isEditMode }: { isEditMode?: boolean }) => {
+const SqlRunnerNewPage = ({
+    isEditMode,
+    virtualViewState,
+}: {
+    isEditMode?: boolean;
+    virtualViewState?: VirtualViewState;
+}) => {
     return (
         <Provider store={store}>
-            <SqlRunnerNew isEditMode={isEditMode} />
+            <SqlRunnerNew
+                isEditMode={isEditMode}
+                virtualViewState={virtualViewState}
+            />
         </Provider>
     );
 };

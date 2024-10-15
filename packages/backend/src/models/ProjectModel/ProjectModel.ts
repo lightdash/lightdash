@@ -1,9 +1,9 @@
 import {
     AlreadyExistsError,
     assertUnreachable,
-    createCustomExplore,
-    CreateCustomExplorePayload,
     CreateProject,
+    createVirtualView,
+    CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     DbtProjectConfig,
     Explore,
@@ -13,6 +13,7 @@ import {
     isExploreError,
     NotExistsError,
     OrganizationProject,
+    ParameterError,
     PreviewContentMapping,
     Project,
     ProjectGroupAccess,
@@ -30,19 +31,21 @@ import {
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
+    UpdateVirtualViewPayload,
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
     type CubeSemanticLayerConnection,
     type DbtSemanticLayerConnection,
     type SemanticLayerConnection,
+    type SemanticLayerConnectionUpdate,
 } from '@lightdash/common';
 import {
     WarehouseCatalog,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
-import knex, { Knex } from 'knex';
-import { omit } from 'lodash';
+import { Knex } from 'knex';
+import { merge } from 'lodash';
 import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
@@ -83,7 +86,6 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { generateUniqueSlug } from '../../utils/SlugUtils';
 import { convertExploresToCatalog } from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
@@ -934,9 +936,7 @@ export class ProjectModel {
             {},
             async () => {
                 // Get custom explores/virtual views before deleting them
-                const customExplores = await this.database(
-                    CachedExploreTableName,
-                )
+                const virtualViews = await this.database(CachedExploreTableName)
                     .select('explore')
                     .where('project_uuid', projectUuid)
                     .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL]);
@@ -948,7 +948,7 @@ export class ProjectModel {
 
                 // We don't support multiple explores with the same name at the moment
                 const uniqueExplores = uniqWith(
-                    [...explores, ...customExplores.map((e) => e.explore)],
+                    [...explores, ...virtualViews.map((e) => e.explore)],
                     (a, b) => a.name === b.name,
                 );
 
@@ -2034,31 +2034,31 @@ export class ProjectModel {
         return warehouseClientFromCredentials(credentials);
     }
 
-    async createCustomExplore(
+    async createVirtualView(
         projectUuid: string,
-        { name, sql, columns }: CreateCustomExplorePayload,
+        { name, sql, columns }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
     ): Promise<Pick<Explore, 'name'>> {
-        const customExplore = createCustomExplore(
+        const virtualView = createVirtualView(
             name,
             sql,
             columns,
             warehouseClient,
         );
 
-        // insert into cached_explore
+        // insert virtual view into cached_explore
         await this.database(CachedExploreTableName)
             .insert({
                 project_uuid: projectUuid,
-                name: customExplore.name,
-                table_names: Object.keys(customExplore.tables || {}),
-                explore: customExplore,
+                name: virtualView.name,
+                table_names: Object.keys(virtualView.tables || {}),
+                explore: virtualView,
             })
             .onConflict(['project_uuid', 'name'])
             .merge()
             .returning(['name', 'cached_explore_uuid']);
 
-        // append to cached_explores
+        // append virtual view to cached_explores
         await this.database(CachedExploresTableName)
             .where('project_uuid', projectUuid)
             .update({
@@ -2070,8 +2070,8 @@ export class ProjectModel {
                 END
             `,
                     [
-                        JSON.stringify([customExplore]),
-                        JSON.stringify([customExplore]),
+                        JSON.stringify([virtualView]),
+                        JSON.stringify([virtualView]),
                     ],
                 ),
             })
@@ -2080,15 +2080,149 @@ export class ProjectModel {
         return { name };
     }
 
+    async updateVirtualView(
+        projectUuid: string,
+        exploreName: string,
+        payload: UpdateVirtualViewPayload,
+        warehouseClient: WarehouseClient,
+    ) {
+        const translatedToExplore = createVirtualView(
+            exploreName,
+            payload.sql,
+            payload.columns,
+            warehouseClient,
+            payload.name, // label
+        );
+
+        // insert into cached_explore
+        await this.database(CachedExploreTableName)
+            .update({
+                project_uuid: projectUuid,
+                name: exploreName,
+                table_names: Object.keys(translatedToExplore.tables || {}),
+                explore: translatedToExplore,
+            })
+            .where('project_uuid', projectUuid)
+            .andWhere('name', exploreName)
+            .returning(['name', 'cached_explore_uuid']);
+
+        // append to cached_explores if it doesn't exist; otherwise, update
+        await this.database(CachedExploresTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                explores: this.database.raw(
+                    `
+                    CASE
+                        WHEN explores IS NULL THEN ?::jsonb
+                        ELSE (
+                            SELECT jsonb_agg(
+                                CASE
+                                    WHEN (value->>'name') = ? THEN ?::jsonb
+                                    ELSE value
+                                END
+                            )
+                            FROM jsonb_array_elements(
+                                CASE
+                                    WHEN jsonb_typeof(explores) = 'array' THEN explores
+                                    ELSE '[]'::jsonb
+                                END
+                            )
+                        )
+                    END
+                `,
+                    [
+                        JSON.stringify([translatedToExplore]),
+                        translatedToExplore.name,
+                        JSON.stringify(translatedToExplore),
+                    ],
+                ),
+            })
+            .returning('*');
+
+        return { name: translatedToExplore.name };
+    }
+
+    async deleteVirtualView(projectUuid: string, name: string) {
+        // remove from cached_explore
+        await this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL])
+            .andWhere('name', name)
+            .delete();
+
+        // Remove from cached_explores
+        await this.database(CachedExploresTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                explores: this.database.raw(
+                    `
+                    (
+                        SELECT COALESCE(
+                            jsonb_agg(explore_obj),
+                            '[]'::jsonb
+                        )
+                        FROM jsonb_array_elements(explores) AS explore_obj
+                        WHERE explore_obj->>'name' != ?
+                    )
+                `,
+                    [name],
+                ),
+            });
+    }
+
+    private static isSemanticLayerConnectionValid(
+        semanticLayerConnection: SemanticLayerConnectionUpdate,
+    ): boolean {
+        const { type } = semanticLayerConnection;
+        switch (type) {
+            case SemanticLayerType.DBT:
+                return Boolean(
+                    semanticLayerConnection.domain &&
+                        semanticLayerConnection.environmentId &&
+                        semanticLayerConnection.token,
+                );
+            case SemanticLayerType.CUBE:
+                return Boolean(
+                    semanticLayerConnection.domain &&
+                        semanticLayerConnection.token,
+                );
+            default:
+                return assertUnreachable(
+                    type,
+                    `Unknown semantic layer connection type: ${type}`,
+                );
+        }
+    }
+
     async updateSemanticLayerConnection(
         projectUuid: string,
-        connection: SemanticLayerConnection | undefined,
+        connectionUpdate: SemanticLayerConnectionUpdate,
     ) {
+        const { semanticLayerConnection: currentSemanticLayerConnection } =
+            await this.getWithSensitiveFields(projectUuid);
+
+        // ? Merging so the partial update only overwrites the existing properties, even when the current connection is undefined since merge will take ALL properties
+        const shouldMerge =
+            !currentSemanticLayerConnection ||
+            connectionUpdate.type === currentSemanticLayerConnection.type;
+
+        const updatedSemanticLayerConnection = shouldMerge
+            ? merge(currentSemanticLayerConnection, connectionUpdate)
+            : connectionUpdate;
+
+        if (
+            !ProjectModel.isSemanticLayerConnectionValid(
+                updatedSemanticLayerConnection,
+            )
+        ) {
+            throw new ParameterError('Invalid semantic layer connection');
+        }
+
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
-                semantic_layer_connection: connection
-                    ? this.encryptionUtil.encrypt(JSON.stringify(connection))
-                    : null,
+                semantic_layer_connection: this.encryptionUtil.encrypt(
+                    JSON.stringify(updatedSemanticLayerConnection),
+                ),
             })
             .where('project_uuid', projectUuid)
             .returning('*');

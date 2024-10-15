@@ -107,6 +107,8 @@ export const ContentPanel: FC = () => {
         MonacoHighlightChar | undefined
     >(undefined);
 
+    const mode = useAppSelector((state) => state.sqlRunner.mode);
+
     const {
         ref: inputSectionRef,
         width: inputSectionWidth,
@@ -194,14 +196,21 @@ export const ContentPanel: FC = () => {
         ['mod + enter', () => handleRunQuery, { preventDefault: true }],
     ]);
 
-    // TODO: why do we want to fetch results on load sometimes?
-    useEffect(() => {
-        if (fetchResultsOnLoad && !queryResults) {
-            void handleRunQuery(sql);
-        } else if (fetchResultsOnLoad && queryResults) {
-            dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
-        }
-    }, [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch, sql]);
+    useEffect(
+        // When the user opens the sql runner and the query results are not yet loaded, run the query and then change to the visualization tab
+        function handleEditModeOnLoad() {
+            if (fetchResultsOnLoad && !queryResults) {
+                void handleRunQuery(sql);
+            } else if (
+                fetchResultsOnLoad &&
+                queryResults &&
+                mode === 'default'
+            ) {
+                dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
+            }
+        },
+        [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch, sql, mode],
+    );
 
     const activeConfigs = useAppSelector((state) => {
         const configsWithTable = state.sqlRunner.activeConfigs
@@ -369,9 +378,14 @@ export const ContentPanel: FC = () => {
                             <Indicator
                                 color="red.6"
                                 offset={10}
-                                disabled={!hasErrors}
+                                disabled={!hasErrors || mode === 'virtualView'}
                             >
                                 <SegmentedControl
+                                    display={
+                                        mode === 'virtualView'
+                                            ? 'none'
+                                            : undefined
+                                    }
                                     styles={(theme) => ({
                                         root: {
                                             backgroundColor:
@@ -414,6 +428,7 @@ export const ContentPanel: FC = () => {
                                                 </Tooltip>
                                             ),
                                         },
+
                                         {
                                             value: EditorTabs.VISUALIZATION,
                                             label: (
@@ -483,15 +498,17 @@ export const ContentPanel: FC = () => {
                                     echartsInstance={activeEchartsInstance}
                                 />
                             ) : (
-                                <ResultsDownload
-                                    fileUrl={resultsFileUrl}
-                                    columnNames={
-                                        queryResults?.columns.map(
-                                            (c) => c.reference,
-                                        ) ?? []
-                                    }
-                                    chartName={savedSqlChart?.name}
-                                />
+                                mode === 'default' && (
+                                    <ResultsDownload
+                                        fileUrl={resultsFileUrl}
+                                        columnNames={
+                                            queryResults?.columns.map(
+                                                (c) => c.reference,
+                                            ) ?? []
+                                        }
+                                        chartName={savedSqlChart?.name}
+                                    />
+                                )
                             )}
                         </Group>
                     </Group>

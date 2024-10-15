@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     MissingConfigError,
     ParameterError,
+    QueryExecutionContext,
     SemanticLayerClientInfo,
     SemanticLayerField,
     SemanticLayerQuery,
@@ -229,9 +230,10 @@ export class SemanticLayerService extends BaseService {
 
         const jobId = await this.schedulerClient.semanticLayerStreamingResults({
             projectUuid,
+            organizationUuid,
             userUuid: user.userUuid,
             query,
-            context: 'semanticViewer',
+            context: QueryExecutionContext.SEMANTIC_VIEWER,
         });
 
         return { jobId };
@@ -240,8 +242,10 @@ export class SemanticLayerService extends BaseService {
     async streamQueryIntoFile({
         userUuid,
         projectUuid,
+        organizationUuid,
         query,
         context,
+        chartUuid,
     }: SemanticLayerQueryPayload): Promise<{
         fileUrl: string;
         columns: string[];
@@ -316,6 +320,19 @@ export class SemanticLayerService extends BaseService {
 
             columns = Object.keys(pivotedResults[0] ?? {});
         }
+
+        this.analytics.track({
+            userId: userUuid,
+            event: 'query.executed',
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                context,
+                usingStreaming: true,
+                semanticLayer: client.type,
+                ...(chartUuid ? { semanticViewerChartId: chartUuid } : {}),
+            },
+        });
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.s3Client,
@@ -414,10 +431,12 @@ export class SemanticLayerService extends BaseService {
         }
 
         const jobId = await this.schedulerClient.semanticLayerStreamingResults({
-            context: 'semanticViewer',
+            context: QueryExecutionContext.SEMANTIC_VIEWER,
             projectUuid,
+            organizationUuid: savedChart.organization.organizationUuid,
             query: savedChart.semanticLayerQuery,
             userUuid: user.userUuid,
+            chartUuid: savedChart.savedSemanticViewerChartUuid,
         });
 
         return {

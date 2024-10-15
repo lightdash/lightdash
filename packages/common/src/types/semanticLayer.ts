@@ -5,6 +5,8 @@ import type {
     LightdashUser,
     Organization,
     Project,
+    QueryExecutionContext,
+    SemanticLayerType,
     SortByDirection,
     SpaceSummary,
     VizAggregationOptions,
@@ -105,6 +107,7 @@ export interface SemanticLayerTransformer<
     resultsToResultRows: (results: ResultsType) => SemanticLayerResultRow[];
     sqlToString: (sql: SqlType) => string;
     mapResultsKeys: (key: string, query: SemanticLayerQuery) => string;
+    errorToReadableError: (errorMessage?: string) => string | undefined;
 }
 
 export interface SemanticLayerClientInfo {
@@ -123,6 +126,7 @@ export interface ApiSemanticLayerClientInfo {
 }
 
 export interface SemanticLayerClient {
+    type: SemanticLayerType;
     getClientInfo: () => SemanticLayerClientInfo;
     getViews: () => Promise<SemanticLayerView[]>;
     getFields: (
@@ -143,9 +147,11 @@ export interface SemanticLayerClient {
 
 export type SemanticLayerQueryPayload = {
     projectUuid: string;
+    organizationUuid: string;
     userUuid: string;
     query: SemanticLayerQuery;
-    context: 'semanticViewer';
+    context: QueryExecutionContext.SEMANTIC_VIEWER;
+    chartUuid?: string;
 };
 
 export const isSemanticLayerTimeDimension = (

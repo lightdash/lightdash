@@ -210,8 +210,9 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         table: string,
     ): Promise<[string, string, string, TableSchema]> {
         const [metadata] = await dataset.table(table).getMetadata();
+
         return [
-            dataset.bigQuery.projectId,
+            dataset.projectId,
             dataset.id!,
             table,
             isTableSchema(metadata?.schema) ? metadata.schema : { fields: [] },

@@ -4,7 +4,7 @@ import {
     type CreateProject,
     type MostPopularAndRecentlyUpdated,
     type Project,
-    type SemanticLayerConnection,
+    type SemanticLayerConnectionUpdate,
     type UpdateProject,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -36,7 +36,7 @@ const getProject = async (uuid: string) =>
 
 const updateProjectSemanticLayerConnection = async (
     uuid: string,
-    data: SemanticLayerConnection,
+    data: SemanticLayerConnectionUpdate,
 ) =>
     lightdashApi<undefined>({
         url: `/projects/${uuid}/semantic-layer-connection`,
@@ -125,7 +125,7 @@ export const useMostPopularAndRecentlyUpdated = (projectUuid: string) =>
 
 export const useProjectSemanticLayerUpdateMutation = (uuid: string) => {
     const queryClient = useQueryClient();
-    return useMutation<undefined, ApiError, SemanticLayerConnection>(
+    return useMutation<undefined, ApiError, SemanticLayerConnectionUpdate>(
         (data) => updateProjectSemanticLayerConnection(uuid, data),
         {
             mutationKey: ['project_semantic_layer_update', uuid],
