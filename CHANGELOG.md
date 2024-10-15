@@ -1,3 +1,10 @@
+## [0.1304.3](https://github.com/lightdash/lightdash/compare/0.1304.2...0.1304.3) (2024-10-15)
+
+
+### Bug Fixes
+
+* trino sql runner tables ([#11936](https://github.com/lightdash/lightdash/issues/11936)) ([5307821](https://github.com/lightdash/lightdash/commit/53078211524a58cf8421b0a1f9b6927bf2c8f739))
+
 ## [0.1304.2](https://github.com/lightdash/lightdash/compare/0.1304.1...0.1304.2) (2024-10-15)
 
 
