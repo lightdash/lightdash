@@ -265,6 +265,9 @@ export const SqlEditor: FC<{
                     onSubmit(currentSql ?? '');
                 },
             );
+
+            // When creating a new sql query, focus the editor so the user can start typing immediately
+            editorObj.focus();
         },
         [onSubmit],
     );
