@@ -144,8 +144,8 @@ export const useExplorerRoute = () => {
     const unsavedChartVersion = useExplorerContext(
         (context) => context.state.unsavedChartVersion,
     );
-    const queryResultsData = useExplorerContext(
-        (context) => context.queryResults.data,
+    const metricQuery = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.metricQuery,
     );
     const clearExplore = useExplorerContext(
         (context) => context.actions.clearExplore,
@@ -156,19 +156,19 @@ export const useExplorerRoute = () => {
 
     // Update url params based on pristine state
     useEffect(() => {
-        if (queryResultsData?.metricQuery) {
+        if (metricQuery && unsavedChartVersion.tableName) {
             history.replace(
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
                     {
                         ...unsavedChartVersion,
-                        metricQuery: queryResultsData.metricQuery,
+                        metricQuery,
                     },
                 ),
             );
         }
     }, [
-        queryResultsData,
+        metricQuery,
         history,
         pathParams.projectUuid,
         unsavedChartVersion,
