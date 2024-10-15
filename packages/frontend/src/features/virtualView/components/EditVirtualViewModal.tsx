@@ -79,14 +79,15 @@ export const EditVirtualViewModal: FC<Props> = ({
             <ConditionalVisibility isVisible={modalStep === 'unsavedChanges'}>
                 <Stack>
                     <Text fz="sm">
-                        Your changes will be lost. Save them before continuing.
+                        Are you sure you want to leave this page? Changes you've
+                        made to your query will not be saved.
                     </Text>
                     <Group position="right">
                         <Button variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
                         <Button
-                            color="orange"
+                            color="red"
                             onClick={() => {
                                 clearQuery();
 
