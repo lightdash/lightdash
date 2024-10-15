@@ -19,6 +19,7 @@ import {
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
+    SemanticLayerType,
     SemanticLayerView,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
@@ -48,6 +49,8 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
     environmentId?: string;
 
     maxQueryLimit: number;
+
+    type = SemanticLayerType.DBT;
 
     constructor({
         lightdashConfig,

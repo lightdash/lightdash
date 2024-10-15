@@ -21,6 +21,7 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type SemanticLayerType,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -214,13 +215,23 @@ type SqlExecutionProperties = {
     usingStreaming: boolean;
 };
 
+type SemanticViewerExecutionProperties = {
+    semanticViewerChartId?: string;
+    usingStreaming: boolean;
+    semanticLayer: SemanticLayerType;
+};
+
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
         context: QueryExecutionContext;
         organizationId: string;
         projectId: string;
-    } & (MetricQueryExecutionProperties | SqlExecutionProperties);
+    } & (
+        | MetricQueryExecutionProperties
+        | SqlExecutionProperties
+        | SemanticViewerExecutionProperties
+    );
 };
 
 type CreateOrganizationEvent = BaseTrack & {

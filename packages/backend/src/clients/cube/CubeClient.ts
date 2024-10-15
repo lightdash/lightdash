@@ -7,6 +7,7 @@ import {
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
+    SemanticLayerType,
 } from '@lightdash/common';
 import { mapKeys } from 'lodash';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -30,6 +31,8 @@ export default class CubeClient implements SemanticLayerClient {
     maxQueryLimit: number;
 
     maxPartialResultsLimit = 100;
+
+    type = SemanticLayerType.CUBE;
 
     constructor({ lightdashConfig, connectionCredentials }: CubeArgs) {
         this.maxQueryLimit = lightdashConfig.query.maxLimit;
