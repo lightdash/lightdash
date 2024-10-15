@@ -312,6 +312,7 @@ export default class App {
             'https://accounts.google.com',
             'https://vega.github.io',
             'https://cdn.jsdelivr.net/npm/monaco-editor@0.43.0/',
+            'https://*.lightdash.cloud',
             ...this.lightdashConfig.security.contentSecurityPolicy
                 .allowedDomains,
         ];
