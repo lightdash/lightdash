@@ -87,8 +87,7 @@ const XFieldAxisConfig = ({
     columns,
 }: {
     columns: VizColumn[];
-
-    field: PivotChartLayout['x'] | undefined;
+    field: ReturnType<typeof cartesianChartSelectors.getXAxisField> | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
 }) => {
