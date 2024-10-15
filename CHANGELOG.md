@@ -1,3 +1,10 @@
+## [0.1305.1](https://github.com/lightdash/lightdash/compare/0.1305.0...0.1305.1) (2024-10-15)
+
+
+### Bug Fixes
+
+* add lightdash.cloud to csp allowed domains ([#11947](https://github.com/lightdash/lightdash/issues/11947)) ([7ff2964](https://github.com/lightdash/lightdash/commit/7ff2964d07a10f55a2eba1e3799afc7b9fa7930d))
+
 # [0.1305.0](https://github.com/lightdash/lightdash/compare/0.1304.3...0.1305.0) (2024-10-15)
 
 
