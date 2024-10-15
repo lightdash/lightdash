@@ -6,6 +6,7 @@ import type {
     Organization,
     Project,
     QueryExecutionContext,
+    SemanticLayerType,
     SpaceSummary,
     VizChartConfig,
 } from '..';
@@ -124,6 +125,7 @@ export interface ApiSemanticLayerClientInfo {
 }
 
 export interface SemanticLayerClient {
+    type: SemanticLayerType;
     getClientInfo: () => SemanticLayerClientInfo;
     getViews: () => Promise<SemanticLayerView[]>;
     getFields: (
@@ -148,6 +150,7 @@ export type SemanticLayerQueryPayload = {
     userUuid: string;
     query: SemanticLayerQuery;
     context: QueryExecutionContext.SEMANTIC_VIEWER;
+    chartUuid?: string;
 };
 
 export const isSemanticLayerTimeDimension = (

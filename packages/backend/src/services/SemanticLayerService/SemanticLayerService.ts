@@ -245,6 +245,7 @@ export class SemanticLayerService extends BaseService {
         organizationUuid,
         query,
         context,
+        chartUuid,
     }: SemanticLayerQueryPayload): Promise<{
         fileUrl: string;
         columns: string[];
@@ -328,6 +329,8 @@ export class SemanticLayerService extends BaseService {
                 projectId: projectUuid,
                 context,
                 usingStreaming: true,
+                semanticLayer: client.type,
+                ...(chartUuid ? { semanticViewerChartId: chartUuid } : {}),
             },
         });
 
@@ -433,6 +436,7 @@ export class SemanticLayerService extends BaseService {
             organizationUuid: savedChart.organization.organizationUuid,
             query: savedChart.semanticLayerQuery,
             userUuid: user.userUuid,
+            chartUuid: savedChart.savedSemanticViewerChartUuid,
         });
 
         return {
