@@ -140,13 +140,24 @@ const TableItem: FC<TableItemProps> = memo(
                 >
                     <CopyButton value={`${quotedTable}`}>
                         {({ copied, copy }) => (
-                            <ActionIcon size={16} onClick={copy} bg="gray.1">
-                                <MantineIcon
-                                    icon={IconCopy}
-                                    color={copied ? 'green' : 'blue'}
+                            <Tooltip
+                                variant="xs"
+                                label={copied ? 'Copied to clipboard' : 'Copy'}
+                                withArrow
+                                position="right"
+                            >
+                                <ActionIcon
+                                    size={16}
                                     onClick={copy}
-                                />
-                            </ActionIcon>
+                                    bg="gray.1"
+                                >
+                                    <MantineIcon
+                                        icon={IconCopy}
+                                        color={copied ? 'green' : 'blue'}
+                                        onClick={copy}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
                         )}
                     </CopyButton>
                 </Box>
