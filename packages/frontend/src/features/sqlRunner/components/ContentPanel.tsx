@@ -48,7 +48,7 @@ import {
     selectChartFieldConfigByKind,
     selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
-import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
+import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';

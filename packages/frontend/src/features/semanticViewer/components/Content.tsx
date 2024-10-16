@@ -6,7 +6,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
-import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
+import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';

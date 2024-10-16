@@ -4,7 +4,7 @@ import { Provider } from 'react-redux';
 import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/commonChartActions';
-import getChartConfigAndOptions from '../components/DataViz/transformers/getChartConfigAndOptions';
+import { getChartConfigAndOptions } from '../components/DataViz/transformers/getChartConfigAndOptions';
 import * as SemanticViewer from '../features/semanticViewer';
 import {
     useSavedSemanticViewerChart,

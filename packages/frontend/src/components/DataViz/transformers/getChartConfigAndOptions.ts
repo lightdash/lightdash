@@ -11,7 +11,7 @@ import {
     type VizChartConfig,
 } from '@lightdash/common';
 
-const getChartConfigAndOptions = (
+export const getChartConfigAndOptions = (
     resultsRunner: IResultsRunner,
     chartType: ChartKind,
     currentVizConfig?: VizChartConfig,
@@ -36,7 +36,7 @@ const getChartConfigAndOptions = (
                 options: pieChartDataModel.getResultOptions(),
                 config: pieConfig,
                 errors: pieChartDataModel.getConfigErrors(
-                    pieConfig.fieldConfig,
+                    currentVizConfig?.fieldConfig,
                 ),
             } as const;
         case ChartKind.TABLE:
@@ -74,8 +74,9 @@ const getChartConfigAndOptions = (
                 type: chartType,
                 options: barChartModel.getChartOptions(),
                 config: barConfig,
-
-                errors: barChartModel.getConfigErrors(barConfig.fieldConfig),
+                errors: barChartModel.getConfigErrors(
+                    currentVizConfig?.fieldConfig,
+                ),
             } as const;
 
         case ChartKind.LINE:
@@ -98,11 +99,11 @@ const getChartConfigAndOptions = (
                 type: chartType,
                 options: lineChartModel.getChartOptions(),
                 config: lineConfig,
-                errors: lineChartModel.getConfigErrors(lineConfig.fieldConfig),
+                errors: lineChartModel.getConfigErrors(
+                    currentVizConfig?.fieldConfig,
+                ),
             } as const;
         default:
             throw new Error(`Not implemented for chart type: ${chartType}`);
     }
 };
-
-export default getChartConfigAndOptions;
