@@ -4,7 +4,7 @@ import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
-import { useUnmount } from 'react-use';
+import { useMount, useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -68,23 +68,25 @@ const SqlRunnerNew = ({
         }
     }, [dispatch, virtualViewState]);
 
-    useEffect(() => {
-        if (!projectUuid && params.projectUuid) {
-            dispatch(setProjectUuid(params.projectUuid));
+    useMount(() => {
+        const shouldFetch = !!isEditMode || !!virtualViewState;
+        const shouldOpenChartOnLoad = !!isEditMode;
+
+        if (shouldFetch) {
             dispatch(
                 setFetchResultsOnLoad({
-                    shouldFetch: !!isEditMode || !!virtualViewState,
-                    shouldOpenChartOnLoad: !virtualViewState && !!isEditMode,
+                    shouldFetch,
+                    shouldOpenChartOnLoad,
                 }),
             );
         }
-    }, [
-        dispatch,
-        params.projectUuid,
-        projectUuid,
-        isEditMode,
-        virtualViewState,
-    ]);
+    });
+
+    useEffect(() => {
+        if (!projectUuid && params.projectUuid) {
+            dispatch(setProjectUuid(params.projectUuid));
+        }
+    }, [dispatch, params.projectUuid, projectUuid]);
 
     // Use the SQL string from the location state if available
     useEffect(() => {
