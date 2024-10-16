@@ -16,9 +16,9 @@ export const postHogClient = lightdashConfig.posthog
 
               if (!response.ok) {
                   try {
-                      Logger.error('PostHog Error', response.json());
+                      Logger.error('PostHog Error', await response.json());
                   } catch (e) {
-                      Logger.error('PostHog Error', response.body);
+                      Logger.error('PostHog Error', await response.text());
                   }
               }
 
