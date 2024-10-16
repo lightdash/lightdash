@@ -10,8 +10,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { lazy, Suspense, useState, type FC } from 'react';
-import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
+import { lazy, Suspense, useState, useTransition, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
@@ -31,6 +30,7 @@ export const EditVirtualViewModal: FC<Props> = ({
     explore,
 }) => {
     const hasUnsavedChanges = !!useSearchParams('create_saved_chart_version');
+    const [isPending, startTransition] = useTransition();
 
     const [modalStep, setModalStep] = useState<
         'unsavedChanges' | 'editVirtualView' | undefined
@@ -76,7 +76,7 @@ export const EditVirtualViewModal: FC<Props> = ({
                 },
             })}
         >
-            <ConditionalVisibility isVisible={modalStep === 'unsavedChanges'}>
+            {modalStep === 'unsavedChanges' && (
                 <Stack>
                     <Text fz="sm">
                         Are you sure you want to leave this page? Changes you've
@@ -89,17 +89,19 @@ export const EditVirtualViewModal: FC<Props> = ({
                         <Button
                             color="red"
                             onClick={() => {
-                                clearQuery();
-
-                                setModalStep('editVirtualView');
+                                startTransition(() => {
+                                    clearQuery();
+                                    setModalStep('editVirtualView');
+                                });
                             }}
+                            loading={isPending}
                         >
                             Discard & continue
                         </Button>
                     </Group>
                 </Stack>
-            </ConditionalVisibility>
-            <ConditionalVisibility isVisible={modalStep === 'editVirtualView'}>
+            )}
+            {modalStep === 'editVirtualView' && (
                 <Suspense
                     fallback={
                         <Center h="95vh" w="95vw">
@@ -120,7 +122,7 @@ export const EditVirtualViewModal: FC<Props> = ({
                         }}
                     />
                 </Suspense>
-            </ConditionalVisibility>
+            )}
         </Modal>
     );
 };
