@@ -438,15 +438,9 @@ export class ProjectService extends BaseService {
             createProject,
         );
 
-        // Give admin user permissions to user who created this project even if he is an admin
-        // TODO do not do this if we are copying data from another project
-        if (user.email) {
-            await this.projectModel.createProjectAccess(
-                projectUuid,
-                user.email,
-                ProjectMemberRole.ADMIN,
-            );
-        }
+        // Do not give this user admin permissions on this new project,
+        // as it could be an interactive viewer creating a preview
+        // and we don't want to allow users to acces sql runner or leak admin data
 
         this.analytics.track({
             event: 'project.created',
@@ -471,18 +465,21 @@ export class ProjectService extends BaseService {
                 const projectSummary = await this.projectModel.getSummary(
                     data.upstreamProjectUuid,
                 );
-                // We only allow copying from projects if the user is an admin until we remove the `createProjectAccess` call above
                 if (
                     user.ability.cannot(
                         'create',
                         subject('Project', {
                             organizationUuid: projectSummary.organizationUuid,
                             projectUuid: data.upstreamProjectUuid,
+                            type: data.type,
                         }),
                     )
                 ) {
                     throw new ForbiddenError();
                 }
+                // TODO copy user permissions from upstream project
+                // if the user is a viewer in the org, but an editor in a project
+                // we want the user to also be an editor in the preview project
                 await this.copyContentOnPreview(
                     data.upstreamProjectUuid,
                     projectUuid,
@@ -3920,6 +3917,8 @@ export class ProjectService extends BaseService {
                     user.userUuid,
                     spaces.map((s) => s.uuid),
                 );
+                // TODO we might not need to filter allowed space content here,
+                // since the new project will have the same access as the original project
                 const allowedSpaces = spaces.filter((space) =>
                     hasViewAccessToSpace(
                         user,
