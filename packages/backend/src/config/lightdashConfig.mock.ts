@@ -148,5 +148,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     github: {
         appName: 'lightdash-app-dev',
+        redirectDomain: 'test',
     },
 };
