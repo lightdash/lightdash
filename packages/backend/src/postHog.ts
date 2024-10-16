@@ -11,19 +11,6 @@ const FLAG_CHECK_TIMEOUT = process.env.POSTHOG_CHECK_TIMEOUT
 export const postHogClient = lightdashConfig.posthog
     ? new PostHog(lightdashConfig.posthog.projectApiKey, {
           host: lightdashConfig.posthog.beApiHost,
-          fetch: async (url, options) => {
-              const response = await fetch(url, options);
-
-              if (!response.ok) {
-                  try {
-                      Logger.error('PostHog Error', await response.json());
-                  } catch (e) {
-                      Logger.error('PostHog Error', await response.text());
-                  }
-              }
-
-              return response;
-          },
       })
     : undefined;
 
