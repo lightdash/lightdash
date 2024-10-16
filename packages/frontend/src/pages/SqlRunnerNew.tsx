@@ -59,18 +59,10 @@ const SqlRunnerNew = ({
         dispatch(resetChartState());
     });
 
-    useEffect(() => {
-        if (virtualViewState) {
-            // remove wrapping parenthesis if they exist
-            const sql = virtualViewState.sql.replace(/^[()]+|[()]+$/g, '');
-            dispatch(setSql(sql));
-            dispatch(setMode('virtualView'));
-        }
-    }, [dispatch, virtualViewState]);
-
     useMount(() => {
         const shouldFetch = !!isEditMode || !!virtualViewState;
-        const shouldOpenChartOnLoad = !!isEditMode;
+        // If we are editing a virtual view, we don't want to open the chart on load
+        const shouldOpenChartOnLoad = !!isEditMode && !virtualViewState;
 
         if (shouldFetch) {
             dispatch(
@@ -79,6 +71,12 @@ const SqlRunnerNew = ({
                     shouldOpenChartOnLoad,
                 }),
             );
+        }
+        if (virtualViewState) {
+            // remove wrapping parenthesis if they exist
+            const sql = virtualViewState.sql.replace(/^[()]+|[()]+$/g, '');
+            dispatch(setSql(sql));
+            dispatch(setMode('virtualView'));
         }
     });
 
