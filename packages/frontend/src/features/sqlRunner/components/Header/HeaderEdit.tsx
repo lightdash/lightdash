@@ -246,6 +246,7 @@ export const HeaderEdit: FC = () => {
                 opened={isUpdateModalOpen}
                 projectUuid={savedSqlChart.project.projectUuid}
                 savedSqlUuid={savedSqlChart.savedSqlUuid}
+                slug={savedSqlChart.slug}
                 onClose={() => onCloseUpdateModal()}
                 onSuccess={() => onCloseUpdateModal()}
             />
