@@ -37,6 +37,9 @@ export async function isFeatureFlagEnabled(
 ): Promise<boolean> {
     /** If we don't have a PostHog client instance, we return false for all checks */
     if (!postHogClient) {
+        Logger.warn(
+            'PostHog: client not found, check PostHog related environment variables',
+        );
         return false;
     }
 
