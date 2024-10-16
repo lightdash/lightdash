@@ -271,6 +271,7 @@ export type LightdashConfig = {
     logging: LoggingConfig;
     github: {
         appName: string;
+        redirectDomain: string;
     };
 };
 
@@ -785,6 +786,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         github: {
             appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',
+            redirectDomain:
+                process.env.GITHUB_REDIRECT_DOMAIN ||
+                siteUrl.split('.')[0].split('//')[1],
         },
     };
 };

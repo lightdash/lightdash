@@ -47,21 +47,23 @@ export class GithubInstallController extends BaseController {
     async installGithubAppForOrganization(
         @Request() req: express.Request,
     ): Promise<void> {
-        const redirectUrl = new URL(
+        const returnToUrl = new URL(
             '/generalSettings/integrations',
             lightdashConfig.siteUrl,
         );
+        const subdomain = lightdashConfig.github.redirectDomain;
 
         const githubAppName = lightdashConfig.github.appName;
 
-        const state = req.user!.userUuid; // todo: encrypt this?
         req.session.oauth = {};
-        req.session.oauth.returnTo = redirectUrl.href;
-        req.session.oauth.state = state;
+        req.session.oauth.returnTo = returnToUrl.href;
+        req.session.oauth.state = subdomain;
+        req.session.oauth.inviteCode = req.user!.userUuid;
+
         this.setStatus(302);
         this.setHeader(
             'Location',
-            `https://github.com/apps/${githubAppName}/installations/new?state=${state}`,
+            `https://github.com/apps/${githubAppName}/installations/new?state=${subdomain}`,
         );
     }
 
@@ -91,6 +93,12 @@ export class GithubInstallController extends BaseController {
             // User attempted to setup the app, didn't have permission in GitHub and sent a request to the admins
             // We can't do anything at this point
             this.setStatus(200);
+        }
+
+        const userUuid = req.session.oauth.inviteCode;
+        if (!userUuid) {
+            this.setStatus(400);
+            throw new Error('User uuid not provided');
         }
 
         if (!installation_id) {
@@ -124,7 +132,7 @@ export class GithubInstallController extends BaseController {
             await this.services
                 .getGithubAppService()
                 .upsertInstallation(
-                    state,
+                    userUuid,
                     installation_id,
                     token,
                     refreshToken,
