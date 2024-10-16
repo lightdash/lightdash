@@ -14,6 +14,11 @@ export const postHogClient = lightdashConfig.posthog
       })
     : undefined;
 
+postHogClient?.on('error', (err) => {
+    // Logging the error for debugging purposes
+    Logger.error('PostHog Error', err);
+});
+
 /**
  * Convenience method to check if a feature flag is enabled for a given user.
  *
