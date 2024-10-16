@@ -50,6 +50,7 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                         <TableFieldIcon fieldType={fieldType} />
                                     )
                                 }
+                                readOnly={!columnsConfig[reference].visible}
                                 rightSection={
                                     <ActionIcon
                                         onClick={() =>
@@ -80,6 +81,22 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                             label: e.target.value,
                                         }),
                                     );
+                                }}
+                                styles={{
+                                    input: {
+                                        backgroundColor: !columnsConfig[
+                                            reference
+                                        ].visible
+                                            ? '#f1f1f1'
+                                            : '',
+                                        cursor: !columnsConfig[reference]
+                                            .visible
+                                            ? 'not-allowed'
+                                            : 'text',
+                                    },
+                                    rightSection: {
+                                        pointerEvents: 'auto',
+                                    },
                                 }}
                             />
                         );
