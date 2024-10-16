@@ -2,12 +2,11 @@ import {
     DimensionType,
     SortByDirection,
     type ChartKind,
-    type VizChartLayout,
+    type PivotChartLayout,
     type VizColumn,
     type VizConfigErrors,
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
-    type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { ActionIcon, Box, Select, Stack } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
@@ -25,14 +24,16 @@ import { cartesianChartSelectors } from '../store/selectors';
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 const YFieldsAxisConfig: FC<{
-    field: VizChartLayout['y'][number];
-    yLayoutOptions: VizValuesLayoutOptions[];
+    field: PivotChartLayout['y'][number];
+    yLayoutOptions: VizIndexLayoutOptions[];
     isSingle: boolean;
     index: number;
     actions: CartesianChartActionsType;
     columns: VizColumn[];
     error:
-        | NonNullable<VizConfigErrors['valuesFieldError']>['references'][number]
+        | NonNullable<
+              VizConfigErrors['customMetricFieldError']
+          >['references'][number]
         | undefined;
 }> = ({ field, yLayoutOptions, isSingle, index, actions, columns, error }) => {
     const dispatch = useVizDispatch();
@@ -116,7 +117,7 @@ const XFieldAxisConfig = ({
     error,
 }: {
     columns: VizColumn[];
-    field: VizChartLayout['x'] | undefined;
+    field: ReturnType<typeof cartesianChartSelectors.getXAxisField> | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
     actions: CartesianChartActionsType;
     error: VizConfigErrors['indexFieldError'];
@@ -165,11 +166,15 @@ const XFieldAxisConfig = ({
                                 label: 'Descending',
                             },
                         ]}
+                        value={field.sortBy?.direction ?? null}
                         onChange={(direction: SortByDirection) => {
+                            if (!field.reference) {
+                                return;
+                            }
                             dispatch(
                                 actions.setSortBy([
                                     {
-                                        reference: field?.reference,
+                                        reference: field.reference,
                                         direction,
                                     },
                                 ]),
@@ -259,6 +264,7 @@ export const CartesianChartFieldConfiguration = ({
             selectedChartType,
         ),
     );
+
     const xAxisField = useVizSelector((state) =>
         cartesianChartSelectors.getXAxisField(state, selectedChartType),
     );
@@ -306,13 +312,15 @@ export const CartesianChartFieldConfiguration = ({
                             <YFieldsAxisConfig
                                 key={field.reference + index}
                                 field={field}
-                                yLayoutOptions={yLayoutOptions}
+                                yLayoutOptions={
+                                    yLayoutOptions.customAggregations
+                                }
                                 isSingle={yAxisFields.length === 1}
                                 index={index}
                                 actions={actions}
                                 columns={columns}
-                                error={errors?.valuesFieldError?.references.find(
-                                    (reference) =>
+                                error={errors?.customMetricFieldError?.references.find(
+                                    (reference: string) =>
                                         reference === field.reference,
                                 )}
                             />

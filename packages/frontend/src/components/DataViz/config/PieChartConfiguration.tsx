@@ -1,5 +1,6 @@
 import { DimensionType, type VizColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
+import { useMemo } from 'react';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
 import { useVizDispatch, useVizSelector } from '../store';
@@ -18,21 +19,28 @@ export const PieChartConfiguration = ({
     const dispatch = useVizDispatch();
 
     const groupField = useVizSelector(
-        (state) => state.pieChartConfig.config?.fieldConfig?.x?.reference,
+        (state) => state.pieChartConfig.fieldConfig?.x?.reference,
     );
     const groupFieldOptions = useVizSelector(
         (state) => state.pieChartConfig.options.groupFieldOptions,
     );
 
     const aggregateField = useVizSelector(
-        (state) => state.pieChartConfig.config?.fieldConfig?.y[0],
+        (state) => state.pieChartConfig.fieldConfig?.y[0],
     );
 
+    // NOTE that this form is only used on semantic viewer, so uses customMetricFieldOptions
     const aggregateFieldOptions = useVizSelector(
-        (state) => state.pieChartConfig.options.metricFieldOptions,
+        (state) => state.pieChartConfig.options.customMetricFieldOptions,
     );
 
     const errors = useVizSelector((state) => state.pieChartConfig.errors);
+
+    const errorMessage = useMemo(() => {
+        return errors?.groupByFieldError?.references
+            ? `Column "${errors?.groupByFieldError?.references[0]}" not in SQL query`
+            : undefined;
+    }, [errors?.groupByFieldError?.references]);
 
     return (
         <Stack spacing="sm" mb="lg">
@@ -80,11 +88,7 @@ export const PieChartConfiguration = ({
                         label: y.reference,
                     }))}
                     value={aggregateField?.reference}
-                    error={
-                        errors?.valuesFieldError?.references
-                            ? `Column "${errors?.valuesFieldError?.references[0]}" not in SQL query`
-                            : undefined
-                    }
+                    error={errorMessage}
                     placeholder="Select Y axis"
                     onChange={(value) => {
                         if (!value) return;

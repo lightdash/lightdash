@@ -1,32 +1,20 @@
 import { ChartKind, SEED_PROJECT } from '@lightdash/common';
 
-// TODO: Add more schemas to the list depending on the warehouse
-const generateSchemaString = (baseUrl: string): string => {
-    try {
-        const url = new URL(baseUrl);
-        const { host } = url;
-        if (host === 'localhost') {
-            return 'postgres';
-        }
-        const prMatch = host.match(/^lightdash-pr-(\d+)\.onrender\.com$/);
-        if (prMatch) {
-            const prNumber = prMatch[1];
-            return `jaffle_db_pg_13_pr_${prNumber}`;
-        }
-    } catch (e) {
-        // Handle invalid URL
-        // eslint-disable-next-line no-console
-        console.error('Invalid URL:', e);
-    }
-    return 'postgres'; // Default to 'postgres' if no match
-};
-
-const schema = generateSchemaString(Cypress.config('baseUrl') as string);
-
 describe('SQL Runner (new)', () => {
+    let schema: string;
+
     beforeEach(() => {
         cy.login();
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sql-runner`);
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/sql-runner`).then(
+            () => {
+                cy.request(
+                    `/api/v1/projects/${SEED_PROJECT.project_uuid}/sqlRunner/tables`,
+                ).then((response) => {
+                    // eslint-disable-next-line prefer-destructuring
+                    schema = Object.keys(response.body.results)[0];
+                });
+            },
+        );
     });
 
     it('Should verify that the query is autocompleted, run, and the results are displayed', () => {
@@ -227,6 +215,7 @@ describe('SQL Runner (new)', () => {
 
         // Verify that the chart is in edit mode and make new changes and fix errors
         cy.contains('Edit chart').click();
+
         cy.get(
             `div[data-testid="chart-view-${ChartKind.VERTICAL_BAR}"]`,
         ).should('exist');

@@ -3,7 +3,7 @@ import {
     ChartKind,
     FieldType,
     SemanticLayerFieldType,
-    SemanticLayerSortByDirection,
+    SortByDirection,
     type RawResultRow,
     type SavedSemanticViewerChart,
     type SavedSemanticViewerChartResults,
@@ -123,6 +123,8 @@ export interface SemanticViewerState {
 
     results: RawResultRow[];
     columns: VizColumn[];
+    columnNames: string[];
+
     fields: SemanticLayerField[];
 
     savedSemanticViewerChartUuid: string | undefined;
@@ -159,6 +161,7 @@ const initialState: SemanticViewerState = {
 
     results: [],
     columns: [],
+    columnNames: [],
     fields: [],
 
     isFiltersModalOpen: false,
@@ -199,9 +202,9 @@ export const semanticViewerSlice = createSlice({
 
                 if (chartData.results) {
                     state.results = chartData.results.results;
-                    state.columns = chartData.results.columns.map((column) => ({
-                        reference: column,
-                    }));
+                    state.columnNames = chartData.results.columns.map(
+                        (column) => column,
+                    );
                 }
             }
 
@@ -217,10 +220,12 @@ export const semanticViewerSlice = createSlice({
             state,
             action: PayloadAction<{
                 results: RawResultRow[];
+                columnNames: string[];
                 columns: VizColumn[];
             }>,
         ) => {
             state.results = action.payload.results || [];
+            state.columnNames = action.payload.columnNames;
             state.columns = action.payload.columns;
         },
 
@@ -234,7 +239,7 @@ export const semanticViewerSlice = createSlice({
             const fieldDefaultSortBy = {
                 name: action.payload.name,
                 kind: action.payload.kind,
-                direction: SemanticLayerSortByDirection.DESC,
+                direction: SortByDirection.DESC,
             };
 
             // If no sorts, add this field as the sort
@@ -364,14 +369,14 @@ export const semanticViewerSlice = createSlice({
                     {
                         name,
                         kind,
-                        direction: SemanticLayerSortByDirection.DESC,
+                        direction: SortByDirection.DESC,
                     },
                 ];
             } else if (
                 existing &&
-                existing.direction === SemanticLayerSortByDirection.DESC
+                existing.direction === SortByDirection.DESC
             ) {
-                existing.direction = SemanticLayerSortByDirection.ASC;
+                existing.direction = SortByDirection.ASC;
             } else {
                 state.semanticLayerQuery.sortBy = [];
             }

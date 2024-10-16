@@ -5,11 +5,12 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
-import { selectChartConfigByKind } from '../../../components/DataViz/store/selectors';
-import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
+import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
+import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSemanticLayerQueryResults } from '../api/hooks';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
@@ -32,6 +33,7 @@ const Content: FC = () => {
     const { showToastError } = useToaster();
 
     const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
+    const org = useOrganization();
     const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
 
@@ -39,7 +41,7 @@ const Content: FC = () => {
         semanticLayerView,
         results,
         activeEditorTab,
-        columns,
+        columnNames,
         fields,
         activeChartKind,
     } = useAppSelector((state) => state.semanticViewer);
@@ -48,7 +50,7 @@ const Content: FC = () => {
         useState(false);
 
     const currentVizConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, activeChartKind),
+        selectCompleteConfigByKind(state, activeChartKind),
     );
 
     const {
@@ -81,20 +83,27 @@ const Content: FC = () => {
     useEffect(() => {
         if (!resultsColumns || !resultsData) return;
 
+        // TODO: this shouldn't be calculated here, we should be getting this
+        // information fro the API
         const vizColumns =
-            SemanticViewerResultsRunner.convertColumnsToVizColumns(
+            SemanticViewerResultsRunnerFrontend.convertColumnsToVizColumns(
                 fields,
                 resultsColumns,
             );
 
-        dispatch(setResults({ results: resultsData, columns: vizColumns }));
+        dispatch(
+            setResults({
+                results: resultsData,
+                columnNames: resultsColumns,
+                columns: vizColumns,
+            }),
+        );
     }, [dispatch, resultsData, resultsColumns, fields]);
 
     useEffect(() => {
-        const resultsRunner = new SemanticViewerResultsRunner({
-            query: semanticQuery,
+        const resultsRunner = new SemanticViewerResultsRunnerFrontend({
             rows: results,
-            columns,
+            columnNames,
             projectUuid,
             fields,
         });
@@ -108,13 +117,14 @@ const Content: FC = () => {
         dispatch(setChartOptionsAndConfig(chartResultOptions));
     }, [
         activeChartKind,
-        columns,
         currentVizConfig,
         dispatch,
         projectUuid,
         results,
         semanticQuery,
         fields,
+        columnNames,
+        org.data,
     ]);
 
     const handleRunSemanticLayerQuery = useCallback(async () => {

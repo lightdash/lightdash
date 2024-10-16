@@ -6,16 +6,14 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { IconAlertCircle, IconFilePencil } from '@tabler/icons-react';
-import { memo, useMemo, type FC } from 'react';
+import { memo, type FC } from 'react';
 import { useParams } from 'react-router-dom';
-import { useDashboardSqlChart } from '../../features/sqlRunner/hooks/useDashboardSqlChart';
-import { SqlRunnerResultsRunner } from '../../features/sqlRunner/runners/SqlRunnerResultsRunner';
+import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useSearchParams from '../../hooks/useSearchParams';
 import { useApp } from '../../providers/AppProvider';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { useChartViz } from '../DataViz/hooks/useChartViz';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import TileBase from './TileBase';
@@ -57,19 +55,12 @@ const DashboardOptions = memo(
 
 const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const { user } = useApp();
-
     const { projectUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
     const context = useSearchParams('context') || undefined;
-    const savedSqlUuid = tile.properties.savedSqlUuid;
-    const { data, isLoading, error } = useDashboardSqlChart({
-        projectUuid,
-        savedSqlUuid,
-        context,
-    });
-
+    const savedSqlUuid = tile.properties.savedSqlUuid || undefined;
     const canManageSqlRunner = user.data?.ability?.can(
         'manage',
         subject('SqlRunner', {
@@ -78,81 +69,84 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         }),
     );
 
-    const sqlRunnerChartData = useMemo(
-        () => ({
-            results: data?.resultsAndColumns.results ?? [],
-            columns: data?.resultsAndColumns.columns ?? [],
-        }),
-        [data],
-    );
-
-    const resultsRunner = useMemo(
-        () =>
-            new SqlRunnerResultsRunner({
-                rows: sqlRunnerChartData.results,
-                columns: sqlRunnerChartData.columns,
-            }),
-        [sqlRunnerChartData],
-    );
-
-    const [chartVizQuery, chartSpec] = useChartViz({
+    const {
+        chartQuery: {
+            data: chartData,
+            isLoading: isChartLoading,
+            error: chartError,
+        },
+        chartResultsQuery: {
+            data: chartResultsData,
+            isLoading: isChartResultsLoading,
+            error: chartResultsError,
+            isFetching: isChartResultsFetching,
+        },
+    } = useSavedSqlChartResults({
         projectUuid,
-        resultsRunner,
-        config: data?.chart.config,
-        uuid: savedSqlUuid ?? undefined,
-        sql: data?.chart.sql,
-        slug: data?.chart.slug,
-        limit: data?.chart.limit,
-        additionalQueryKey: [data?.chart.slug, data?.chart.sql, savedSqlUuid],
+        savedSqlUuid,
         context,
     });
 
-    if (isLoading) {
+    // No chart available or savedSqlUuid is undefined - which means that the chart was deleted
+    if (chartData === undefined || !savedSqlUuid) {
         return (
             <TileBase
                 isEditMode={isEditMode}
                 chartName={tile.properties.chartName ?? ''}
                 tile={tile}
-                isLoading
+                isLoading={!!savedSqlUuid && isChartLoading}
                 title={tile.properties.title || tile.properties.chartName || ''}
                 {...rest}
-            />
-        );
-    }
-
-    if (error !== null || !data) {
-        return (
-            <TileBase
-                isEditMode={isEditMode}
-                chartName={tile.properties.chartName ?? ''}
-                tile={tile}
-                title={tile.properties.title || tile.properties.chartName || ''}
-                titleHref={`/projects/${projectUuid}/sql-runner/${error.slug}`}
-                {...rest}
-                extraMenuItems={
-                    canManageSqlRunner &&
-                    error.slug && (
-                        <DashboardOptions
-                            isEditMode={isEditMode}
-                            projectUuid={projectUuid}
-                            slug={error.slug}
-                        />
-                    )
-                }
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title={error?.error?.message || 'No data available'}
+                    title={chartError?.error?.message || 'Error fetching chart'}
                 />
             </TileBase>
         );
     }
 
+    // Chart data but no results
+    if (chartResultsData === undefined) {
+        return (
+            <TileBase
+                isEditMode={isEditMode}
+                chartName={tile.properties.chartName ?? ''}
+                tile={tile}
+                title={tile.properties.title || tile.properties.chartName || ''}
+                isLoading={isChartResultsLoading}
+                {...rest}
+                titleHref={`/projects/${projectUuid}/sql-runner/${chartData.slug}`}
+                extraMenuItems={
+                    canManageSqlRunner &&
+                    chartData.slug && (
+                        <DashboardOptions
+                            isEditMode={isEditMode}
+                            projectUuid={projectUuid}
+                            slug={chartData.slug}
+                        />
+                    )
+                }
+            >
+                {chartResultsError && (
+                    <SuboptimalState
+                        icon={IconAlertCircle}
+                        title={
+                            chartResultsError?.error?.message ||
+                            'No data available'
+                        }
+                    />
+                )}
+            </TileBase>
+        );
+    }
+
+    // Chart available & results available!
     return (
         <TileBase
             isEditMode={isEditMode}
             chartName={tile.properties.chartName ?? ''}
-            titleHref={`/projects/${projectUuid}/sql-runner/${data.chart.slug}`}
+            titleHref={`/projects/${projectUuid}/sql-runner/${chartData.slug}`}
             tile={tile}
             title={tile.properties.title || tile.properties.chartName || ''}
             {...rest}
@@ -161,40 +155,39 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                     <DashboardOptions
                         isEditMode={isEditMode}
                         projectUuid={projectUuid}
-                        slug={data.chart.slug}
+                        slug={chartData.slug}
                     />
                 )
             }
         >
-            {data.chart.config.type === ChartKind.TABLE &&
-                isVizTableConfig(data.chart.config) && (
+            {chartData.config.type === ChartKind.TABLE &&
+                isVizTableConfig(chartData.config) && (
                     // So that the Table tile isn't cropped by the overflow
                     <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
                         <Table
-                            resultsRunner={resultsRunner}
-                            columnsConfig={data.chart.config.columns}
+                            resultsRunner={chartResultsData.resultsRunner}
+                            columnsConfig={chartData.config.columns}
                             flexProps={{
                                 mah: '100%',
                             }}
                         />
                     </Box>
                 )}
-            {savedSqlUuid &&
-                (data.chart.config.type === ChartKind.VERTICAL_BAR ||
-                    data.chart.config.type === ChartKind.LINE ||
-                    data.chart.config.type === ChartKind.PIE) && (
-                    <ChartView
-                        config={data.chart.config}
-                        spec={chartSpec}
-                        isLoading={chartVizQuery.isFetching}
-                        error={chartVizQuery.error}
-                        style={{
-                            minHeight: 'inherit',
-                            height: '100%',
-                            width: '100%',
-                        }}
-                    />
-                )}
+            {(chartData.config.type === ChartKind.VERTICAL_BAR ||
+                chartData.config.type === ChartKind.LINE ||
+                chartData.config.type === ChartKind.PIE) && (
+                <ChartView
+                    config={chartData.config}
+                    spec={chartResultsData.chartSpec}
+                    isLoading={isChartResultsFetching}
+                    error={undefined}
+                    style={{
+                        minHeight: 'inherit',
+                        height: '100%',
+                        width: '100%',
+                    }}
+                />
+            )}
         </TileBase>
     );
 };

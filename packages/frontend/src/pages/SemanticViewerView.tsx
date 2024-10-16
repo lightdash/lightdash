@@ -1,4 +1,8 @@
-import { assertUnreachable, ChartKind } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ChartKind,
+    isVizTableConfig,
+} from '@lightdash/common';
 import {
     Box,
     Center,
@@ -14,10 +18,12 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useAsync } from 'react-use';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import { useChartViz } from '../components/DataViz/hooks/useChartViz';
+import getChartDataModel from '../components/DataViz/transformers/getChartDataModel';
+import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import {
@@ -26,7 +32,8 @@ import {
     useSemanticLayerViewFields,
 } from '../features/semanticViewer/api/hooks';
 import { HeaderView } from '../features/semanticViewer/components/Header/HeaderView';
-import { SemanticViewerResultsRunner } from '../features/semanticViewer/runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
+import { useOrganization } from '../hooks/organization/useOrganization';
 
 enum ViewerTabs {
     VIZ = 'viz',
@@ -34,6 +41,7 @@ enum ViewerTabs {
 }
 
 const SemanticViewerViewPage = () => {
+    const { data: organization } = useOrganization();
     const [activeViewerTab, setActiveViewerTab] = useState<ViewerTabs>(
         ViewerTabs.VIZ,
     );
@@ -63,6 +71,10 @@ const SemanticViewerViewPage = () => {
         { enabled: chartQuery.isSuccess },
     );
 
+    const savedSemanticLayerQuery = useMemo(() => {
+        return chartQuery.data?.semanticLayerQuery;
+    }, [chartQuery.data?.semanticLayerQuery]);
+
     const resultsRunner = useMemo(() => {
         if (
             !fieldsQuery.isSuccess ||
@@ -72,69 +84,63 @@ const SemanticViewerViewPage = () => {
             return;
         }
 
-        const vizColumns =
-            SemanticViewerResultsRunner.convertColumnsToVizColumns(
-                fieldsQuery.data,
-                chartResultsQuery.data.columns,
-            );
-
-        return new SemanticViewerResultsRunner({
+        return new SemanticViewerResultsRunnerFrontend({
             projectUuid,
             fields: fieldsQuery.data,
-            query: chartQuery.data.semanticLayerQuery,
             rows: chartResultsQuery.data.results,
-            columns: vizColumns,
+            columnNames: chartResultsQuery.data.columns,
         });
     }, [
         projectUuid,
         fieldsQuery.isSuccess,
         fieldsQuery.data,
         chartQuery.isSuccess,
-        chartQuery.data,
         chartResultsQuery.isSuccess,
         chartResultsQuery.data,
     ]);
 
-    const [chartVizQuery, chartSpec] = useChartViz({
-        projectUuid,
-        resultsRunner,
-        uuid: chartQuery.data?.savedSemanticViewerChartUuid,
-        config: chartQuery.data?.config,
-        slug: chartQuery.data?.slug,
-    });
+    const chartFieldConfig = useMemo(() => {
+        return isVizTableConfig(chartQuery.data?.config)
+            ? chartQuery.data?.config.columns
+            : chartQuery.data?.config.fieldConfig;
+    }, [chartQuery.data]);
 
-    const pivotResultsRunner = useMemo(() => {
-        if (
-            !chartQuery.isSuccess ||
-            !fieldsQuery.isSuccess ||
-            !chartVizQuery.isSuccess
-        ) {
-            return;
-        }
+    const vizDataModel = useMemo(() => {
+        if (!resultsRunner) return;
+        return getChartDataModel(
+            resultsRunner,
+            chartFieldConfig,
+            chartQuery.data?.config.type ?? ChartKind.TABLE,
+        );
+    }, [resultsRunner, chartFieldConfig, chartQuery.data?.config.type]);
 
-        if (chartQuery.data.config.type === ChartKind.TABLE) return;
+    const { loading: chartLoading, error: chartError } = useAsync(
+        async () =>
+            vizDataModel?.getPivotedChartData({
+                sortBy: savedSemanticLayerQuery?.sortBy ?? [],
+                filters: savedSemanticLayerQuery?.filters ?? [],
+                limit: savedSemanticLayerQuery?.limit ?? undefined,
+                sql: savedSemanticLayerQuery?.sql ?? undefined,
+            }),
+        [vizDataModel, savedSemanticLayerQuery],
+    );
 
-        return new SemanticViewerResultsRunner({
-            projectUuid,
-            query: chartQuery.data.semanticLayerQuery,
-            rows: chartVizQuery.data?.results ?? [],
-            columns: chartVizQuery.data?.columns ?? [],
-            fields: fieldsQuery.data,
-        });
-    }, [
-        projectUuid,
-        fieldsQuery.isSuccess,
-        fieldsQuery.data,
-        chartQuery.isSuccess,
-        chartQuery.data,
-        chartVizQuery.isSuccess,
-        chartVizQuery.data,
-    ]);
+    const { spec, tableData } = useMemo(
+        () => ({
+            spec: vizDataModel?.getSpec(
+                chartQuery.data?.config.display,
+                organization?.chartColors,
+            ),
+            tableData: vizDataModel?.getPivotedTableData(),
+        }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [vizDataModel, chartQuery.data?.config.display, chartLoading],
+    );
 
     const hasError =
         chartQuery.isError ||
         fieldsQuery.isError ||
-        chartVizQuery.isError ||
+        chartError ||
         chartResultsQuery.isError;
     const isLoading = fieldsQuery.isLoading || chartQuery.isLoading;
     const chartType = chartQuery.data?.config.type;
@@ -159,7 +165,7 @@ const SemanticViewerViewPage = () => {
                     title={
                         chartQuery.error?.error?.message ??
                         fieldsQuery.error?.error?.message ??
-                        chartVizQuery.error?.message ??
+                        chartError?.message ??
                         chartResultsQuery.error?.error?.message
                     }
                 />
@@ -221,9 +227,9 @@ const SemanticViewerViewPage = () => {
                             <Box h="100%" w="100%" mih="inherit" pos="relative">
                                 <ChartView
                                     config={chartQuery.data.config}
-                                    spec={chartSpec}
-                                    isLoading={chartVizQuery.isLoading}
-                                    error={chartVizQuery.error}
+                                    spec={spec}
+                                    isLoading={chartLoading}
+                                    error={chartError}
                                     style={{
                                         minHeight: 'inherit',
                                         height: 'inherit',
@@ -254,30 +260,11 @@ const SemanticViewerViewPage = () => {
                             )
                         )
                     ) : activeViewerTab === ViewerTabs.RESULTS ? (
-                        pivotResultsRunner ? (
-                            <Table
-                                resultsRunner={pivotResultsRunner}
-                                columnsConfig={Object.fromEntries(
-                                    chartVizQuery.data?.columns.map((field) => [
-                                        field.reference,
-                                        {
-                                            visible: true,
-                                            reference: field.reference,
-                                            label: field.reference,
-                                            frozen: false,
-                                            // TODO: add aggregation
-                                            // aggregation?: VizAggregationOptions;
-                                        },
-                                    ]) ?? [],
-                                )}
-                            />
-                        ) : null
-                    ) : (
-                        assertUnreachable(
-                            activeViewerTab,
-                            `Unknown tab ${activeViewerTab}`,
-                        )
-                    )}
+                        <ChartDataTable
+                            columnNames={tableData?.columns ?? []}
+                            rows={tableData?.rows ?? []}
+                        />
+                    ) : null}
                 </>
             ) : null}
         </Page>

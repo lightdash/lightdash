@@ -1,4 +1,5 @@
 import type { ApiError } from '@lightdash/common';
+import { TableDataModel } from '@lightdash/common';
 import { Box, Tabs, Text } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -6,7 +7,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { Table } from '../../../components/DataViz/visualizations/Table';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
 import { useAppSelector } from '../store/hooks';
 import {
     selectResultsTableVizConfig,
@@ -29,9 +30,9 @@ const ContentResults: FC<ContentResultsProps> = ({
     resultsError,
 }) => {
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
-    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
+
     const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
-    const { results, columns, fields } = useAppSelector(
+    const { results, columnNames, fields } = useAppSelector(
         (state) => state.semanticViewer,
     );
 
@@ -45,25 +46,25 @@ const ContentResults: FC<ContentResultsProps> = ({
         setOpenPanel(undefined);
     };
 
+    const semanticLayerQuery = useAppSelector((state) =>
+        selectSemanticLayerQuery(state),
+    );
+
     const resultsRunner = useMemo(() => {
-        return new SemanticViewerResultsRunner({
-            query: semanticQuery,
+        return new SemanticViewerResultsRunnerFrontend({
             rows: results ?? [],
-            columns: columns ?? [],
-            projectUuid: semanticViewerInfo.projectUuid,
+            columnNames: columnNames ?? [],
             fields,
+            projectUuid: semanticViewerInfo.projectUuid,
         });
-    }, [
-        semanticQuery,
-        results,
-        columns,
-        semanticViewerInfo.projectUuid,
-        fields,
-    ]);
+    }, [results, columnNames, semanticViewerInfo.projectUuid, fields]);
 
     const thSortConfig = useMemo(() => {
-        return resultsRunner.getTableHeaderSortConfig();
-    }, [resultsRunner]);
+        return TableDataModel.getTableHeaderSortConfig(
+            columnNames,
+            semanticLayerQuery,
+        );
+    }, [columnNames, semanticLayerQuery]);
 
     return (
         <>

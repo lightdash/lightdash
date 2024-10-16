@@ -4,7 +4,7 @@ import { Provider } from 'react-redux';
 import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
 import Page from '../components/common/Page/Page';
 import { setChartOptionsAndConfig } from '../components/DataViz/store/actions/commonChartActions';
-import getChartConfigAndOptions from '../components/DataViz/transformers/getChartConfigAndOptions';
+import { getChartConfigAndOptions } from '../components/DataViz/transformers/getChartConfigAndOptions';
 import * as SemanticViewer from '../features/semanticViewer';
 import {
     useSavedSemanticViewerChart,
@@ -12,7 +12,7 @@ import {
     useSemanticLayerInfo,
     useSemanticLayerViewFields,
 } from '../features/semanticViewer/api/hooks';
-import { SemanticViewerResultsRunner } from '../features/semanticViewer/runners/SemanticViewerResultsRunner';
+import { SemanticViewerResultsRunnerFrontend } from '../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
 import { store } from '../features/semanticViewer/store';
 import {
     useAppDispatch,
@@ -75,27 +75,19 @@ const SemanticViewerEditorPageWithStore = () => {
             return;
         }
 
-        const vizColumns =
-            SemanticViewerResultsRunner.convertColumnsToVizColumns(
-                fieldsQuery.data,
-                chartResultsQuery.data.columns,
-            );
-
-        return new SemanticViewerResultsRunner({
+        return new SemanticViewerResultsRunnerFrontend({
             projectUuid,
             fields: fieldsQuery.data,
-            query: chartQuery.data.semanticLayerQuery,
             rows: chartResultsQuery.data.results,
-            columns: vizColumns,
+            columnNames: chartResultsQuery.data.columns,
         });
     }, [
-        chartQuery.data,
-        chartQuery.isSuccess,
-        chartResultsQuery.data,
-        chartResultsQuery.isSuccess,
-        fieldsQuery.data,
-        fieldsQuery.isSuccess,
         projectUuid,
+        fieldsQuery.isSuccess,
+        fieldsQuery.data,
+        chartQuery.isSuccess,
+        chartResultsQuery.isSuccess,
+        chartResultsQuery.data,
     ]);
 
     const savedChartSpaceUserAccess =

@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    isVizCartesianChartConfig,
     isVizTableConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -37,27 +38,38 @@ import {
     PanelResizeHandle,
     type ImperativePanelHandle,
 } from 'react-resizable-panels';
+import { useAsync } from 'react-use';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useChartViz } from '../../../components/DataViz/hooks/useChartViz';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import {
     cartesianChartSelectors,
-    selectChartConfigByKind,
+    selectChartDisplayByKind,
+    selectChartFieldConfigByKind,
+    selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
-import getChartConfigAndOptions from '../../../components/DataViz/transformers/getChartConfigAndOptions';
+import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
+import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
-import {
-    useSqlQueryRun,
-    type ResultsAndColumns,
-} from '../hooks/useSqlQueryRun';
-import { SqlRunnerResultsRunner } from '../runners/SqlRunnerResultsRunner';
+import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
+    selectActiveChartType,
+    selectActiveEditorTab,
+    selectFetchResultsOnLoad,
+    selectLimit,
+    selectProjectUuid,
+    selectResultsTableConfig,
+    selectSavedSqlChart,
+    selectSql,
+    selectSqlQueryResults,
+    selectSqlRunnerResultsRunner,
     setActiveEditorTab,
     setSqlLimit,
     setSqlRunnerResults,
@@ -70,13 +82,27 @@ import { SqlQueryHistory } from './SqlQueryHistory';
 export const DEFAULT_SQL_LIMIT = 500;
 
 export const ContentPanel: FC = () => {
+    // State we need from redux
+    const savedSqlChart = useAppSelector(selectSavedSqlChart);
+    const fetchResultsOnLoad = useAppSelector(selectFetchResultsOnLoad);
+    const projectUuid = useAppSelector(selectProjectUuid);
+    const sql = useAppSelector(selectSql);
+    const selectedChartType = useAppSelector(selectActiveChartType);
+    const activeEditorTab = useAppSelector(selectActiveEditorTab);
+    const limit = useAppSelector(selectLimit);
+    const resultsTableConfig = useAppSelector(selectResultsTableConfig);
+
+    // So we can dispatch to redux
     const dispatch = useAppDispatch();
+
+    // Data we need from hooks
+    const { data: organization } = useOrganization();
     const { showToastError } = useToaster();
+
+    // State tracked by this component
     const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
     const resultsPanelRef = useRef<ImperativePanelHandle>(null);
-    const savedSqlChart = useAppSelector(
-        (state) => state.sqlRunner.savedSqlChart,
-    );
+
     // state for helping highlight errors in the editor
     const [hightlightError, setHightlightError] = useState<
         MonacoHighlightChar | undefined
@@ -90,32 +116,31 @@ export const ContentPanel: FC = () => {
         height: inputSectionHeight,
     } = useElementSize();
 
-    const fetchResultsOnLoad = useAppSelector(
-        (state) => state.sqlRunner.fetchResultsOnLoad,
-    );
-    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const sql = useAppSelector((state) => state.sqlRunner.sql);
-    const selectedChartType = useAppSelector(
-        (state) => state.sqlRunner.selectedChartType,
-    );
-    const activeEditorTab = useAppSelector(
-        (state) => state.sqlRunner.activeEditorTab,
-    );
-    const limit = useAppSelector((state) => state.sqlRunner.limit);
-    const resultsTableConfig = useAppSelector(
-        (state) => state.sqlRunner.resultsTableConfig,
+    // currently editing chart config
+    // TODO: these can be simplified by having a shared active viz chart used by slices
+
+    // only needed for viz data model
+    const currentFieldConfig = useAppSelector((state) =>
+        selectChartFieldConfigByKind(state, selectedChartType),
     );
 
-    // currently editing chart config
+    // only needed for chart spec - also a hook is used to sync it (can remove I think)
+    const currentDisplay = useAppSelector((state) =>
+        selectChartDisplayByKind(state, selectedChartType),
+    );
+
+    // used in many places to check if it's a table type
+    // used to update the chart options in redux, should these just be selectors??
+    // why do we have to remember to update them when the query results change?
     const currentVizConfig = useAppSelector((state) =>
-        selectChartConfigByKind(state, selectedChartType),
+        selectCompleteConfigByKind(state, selectedChartType),
     );
 
     const hideResultsPanel = useMemo(
         () =>
             activeEditorTab === EditorTabs.VISUALIZATION &&
-            isVizTableConfig(currentVizConfig),
-        [activeEditorTab, currentVizConfig],
+            selectedChartType === ChartKind.TABLE,
+        [activeEditorTab, selectedChartType],
     );
 
     const { mutateAsync: runSqlQuery, isLoading } = useSqlQueryRun(
@@ -149,7 +174,7 @@ export const ContentPanel: FC = () => {
     // React Query Mutation does not have a way to keep previous results
     // like the React Query useQuery hook does. So we need to store the results
     // in the state to keep them around when the query is re-run.
-    const [queryResults, setQueryResults] = useState<ResultsAndColumns>();
+    const queryResults = useAppSelector(selectSqlQueryResults);
 
     const handleRunQuery = useCallback(
         async (sqlToUse: string) => {
@@ -159,10 +184,12 @@ export const ContentPanel: FC = () => {
                 limit: DEFAULT_SQL_LIMIT,
             });
 
-            setQueryResults(newQueryResults);
+            if (newQueryResults) {
+                dispatch(setSqlRunnerResults(newQueryResults));
+            }
             notifications.clean();
         },
-        [runSqlQuery, setQueryResults],
+        [runSqlQuery, dispatch],
     );
 
     // Run query on cmd + enter
@@ -170,53 +197,25 @@ export const ContentPanel: FC = () => {
         ['mod + enter', () => handleRunQuery, { preventDefault: true }],
     ]);
 
-    useEffect(() => {
-        if (fetchResultsOnLoad && !queryResults) {
-            void handleRunQuery(sql);
-        } else if (fetchResultsOnLoad && queryResults && mode === 'default') {
-            dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
-        }
-    }, [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch, sql, mode]);
-
-    const resultsRunner = useMemo(() => {
-        if (!queryResults) return;
-
-        return new SqlRunnerResultsRunner({
-            rows: queryResults.results,
-            columns: queryResults.columns,
-        });
-    }, [queryResults]);
-
-    useEffect(() => {
-        if (queryResults && panelSizes[1] === 0) {
-            resultsPanelRef.current?.resize(50);
-            setPanelSizes([50, 50]);
-        }
-    }, [queryResults, panelSizes]);
-
-    useEffect(() => {
-        if (!queryResults || !resultsRunner || !selectedChartType) return;
-
-        dispatch(setSqlRunnerResults(queryResults));
-
-        const chartResultOptions = getChartConfigAndOptions(
-            resultsRunner,
-            selectedChartType,
-            currentVizConfig,
-        );
-
-        dispatch(setChartOptionsAndConfig(chartResultOptions));
-    }, [
-        resultsRunner,
-        dispatch,
-        queryResults,
-        selectedChartType,
-        currentVizConfig,
-    ]);
+    useEffect(
+        // When the user opens the sql runner and the query results are not yet loaded, run the query and then change to the visualization tab
+        function handleEditModeOnLoad() {
+            if (fetchResultsOnLoad && !queryResults) {
+                void handleRunQuery(sql);
+            } else if (
+                fetchResultsOnLoad &&
+                queryResults &&
+                mode === 'default'
+            ) {
+                dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
+            }
+        },
+        [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch, sql, mode],
+    );
 
     const activeConfigs = useAppSelector((state) => {
         const configsWithTable = state.sqlRunner.activeConfigs
-            .map((type) => selectChartConfigByKind(state, type))
+            .map((type) => selectCompleteConfigByKind(state, type))
             .filter(
                 (config): config is NonNullable<typeof config> =>
                     config !== undefined,
@@ -227,7 +226,7 @@ export const ContentPanel: FC = () => {
             (
                 c,
             ): c is Exclude<
-                NonNullable<ReturnType<typeof selectChartConfigByKind>>,
+                NonNullable<ReturnType<typeof selectCompleteConfigByKind>>,
                 VizTableConfig
             > => !isVizTableConfig(c),
         );
@@ -271,28 +270,95 @@ export const ContentPanel: FC = () => {
         [activeEditorTab],
     );
 
-    const [chartVizQuery, chartSpec] = useChartViz({
-        projectUuid,
+    const sortBy = useMemo(() => {
+        if (isVizCartesianChartConfig(currentVizConfig)) {
+            return currentVizConfig.fieldConfig?.sortBy;
+        }
+        return undefined;
+    }, [currentVizConfig]);
+
+    const resultsRunner = useAppSelector((state) =>
+        selectSqlRunnerResultsRunner(state, sortBy),
+    );
+
+    const vizDataModel = useMemo(() => {
+        return getChartDataModel(
+            resultsRunner,
+            currentFieldConfig,
+            selectedChartType ?? ChartKind.VERTICAL_BAR,
+        );
+    }, [currentFieldConfig, resultsRunner, selectedChartType]);
+
+    const {
+        loading: chartLoading,
+        error: chartError,
+        value: chartData,
+    } = useAsync(
+        async () =>
+            vizDataModel.getPivotedChartData({
+                limit,
+                sql,
+                sortBy: [],
+                filters: [],
+            }),
+        [vizDataModel],
+    );
+
+    const { chartSpec, tableData, chartFileUrl } = useMemo(() => {
+        if (!chartData)
+            return {
+                chartSpec: undefined,
+                tableData: undefined,
+                fileUrl: undefined,
+            };
+
+        return {
+            chartSpec: vizDataModel.getSpec(
+                currentDisplay,
+                organization?.chartColors,
+            ),
+            tableData: vizDataModel.getPivotedTableData(),
+            chartFileUrl: vizDataModel.getDataDownloadUrl(),
+        };
+    }, [vizDataModel, currentDisplay, chartData, organization?.chartColors]);
+    const resultsFileUrl = useMemo(() => queryResults?.fileUrl, [queryResults]);
+
+    useEffect(() => {
+        if (!resultsRunner || !selectedChartType) return;
+        // Return a merged configuration for the specific chart
+        // based on the new results runner, this has info on available fields
+        // (which in the sql runner changes on executing the sql query)
+        // But it can be derived from the columns in the store!!
+        //
+        // It also computes errors, also only applicable to each chart
+
+        // It returns chartKind but it just passes through
+
+        // And it returns options - but should we be compiling these on the fly??
+        const chartResultOptions = getChartConfigAndOptions(
+            resultsRunner,
+            selectedChartType,
+            currentVizConfig,
+        );
+
+        dispatch(setChartOptionsAndConfig(chartResultOptions));
+    }, [
         resultsRunner,
-        config: currentVizConfig,
-        sql,
-        limit,
-    });
+        selectedChartType,
+        dispatch,
+        currentVizConfig,
+        currentDisplay,
+    ]);
+
+    useEffect(() => {
+        if (queryResults && panelSizes[1] === 0) {
+            resultsPanelRef.current?.resize(50);
+            setPanelSizes([50, 50]);
+        }
+    }, [queryResults, panelSizes]);
 
     const [activeEchartsInstance, setActiveEchartsInstance] =
         useState<EChartsInstance>();
-
-    const chartFileUrl = chartVizQuery?.data?.fileUrl;
-    const resultsFileUrl = queryResults?.fileUrl;
-
-    const chartVizResultsRunner = useMemo(() => {
-        if (!chartVizQuery.data) return;
-
-        return new SqlRunnerResultsRunner({
-            rows: chartVizQuery.data.results,
-            columns: chartVizQuery.data.columns,
-        });
-    }, [chartVizQuery.data]);
 
     const hasUnrunChanges = useAppSelector(
         (state) => state.sqlRunner.hasUnrunChanges,
@@ -437,7 +503,7 @@ export const ContentPanel: FC = () => {
                             selectedChartType ? (
                                 <ChartDownload
                                     fileUrl={chartFileUrl}
-                                    columns={chartVizQuery?.data?.columns ?? []}
+                                    columnNames={tableData?.columns ?? []}
                                     chartName={savedSqlChart?.name}
                                     echartsInstance={activeEchartsInstance}
                                 />
@@ -445,7 +511,11 @@ export const ContentPanel: FC = () => {
                                 mode === 'default' && (
                                     <ResultsDownload
                                         fileUrl={resultsFileUrl}
-                                        columns={queryResults?.columns ?? []}
+                                        columnNames={
+                                            queryResults?.columns.map(
+                                                (c) => c.reference,
+                                            ) ?? []
+                                        }
                                         chartName={savedSqlChart?.name}
                                     />
                                 )
@@ -542,6 +612,7 @@ export const ContentPanel: FC = () => {
                                                             style={styles}
                                                         >
                                                             {activeConfigs.chartConfigs.map(
+                                                                // TODO: are we rendering all charts here?
                                                                 (c) => (
                                                                     <ConditionalVisibility
                                                                         key={
@@ -560,10 +631,10 @@ export const ContentPanel: FC = () => {
                                                                                 chartSpec
                                                                             }
                                                                             isLoading={
-                                                                                chartVizQuery.isFetching
+                                                                                chartLoading
                                                                             }
                                                                             error={
-                                                                                chartVizQuery.error
+                                                                                chartError
                                                                             }
                                                                             style={{
                                                                                 height: inputSectionHeight,
@@ -722,35 +793,17 @@ export const ContentPanel: FC = () => {
                                     <ConditionalVisibility
                                         isVisible={showChartResultsTable}
                                     >
-                                        {selectedChartType &&
-                                            chartVizQuery.data &&
-                                            chartVizResultsRunner && (
-                                                <Table
-                                                    resultsRunner={
-                                                        chartVizResultsRunner
-                                                    }
-                                                    columnsConfig={Object.fromEntries(
-                                                        chartVizQuery.data.columns.map(
-                                                            (field) => [
-                                                                field.reference,
-                                                                {
-                                                                    visible:
-                                                                        true,
-                                                                    reference:
-                                                                        field.reference,
-                                                                    label: field.reference,
-                                                                    frozen: false,
-                                                                    // TODO: add aggregation
-                                                                    // aggregation?: VizAggregationOptions;
-                                                                },
-                                                            ],
-                                                        ),
-                                                    )}
-                                                    flexProps={{
-                                                        mah: '100%',
-                                                    }}
-                                                />
-                                            )}
+                                        {selectedChartType && tableData && (
+                                            <ChartDataTable
+                                                columnNames={
+                                                    tableData?.columns ?? []
+                                                }
+                                                rows={tableData?.rows ?? []}
+                                                flexProps={{
+                                                    mah: '100%',
+                                                }}
+                                            />
+                                        )}
                                     </ConditionalVisibility>
                                 </>
                             )}

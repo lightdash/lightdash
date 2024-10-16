@@ -240,7 +240,7 @@ export class SqlRunnerController extends BaseController {
     /**
      * Schedules a job to get its results
      * @param projectUuid - the uuid of the project
-     * @param slug - the uuid of the saved chart
+     * @param slug - the slug of the saved chart
      * @param req - express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -261,6 +261,37 @@ export class SqlRunnerController extends BaseController {
                     req.user!,
                     projectUuid,
                     slug,
+                    undefined,
+                    getContextFromQueryOrHeader(req),
+                ),
+        };
+    }
+
+    /**
+     * Schedules a job to get its results
+     * @param projectUuid - the uuid of the project
+     * @param uuid - the uuid of the saved chart
+     * @param req - express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('saved/{uuid}/results-job')
+    @OperationId('getSavedSqlResultsJobByUuid')
+    async getSavedSqlResultsJobByUuid(
+        @Path() uuid: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getSqlChartResultJob(
+                    req.user!,
+                    projectUuid,
+                    undefined,
+                    uuid,
                     getContextFromQueryOrHeader(req),
                 ),
         };

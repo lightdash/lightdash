@@ -310,7 +310,7 @@ export class SemanticLayerService extends BaseService {
 
             // Pivot results
             const pivotedResults =
-                query.pivot.index.length === 0
+                query.pivot.on.length === 0
                     ? results
                     : pivotResults(results, query.pivot);
 

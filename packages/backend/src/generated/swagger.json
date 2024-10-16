@@ -7814,12 +7814,6 @@
             },
             "SqlRunnerBody": {
                 "properties": {
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
                     "limit": {
                         "type": "number",
                         "format": "double"
@@ -7946,7 +7940,7 @@
                 "enum": ["line"],
                 "type": "string"
             },
-            "VizChartLayout": {
+            "PivotChartLayout": {
                 "properties": {
                     "sortBy": {
                         "items": {
@@ -7976,7 +7970,7 @@
                                     "type": "string"
                                 }
                             },
-                            "required": ["reference"],
+                            "required": ["aggregation", "reference"],
                             "type": "object"
                         },
                         "type": "array"
@@ -8090,7 +8084,7 @@
                                 "$ref": "#/components/schemas/CartesianChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "anyOf": [
@@ -8131,7 +8125,7 @@
                                 "$ref": "#/components/schemas/VizPieChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.PIE"
@@ -8178,6 +8172,10 @@
                 },
                 "type": "object"
             },
+            "VizTableDisplay": {
+                "properties": {},
+                "type": "object"
+            },
             "VizTableConfig": {
                 "allOf": [
                     {
@@ -8185,6 +8183,9 @@
                     },
                     {
                         "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/VizTableDisplay"
+                            },
                             "columns": {
                                 "$ref": "#/components/schemas/VizColumnsConfig"
                             },
@@ -8421,7 +8422,7 @@
                                 "$ref": "#/components/schemas/CartesianChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
@@ -8443,7 +8444,7 @@
                                 "$ref": "#/components/schemas/CartesianChartDisplay"
                             },
                             "fieldConfig": {
-                                "$ref": "#/components/schemas/VizChartLayout"
+                                "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.LINE"
@@ -9767,7 +9768,7 @@
                         "type": "array"
                     },
                     "aggType": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/VizAggregationOptions"
                     },
                     "visible": {
                         "type": "boolean"
@@ -9846,6 +9847,59 @@
                 "required": ["dimensions", "timeDimensions", "metrics"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_SemanticLayerField.name-or-kind_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/FieldType"
+                    }
+                },
+                "required": ["name", "kind"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "SemanticLayerSortBy": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
+                    },
+                    {
+                        "properties": {
+                            "direction": {
+                                "$ref": "#/components/schemas/SortByDirection"
+                            }
+                        },
+                        "required": ["direction"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SemanticLayerPivot": {
+                "properties": {
+                    "values": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "index": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "on": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["values", "index", "on"],
+                "type": "object"
             },
             "SemanticLayerFilterBase": {
                 "properties": {
@@ -10002,65 +10056,51 @@
                     }
                 ]
             },
-            "Pick_SemanticLayerField.name-or-kind_": {
+            "Pick_SemanticLayerField.name-or-aggType_": {
                 "properties": {
                     "name": {
                         "type": "string"
                     },
-                    "kind": {
-                        "$ref": "#/components/schemas/FieldType"
+                    "aggType": {
+                        "$ref": "#/components/schemas/VizAggregationOptions"
                     }
                 },
-                "required": ["name", "kind"],
+                "required": ["name"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "SemanticLayerSortByDirection": {
-                "enum": ["ASC", "DESC"],
-                "type": "string"
-            },
-            "SemanticLayerSortBy": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-kind_"
-                    },
-                    {
-                        "properties": {
-                            "direction": {
-                                "$ref": "#/components/schemas/SemanticLayerSortByDirection"
-                            }
-                        },
-                        "required": ["direction"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "SemanticLayerPivot": {
-                "properties": {
-                    "values": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "index": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "on": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["values", "index", "on"],
-                "type": "object"
-            },
             "SemanticLayerQuery": {
                 "properties": {
+                    "customMetrics": {
+                        "items": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/components/schemas/Pick_SemanticLayerField.name-or-aggType_"
+                                },
+                                {
+                                    "properties": {
+                                        "baseDimension": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerFilter"
+                        },
+                        "type": "array"
+                    },
+                    "pivot": {
+                        "$ref": "#/components/schemas/SemanticLayerPivot"
+                    },
                     "timezone": {
                         "type": "string"
                     },
@@ -10068,18 +10108,9 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "pivot": {
-                        "$ref": "#/components/schemas/SemanticLayerPivot"
-                    },
                     "sortBy": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerSortBy"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "items": {
-                            "$ref": "#/components/schemas/SemanticLayerFilter"
                         },
                         "type": "array"
                     },
@@ -10103,8 +10134,8 @@
                     }
                 },
                 "required": [
-                    "sortBy",
                     "filters",
+                    "sortBy",
                     "metrics",
                     "timeDimensions",
                     "dimensions"

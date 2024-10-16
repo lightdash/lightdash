@@ -10,7 +10,8 @@ import { sqlRunnerSlice } from './sqlRunnerSlice';
 
 export const store = configureStore({
     reducer: {
-        sqlRunner: sqlRunnerSlice.reducer,
+        // TODO: important because selectors assume that
+        [sqlRunnerSlice.name]: sqlRunnerSlice.reducer,
         barChartConfig: barChartConfigSlice.reducer,
         lineChartConfig: lineChartConfigSlice.reducer,
         pieChartConfig: pieChartConfigSlice.reducer,

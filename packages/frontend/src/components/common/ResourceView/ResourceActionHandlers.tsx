@@ -89,6 +89,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     const { mutate: updateSqlChart } = useUpdateSqlChartMutation(
         projectUuid,
         '',
+        '', // TODO: get slug or savedSqlUuid to invalidate the query if necessary
     );
 
     const { mutate: moveDashboard } = useMoveDashboardMutation();

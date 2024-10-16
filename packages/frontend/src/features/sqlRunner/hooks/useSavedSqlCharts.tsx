@@ -97,6 +97,7 @@ export const useCreateSqlChartMutation = (projectUuid: string) => {
 export const useUpdateSqlChartMutation = (
     projectUuid: string,
     savedSqlUuid: string,
+    slug: string,
 ) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -115,7 +116,8 @@ export const useUpdateSqlChartMutation = (
         {
             mutationKey: ['sqlRunner', 'updateSqlChart', savedSqlUuid],
             onSuccess: async () => {
-                await queryClient.invalidateQueries(['sqlRunner']);
+                await queryClient.resetQueries(['savedSqlChart', slug]);
+                await queryClient.resetQueries(['savedSqlChartResults', slug]);
                 await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['space']);
                 await queryClient.invalidateQueries(['pinned_items']);

@@ -7,7 +7,9 @@ import type {
     Project,
     QueryExecutionContext,
     SemanticLayerType,
+    SortByDirection,
     SpaceSummary,
+    VizAggregationOptions,
     VizChartConfig,
 } from '..';
 import { type FieldType } from './field';
@@ -41,11 +43,6 @@ export enum SemanticLayerTimeGranularity {
     YEAR = 'YEAR',
 }
 
-export enum SemanticLayerSortByDirection {
-    ASC = 'ASC',
-    DESC = 'DESC',
-}
-
 // TODO: should we separate metric and dimension fields?
 export type SemanticLayerField = {
     name: string;
@@ -54,7 +51,7 @@ export type SemanticLayerField = {
     kind: FieldType;
     description?: string;
     visible: boolean;
-    aggType?: string; // eg: count, sum
+    aggType?: VizAggregationOptions; // TODO: currently not populated, we should get this on the backend
     availableGranularities: SemanticLayerTimeGranularity[];
     availableOperators: SemanticLayerFilter['operator'][];
 };
@@ -64,7 +61,7 @@ export type SemanticLayerTimeDimension = SemanticLayerField & {
 };
 
 export type SemanticLayerSortBy = Pick<SemanticLayerField, 'name' | 'kind'> & {
-    direction: SemanticLayerSortByDirection;
+    direction: SortByDirection;
 };
 
 export type SemanticLayerPivot = {
@@ -77,11 +74,15 @@ export type SemanticLayerQuery = {
     dimensions: Pick<SemanticLayerField, 'name'>[];
     timeDimensions: Pick<SemanticLayerTimeDimension, 'name' | 'granularity'>[];
     metrics: Pick<SemanticLayerField, 'name'>[];
-    filters: SemanticLayerFilter[];
     sortBy: SemanticLayerSortBy[];
-    pivot?: SemanticLayerPivot;
     limit?: number;
     timezone?: string;
+    pivot?: SemanticLayerPivot;
+    filters: SemanticLayerFilter[];
+    sql?: string;
+    customMetrics?: (Pick<SemanticLayerField, 'name' | 'aggType'> & {
+        baseDimension?: string;
+    })[];
 };
 
 export type SemanticLayerResultRow = Record<

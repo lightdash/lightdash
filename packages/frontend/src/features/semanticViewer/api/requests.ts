@@ -104,7 +104,7 @@ export const apiGetSemanticLayerQueryResults = async ({
     projectUuid,
     query,
 }: PostSemanticLayerQueryRequestParams): Promise<
-    Pick<PivotChartData, 'results'> &
+    Pick<PivotChartData, 'results' | 'fileUrl'> &
         Pick<SemanticLayerJobStatusSuccessDetails, 'columns'>
 > => {
     const { jobId } = await apiPostSemanticLayerRun({ projectUuid, query });
@@ -120,6 +120,7 @@ export const apiGetSemanticLayerQueryResults = async ({
         return {
             results,
             columns,
+            fileUrl,
         };
     } else {
         throw job;

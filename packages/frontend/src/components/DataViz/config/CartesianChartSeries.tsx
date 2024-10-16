@@ -2,7 +2,7 @@ import {
     ECHARTS_DEFAULT_COLORS,
     type CartesianChartDisplay,
     type ChartKind,
-    type VizChartLayout,
+    type PivotChartLayout,
 } from '@lightdash/common';
 import { Group, Stack, TextInput } from '@mantine/core';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -13,7 +13,7 @@ import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 import { CartesianChartTypeConfig } from './CartesianChartTypeConfig';
 
 export type ConfigurableSeries = {
-    reference: VizChartLayout['y'][number]['reference'];
+    reference: PivotChartLayout['y'][number]['reference'];
 } & Pick<
     NonNullable<CartesianChartDisplay['series']>[number],
     'format' | 'label' | 'color' | 'type'

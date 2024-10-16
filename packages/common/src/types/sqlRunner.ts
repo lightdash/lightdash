@@ -2,6 +2,7 @@ import {
     type ApiError,
     type Explore,
     type PivotChartData,
+    type PivotChartLayout,
     type PullRequestCreated,
     type QueryExecutionContext,
 } from '..';
@@ -11,7 +12,6 @@ import {
     type VizBaseConfig,
     type VizCartesianChartConfig,
     type VizChartConfig,
-    type VizChartLayout,
     type VizColumn,
     type VizPieChartConfig,
     type VizTableConfig,
@@ -40,7 +40,7 @@ type ApiSqlRunnerPivotQueryPayload = {
         aggregation: VizAggregationOptions;
     }[];
     groupByColumns: { reference: string }[] | undefined;
-    sortBy: VizChartLayout['sortBy'] | undefined;
+    sortBy: PivotChartLayout['sortBy'] | undefined;
 };
 
 export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
@@ -49,8 +49,6 @@ export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
 export type SqlRunnerBody = {
     sql: string;
     limit?: number;
-    slug?: string;
-    uuid?: string;
 };
 
 export type SqlRunnerPivotQueryBody = SqlRunnerBody &

@@ -1,8 +1,7 @@
 import {
     TableDataModel,
-    type IResultsRunner,
     type RawResultRow,
-    type VizTableColumnsConfig,
+    type VizColumnsConfig,
 } from '@lightdash/common';
 import {
     getCoreRowModel,
@@ -14,36 +13,27 @@ import { useCallback, useMemo, useRef } from 'react';
 import { getValueCell } from '../../../hooks/useColumns';
 import { ROW_HEIGHT_PX } from '../../common/Table/Table.styles';
 
-// TODO: this name could change or we could replace this with useVirtualTable.
-// It's not really clear what is doing with the table data model for a consumer.
-export const useTableDataModel = ({
+// This just makes a virtual table from rows and columns. It's very similar to useTableDataModel.
+export const useVirtualTable = ({
+    columnNames,
+    rows,
     config,
-    resultsRunner,
 }: {
-    config: VizTableColumnsConfig | undefined;
-    resultsRunner: IResultsRunner;
+    columnNames: string[];
+    rows: RawResultRow[];
+    config?: VizColumnsConfig;
 }) => {
-    const tableModel = useMemo(() => {
-        return new TableDataModel({
-            resultsRunner,
-            columnsConfig: config?.columns,
-        });
-    }, [resultsRunner, config]);
-
-    const columns = useMemo(() => tableModel.getVisibleColumns(), [tableModel]);
-    const rows = useMemo(() => tableModel.getRows(), [tableModel]);
-
     const tanstackColumns: ColumnDef<RawResultRow, any>[] = useMemo(() => {
-        return columns.map((column) => ({
-            id: column,
+        return columnNames.map((columnName) => ({
+            id: columnName,
             // react table has a bug with accessors that has dots in them
             // we found the fix here -> https://github.com/TanStack/table/issues/1671
             // do not remove the line below
-            accessorFn: TableDataModel.getColumnsAccessorFn(column),
-            header: config?.columns[column].label || column,
+            accessorFn: TableDataModel.getColumnsAccessorFn(columnName),
+            header: (config && config[columnName]?.label) || columnName,
             cell: getValueCell,
         }));
-    }, [columns, config?.columns]);
+    }, [columnNames, config]);
 
     const table = useReactTable({
         data: rows,
@@ -57,12 +47,12 @@ export const useTableDataModel = ({
 
     const virtualizer = useVirtualizer({
         getScrollElement: () => tableWrapperRef.current,
-        count: tableModel.getRowsCount(),
+        count: rows.length,
         estimateSize: () => getRowHeight(),
         overscan: 25,
     });
 
-    const getTableData = () => {
+    const getTableData = useCallback(() => {
         const { rows: rowModelRows } = table.getRowModel();
         const virtualRows = virtualizer.getVirtualItems();
 
@@ -71,7 +61,7 @@ export const useTableDataModel = ({
             virtualRows,
             rowModelRows,
         };
-    };
+    }, [table, virtualizer]);
 
     const paddingTop =
         virtualizer.getVirtualItems().length > 0
@@ -87,11 +77,9 @@ export const useTableDataModel = ({
 
     return {
         tableWrapperRef,
-        columns,
+        columnNames,
         rows,
         getRowHeight,
-        getRowsCount: () => tableModel.getRowsCount(),
-        getColumnsCount: () => tableModel.getColumnsCount(),
         getTableData,
         paddingTop,
         paddingBottom,

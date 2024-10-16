@@ -19,7 +19,7 @@ import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInf
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import {
     cartesianChartSelectors,
-    selectChartConfigByKind,
+    selectCompleteConfigByKind,
 } from '../../../../components/DataViz/store/selectors';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import { useUpdateSqlChartMutation } from '../../hooks/useSavedSqlCharts';
@@ -53,12 +53,13 @@ export const HeaderEdit: FC = () => {
     );
 
     const config = useAppSelector((state) =>
-        selectChartConfigByKind(state, selectedChartType),
+        selectCompleteConfigByKind(state, selectedChartType),
     );
 
     const { mutate, isLoading } = useUpdateSqlChartMutation(
         savedSqlChart?.project.projectUuid || '',
         savedSqlChart?.savedSqlUuid || '',
+        savedSqlChart?.slug || '',
     );
     // Store initial chart config to detect if there are any changes later on
     const [initialSavedSqlChart, setInitialSavedSqlChart] = useState<
@@ -67,7 +68,7 @@ export const HeaderEdit: FC = () => {
     const [initialChartConfig, setInitialChartConfig] = useState(config);
 
     const hasChanges = useMemo(() => {
-        if (!initialSavedSqlChart || !initialChartConfig) return false;
+        if (!initialSavedSqlChart) return false;
         const changedSql = sql !== initialSavedSqlChart.sql;
         const changedLimit = limit !== initialSavedSqlChart.limit;
         const changedConfig = !isEqual(config, initialChartConfig);
@@ -245,6 +246,7 @@ export const HeaderEdit: FC = () => {
                 opened={isUpdateModalOpen}
                 projectUuid={savedSqlChart.project.projectUuid}
                 savedSqlUuid={savedSqlChart.savedSqlUuid}
+                slug={savedSqlChart.slug}
                 onClose={() => onCloseUpdateModal()}
                 onSuccess={() => onCloseUpdateModal()}
             />

@@ -7011,8 +7011,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                uuid: { dataType: 'string' },
-                slug: { dataType: 'string' },
                 limit: { dataType: 'double' },
                 sql: { dataType: 'string', required: true },
             },
@@ -7160,7 +7158,7 @@ const models: TsoaRoute.Models = {
         enums: ['line'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizChartLayout: {
+    PivotChartLayout: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -7193,7 +7191,10 @@ const models: TsoaRoute.Models = {
                     array: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
-                            aggregation: { ref: 'VizAggregationOptions' },
+                            aggregation: {
+                                ref: 'VizAggregationOptions',
+                                required: true,
+                            },
                             reference: { dataType: 'string', required: true },
                         },
                     },
@@ -7314,7 +7315,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizChartLayout' },
+                                { ref: 'PivotChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -7368,7 +7369,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizChartLayout' },
+                                { ref: 'PivotChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -7412,6 +7413,15 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizTableDisplay: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     VizTableConfig: {
         dataType: 'refAlias',
         type: {
@@ -7421,6 +7431,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'VizTableDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
                         columns: { ref: 'VizColumnsConfig', required: true },
                         type: { ref: 'ChartKind.TABLE', required: true },
                     },
@@ -7617,7 +7635,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizChartLayout' },
+                                { ref: 'PivotChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -7650,7 +7668,7 @@ const models: TsoaRoute.Models = {
                         fieldConfig: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'VizChartLayout' },
+                                { ref: 'PivotChartLayout' },
                                 { dataType: 'undefined' },
                             ],
                             required: true,
@@ -8835,7 +8853,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
-                aggType: { dataType: 'string' },
+                aggType: { ref: 'VizAggregationOptions' },
                 visible: { dataType: 'boolean', required: true },
                 description: { dataType: 'string' },
                 kind: { ref: 'FieldType', required: true },
@@ -8895,6 +8913,60 @@ const models: TsoaRoute.Models = {
                         dataType: 'refAlias',
                         ref: 'Pick_SemanticLayerField.name_',
                     },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_SemanticLayerField.name-or-kind_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                kind: { ref: 'FieldType', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerSortBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Pick_SemanticLayerField.name-or-kind_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        direction: { ref: 'SortByDirection', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerPivot: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                values: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                index: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                on: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                     required: true,
                 },
             },
@@ -9079,63 +9151,13 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SemanticLayerField.name-or-kind_': {
+    'Pick_SemanticLayerField.name-or-aggType_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
-                kind: { ref: 'FieldType', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerSortByDirection: {
-        dataType: 'refEnum',
-        enums: ['ASC', 'DESC'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerSortBy: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'Pick_SemanticLayerField.name-or-kind_' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        direction: {
-                            ref: 'SemanticLayerSortByDirection',
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerPivot: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                values: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                index: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
-                on: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
+                aggType: { ref: 'VizAggregationOptions' },
             },
             validators: {},
         },
@@ -9146,17 +9168,33 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                timezone: { dataType: 'string' },
-                limit: { dataType: 'double' },
-                pivot: { ref: 'SemanticLayerPivot' },
-                sortBy: {
+                customMetrics: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SemanticLayerSortBy' },
-                    required: true,
+                    array: {
+                        dataType: 'intersection',
+                        subSchemas: [
+                            { ref: 'Pick_SemanticLayerField.name-or-aggType_' },
+                            {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    baseDimension: { dataType: 'string' },
+                                },
+                            },
+                        ],
+                    },
                 },
+                sql: { dataType: 'string' },
                 filters: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'SemanticLayerFilter' },
+                    required: true,
+                },
+                pivot: { ref: 'SemanticLayerPivot' },
+                timezone: { dataType: 'string' },
+                limit: { dataType: 'double' },
+                sortBy: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SemanticLayerSortBy' },
                     required: true,
                 },
                 metrics: {
@@ -16533,6 +16571,69 @@ export function RegisterRoutes(app: express.Router) {
                 }
 
                 const promise = controller.getSavedSqlResultsJob.apply(
+                    controller,
+                    validatedArgs as any,
+                );
+                promiseHandler(controller, promise, response, 200, next);
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get(
+        '/api/v1/projects/:projectUuid/sqlRunner/saved/:uuid/results-job',
+        ...fetchMiddlewares<RequestHandler>(SqlRunnerController),
+        ...fetchMiddlewares<RequestHandler>(
+            SqlRunnerController.prototype.getSavedSqlResultsJobByUuid,
+        ),
+
+        async function SqlRunnerController_getSavedSqlResultsJobByUuid(
+            request: any,
+            response: any,
+            next: any,
+        ) {
+            const args = {
+                uuid: {
+                    in: 'path',
+                    name: 'uuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                projectUuid: {
+                    in: 'path',
+                    name: 'projectUuid',
+                    required: true,
+                    dataType: 'string',
+                },
+                req: {
+                    in: 'request',
+                    name: 'req',
+                    required: true,
+                    dataType: 'object',
+                },
+            };
+
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = getValidatedArgs(args, request, response);
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SqlRunnerController>(
+                        SqlRunnerController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                const promise = controller.getSavedSqlResultsJobByUuid.apply(
                     controller,
                     validatedArgs as any,
                 );

@@ -3,7 +3,6 @@ import {
     isVizPieChartConfig,
     VIZ_DEFAULT_AGGREGATION,
     type VizAggregationOptions,
-    type VizChartLayout,
     type VizConfigErrors,
     type VizIndexType,
     type VizPieChartConfig,
@@ -18,18 +17,27 @@ import {
 } from './actions/commonChartActions';
 
 export type PieChartState = {
-    defaultFieldConfig: VizChartLayout | undefined;
-    config: VizPieChartConfig | undefined;
+    metadata: {
+        version: number;
+    };
+    fieldConfig: VizPieChartConfig['fieldConfig'] | undefined;
+    display: VizPieChartConfig['display'];
     options: VizPieChartOptions;
     errors: VizConfigErrors | undefined;
 };
 
 const initialState: PieChartState = {
-    defaultFieldConfig: undefined,
-    config: undefined,
+    metadata: {
+        version: 1,
+    },
+    fieldConfig: undefined,
+    display: {
+        isDonut: false,
+    },
     options: {
         groupFieldOptions: [],
         metricFieldOptions: [],
+        customMetricFieldOptions: [],
     },
     errors: undefined,
 };
@@ -39,16 +47,16 @@ export const pieChartConfigSlice = createSlice({
     initialState,
     reducers: {
         setGroupFieldIds: (
-            { config },
+            { fieldConfig },
             action: PayloadAction<{
                 reference: string;
-                type: VizIndexType;
+                axisType: VizIndexType;
             }>,
         ) => {
-            if (config?.fieldConfig?.x) {
-                config.fieldConfig.x = {
+            if (fieldConfig?.x) {
+                fieldConfig.x = {
                     reference: action.payload.reference,
-                    type: action.payload.type,
+                    type: action.payload.axisType,
                 };
             }
         },
@@ -59,8 +67,8 @@ export const pieChartConfigSlice = createSlice({
                 index: number;
             }>,
         ) => {
-            if (state.config?.fieldConfig?.y) {
-                const yAxis = state.config.fieldConfig.y[action.payload.index];
+            if (state.fieldConfig?.y) {
+                const yAxis = state.fieldConfig.y[action.payload.index];
                 if (yAxis) {
                     yAxis.reference = action.payload.reference;
                     yAxis.aggregation =
@@ -72,16 +80,15 @@ export const pieChartConfigSlice = createSlice({
             }
         },
         setYAxisAggregation: (
-            { config },
+            { fieldConfig },
             action: PayloadAction<{
                 index: number;
                 aggregation: VizAggregationOptions;
             }>,
         ) => {
-            if (!config) return;
-            if (!config?.fieldConfig?.y) return;
+            if (!fieldConfig?.y) return;
 
-            const yAxis = config.fieldConfig.y[action.payload.index];
+            const yAxis = fieldConfig.y[action.payload.index];
             if (yAxis) {
                 yAxis.aggregation = action.payload.aggregation;
             }
@@ -96,13 +103,19 @@ export const pieChartConfigSlice = createSlice({
             state.options = action.payload.options;
 
             // Only set the initial config if it's not already set and the fieldConfig is present
-            if (!state.config && action.payload.config.fieldConfig) {
-                state.config = action.payload.config;
+            if (!state.fieldConfig && action.payload.config.fieldConfig) {
+                state.fieldConfig = action.payload.config.fieldConfig;
             }
+            if (!state.display && action.payload.config.display) {
+                state.display = action.payload.config.display;
+            }
+
+            state.errors = action.payload.errors;
         });
         builder.addCase(setChartConfig, (state, action) => {
             if (isVizPieChartConfig(action.payload)) {
-                state.config = action.payload;
+                state.fieldConfig = action.payload.fieldConfig;
+                state.display = action.payload.display;
             }
         });
         builder.addCase(resetChartState, () => initialState);
