@@ -1,3 +1,10 @@
+## [0.1306.1](https://github.com/lightdash/lightdash/compare/0.1306.0...0.1306.1) (2024-10-16)
+
+
+### Bug Fixes
+
+* apply correct boolean check when editing virtual view ([#11959](https://github.com/lightdash/lightdash/issues/11959)) ([a28f7cf](https://github.com/lightdash/lightdash/commit/a28f7cfa7fda24a49237223cd63088debcf4db3d))
+
 # [0.1306.0](https://github.com/lightdash/lightdash/compare/0.1305.1...0.1306.0) (2024-10-16)
 
 
