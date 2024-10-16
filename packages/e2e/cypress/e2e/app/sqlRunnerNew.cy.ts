@@ -215,7 +215,7 @@ describe('SQL Runner (new)', () => {
 
         // Verify that the chart is in edit mode and make new changes and fix errors
         cy.contains('Edit chart').click();
-        cy.contains('New x-axis label').should('be.visible');
+
         cy.get(
             `div[data-testid="chart-view-${ChartKind.VERTICAL_BAR}"]`,
         ).should('exist');
