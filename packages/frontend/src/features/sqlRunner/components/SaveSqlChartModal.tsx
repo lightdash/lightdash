@@ -20,13 +20,11 @@ import {
     type FC,
     type SetStateAction,
 } from 'react';
-import { type z } from 'zod';
+import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
-import {
-    SaveDestination,
-    SaveToSpace,
-    validationSchema,
-} from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
+import SaveToSpaceForm, {
+    saveToSpaceSchema,
+} from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import {
     useCreateMutation as useSpaceCreateMutation,
@@ -37,7 +35,14 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { updateName } from '../store/sqlRunnerSlice';
 import { SqlQueryBeforeSaveAlert } from './SqlQueryBeforeSaveAlert';
 
-type FormValues = z.infer<typeof validationSchema>;
+const saveChartFormSchema = z
+    .object({
+        name: z.string().min(1),
+        description: z.string().nullable(),
+    })
+    .merge(saveToSpaceSchema);
+
+type FormValues = z.infer<typeof saveChartFormSchema>;
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
@@ -72,21 +77,25 @@ const SaveChartForm: FC<
     // because initial `projectUuid` is set to '' (empty string)
     // we should handle this by creating an impossible state
     // check first few lines inside `features/semanticViewer/store/selectors.ts`
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
+    const { data: spaces = [], isLoading: isLoadingSpace } = useSpaceSummaries(
+        projectUuid,
+        true,
+    );
 
     const [isFormPopulated, setIsFormPopulated] = useState(false);
 
-    const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
+    const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
+        useSpaceCreateMutation(projectUuid);
 
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
-            description: '',
-            spaceUuid: '',
-            newSpaceName: '',
-            saveDestination: SaveDestination.Space,
+            description: null,
+
+            spaceUuid: null,
+            newSpaceName: null,
         },
-        validate: zodResolver(validationSchema),
+        validate: zodResolver(saveChartFormSchema),
     });
 
     useEffect(() => {
@@ -172,10 +181,15 @@ const SaveChartForm: FC<
                         {...form.getInputProps('description')}
                     />
                 </Stack>
-                <SaveToSpace
+                <SaveToSpaceForm
                     form={form}
                     spaces={spaces}
                     projectUuid={projectUuid}
+                    isLoading={
+                        isLoadingSpace ||
+                        isCreatingSpace ||
+                        isCreatingSavedSqlChart
+                    }
                 />
             </Stack>
 

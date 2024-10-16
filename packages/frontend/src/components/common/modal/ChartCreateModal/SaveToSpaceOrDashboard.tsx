@@ -4,28 +4,23 @@ import {
     DashboardTileTypes,
     getDefaultChartTileSize,
     type CreateSavedChartVersion,
-    type DashboardBasicDetails,
     type DashboardChartTile,
     type DashboardVersionedFields,
     type SavedChart,
-    type SpaceSummary,
 } from '@lightdash/common';
 import {
     Box,
     Button,
     Group,
-    Loader,
     LoadingOverlay,
     Radio,
-    Select,
     Stack,
     Text,
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { uuid4 } from '@sentry/utils';
-import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { z } from 'zod';
@@ -41,156 +36,29 @@ import {
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
 import { useApp } from '../../../../providers/AppProvider';
-import { Can } from '../../Authorization';
-import MantineIcon from '../../MantineIcon';
+import SaveToDashboardForm, {
+    saveToDashboardSchema,
+} from './SaveToDashboardForm';
+import SaveToSpaceForm, { saveToSpaceSchema } from './SaveToSpaceForm';
 
-export enum SaveDestination {
+enum SaveDestination {
     Dashboard = 'dashboard',
     Space = 'space',
 }
 
-export const validationSchema = z.object({
-    name: z.string().min(1),
-    description: z.string().nullable(),
+const saveToSpaceOrDashboardSchema = z
+    .object({
+        name: z.string().min(1),
+        description: z.string().nullable(),
+    })
+    // for saving to the dashboard
+    .merge(saveToDashboardSchema)
+    // for saving to the space
+    .merge(saveToSpaceSchema);
 
-    // for saving to dashboard
-    dashboardUuid: z.string().nullable(),
-    // for saving to space
-    spaceUuid: z.string().nullable(),
-    // for creating a new space and saving to it
-    newSpaceName: z.string().min(1).nullable(),
-});
+type FormValues = z.infer<typeof saveToSpaceOrDashboardSchema>;
 
-export type FormValues = z.infer<typeof validationSchema>;
-
-export type SaveToSpaceProps = {
-    form: UseFormReturnType<FormValues>;
-    isLoading: boolean;
-    spaces: SpaceSummary[] | undefined;
-    projectUuid: string;
-};
-
-export const SaveToSpace: FC<SaveToSpaceProps> = ({
-    form,
-    isLoading,
-    spaces,
-    projectUuid,
-}) => {
-    const { user } = useApp();
-    const [shouldCreateNewSpace, setShouldCreateNewSpace] = useState(false);
-    const isCreatingNewSpace =
-        shouldCreateNewSpace || (spaces && spaces.length === 0);
-
-    if (isCreatingNewSpace) {
-        return (
-            <Stack spacing="xs">
-                <TextInput
-                    size="xs"
-                    label="Space"
-                    description="Create a new space to add this chart to"
-                    placeholder="eg. KPIs"
-                    {...form.getInputProps('newSpaceName')}
-                    value={form.values.newSpaceName ?? ''}
-                />
-                <Button
-                    disabled={isLoading}
-                    size="xs"
-                    variant="default"
-                    mr="auto"
-                    compact
-                    onClick={() => {
-                        setShouldCreateNewSpace(false);
-                        form.setFieldValue('newSpaceName', null);
-                    }}
-                    leftIcon={<MantineIcon icon={IconArrowLeft} />}
-                >
-                    Save to existing space
-                </Button>
-            </Stack>
-        );
-    }
-
-    return (
-        <Stack spacing="xs">
-            <Select
-                size="xs"
-                searchable
-                label="Space"
-                description="Select a space to save the chart directly to"
-                withinPortal
-                data={
-                    spaces?.map((space) => ({
-                        value: space.uuid,
-                        label: space.name,
-                    })) ?? []
-                }
-                {...form.getInputProps('spaceUuid')}
-                required
-            />
-            <Can
-                I="create"
-                this={subject('Space', {
-                    organizationUuid: user.data?.organizationUuid,
-                    projectUuid,
-                })}
-            >
-                <Button
-                    disabled={isLoading}
-                    size="xs"
-                    variant="default"
-                    mr="auto"
-                    compact
-                    leftIcon={<MantineIcon icon={IconPlus} />}
-                    onClick={() => setShouldCreateNewSpace(true)}
-                >
-                    Create new space
-                </Button>
-            </Can>
-        </Stack>
-    );
-};
-
-type SaveToDashboardProps = Pick<SaveToSpaceProps, 'form' | 'spaces'> & {
-    dashboards: DashboardBasicDetails[] | undefined;
-    isLoading: boolean;
-};
-
-const SaveToDashboard: FC<SaveToDashboardProps> = ({
-    form,
-    spaces,
-    dashboards,
-    isLoading,
-}) => {
-    return (
-        <Select
-            description="Select a dashboard to save the chart directly to"
-            id="select-dashboard"
-            label="Dashboard"
-            size="xs"
-            data={
-                dashboards?.map((d) => ({
-                    value: d.uuid,
-                    label: d.name,
-                    group: (spaces ?? []).find((s) => s.uuid === d.spaceUuid)
-                        ?.name,
-                })) ?? []
-            }
-            rightSection={isLoading && <Loader size="xs" />}
-            searchable
-            nothingFound="No matching dashboards found"
-            filter={(value, dashboard) =>
-                !!dashboard.label
-                    ?.toLowerCase()
-                    .includes(value.toLowerCase().trim())
-            }
-            withinPortal
-            required
-            {...form.getInputProps('dashboardUuid')}
-        />
-    );
-};
-
-type SaveToSpaceOrDashboardProps = {
+type Props = {
     projectUuid: string;
     savedData: CreateSavedChartVersion;
     defaultSpaceUuid: string | undefined;
@@ -202,7 +70,7 @@ type SaveToSpaceOrDashboardProps = {
     onClose: () => void;
 };
 
-export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
+export const SaveToSpaceOrDashboard: FC<Props> = ({
     savedData,
     defaultSpaceUuid,
     dashboardInfoFromSavedData,
@@ -222,7 +90,7 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
     );
 
     const form = useForm<FormValues>({
-        validate: zodResolver(validationSchema),
+        validate: zodResolver(saveToSpaceOrDashboardSchema),
     });
 
     const {
@@ -435,14 +303,14 @@ export const SaveToSpaceOrDashboard: FC<SaveToSpaceOrDashboardProps> = ({
                         </Group>
 
                         {saveDestination === SaveDestination.Space ? (
-                            <SaveToSpace
-                                projectUuid={projectUuid}
+                            <SaveToSpaceForm
                                 form={form}
                                 isLoading={isLoadingSpaces}
                                 spaces={spaces}
+                                projectUuid={projectUuid}
                             />
                         ) : saveDestination === SaveDestination.Dashboard ? (
-                            <SaveToDashboard
+                            <SaveToDashboardForm
                                 form={form}
                                 isLoading={
                                     isLoadingDashboards || isLoadingSpaces
