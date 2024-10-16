@@ -14,6 +14,11 @@ export const postHogClient = lightdashConfig.posthog
       })
     : undefined;
 
+postHogClient?.on('error', (err) => {
+    // Logging the error for debugging purposes
+    Logger.error('PostHog Error Event', err);
+});
+
 /**
  * Convenience method to check if a feature flag is enabled for a given user.
  *
@@ -32,6 +37,9 @@ export async function isFeatureFlagEnabled(
 ): Promise<boolean> {
     /** If we don't have a PostHog client instance, we return false for all checks */
     if (!postHogClient) {
+        Logger.warn(
+            'PostHog: client not found, check PostHog related environment variables',
+        );
         return false;
     }
 
