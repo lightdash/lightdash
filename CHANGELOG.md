@@ -1,3 +1,10 @@
+# [0.1306.0](https://github.com/lightdash/lightdash/compare/0.1305.1...0.1306.0) (2024-10-16)
+
+
+### Features
+
+* display tooltip on copy of table/table field ([#11941](https://github.com/lightdash/lightdash/issues/11941)) ([cab5dc7](https://github.com/lightdash/lightdash/commit/cab5dc7c7441cf5bd028c205120070006e29d192))
+
 ## [0.1305.1](https://github.com/lightdash/lightdash/compare/0.1305.0...0.1305.1) (2024-10-15)
 
 
