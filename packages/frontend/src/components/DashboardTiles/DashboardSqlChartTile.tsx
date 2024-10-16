@@ -68,6 +68,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             projectUuid,
         }),
     );
+
     const {
         chartQuery: {
             data: chartData,
@@ -82,35 +83,31 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         },
     } = useSavedSqlChartResults({
         projectUuid,
-        savedSqlUuid: savedSqlUuid,
+        savedSqlUuid,
         context,
     });
 
-    // No chart available
-    if (chartData == undefined) {
+    // No chart available or savedSqlUuid is undefined - which means that the chart was deleted
+    if (chartData === undefined || !savedSqlUuid) {
         return (
             <TileBase
                 isEditMode={isEditMode}
                 chartName={tile.properties.chartName ?? ''}
                 tile={tile}
-                isLoading={isChartLoading}
+                isLoading={!!savedSqlUuid && isChartLoading}
                 title={tile.properties.title || tile.properties.chartName || ''}
                 {...rest}
             >
-                {chartError && (
-                    <SuboptimalState
-                        icon={IconAlertCircle}
-                        title={
-                            chartError.error?.message || 'Error fetching chart'
-                        }
-                    />
-                )}
+                <SuboptimalState
+                    icon={IconAlertCircle}
+                    title={chartError?.error?.message || 'Error fetching chart'}
+                />
             </TileBase>
         );
     }
 
     // Chart data but no results
-    if (chartResultsData == undefined) {
+    if (chartResultsData === undefined) {
         return (
             <TileBase
                 isEditMode={isEditMode}

@@ -33,7 +33,7 @@ export const useSavedSqlChartResults = ({
 
     // Step 1: Get the chart
     const chartQuery = useQuery<SqlChart, Partial<ApiError>>(
-        ['savedSqlChart', savedSqlUuid || slug],
+        ['savedSqlChart', savedSqlUuid ?? slug],
         async () =>
             fetchSavedSqlChart({
                 projectUuid: projectUuid!, // safe to assume these are defined because of the enabled flag
