@@ -62,6 +62,7 @@ import {
     EditorTabs,
     selectActiveChartType,
     selectActiveEditorTab,
+    selectFetchResultsOnLoad,
     selectLimit,
     selectProjectUuid,
     selectResultsTableConfig,
@@ -83,9 +84,7 @@ export const DEFAULT_SQL_LIMIT = 500;
 export const ContentPanel: FC = () => {
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
-    const fetchResultsOnLoad = useAppSelector(
-        (state) => state.sqlRunner.fetchResultsOnLoad,
-    );
+    const fetchResultsOnLoad = useAppSelector(selectFetchResultsOnLoad);
     const projectUuid = useAppSelector(selectProjectUuid);
     const sql = useAppSelector(selectSql);
     const selectedChartType = useAppSelector(selectActiveChartType);
