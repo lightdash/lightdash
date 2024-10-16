@@ -67,7 +67,7 @@ export const HeaderEdit: FC = () => {
     const [initialChartConfig, setInitialChartConfig] = useState(config);
 
     const hasChanges = useMemo(() => {
-        if (!initialSavedSqlChart || !initialChartConfig) return false;
+        if (!initialSavedSqlChart) return false;
         const changedSql = sql !== initialSavedSqlChart.sql;
         const changedLimit = limit !== initialSavedSqlChart.limit;
         const changedConfig = !isEqual(config, initialChartConfig);
