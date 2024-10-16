@@ -59,6 +59,7 @@ export const HeaderEdit: FC = () => {
     const { mutate, isLoading } = useUpdateSqlChartMutation(
         savedSqlChart?.project.projectUuid || '',
         savedSqlChart?.savedSqlUuid || '',
+        savedSqlChart?.slug || '',
     );
     // Store initial chart config to detect if there are any changes later on
     const [initialSavedSqlChart, setInitialSavedSqlChart] = useState<
