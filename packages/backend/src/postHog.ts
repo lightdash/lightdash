@@ -29,7 +29,7 @@ export const postHogClient = lightdashConfig.posthog
 
 postHogClient?.on('error', (err) => {
     // Logging the error for debugging purposes
-    Logger.error('PostHog Error', err);
+    Logger.error('PostHog Error Event', err);
 });
 
 /**
