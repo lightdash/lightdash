@@ -120,6 +120,7 @@ describe('ProjectService', () => {
         schedulerClient: {} as SchedulerClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         s3Client: {} as S3Client,
+        groupsModel: {} as GroupsModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
