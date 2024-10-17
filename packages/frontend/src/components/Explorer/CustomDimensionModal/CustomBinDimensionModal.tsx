@@ -22,9 +22,10 @@ import {
     TextInput,
     Title,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
+import { z } from 'zod';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplorerContext } from '../../../providers/ExplorerProvider';
 import MantineIcon from '../../common/MantineIcon';
@@ -59,7 +60,54 @@ export const CustomBinDimensionModal: FC<{
         (context) => context.actions.editCustomDimension,
     );
 
-    const form = useForm({
+    const formSchema = z.object({
+        customDimensionLabel: z.string().refine(
+            (label) => {
+                if (!label) return true;
+                if (!item) return true;
+                if (isEditing && label === item.name) return true;
+
+                const dimensionName = sanitizeId(
+                    label,
+                    isEditing && isCustomDimension(item)
+                        ? item.dimensionId
+                        : item.name,
+                );
+
+                if (
+                    isEditing &&
+                    isCustomDimension(item) &&
+                    dimensionName === item.id
+                ) {
+                    return true;
+                }
+
+                return !customDimensions?.some(
+                    (customDimension) => customDimension.id === dimensionName,
+                );
+            },
+            { message: 'Dimension with this label already exists' },
+        ),
+        binType: z.nativeEnum(BinType),
+        binConfig: z.object({
+            fixedNumber: z.object({
+                binNumber: z.number().positive(),
+            }),
+            fixedWidth: z.object({
+                binWidth: z.number().positive(),
+            }),
+            customRange: z.array(
+                z.object({
+                    from: z.number({ coerce: true }).or(z.undefined()),
+                    to: z.number({ coerce: true }).or(z.undefined()),
+                }),
+            ),
+        }),
+    });
+
+    type FormValues = z.infer<typeof formSchema>;
+
+    const form = useForm<FormValues>({
         initialValues: {
             customDimensionLabel: '',
             binType: BinType.FIXED_NUMBER,
@@ -73,37 +121,7 @@ export const CustomBinDimensionModal: FC<{
                 customRange: DEFAULT_CUSTOM_RANGE,
             },
         },
-        validate: {
-            customDimensionLabel: (label) => {
-                if (!label) return null;
-
-                if (!item) return null;
-
-                if (isEditing && label === item.name) {
-                    return null;
-                }
-                const dimensionName = sanitizeId(
-                    label,
-                    isEditing && isCustomDimension(item)
-                        ? item.dimensionId
-                        : item.name,
-                );
-
-                if (
-                    isEditing &&
-                    isCustomDimension(item) &&
-                    dimensionName === item.id
-                ) {
-                    return null;
-                }
-
-                return customDimensions?.some(
-                    (customDimension) => customDimension.id === dimensionName,
-                )
-                    ? 'Dimension with this label already exists'
-                    : null;
-            },
-        },
+        validate: zodResolver(formSchema),
     });
 
     const { setFieldValue } = form;
@@ -297,7 +315,7 @@ export const CustomBinDimensionModal: FC<{
                                                     &lt;{toProps.value}{' '}
                                                 </Text>
 
-                                                <NumberInput
+                                                <TextInput
                                                     w={100}
                                                     required
                                                     type="number"
@@ -325,7 +343,7 @@ export const CustomBinDimensionModal: FC<{
                                                     ≥{fromProps.value}{' '}
                                                 </Text>
 
-                                                <NumberInput
+                                                <TextInput
                                                     w={100}
                                                     required
                                                     type="number"
@@ -352,7 +370,7 @@ export const CustomBinDimensionModal: FC<{
                                                     {toProps.value}
                                                 </Text>
 
-                                                <NumberInput
+                                                <TextInput
                                                     w={100}
                                                     required
                                                     type="number"
@@ -362,7 +380,7 @@ export const CustomBinDimensionModal: FC<{
                                                     to{' '}
                                                 </Text>
 
-                                                <NumberInput
+                                                <TextInput
                                                     w={100}
                                                     required
                                                     type="number"
