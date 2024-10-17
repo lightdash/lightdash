@@ -208,6 +208,7 @@ type MetricQueryExecutionProperties = {
     numCustomSqlDimensions: number;
     dateZoomGranularity: string | null;
     timezone?: string;
+    virtualViewId?: string;
 };
 
 type SqlExecutionProperties = {
@@ -1056,6 +1057,28 @@ export type SemanticLayerView = BaseTrack & {
     };
 };
 
+export type BaseVirtualViewEvent = BaseTrack & {
+    userId: string;
+    properties: {
+        virtualViewId: string;
+        projectId: string;
+        organizationId: string;
+        name?: string;
+    };
+};
+
+export type VirtualViewCreatedEvent = BaseVirtualViewEvent & {
+    event: 'virtual_view.created';
+};
+
+export type VirtualViewUpdatedEvent = BaseVirtualViewEvent & {
+    event: 'virtual_view.updated';
+};
+
+export type VirtualViewDeletedEvent = BaseVirtualViewEvent & {
+    event: 'virtual_view.deleted';
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1128,7 +1151,10 @@ type TypedEvent =
     | UpdateSqlChartEvent
     | DeleteSqlChartEvent
     | CreateSqlChartVersionEvent
-    | CommentsEvent;
+    | CommentsEvent
+    | VirtualViewCreatedEvent
+    | VirtualViewUpdatedEvent
+    | VirtualViewDeletedEvent;
 
 type WrapTypedEvent = SemanticLayerView;
 

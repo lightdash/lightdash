@@ -43,6 +43,7 @@ import {
     findFieldByIdInExplore,
     ForbiddenError,
     formatRows,
+    friendlyName,
     getAggregatedField,
     getDashboardFilterRulesForTables,
     getDateDimension,
@@ -1917,6 +1918,9 @@ export class ProjectService extends BaseService {
                                 ? { dashboardId: queryTags.dashboard_uuid }
                                 : {}),
                             chartId: chartUuid,
+                            ...(explore.type === ExploreType.VIRTUAL
+                                ? { virtualViewId: explore.name }
+                                : {}),
                         },
                     });
                     this.logger.debug(
@@ -4421,7 +4425,19 @@ export class ProjectService extends BaseService {
             payload,
             warehouseClient,
         );
-        return virtualView;
+
+        this.analytics.track({
+            event: 'virtual_view.created',
+            userId: user.userUuid,
+            properties: {
+                virtualViewId: virtualView.name,
+                name: virtualView.label,
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+            },
+        });
+
+        return { name: virtualView.name };
     }
 
     async updateSemanticLayerConnection(
@@ -4500,7 +4516,18 @@ export class ProjectService extends BaseService {
             warehouseClient,
         );
 
-        return updatedExplore;
+        this.analytics.track({
+            event: 'virtual_view.updated',
+            userId: user.userUuid,
+            properties: {
+                virtualViewId: updatedExplore.name,
+                name: updatedExplore.label,
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+            },
+        });
+
+        return { name: updatedExplore.name };
     }
 
     async deleteVirtualView(
@@ -4520,6 +4547,16 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        return this.projectModel.deleteVirtualView(projectUuid, name);
+        await this.projectModel.deleteVirtualView(projectUuid, name);
+
+        this.analytics.track({
+            event: 'virtual_view.deleted',
+            userId: user.userUuid,
+            properties: {
+                virtualViewId: name,
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+            },
+        });
     }
 }
