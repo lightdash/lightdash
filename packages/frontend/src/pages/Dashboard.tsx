@@ -741,6 +741,7 @@ const DashboardPage: FC = () => {
     const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
 
     useProfiler('Dashboard');
+
     return (
         <DashboardProvider
             projectUuid={projectUuid}
