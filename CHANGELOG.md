@@ -1,3 +1,10 @@
+## [0.1307.2](https://github.com/lightdash/lightdash/compare/0.1307.1...0.1307.2) (2024-10-17)
+
+
+### Bug Fixes
+
+* dbt 1.8 cli tests and remove metrics yaml ([#11953](https://github.com/lightdash/lightdash/issues/11953)) ([eac02de](https://github.com/lightdash/lightdash/commit/eac02de343343823dbde42ce632abad48deb0693))
+
 ## [0.1307.1](https://github.com/lightdash/lightdash/compare/0.1307.0...0.1307.1) (2024-10-17)
 
 
