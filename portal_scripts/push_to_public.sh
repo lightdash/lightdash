@@ -166,7 +166,7 @@ if [[ $QA_TESTED_AND_VERIFIED != [yY] ]]; then
 fi
 
 echo "vvvvvvv Local branches"
-git branch
+git --no-pager branch
 echo "^^^^^^^ Local branches"
 
 
@@ -247,6 +247,7 @@ fi
 echo "#### Changes NOT pushed!"
 echo "#### Although, changes READY to be pushed public. Use the following command then create a pull request on GitHub."
 echo "    > git push -u public HEAD"
+echo "#### Remember to run tests as needed :)"
 
 # DO NOT AUTOMATICALLY PUSH AT THIS TIME
 #git push -u public HEAD
