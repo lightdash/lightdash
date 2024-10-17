@@ -133,6 +133,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
+import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -191,6 +192,7 @@ type ProjectServiceArguments = {
     schedulerClient: SchedulerClient;
     downloadFileModel: DownloadFileModel;
     s3Client: S3Client;
+    groupsModel: GroupsModel;
 };
 
 export class ProjectService extends BaseService {
@@ -234,6 +236,8 @@ export class ProjectService extends BaseService {
 
     s3Client: S3Client;
 
+    groupsModel: GroupsModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -254,6 +258,7 @@ export class ProjectService extends BaseService {
         schedulerClient,
         downloadFileModel,
         s3Client,
+        groupsModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -276,6 +281,7 @@ export class ProjectService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.downloadFileModel = downloadFileModel;
         this.s3Client = s3Client;
+        this.groupsModel = groupsModel;
     }
 
     private async _resolveWarehouseClientSshKeys<
@@ -477,9 +483,13 @@ export class ProjectService extends BaseService {
                 ) {
                     throw new ForbiddenError();
                 }
-                // TODO copy user permissions from upstream project
+                // copy user permissions from upstream project
                 // if the user is a viewer in the org, but an editor in a project
                 // we want the user to also be an editor in the preview project
+                await this.copyUserAccessOnPreview(
+                    data.upstreamProjectUuid,
+                    projectUuid,
+                );
                 await this.copyContentOnPreview(
                     data.upstreamProjectUuid,
                     projectUuid,
@@ -3898,6 +3908,59 @@ export class ProjectService extends BaseService {
         return spacesWithUserAccess;
     }
 
+    async copyUserAccessOnPreview(
+        upstreamProjectUuid: string,
+        previewProjectUuid: string,
+    ): Promise<void> {
+        this.logger.info(
+            `Copying access from project ${upstreamProjectUuid} to preview project ${previewProjectUuid}`,
+        );
+        await wrapSentryTransaction<void>(
+            'duplicateUserAccess',
+            {
+                previewProjectUuid,
+            },
+            async () => {
+                const projectAccesses =
+                    await this.projectModel.getProjectAccess(
+                        upstreamProjectUuid,
+                    );
+                const groupAccesses =
+                    await this.projectModel.getProjectGroupAccesses(
+                        upstreamProjectUuid,
+                    );
+
+                this.logger.info(
+                    `Copying ${projectAccesses.length} user access on ${previewProjectUuid}`,
+                );
+                this.logger.info(
+                    `Copying ${groupAccesses.length} group access on ${previewProjectUuid}`,
+                );
+                const insertProjectAccessPromises = projectAccesses.map(
+                    (projectAccess) =>
+                        this.projectModel.createProjectAccess(
+                            previewProjectUuid,
+                            projectAccess.email,
+                            projectAccess.role,
+                        ),
+                );
+                const insertGroupAccessPromises = groupAccesses.map(
+                    (groupAccess) =>
+                        this.groupsModel.addProjectAccess({
+                            groupUuid: groupAccess.groupUuid,
+                            projectUuid: previewProjectUuid,
+                            role: groupAccess.role,
+                        }),
+                );
+
+                await Promise.all([
+                    ...insertGroupAccessPromises,
+                    ...insertProjectAccessPromises,
+                ]);
+            },
+        );
+    }
+
     async copyContentOnPreview(
         projectUuid: string,
         previewProjectUuid: string,
@@ -3913,12 +3976,14 @@ export class ProjectService extends BaseService {
             },
             async () => {
                 const spaces = await this.spaceModel.find({ projectUuid }); // Get all spaces in the project
+
+                // TODO we do not need to filter allowed space content here,
+                // since the new project will have the same user access as the original project
+                /*
                 const spacesAccess = await this.spaceModel.getUserSpacesAccess(
                     user.userUuid,
                     spaces.map((s) => s.uuid),
                 );
-                // TODO we might not need to filter allowed space content here,
-                // since the new project will have the same access as the original project
                 const allowedSpaces = spaces.filter((space) =>
                     hasViewAccessToSpace(
                         user,
@@ -3926,11 +3991,12 @@ export class ProjectService extends BaseService {
                         spacesAccess[space.uuid] ?? [],
                     ),
                 );
+                */
 
                 await this.projectModel.duplicateContent(
                     projectUuid,
                     previewProjectUuid,
-                    allowedSpaces,
+                    spaces,
                 );
             },
         );
