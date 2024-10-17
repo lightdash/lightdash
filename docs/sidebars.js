@@ -219,6 +219,7 @@ module.exports = {
                             id: 'references/filters',
                             label: 'Filters',
                         },
+                        'references/custom-fields',
                         'references/table-calculations',
                         'references/spaces',
                     ],
