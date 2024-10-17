@@ -97,10 +97,12 @@ export const CustomBinDimensionModal: FC<{
                 binWidth: z.number().positive(),
             }),
             customRange: z.array(
-                z.object({
-                    from: z.number({ coerce: true }).or(z.undefined()),
-                    to: z.number({ coerce: true }).or(z.undefined()),
-                }),
+                z
+                    .object({
+                        from: z.number({ coerce: true }).optional(),
+                        to: z.number({ coerce: true }).optional(),
+                    })
+                    .transform((o) => ({ from: o.from, to: o.to })),
             ),
         }),
     });
