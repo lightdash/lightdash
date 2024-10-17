@@ -5,6 +5,7 @@ import {
     convertToGroups,
     isV9MetricRef,
     SupportedDbtAdapter,
+    type DbtColumnLightdashDimension,
     type DbtMetric,
     type DbtModelColumn,
     type DbtModelNode,
@@ -78,15 +79,12 @@ const convertTimezone = (
 const isInterval = (
     dimensionType: DimensionType,
     { meta }: DbtModelColumn,
-    isAdditionalDimension: boolean | undefined,
 ): boolean =>
     [DimensionType.DATE, DimensionType.TIMESTAMP].includes(dimensionType) &&
     meta.dimension?.time_intervals !== false &&
-    Boolean(
-        meta.dimension?.time_intervals &&
-            meta.dimension.time_intervals !== 'OFF',
-    ) &&
-    !isAdditionalDimension;
+    ((meta.dimension?.time_intervals &&
+        meta.dimension.time_intervals !== 'OFF') ||
+        !meta?.dimension?.time_intervals);
 
 const convertDimension = (
     index: number,
@@ -118,8 +116,7 @@ const convertDimension = (
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
     const isIntervalBase =
-        timeInterval === undefined &&
-        isInterval(type, column, isAdditionalDimension);
+        timeInterval === undefined && isInterval(type, column);
 
     let timeIntervalBaseDimensionName: string | undefined;
 
@@ -302,18 +299,26 @@ export const convertTable = (
                 startOfWeek,
             );
 
-            let extraDimensions = {};
-
-            const processIntervalDimension = (dim: Dimension) => {
-                if (isInterval(dim.type, column, dim.isAdditionalDimension)) {
+            const processIntervalDimension = (
+                dim: Dimension,
+                overrideTimeIntervals: DbtColumnLightdashDimension['time_intervals'],
+            ) => {
+                if (dim.isIntervalBase) {
                     let intervals: TimeFrames[] = [];
+
                     if (
+                        !dim.isAdditionalDimension &&
                         column.meta.dimension?.time_intervals &&
                         Array.isArray(column.meta.dimension.time_intervals)
                     ) {
                         intervals = validateTimeFrames(
                             column.meta.dimension.time_intervals,
                         );
+                    } else if (
+                        dim.isAdditionalDimension &&
+                        Array.isArray(overrideTimeIntervals)
+                    ) {
+                        intervals = validateTimeFrames(overrideTimeIntervals);
                     } else {
                         intervals = getDefaultTimeFrames(dim.type);
                     }
@@ -359,9 +364,8 @@ export const convertTable = (
                 return {};
             };
 
-            extraDimensions = {
-                ...extraDimensions,
-                ...processIntervalDimension(dimension),
+            let extraDimensions = {
+                ...processIntervalDimension(dimension, undefined),
             };
 
             extraDimensions = Object.entries(
@@ -384,10 +388,15 @@ export const convertTable = (
                     startOfWeek,
                     true,
                 );
+
                 return {
                     ...acc,
+                    // When the additional dim is interval AND the base dimension is a interval base then we want to compute all additional dims with the parent intervals otherwise just set the additional dim
                     [subDimensionName]: additionalDim,
-                    ...processIntervalDimension(additionalDim),
+                    ...processIntervalDimension(
+                        additionalDim,
+                        subDimension.time_intervals,
+                    ),
                 };
             }, extraDimensions);
 
