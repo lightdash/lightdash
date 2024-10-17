@@ -1,3 +1,10 @@
+# [0.1307.0](https://github.com/lightdash/lightdash/compare/0.1306.1...0.1307.0) (2024-10-17)
+
+
+### Features
+
+* github proxy callback ([#11949](https://github.com/lightdash/lightdash/issues/11949)) ([193b570](https://github.com/lightdash/lightdash/commit/193b57019e2656256af3329d00ee7ac9a2d900b1))
+
 ## [0.1306.1](https://github.com/lightdash/lightdash/compare/0.1306.0...0.1306.1) (2024-10-16)
 
 
