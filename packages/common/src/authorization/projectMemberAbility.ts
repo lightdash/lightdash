@@ -131,10 +131,6 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
-        can('create', 'Project', {
-            projectUuid: member.projectUuid,
-            type: ProjectType.PREVIEW,
-        });
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });
@@ -193,6 +189,10 @@ export const projectMemberAbilities: Record<
         });
         can('manage', 'CompileProject', {
             projectUuid: member.projectUuid,
+        });
+        can('create', 'Project', {
+            projectUuid: member.projectUuid,
+            type: ProjectType.PREVIEW,
         });
     },
     admin(member, { can }) {
