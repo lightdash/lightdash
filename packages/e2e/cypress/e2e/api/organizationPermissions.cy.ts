@@ -320,7 +320,7 @@ describe('Lightdash API tests for interactive_viewer org user', () => {
         });
     });
 
-    it('Should get a credentials error (500) from POST project', () => {
+    it('Should get a forbidden error (403) from POST project', () => {
         const endpoint = `${apiUrl}/org/projects/`;
 
         cy.request({
@@ -330,7 +330,7 @@ describe('Lightdash API tests for interactive_viewer org user', () => {
             body: {},
             failOnStatusCode: false,
         }).then((resp) => {
-            expect(resp.status).to.eq(500);
+            expect(resp.status).to.eq(403);
         });
     });
 
