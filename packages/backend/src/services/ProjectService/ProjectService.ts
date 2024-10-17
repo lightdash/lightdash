@@ -1918,6 +1918,9 @@ export class ProjectService extends BaseService {
                                 ? { dashboardId: queryTags.dashboard_uuid }
                                 : {}),
                             chartId: chartUuid,
+                            ...(explore.type === ExploreType.VIRTUAL
+                                ? { virtualViewId: explore.name }
+                                : {}),
                         },
                     });
                     this.logger.debug(

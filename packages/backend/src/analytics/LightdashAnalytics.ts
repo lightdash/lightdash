@@ -208,6 +208,7 @@ type MetricQueryExecutionProperties = {
     numCustomSqlDimensions: number;
     dateZoomGranularity: string | null;
     timezone?: string;
+    virtualViewId?: string;
 };
 
 type SqlExecutionProperties = {
