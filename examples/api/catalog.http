@@ -22,7 +22,7 @@ GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/d
 GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=payment_method
 
 #### Search metric
-GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=dbt_derived
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=completed_order_count
 
 #### Search field without attribute access (age)
 GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog?search=age
@@ -42,5 +42,5 @@ GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/d
 ### Get analytics table (payments)
 GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/payments/analytics
 
-### Get analytics field (payment_method) 
+### Get analytics field (payment_method)
 GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/payments/analytics/payment_method
