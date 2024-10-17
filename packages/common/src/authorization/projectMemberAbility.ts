@@ -190,12 +190,13 @@ export const projectMemberAbilities: Record<
         can('manage', 'CompileProject', {
             projectUuid: member.projectUuid,
         });
+        can('create', 'Project', {
+            projectUuid: member.projectUuid,
+            type: ProjectType.PREVIEW,
+        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
-        can('create', 'Project', {
-            type: ProjectType.PREVIEW,
-        });
         can('manage', 'Project', {
             projectUuid: member.projectUuid,
         });

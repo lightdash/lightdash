@@ -3,6 +3,7 @@ import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
+import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { type MemberAbility } from './types';
 
@@ -77,6 +78,7 @@ export const organizationMemberAbilities: Record<
         organizationMemberAbilities.viewer(member, { can });
         can('create', 'Project', {
             organizationUuid: member.organizationUuid,
+            type: ProjectType.PREVIEW,
         });
         can('create', 'Job');
         can('view', 'Job', { userUuid: member.userUuid });
