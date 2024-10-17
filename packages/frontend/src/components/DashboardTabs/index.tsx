@@ -388,6 +388,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     <TabDeleteModal
                                         tab={activeTab}
                                         dashboardTiles={dashboardTiles}
+                                        dashboardTabs={dashboardTabs}
                                         onClose={() => setDeletingTab(false)}
                                         opened={
                                             isDeletingTab &&
@@ -396,6 +397,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         onDeleteTab={(uuid) => {
                                             handleDeleteTab(uuid);
                                         }}
+                                        onMoveTile={handleEditTile}
                                     />
                                 </>
                             )}
