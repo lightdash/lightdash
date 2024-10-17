@@ -38,4 +38,9 @@ export enum FeatureFlags {
      * Enable the semantic layer
      */
     SemanticLayerEnabled = 'semantic-layer-enabled',
+
+    /**
+     * Enable dashboard comments
+     */
+    DashboardComments = 'dashboard-comments-enabled',
 }
