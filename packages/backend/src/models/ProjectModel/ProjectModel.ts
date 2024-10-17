@@ -2038,7 +2038,7 @@ export class ProjectModel {
         projectUuid: string,
         { name, sql, columns }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
-    ): Promise<Pick<Explore, 'name'>> {
+    ): Promise<Explore> {
         const virtualView = createVirtualView(
             name,
             sql,
@@ -2077,7 +2077,7 @@ export class ProjectModel {
             })
             .returning('*');
 
-        return { name };
+        return virtualView;
     }
 
     async updateVirtualView(
@@ -2139,7 +2139,7 @@ export class ProjectModel {
             })
             .returning('*');
 
-        return { name: translatedToExplore.name };
+        return translatedToExplore;
     }
 
     async deleteVirtualView(projectUuid: string, name: string) {
