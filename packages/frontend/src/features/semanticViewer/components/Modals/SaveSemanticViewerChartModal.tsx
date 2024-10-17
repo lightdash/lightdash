@@ -11,13 +11,11 @@ import { useForm, zodResolver } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChartBar } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
-import { type z } from 'zod';
+import { z } from 'zod';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import {
-    SaveDestination,
-    SaveToSpace,
-    validationSchema,
-} from '../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
+import SaveToSpaceForm, {
+    saveToSpaceSchema,
+} from '../../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { selectCompleteConfigByKind } from '../../../../components/DataViz/store/selectors';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import {
@@ -35,7 +33,14 @@ import {
     updateSaveModalOpen,
 } from '../../store/semanticViewerSlice';
 
-type FormValues = z.infer<typeof validationSchema>;
+const saveSemanticViewerChartSchema = z
+    .object({
+        name: z.string().min(1),
+        description: z.string().nullable(),
+    })
+    .merge(saveToSpaceSchema);
+
+type FormValues = z.infer<typeof saveSemanticViewerChartSchema>;
 
 type Props = {
     onSave: (slug: string) => void;
@@ -60,10 +65,10 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
 
     const spacesQuery = useSpaceSummaries(projectUuid, true);
 
-    const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
+    const spaceCreateMutation = useSpaceCreateMutation(projectUuid);
 
     const form = useForm<FormValues>({
-        validate: zodResolver(validationSchema),
+        validate: zodResolver(saveToSpaceSchema),
     });
 
     const handleClose = useCallback(() => {
@@ -78,10 +83,9 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
         if (spacesQuery.isSuccess && !form.initialized) {
             form.initialize({
                 name,
-                description: '',
-                newSpaceName: '',
-                saveDestination: SaveDestination.Space,
-                spaceUuid: spacesQuery.data[0]?.uuid,
+                description: null,
+                newSpaceName: null,
+                spaceUuid: spacesQuery.data[0].uuid ?? null,
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,7 +131,7 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
         if (!hasConfigAndQuery) return;
 
         let newSpace = form.values.newSpaceName
-            ? await createSpace({
+            ? await spaceCreateMutation.mutateAsync({
                   name: form.values.newSpaceName,
                   access: [],
                   isPrivate: true,
@@ -158,7 +162,7 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
         form.values.spaceUuid,
         form.values.name,
         form.values.description,
-        createSpace,
+        spaceCreateMutation,
         saveChart,
         semanticLayerView,
         semanticLayerQuery,
@@ -192,14 +196,22 @@ const SaveSemanticViewerChartModal: FC<Props> = ({ onSave }) => {
                             placeholder="eg. How many weekly active users do we have?"
                             required
                             {...form.getInputProps('name')}
+                            value={form.values.name ?? ''}
                         />
                         <Textarea
                             label="Description"
                             {...form.getInputProps('description')}
+                            value={form.values.description ?? ''}
                         />
                     </Stack>
-                    <SaveToSpace
+
+                    <SaveToSpaceForm
                         form={form}
+                        isLoading={
+                            isSaving ||
+                            spacesQuery.isLoading ||
+                            spaceCreateMutation.isLoading
+                        }
                         spaces={spacesQuery.data}
                         projectUuid={projectUuid}
                     />
