@@ -1,3 +1,10 @@
+## [0.1307.1](https://github.com/lightdash/lightdash/compare/0.1307.0...0.1307.1) (2024-10-17)
+
+
+### Bug Fixes
+
+* add nanoid to state in github oauth ([#11971](https://github.com/lightdash/lightdash/issues/11971)) ([0f12034](https://github.com/lightdash/lightdash/commit/0f12034a77557a3189d13aa7b798c94be1e00c02))
+
 # [0.1307.0](https://github.com/lightdash/lightdash/compare/0.1306.1...0.1307.0) (2024-10-17)
 
 
