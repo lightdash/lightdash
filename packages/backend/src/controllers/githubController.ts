@@ -16,6 +16,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { nanoid, urlAlphabet } from 'nanoid';
 import { getGithubApp, getOctokitRestForApp } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
@@ -51,19 +52,20 @@ export class GithubInstallController extends BaseController {
             '/generalSettings/integrations',
             lightdashConfig.siteUrl,
         );
+        const randomID = nanoid().replace('_', ''); // we use _ as separator, don't allow this character on the nanoid
         const subdomain = lightdashConfig.github.redirectDomain;
-
+        const state = `${subdomain}_${randomID}`;
         const githubAppName = lightdashConfig.github.appName;
 
         req.session.oauth = {};
         req.session.oauth.returnTo = returnToUrl.href;
-        req.session.oauth.state = subdomain;
+        req.session.oauth.state = state;
         req.session.oauth.inviteCode = req.user!.userUuid;
 
         this.setStatus(302);
         this.setHeader(
             'Location',
-            `https://github.com/apps/${githubAppName}/installations/new?state=${subdomain}`,
+            `https://github.com/apps/${githubAppName}/installations/new?state=${state}`,
         );
     }
 
