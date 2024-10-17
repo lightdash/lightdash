@@ -78,12 +78,15 @@ const convertTimezone = (
 const isInterval = (
     dimensionType: DimensionType,
     { meta }: DbtModelColumn,
+    isAdditionalDimension: boolean | undefined,
 ): boolean =>
     [DimensionType.DATE, DimensionType.TIMESTAMP].includes(dimensionType) &&
     meta.dimension?.time_intervals !== false &&
-    ((meta.dimension?.time_intervals &&
-        meta.dimension.time_intervals !== 'OFF') ||
-        !meta.dimension?.time_intervals);
+    Boolean(
+        meta.dimension?.time_intervals &&
+            meta.dimension.time_intervals !== 'OFF',
+    ) &&
+    !isAdditionalDimension;
 
 const convertDimension = (
     index: number,
@@ -115,13 +118,16 @@ const convertDimension = (
         sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
     }
     const isIntervalBase =
-        timeInterval === undefined && isInterval(type, column);
+        timeInterval === undefined &&
+        isInterval(type, column, isAdditionalDimension);
 
     let timeIntervalBaseDimensionName: string | undefined;
+
     const groups: string[] = convertToGroups(
         column.meta.dimension?.groups,
         column.meta.dimension?.group_label,
     );
+
     if (timeInterval) {
         timeIntervalBaseDimensionName = name;
         sql = timeFrameConfigs[timeInterval].getSql(
@@ -299,7 +305,7 @@ export const convertTable = (
             let extraDimensions = {};
 
             const processIntervalDimension = (dim: Dimension) => {
-                if (isInterval(dim.type, column)) {
+                if (isInterval(dim.type, column, dim.isAdditionalDimension)) {
                     let intervals: TimeFrames[] = [];
                     if (
                         column.meta.dimension?.time_intervals &&
