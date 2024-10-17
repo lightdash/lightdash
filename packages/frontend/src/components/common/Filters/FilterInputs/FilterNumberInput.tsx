@@ -1,5 +1,5 @@
 import { TextInput, type TextInputProps } from '@mantine/core';
-import { useEffect, useState, type ChangeEvent, type FC } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FC } from 'react';
 
 interface Props extends Omit<TextInputProps, 'type' | 'value' | 'onChange'> {
     value: unknown;
@@ -15,6 +15,7 @@ const FilterNumberInput: FC<Props> = ({
     ...rest
 }) => {
     const [internalValue, setInternalValue] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (typeof value === 'string') {
@@ -29,6 +30,12 @@ const FilterNumberInput: FC<Props> = ({
             );
         }
     }, [value]);
+
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [onChange]);
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
@@ -53,6 +60,7 @@ const FilterNumberInput: FC<Props> = ({
             {...rest}
             type="number"
             value={internalValue}
+            ref={inputRef}
             onChange={handleInputChange}
         />
     );
