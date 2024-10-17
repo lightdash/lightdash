@@ -1057,36 +1057,26 @@ export type SemanticLayerView = BaseTrack & {
     };
 };
 
-export type VirtualViewCreatedEvent = BaseTrack & {
+export type BaseVirtualViewEvent = BaseTrack & {
+    userId: string;
+    properties: {
+        virtualViewId: string;
+        projectId: string;
+        organizationId: string;
+        name?: string;
+    };
+};
+
+export type VirtualViewCreatedEvent = BaseVirtualViewEvent & {
     event: 'virtual_view.created';
-    userId: string;
-    properties: {
-        virtualViewId: string;
-        name: string;
-        projectId: string;
-        organizationId: string;
-    };
 };
 
-export type VirtualViewUpdatedEvent = BaseTrack & {
+export type VirtualViewUpdatedEvent = BaseVirtualViewEvent & {
     event: 'virtual_view.updated';
-    userId: string;
-    properties: {
-        virtualViewId: string;
-        name: string;
-        projectId: string;
-        organizationId: string;
-    };
 };
 
-export type VirtualViewDeletedEvent = BaseTrack & {
+export type VirtualViewDeletedEvent = BaseVirtualViewEvent & {
     event: 'virtual_view.deleted';
-    userId: string;
-    properties: {
-        virtualViewId: string;
-        projectId: string;
-        organizationId: string;
-    };
 };
 
 type TypedEvent =
