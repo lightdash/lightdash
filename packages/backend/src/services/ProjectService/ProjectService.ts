@@ -483,9 +483,6 @@ export class ProjectService extends BaseService {
                 ) {
                     throw new ForbiddenError();
                 }
-                // copy user permissions from upstream project
-                // if the user is a viewer in the org, but an editor in a project
-                // we want the user to also be an editor in the preview project
                 await this.copyUserAccessOnPreview(
                     data.upstreamProjectUuid,
                     projectUuid,
@@ -3908,6 +3905,11 @@ export class ProjectService extends BaseService {
         return spacesWithUserAccess;
     }
 
+    /* 
+        Copy user permissions from upstream project
+        if the user is a viewer in the org, but an editor in a project
+        we want the user to also be an editor in the preview project
+    */
     async copyUserAccessOnPreview(
         upstreamProjectUuid: string,
         previewProjectUuid: string,
