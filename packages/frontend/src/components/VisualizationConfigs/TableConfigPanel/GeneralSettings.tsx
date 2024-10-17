@@ -69,11 +69,11 @@ const GeneralSettings: FC = () => {
         const newValue = !metricsAsRows;
 
         if (newValue) {
-            setShowColumnCalculation(showRowCalculation);
-            setShowRowCalculation(showColumnCalculation);
+            setShowColumnCalculation(showColumnCalculation);
+            setShowRowCalculation(showRowCalculation);
         } else {
-            setShowColumnCalculation(showRowCalculation);
-            setShowRowCalculation(showColumnCalculation);
+            setShowColumnCalculation(showColumnCalculation);
+            setShowRowCalculation(showRowCalculation);
         }
 
         setMetricsAsRows(newValue);
