@@ -111,13 +111,19 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             bg="white"
             radius="sm"
             shadow={isEditMode ? 'xs' : undefined}
-            sx={(theme) => ({
-                overflow: 'unset',
-
-                border: isEditMode
-                    ? `1px dashed ${theme.colors.blue[5]}`
-                    : `1px solid ${theme.colors.gray[1]}`,
-            })}
+            sx={(theme) => {
+                let border = `1px solid ${theme.colors.gray[1]}`;
+                if (tabs && tabs.length > 1) {
+                    border = `1px solid ${theme.colors.gray[3]}`;
+                }
+                if (isEditMode) {
+                    border = `1px dashed ${theme.colors.blue[5]}`;
+                }
+                return {
+                    overflow: 'unset',
+                    border: border,
+                };
+            }}
         >
             <LoadingOverlay
                 className="loading_chart_overlay"
