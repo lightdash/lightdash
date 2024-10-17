@@ -109,8 +109,8 @@ if [[ "$IS_LOCAL_BEHIND_PUBLIC_DEV" -eq "1" ]]; then
     THIS_BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
     echo "#### Base LD version of official public branch is ahead of local branch. Rebase local branch:"
     echo "    > git checkout master"
-    echo "    > git pull origin"
-    echo "    > git checkout <your-branch-name>"
+    echo "    > git pull origin master"
+    echo "    > git checkout $THIS_BRANCH_NAME"
     echo "    > git rebase origin/master"
     exit 1
 fi
@@ -153,7 +153,7 @@ if [[ "$IS_LOCAL_BEHIND_PUBLIC_INTERNAL" -eq "1" ]]; then
     exit 1;
 fi
 
-read -p "#### Has the PR been approved by the team and passed all checks? (y/n): " CODE_REVIEWED_AND_PASSED
+read -p "#### Has the PR been approved by the team and passed all tests and checks? (y/n): " CODE_REVIEWED_AND_PASSED
 if [[ $CODE_REVIEWED_AND_PASSED != [yY] ]]; then
     echo "#### Please get the PR approved by the team and ensure all checks have passed."
     exit 1
@@ -165,9 +165,9 @@ if [[ $QA_TESTED_AND_VERIFIED != [yY] ]]; then
     exit 1
 fi
 
-echo "vvvvvvv Local branches"
+echo "vvvvvvv Local branches vvvvvvv"
 git --no-pager branch
-echo "^^^^^^^ Local branches"
+echo "^^^^^^^ Local branches ^^^^^^^"
 
 
 while true; do
@@ -245,7 +245,7 @@ if [[ $FINAL_OK != [yY] ]]; then
 fi
 
 echo "#### Changes NOT pushed!"
-echo "#### Although, changes READY to be pushed public. Use the following command then create a pull request on GitHub."
+echo "#### Although, changes are READY to be pushed public. Use the following command then create a pull request on GitHub."
 echo "    > git push -u public HEAD"
 echo "#### Remember to run tests as needed :)"
 
