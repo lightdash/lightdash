@@ -1,7 +1,7 @@
 version: 2
 models:
   - name: customers
-    meta: 
+    meta:
       joins:
         - join: membership
           hidden: true
@@ -19,10 +19,17 @@ models:
         tests:
           - unique
           - not_null
+        meta:
+          metrics:
+            unique_customer_count:
+              type: count_distinct
+              label: Unique customer count
+              description: Total number of customers
+
       - name: first_name
-        description: | 
-          # First name 
-          --- 
+        description: |
+          # First name
+          ---
           Customer's first name. PII.
           ---
           Supports URLs
@@ -38,14 +45,14 @@ models:
                 url: "https://example.com/company/${row.customer_id.raw | url_encode }"
       - name: last_name
         description: Customer's last name. PII.
-      - name: age 
+      - name: age
         description: Customer's age
-        meta: 
+        meta:
           dimension:
-            type: number 
+            type: number
             required_attributes:
               is_admin: 'true'
-          metrics: 
+          metrics:
             average_age:
               type: average
               description: Average age of customers
@@ -114,6 +121,12 @@ models:
           metrics:
             unique_order_count:
               type: count_distinct
+            completed_order_count:
+              label: Completed order count
+              description: Total number of completed orders
+              type: count_distinct
+              filters:
+                - is_completed: "true"
             completed_or_shipped_order_count:
               label: Completed or Shipped Order Count
               type: count_distinct
@@ -121,6 +134,7 @@ models:
                 - status:
                     - completed
                     - shipped
+
       - name: is_completed
         description: Boolean indicating if status is completed
         meta:
@@ -143,9 +157,9 @@ models:
       - name: order_date
         description: Date (UTC) that the order was placed
         meta:
-          dimension: 
+          dimension:
             type: date
-            time_intervals: ['DAY', 'WEEK', 'MONTH', 'YEAR'] 
+            time_intervals: ['DAY', 'WEEK', 'MONTH', 'YEAR']
           metrics:
             date_of_first_order:
               type: min
@@ -154,13 +168,13 @@ models:
       - name: status
         description: "{{ doc(\"orders_status\") }}"
         meta:
-          dimension: 
-            colors: 
+          dimension:
+            colors:
               # Hex colors are supported in both chart config and echarts
               "placed": "#e6fa0f"
               "completed": "#00FF00"
               # Rgb/rgba/name colors are not supported in chart config, but supported in echarts
-              "shipped": "rgba(47, 119, 150, 0.7)" 
+              "shipped": "rgba(47, 119, 150, 0.7)"
               "return_pending": "orange"
               "returned": "rgb(247, 32, 32)"
         tests:
