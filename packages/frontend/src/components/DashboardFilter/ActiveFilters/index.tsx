@@ -1,11 +1,17 @@
+import {
+    getDashboardFilterRulesForTile,
+    isTileFilterable,
+    type DashboardFilters,
+} from '@lightdash/common';
 import { Group, Skeleton } from '@mantine/core';
-import { type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import Filter from '../Filter';
 import InvalidFilter from '../InvalidFilter';
 
 interface ActiveFiltersProps {
     isEditMode: boolean;
+    activeTabUuid: string | undefined;
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
@@ -13,10 +19,12 @@ interface ActiveFiltersProps {
 
 const ActiveFilters: FC<ActiveFiltersProps> = ({
     isEditMode,
+    activeTabUuid,
     openPopoverId,
     onPopoverOpen,
     onPopoverClose,
 }) => {
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
@@ -37,6 +45,45 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         (c) => c.updateDimensionDashboardFilter,
     );
 
+    const makeTabGetter = useCallback(
+        (filters: DashboardFilters) => {
+            return (filterId: string) => {
+                return (
+                    dashboardTiles?.reduce((acc, tile) => {
+                        if (!isTileFilterable(tile)) return acc;
+                        const filtersForTile = getDashboardFilterRulesForTile(
+                            tile.uuid,
+                            filters.dimensions,
+                        );
+                        const filterIdsForTile = filtersForTile.map(
+                            (tileFilter) => tileFilter.id,
+                        );
+                        if (
+                            tile.tabUuid &&
+                            filterIdsForTile.includes(filterId) &&
+                            !acc.includes(tile.tabUuid)
+                        ) {
+                            acc.push(tile.tabUuid);
+                        }
+                        return acc;
+                    }, [] as string[]) || []
+                );
+            };
+        },
+        [dashboardTiles],
+    );
+
+    const getTabsUsingFilter = useCallback(
+        (filterId: string) => makeTabGetter(dashboardFilters)(filterId),
+        [makeTabGetter, dashboardFilters],
+    );
+
+    const getTabsUsingTemporaryFilter = useCallback(
+        (filterId: string) =>
+            makeTabGetter(dashboardTemporaryFilters)(filterId),
+        [makeTabGetter, dashboardTemporaryFilters],
+    );
+
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
         return (
             <Group spacing="xs" ml="xs">
@@ -55,12 +102,15 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         <>
             {dashboardFilters.dimensions.map((item, index) => {
                 const field = allFilterableFieldsMap[item.target.fieldId];
+                const appliesToTabs = getTabsUsingFilter(item.id);
                 return field ? (
                     <Filter
                         key={item.id}
                         isEditMode={isEditMode}
                         field={field}
                         filterRule={item}
+                        activeTabUuid={activeTabUuid}
+                        appliesToTabs={appliesToTabs}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}
@@ -90,6 +140,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
                 const field = allFilterableFieldsMap[item.target.fieldId];
+                const appliesToTabs = getTabsUsingTemporaryFilter(item.id);
                 return field ? (
                     <Filter
                         key={item.id}
@@ -97,6 +148,8 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         isEditMode={isEditMode}
                         field={field}
                         filterRule={item}
+                        activeTabUuid={activeTabUuid}
+                        appliesToTabs={appliesToTabs}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}
