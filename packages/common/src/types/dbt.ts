@@ -99,7 +99,7 @@ type DbtColumnLightdashConfig = {
     metrics?: { [metricName: string]: DbtColumnLightdashMetric };
 };
 
-type DbtColumnLightdashDimension = {
+export type DbtColumnLightdashDimension = {
     name?: string;
     label?: string;
     type?: DimensionType;
@@ -119,7 +119,7 @@ type DbtColumnLightdashDimension = {
 
 type DbtColumnLightdashAdditionalDimension = Omit<
     DbtColumnLightdashDimension,
-    'name' | 'time_intervals'
+    'name'
 >;
 
 export type DbtColumnLightdashMetric = {
