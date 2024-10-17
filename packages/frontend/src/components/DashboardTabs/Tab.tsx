@@ -17,6 +17,7 @@ type DraggableTabProps = {
     isEditMode: boolean;
     sortedTabs: DashboardTab[];
     currentTabHasTiles: boolean;
+    isActive: boolean;
     setEditingTab: (value: React.SetStateAction<boolean>) => void;
     setDeletingTab: (value: React.SetStateAction<boolean>) => void;
     handleDeleteTab: (tabUuid: string) => void;
@@ -28,6 +29,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
     isEditMode,
     sortedTabs,
     currentTabHasTiles,
+    isActive,
     setEditingTab,
     handleDeleteTab,
     setDeletingTab,
@@ -49,6 +51,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                         style={{
                             marginLeft: 0,
                             marginRight: 0,
+                            backgroundColor: isActive
+                                ? 'white'
+                                : 'var(--mantine-color-gray-0)',
                         }}
                     >
                         <Group

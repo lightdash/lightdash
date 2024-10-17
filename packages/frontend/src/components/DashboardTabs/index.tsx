@@ -232,122 +232,126 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 }
                             }}
                             style={{
-                                paddingTop: 5,
+                                marginTop: 5,
                             }}
+                            styles={
+                                tabsEnabled
+                                    ? {
+                                          root: {
+                                              backgroundColor: 'white',
+                                          },
+                                      }
+                                    : undefined
+                            }
+                            variant="outline"
                         >
                             {sortedTabs && sortedTabs?.length > 0 && (
-                                <Group
-                                    w="100%"
-                                    noWrap
-                                    position="apart"
-                                    spacing="xs"
-                                    style={
-                                        (sortedTabs && sortedTabs.length > 0) ||
-                                        isEditMode
-                                            ? {
-                                                  background: 'white',
-                                                  padding: 5,
-                                                  borderRadius: 3,
-                                              }
-                                            : undefined
-                                    }
+                                <Tabs.List
+                                    style={{
+                                        backgroundColor:
+                                            'var(--mantine-color-gray-0)',
+                                        paddingLeft: '1.25em',
+                                        paddingRight: '1.25em',
+                                    }}
                                 >
-                                    <Tabs.List>
-                                        {sortedTabs?.map((tab, idx) => {
-                                            return (
-                                                <DraggableTab
-                                                    key={tab.uuid}
-                                                    idx={idx}
-                                                    tab={tab}
-                                                    isEditMode={isEditMode}
-                                                    sortedTabs={sortedTabs}
-                                                    currentTabHasTiles={
-                                                        currentTabHasTiles
-                                                    }
-                                                    setEditingTab={
-                                                        setEditingTab
-                                                    }
-                                                    handleDeleteTab={
-                                                        handleDeleteTab
-                                                    }
-                                                    setDeletingTab={
-                                                        setDeletingTab
-                                                    }
-                                                />
-                                            );
-                                        })}
-                                        {provided.placeholder}
-                                        {isEditMode && (
-                                            <Group>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    leftIcon={
-                                                        <MantineIcon
-                                                            icon={IconPlus}
-                                                        />
-                                                    }
-                                                    onClick={() =>
-                                                        setAddingTab(true)
-                                                    }
-                                                    style={{
-                                                        borderWidth: 0,
-                                                    }}
-                                                >
-                                                    Add
-                                                </Button>
-                                            </Group>
-                                        )}
-                                    </Tabs.List>
-                                </Group>
-                            )}
-                            <ResponsiveGridLayout
-                                {...getResponsiveGridLayoutProps()}
-                                className={`react-grid-layout-dashboard ${
-                                    hasRequiredDashboardFiltersToSet
-                                        ? 'locked'
-                                        : ''
-                                }`}
-                                onDragStop={handleUpdateTiles}
-                                onResizeStop={handleUpdateTiles}
-                                onWidthChange={(cw) => setGridWidth(cw)}
-                                layouts={layouts}
-                                key={activeTab?.uuid ?? defaultTab?.uuid}
-                            >
-                                {sortedTiles?.map((tile, idx) => {
-                                    if (
-                                        isActiveTile(tile) // If tile belongs to active tab
-                                    ) {
+                                    {sortedTabs?.map((tab, idx) => {
                                         return (
-                                            <div key={tile.uuid}>
-                                                <TrackSection
-                                                    name={
-                                                        SectionName.DASHBOARD_TILE
-                                                    }
-                                                >
-                                                    <GridTile
-                                                        locked={
-                                                            hasRequiredDashboardFiltersToSet
-                                                        }
-                                                        index={idx}
-                                                        isEditMode={isEditMode}
-                                                        tile={tile}
-                                                        onDelete={
-                                                            handleDeleteTile
-                                                        }
-                                                        onEdit={handleEditTile}
-                                                        tabs={dashboardTabs}
-                                                        onAddTiles={
-                                                            handleAddTiles
-                                                        }
-                                                    />
-                                                </TrackSection>
-                                            </div>
+                                            <DraggableTab
+                                                key={tab.uuid}
+                                                idx={idx}
+                                                tab={tab}
+                                                isEditMode={isEditMode}
+                                                sortedTabs={sortedTabs}
+                                                currentTabHasTiles={
+                                                    currentTabHasTiles
+                                                }
+                                                isActive={
+                                                    activeTab?.uuid === tab.uuid
+                                                }
+                                                setEditingTab={setEditingTab}
+                                                handleDeleteTab={
+                                                    handleDeleteTab
+                                                }
+                                                setDeletingTab={setDeletingTab}
+                                            />
                                         );
-                                    }
-                                })}
-                            </ResponsiveGridLayout>
-
+                                    })}
+                                    {provided.placeholder}
+                                    {isEditMode && (
+                                        <Group>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                leftIcon={
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    setAddingTab(true)
+                                                }
+                                                style={{
+                                                    borderWidth: 0,
+                                                }}
+                                            >
+                                                Add
+                                            </Button>
+                                        </Group>
+                                    )}
+                                </Tabs.List>
+                            )}
+                            <div style={{ padding: '0 1.25em 1.25em 1.25em' }}>
+                                <ResponsiveGridLayout
+                                    {...getResponsiveGridLayoutProps()}
+                                    className={`react-grid-layout-dashboard ${
+                                        hasRequiredDashboardFiltersToSet
+                                            ? 'locked'
+                                            : ''
+                                    }`}
+                                    onDragStop={handleUpdateTiles}
+                                    onResizeStop={handleUpdateTiles}
+                                    onWidthChange={(cw) => setGridWidth(cw)}
+                                    layouts={layouts}
+                                    key={activeTab?.uuid ?? defaultTab?.uuid}
+                                >
+                                    {sortedTiles?.map((tile, idx) => {
+                                        if (
+                                            isActiveTile(tile) // If tile belongs to active tab
+                                        ) {
+                                            return (
+                                                <div key={tile.uuid}>
+                                                    <TrackSection
+                                                        name={
+                                                            SectionName.DASHBOARD_TILE
+                                                        }
+                                                    >
+                                                        <GridTile
+                                                            locked={
+                                                                hasRequiredDashboardFiltersToSet
+                                                            }
+                                                            index={idx}
+                                                            isEditMode={
+                                                                isEditMode
+                                                            }
+                                                            tile={tile}
+                                                            onDelete={
+                                                                handleDeleteTile
+                                                            }
+                                                            onEdit={
+                                                                handleEditTile
+                                                            }
+                                                            tabs={dashboardTabs}
+                                                            onAddTiles={
+                                                                handleAddTiles
+                                                            }
+                                                        />
+                                                    </TrackSection>
+                                                </div>
+                                            );
+                                        }
+                                    })}
+                                </ResponsiveGridLayout>
+                            </div>
                             <LockedDashboardModal
                                 opened={
                                     hasRequiredDashboardFiltersToSet &&

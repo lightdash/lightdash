@@ -685,23 +685,25 @@ const Dashboard: FC = () => {
                         <DateZoom isEditMode={isEditMode} />
                     )}
                 </Group>
-                <DashboardTabs
-                    isEditMode={isEditMode}
-                    hasRequiredDashboardFiltersToSet={
-                        hasRequiredDashboardFiltersToSet
-                    }
-                    addingTab={addingTab}
-                    dashboardTiles={dashboardTiles}
-                    handleAddTiles={handleAddTiles}
-                    handleUpdateTiles={handleUpdateTiles}
-                    handleDeleteTile={handleDeleteTile}
-                    handleBatchDeleteTiles={handleBatchDeleteTiles}
-                    handleEditTile={handleEditTiles}
-                    setGridWidth={setGridWidth}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    setAddingTab={setAddingTab}
-                />
+                <div style={{ margin: '0 -1.25em 0 -1.25em' }}>
+                    <DashboardTabs
+                        isEditMode={isEditMode}
+                        hasRequiredDashboardFiltersToSet={
+                            hasRequiredDashboardFiltersToSet
+                        }
+                        addingTab={addingTab}
+                        dashboardTiles={dashboardTiles}
+                        handleAddTiles={handleAddTiles}
+                        handleUpdateTiles={handleUpdateTiles}
+                        handleDeleteTile={handleDeleteTile}
+                        handleBatchDeleteTiles={handleBatchDeleteTiles}
+                        handleEditTile={handleEditTiles}
+                        setGridWidth={setGridWidth}
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
+                        setAddingTab={setAddingTab}
+                    />
+                </div>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened
