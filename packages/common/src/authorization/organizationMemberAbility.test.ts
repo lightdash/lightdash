@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { type OrganizationMemberProfile } from '../types/organizationMemberProfile';
+import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { organizationMemberAbilities } from './organizationMemberAbility';
 import {
@@ -1099,8 +1100,15 @@ describe('Organization member permissions', () => {
                 false,
             );
         });
-        it('cannot create Project', () => {
-            const org = { organizationUuid: '456' };
+        it('cannot create PREVIEW Project', () => {
+            const org = { organizationUuid: '456', type: ProjectType.PREVIEW };
+
+            expect(ability.can('create', subject('Project', org))).toEqual(
+                false,
+            );
+        });
+        it('cannot create DEFAULT Project', () => {
+            const org = { organizationUuid: '456', type: ProjectType.DEFAULT };
 
             expect(ability.can('create', subject('Project', org))).toEqual(
                 false,
@@ -1352,14 +1360,25 @@ describe('Organization member permissions', () => {
                 false,
             );
         });
-        it('can create Project', () => {
+
+        it('can create PREVIEW Project', () => {
             expect(ability.can('create', subject('Job', {}))).toEqual(true);
-            const org = { organizationUuid: '456' };
+
+            const org = { organizationUuid: '456', type: ProjectType.PREVIEW };
+
             expect(ability.can('create', subject('Project', org))).toEqual(
                 true,
             );
         });
+        it('cannot create DEFAULT Project', () => {
+            expect(ability.can('create', subject('Job', {}))).toEqual(true);
 
+            const org = { organizationUuid: '456', type: ProjectType.DEFAULT };
+
+            expect(ability.can('create', subject('Project', org))).toEqual(
+                false,
+            );
+        });
         it('cannot create any resource, except space when have editor space role', () => {
             expect(
                 ability.can(
