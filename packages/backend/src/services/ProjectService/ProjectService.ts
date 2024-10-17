@@ -426,18 +426,16 @@ export class ProjectService extends BaseService {
         if (
             user.ability.cannot(
                 'create',
-                subject('Job', { organizationUuid }),
-            ) ||
-            user.ability.cannot(
-                'create',
                 subject('Project', {
                     organizationUuid,
+                    projectUuid: data.upstreamProjectUuid,
                     type: data.type,
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
+
         const createProject = await this._resolveWarehouseClientSshKeys(data);
         const projectUuid = await this.projectModel.create(
             user.organizationUuid,
