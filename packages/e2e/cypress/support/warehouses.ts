@@ -35,14 +35,14 @@ const warehouseConnections: Record<string, CreateWarehouseCredentials> = {
         maximumBytesBilled: undefined,
         type: WarehouseTypes.BIGQUERY,
     },
-    /* databricks: {
-        name: 'Jaffle Databricks test',
-        host: Cypress.env('DATABRICKS_HOST'),
-        token: Cypress.env('DATABRICKS_TOKEN'),
+    databricks: {
+        catalog: 'lightdash_staging',
+        serverHostName: Cypress.env('DATABRICKS_HOST'),
+        personalAccessToken: Cypress.env('DATABRICKS_TOKEN'),
         httpPath: Cypress.env('DATABRICKS_PATH'),
-        schema: 'jaffle',
+        database: 'jaffle',
         type: WarehouseTypes.DATABRICKS,
-    }, */
+    },
     snowflake: {
         account: Cypress.env('SNOWFLAKE_ACCOUNT'),
         user: Cypress.env('SNOWFLAKE_USER'),
