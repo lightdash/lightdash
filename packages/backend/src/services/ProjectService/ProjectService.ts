@@ -3919,6 +3919,7 @@ export class ProjectService extends BaseService {
             'duplicateUserAccess',
             {
                 previewProjectUuid,
+                upstreamProjectUuid,
             },
             async () => {
                 const projectAccesses =
@@ -3976,22 +3977,6 @@ export class ProjectService extends BaseService {
             },
             async () => {
                 const spaces = await this.spaceModel.find({ projectUuid }); // Get all spaces in the project
-
-                // TODO we do not need to filter allowed space content here,
-                // since the new project will have the same user access as the original project
-                /*
-                const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-                    user.userUuid,
-                    spaces.map((s) => s.uuid),
-                );
-                const allowedSpaces = spaces.filter((space) =>
-                    hasViewAccessToSpace(
-                        user,
-                        space,
-                        spacesAccess[space.uuid] ?? [],
-                    ),
-                );
-                */
 
                 await this.projectModel.duplicateContent(
                     projectUuid,

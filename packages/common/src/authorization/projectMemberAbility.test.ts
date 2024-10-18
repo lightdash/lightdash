@@ -1312,7 +1312,7 @@ describe('Project member permissions', () => {
     });
 
     describe('test project preview permissions', () => {
-        it('developers can not create preview or regular projects', () => {
+        it('viewers can not create preview or regular projects', () => {
             ability = defineAbilityForProjectMember(PROJECT_VIEWER);
             expect(
                 ability.can(
