@@ -429,24 +429,24 @@ export class SavedSqlService extends BaseService {
             }
         }
 
-        const { hasAccess: hasViewAccess } = savedChart
+        const { hasAccess: savedChartViewAccess } = savedChart
             ? await this.hasSavedChartAccess(user, 'view', savedChart)
             : { hasAccess: false };
 
         if (
             // If it's not a saved chart, check if the user has access to run a pivot query
-            user.ability.cannot(
+            !savedChartViewAccess &&
+            (user.ability.cannot(
                 'create',
                 subject('Job', { organizationUuid, projectUuid }),
             ) ||
-            (user.ability.cannot(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            ) &&
-                !hasViewAccess)
+                user.ability.cannot(
+                    'manage',
+                    subject('SqlRunner', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                ))
         ) {
             throw new ForbiddenError();
         }
