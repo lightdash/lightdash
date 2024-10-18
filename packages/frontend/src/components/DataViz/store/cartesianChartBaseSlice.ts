@@ -4,15 +4,19 @@ import {
     ChartKind,
     isFormat,
     VIZ_DEFAULT_AGGREGATION,
+    type CartesianChartDataModel,
     type CartesianChartDisplay,
+    type PieChartDataModel,
+    type PivotChartData,
     type PivotChartLayout,
+    type TableDataModel,
     type VizAggregationOptions,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import { createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
 export type CartesianChartState = {
     metadata: {
@@ -23,6 +27,10 @@ export type CartesianChartState = {
     display: VizCartesianChartConfig['display'] | undefined;
     options: VizCartesianChartOptions;
     errors: VizConfigErrors | undefined;
+    chartData: PivotChartData | undefined;
+    chartDataLoading: boolean;
+    chartDataError: Error | null | undefined;
+    series?: string[];
 };
 
 const initialState: CartesianChartState = {
@@ -38,6 +46,9 @@ const initialState: CartesianChartState = {
         pivotLayoutOptions: [],
     },
     errors: undefined,
+    chartData: undefined,
+    chartDataLoading: false,
+    chartDataError: undefined,
 };
 
 export const cartesianChartConfigSlice = createSlice({
@@ -403,3 +414,27 @@ export const cartesianChartConfigSlice = createSlice({
         },
     },
 });
+
+export const fetchPivotChartData = createAsyncThunk(
+    'cartesianChartBaseConfig/fetchPivotChartData',
+    async ({
+        vizDataModel,
+        limit,
+        sql,
+    }: {
+        vizDataModel:
+            | TableDataModel
+            | PieChartDataModel
+            | CartesianChartDataModel;
+        limit: number;
+        sql: string;
+    }) => {
+        const chartData = await vizDataModel.getPivotedChartData({
+            limit,
+            sql,
+            sortBy: [],
+            filters: [],
+        });
+        return chartData;
+    },
+);

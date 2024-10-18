@@ -38,10 +38,10 @@ import {
     PanelResizeHandle,
     type ImperativePanelHandle,
 } from 'react-resizable-panels';
-import { useAsync } from 'react-use';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
+import { fetchPivotChartData } from '../../../components/DataViz/store/cartesianChartBaseSlice';
 import {
     cartesianChartSelectors,
     selectChartDisplayByKind,
@@ -290,19 +290,20 @@ export const ContentPanel: FC = () => {
     }, [currentFieldConfig, resultsRunner, selectedChartType]);
 
     const {
-        loading: chartLoading,
-        error: chartError,
-        value: chartData,
-    } = useAsync(
-        async () =>
-            vizDataModel.getPivotedChartData({
-                limit,
-                sql,
-                sortBy: [],
-                filters: [],
-            }),
-        [vizDataModel],
-    );
+        chartData,
+        chartDataLoading: chartLoading,
+        chartDataError: chartError,
+    } = useAppSelector((state) => state.lineChartConfig);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            await dispatch(fetchPivotChartData({ vizDataModel, limit, sql }));
+        };
+
+        if (vizDataModel && limit && sql) {
+            void fetchData();
+        }
+    }, [dispatch, vizDataModel, limit, sql]);
 
     const { chartSpec, tableData, chartFileUrl } = useMemo(() => {
         if (!chartData)
