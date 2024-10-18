@@ -5,7 +5,10 @@ import {
     setChartConfig,
     setChartOptionsAndConfig,
 } from './actions/commonChartActions';
-import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
+import {
+    cartesianChartConfigSlice,
+    fetchPivotChartData,
+} from './cartesianChartBaseSlice';
 
 export const lineChartConfigSlice = createSlice({
     name: 'lineChartConfig',
@@ -14,11 +17,27 @@ export const lineChartConfigSlice = createSlice({
         ...cartesianChartConfigSlice.caseReducers,
     },
     extraReducers: (builder) => {
+        // add thunk
+        // store series in add case reducer after
+        // thunk returns the series or the raw data(!! preferable)
+        //
+        builder.addCase(fetchPivotChartData.pending, (state) => {
+            state.chartDataLoading = true;
+            state.chartDataError = undefined;
+        });
+        builder.addCase(fetchPivotChartData.fulfilled, (state, action) => {
+            state.chartDataLoading = false;
+            state.chartData = action.payload;
+            state.series = action.payload?.valuesColumns;
+        });
+        builder.addCase(fetchPivotChartData.rejected, (state, action) => {
+            state.chartDataLoading = false;
+            state.chartDataError = new Error(action.error.message);
+        });
         builder.addCase(setChartOptionsAndConfig, (state, action) => {
             if (action.payload.type !== ChartKind.LINE) {
                 return;
             }
-
             state.options = action.payload.options;
 
             // Only set the initial config if it's not already set and the fieldConfig is present
@@ -37,9 +56,10 @@ export const lineChartConfigSlice = createSlice({
                 state.display = action.payload.display;
             }
         });
-        builder.addCase(resetChartState, () =>
-            cartesianChartConfigSlice.getInitialState(),
-        );
+        builder.addCase(resetChartState, () => ({
+            ...cartesianChartConfigSlice.getInitialState(),
+            type: ChartKind.LINE,
+        }));
     },
 });
 
