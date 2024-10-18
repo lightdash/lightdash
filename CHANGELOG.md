@@ -1,3 +1,10 @@
+## [0.1307.3](https://github.com/lightdash/lightdash/compare/0.1307.2...0.1307.3) (2024-10-18)
+
+
+### Bug Fixes
+
+* fix additional_dimensions allowing time_intervals ([#11970](https://github.com/lightdash/lightdash/issues/11970)) ([e44696e](https://github.com/lightdash/lightdash/commit/e44696e31ad040ea90441cd81813ff2a00d7cb76))
+
 ## [0.1307.2](https://github.com/lightdash/lightdash/compare/0.1307.1...0.1307.2) (2024-10-17)
 
 
