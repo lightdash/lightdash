@@ -1,3 +1,10 @@
+## [0.1309.2](https://github.com/lightdash/lightdash/compare/0.1309.1...0.1309.2) (2024-10-18)
+
+
+### Bug Fixes
+
+* check for saved chart view access when running pivot query ([#11997](https://github.com/lightdash/lightdash/issues/11997)) ([e0c59e9](https://github.com/lightdash/lightdash/commit/e0c59e94e3be224bc4705dc15da0991b6af0a2b8))
+
 ## [0.1309.1](https://github.com/lightdash/lightdash/compare/0.1309.0...0.1309.1) (2024-10-18)
 
 
