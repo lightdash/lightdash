@@ -41,7 +41,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
                 return 'Return to dashboard';
             case 'creating':
             case 'editing':
-                return 'Cancel';
+                return 'Return to dashboard';
             default:
                 return assertUnreachable(
                     action,
