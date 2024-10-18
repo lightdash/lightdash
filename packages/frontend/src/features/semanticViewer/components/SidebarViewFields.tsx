@@ -91,7 +91,7 @@ const SidebarViewFields = () => {
                 description={
                     fields.error.error.statusCode !== 500
                         ? fields.error.error.message
-                        : 'There might be something wrong with the selected fields'
+                        : 'Something went wrong when trying to fetch the fields'
                 }
             />
         );
