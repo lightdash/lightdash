@@ -4,8 +4,8 @@ import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useSavedSemanticViewerChartUpdateMutation } from '../api/hooks';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectSemanticLayerInfo,

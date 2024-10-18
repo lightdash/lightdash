@@ -1,6 +1,6 @@
 import { type VizTableColumnsConfig } from '@lightdash/common';
 import { createSelector } from 'reselect';
-import { type RootState } from '.';
+import { type RootState } from '../../../features/sqlRunner/store';
 
 export const selectSemanticViewerState = (state: RootState) =>
     state.semanticViewer.status;

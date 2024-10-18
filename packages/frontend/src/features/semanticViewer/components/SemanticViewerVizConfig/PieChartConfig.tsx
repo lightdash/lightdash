@@ -2,14 +2,14 @@ import { DimensionType, type VizColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { FieldReferenceSelect } from '../../../../components/DataViz/FieldReferenceSelect';
 import {
-    useVizDispatch,
-    useVizSelector,
-} from '../../../../components/DataViz/store';
-import {
     setGroupFieldIds,
     setYAxisReference,
 } from '../../../../components/DataViz/store/pieChartSlice';
 import { Config } from '../../../../components/VisualizationConfigs/common/Config';
+import {
+    useAppDispatch as useVizDispatch,
+    useAppSelector as useVizSelector,
+} from '../../../../features/sqlRunner/store/hooks';
 
 export const PieChartConfig = ({ columns }: { columns: VizColumn[] }) => {
     const dispatch = useVizDispatch();

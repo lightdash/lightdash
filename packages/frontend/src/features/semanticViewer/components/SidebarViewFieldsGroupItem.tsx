@@ -17,7 +17,7 @@ import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconClock, IconDots } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { getSelectedField } from '../store/selectors';
 import {
     deselectField,

@@ -1,9 +1,12 @@
 import { DimensionType, type VizColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
 import { useMemo } from 'react';
+import {
+    useAppDispatch as useVizDispatch,
+    useAppSelector as useVizSelector,
+} from '../../../features/sqlRunner/store/hooks';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
-import { useVizDispatch, useVizSelector } from '../store';
 import {
     setGroupFieldIds,
     setYAxisAggregation,
