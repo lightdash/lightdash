@@ -1,3 +1,10 @@
+## [0.1309.1](https://github.com/lightdash/lightdash/compare/0.1309.0...0.1309.1) (2024-10-18)
+
+
+### Bug Fixes
+
+* fix field errors for semantic viewer ([#11990](https://github.com/lightdash/lightdash/issues/11990)) ([71ed831](https://github.com/lightdash/lightdash/commit/71ed831efcb5c6d7d96493fa6f52d2f07f73880f))
+
 # [0.1309.0](https://github.com/lightdash/lightdash/compare/0.1308.0...0.1309.0) (2024-10-18)
 
 
