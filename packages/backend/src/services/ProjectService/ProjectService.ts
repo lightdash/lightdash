@@ -3906,6 +3906,47 @@ export class ProjectService extends BaseService {
         return spacesWithUserAccess;
     }
 
+    async createPreview(
+        user: SessionUser,
+        projectUuid: string,
+        data: {
+            name: string;
+            copyContent: boolean;
+        },
+        context: RequestMethod,
+    ): Promise<string> {
+        // create preview project permissions are checked in `createWithoutCompile`
+        const project = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (!project.warehouseConnection) {
+            throw new ParameterError(
+                `Missing warehouse connection for project ${projectUuid}`,
+            );
+        }
+        const previewData: CreateProject = {
+            name: data.name,
+            type: ProjectType.PREVIEW,
+            warehouseConnection: project.warehouseConnection,
+            dbtConnection: project.dbtConnection,
+            upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
+            dbtVersion: project.dbtVersion,
+        };
+
+        const previewProject = await this.createWithoutCompile(
+            user,
+            previewData,
+            context,
+        );
+        await this.scheduleCompileProject(
+            user,
+            previewProject.project.projectUuid,
+            context,
+        );
+        return previewProject.project.projectUuid;
+    }
+
     async copyContentOnPreview(
         projectUuid: string,
         previewProjectUuid: string,
