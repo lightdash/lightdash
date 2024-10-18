@@ -34,6 +34,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         columns,
         rows,
         projectUuid,
+        savedSqlUuid,
         limit,
         sql,
         sortBy,
@@ -41,6 +42,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         columns: VizColumn[];
         rows: RawResultRow[];
         projectUuid: string;
+        savedSqlUuid?: string;
         limit?: number;
         sql: string;
         sortBy?: VizSortBy[];
@@ -63,6 +65,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
             columnNames: fields.map((field) => field.name),
             runPivotQuery: getPivotQueryFunctionForSqlRunner({
                 projectUuid,
+                savedSqlUuid,
                 limit,
                 sql,
                 fields,

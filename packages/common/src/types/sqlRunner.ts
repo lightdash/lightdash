@@ -34,6 +34,7 @@ export type SqlRunnerPayload = {
 } & SqlRunnerBody;
 
 type ApiSqlRunnerPivotQueryPayload = {
+    savedSqlUuid?: string;
     indexColumn: PivotIndexColum;
     valuesColumns: {
         reference: string;
