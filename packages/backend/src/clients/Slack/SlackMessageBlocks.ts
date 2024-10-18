@@ -338,23 +338,33 @@ export const getDashboardCsvResultsBlocks = ({
                 action_id: 'button-action',
             },
         },
-        ...csvUrls.map<KnownBlock>((csvUrl, index) => ({
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: `:black_small_square: ${csvUrl.filename}`,
-            },
-            accessory: {
-                type: 'button',
-                text: {
-                    type: 'plain_text',
-                    text: 'Download results',
-                    emoji: true,
-                },
-                url: csvUrl.path,
-                action_id: `download-results-${index}`,
-            },
-        })),
+        ...csvUrls.map<KnownBlock>((csvUrl, index) =>
+            csvUrl.path !== '#no-results'
+                ? {
+                      type: 'section',
+                      text: {
+                          type: 'mrkdwn',
+                          text: `:black_small_square: ${csvUrl.filename}`,
+                      },
+                      accessory: {
+                          type: 'button',
+                          text: {
+                              type: 'plain_text',
+                              text: 'Download results',
+                              emoji: true,
+                          },
+                          url: csvUrl.path,
+                          action_id: `download-results-${index}`,
+                      },
+                  }
+                : {
+                      type: 'section',
+                      text: {
+                          type: 'mrkdwn',
+                          text: '*_This query returned no results_*',
+                      },
+                  },
+        ),
         footerMarkdown
             ? {
                   type: 'context',
