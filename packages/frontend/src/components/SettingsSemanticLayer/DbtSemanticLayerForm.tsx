@@ -133,7 +133,8 @@ const DbtSemanticLayerForm: FC<Props> = ({
                                         >
                                             dbt Settings
                                         </Anchor>{' '}
-                                        - token needs at least{' '}
+                                        {'>'} API Tokens {'>'} Service Tokens -
+                                        token needs at least{' '}
                                         <Text span fw={500}>
                                             'semantic layer only'
                                         </Text>{' '}
