@@ -1,10 +1,4 @@
-import {
-    ApiSuccessEmpty,
-    ForbiddenError,
-    GitRepo,
-    NotFoundError,
-} from '@lightdash/common';
-import { Octokit as OctokitRest } from '@octokit/rest';
+import { ApiSuccessEmpty, GitRepo } from '@lightdash/common';
 import {
     Delete,
     Get,
@@ -16,9 +10,6 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { nanoid, urlAlphabet } from 'nanoid';
-import { getGithubApp, getOctokitRestForApp } from '../clients/github/Github';
-import { lightdashConfig } from '../config/lightdashConfig';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { BaseController } from './baseController';
 
