@@ -383,6 +383,79 @@
                                                     "maxItems": 2
                                                 }
                                             }
+                                        },
+                                        "additional_dimensions": {
+                                            "type": "object",
+                                            "patternProperties": {
+                                                "^[a-z0-9_]+$": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "type": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "string",
+                                                                "number",
+                                                                "timestamp",
+                                                                "date",
+                                                                "boolean"
+                                                            ]
+                                                        },
+                                                        "label": {
+                                                            "type": "string",
+                                                            "minLength": 1
+                                                        },
+                                                        "description": {
+                                                            "type": "string",
+                                                            "minLength": 1
+                                                        },
+                                                        "sql": {
+                                                            "type": "string",
+                                                            "minLength": 1
+                                                        },
+                                                        "time_intervals": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "RAW",
+                                                                            "DAY",
+                                                                            "WEEK",
+                                                                            "MONTH",
+                                                                            "QUARTER",
+                                                                            "YEAR",
+                                                                            "HOUR",
+                                                                            "MINUTE",
+                                                                            "SECOND",
+                                                                            "MILLISECOND",
+                                                                            "WEEK_NUM",
+                                                                            "MONTH_NUM",
+                                                                            "MONTH_NAME",
+                                                                            "DAY_OF_WEEK_NAME",
+                                                                            "QUARTER_NAME",
+                                                                            "DAY_OF_WEEK_INDEX",
+                                                                            "DAY_OF_MONTH_NUM",
+                                                                            "DAY_OF_YEAR_NUM",
+                                                                            "QUARTER_NUM",
+                                                                            "YEAR_NUM",
+                                                                            "HOUR_OF_DAY_NUM",
+                                                                            "MINUTE_OF_HOUR_NUM"
+                                                                        ]
+                                                                    }
+                                                                },
+                                                                {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "default",
+                                                                        "OFF"
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

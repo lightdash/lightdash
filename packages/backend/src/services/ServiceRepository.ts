@@ -433,6 +433,7 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     s3Client: this.clients.getS3Client(),
+                    groupsModel: this.models.getGroupsModel(),
                 }),
         );
     }

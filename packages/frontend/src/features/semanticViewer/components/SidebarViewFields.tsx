@@ -12,6 +12,7 @@ import Fuse from 'fuse.js';
 import { useEffect, useMemo, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useSemanticLayerViewFields } from '../api/hooks';
 import {
@@ -38,6 +39,7 @@ const getSearchResults = (
 };
 
 const SidebarViewFields = () => {
+    const { showToastError } = useToaster();
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
     const semanticLayerView = useAppSelector(
         (state) => state.semanticViewer.semanticLayerView,
@@ -70,15 +72,28 @@ const SidebarViewFields = () => {
         return getSearchResults(fields.data, searchQuery);
     }, [fields.data, searchQuery]);
 
-    if (fields.isError) {
-        throw fields.error;
-    }
-
     if (fields.isLoading) {
         return (
             <Center sx={{ flexGrow: 1 }}>
                 <Loader color="gray" size="sm" />
             </Center>
+        );
+    }
+
+    if (fields.isError) {
+        showToastError({
+            title: 'Failed to fetch fields',
+        });
+
+        return (
+            <SuboptimalState
+                title="Failed to fetch fields"
+                description={
+                    fields.error.error.statusCode !== 500
+                        ? fields.error.error.message
+                        : 'Something went wrong when trying to fetch the fields'
+                }
+            />
         );
     }
 
