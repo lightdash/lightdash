@@ -1,3 +1,31 @@
+## [0.1309.1](https://github.com/lightdash/lightdash/compare/0.1309.0...0.1309.1) (2024-10-18)
+
+
+### Bug Fixes
+
+* fix field errors for semantic viewer ([#11990](https://github.com/lightdash/lightdash/issues/11990)) ([71ed831](https://github.com/lightdash/lightdash/commit/71ed831efcb5c6d7d96493fa6f52d2f07f73880f))
+
+# [0.1309.0](https://github.com/lightdash/lightdash/compare/0.1308.0...0.1309.0) (2024-10-18)
+
+
+### Features
+
+* feature flag for dashboard comments ([#11973](https://github.com/lightdash/lightdash/issues/11973)) ([0285842](https://github.com/lightdash/lightdash/commit/028584244137f783d4c191169e645c0bb2bf6944))
+
+# [0.1308.0](https://github.com/lightdash/lightdash/compare/0.1307.3...0.1308.0) (2024-10-18)
+
+
+### Features
+
+* interactive viewers can create previews ([#11955](https://github.com/lightdash/lightdash/issues/11955)) ([8746eaa](https://github.com/lightdash/lightdash/commit/8746eaa8027382b2b4d26ea25c56947c12be507e))
+
+## [0.1307.3](https://github.com/lightdash/lightdash/compare/0.1307.2...0.1307.3) (2024-10-18)
+
+
+### Bug Fixes
+
+* fix additional_dimensions allowing time_intervals ([#11970](https://github.com/lightdash/lightdash/issues/11970)) ([e44696e](https://github.com/lightdash/lightdash/commit/e44696e31ad040ea90441cd81813ff2a00d7cb76))
+
 ## [0.1307.2](https://github.com/lightdash/lightdash/compare/0.1307.1...0.1307.2) (2024-10-17)
 
 
