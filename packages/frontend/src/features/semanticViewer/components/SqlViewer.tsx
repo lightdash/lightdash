@@ -3,8 +3,8 @@ import { Prism } from '@mantine/prism';
 import { type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useSemanticLayerSql } from '../api/hooks';
-import { useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectSemanticLayerInfo,

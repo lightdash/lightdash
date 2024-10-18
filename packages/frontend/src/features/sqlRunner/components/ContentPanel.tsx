@@ -277,6 +277,8 @@ export const ContentPanel: FC = () => {
         return undefined;
     }, [currentVizConfig]);
 
+    // From here?
+
     const resultsRunner = useAppSelector((state) =>
         selectSqlRunnerResultsRunner(state, sortBy),
     );
@@ -288,6 +290,17 @@ export const ContentPanel: FC = () => {
             selectedChartType ?? ChartKind.VERTICAL_BAR,
         );
     }, [currentFieldConfig, resultsRunner, selectedChartType]);
+
+    // react query
+    // dispatch on success to update each slice (similar to setChartOptionsAndConfig)
+    //
+
+    // where we want to get to
+    // we want all of the logic
+
+    // create selector, run react query in selector - store whats needed in redux?
+    // make sure that options get also returned in the selector
+    // find out how to store the series in redux
 
     const {
         loading: chartLoading,
@@ -311,13 +324,14 @@ export const ContentPanel: FC = () => {
                 tableData: undefined,
                 fileUrl: undefined,
             };
-
+        const td = vizDataModel.getPivotedTableData();
+        console.log('tableData', td);
         return {
             chartSpec: vizDataModel.getSpec(
                 currentDisplay,
                 organization?.chartColors,
             ),
-            tableData: vizDataModel.getPivotedTableData(),
+            tableData: td,
             chartFileUrl: vizDataModel.getDataDownloadUrl(),
         };
     }, [vizDataModel, currentDisplay, chartData, organization?.chartColors]);
@@ -349,6 +363,8 @@ export const ContentPanel: FC = () => {
         currentVizConfig,
         currentDisplay,
     ]);
+
+    // to here?
 
     useEffect(() => {
         if (queryResults && panelSizes[1] === 0) {

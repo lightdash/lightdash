@@ -13,7 +13,7 @@ import { IconAlertCircle, IconPlayerPlay } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import LimitButton from '../../../components/LimitButton';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { selectAllSelectedFieldNames, selectLimit } from '../store/selectors';
 import { setLimit } from '../store/semanticViewerSlice';
 

@@ -6,7 +6,7 @@ import {
 import { Menu } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
-import { useAppDispatch } from '../../store/hooks';
+import { useAppDispatch } from '../../../sqlRunner/store/hooks';
 import { addFilterAndOpenModal } from '../../store/semanticViewerSlice';
 import { createFilterForOperator } from '../FiltersModal/createFilterForOperator';
 

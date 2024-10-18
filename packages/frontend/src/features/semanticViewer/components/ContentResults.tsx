@@ -7,8 +7,8 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { Table } from '../../../components/DataViz/visualizations/Table';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
-import { useAppSelector } from '../store/hooks';
 import {
     selectResultsTableVizConfig,
     selectSemanticLayerInfo,

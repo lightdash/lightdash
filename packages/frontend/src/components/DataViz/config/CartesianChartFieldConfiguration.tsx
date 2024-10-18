@@ -11,15 +11,16 @@ import {
 import { ActionIcon, Box, Select, Stack } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
+import {
+    useAppDispatch as useVizDispatch,
+    useAppSelector as useVizSelector,
+} from '../../../features/sqlRunner/store/hooks';
 import MantineIcon from '../../common/MantineIcon';
 import { AddButton } from '../../VisualizationConfigs/common/AddButton';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
-import {
-    useVizDispatch,
-    useVizSelector,
-    type CartesianChartActionsType,
-} from '../store';
+import { type BarChartActionsType } from '../store/barChartSlice';
+import { type LineChartActionsType } from '../store/lineChartSlice';
 import { cartesianChartSelectors } from '../store/selectors';
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
@@ -28,7 +29,7 @@ const YFieldsAxisConfig: FC<{
     yLayoutOptions: VizIndexLayoutOptions[];
     isSingle: boolean;
     index: number;
-    actions: CartesianChartActionsType;
+    actions: BarChartActionsType | LineChartActionsType;
     columns: VizColumn[];
     error:
         | NonNullable<
@@ -119,7 +120,7 @@ const XFieldAxisConfig = ({
     columns: VizColumn[];
     field: ReturnType<typeof cartesianChartSelectors.getXAxisField> | undefined;
     xLayoutOptions: VizIndexLayoutOptions[];
-    actions: CartesianChartActionsType;
+    actions: BarChartActionsType | LineChartActionsType;
     error: VizConfigErrors['indexFieldError'];
 }) => {
     const dispatch = useVizDispatch();
@@ -197,7 +198,7 @@ const GroupByFieldAxisConfig = ({
     columns: VizColumn[];
     field: undefined | { reference: string };
     groupByOptions?: VizPivotLayoutOptions[];
-    actions: CartesianChartActionsType;
+    actions: BarChartActionsType | LineChartActionsType;
     error: VizConfigErrors['groupByFieldError'];
 }) => {
     const dispatch = useVizDispatch();
@@ -252,7 +253,7 @@ export const CartesianChartFieldConfiguration = ({
 }: {
     selectedChartType: ChartKind;
     columns: VizColumn[];
-    actions: CartesianChartActionsType;
+    actions: BarChartActionsType | LineChartActionsType;
 }) => {
     const dispatch = useVizDispatch();
     const xLayoutOptions = useVizSelector((state) =>

@@ -24,8 +24,8 @@ import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
+import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useCreateSemanticViewerChartMutation } from '../../api/hooks';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
