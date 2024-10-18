@@ -383,6 +383,7 @@ export const {
 
 export const selectSqlRunnerResultsRunner = createSelector(
     [
+        sqlRunnerSlice.selectors.selectSavedSqlChart,
         sqlRunnerSlice.selectors.selectColumns,
         sqlRunnerSlice.selectors.selectRows,
         selectProjectUuid,
@@ -390,7 +391,7 @@ export const selectSqlRunnerResultsRunner = createSelector(
         selectSql,
         (_state, sortBy?: VizSortBy[]) => sortBy,
     ],
-    (columns, rows, projectUuid, limit, sql, sortBy) => {
+    (sqlChart, columns, rows, projectUuid, limit, sql, sortBy) => {
         return new SqlRunnerResultsRunnerFrontend({
             columns: columns || [],
             rows: rows || [],

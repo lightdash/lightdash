@@ -412,9 +412,26 @@ export class SavedSqlService extends BaseService {
         body: SqlRunnerPivotQueryBody,
         context?: QueryExecutionContext,
     ): Promise<{ jobId: string }> {
+        const { savedSqlUuid } = body;
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
+
+        let savedChart;
+
+        if (savedSqlUuid) {
+            savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+                projectUuid,
+            });
+
+            if (!savedChart) {
+                throw new Error('Saved chart not found');
+            }
+        }
+
+        const { hasAccess: hasViewAccess } = savedChart
+            ? await this.hasSavedChartAccess(user, 'view', savedChart)
+            : { hasAccess: false };
 
         if (
             // If it's not a saved chart, check if the user has access to run a pivot query
@@ -422,13 +439,14 @@ export class SavedSqlService extends BaseService {
                 'create',
                 subject('Job', { organizationUuid, projectUuid }),
             ) ||
-            user.ability.cannot(
+            (user.ability.cannot(
                 'manage',
                 subject('SqlRunner', {
                     organizationUuid,
                     projectUuid,
                 }),
-            )
+            ) &&
+                !hasViewAccess)
         ) {
             throw new ForbiddenError();
         }

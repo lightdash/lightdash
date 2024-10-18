@@ -23,6 +23,7 @@ const schedulePivotSqlJob = async ({
     ...payload
 }: {
     projectUuid: string;
+    savedSqlUuid?: string;
     context?: string;
 } & SqlRunnerPivotQueryBody) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
@@ -32,19 +33,24 @@ const schedulePivotSqlJob = async ({
         method: 'POST',
         body: JSON.stringify(payload),
     });
+
 type PivotQueryFn = (
     args: SqlRunnerPivotQueryBody & {
         projectUuid: string;
+        savedSqlUuid?: string;
         context?: string;
     },
 ) => Promise<Omit<PivotChartData, 'columns'>>;
+
 const pivotQueryFn: PivotQueryFn = async ({
     projectUuid,
+    savedSqlUuid,
     context,
     ...args
 }) => {
     const scheduledJob = await schedulePivotSqlJob({
         projectUuid,
+        savedSqlUuid,
         context,
         ...args,
     });
@@ -121,6 +127,7 @@ const convertSemanticLayerQueryToSqlRunnerPivotQuery = (
 // TEMPORARY
 export const getPivotQueryFunctionForSqlRunner = ({
     projectUuid,
+    savedSqlUuid,
     limit,
     sortBy,
     sql,
@@ -128,6 +135,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
     context,
 }: {
     projectUuid: string;
+    savedSqlUuid?: string;
     limit?: number;
     sql: string;
     sortBy?: VizSortBy[];
@@ -149,6 +157,7 @@ export const getPivotQueryFunctionForSqlRunner = ({
             convertSemanticLayerQueryToSqlRunnerPivotQuery(query, fields);
         const pivotResults = await pivotQueryFn({
             projectUuid,
+            savedSqlUuid,
             sql,
             indexColumn,
             valuesColumns,
