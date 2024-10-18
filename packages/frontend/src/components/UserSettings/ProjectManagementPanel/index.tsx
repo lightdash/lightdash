@@ -117,6 +117,7 @@ const ProjectManagementPanel: FC = () => {
 
     const [deletingProjectUuid, setDeletingProjectUuid] = useState<string>();
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
+    const [previewName, setPreviewName] = useState<string | undefined>();
     if (isLoadingProjects || isLoadingLastProject) return null;
 
     if (projects.length === 0) {
@@ -202,13 +203,23 @@ const ProjectManagementPanel: FC = () => {
                             {' '}
                             Preview name
                             {/* TODO use inputWrapper*/}
-                            <Input value={`Preview of ${lastProject.name}`} />
+                            <Input
+                                value={previewName}
+                                defaultValue={`Preview of ${lastProject.name}`}
+                                onChange={(e) => {
+                                    // set preview name
+                                    setPreviewName(e.currentTarget.value);
+                                }}
+                            />
                         </Group>
                         <Button
                             onClick={() => {
                                 // create preview project
                                 createPreviewProject({
                                     projectUuid: lastProject.projectUuid,
+                                    name:
+                                        previewName ||
+                                        `Preview of ${lastProject.name}`,
                                 });
                                 setIsCreatePreview(false);
                             }}

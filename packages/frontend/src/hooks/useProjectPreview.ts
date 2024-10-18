@@ -4,19 +4,25 @@ import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
-const createPreviewProject = async ({ projectUuid }: { projectUuid: string }) =>
+const createPreviewProject = async ({
+    projectUuid,
+    name,
+}: {
+    projectUuid: string;
+    name: string;
+}) =>
     lightdashApi<string>({
         url: `/projects/${projectUuid}/createPreview`,
         method: 'POST',
         body: JSON.stringify({
-            name: `Preview of Jaffle shop`,
-            copyContent: true,
+            name,
+            copyContent: true, // TODO add this option to the UI
         }),
     });
 
 export const useCreatePreviewMutation = () => {
     const { showToastApiError, showToastSuccess } = useToaster();
-    return useMutation<string, ApiError, { projectUuid: string }>(
+    return useMutation<string, ApiError, { projectUuid: string; name: string }>(
         (data) => createPreviewProject(data),
         {
             mutationKey: ['preview_project_create'],
