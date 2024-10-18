@@ -11,13 +11,12 @@ import {
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar } from '@tabler/icons-react';
 import { useEffect } from 'react';
+import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
-import {
-    SaveDestination,
-    SaveToSpace,
-    validationSchema,
-    type FormValues,
-} from '../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
+import SaveToSpaceForm, {
+    saveToSpaceSchema,
+} from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
+
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
@@ -26,6 +25,15 @@ import {
     useSavedSqlChart,
     useUpdateSqlChartMutation,
 } from '../hooks/useSavedSqlCharts';
+
+const updateSqlChartSchema = z
+    .object({
+        name: z.string().min(1),
+        description: z.string().nullable(),
+    })
+    .merge(saveToSpaceSchema);
+
+type FormValues = z.infer<typeof updateSqlChartSchema>;
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
@@ -42,25 +50,29 @@ export const UpdateSqlChartModal = ({
     onClose,
     onSuccess,
 }: Props) => {
-    const { data } = useSavedSqlChart({
+    const { data, isLoading: isChartLoading } = useSavedSqlChart({
         projectUuid,
         uuid: savedSqlUuid,
     });
 
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true);
-    const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
+    const { data: spaces = [], isLoading: isSpacesLoading } = useSpaceSummaries(
+        projectUuid,
+        true,
+    );
+    const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
+        useSpaceCreateMutation(projectUuid);
 
-    const { mutateAsync: updateChart, isLoading: isSaving } =
+    const { mutateAsync: updateChart, isLoading: isSavingChart } =
         useUpdateSqlChartMutation(projectUuid, savedSqlUuid, slug);
+
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
             description: '',
             spaceUuid: '',
             newSpaceName: '',
-            saveDestination: SaveDestination.Space,
         },
-        validate: zodResolver(validationSchema),
+        validate: zodResolver(updateSqlChartSchema),
     });
 
     useEffect(() => {
@@ -99,6 +111,9 @@ export const UpdateSqlChartModal = ({
         },
     );
 
+    const isLoading =
+        isSavingChart || isChartLoading || isSpacesLoading || isCreatingSpace;
+
     return (
         <Modal
             opened={opened}
@@ -129,10 +144,12 @@ export const UpdateSqlChartModal = ({
                             {...form.getInputProps('description')}
                         />
                     </Stack>
-                    <SaveToSpace
+
+                    <SaveToSpaceForm
                         form={form}
                         spaces={spaces}
                         projectUuid={projectUuid}
+                        isLoading={isLoading}
                     />
                 </Stack>
 
@@ -148,14 +165,14 @@ export const UpdateSqlChartModal = ({
                     <Button
                         onClick={onClose}
                         variant="outline"
-                        disabled={isSaving}
+                        disabled={isLoading}
                     >
                         Cancel
                     </Button>
                     <Button
                         type="submit"
                         disabled={!form.values.name}
-                        loading={isSaving}
+                        loading={isLoading}
                     >
                         Save
                     </Button>
