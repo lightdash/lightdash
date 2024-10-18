@@ -1,10 +1,4 @@
-import {
-    ApiSuccessEmpty,
-    ForbiddenError,
-    GitRepo,
-    NotFoundError,
-} from '@lightdash/common';
-import { Octokit as OctokitRest } from '@octokit/rest';
+import { ApiSuccessEmpty, GitRepo } from '@lightdash/common';
 import {
     Delete,
     Get,
@@ -16,9 +10,6 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { nanoid, urlAlphabet } from 'nanoid';
-import { getGithubApp, getOctokitRestForApp } from '../clients/github/Github';
-import { lightdashConfig } from '../config/lightdashConfig';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { BaseController } from './baseController';
 
@@ -48,25 +39,17 @@ export class GithubInstallController extends BaseController {
     async installGithubAppForOrganization(
         @Request() req: express.Request,
     ): Promise<void> {
-        const returnToUrl = new URL(
-            '/generalSettings/integrations',
-            lightdashConfig.siteUrl,
-        );
-        const randomID = nanoid().replace('_', ''); // we use _ as separator, don't allow this character on the nanoid
-        const subdomain = lightdashConfig.github.redirectDomain;
-        const state = `${subdomain}_${randomID}`;
-        const githubAppName = lightdashConfig.github.appName;
+        const context = await this.services
+            .getGithubAppService()
+            .installRedirect(req.user!);
 
         req.session.oauth = {};
-        req.session.oauth.returnTo = returnToUrl.href;
-        req.session.oauth.state = state;
-        req.session.oauth.inviteCode = req.user!.userUuid;
+        req.session.oauth.returnTo = context.returnToUrl;
+        req.session.oauth.state = context.state;
+        req.session.oauth.inviteCode = context.inviteCode;
 
         this.setStatus(302);
-        this.setHeader(
-            'Location',
-            `https://github.com/apps/${githubAppName}/installations/new?state=${state}`,
-        );
+        this.setHeader('Location', context.installUrl);
     }
 
     /**
@@ -91,59 +74,18 @@ export class GithubInstallController extends BaseController {
             this.setStatus(400);
             throw new Error('State does not match');
         }
-        if (setup_action === 'review') {
-            // User attempted to setup the app, didn't have permission in GitHub and sent a request to the admins
-            // We can't do anything at this point
-            this.setStatus(200);
-        }
-
-        const userUuid = req.session.oauth.inviteCode;
-        if (!userUuid) {
-            this.setStatus(400);
-            throw new Error('User uuid not provided');
-        }
-
-        if (!installation_id) {
-            this.setStatus(400);
-            throw new Error('Installation id not provided');
-        }
-        if (code) {
-            const userToServerToken = await getGithubApp().oauth.createToken({
+        const redirectUrl = await this.services
+            .getGithubAppService()
+            .installCallback(
+                req.user!,
+                req.session.oauth,
                 code,
-            });
-
-            const { token, refreshToken } = userToServerToken.authentication;
-            if (refreshToken === undefined)
-                throw new ForbiddenError('Invalid authentication token');
-
-            // Verify installation
-            const response =
-                await new OctokitRest().apps.listInstallationsForAuthenticatedUser(
-                    {
-                        headers: {
-                            authorization: `Bearer ${token}`,
-                        },
-                    },
-                );
-            const installation = response.data.installations.find(
-                (i) => `${i.id}` === installation_id,
+                state,
+                installation_id,
+                setup_action,
             );
-            if (installation === undefined)
-                throw new Error('Invalid installation id');
-
-            await this.services
-                .getGithubAppService()
-                .upsertInstallation(
-                    userUuid,
-                    installation_id,
-                    token,
-                    refreshToken,
-                );
-            const redirectUrl = new URL(req.session.oauth?.returnTo || '/');
-            req.session.oauth = {};
-            this.setStatus(302);
-            this.setHeader('Location', redirectUrl.href);
-        }
+        this.setStatus(302);
+        this.setHeader('Location', redirectUrl);
     }
 
     @Middlewares([isAuthenticated, unauthorisedInDemo])
