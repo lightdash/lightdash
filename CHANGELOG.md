@@ -1,3 +1,10 @@
+# [0.1309.0](https://github.com/lightdash/lightdash/compare/0.1308.0...0.1309.0) (2024-10-18)
+
+
+### Features
+
+* feature flag for dashboard comments ([#11973](https://github.com/lightdash/lightdash/issues/11973)) ([0285842](https://github.com/lightdash/lightdash/commit/028584244137f783d4c191169e645c0bb2bf6944))
+
 # [0.1308.0](https://github.com/lightdash/lightdash/compare/0.1307.3...0.1308.0) (2024-10-18)
 
 
