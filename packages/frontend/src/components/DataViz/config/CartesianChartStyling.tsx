@@ -16,7 +16,10 @@ import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
-import { selectCurrentCartesianChartState } from '../store/selectors';
+import {
+    getSeries,
+    selectCurrentCartesianChartState,
+} from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 import {
     CartesianChartSeries,
@@ -37,6 +40,12 @@ export const CartesianChartStyling = ({
     const currentConfig = useVizSelector((state) =>
         selectCurrentCartesianChartState(state, selectedChartType),
     );
+
+    const seriesFromSelector = useVizSelector((state) =>
+        getSeries(state, selectedChartType),
+    );
+
+    console.log({ seriesFromSelector });
 
     const series: ConfigurableSeries[] = useMemo(() => {
         if (

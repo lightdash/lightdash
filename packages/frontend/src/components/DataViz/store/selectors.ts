@@ -3,8 +3,15 @@ import {
     type AllVizChartConfig,
     type PivotChartLayout,
 } from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
 import { createSelector } from 'reselect';
 import { type RootState } from '../../../features/sqlRunner/store';
+import {
+    selectLimit,
+    selectSql,
+    selectSqlRunnerResultsRunner,
+} from '../../../features/sqlRunner/store/sqlRunnerSlice';
+import getChartDataModel from '../transformers/getChartDataModel';
 import { type TableVizState } from './tableVisSlice';
 
 const selectBarChartConfigState = (
@@ -203,6 +210,56 @@ const getErrors = createSelector(
     (chartState) => chartState?.errors,
 );
 
+const getPivotedChartDataQuery = createSelector(
+    [
+        (state, chartKind) =>
+            selectCurrentCartesianChartState(state, chartKind),
+        selectSql,
+        selectLimit,
+    ],
+    (chartState, sql, limit) => {
+        if (!chartState) {
+            return undefined;
+        }
+
+        const resultsRunner = selectSqlRunnerResultsRunner(chartState); // TODO: pass in sortBy
+
+        const vizDataModel = getChartDataModel(
+            resultsRunner,
+            chartState.fieldConfig,
+            chartState.type ?? ChartKind.VERTICAL_BAR,
+        );
+
+        const query = useQuery({
+            queryKey: ['query', chartState],
+            queryFn: () =>
+                vizDataModel.getPivotedChartData({
+                    limit,
+                    sql,
+                    sortBy: [],
+                    filters: [],
+                }),
+        });
+
+        return query;
+    },
+);
+
+export const getSeries = createSelector(
+    [getPivotedChartDataQuery],
+    (pivotedChartDataQuery) => {
+        if (!pivotedChartDataQuery) {
+            return undefined;
+        }
+        if (pivotedChartDataQuery.data) {
+            const series = pivotedChartDataQuery.data.valuesColumns;
+            return series;
+        }
+        // can handle error& loading state here
+        return undefined;
+    },
+);
+
 export const cartesianChartSelectors = {
     getIndexLayoutOptions,
     getValuesLayoutOptions,
@@ -211,4 +268,5 @@ export const cartesianChartSelectors = {
     getGroupByField,
     getPivotLayoutOptions,
     getErrors,
+    getSeries,
 };
