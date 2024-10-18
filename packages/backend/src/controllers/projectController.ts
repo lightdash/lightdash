@@ -15,6 +15,7 @@ import {
     DbtExposure,
     isDuplicateDashboardParams,
     ParameterError,
+    RequestMethod,
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
@@ -612,6 +613,35 @@ export class ProjectController extends BaseController {
         const results = await this.services
             .getDashboardService()
             .updateMultiple(req.user!, projectUuid, body);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Post('{projectUuid}/createPreview')
+    @OperationId('createPreview')
+    async createPreview(
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            name: string;
+            copyContent: boolean;
+        },
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: string }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getProjectService()
+            .createPreview(req.user!, projectUuid, body, RequestMethod.WEB_APP);
 
         return {
             status: 'ok',
