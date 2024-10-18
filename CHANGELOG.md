@@ -1,3 +1,10 @@
+# [0.1308.0](https://github.com/lightdash/lightdash/compare/0.1307.3...0.1308.0) (2024-10-18)
+
+
+### Features
+
+* interactive viewers can create previews ([#11955](https://github.com/lightdash/lightdash/issues/11955)) ([8746eaa](https://github.com/lightdash/lightdash/commit/8746eaa8027382b2b4d26ea25c56947c12be507e))
+
 ## [0.1307.3](https://github.com/lightdash/lightdash/compare/0.1307.2...0.1307.3) (2024-10-18)
 
 
