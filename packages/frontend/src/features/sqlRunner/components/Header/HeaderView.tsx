@@ -106,7 +106,7 @@ export const HeaderView: FC = () => {
                         </Group>
                     </Stack>
 
-                    <Group spacing="md">
+                    <Group spacing="xs">
                         {canManageSqlRunner && canManageChart && (
                             <Button
                                 size="xs"
