@@ -13,6 +13,7 @@ import {
     lightdashDbtYamlSchema,
     ParseError,
     PullRequestCreated,
+    QueryExecutionContext,
     SavedChart,
     SessionUser,
     snakeCaseName,
@@ -22,6 +23,7 @@ import {
 import Ajv from 'ajv';
 import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import {
     checkFileDoesNotExist,
     createBranch,
@@ -45,6 +47,7 @@ type GitIntegrationServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    analytics: LightdashAnalytics;
 };
 
 type GithubProps = {
@@ -92,6 +95,8 @@ export class GitIntegrationService extends BaseService {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
+    private readonly analytics: LightdashAnalytics;
+
     constructor(args: GitIntegrationServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -99,6 +104,7 @@ export class GitIntegrationService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
+        this.analytics = args.analytics;
     }
 
     async getInstallationId(user: SessionUser) {
@@ -662,6 +668,16 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             base: branch,
         });
 
+        this.analytics.track({
+            event: 'write_back.created',
+            userId: user.userUuid,
+            properties: {
+                name,
+                projectId: projectUuid,
+                organizationId: user.organizationUuid!,
+                context: QueryExecutionContext.SQL_RUNNER,
+            },
+        });
         return {
             prTitle: pullRequest.title,
             prUrl: pullRequest.html_url,
