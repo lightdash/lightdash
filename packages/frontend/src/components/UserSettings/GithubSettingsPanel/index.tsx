@@ -13,9 +13,10 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import useSearchParams from '../../../hooks/useSearchParams';
 import githubIcon from '../../../svgs/github-icon.svg';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
@@ -82,6 +83,22 @@ const GithubSettingsPanel: FC = () => {
     const { data, isError, isInitialLoading } = useGitHubRepositories();
     const deleteGithubInstallationMutation =
         useDeleteGithubInstallationMutation();
+
+    const status = useSearchParams('status');
+    const { showToastWarning } = useToaster();
+    const isWaitingForGithubRequest = status === 'github_request_sent';
+    useEffect(() => {
+        if (isWaitingForGithubRequest) {
+            const toastKey = 'github_request_sent';
+            showToastWarning({
+                title: 'GitHub App Installation Pending',
+                subtitle:
+                    'The GitHub App is waiting to be authorized by an admin. It will be enabled later.',
+                key: toastKey,
+            });
+        }
+    }, [isWaitingForGithubRequest, showToastWarning]);
+
     const isValidGithubInstallation = data !== undefined && !isError;
     if (isInitialLoading) {
         return <Loader />;
@@ -165,15 +182,28 @@ const GithubSettingsPanel: FC = () => {
                     </Stack>
                 ) : (
                     <Flex justify="end">
-                        <Button
-                            size="xs"
-                            component="a"
-                            target="_blank"
-                            color="blue"
-                            href={GITHUB_INSTALL_URL}
-                        >
-                            Install
-                        </Button>
+                        {isWaitingForGithubRequest ? (
+                            <Button
+                                size="xs"
+                                component="a"
+                                target="_blank"
+                                color="yellow"
+                                variant="outline"
+                                href={GITHUB_INSTALL_URL}
+                            >
+                                Cancel install
+                            </Button>
+                        ) : (
+                            <Button
+                                size="xs"
+                                component="a"
+                                target="_blank"
+                                color="blue"
+                                href={GITHUB_INSTALL_URL}
+                            >
+                                Install
+                            </Button>
+                        )}
                     </Flex>
                 )}
             </Stack>
