@@ -31,6 +31,7 @@ type StyleProps = {
     flexContent?: boolean;
     hasBanner?: boolean;
     noContentPadding?: boolean;
+    noSidebarPadding?: boolean;
     isSidebarResizing?: boolean;
 };
 
@@ -193,6 +194,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     withSidebarFooter = false,
     withSidebarBorder = false,
     noContentPadding = false,
+    noSidebarPadding = false,
     flexContent = false,
 
     children,
@@ -248,6 +250,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             <Box className={classes.root}>
                 {sidebar ? (
                     <Sidebar
+                        noSidebarPadding={noSidebarPadding}
                         isOpen={isSidebarOpen}
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}
@@ -269,10 +272,11 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
                 {rightSidebar ? (
                     <Sidebar
-                        isOpen={isRightSidebarOpen}
-                        position={SidebarPosition.RIGHT}
+                        noSidebarPadding={noSidebarPadding}
                         widthProps={rightSidebarWidthProps}
                         mainWidth={mainWidth}
+                        isOpen={isRightSidebarOpen}
+                        position={SidebarPosition.RIGHT}
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}
                     >

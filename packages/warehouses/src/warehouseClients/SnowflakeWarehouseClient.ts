@@ -23,8 +23,17 @@ import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
 import WarehouseBaseClient from './WarehouseBaseClient';
 
+const assertIsSnowflakeLoggingLevel = (
+    x: string | undefined,
+): x is 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE' =>
+    x !== undefined && ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'].includes(x);
+
 // Prevent snowflake sdk from flooding the output with info logs
-configure({ logLevel: 'ERROR' });
+configure({
+    logLevel: assertIsSnowflakeLoggingLevel(process.env.SNOWFLAKE_SDK_LOG_LEVEL)
+        ? process.env.SNOWFLAKE_SDK_LOG_LEVEL
+        : 'ERROR',
+});
 
 export enum SnowflakeTypes {
     NUMBER = 'NUMBER',
@@ -123,21 +132,22 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials);
-        let decodedPrivateKey: string | Buffer | undefined =
-            credentials.privateKey;
-        if (credentials.privateKey && credentials.privateKeyPass) {
-            // Get the private key from the file as an object.
-            const privateKeyObject = crypto.createPrivateKey({
-                key: credentials.privateKey,
-                format: 'pem',
-                passphrase: credentials.privateKeyPass,
-            });
 
-            // Extract the private key from the object as a PEM-encoded string.
-            decodedPrivateKey = privateKeyObject.export({
-                format: 'pem',
-                type: 'pkcs8',
-            });
+        let decodedPrivateKey: string | undefined;
+        if (credentials.privateKey && credentials.privateKeyPass) {
+            // Get the private key from the file as an object and
+            // extract the private key from the object as a PEM-encoded string.
+            decodedPrivateKey = crypto
+                .createPrivateKey({
+                    key: credentials.privateKey,
+                    format: 'pem',
+                    passphrase: credentials.privateKeyPass,
+                })
+                .export({
+                    format: 'pem',
+                    type: 'pkcs8',
+                })
+                .toString('utf-8');
         }
 
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
@@ -146,7 +156,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
 
         let authenticationOptions: Partial<ConnectionOptions> = {};
-
         if (credentials.password) {
             authenticationOptions = {
                 password: credentials.password,
@@ -158,6 +167,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 authenticator: 'SNOWFLAKE_JWT',
             };
         }
+
         this.connectionOptions = {
             account: credentials.account,
             username: credentials.user,
@@ -169,7 +179,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             ...(credentials.accessUrl?.length
                 ? { accessUrl: credentials.accessUrl }
                 : {}),
-        } as ConnectionOptions; // force type because accessUrl property is not recognised
+        };
     }
 
     async streamQuery(
@@ -184,7 +194,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         let connection: Connection;
         try {
             connection = createConnection(this.connectionOptions);
-            await Util.promisify(connection.connect)();
+            await Util.promisify(connection.connect.bind(connection))();
         } catch (e) {
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
@@ -367,7 +377,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 schema,
                 database,
             });
-            await Util.promisify(connection.connect)();
+            await Util.promisify(connection.connect.bind(connection))();
         } catch (e) {
             throw new WarehouseConnectionError(`Snowflake error: ${e.message}`);
         }
@@ -466,7 +476,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 TABLE_SCHEMA as "table_schema",
                 TABLE_NAME as "table_name"
             FROM information_schema.tables
-            WHERE TABLE_TYPE = 'BASE TABLE'
+            WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW')
             ${whereSql}
             ORDER BY 1,2,3
         `;

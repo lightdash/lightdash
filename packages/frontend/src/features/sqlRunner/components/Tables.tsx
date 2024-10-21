@@ -1,3 +1,4 @@
+import { PartitionType, type PartitionColumn } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -22,6 +23,7 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -35,10 +37,36 @@ interface TableItemProps extends BoxProps {
     schema: string;
     database: string;
     isActive: boolean;
+    partitionColumn: PartitionColumn | undefined;
 }
 
+const partitionFilter = (partitionColumn: PartitionColumn | undefined) => {
+    if (partitionColumn) {
+        const hint =
+            partitionColumn.partitionType === PartitionType.DATE
+                ? `This table has a date partition on this field`
+                : `This table has a range partition on this field`;
+
+        const defaultValue =
+            partitionColumn.partitionType === PartitionType.DATE
+                ? `'${dayjs().format('YYYY-MM-DD')}'` // Default to today's date
+                : `0`;
+
+        return `\nWHERE ${partitionColumn.field} = ${defaultValue} -- ${hint}`;
+    }
+    return '';
+};
+
 const TableItem: FC<TableItemProps> = memo(
-    ({ table, search, schema, database, isActive, ...rest }) => {
+    ({
+        table,
+        search,
+        schema,
+        database,
+        isActive,
+        partitionColumn,
+        ...rest
+    }) => {
         const { ref: hoverRef, hovered } = useHover();
         const { ref: truncatedRef, isTruncated } =
             useIsTruncated<HTMLDivElement>();
@@ -51,7 +79,13 @@ const TableItem: FC<TableItemProps> = memo(
                 <UnstyledButton
                     onClick={() => {
                         if (!sql || sql.match(/SELECT \* FROM (.+)/)) {
-                            dispatch(setSql(`SELECT * FROM ${quotedTable}`));
+                            dispatch(
+                                setSql(
+                                    `SELECT * FROM ${quotedTable} ${partitionFilter(
+                                        partitionColumn,
+                                    )}`,
+                                ),
+                            );
                         }
 
                         dispatch(toggleActiveTable({ table, schema }));
@@ -59,8 +93,7 @@ const TableItem: FC<TableItemProps> = memo(
                     w="100%"
                     p={4}
                     sx={(theme) => ({
-                        fontWeight: 500,
-                        fontSize: 13,
+                        fontSize: 14,
                         borderRadius: theme.radius.sm,
                         color: isActive ? 'gray.8' : 'gray.7',
                         flex: 1,
@@ -107,13 +140,24 @@ const TableItem: FC<TableItemProps> = memo(
                 >
                     <CopyButton value={`${quotedTable}`}>
                         {({ copied, copy }) => (
-                            <ActionIcon size={16} onClick={copy} bg="gray.1">
-                                <MantineIcon
-                                    icon={IconCopy}
-                                    color={copied ? 'green' : 'blue'}
+                            <Tooltip
+                                variant="xs"
+                                label={copied ? 'Copied to clipboard' : 'Copy'}
+                                withArrow
+                                position="right"
+                            >
+                                <ActionIcon
+                                    size={16}
                                     onClick={copy}
-                                />
-                            </ActionIcon>
+                                    bg="gray.1"
+                                >
+                                    <MantineIcon
+                                        icon={IconCopy}
+                                        color={copied ? 'green' : 'blue'}
+                                        onClick={copy}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
                         )}
                     </CopyButton>
                 </Box>
@@ -127,8 +171,9 @@ const Table: FC<{
     tables: NonNullable<TablesBySchema>[number]['tables'];
     search: string;
     activeTable: string | undefined;
+    activeSchema: string | undefined;
     database: string;
-}> = ({ schema, tables, search, activeTable, database }) => {
+}> = ({ schema, tables, search, activeTable, activeSchema, database }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const hasMatchingTable = useMemo(() => {
@@ -141,13 +186,17 @@ const Table: FC<{
     }, [tables, schema, search]);
 
     useEffect(() => {
-        if (activeTable && Object.keys(tables).includes(activeTable)) {
+        if (
+            activeTable &&
+            Object.keys(tables).includes(activeTable) &&
+            schema === activeSchema
+        ) {
             setIsExpanded(true);
         }
         if (hasMatchingTable) {
             setIsExpanded(true);
         }
-    }, [activeTable, tables, hasMatchingTable]);
+    }, [activeTable, tables, hasMatchingTable, activeSchema, schema]);
     return (
         <Stack spacing={0}>
             <UnstyledButton
@@ -160,7 +209,7 @@ const Table: FC<{
                 })}
             >
                 <Group noWrap spacing="two">
-                    <Text p={6} fw={700} fz="md" c="gray.7">
+                    <Text p={6} fz="sm" c="gray.8">
                         {schema}
                     </Text>
 
@@ -174,10 +223,13 @@ const Table: FC<{
                     <TableItem
                         key={table}
                         search={search}
-                        isActive={activeTable === table}
+                        isActive={
+                            activeTable === table && schema === activeSchema
+                        }
                         table={table}
                         schema={`${schema}`}
                         database={database}
+                        partitionColumn={tables[table].partitionColumn}
                         ml="sm"
                     />
                 ))}
@@ -188,6 +240,9 @@ const Table: FC<{
 export const Tables: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
+    const activeSchema = useAppSelector(
+        (state) => state.sqlRunner.activeSchema,
+    );
 
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 500);
@@ -202,40 +257,44 @@ export const Tables: FC = () => {
 
     return (
         <>
-            <TextInput
-                size="xs"
-                disabled={!data && !debouncedSearch}
-                icon={
-                    isLoading ? (
-                        <Loader size="xs" />
-                    ) : (
-                        <MantineIcon icon={IconSearch} />
-                    )
-                }
-                rightSection={
-                    search ? (
-                        <ActionIcon size="xs" onClick={() => setSearch('')}>
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    ) : null
-                }
-                placeholder="Search tables"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                styles={(theme) => ({
-                    input: {
-                        borderRadius: theme.radius.md,
-                        border: `1px solid ${theme.colors.gray[3]}`,
-                    },
-                })}
-            />
+            <Box px="sm">
+                <TextInput
+                    size="xs"
+                    disabled={!data && !debouncedSearch}
+                    icon={
+                        isLoading ? (
+                            <Loader size="xs" />
+                        ) : (
+                            <MantineIcon icon={IconSearch} />
+                        )
+                    }
+                    rightSection={
+                        search ? (
+                            <ActionIcon size="xs" onClick={() => setSearch('')}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                    placeholder="Search tables"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    styles={(theme) => ({
+                        input: {
+                            borderRadius: theme.radius.md,
+                            border: `1px solid ${theme.colors.gray[3]}`,
+                        },
+                    })}
+                />
+            </Box>
 
             <ScrollArea
                 offsetScrollbars
                 variant="primary"
                 className="only-vertical"
+                pl="sm"
                 sx={{ flex: 1 }}
                 type="auto"
+                scrollbarSize={8}
             >
                 {isSuccess &&
                     data &&
@@ -246,6 +305,7 @@ export const Tables: FC = () => {
                             tables={tables}
                             search={search}
                             activeTable={activeTable}
+                            activeSchema={activeSchema}
                             database={data.database}
                         />
                     ))}

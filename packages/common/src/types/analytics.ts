@@ -38,3 +38,25 @@ export type ViewStatistics = {
     views: number;
     firstViewedAt: Date | string | null;
 };
+
+export enum QueryExecutionContext {
+    DASHBOARD = 'dashboardView',
+    AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
+    EXPLORE = 'exploreView',
+    CHART = 'chartView',
+    SQL_CHART = 'sqlChartView',
+    SQL_RUNNER = 'sqlRunner',
+    VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
+    ALERT = 'alert',
+    SCHEDULED_DELIVERY = 'scheduledDelivery',
+    CSV = 'csvDownload',
+    GSHEETS = 'gsheets',
+    SCHEDULED_GSHEETS_CHART = 'scheduledGsheetsChart',
+    SCHEDULED_GSHEETS_DASHBOARD = 'scheduledGsheetsDashboard',
+    SCHEDULED_CHART = 'scheduledChart',
+    SCHEDULED_DASHBOARD = 'scheduledDashboard',
+    CALCULATE_TOTAL = 'calculateTotal',
+    API = 'api',
+    CLI = 'cli',
+    SEMANTIC_VIEWER = 'semanticViewer',
+}

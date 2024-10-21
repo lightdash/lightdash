@@ -1,66 +1,35 @@
-import {
-    type PivotChartData,
-    type VizCartesianChartConfig,
-    type VizPieChartConfig,
-} from '@lightdash/common';
-import { LoadingOverlay } from '@mantine/core';
+import { isVizTableConfig, type AllVizChartConfig } from '@lightdash/common';
+import { Box, LoadingOverlay } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import EChartsReact, { type EChartsReactProps } from 'echarts-for-react';
 import { memo } from 'react';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
-import { type ResultsRunner } from '../transformers/ResultsRunner';
-import { useChart } from '../transformers/useChart';
 
-type ChartViewProps<T extends ResultsRunner> = {
-    config?: VizCartesianChartConfig | VizPieChartConfig;
+type Props = {
+    onChartReady?: EChartsReactProps['onChartReady'];
+    config: AllVizChartConfig | undefined;
+    spec: EChartsReactProps['option'] | undefined;
     isLoading: boolean;
-    resultsRunner: T;
-    sql?: string;
-    projectUuid?: string;
-    limit?: number;
-    onPivot?: (pivotData: PivotChartData | undefined) => void;
-    slug?: string;
-    uuid?: string;
+    error?: Error | null;
 } & Partial<Pick<EChartsReactProps, 'style'>>;
 
-const ChartView = memo(
-    <T extends ResultsRunner>({
-        config,
-        sql,
-        projectUuid,
-        limit,
-        isLoading: isLoadingProp,
-        resultsRunner,
-        style,
-        onPivot,
-        slug,
-        uuid,
-    }: ChartViewProps<T>) => {
-        const { data: org } = useOrganization();
+const ChartView = memo<Props>(
+    ({ config, isLoading, error, style, spec, onChartReady }) => {
+        if (isVizTableConfig(config)) {
+            throw new Error(
+                'VizChartView should not be used for table visualization',
+            );
+        }
 
-        const {
-            loading: transformLoading,
-            error,
-            value: spec,
-        } = useChart({
-            config,
-            resultsRunner,
-            sql,
-            projectUuid,
-            limit,
-            orgColors: org?.chartColors,
-            onPivot,
-            slug,
-            uuid,
-        });
-
-        if (!config?.fieldConfig?.x || config?.fieldConfig.y.length === 0) {
+        if (
+            config &&
+            (!config.fieldConfig?.x || config.fieldConfig.y.length === 0)
+        ) {
             return (
                 <SuboptimalState
                     title="Incomplete chart configuration"
                     description={
-                        !config?.fieldConfig?.x
+                        !config.fieldConfig?.x
                             ? "You're missing an X axis"
                             : "You're missing a Y axis"
                     }
@@ -69,9 +38,8 @@ const ChartView = memo(
                 />
             );
         }
-        const loading = isLoadingProp || transformLoading;
 
-        if (error && !loading) {
+        if (error && !isLoading) {
             return (
                 <SuboptimalState
                     title="Error generating chart"
@@ -83,21 +51,22 @@ const ChartView = memo(
         }
 
         return (
-            <>
-                <LoadingOverlay visible={loading || !spec} />
+            <Box h="100%" w="100%" data-testid={`chart-view-${config?.type}`}>
+                <LoadingOverlay
+                    visible={isLoading}
+                    loaderProps={{ color: 'gray' }}
+                />
+
                 {spec && (
                     <EChartsReact
                         option={spec}
                         notMerge
-                        opts={{
-                            renderer: 'svg',
-                            width: 'auto',
-                            height: 'auto',
-                        }}
+                        opts={{ renderer: 'svg' }}
                         style={style}
+                        onChartReady={onChartReady}
                     />
                 )}
-            </>
+            </Box>
         );
     },
 );

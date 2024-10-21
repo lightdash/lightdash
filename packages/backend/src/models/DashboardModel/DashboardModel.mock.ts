@@ -13,6 +13,7 @@ import {
     DashboardVersionedFields,
     OrganizationMemberRole,
     SessionUser,
+    type DashboardBasicDetailsWithTileTypes,
 } from '@lightdash/common';
 import {
     DashboardTable,
@@ -312,7 +313,7 @@ export const expectedDashboard: DashboardDAO = {
     tabs: [],
 };
 
-export const expectedAllDashboards: DashboardBasicDetails[] = [
+export const expectedAllDashboards: DashboardBasicDetailsWithTileTypes[] = [
     {
         organizationUuid: 'organizationUuid',
         projectUuid: projectEntry.project_uuid,
@@ -331,6 +332,7 @@ export const expectedAllDashboards: DashboardBasicDetails[] = [
         views: 1,
         firstViewedAt: new Date(1),
         validationErrors: [],
+        tileTypes: [DashboardTileTypes.SAVED_CHART],
     },
 ];
 

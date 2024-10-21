@@ -197,7 +197,7 @@ export type LightdashConfig = {
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
     rudder: RudderConfig;
-    posthog: PosthogConfig;
+    posthog: PosthogConfig | undefined;
     mode: LightdashMode;
     sentry: SentryConfig;
     auth: AuthConfig;
@@ -269,14 +269,9 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     logging: LoggingConfig;
-    cube: {
-        token: string;
-        domain?: string;
-    };
-    dbtCloud: {
-        bearerToken?: string;
-        environmentId?: string;
-        domain: string;
+    github: {
+        appName: string;
+        redirectDomain: string;
     };
 };
 
@@ -288,6 +283,7 @@ export type SlackConfig = {
     appToken?: string;
     port: number;
     socketMode?: boolean;
+    channelsCachedTime: number;
 };
 export type HeadlessBrowserConfig = {
     host?: string;
@@ -318,7 +314,8 @@ export type RudderConfig = {
 
 export type PosthogConfig = {
     projectApiKey: string;
-    apiHost: string;
+    feApiHost: string;
+    beApiHost: string;
 };
 
 type JwtKeySetConfig = {
@@ -484,14 +481,22 @@ export const parseConfig = (): LightdashConfig => {
                   },
               }
             : undefined,
-        posthog: {
-            projectApiKey: process.env.POSTHOG_PROJECT_API_KEY || '',
-            apiHost: process.env.POSTHOG_API_HOST || 'https://app.posthog.com',
-        },
+        posthog: process.env.POSTHOG_PROJECT_API_KEY
+            ? {
+                  projectApiKey: process.env.POSTHOG_PROJECT_API_KEY,
+                  feApiHost:
+                      process.env.POSTHOG_FE_API_HOST ||
+                      'https://us.i.posthog.com',
+                  beApiHost:
+                      process.env.POSTHOG_BE_API_HOST ||
+                      'https://us.i.posthog.com',
+              }
+            : undefined,
         rudder: {
             writeKey:
-                process.env.RUDDERSTACK_WRITE_KEY ||
-                '1vqkSlWMVtYOl70rk3QSE0v1fqY',
+                process.env.RUDDERSTACK_WRITE_KEY === undefined
+                    ? '1vqkSlWMVtYOl70rk3QSE0v1fqY'
+                    : process.env.RUDDERSTACK_WRITE_KEY,
             dataPlaneUrl:
                 process.env.RUDDERSTACK_DATA_PLANE_URL ||
                 'https://analytics.lightdash.com',
@@ -617,7 +622,10 @@ export const parseConfig = (): LightdashConfig => {
             },
         },
         intercom: {
-            appId: process.env.INTERCOM_APP_ID || 'zppxyjpp',
+            appId:
+                process.env.INTERCOM_APP_ID === undefined
+                    ? 'zppxyjpp'
+                    : process.env.INTERCOM_APP_ID,
             apiBase:
                 process.env.INTERCOM_APP_BASE || 'https://api-iam.intercom.io',
         },
@@ -719,6 +727,10 @@ export const parseConfig = (): LightdashConfig => {
             appToken: process.env.SLACK_APP_TOKEN,
             port: parseInt(process.env.SLACK_PORT || '4351', 10),
             socketMode: process.env.SLACK_SOCKET_MODE === 'true',
+            channelsCachedTime: parseInt(
+                process.env.SLACK_CHANNELS_CACHED_TIME || '600000',
+                10,
+            ), // 10 minutes
         },
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',
@@ -772,16 +784,11 @@ export const parseConfig = (): LightdashConfig => {
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
         },
-        cube: {
-            token: process.env.CUBE_TOKEN || '',
-            domain: process.env.CUBE_DOMAIN,
-        },
-        dbtCloud: {
-            bearerToken: process.env.DBT_CLOUD_BEARER_TOKEN,
-            environmentId: process.env.DBT_CLOUD_ENVIRONMENT_ID,
-            domain:
-                process.env.DBT_CLOUD_DOMAIN ||
-                `https://semantic-layer.cloud.getdbt.com`,
+        github: {
+            appName: process.env.GITHUB_APP_NAME || 'lightdash-app-dev',
+            redirectDomain:
+                process.env.GITHUB_REDIRECT_DOMAIN ||
+                siteUrl.split('.')[0].split('//')[1],
         },
     };
 };

@@ -10,7 +10,6 @@ export const BaseResponse: HealthState = {
     siteUrl: 'https://test.lightdash.cloud',
     staticIp: '',
     customVisualizationsEnabled: false,
-    hasDbtSemanticLayer: false,
     hasEmailClient: false,
     hasExtendedUsageAnalytics: false,
     hasGithub: false,
@@ -52,10 +51,7 @@ export const BaseResponse: HealthState = {
     pivotTable: {
         maxColumnLimit: 0,
     },
-    posthog: {
-        apiHost: '',
-        projectApiKey: '',
-    },
+    posthog: undefined,
     pylon: {
         appId: '',
     },

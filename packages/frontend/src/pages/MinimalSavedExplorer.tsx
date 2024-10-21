@@ -6,6 +6,7 @@ import VisualizationProvider from '../components/LightdashVisualization/Visualiz
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import { useQueryResults } from '../hooks/useQueryResults';
 import { useSavedQuery } from '../hooks/useSavedQuery';
+import useSearchParams from '../hooks/useSearchParams';
 import { useApp } from '../providers/AppProvider';
 import {
     ExplorerProvider,
@@ -69,6 +70,7 @@ const MinimalSavedExplorer: FC = () => {
         savedQueryUuid: string;
         projectUuid: string;
     }>();
+    const context = useSearchParams('context') || undefined;
 
     const { data, isInitialLoading, isError, error } = useSavedQuery({
         id: savedQueryUuid,
@@ -80,6 +82,7 @@ const MinimalSavedExplorer: FC = () => {
         chartUuid: savedQueryUuid,
         isViewOnly: true,
         dateZoomGranularity,
+        context,
     });
 
     if (isInitialLoading) {

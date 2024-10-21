@@ -9,15 +9,14 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { uniqBy } from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useSemanticLayerViewFields } from '../api/hooks';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
-    selectFilterFields,
     selectSemanticLayerInfo,
     selectSemanticLayerQuery,
 } from '../store/selectors';
@@ -40,49 +39,25 @@ const getSearchResults = (
 };
 
 const SidebarViewFields = () => {
+    const { showToastError } = useToaster();
     const { projectUuid } = useAppSelector(selectSemanticLayerInfo);
-    const { view } = useAppSelector((state) => state.semanticViewer);
+    const semanticLayerView = useAppSelector(
+        (state) => state.semanticViewer.semanticLayerView,
+    );
+    const semanticLayerQuery = useAppSelector(selectSemanticLayerQuery);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const filterFields = useAppSelector(selectFilterFields);
-    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
 
     const dispatch = useAppDispatch();
 
     const [searchQuery, setSearchQuery] = useState('');
 
-    if (!view) {
+    if (!semanticLayerView) {
         throw new Error('Impossible state');
     }
 
-    const usedFields = useMemo(() => {
-        return {
-            dimensions: uniqBy(
-                [...filterFields.dimensions, ...semanticQuery.dimensions],
-                'name',
-            ),
-            metrics: uniqBy(
-                [...filterFields.metrics, ...semanticQuery.metrics],
-                'name',
-            ),
-            timeDimensions: uniqBy(
-                [
-                    ...filterFields.timeDimensions,
-                    ...semanticQuery.timeDimensions,
-                ],
-                'name',
-            ),
-        };
-    }, [filterFields, semanticQuery]);
-
     const fields = useSemanticLayerViewFields(
-        {
-            projectUuid,
-            view,
-            selectedFields: usedFields,
-        },
-        {
-            keepPreviousData: true,
-        },
+        { projectUuid, semanticLayerView, semanticLayerQuery },
+        { keepPreviousData: true },
     );
 
     useEffect(() => {
@@ -97,15 +72,28 @@ const SidebarViewFields = () => {
         return getSearchResults(fields.data, searchQuery);
     }, [fields.data, searchQuery]);
 
-    if (fields.isError) {
-        throw fields.error;
-    }
-
     if (fields.isLoading) {
         return (
             <Center sx={{ flexGrow: 1 }}>
                 <Loader color="gray" size="sm" />
             </Center>
+        );
+    }
+
+    if (fields.isError) {
+        showToastError({
+            title: 'Failed to fetch fields',
+        });
+
+        return (
+            <SuboptimalState
+                title="Failed to fetch fields"
+                description={
+                    fields.error.error.statusCode !== 500
+                        ? fields.error.error.message
+                        : 'Something went wrong when trying to fetch the fields'
+                }
+            />
         );
     }
 

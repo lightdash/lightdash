@@ -9,12 +9,7 @@ In Lightdash, metrics are used to summarize dimensions or, sometimes, other metr
 
 ---
 
-## Adding metrics to your project
-
-There are two ways to add metrics to your project in Lightdash:
-
-1. (**Suggested**) [Using the `meta` tag](#using-the-meta-tag)
-2. [Using dbt's Semantic Layer](#using-dbts-semantic-layer) (this integration is in public beta in Lightdash)
+## Adding metrics to your project using the `meta` tag.
 
 ### 1. Using the column `meta` tag (Suggested)
 
@@ -51,10 +46,6 @@ models:
           type: count_distinct
           sql: ${TABLE}.user_id
 ```
-
-### 3. Using dbt's Semantic Layer
-
-Lightdash is dbt Semantic Layer ready and the integration is now available in public preview for Lightdash Cloud users. You can query your Semantic Layer via the Lightdash UI. To learn more about the Semantic Layer integration, click [here](/references/dbt-semantic-layer).
 
 ## Metric Categories
 
@@ -559,18 +550,17 @@ These filters do not appear in the `Filters` tab in the Explore view, instead, t
 
 :::info
 
-To use special characters such as `%!_>` in your filter value you must escape them with a backslash `\`. For example,
-if you wanted to filter for users with subscription status `is_subscribed` you should write the metric like:
+To use special characters such as `%!_>` in your filter value you can either put the value in quotes, or escape special characters with a backslash `\`. For example,
+if you wanted to filter for subscription status of `is_subscribed` you can write the metric in one of these ways:
 
 ```yaml
-columns:
-  - name: user_id
-    meta:
-      metrics:
-        total_subscribed_users:
-          type: count_distinct
-          filters:
-            - subscription_status: is\_subscribed
+filters:
+  - subscription_status: 'is_subscribed'
+```
+
+```yaml
+filters:
+  - subscription_status: is\_subscribed
 ```
 
 :::

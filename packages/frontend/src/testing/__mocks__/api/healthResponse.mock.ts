@@ -35,10 +35,7 @@ export default function mockHealthResponse(
         },
         siteUrl: 'http://localhost:3000',
         staticIp: '',
-        posthog: {
-            projectApiKey: '',
-            apiHost: '',
-        },
+        posthog: undefined,
         query: {
             maxLimit: 1000000,
             csvCellsLimit: 100,
@@ -75,7 +72,6 @@ export default function mockHealthResponse(
         },
         hasEmailClient: false,
         hasHeadlessBrowser: false,
-        hasDbtSemanticLayer: false,
         hasGroups: false,
         hasExtendedUsageAnalytics: false,
         hasGithub: false,

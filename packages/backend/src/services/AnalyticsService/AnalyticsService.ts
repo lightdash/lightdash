@@ -1,5 +1,6 @@
 import { ForbiddenError, isUserWithOrg, SessionUser } from '@lightdash/common';
 
+import { subject } from '@casl/ability';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { BaseService } from '../BaseService';
@@ -31,7 +32,14 @@ export class AnalyticsService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        if (user.ability.cannot('view', 'Analytics')) {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Analytics', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 

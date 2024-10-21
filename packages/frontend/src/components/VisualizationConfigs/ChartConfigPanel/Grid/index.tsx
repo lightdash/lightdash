@@ -5,8 +5,8 @@ import { UnitInputsGrid } from '../common/UnitInputsGrid';
 
 export const defaultGrid = {
     containLabel: true,
-    left: '5%', // small padding
-    right: '5%', // small padding
+    left: '25px', // small padding
+    right: '25px', // small padding
     top: '70px', // pixels from top (makes room for legend)
     bottom: '30px', // pixels from bottom (makes room for x-axis)
 } as const;

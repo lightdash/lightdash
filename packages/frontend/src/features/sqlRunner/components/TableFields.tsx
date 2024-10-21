@@ -37,13 +37,24 @@ const TableField: FC<{
                 <Box display={hovered ? 'block' : 'none'}>
                     <CopyButton value={`${activeTable}.${field.name}`}>
                         {({ copied, copy }) => (
-                            <ActionIcon size={16} onClick={copy} bg="gray.1">
-                                <MantineIcon
-                                    icon={IconCopy}
-                                    color={copied ? 'green' : 'blue'}
+                            <Tooltip
+                                variant="xs"
+                                label={copied ? 'Copied to clipboard' : 'Copy'}
+                                withArrow
+                                position="right"
+                            >
+                                <ActionIcon
+                                    size={16}
                                     onClick={copy}
-                                />
-                            </ActionIcon>
+                                    bg="gray.1"
+                                >
+                                    <MantineIcon
+                                        icon={IconCopy}
+                                        color={copied ? 'green' : 'blue'}
+                                        onClick={copy}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
                         )}
                     </CopyButton>
                 </Box>
@@ -106,9 +117,9 @@ export const TableFields: FC = () => {
     });
 
     return (
-        <Stack pt="sm" spacing="xs" h="calc(100% - 20px)" py="xs">
+        <Stack spacing="xs" h="calc(100% - 20px)" pt="sm" py="xs">
             {activeTable ? (
-                <>
+                <Box px="sm">
                     <Text fz="sm" fw={600} c="gray.7">
                         {activeTable}
                     </Text>
@@ -142,7 +153,7 @@ export const TableFields: FC = () => {
                             },
                         })}
                     />
-                </>
+                </Box>
             ) : (
                 <Center p="md">
                     <Text c="gray.4">No table selected</Text>
@@ -155,6 +166,8 @@ export const TableFields: FC = () => {
                     className="only-vertical"
                     sx={{ flex: 1 }}
                     type="auto"
+                    scrollbarSize={8}
+                    pl="sm"
                 >
                     <Stack spacing={0}>
                         {tableFields.map((field) => (

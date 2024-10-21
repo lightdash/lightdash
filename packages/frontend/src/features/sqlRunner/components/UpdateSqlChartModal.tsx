@@ -30,12 +30,14 @@ import {
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
     savedSqlUuid: string;
+    slug: string;
     onSuccess: () => void;
 };
 
 export const UpdateSqlChartModal = ({
     projectUuid,
     savedSqlUuid,
+    slug,
     opened,
     onClose,
     onSuccess,
@@ -49,7 +51,7 @@ export const UpdateSqlChartModal = ({
     const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
 
     const { mutateAsync: updateChart, isLoading: isSaving } =
-        useUpdateSqlChartMutation(projectUuid, savedSqlUuid);
+        useUpdateSqlChartMutation(projectUuid, savedSqlUuid, slug);
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
@@ -117,7 +119,7 @@ export const UpdateSqlChartModal = ({
                 <Stack p="md">
                     <Stack spacing="xs">
                         <TextInput
-                            label="Enter a memorable name for your chart"
+                            label="Chart name"
                             placeholder="eg. How many weekly active users do we have?"
                             required
                             {...form.getInputProps('name')}

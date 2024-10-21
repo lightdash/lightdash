@@ -1,4 +1,5 @@
 import {
+    DbtError,
     DbtGraphQLCompileSqlArgs,
     DbtGraphQLCompileSqlResponse,
     DbtGraphQLCreateQueryArgs,
@@ -13,19 +14,26 @@ import {
     DbtGraphQLMetric,
     DbtGraphQLRunQueryRawResponse,
     DbtQueryStatus,
+    DbtSemanticLayerConnection,
     getDefaultedLimit,
     SemanticLayerClient,
     SemanticLayerQuery,
     SemanticLayerResultRow,
+    SemanticLayerType,
     SemanticLayerView,
 } from '@lightdash/common';
 import { GraphQLClient } from 'graphql-request';
+import { mapKeys } from 'lodash';
 import { URL } from 'url';
 import { LightdashConfig } from '../../config/parseConfig';
 import { dbtCloudTransfomers } from './transformer';
 
 type DbtCloudGraphqlClientArgs = {
     lightdashConfig: LightdashConfig;
+    connectionCredentials: Pick<
+        DbtSemanticLayerConnection,
+        'environmentId' | 'domain' | 'token'
+    >;
 };
 
 type GetDimensionsFnArgs = DbtGraphQLGetDimensionsArgs;
@@ -42,10 +50,15 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     maxQueryLimit: number;
 
-    constructor({ lightdashConfig }: DbtCloudGraphqlClientArgs) {
-        this.domain = lightdashConfig.dbtCloud.domain;
-        this.bearerToken = lightdashConfig.dbtCloud.bearerToken;
-        this.environmentId = lightdashConfig.dbtCloud.environmentId;
+    type = SemanticLayerType.DBT;
+
+    constructor({
+        lightdashConfig,
+        connectionCredentials,
+    }: DbtCloudGraphqlClientArgs) {
+        this.domain = connectionCredentials.domain;
+        this.bearerToken = connectionCredentials.token;
+        this.environmentId = connectionCredentials.environmentId;
         this.maxQueryLimit = lightdashConfig.query.maxLimit;
     }
 
@@ -55,7 +68,7 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     getClientInfo() {
         return {
-            name: 'dbtCloud',
+            name: 'dbt',
             features: {
                 views: false,
             },
@@ -129,9 +142,19 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     // eslint-disable-next-line class-methods-use-this
     async runGraphQlQuery<T>(query: string): Promise<T> {
-        return this.getClient().request(query, {
-            environmentId: this.environmentId,
-        });
+        try {
+            return await this.getClient().request(query, {
+                environmentId: this.environmentId,
+            });
+        } catch (error) {
+            // ! Collecting all errors, we might want to just send the first one so that the string isn't as big
+            const errors: string[] | undefined = error?.response?.errors?.map(
+                (e: { message: string }) =>
+                    this.transformers.errorToReadableError(e.message),
+            );
+
+            throw new DbtError(errors?.join('\n'));
+        }
     }
 
     async getResults(
@@ -159,8 +182,10 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             );
 
         if (rawResponse.status === DbtQueryStatus.FAILED) {
-            throw new Error(
-                `DBT Query failed with error: ${rawResponse.error}`,
+            throw new DbtError(
+                this.transformers.errorToReadableError(
+                    rawResponse.error ?? undefined,
+                ),
             );
         }
 
@@ -236,7 +261,13 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
             createQueryResponse.queryId,
         )) {
             rowCount += rows.length;
-            callback(rows);
+            callback(
+                rows.map((r) =>
+                    mapKeys(r, (_value, key) =>
+                        this.transformers.mapResultsKeys(key, query),
+                    ),
+                ), // dbt cloud might return columns in uppercase
+            );
         }
 
         return rowCount;
@@ -266,12 +297,12 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 }
             }`;
 
-        const { compileSql } =
+        const response =
             await this.runGraphQlQuery<DbtGraphQLCompileSqlResponse>(
                 compileSqlQuery,
             );
 
-        return this.transformers.sqlToString(compileSql.sql);
+        return this.transformers.sqlToString(response.compileSql.sql);
     }
 
     async getMetrics() {

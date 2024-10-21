@@ -138,10 +138,6 @@ export class HealthService extends BaseService {
             hasEmailClient: !!this.lightdashConfig.smtp,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
-            // TODO: soon to be deleted as we move feature to UI - https://github.com/lightdash/lightdash/issues/6767
-            hasDbtSemanticLayer:
-                !!this.lightdashConfig.dbtCloud.environmentId &&
-                !!this.lightdashConfig.dbtCloud.bearerToken,
             hasGroups: await this.hasGroups(user),
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
@@ -152,10 +148,19 @@ export class HealthService extends BaseService {
         return (
             this.lightdashConfig.groups.enabled ||
             (user
-                ? await isFeatureFlagEnabled(FeatureFlags.UserGroupsEnabled, {
-                      userUuid: user.userUuid,
-                      organizationUuid: user.organizationUuid,
-                  })
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.UserGroupsEnabled,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          // because we are checking this in the health check, we don't want to throw an error
+                          // nor do we want to wait too long
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
                 : false)
         );
     }

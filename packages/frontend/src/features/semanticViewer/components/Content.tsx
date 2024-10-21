@@ -1,22 +1,26 @@
-import { FieldType, SemanticLayerSortByDirection } from '@lightdash/common';
-import { Button, Center, Group, SegmentedControl, Text } from '@mantine/core';
-import {
-    IconArrowDown,
-    IconArrowUp,
-    IconChartHistogram,
-    IconTable,
-} from '@tabler/icons-react';
-import { type FC } from 'react';
+import { ChartKind } from '@lightdash/common';
+import { Center, Group, SegmentedControl, Text } from '@mantine/core';
+import { IconChartHistogram, IconCodeCircle } from '@tabler/icons-react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
+import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
+import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { useSemanticLayerQueryResults } from '../api/hooks';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
 import {
     selectAllSelectedFieldNames,
-    selectAllSelectedFieldsByKind,
+    selectSemanticLayerInfo,
+    selectSemanticLayerQuery,
 } from '../store/selectors';
 import {
     EditorTabs,
     setActiveEditorTab,
+    setResults,
     updateSortBy,
 } from '../store/semanticViewerSlice';
 import ContentCharts from './ContentCharts';
@@ -26,167 +30,200 @@ import { RunSemanticQueryButton } from './RunSemanticQueryButton';
 
 const Content: FC = () => {
     const dispatch = useAppDispatch();
+    const { showToastError } = useToaster();
 
+    const { projectUuid, config } = useAppSelector(selectSemanticLayerInfo);
+    const org = useOrganization();
+    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
     const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
-    const { results, view, activeEditorTab, sortBy } = useAppSelector(
-        (state) => state.semanticViewer,
+
+    const {
+        semanticLayerView,
+        results,
+        activeEditorTab,
+        columnNames,
+        fields,
+        activeChartKind,
+    } = useAppSelector((state) => state.semanticViewer);
+
+    const [hasClickedRunQueryButton, setHasClickedRunQueryButton] =
+        useState(false);
+
+    const currentVizConfig = useAppSelector((state) =>
+        selectCompleteConfigByKind(state, activeChartKind),
     );
 
-    const allSelectedFieldsByKind = useAppSelector(
-        selectAllSelectedFieldsByKind,
+    const {
+        data: requestData,
+        refetch: runSemanticViewerQuery,
+        isFetching: isRunningSemanticLayerQuery,
+        error: requestDataError,
+    } = useSemanticLayerQueryResults(
+        {
+            projectUuid,
+            query: semanticQuery,
+        },
+        {
+            enabled:
+                hasClickedRunQueryButton &&
+                (semanticQuery.dimensions.length > 0 ||
+                    semanticQuery.timeDimensions.length > 0 ||
+                    semanticQuery.metrics.length > 0),
+            onError: () => {
+                showToastError({
+                    title: 'Failed to fetch results',
+                });
+            },
+        },
     );
 
-    const handleAddSortBy = (fieldName: string, kind: FieldType) => {
-        dispatch(updateSortBy({ name: fieldName, kind }));
-    };
+    const resultsData = useMemo(() => requestData?.results, [requestData]);
+    const resultsColumns = useMemo(() => requestData?.columns, [requestData]);
 
-    const selectedFieldsCount =
-        allSelectedFieldsByKind.dimensions.length +
-        allSelectedFieldsByKind.metrics.length +
-        allSelectedFieldsByKind.timeDimensions.length;
+    useEffect(() => {
+        if (!resultsColumns || !resultsData) return;
+
+        // TODO: this shouldn't be calculated here, we should be getting this
+        // information fro the API
+        const vizColumns =
+            SemanticViewerResultsRunnerFrontend.convertColumnsToVizColumns(
+                fields,
+                resultsColumns,
+            );
+
+        dispatch(
+            setResults({
+                results: resultsData,
+                columnNames: resultsColumns,
+                columns: vizColumns,
+            }),
+        );
+    }, [dispatch, resultsData, resultsColumns, fields]);
+
+    useEffect(() => {
+        const resultsRunner = new SemanticViewerResultsRunnerFrontend({
+            rows: results,
+            columnNames,
+            projectUuid,
+            fields,
+        });
+
+        const chartResultOptions = getChartConfigAndOptions(
+            resultsRunner,
+            activeChartKind ?? ChartKind.TABLE,
+            currentVizConfig,
+        );
+
+        dispatch(setChartOptionsAndConfig(chartResultOptions));
+    }, [
+        activeChartKind,
+        currentVizConfig,
+        dispatch,
+        projectUuid,
+        results,
+        semanticQuery,
+        fields,
+        columnNames,
+        org.data,
+    ]);
+
+    const handleRunSemanticLayerQuery = useCallback(async () => {
+        await runSemanticViewerQuery();
+        setHasClickedRunQueryButton(true);
+    }, [runSemanticViewerQuery]);
+
+    const handleSortField = useCallback(
+        (fieldName: string) => {
+            const fieldToUpdate = fields.find((f) => f.name === fieldName);
+
+            if (fieldToUpdate) {
+                dispatch(updateSortBy(fieldToUpdate));
+            }
+        },
+        [dispatch, fields],
+    );
 
     return (
         <>
             <Group
-                px="md"
-                py="sm"
+                h="4xl"
+                pl="sm"
+                pr="md"
                 bg="gray.1"
                 sx={(theme) => ({
                     borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                    flexShrink: 0,
                 })}
-                position="apart"
             >
-                <Group>
-                    <SegmentedControl
-                        color="dark"
-                        size="sm"
-                        radius="sm"
-                        data={[
-                            {
-                                value: EditorTabs.RESULTS,
-                                label: (
-                                    <Group spacing="xs" noWrap>
-                                        <MantineIcon icon={IconTable} />
-                                        <Text>Results</Text>
-                                    </Group>
-                                ),
-                            },
-                            {
-                                value: EditorTabs.VISUALIZATION,
-                                label: (
-                                    <Group spacing="xs" noWrap>
-                                        <MantineIcon
-                                            icon={IconChartHistogram}
-                                        />
-                                        <Text>Chart</Text>
-                                    </Group>
-                                ),
-                            },
-                        ]}
-                        disabled={
-                            allSelectedFieldNames.length === 0 ||
-                            results.length === 0
-                        }
-                        value={activeEditorTab}
-                        onChange={(value: EditorTabs) => {
-                            dispatch(setActiveEditorTab(value));
-                        }}
-                    />
-
-                    {!!view && <Filters />}
-                </Group>
-
-                <RunSemanticQueryButton />
-            </Group>
-            {selectedFieldsCount > 0 && (
-                <Group
-                    px="md"
-                    pt="sm"
-                    bg="gray.1"
-                    sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.gray[3]}`,
+                <SegmentedControl
+                    styles={(theme) => ({
+                        root: {
+                            backgroundColor: theme.colors.gray[2],
+                        },
                     })}
-                    spacing="xxs"
-                    align="baseline"
-                >
-                    <Text fw={600} h="100%" mr="xs">
-                        Sort by:
-                    </Text>
-                    {Object.entries(allSelectedFieldsByKind).map(
-                        ([kind, fields]) =>
-                            fields.map((field) => {
-                                // TODO: this is annoying
-                                const normalKind =
-                                    kind === 'metrics'
-                                        ? FieldType.METRIC
-                                        : FieldType.DIMENSION;
+                    size="sm"
+                    radius="md"
+                    data={[
+                        {
+                            value: EditorTabs.QUERY,
+                            label: (
+                                <Group spacing="xs" noWrap>
+                                    <MantineIcon icon={IconCodeCircle} />
+                                    <Text>Query</Text>
+                                </Group>
+                            ),
+                        },
+                        {
+                            value: EditorTabs.VIZ,
+                            label: (
+                                <Group spacing="xs" noWrap>
+                                    <MantineIcon icon={IconChartHistogram} />
+                                    <Text>Chart</Text>
+                                </Group>
+                            ),
+                        },
+                    ]}
+                    disabled={
+                        allSelectedFieldNames.length === 0 ||
+                        results.length === 0
+                    }
+                    value={activeEditorTab}
+                    onChange={(value: EditorTabs) => {
+                        dispatch(setActiveEditorTab(value));
+                    }}
+                />
 
-                                const sortDirection = sortBy.find(
-                                    (s) =>
-                                        s.name === field.name &&
-                                        s.kind === normalKind,
-                                )?.direction;
+                {!!semanticLayerView && <Filters />}
 
-                                return (
-                                    <Button
-                                        key={`${kind}-${field.name}`}
-                                        variant={
-                                            sortDirection ? 'filled' : 'outline'
-                                        }
-                                        size="sm"
-                                        mr="xs"
-                                        mb="xs"
-                                        color={
-                                            kind === 'metrics'
-                                                ? 'orange'
-                                                : 'blue'
-                                        }
-                                        compact
-                                        onClick={() =>
-                                            handleAddSortBy(
-                                                field.name,
-                                                normalKind,
-                                            )
-                                        }
-                                        rightIcon={
-                                            sortDirection && (
-                                                <MantineIcon
-                                                    icon={
-                                                        sortDirection ===
-                                                        SemanticLayerSortByDirection.ASC
-                                                            ? IconArrowUp
-                                                            : IconArrowDown
-                                                    }
-                                                ></MantineIcon>
-                                            )
-                                        }
-                                    >
-                                        {field.name}
-                                    </Button>
-                                );
-                            }),
-                    )}
-                </Group>
-            )}
+                <RunSemanticQueryButton
+                    ml="auto"
+                    onClick={handleRunSemanticLayerQuery}
+                    isLoading={isRunningSemanticLayerQuery}
+                    maxQueryLimit={config.maxQueryLimit}
+                />
+            </Group>
 
-            {!view ? (
+            {!semanticLayerView ? (
                 <Center sx={{ flexGrow: 1 }}>
                     <SuboptimalState
                         title="Select a view"
                         description="Please select a view from the sidebar to start building a query"
                     />
                 </Center>
-            ) : results.length === 0 ? (
+            ) : allSelectedFieldNames.length === 0 ? (
                 <Center sx={{ flexGrow: 1 }}>
                     <SuboptimalState
-                        title="No results"
-                        description="Please run the query to see results"
+                        title="Select a field"
+                        description="Please select a field from the sidebar to start building a query"
                     />
                 </Center>
-            ) : activeEditorTab === EditorTabs.RESULTS ? (
-                <ContentResults />
-            ) : activeEditorTab === EditorTabs.VISUALIZATION ? (
-                <ContentCharts />
+            ) : activeEditorTab === EditorTabs.QUERY ? (
+                <ContentResults
+                    onTableHeaderClick={handleSortField}
+                    resultsError={requestDataError ?? undefined}
+                />
+            ) : activeEditorTab === EditorTabs.VIZ ? (
+                <ContentCharts onTableHeaderClick={handleSortField} />
             ) : null}
         </>
     );

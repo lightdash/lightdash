@@ -3,6 +3,7 @@ import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from '../types/organizationMemberProfile';
+import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { type MemberAbility } from './types';
 
@@ -77,10 +78,14 @@ export const organizationMemberAbilities: Record<
         organizationMemberAbilities.viewer(member, { can });
         can('create', 'Project', {
             organizationUuid: member.organizationUuid,
+            type: ProjectType.PREVIEW,
         });
         can('create', 'Job');
         can('view', 'Job', { userUuid: member.userUuid });
         can('view', 'UnderlyingData', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'SemanticViewer', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'ChangeCsvResults', {
@@ -105,6 +110,16 @@ export const organizationMemberAbilities: Record<
             },
         });
         can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+
+        can('manage', 'SemanticViewer', {
             organizationUuid: member.organizationUuid,
             access: {
                 $elemMatch: {
@@ -159,9 +174,15 @@ export const organizationMemberAbilities: Record<
         can('manage', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'SemanticViewer', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     developer(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
+        can('manage', 'VirtualView', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'CustomSql', {
             organizationUuid: member.organizationUuid,
         });

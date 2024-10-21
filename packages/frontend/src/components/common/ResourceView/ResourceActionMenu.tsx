@@ -278,7 +278,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         item,
                                     });
                                 }}
-                                sx={isSqlChart ? { display: 'none' } : {}}
                             >
                                 Add to Dashboard
                             </Menu.Item>

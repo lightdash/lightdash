@@ -1,13 +1,14 @@
 import { Box, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { selectFilters } from '../store/selectors';
 import { setIsFiltersModalOpen } from '../store/semanticViewerSlice';
 import BadgeButton from './BadgeButton';
 import FiltersModal from './FiltersModal';
 
 const Filters: FC = () => {
-    const { filters } = useAppSelector((state) => state.semanticViewer);
+    const filters = useAppSelector(selectFilters);
     const filtersCount = useMemo(() => Object.keys(filters).length, [filters]);
 
     const dispatch = useAppDispatch();
@@ -40,12 +41,14 @@ const Filters: FC = () => {
                 </Button>
             )}
 
-            <FiltersModal
-                size="xl"
-                opened={isFiltersModalOpen}
-                onClose={closeFiltersModal}
-                withCloseButton={false}
-            />
+            {/* Controlling the modal opening via conditional rendering so that draft filters are kept up to date and we don't have to deal with that state update */}
+            {isFiltersModalOpen && (
+                <FiltersModal
+                    size="xl"
+                    onClose={closeFiltersModal}
+                    withCloseButton={false}
+                />
+            )}
         </Box>
     );
 };

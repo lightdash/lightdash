@@ -19,10 +19,10 @@ import {
     IconPlus,
     IconVideo,
 } from '@tabler/icons-react';
-import { useFeatureFlagEnabled } from 'posthog-js/react';
 import { useCallback, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
@@ -31,6 +31,7 @@ import { TileAddModal } from './TileForms/TileAddModal';
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
+    hasNewSemanticLayerChart?: boolean;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
 } & Pick<ButtonProps, 'disabled'>;
@@ -38,6 +39,7 @@ type Props = {
 const AddTileButton: FC<Props> = ({
     onAddTiles,
     setAddingTab,
+    hasNewSemanticLayerChart = false,
     disabled,
     activeTabUuid,
     dashboardTabs,
@@ -94,32 +96,34 @@ const AddTileButton: FC<Props> = ({
                         Saved chart
                     </Menu.Item>
 
-                    <Menu.Item
-                        onClick={() => {
-                            storeDashboard(
-                                dashboardTiles,
-                                dashboardFilters,
-                                haveTilesChanged,
-                                haveFiltersChanged,
-                                dashboard?.uuid,
-                                dashboard?.name,
-                                activeTabUuid,
-                                dashboardTabs,
-                            );
-                            history.push(`/projects/${projectUuid}/tables`);
-                        }}
-                        icon={<MantineIcon icon={IconPlus} />}
-                    >
-                        <Group spacing="xxs">
-                            <Text>New chart</Text>
-                            <Tooltip label="Charts generated from here are exclusive to this dashboard">
-                                <MantineIcon
-                                    icon={IconInfoCircle}
-                                    color="gray.6"
-                                />
-                            </Tooltip>
-                        </Group>
-                    </Menu.Item>
+                    {!hasNewSemanticLayerChart && (
+                        <Menu.Item
+                            onClick={() => {
+                                storeDashboard(
+                                    dashboardTiles,
+                                    dashboardFilters,
+                                    haveTilesChanged,
+                                    haveFiltersChanged,
+                                    dashboard?.uuid,
+                                    dashboard?.name,
+                                    activeTabUuid,
+                                    dashboardTabs,
+                                );
+                                history.push(`/projects/${projectUuid}/tables`);
+                            }}
+                            icon={<MantineIcon icon={IconPlus} />}
+                        >
+                            <Group spacing="xxs">
+                                <Text>New chart</Text>
+                                <Tooltip label="Charts generated from here are exclusive to this dashboard">
+                                    <MantineIcon
+                                        icon={IconInfoCircle}
+                                        color="gray.6"
+                                    />
+                                </Tooltip>
+                            </Group>
+                        </Menu.Item>
+                    )}
 
                     <Menu.Item
                         onClick={() =>

@@ -14,11 +14,14 @@ import {
     OrganizationMemberRole,
     PinnedItem,
     ProjectMemberRole,
+    QueryExecutionContext,
     RequestMethod,
     SchedulerFormat,
+    SemanticLayerQuery,
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type SemanticLayerType,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -152,25 +155,6 @@ type UserJoinOrganizationEvent = BaseTrack & {
     };
 };
 
-export enum QueryExecutionContext {
-    DASHBOARD = 'dashboardView',
-    AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
-    EXPLORE = 'exploreView',
-    CHART = 'chartView',
-    SQL_CHART = 'sqlChartView',
-    SQL_RUNNER = 'sqlRunner',
-    VIEW_UNDERLYING_DATA = 'viewUnderlyingData',
-    CSV = 'csvDownload',
-    GSHEETS = 'gsheets',
-    SCHEDULED_GSHEETS_CHART = 'scheduledGsheetsChart',
-    SCHEDULED_GSHEETS_DASHBOARD = 'scheduledGsheetsDashboard',
-    SCHEDULED_CHART = 'scheduledChart',
-    SCHEDULED_DASHBOARD = 'scheduledDashboard',
-    CALCULATE_TOTAL = 'calculateTotal',
-    API = 'api',
-    CLI = 'cli',
-}
-
 export const getContextFromHeader = (req: Request) => {
     const method = getRequestMethod(req.header(LightdashRequestMethodHeader));
     switch (method) {
@@ -182,6 +166,24 @@ export const getContextFromHeader = (req: Request) => {
         default:
             return undefined;
     }
+};
+
+export const getContextFromQueryOrHeader = (
+    req: Request,
+): QueryExecutionContext | undefined => {
+    const context: QueryExecutionContext | undefined =
+        typeof req.query.context === 'string'
+            ? (req.query.context as QueryExecutionContext)
+            : undefined;
+    if (context) {
+        for (const [key, value] of Object.entries(QueryExecutionContext)) {
+            if (value.toLowerCase() === context.toLowerCase()) {
+                return value as QueryExecutionContext;
+            }
+        }
+        console.warn('Invalid query execution context', context);
+    }
+    return getContextFromHeader(req);
 };
 
 type MetricQueryExecutionProperties = {
@@ -206,11 +208,18 @@ type MetricQueryExecutionProperties = {
     numCustomSqlDimensions: number;
     dateZoomGranularity: string | null;
     timezone?: string;
+    virtualViewId?: string;
 };
 
 type SqlExecutionProperties = {
     sqlChartId?: string;
     usingStreaming: boolean;
+};
+
+type SemanticViewerExecutionProperties = {
+    semanticViewerChartId?: string;
+    usingStreaming: boolean;
+    semanticLayer: SemanticLayerType;
 };
 
 type QueryExecutionEvent = BaseTrack & {
@@ -219,7 +228,11 @@ type QueryExecutionEvent = BaseTrack & {
         context: QueryExecutionContext;
         organizationId: string;
         projectId: string;
-    } & (MetricQueryExecutionProperties | SqlExecutionProperties);
+    } & (
+        | MetricQueryExecutionProperties
+        | SqlExecutionProperties
+        | SemanticViewerExecutionProperties
+    );
 };
 
 type CreateOrganizationEvent = BaseTrack & {
@@ -334,6 +347,8 @@ type RollbackChartVersionEvent = BaseTrack & {
 export type CreateSavedChartVersionEvent = BaseTrack & {
     event: 'saved_chart_version.created';
     properties: {
+        title: string;
+        description: string | undefined;
         projectId: string;
         savedQueryId: string;
         dimensionsCount: number;
@@ -509,6 +524,8 @@ type UpdatedDashboardEvent = BaseTrack & {
 export type CreateDashboardOrVersionEvent = BaseTrack & {
     event: 'dashboard.created' | 'dashboard_version.created';
     properties: {
+        title: string;
+        description: string | undefined;
         projectId: string;
         dashboardId: string;
         filtersCount: number;
@@ -740,6 +757,32 @@ export type CreateSqlChartVersionEvent = BaseTrack & {
     };
 };
 
+export type CreateSemanticViewerChartVersionEvent = BaseTrack & {
+    event: 'semantic_viewer_chart_version.created';
+    userId: string;
+    properties: {
+        chartId: string;
+        versionId: string;
+        projectId: string;
+        organizationId: string;
+        chartKind: ChartKind;
+        semanticLayerQuery: SemanticLayerQuery;
+        barChart?: {
+            groupByCount: number;
+            yAxisCount: number;
+            aggregationTypes: string[];
+        };
+        lineChart?: {
+            groupByCount: number;
+            yAxisCount: number;
+            aggregationTypes: string[];
+        };
+        pieChart?: {
+            groupByCount: number;
+        };
+    };
+};
+
 type PromoteContent = BaseTrack & {
     event: 'promote.executed' | 'promote.error';
     userId: string;
@@ -904,8 +947,8 @@ export type DownloadCsv = BaseTrack & {
         context?:
             | 'results'
             | 'chart'
-            | 'scheduled delivery chart'
-            | 'scheduled delivery dashboard'
+            | QueryExecutionContext.ALERT
+            | QueryExecutionContext.SCHEDULED_DELIVERY
             | 'sql runner'
             | 'dashboard csv zip';
         storage?: 'local' | 's3';
@@ -1014,6 +1057,28 @@ export type SemanticLayerView = BaseTrack & {
     };
 };
 
+export type BaseVirtualViewEvent = BaseTrack & {
+    userId: string;
+    properties: {
+        virtualViewId: string;
+        projectId: string;
+        organizationId: string;
+        name?: string;
+    };
+};
+
+export type VirtualViewCreatedEvent = BaseVirtualViewEvent & {
+    event: 'virtual_view.created';
+};
+
+export type VirtualViewUpdatedEvent = BaseVirtualViewEvent & {
+    event: 'virtual_view.updated';
+};
+
+export type VirtualViewDeletedEvent = BaseVirtualViewEvent & {
+    event: 'virtual_view.deleted';
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1086,7 +1151,10 @@ type TypedEvent =
     | UpdateSqlChartEvent
     | DeleteSqlChartEvent
     | CreateSqlChartVersionEvent
-    | CommentsEvent;
+    | CommentsEvent
+    | VirtualViewCreatedEvent
+    | VirtualViewUpdatedEvent
+    | VirtualViewDeletedEvent;
 
 type WrapTypedEvent = SemanticLayerView;
 
@@ -1136,6 +1204,8 @@ export class LightdashAnalytics extends Analytics {
     static anonymousId = process.env.LIGHTDASH_INSTALL_ID || uuidv4();
 
     identify(payload: Identify) {
+        if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
+
         super.identify({
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
@@ -1143,6 +1213,7 @@ export class LightdashAnalytics extends Analytics {
     }
 
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
+        if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
         if (isUserUpdatedEvent(payload)) {
             const basicEventProperties = {
                 is_tracking_anonymized: payload.properties.isTrackingAnonymized,
@@ -1189,6 +1260,8 @@ export class LightdashAnalytics extends Analytics {
     }
 
     group(payload: Group) {
+        if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
+
         super.group({
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg

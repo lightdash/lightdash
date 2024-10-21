@@ -34,14 +34,16 @@ services:
             - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
             - GROUPS_ENABLED=${GROUPS_ENABLED}
             - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
+            - POSTHOG_FE_API_HOST=${POSTHOG_FE_API_HOST}
+            - POSTHOG_BE_API_HOST=${POSTHOG_BE_API_HOST}
             - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
             - SLACK_CLIENT_ID=${SLACK_CLIENT_ID}
             - SLACK_CLIENT_SECRET=${SLACK_CLIENT_SECRET}
             - SLACK_STATE_SECRET=${SLACK_STATE_SECRET}
-            - DBT_CLOUD_ENVIRONMENT_ID=${DBT_CLOUD_ENVIRONMENT_ID}
-            - DBT_CLOUD_BEARER_TOKEN=${DBT_CLOUD_BEARER_TOKEN}
-            - CUBE_TOKEN=${CUBE_TOKEN}
-            - CUBE_DOMAIN=${CUBE_DOMAIN}
+            - GITHUB_PRIVATE_KEY=${GITHUB_PRIVATE_KEY}
+            - GITHUB_APP_ID=${GITHUB_APP_ID}
+            - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+            - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET} 
         volumes:
             - '../:/usr/app'
             - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'

@@ -140,6 +140,7 @@ export type DashboardScheduler = SchedulerBase & {
     dashboardUuid: string;
     filters?: SchedulerFilterRule[];
     customViewportWidth?: number;
+    selectedTabs?: string[];
 };
 
 export type Scheduler = ChartScheduler | DashboardScheduler;
@@ -387,6 +388,7 @@ export type DownloadCsvPayload = {
     customLabels: Record<string, string> | undefined;
     hiddenFields: string[] | undefined;
     chartName: string | undefined;
+    fromSavedChart: boolean;
 };
 
 export type ApiCsvUrlResponse = {

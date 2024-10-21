@@ -2,6 +2,7 @@ import {
     NotFoundError,
     WarehouseCatalog,
     WarehouseTables,
+    WarehouseTablesCatalog,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -19,20 +20,23 @@ export class WarehouseAvailableTablesModel {
     static toWarehouseCatalog(
         rows: Pick<
             DbWarehouseAvailableTables,
-            'database' | 'schema' | 'table'
+            'database' | 'schema' | 'table' | 'partition_column'
         >[],
-    ): WarehouseCatalog {
+    ): WarehouseTablesCatalog {
         return rows.reduce((acc, row) => {
-            const { database, schema, table } = row;
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            const { database, schema, table, partition_column } = row;
             if (!acc[database]) {
                 acc[database] = {};
             }
             if (!acc[database][schema]) {
                 acc[database][schema] = {};
             }
-            acc[database][schema][table] = {};
+            acc[database][schema][table] = {
+                partitionColumn: partition_column || undefined,
+            };
             return acc;
-        }, {} as WarehouseCatalog);
+        }, {} as WarehouseTablesCatalog);
     }
 
     async getTablesForUserWarehouseCredentials(
@@ -43,7 +47,7 @@ export class WarehouseAvailableTablesModel {
                 'user_warehouse_credentials_uuid',
                 userWarehouseCredentialsId,
             )
-            .select(['database', 'schema', 'table']);
+            .select(['database', 'schema', 'table', 'partition_column']);
         return WarehouseAvailableTablesModel.toWarehouseCatalog(rows);
     }
 
@@ -60,7 +64,7 @@ export class WarehouseAvailableTablesModel {
                 `${WarehouseAvailableTablesTableName}.project_warehouse_credentials_id`,
             )
             .where('project_uuid', projectUuid)
-            .select(['database', 'schema', 'table']);
+            .select(['database', 'schema', 'table', 'partition_column']);
         return WarehouseAvailableTablesModel.toWarehouseCatalog(rows);
     }
 
@@ -83,14 +87,17 @@ export class WarehouseAvailableTablesModel {
         if (!warehouseCredentialsId) {
             throw new NotFoundError('Warehouse credentials not found');
         }
-        const rows = tables.map(({ database, schema, table }) => ({
-            database,
-            schema,
-            table,
-            project_warehouse_credentials_id:
-                warehouseCredentialsId.warehouse_credentials_id,
-            user_warehouse_credentials_uuid: null,
-        }));
+        const rows = tables.map(
+            ({ database, schema, table, partitionColumn }) => ({
+                database,
+                schema,
+                table,
+                project_warehouse_credentials_id:
+                    warehouseCredentialsId.warehouse_credentials_id,
+                user_warehouse_credentials_uuid: null,
+                partition_column: partitionColumn || null,
+            }),
+        );
 
         await this.database.transaction(async (trx) => {
             await trx(WarehouseAvailableTablesTableName)
@@ -100,7 +107,11 @@ export class WarehouseAvailableTablesModel {
                 )
                 .del();
 
-            await trx(WarehouseAvailableTablesTableName).insert(rows);
+            if (rows.length !== 0) {
+                await this.database
+                    .batchInsert(WarehouseAvailableTablesTableName, rows)
+                    .transacting(trx);
+            }
         });
     }
 
@@ -108,13 +119,17 @@ export class WarehouseAvailableTablesModel {
         userWarehouseCredentialsUuid: string,
         tables: WarehouseTables,
     ) {
-        const rows = tables.map(({ database, schema, table }) => ({
-            database,
-            schema,
-            table,
-            project_warehouse_credentials_id: null,
-            user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
-        }));
+        const rows = tables.map(
+            ({ database, schema, table, partitionColumn }) => ({
+                database,
+                schema,
+                table,
+                partition_column: partitionColumn || null,
+
+                project_warehouse_credentials_id: null,
+                user_warehouse_credentials_uuid: userWarehouseCredentialsUuid,
+            }),
+        );
         await this.database.transaction(async (trx) => {
             await trx(WarehouseAvailableTablesTableName)
                 .where(
@@ -122,7 +137,11 @@ export class WarehouseAvailableTablesModel {
                     userWarehouseCredentialsUuid,
                 )
                 .del();
-            await trx(WarehouseAvailableTablesTableName).insert(rows);
+            if (rows.length !== 0) {
+                await this.database
+                    .batchInsert(WarehouseAvailableTablesTableName, rows)
+                    .transacting(trx);
+            }
         });
     }
 }

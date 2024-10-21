@@ -227,6 +227,17 @@ export class NotFoundError extends LightdashError {
     }
 }
 
+export class InvalidUser extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'InvalidUser',
+            statusCode: 404,
+            data: {},
+        });
+    }
+}
+
 export class WarehouseConnectionError extends LightdashError {
     constructor(message: string) {
         super({

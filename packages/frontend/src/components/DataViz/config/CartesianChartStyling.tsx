@@ -1,21 +1,21 @@
 import {
     ECHARTS_DEFAULT_COLORS,
     friendlyName,
-    VizIndexType,
     type ChartKind,
 } from '@lightdash/common';
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import {
+    useAppDispatch as useVizDispatch,
+    useAppSelector as useVizSelector,
+} from '../../../features/sqlRunner/store/hooks';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
-import {
-    useVizDispatch,
-    useVizSelector,
-    type CartesianChartActionsType,
-} from '../store';
+import { type BarChartActionsType } from '../store/barChartSlice';
+import { type LineChartActionsType } from '../store/lineChartSlice';
 import { selectCurrentCartesianChartState } from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 import {
@@ -28,7 +28,7 @@ export const CartesianChartStyling = ({
     actions,
 }: {
     selectedChartType: ChartKind;
-    actions: CartesianChartActionsType;
+    actions: BarChartActionsType | LineChartActionsType;
 }) => {
     const { data: org } = useOrganization();
     const colors = org?.chartColors ?? ECHARTS_DEFAULT_COLORS;
@@ -40,60 +40,55 @@ export const CartesianChartStyling = ({
 
     const series: ConfigurableSeries[] = useMemo(() => {
         if (
-            !currentConfig?.config?.fieldConfig?.y ||
-            currentConfig?.config?.fieldConfig?.y.length <= 1
+            !currentConfig?.fieldConfig?.y ||
+            currentConfig?.fieldConfig?.y.length <= 1
         ) {
             return [];
         }
-        return currentConfig?.config?.fieldConfig?.y.map((f, index) => {
-            const seriesFormat = Object.values(
-                currentConfig?.config?.display?.series || {},
-            ).find((s) => s.yAxisIndex === index)?.format;
-            const seriesLabel =
-                Object.values(
-                    currentConfig?.config?.display?.series || {},
-                ).find((s) => s.yAxisIndex === index)?.label ??
-                friendlyName(`${f.reference}_${f.aggregation}`);
+        return currentConfig?.fieldConfig?.y.map((f, index) => {
+            const foundSeries = Object.values(
+                currentConfig?.display?.series || {},
+            ).find((s) => s.yAxisIndex === index);
 
-            const seriesColor = Object.values(
-                currentConfig?.config?.display?.series || {},
-            ).find((s) => s.yAxisIndex === index)?.color;
+            const seriesFormat = foundSeries?.format;
+            const seriesLabel = foundSeries?.label;
+            const seriesColor = foundSeries?.color;
+            const seriesType = foundSeries?.type;
             return {
                 reference: f.reference,
                 format: seriesFormat,
-                label: seriesLabel,
+                label:
+                    seriesLabel ??
+                    friendlyName(`${f.reference}_${f.aggregation}`),
                 color: seriesColor ?? colors[index],
+                type: seriesType,
             };
         });
-    }, [
-        colors,
-        currentConfig?.config?.display?.series,
-        currentConfig?.config?.fieldConfig?.y,
-    ]);
+    }, [colors, currentConfig?.display?.series, currentConfig?.fieldConfig?.y]);
 
     const xAxisLabel = useMemo(() => {
         return (
-            currentConfig?.config?.display?.xAxis?.label ??
-            currentConfig?.config?.fieldConfig?.x?.reference
+            currentConfig?.display?.xAxis?.label ??
+            currentConfig?.fieldConfig?.x?.reference
         );
     }, [currentConfig]);
     const yAxisLabel = useMemo(() => {
         return (
-            currentConfig?.config?.display?.yAxis?.[0]?.label ??
-            currentConfig?.config?.fieldConfig?.y?.[0]?.reference
+            currentConfig?.display?.yAxis?.[0]?.label ??
+            currentConfig?.fieldConfig?.y?.[0]?.reference
         );
     }, [currentConfig]);
     const yAxisLabelColor = useMemo(
         () =>
-            currentConfig?.config?.fieldConfig?.y?.[0]?.reference &&
-            currentConfig?.config?.display?.series?.[
-                currentConfig.config.fieldConfig?.y[0].reference
+            currentConfig?.fieldConfig?.y?.[0]?.reference &&
+            currentConfig?.display?.series?.[
+                currentConfig.fieldConfig?.y[0].reference
             ]?.color,
 
         [currentConfig],
     );
 
-    const yAxisPosition = currentConfig?.config?.display?.yAxis?.[0]?.position;
+    const yAxisPosition = currentConfig?.display?.yAxis?.[0]?.position;
 
     return (
         <Stack spacing="xs">
@@ -102,7 +97,7 @@ export const CartesianChartStyling = ({
                     <Config.Label>{`Stacking`}</Config.Label>
                     <SegmentedControl
                         radius="md"
-                        disabled={!currentConfig?.config?.fieldConfig?.groupBy}
+                        disabled={!currentConfig?.fieldConfig?.groupBy}
                         data={[
                             {
                                 value: 'None',
@@ -114,9 +109,7 @@ export const CartesianChartStyling = ({
                             },
                         ]}
                         defaultValue={
-                            currentConfig?.config?.display?.stack
-                                ? 'Stacked'
-                                : 'None'
+                            currentConfig?.display?.stack ? 'Stacked' : 'None'
                         }
                         onChange={(value) =>
                             dispatch(actions.setStacked(value === 'Stacked'))
@@ -135,7 +128,6 @@ export const CartesianChartStyling = ({
                             dispatch(
                                 actions.setXAxisLabel({
                                     label: e.target.value,
-                                    type: VizIndexType.CATEGORY,
                                 }),
                             )
                         }
@@ -153,17 +145,16 @@ export const CartesianChartStyling = ({
                                     color={yAxisLabelColor ?? colors[0]}
                                     onColorChange={(color) => {
                                         if (
-                                            !currentConfig?.config?.fieldConfig
-                                                ?.y[0].reference
+                                            !currentConfig?.fieldConfig?.y[0]
+                                                .reference
                                         )
                                             return;
                                         dispatch(
                                             actions.setSeriesColor({
                                                 color,
                                                 reference:
-                                                    currentConfig?.config
-                                                        ?.fieldConfig?.y[0]
-                                                        .reference,
+                                                    currentConfig?.fieldConfig
+                                                        ?.y[0].reference,
                                             }),
                                         );
                                     }}
@@ -189,8 +180,7 @@ export const CartesianChartStyling = ({
                             <Config.Label>{`Format`}</Config.Label>
                             <CartesianChartFormatConfig
                                 format={
-                                    currentConfig?.config?.display?.yAxis?.[0]
-                                        ?.format
+                                    currentConfig?.display?.yAxis?.[0]?.format
                                 }
                                 onChangeFormat={(value) => {
                                     dispatch(

@@ -1,34 +1,25 @@
+import { type SemanticLayerFilter } from '@lightdash/common';
 import {
-    FieldType as FieldKind,
-    SemanticLayerFieldType,
-} from '@lightdash/common';
-import {
-    ActionIcon,
     Button,
     Flex,
-    Group,
     Modal,
-    Select,
     Stack,
+    Title,
     type ModalProps,
 } from '@mantine/core';
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import MantineIcon from '../../../../components/common/MantineIcon';
-import useToaster from '../../../../hooks/toaster/useToaster';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { selectAllSelectedFieldNames } from '../../store/selectors';
+import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import {
-    addFilter,
-    removeFilter,
-    updateFilter,
-} from '../../store/semanticViewerSlice';
+    selectAllSelectedFieldNames,
+    selectFilters,
+} from '../../store/selectors';
+import { setFilters } from '../../store/semanticViewerSlice';
 import Filter from './Filter';
 import FilterButton from './FilterButton';
-import FilterFieldSelectItem from './FilterFieldSelectItem';
+import FilterFieldSelect from './FilterFieldSelect';
 
-type FiltersModalProps = ModalProps & {
+type FiltersModalProps = Omit<ModalProps, 'opened'> & {
     onApply?: () => void;
 };
 
@@ -38,58 +29,82 @@ const FiltersModal: FC<FiltersModalProps> = ({
     ...props
 }) => {
     const [isAddingFilter, setIsAddingFilter] = useState(false);
-    const { filters, fields } = useAppSelector((state) => state.semanticViewer);
-    const allSelectedFieldNames = useAppSelector(selectAllSelectedFieldNames);
+    const { fields } = useAppSelector((state) => state.semanticViewer);
+    const selectedFields = useAppSelector(selectAllSelectedFieldNames);
+    const filters = useAppSelector(selectFilters);
 
-    const dispatch = useAppDispatch();
-
-    const { showToastError } = useToaster();
-
-    const availableFieldOptions = useMemo(() => {
+    const fieldOptions = useMemo(() => {
         if (!fields) return [];
 
         return fields
-            .filter(
-                (f) =>
-                    f.visible &&
-                    f.type === SemanticLayerFieldType.STRING &&
-                    f.kind === FieldKind.DIMENSION, // TODO: for now only string dimensions are supported
-            )
+            .filter((f) => f.visible && f.availableOperators.length > 0)
             .map((f) => ({
                 value: f.name,
                 field: f,
                 label: f.label,
-                group: allSelectedFieldNames.includes(f.name)
+                group: selectedFields.includes(f.name)
                     ? 'Results'
                     : 'Other fields',
             }))
-            .sort((a, b) =>
-                a.group === 'Results' && b.group !== 'Results' ? 0 : 1,
+            .sort((a, b) => {
+                const aValue = a.group === 'Results' ? 1 : -1;
+                const bValue = b.group === 'Results' ? 1 : -1;
+
+                return bValue - aValue;
+            });
+    }, [selectedFields, fields]);
+
+    const [draftFilters, setDraftFilters] =
+        useState<SemanticLayerFilter[]>(filters);
+
+    const dispatch = useAppDispatch();
+
+    const handleUpdateFilter = (updatedFilter: SemanticLayerFilter) => {
+        setDraftFilters((prev) => {
+            const updatedFilters = [...prev];
+            const filterIndex = updatedFilters.findIndex(
+                (f) => f.uuid === updatedFilter.uuid,
             );
-    }, [allSelectedFieldNames, fields]);
+            updatedFilters[filterIndex] = updatedFilter;
+            return updatedFilters;
+        });
+    };
+
+    const handleRemoveFilter = (uuid: string) => {
+        setDraftFilters((prev) => prev.filter((f) => f.uuid !== uuid));
+    };
 
     const handleApply = useCallback(() => {
+        dispatch(setFilters(draftFilters));
         onApply?.();
         onClose?.();
-    }, [onApply, onClose]);
+    }, [dispatch, draftFilters, onApply, onClose]);
 
     return (
-        <Modal {...props} onClose={onClose} p="sm" radius="md">
-            <Stack align="flex-start" spacing="sm">
-                {filters.map((filter, index) => (
+        <Modal
+            {...props}
+            opened
+            title={
+                <Title order={5} fw={500}>
+                    Filters
+                </Title>
+            }
+            onClose={onClose}
+        >
+            {/* data-autofocus so that the focus remains inside the modal but doesn't try to focus a filter input and open the dropdown */}
+            <Stack align="flex-start" spacing="sm" data-autofocus>
+                {draftFilters.map((filter, index) => (
                     <Filter
                         key={filter.uuid}
                         isFirstRootFilter={index === 0}
                         filter={filter}
-                        fieldOptions={availableFieldOptions}
-                        allFields={fields ?? []}
-                        onDelete={() => dispatch(removeFilter(filter.uuid))}
-                        onUpdate={(updatedFilter) =>
-                            dispatch(updateFilter(updatedFilter))
-                        }
+                        fields={fields ?? []}
+                        fieldOptions={fieldOptions}
+                        onDelete={() => handleRemoveFilter(filter.uuid)}
+                        onUpdate={handleUpdateFilter}
                     />
                 ))}
-                {!isAddingFilter ? (
+                {Boolean(!isAddingFilter && draftFilters.length > 0) ? (
                     <FilterButton
                         icon={IconPlus}
                         onClick={() => setIsAddingFilter(true)}
@@ -97,64 +112,20 @@ const FiltersModal: FC<FiltersModalProps> = ({
                         Add filter
                     </FilterButton>
                 ) : (
-                    <Group spacing="xs">
-                        <Select
-                            size="xs"
-                            data={availableFieldOptions}
-                            itemComponent={FilterFieldSelectItem}
-                            placeholder="Select field"
-                            searchable
-                            withinPortal={true}
-                            onChange={(value) => {
-                                setIsAddingFilter(false);
-
-                                if (!value) {
-                                    return;
-                                }
-
-                                const field = fields?.find(
-                                    (f) => f.name === value,
-                                );
-
-                                if (!field) {
-                                    showToastError({
-                                        title: 'Error',
-                                        subtitle: 'Field not found',
-                                    });
-                                    return;
-                                }
-
-                                const defaultOperator =
-                                    field.availableOperators[0];
-
-                                if (!defaultOperator) {
-                                    showToastError({
-                                        title: 'Error',
-                                        subtitle:
-                                            'No filter operators available for this field',
-                                    });
-                                    return;
-                                }
-
-                                dispatch(
-                                    addFilter({
-                                        uuid: uuidv4(),
-                                        field: value,
-                                        fieldKind: field.kind,
-                                        fieldType: field.type,
-                                        operator: defaultOperator,
-                                        values: [],
-                                    }),
-                                );
-                            }}
-                        />
-                        <ActionIcon
-                            size="xs"
-                            onClick={() => setIsAddingFilter(false)}
-                        >
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
-                    </Group>
+                    <FilterFieldSelect
+                        fields={fields}
+                        fieldOptions={fieldOptions}
+                        isCreatingFilter
+                        onCreate={(newFilter) => {
+                            setIsAddingFilter(false);
+                            setDraftFilters((prev) => [...prev, newFilter]);
+                        }}
+                        onCancel={
+                            draftFilters.length > 0
+                                ? () => setIsAddingFilter(false)
+                                : undefined
+                        }
+                    />
                 )}
                 <Flex w="100%" justify="flex-end">
                     <Button onClick={handleApply}>Apply</Button>

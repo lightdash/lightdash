@@ -480,7 +480,7 @@ export const isFilterableItem = (
 export const defaultSql = (columnName: string): string =>
     // eslint-disable-next-line no-useless-escape
     `\$\{TABLE\}.${columnName}`;
-const capitalize = (word: string): string =>
+export const capitalize = (word: string): string =>
     word ? `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}` : '';
 export const friendlyName = (text: string): string => {
     if (text === '') {

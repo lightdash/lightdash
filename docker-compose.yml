@@ -1,4 +1,4 @@
-version: "3.8"
+version: '3.8'
 services:
   lightdash:
     platform: linux/amd64
@@ -40,20 +40,22 @@ services:
       - RUDDERSTACK_WRITE_KEY=${RUDDERSTACK_WRITE_KEY}
       - SCHEDULER_ENABLED=true
       - GROUPS_ENABLED=${GROUPS_ENABLED:-false}
+      - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
+      - POSTHOG_FE_API_HOST=${POSTHOG_FE_API_HOST}
+      - POSTHOG_BE_API_HOST=${POSTHOG_BE_API_HOST}
     volumes:
       - "${DBT_PROJECT_DIR}:/usr/app/dbt"
     ports:
       - ${PORT:-8080}:${PORT:-8080}
-
-  db:
-    image: postgres:15.4
-    restart: always
-    environment:
-      POSTGRES_PASSWORD: ${PGPASSWORD}
-      POSTGRES_USER: ${PGUSER:-postgres}
-      POSTGRES_DB: ${PGDATABASE:-postgres}
-    volumes:
-      - db-data:/var/lib/postgresql/data
+    db:
+        image: postgres:15.4
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: ${PGPASSWORD}
+            POSTGRES_USER: ${PGUSER:-postgres}
+            POSTGRES_DB: ${PGDATABASE:-postgres}
+        volumes:
+            - db-data:/var/lib/postgresql/data
 
   headless-browser:
     image: browserless/chrome
@@ -63,4 +65,3 @@ services:
     
 volumes:
   db-data:
-  

@@ -8,9 +8,9 @@ import {
     FieldType as FieldKind,
     getAvailableSemanticLayerFilterOperators,
     SemanticLayerField,
-    SemanticLayerSortByDirection,
     SemanticLayerTransformer,
     SemanticLayerView,
+    SortByDirection,
 } from '@lightdash/common';
 import {
     getDbtFilterFromSemanticLayerFilter,
@@ -18,6 +18,10 @@ import {
     getSemanticLayerTimeGranularity,
     getSemanticLayerTypeFromDbtType,
 } from './typeTransformers';
+
+enum DbtErrorMessageMatcher {
+    JOIN_PATH = 'unable to join all items in request',
+}
 
 export const dbtCloudTransfomers: SemanticLayerTransformer<
     SemanticLayerView,
@@ -85,8 +89,7 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
             where: query.filters.map(getDbtFilterFromSemanticLayerFilter),
             orderBy: query.sortBy.map((sort) => {
                 const { name, kind, direction } = sort;
-                const descending =
-                    direction === SemanticLayerSortByDirection.DESC;
+                const descending = direction === SortByDirection.DESC;
 
                 switch (kind) {
                     case FieldKind.DIMENSION:
@@ -121,4 +124,27 @@ export const dbtCloudTransfomers: SemanticLayerTransformer<
         });
     },
     sqlToString: (sql) => sql,
+    mapResultsKeys: (key, query) => {
+        // TODO: since we currently only support one granularity per time dimension, we can just return the time dimension name as the key
+        const timeDimension = query.timeDimensions.find((td) =>
+            key.toLowerCase().includes(td.name.toLowerCase()),
+        );
+
+        if (timeDimension) {
+            return timeDimension.name.toLowerCase();
+        }
+
+        return key.toLowerCase();
+    },
+    errorToReadableError: (errorMessage) => {
+        if (!errorMessage) return undefined;
+
+        const lowerCaseMessage = errorMessage.toLowerCase();
+
+        if (lowerCaseMessage.includes(DbtErrorMessageMatcher.JOIN_PATH)) {
+            return 'Query error: no join path found between selected fields.';
+        }
+
+        return errorMessage;
+    },
 };

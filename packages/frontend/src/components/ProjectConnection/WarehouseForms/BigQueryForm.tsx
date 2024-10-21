@@ -159,6 +159,35 @@ const BigQueryForm: FC<{
 
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
+                        <TextInput
+                            label="Execution project"
+                            description={
+                                <p>
+                                    You may specify a project to bill for query
+                                    execution, instead of the project/database
+                                    where you materialize most resources. You
+                                    can see more details in{' '}
+                                    <Anchor
+                                        target="_blank"
+                                        href="https://docs.getdbt.com/docs/core/connect-data-platform/bigquery-setup#execution-project"
+                                        rel="noreferrer"
+                                    >
+                                        dbt documentation
+                                    </Anchor>
+                                    .
+                                </p>
+                            }
+                            {...register('warehouse.executionProject', {
+                                validate: {
+                                    hasNoWhiteSpaces:
+                                        hasNoWhiteSpaces('Execution project'),
+                                },
+                                setValueAs: (value) =>
+                                    value === '' ? undefined : value,
+                            })}
+                            disabled={disabled}
+                        />
+
                         <Controller
                             name="warehouse.timeoutSeconds"
                             defaultValue={300}

@@ -6,7 +6,12 @@ import {
     type SqlChart,
     type UpdateSqlChart,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import { useHistory } from 'react-router-dom';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -49,20 +54,16 @@ const updateSavedSqlChart = async (
         body: JSON.stringify(data),
     });
 
-export const useSavedSqlChart = ({
-    projectUuid,
-    slug,
-    uuid,
-    onSuccess,
-}: GetSavedSqlChartParams) => {
+export const useSavedSqlChart = (
+    { projectUuid, slug, uuid }: GetSavedSqlChartParams,
+    useQueryParams?: UseQueryOptions<SqlChart, ApiError & { slug?: string }>,
+) => {
     return useQuery<SqlChart, ApiError>({
         queryKey: ['sqlRunner', 'savedSqlChart', projectUuid, slug, uuid],
         queryFn: () => fetchSavedSqlChart({ projectUuid, slug, uuid }),
         retry: false,
         enabled: !!slug || !!uuid,
-        onSuccess: (data) => {
-            if (onSuccess) onSuccess(data);
-        },
+        ...useQueryParams,
     });
 };
 
@@ -96,6 +97,7 @@ export const useCreateSqlChartMutation = (projectUuid: string) => {
 export const useUpdateSqlChartMutation = (
     projectUuid: string,
     savedSqlUuid: string,
+    slug: string,
 ) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -114,7 +116,8 @@ export const useUpdateSqlChartMutation = (
         {
             mutationKey: ['sqlRunner', 'updateSqlChart', savedSqlUuid],
             onSuccess: async () => {
-                await queryClient.invalidateQueries(['sqlRunner']);
+                await queryClient.resetQueries(['savedSqlChart', slug]);
+                await queryClient.resetQueries(['savedSqlChartResults', slug]);
                 await queryClient.invalidateQueries(['spaces']);
                 await queryClient.invalidateQueries(['space']);
                 await queryClient.invalidateQueries(['pinned_items']);

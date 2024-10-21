@@ -1,18 +1,22 @@
 import {
-    isApiSqlRunnerJobSuccessResponse,
-    isErrorDetails,
+    SchedulerJobStatus,
     type ApiJobScheduledResponse,
     type ApiSemanticLayerClientInfo,
+    type ApiSemanticViewerChartCreate,
+    type ApiSemanticViewerChartUpdate,
+    type PivotChartData,
+    type SavedSemanticViewerChart,
     type SemanticLayerField,
+    type SemanticLayerJobStatusSuccessDetails,
     type SemanticLayerQuery,
     type SemanticLayerResultRow,
     type SemanticLayerView,
+    type SemanticViewerChartCreate,
+    type SemanticViewerChartUpdate,
 } from '@lightdash/common';
 import { lightdashApi } from '../../../api';
-import {
-    getResultsFromStream,
-    getSqlRunnerCompleteJob,
-} from '../../../utils/requestUtils';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSemanticLayerCompleteJob } from './requestUtils';
 
 type GetSemanticLayerInfoRequestParams = {
     projectUuid: string;
@@ -99,15 +103,146 @@ const apiPostSemanticLayerRun = ({
 export const apiGetSemanticLayerQueryResults = async ({
     projectUuid,
     query,
-}: PostSemanticLayerQueryRequestParams) => {
+}: PostSemanticLayerQueryRequestParams): Promise<
+    Pick<PivotChartData, 'results' | 'fileUrl'> &
+        Pick<SemanticLayerJobStatusSuccessDetails, 'columns'>
+> => {
     const { jobId } = await apiPostSemanticLayerRun({ projectUuid, query });
-    const job = await getSqlRunnerCompleteJob(jobId);
-    const url =
-        isApiSqlRunnerJobSuccessResponse(job) &&
-        job?.details &&
-        !isErrorDetails(job.details)
-            ? job.details.fileUrl
-            : undefined;
+    const job = await getSemanticLayerCompleteJob(jobId);
 
-    return getResultsFromStream<SemanticLayerResultRow>(url);
+    if (job.status === SchedulerJobStatus.COMPLETED) {
+        const { fileUrl, columns } = job.details;
+
+        const results = await getResultsFromStream<SemanticLayerResultRow>(
+            fileUrl,
+        );
+
+        return {
+            results,
+            columns,
+            fileUrl,
+        };
+    } else {
+        throw job;
+    }
 };
+
+type PostSemanticViewerChartCreateRequestParams = {
+    projectUuid: string;
+    payload: SemanticViewerChartCreate;
+};
+
+export const apiPostSemanticViewerChartCreate = ({
+    projectUuid,
+    payload,
+}: PostSemanticViewerChartCreateRequestParams) =>
+    lightdashApi<ApiSemanticViewerChartCreate['results']>({
+        version: 'v2',
+        url: `/projects/${projectUuid}/semantic-layer/saved`,
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+
+type GetSavedSemanticViewerChartRequestParams = {
+    projectUuid: string;
+    findBy: { uuid?: string; slug?: string };
+};
+
+export const apiGetSavedSemanticViewerChart = async ({
+    projectUuid,
+    findBy: { uuid, slug },
+}: GetSavedSemanticViewerChartRequestParams) => {
+    if (!uuid && !slug) {
+        throw new Error('uuid or slug is required');
+    }
+
+    const params = new URLSearchParams();
+    if (uuid) params.append('uuid', uuid);
+    if (slug) params.append('slug', slug);
+    const paramsString = params.toString();
+
+    return lightdashApi<SavedSemanticViewerChart>({
+        version: 'v2',
+        url: `/projects/${projectUuid}/semantic-layer/saved?${paramsString}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+type GetSavedSemanticViewerChartResultsRequestParams = {
+    projectUuid: string;
+    findBy: { uuid?: string; slug?: string };
+};
+
+export const apiGetSavedSemanticViewerChartResults = async ({
+    projectUuid,
+    findBy: { uuid, slug },
+}: GetSavedSemanticViewerChartResultsRequestParams) => {
+    if (!uuid && !slug) {
+        throw new Error('uuid or slug is required');
+    }
+
+    const params = new URLSearchParams();
+    if (uuid) params.append('uuid', uuid);
+    if (slug) params.append('slug', slug);
+    const paramsString = params.toString();
+
+    const scheduledJob = await lightdashApi<ApiJobScheduledResponse['results']>(
+        {
+            version: 'v2',
+            url: `/projects/${projectUuid}/semantic-layer/saved/results-job?${paramsString}`,
+            method: 'GET',
+            body: undefined,
+        },
+    );
+    const job = await getSemanticLayerCompleteJob(scheduledJob.jobId);
+
+    if (job.status === SchedulerJobStatus.COMPLETED) {
+        const { fileUrl, columns } = job.details;
+
+        const results = await getResultsFromStream<SemanticLayerResultRow>(
+            fileUrl,
+        );
+
+        return {
+            results,
+            columns,
+        };
+    } else {
+        throw job;
+    }
+};
+
+type PatchSavedSemanticViewerChartRequestParams = {
+    projectUuid: string;
+    uuid: string;
+    payload: SemanticViewerChartUpdate;
+};
+
+export const apiPatchSavedSemanticViewerChart = ({
+    projectUuid,
+    uuid,
+    payload,
+}: PatchSavedSemanticViewerChartRequestParams) =>
+    lightdashApi<ApiSemanticViewerChartUpdate['results']>({
+        version: 'v2',
+        url: `/projects/${projectUuid}/semantic-layer/saved/${uuid}`,
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+    });
+
+type DeleteSavedSemanticViewerChartRequestParams = {
+    projectUuid: string;
+    uuid: string;
+};
+
+export const apiDeleteSavedSemanticViewerChart = ({
+    projectUuid,
+    uuid,
+}: DeleteSavedSemanticViewerChartRequestParams) =>
+    lightdashApi<undefined>({
+        version: 'v2',
+        url: `/projects/${projectUuid}/semantic-layer/saved/${uuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });

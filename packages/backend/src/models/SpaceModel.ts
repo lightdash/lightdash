@@ -53,6 +53,7 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
+import { SavedSemanticViewerChartsTableName } from '../database/entities/savedSemanticViewerCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import {
     DbSpace,
@@ -63,6 +64,7 @@ import {
 import { UserTableName } from '../database/entities/users';
 import { DbValidationTable } from '../database/entities/validation';
 import { wrapSentryTransaction } from '../utils';
+import { generateUniqueSlug } from '../utils/SlugUtils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
 type SpaceModelArguments = {
@@ -917,15 +919,25 @@ export class SpaceModel {
         });
     }
 
-    async getSpaceSqlCharts(
+    private async getSpaceCharts(
+        chartsTable: {
+            name: string;
+            uuidColumnName: string;
+            chartSourceType: ChartSourceType;
+        },
         spaceUuids: string[],
         filters?: {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
-    ): Promise<SpaceQuery[]> {
-        const chartTable = SavedSqlTableName;
-        let spaceQueriesQuery = this.database('saved_sql')
+    ) {
+        const {
+            name: chartTable,
+            uuidColumnName,
+            chartSourceType,
+        } = chartsTable;
+
+        let spaceChartsQuery = this.database(chartTable)
             .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
             .leftJoin(
                 SpaceTableName,
@@ -938,9 +950,9 @@ export class SpaceModel {
                 'users.user_uuid',
             )
             /* .leftJoin(
-                PinnedChartTableName,
-                `${PinnedChartTableName}.saved_chart_uuid`,
-                `${chartTable}.saved_sql_uuid`,
+            PinnedChartTableName,
+            `${PinnedChartTableName}.saved_chart_uuid`,
+            `${chartTable}.saved_sql_uuid`,
             )
             .leftJoin(
                 PinnedListTableName,
@@ -964,7 +976,7 @@ export class SpaceModel {
             )
             .select<
                 {
-                    saved_sql_uuid: string;
+                    uuid: string;
                     name: string;
                     description?: string;
                     created_at: Date;
@@ -985,7 +997,7 @@ export class SpaceModel {
                     slug: string;
                 }[]
             >([
-                `${chartTable}.saved_sql_uuid`,
+                `${chartTable}.${uuidColumnName} as uuid`,
                 `${chartTable}.name`,
                 `${chartTable}.description`,
                 `${chartTable}.last_version_updated_at as created_at`,
@@ -1008,7 +1020,7 @@ export class SpaceModel {
             ]);
 
         if (filters?.recentlyUpdated || filters?.mostPopular) {
-            spaceQueriesQuery = spaceQueriesQuery
+            spaceChartsQuery = spaceChartsQuery
                 .orderBy(
                     filters.mostPopular
                         ? [
@@ -1026,7 +1038,7 @@ export class SpaceModel {
                 )
                 .limit(this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
         } else {
-            spaceQueriesQuery = spaceQueriesQuery.orderBy([
+            spaceChartsQuery = spaceChartsQuery.orderBy([
                 {
                     column: `${chartTable}.last_version_updated_at`,
                     order: 'desc',
@@ -1034,34 +1046,68 @@ export class SpaceModel {
             ]);
         }
 
-        const savedQueries = await spaceQueriesQuery;
-
-        return savedQueries.map((savedQuery) => ({
-            uuid: savedQuery.saved_sql_uuid,
-            name: savedQuery.name,
-            spaceName: savedQuery.space_name,
-            dashboardName: savedQuery.dashboard_name,
-            organizationUuid: savedQuery.organization_uuid,
-            projectUuid: savedQuery.project_uuid,
-            dashboardUuid: savedQuery.dashboard_uuid,
-            description: savedQuery.description,
-            updatedAt: savedQuery.created_at,
+        return (await spaceChartsQuery).map((savedChart) => ({
+            uuid: savedChart.uuid,
+            name: savedChart.name,
+            spaceName: savedChart.space_name,
+            dashboardName: savedChart.dashboard_name,
+            organizationUuid: savedChart.organization_uuid,
+            projectUuid: savedChart.project_uuid,
+            dashboardUuid: savedChart.dashboard_uuid,
+            description: savedChart.description,
+            updatedAt: savedChart.created_at,
             updatedByUser: {
-                userUuid: savedQuery.user_uuid,
-                firstName: savedQuery.first_name,
-                lastName: savedQuery.last_name,
+                userUuid: savedChart.user_uuid,
+                firstName: savedChart.first_name,
+                lastName: savedChart.last_name,
             },
-            spaceUuid: savedQuery.space_uuid,
-            views: savedQuery.views_count,
-            firstViewedAt: savedQuery.first_viewed_at,
+            spaceUuid: savedChart.space_uuid,
+            views: savedChart.views_count,
+            firstViewedAt: savedChart.first_viewed_at,
             chartType: ChartType.CARTESIAN,
-            chartKind: savedQuery.chart_kind,
+            chartKind: savedChart.chart_kind,
             pinnedListUuid: '', // savedQuery.pinned_list_uuid,
             pinnedListOrder: 0, // savedQuery.order,
             validationErrors: [],
-            slug: savedQuery.slug,
-            source: ChartSourceType.SQL,
+            slug: savedChart.slug,
+            source: chartSourceType,
         }));
+    }
+
+    async getSpaceSqlCharts(
+        spaceUuids: string[],
+        filters?: {
+            recentlyUpdated?: boolean;
+            mostPopular?: boolean;
+        },
+    ): Promise<SpaceQuery[]> {
+        return this.getSpaceCharts(
+            {
+                name: SavedSqlTableName,
+                uuidColumnName: 'saved_sql_uuid',
+                chartSourceType: ChartSourceType.SQL,
+            },
+            spaceUuids,
+            filters,
+        );
+    }
+
+    async getSpaceSemanticViewerCharts(
+        spaceUuids: string[],
+        filters?: {
+            recentlyUpdated?: boolean;
+            mostPopular?: boolean;
+        },
+    ): Promise<SpaceQuery[]> {
+        return this.getSpaceCharts(
+            {
+                name: SavedSemanticViewerChartsTableName,
+                uuidColumnName: 'saved_semantic_viewer_chart_uuid',
+                chartSourceType: ChartSourceType.SEMANTIC_LAYER,
+            },
+            spaceUuids,
+            filters,
+        );
     }
 
     async getSpaceQueries(
@@ -1325,35 +1371,40 @@ export class SpaceModel {
         userId: number,
         isPrivate: boolean,
         slug: string,
+        forceSameSlug: boolean = false,
     ): Promise<Space> {
-        const [project] = await this.database('projects')
-            .select('project_id')
-            .where('project_uuid', projectUuid);
+        return this.database.transaction(async (trx) => {
+            const [project] = await trx('projects')
+                .select('project_id')
+                .where('project_uuid', projectUuid);
 
-        const [space] = await this.database(SpaceTableName)
-            .insert({
-                project_id: project.project_id,
-                is_private: isPrivate,
-                name,
-                created_by_user_id: userId,
-                slug,
-            })
-            .returning('*');
+            const [space] = await trx(SpaceTableName)
+                .insert({
+                    project_id: project.project_id,
+                    is_private: isPrivate,
+                    name,
+                    created_by_user_id: userId,
+                    slug: forceSameSlug
+                        ? slug
+                        : await generateUniqueSlug(trx, SpaceTableName, slug),
+                })
+                .returning('*');
 
-        return {
-            organizationUuid: space.organization_uuid,
-            name: space.name,
-            queries: [],
-            isPrivate: space.is_private,
-            uuid: space.space_uuid,
-            projectUuid,
-            dashboards: [],
-            access: [],
-            groupsAccess: [],
-            pinnedListUuid: null,
-            pinnedListOrder: null,
-            slug: space.slug,
-        };
+            return {
+                organizationUuid: space.organization_uuid,
+                name: space.name,
+                queries: [],
+                isPrivate: space.is_private,
+                uuid: space.space_uuid,
+                projectUuid,
+                dashboards: [],
+                access: [],
+                groupsAccess: [],
+                pinnedListUuid: null,
+                pinnedListOrder: null,
+                slug: space.slug,
+            };
+        });
     }
 
     async deleteSpace(spaceUuid: string): Promise<void> {
@@ -1362,9 +1413,12 @@ export class SpaceModel {
             .delete();
     }
 
-    async update(spaceUuid: string, space: UpdateSpace): Promise<Space> {
+    async update(
+        spaceUuid: string,
+        space: Partial<UpdateSpace>,
+    ): Promise<Space> {
         await this.database(SpaceTableName)
-            .update<UpdateSpace>({
+            .update({
                 name: space.name,
                 is_private: space.isPrivate,
             })

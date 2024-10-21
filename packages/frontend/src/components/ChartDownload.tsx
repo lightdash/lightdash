@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    ChartType,
     getCustomLabelsFromColumnProperties,
     type ApiScheduledDownloadCsv,
 } from '@lightdash/common';
@@ -15,9 +14,9 @@ import {
     Text,
 } from '@mantine/core';
 import { IconDownload, IconShare2 } from '@tabler/icons-react';
-import type EChartsReact from 'echarts-for-react';
+import { type EChartsInstance } from 'echarts-for-react';
 import JsPDF from 'jspdf';
-import React, { memo, useCallback, useState, type RefObject } from 'react';
+import React, { memo, useCallback, useState } from 'react';
 import useEchartsCartesianConfig from '../hooks/echarts/useEchartsCartesianConfig';
 import { useApp } from '../providers/AppProvider';
 import { Can } from './common/Authorization';
@@ -35,7 +34,7 @@ import { useVisualizationContext } from './LightdashVisualization/VisualizationP
 
 const FILE_NAME = 'lightdash_chart';
 
-enum DownloadType {
+export enum DownloadType {
     JPEG = 'JPEG',
     PNG = 'PNG',
     SVG = 'SVG',
@@ -43,12 +42,12 @@ enum DownloadType {
     JSON = 'JSON',
 }
 
-async function base64SvgToBase64Image(
+const base64SvgToBase64Image = async (
     originalBase64: string,
     width: number,
     type: 'jpeg' | 'png' = 'png',
     isBackgroundTransparent: boolean = false,
-): Promise<string> {
+): Promise<string> => {
     return new Promise((resolve, reject) => {
         const img = document.createElement('img');
         img.onload = () => {
@@ -80,7 +79,7 @@ async function base64SvgToBase64Image(
         };
         img.src = originalBase64;
     });
-}
+};
 
 function downloadImage(base64: string) {
     const link = document.createElement('a');
@@ -121,29 +120,28 @@ function downloadPdf(base64: string, width: number, height: number) {
 }
 
 type DownloadOptions = {
-    chartRef: RefObject<EChartsReact>;
-    chartType: ChartType;
+    getChartInstance: () => EChartsInstance | undefined;
+    unavailableOptions?: DownloadType[];
 };
-const ChartDownloadOptions: React.FC<DownloadOptions> = ({
-    chartRef,
-    chartType,
+export const ChartDownloadOptions: React.FC<DownloadOptions> = ({
+    getChartInstance,
+    unavailableOptions,
 }) => {
     const [type, setType] = useState<DownloadType>(DownloadType.PNG);
     const [isBackgroundTransparent, setIsBackgroundTransparent] =
         useState(false);
 
-    const isTable = chartType === ChartType.TABLE;
     const onDownload = useCallback(async () => {
-        const echartsInstance = chartRef.current?.getEchartsInstance();
-
-        if (!echartsInstance) {
-            throw new Error('Chart instance not reachable');
+        const chartInstance = getChartInstance();
+        if (!chartInstance) {
+            console.error('Chart instance is not available');
+            return;
         }
 
         try {
-            const svgBase64 = echartsInstance.getDataURL();
-            const width = echartsInstance.getWidth();
-            const height = echartsInstance.getHeight();
+            const svgBase64 = chartInstance.getDataURL();
+            const width = chartInstance.getWidth();
+            const height = chartInstance.getHeight();
 
             switch (type) {
                 case DownloadType.PDF:
@@ -172,7 +170,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     );
                     break;
                 case DownloadType.JSON:
-                    downloadJson(echartsInstance.getOption());
+                    downloadJson(chartInstance.getOption());
                     break;
                 default: {
                     assertUnreachable(
@@ -184,23 +182,26 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
         } catch (e) {
             console.error(`Unable to download ${type} from chart ${e}`);
         }
-    }, [chartRef, type, isBackgroundTransparent]);
+    }, [getChartInstance, type, isBackgroundTransparent]);
 
     return (
         <Stack>
             <Text fw={500}>Options</Text>
-
             <Select
                 size="xs"
                 id="download-type"
                 value={type}
                 onChange={(value) => setType(value as DownloadType)}
-                data={Object.values(DownloadType).map((downloadType) => ({
-                    value: downloadType,
-                    label: downloadType,
-                }))}
+                data={Object.values(DownloadType)
+                    .filter(
+                        (downloadType) =>
+                            !unavailableOptions?.includes(downloadType),
+                    )
+                    .map((downloadType) => ({
+                        value: downloadType,
+                        label: downloadType,
+                    }))}
             />
-
             {type === DownloadType.PNG && (
                 <SegmentedControl
                     size="xs"
@@ -215,18 +216,14 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     ]}
                 />
             )}
-
-            {!isTable && (
-                <Button
-                    size="xs"
-                    ml="auto"
-                    leftIcon={<MantineIcon icon={IconDownload} />}
-                    onClick={onDownload}
-                >
-                    {' '}
-                    Download
-                </Button>
-            )}
+            <Button
+                size="xs"
+                ml="auto"
+                leftIcon={<MantineIcon icon={IconDownload} />}
+                onClick={onDownload}
+            >
+                Download
+            </Button>
         </Stack>
     );
 };
@@ -265,6 +262,11 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             isCustomVisualizationConfig(visualizationConfig);
 
         const { user } = useApp();
+
+        const getChartInstance = useCallback(
+            () => chartRef.current?.getEchartsInstance(),
+            [chartRef],
+        );
 
         return isTableVisualizationConfig(visualizationConfig) && getCsvLink ? (
             <Can
@@ -347,10 +349,11 @@ export const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 </Popover.Target>
 
                 <Popover.Dropdown>
-                    {visualizationConfig?.chartType ? (
+                    {visualizationConfig?.chartType &&
+                    !isTableVisualizationConfig(visualizationConfig) &&
+                    chartRef.current ? (
                         <ChartDownloadOptions
-                            chartRef={chartRef}
-                            chartType={visualizationConfig.chartType}
+                            getChartInstance={getChartInstance}
                         />
                     ) : null}
                 </Popover.Dropdown>

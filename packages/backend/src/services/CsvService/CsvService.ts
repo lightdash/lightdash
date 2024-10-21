@@ -3,6 +3,7 @@ import {
     addDashboardFiltersToMetricQuery,
     ApiSqlQueryResults,
     applyDimensionOverrides,
+    ChartType,
     DashboardFilters,
     DateGranularity,
     DimensionType,
@@ -20,13 +21,15 @@ import {
     getItemMap,
     isCustomSqlDimension,
     isDashboardChartTileType,
-    isDateItem,
+    isDashboardSqlChartTile,
     isField,
     isMomentInput,
     isTableChartConfig,
+    isVizCartesianChartConfig,
     ItemsMap,
     MetricQuery,
     MissingConfigError,
+    QueryExecutionContext,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
@@ -45,7 +48,6 @@ import {
     DownloadCsv,
     LightdashAnalytics,
     parseAnalyticsLimit,
-    QueryExecutionContext,
 } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/s3';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
@@ -53,10 +55,12 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { runWorkerThread, sanitizeStringParam } from '../../utils';
+import { runWorkerThread } from '../../utils';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -66,10 +70,20 @@ type CsvServiceArguments = {
     projectService: ProjectService;
     s3Client: S3Client;
     savedChartModel: SavedChartModel;
+    savedSqlModel: SavedSqlModel;
     dashboardModel: DashboardModel;
     userModel: UserModel;
     downloadFileModel: DownloadFileModel;
     schedulerClient: SchedulerClient;
+    projectModel: ProjectModel;
+};
+
+type RunQueryTags = {
+    project_uuid?: string;
+    user_uuid?: string;
+    organization_uuid?: string;
+    chart_uuid?: string;
+    dashboard_uuid?: string;
 };
 
 const isRowValueTimestamp = (
@@ -147,6 +161,8 @@ export class CsvService extends BaseService {
 
     savedChartModel: SavedChartModel;
 
+    savedSqlModel: SavedSqlModel;
+
     dashboardModel: DashboardModel;
 
     userModel: UserModel;
@@ -155,6 +171,8 @@ export class CsvService extends BaseService {
 
     schedulerClient: SchedulerClient;
 
+    projectModel: ProjectModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -162,9 +180,11 @@ export class CsvService extends BaseService {
         projectService,
         s3Client,
         savedChartModel,
+        savedSqlModel,
         dashboardModel,
         downloadFileModel,
         schedulerClient,
+        projectModel,
     }: CsvServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -173,9 +193,11 @@ export class CsvService extends BaseService {
         this.projectService = projectService;
         this.s3Client = s3Client;
         this.savedChartModel = savedChartModel;
+        this.savedSqlModel = savedSqlModel;
         this.dashboardModel = dashboardModel;
         this.downloadFileModel = downloadFileModel;
         this.schedulerClient = schedulerClient;
+        this.projectModel = projectModel;
     }
 
     static convertRowToCsv(
@@ -358,6 +380,58 @@ export class CsvService extends BaseService {
         return numberRows * numberColumns >= cellsLimit - numberColumns;
     }
 
+    private async downloadCsvFile({
+        csvContent,
+        fileName,
+        projectUuid,
+        truncated = false,
+    }: {
+        csvContent: string;
+        fileName: string;
+        projectUuid: string;
+        truncated?: boolean;
+    }): Promise<AttachmentUrl> {
+        const fileId = CsvService.generateFileId(fileName, truncated);
+        const filePath = `/tmp/${fileId}`;
+        await fsPromise.writeFile(filePath, csvContent, 'utf-8');
+
+        if (this.s3Client.isEnabled()) {
+            const s3Url = await this.s3Client.uploadCsv(csvContent, fileId);
+
+            // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
+            setTimeout(async () => {
+                await fsPromise.unlink(filePath);
+            }, 60 * 10 * 1000);
+
+            return {
+                filename: fileName,
+                path: s3Url,
+                localPath: filePath,
+                truncated,
+            };
+        }
+
+        // storing locally
+        const downloadFileId = nanoid();
+        await this.downloadFileModel.createDownloadFile(
+            downloadFileId,
+            filePath,
+            DownloadFileType.CSV,
+        );
+
+        const localUrl = new URL(
+            `/api/v1/projects/${projectUuid}/csv/${downloadFileId}`,
+            this.lightdashConfig.siteUrl,
+        ).href;
+
+        return {
+            filename: fileName,
+            path: localUrl,
+            localPath: filePath,
+            truncated,
+        };
+    }
+
     async getCsvForChart(
         user: SessionUser,
         chartUuid: string,
@@ -385,7 +459,7 @@ export class CsvService extends BaseService {
                   values: onlyRaw ? 'raw' : 'formatted',
                   limit: parseAnalyticsLimit(options?.limit),
                   storage: this.s3Client.isEnabled() ? 's3' : 'local',
-                  context: 'scheduled delivery chart',
+                  context: QueryExecutionContext.SCHEDULED_DELIVERY,
                   numColumns:
                       metricQuery.dimensions.length +
                       metricQuery.metrics.length +
@@ -423,6 +497,13 @@ export class CsvService extends BaseService {
               )
             : metricQuery;
 
+        const queryTags: RunQueryTags = {
+            project_uuid: chart.projectUuid,
+            user_uuid: user.userUuid,
+            organization_uuid: user.organizationUuid,
+            chart_uuid: chartUuid,
+        };
+
         const { rows, fields } = await this.projectService.runMetricQuery({
             user,
             metricQuery: metricQueryWithDashboardFilters,
@@ -432,6 +513,7 @@ export class CsvService extends BaseService {
             context: QueryExecutionContext.CSV,
             granularity: dateZoomGranularity,
             chartUuid,
+            queryTags,
         });
         const numberRows = rows.length;
 
@@ -466,52 +548,130 @@ export class CsvService extends BaseService {
             });
         }
 
-        if (this.s3Client.isEnabled()) {
-            const csvContent = await fsPromise.readFile(`/tmp/${fileId}`, {
-                encoding: 'utf-8',
-            });
-            const s3Url = await this.s3Client.uploadCsv(csvContent, fileId);
+        const csvContent = await fsPromise.readFile(`/tmp/${fileId}`, {
+            encoding: 'utf-8',
+        });
 
-            // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
-            setTimeout(async () => {
-                await fsPromise.unlink(`/tmp/${fileId}`);
-            }, 60 * 10 * 1000);
-            return {
-                filename: `${chart.name}`,
-                path: s3Url,
-                localPath: `/tmp/${fileId}`,
-                truncated,
-            };
-        }
-        // storing locally
-        const filePath = `/tmp/${fileId}`;
-        const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
-        await this.downloadFileModel.createDownloadFile(
-            downloadFileId,
-            filePath,
-            DownloadFileType.CSV,
-        );
-
-        const localUrl = new URL(
-            `/api/v1/projects/${chart.projectUuid}/csv/${downloadFileId}`,
-            this.lightdashConfig.siteUrl,
-        ).href;
-        return {
-            filename: `${chart.name}`,
-            path: localUrl,
-            localPath: filePath,
+        return this.downloadCsvFile({
+            csvContent,
+            fileName: chart.name,
+            projectUuid: chart.projectUuid,
             truncated,
-        };
+        });
     }
 
-    async getCsvsForDashboard(
-        user: SessionUser,
-        dashboardUuid: string,
-        options: SchedulerCsvOptions | undefined,
-        schedulerFilters?: SchedulerFilterRule[],
-        overrideDashboardFilters?: DashboardFilters,
-        dateZoomGranularity?: DateGranularity,
-    ) {
+    async getCsvForSqlChart({
+        user,
+        sqlChartUuid,
+        projectUuid,
+        jobId,
+    }: {
+        user: SessionUser;
+        sqlChartUuid: string;
+        projectUuid: string;
+        jobId?: string;
+    }): Promise<AttachmentUrl> {
+        const [sqlChart] = await this.savedSqlModel.find({
+            uuid: sqlChartUuid,
+            projectUuid,
+        });
+
+        const analyticProperties: DownloadCsv['properties'] | undefined = jobId
+            ? {
+                  jobId,
+                  userId: user.userUuid,
+                  organizationId: user.organizationUuid,
+                  projectId: projectUuid,
+                  fileType: SchedulerFormat.CSV,
+                  values: 'raw',
+                  storage: this.s3Client.isEnabled() ? 's3' : 'local',
+                  context: QueryExecutionContext.SCHEDULED_DELIVERY,
+              }
+            : undefined;
+
+        if (analyticProperties) {
+            this.analytics.track({
+                event: 'download_results.started',
+                userId: user.userUuid,
+                properties: analyticProperties,
+            });
+        }
+
+        const { type: warehouseType } =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+
+        let { sql } = sqlChart;
+
+        // Checks if the chart is pivoted and applies the pivot to the sql query
+        if (
+            isVizCartesianChartConfig(sqlChart.config) &&
+            sqlChart.config.fieldConfig
+        ) {
+            sql = ProjectService.applyPivotToSqlQuery({
+                warehouseType,
+                sql,
+                limit: sqlChart.limit,
+                indexColumn: sqlChart.config.fieldConfig.x,
+                valuesColumns: sqlChart.config.fieldConfig.y.filter(
+                    (col): col is Required<typeof col> => !!col.aggregation,
+                ),
+                groupByColumns: sqlChart.config.fieldConfig.groupBy,
+                sortBy: undefined,
+            });
+        }
+
+        const resultsFileUrl = await this.projectService.runSqlQuery(
+            user,
+            projectUuid,
+            sql,
+        );
+
+        // Convert SQL results to CSV content
+        const csvContent = await CsvService.convertSqlQueryResultsToCsv(
+            resultsFileUrl,
+            {},
+        );
+
+        if (analyticProperties) {
+            this.analytics.track({
+                event: 'download_results.completed',
+                userId: user.userUuid,
+                properties: {
+                    ...analyticProperties,
+                    numRows: resultsFileUrl.rows.length,
+                    numColumns: Object.keys(resultsFileUrl.fields).length,
+                },
+            });
+        }
+
+        return this.downloadCsvFile({
+            csvContent,
+            fileName: sqlChart.name,
+            projectUuid,
+        });
+    }
+
+    async getCsvsForDashboard({
+        user,
+        dashboardUuid,
+        options,
+        jobId,
+        schedulerFilters,
+        selectedTabs,
+        overrideDashboardFilters,
+        dateZoomGranularity,
+    }: {
+        user: SessionUser;
+        dashboardUuid: string;
+        options: SchedulerCsvOptions | undefined;
+        jobId?: string;
+        schedulerFilters?: SchedulerFilterRule[];
+        selectedTabs?: string[] | undefined;
+        overrideDashboardFilters?: DashboardFilters;
+        dateZoomGranularity?: DateGranularity;
+    }): Promise<AttachmentUrl[]> {
         const dashboard = await this.dashboardModel.getById(dashboardUuid);
 
         const dashboardFilters = overrideDashboardFilters || dashboard.filters;
@@ -527,9 +687,20 @@ export class CsvService extends BaseService {
         const chartTileUuidsWithChartUuids = dashboard.tiles
             .filter(isDashboardChartTileType)
             .filter((tile) => tile.properties.savedChartUuid)
+            .filter(
+                (tile) =>
+                    !selectedTabs || selectedTabs.includes(tile.tabUuid || ''),
+            )
             .map((tile) => ({
                 tileUuid: tile.uuid,
                 chartUuid: tile.properties.savedChartUuid!,
+            }));
+        const sqlChartTileUuids = dashboard.tiles
+            .filter(isDashboardSqlChartTile)
+            .filter((tile) => !!tile.properties.savedSqlUuid)
+            .map((tile) => ({
+                tileUuid: tile.uuid,
+                chartUuid: tile.properties.savedSqlUuid!,
             }));
 
         const csvForChartPromises = chartTileUuidsWithChartUuids.map(
@@ -538,14 +709,26 @@ export class CsvService extends BaseService {
                     user,
                     chartUuid,
                     options,
-                    undefined,
+                    jobId,
                     tileUuid,
                     dashboardFilters,
                     dateZoomGranularity,
                 ),
         );
 
-        const csvUrls = await Promise.all(csvForChartPromises);
+        const csvForSqlChartPromises = sqlChartTileUuids.map(({ chartUuid }) =>
+            this.getCsvForSqlChart({
+                user,
+                sqlChartUuid: chartUuid,
+                projectUuid: dashboard.projectUuid,
+                jobId,
+            }),
+        );
+
+        const csvUrls = await Promise.all([
+            ...csvForChartPromises,
+            ...csvForSqlChartPromises,
+        ]);
         return csvUrls;
     }
 
@@ -645,6 +828,73 @@ export class CsvService extends BaseService {
         }
     }
 
+    /**
+     * This method is used to schedule a CSV download for a chart.
+     * It will unfold all the arguments required to schedule a CSV download from a chartUuid
+     * This will allow users to download CSVs with custom dimensions
+     * We check permissions on scheduleDownloadCsv call
+     */
+    async scheduleDownloadCsvForChart(
+        user: SessionUser,
+        chartUuid: string,
+        onlyRaw: boolean,
+        csvLimit: number | null | undefined,
+        tileUuid?: string,
+        dashboardFilters?: DashboardFilters,
+    ) {
+        const chart = await this.savedChartModel.get(chartUuid);
+        const {
+            projectUuid,
+            name,
+            tableName,
+            metricQuery,
+            tableConfig,
+            chartConfig,
+        } = chart;
+        const explore = await this.projectService.getExplore(
+            user,
+            projectUuid,
+            tableName,
+        );
+
+        const showTableNames = isTableChartConfig(chartConfig.config)
+            ? chartConfig.config.showTableNames ?? false
+            : true;
+        const customLabels = getCustomLabelsFromTableConfig(chartConfig.config);
+        const hiddenFields = getHiddenTableFields(chartConfig);
+
+        const dashboardFiltersForTile =
+            tileUuid && dashboardFilters
+                ? getDashboardFiltersForTileAndTables(
+                      tileUuid,
+                      Object.keys(explore.tables),
+                      dashboardFilters,
+                  )
+                : undefined;
+
+        const metricQueryWithDashboardFilters = dashboardFiltersForTile
+            ? addDashboardFiltersToMetricQuery(
+                  metricQuery,
+                  dashboardFiltersForTile,
+              )
+            : metricQuery;
+
+        return this.scheduleDownloadCsv(user, {
+            userUuid: user.userUuid,
+            projectUuid,
+            exploreId: tableName,
+            metricQuery: metricQueryWithDashboardFilters,
+            onlyRaw,
+            csvLimit,
+            showTableNames,
+            customLabels,
+            columnOrder: tableConfig.columnOrder,
+            hiddenFields,
+            chartName: name,
+            fromSavedChart: true,
+        });
+    }
+
     async scheduleDownloadCsv(
         user: SessionUser,
         csvOptions: DownloadMetricCsv,
@@ -661,7 +911,9 @@ export class CsvService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // If the request comes from a saved chart, we allow using custom dimensions, as the metricQuery was not modified by the user
         if (
+            !csvOptions.fromSavedChart &&
             csvOptions.metricQuery.customDimensions?.some(
                 isCustomSqlDimension,
             ) &&
@@ -715,6 +967,7 @@ export class CsvService extends BaseService {
             columnOrder,
             hiddenFields,
             chartName,
+            fromSavedChart,
         }: DownloadMetricCsv,
     ) {
         const user = await this.userModel.findSessionUserByUUID(userUuid);
@@ -732,6 +985,7 @@ export class CsvService extends BaseService {
         }
 
         if (
+            !fromSavedChart &&
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             user.ability.cannot(
                 'manage',
@@ -775,6 +1029,12 @@ export class CsvService extends BaseService {
                 properties: analyticsProperties,
             });
 
+            const queryTags: RunQueryTags = {
+                project_uuid: projectUuid,
+                user_uuid: user.userUuid,
+                organization_uuid: user.organizationUuid,
+            };
+
             const { rows } = await this.projectService.runMetricQuery({
                 user,
                 metricQuery,
@@ -783,6 +1043,7 @@ export class CsvService extends BaseService {
                 csvLimit,
                 context: QueryExecutionContext.CSV,
                 chartUuid: undefined,
+                queryTags,
             });
             const numberRows = rows.length;
 
@@ -929,14 +1190,13 @@ export class CsvService extends BaseService {
                 void archive.finalize(); // This finalize doesn't wait for the files to be written
             });
 
-        const csvFiles = await this.getCsvsForDashboard(
+        const csvFiles = await this.getCsvsForDashboard({
             user,
             dashboardUuid,
             options,
-            undefined,
-            dashboardFilters,
+            overrideDashboardFilters: dashboardFilters,
             dateZoomGranularity,
-        );
+        });
         const zipFile = await writeZipFile(csvFiles);
 
         this.analytics.track({

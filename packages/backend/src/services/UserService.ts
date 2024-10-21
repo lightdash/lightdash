@@ -291,15 +291,29 @@ export class UserService extends BaseService {
     }
 
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
-        if (user.organizationUuid) {
-            if (user.ability.cannot('delete', 'OrganizationMemberProfile')) {
+        const [orgForUser] = await this.userModel.getOrganizationsForUser(
+            userUuidToDelete,
+        );
+        // The user might not have an org yet
+        // This is expected on the "Cancel registration" flow on single org instances.
+        if (orgForUser?.organizationUuid) {
+            // We assume only one org per user
+
+            if (
+                user.ability.cannot(
+                    'delete',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid: orgForUser.organizationUuid,
+                    }),
+                )
+            ) {
                 throw new ForbiddenError();
             }
 
             // Race condition between check and delete
             const [admin, ...remainingAdmins] =
                 await this.organizationMemberProfileModel.getOrganizationAdmins(
-                    user.organizationUuid,
+                    orgForUser.organizationUuid,
                 );
             if (
                 remainingAdmins.length === 0 &&
@@ -327,10 +341,17 @@ export class UserService extends BaseService {
         user: SessionUser,
         createInviteLink: CreateInviteLink,
     ): Promise<InviteLink> {
-        if (user.ability.cannot('create', 'InviteLink')) {
+        // We assume users can only have one org
+        const { organizationUuid } = user;
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('InviteLink', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
-        const { organizationUuid } = user;
         const { expiresAt, email, role } = createInviteLink;
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
@@ -353,7 +374,10 @@ export class UserService extends BaseService {
         }
 
         let userUuid: string;
-        const userRole = user.ability.can('manage', 'OrganizationMemberProfile')
+        const userRole = user.ability.can(
+            'manage',
+            subject('OrganizationMemberProfile', { organizationUuid }),
+        )
             ? role || OrganizationMemberRole.MEMBER
             : OrganizationMemberRole.MEMBER;
         if (!existingUserWithEmail) {
@@ -369,6 +393,18 @@ export class UserService extends BaseService {
             userUuid = pendingUser.userUuid;
         } else {
             userUuid = existingUserWithEmail.userUuid;
+        }
+
+        if (existingUserWithEmail && !existingUserWithEmail?.organizationUuid) {
+            Logger.warn(
+                `User with email ${email} already exists but has no org, so we invite them to join`,
+            );
+            await this.userModel.joinOrg(
+                existingUserWithEmail.userUuid,
+                organizationUuid,
+                userRole,
+                undefined,
+            );
         }
 
         const inviteLink = await this.inviteLinkModel.upsert(
@@ -404,8 +440,15 @@ export class UserService extends BaseService {
     }
 
     async revokeAllInviteLinks(user: SessionUser) {
+        // We assume users can only have one org
         const { organizationUuid } = user;
-        if (user.ability.cannot('delete', 'InviteLink')) {
+
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('InviteLink', { organizationUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         if (organizationUuid === undefined) {

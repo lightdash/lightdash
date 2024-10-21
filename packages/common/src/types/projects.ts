@@ -27,6 +27,11 @@ export enum WarehouseTypes {
     TRINO = 'trino',
 }
 
+export enum SemanticLayerType {
+    DBT = 'DBT',
+    CUBE = 'CUBE',
+}
+
 export type SshTunnelConfiguration = {
     useSshTunnel?: boolean;
     sshTunnelHost?: string;
@@ -49,6 +54,7 @@ export type CreateBigqueryCredentials = {
     location: string | undefined;
     maximumBytesBilled: number | undefined;
     startOfWeek?: WeekDay | null;
+    executionProject?: string;
 };
 export const sensitiveCredentialsFieldNames = [
     'user',
@@ -289,6 +295,28 @@ export type DbtProjectConfig =
     | DbtGitlabProjectConfig
     | DbtAzureDevOpsProjectConfig
     | DbtNoneProjectConfig;
+
+export type DbtSemanticLayerConnection = {
+    type: SemanticLayerType.DBT;
+    environmentId: string;
+    domain: string;
+    token: string;
+};
+
+export type CubeSemanticLayerConnection = {
+    type: SemanticLayerType.CUBE;
+    domain: string;
+    token: string;
+};
+
+export type SemanticLayerConnection =
+    | DbtSemanticLayerConnection
+    | CubeSemanticLayerConnection;
+
+export type SemanticLayerConnectionUpdate =
+    | (Partial<DbtSemanticLayerConnection> & { type: SemanticLayerType.DBT })
+    | (Partial<CubeSemanticLayerConnection> & { type: SemanticLayerType.CUBE });
+
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
@@ -299,6 +327,7 @@ export type Project = {
     pinnedListUuid?: string;
     upstreamProjectUuid?: string;
     dbtVersion: SupportedDbtVersions;
+    semanticLayerConnection?: SemanticLayerConnection;
 };
 
 export type ProjectSummary = Pick<
@@ -326,4 +355,6 @@ export type PreviewContentMapping = {
     spaces: IdContentMapping[];
     dashboards: IdContentMapping[];
     dashboardVersions: IdContentMapping[];
+    savedSql: IdContentMapping[];
+    savedSqlVersions: IdContentMapping[];
 };

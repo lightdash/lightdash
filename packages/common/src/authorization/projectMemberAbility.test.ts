@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
+import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { projectMemberAbilities } from './projectMemberAbility';
 import {
@@ -741,6 +742,15 @@ describe('Project member permissions', () => {
                 ability.can('manage', subject('SqlRunner', { projectUuid })),
             ).toEqual(false);
         });
+
+        it('can use the SemanticViewer', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SemanticViewer', { projectUuid }),
+                ),
+            ).toEqual(true);
+        });
     });
 
     describe('when user is an developer', () => {
@@ -751,6 +761,15 @@ describe('Project member permissions', () => {
         it('can use SQL runner', () => {
             expect(
                 ability.can('manage', subject('SqlRunner', { projectUuid })),
+            ).toEqual(true);
+        });
+
+        it('can use the SemanticViewer', () => {
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SemanticViewer', { projectUuid }),
+                ),
             ).toEqual(true);
         });
     });
@@ -1107,6 +1126,12 @@ describe('Project member permissions', () => {
             expect(
                 ability.can('manage', subject('SqlRunner', { projectUuid })),
             ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SemanticViewer', { projectUuid }),
+                ),
+            ).toEqual(false);
         });
         it('can download CSV', () => {
             expect(
@@ -1159,6 +1184,9 @@ describe('Project member permissions', () => {
             ).toEqual(true);
             expect(
                 ability.can('view', subject('Project', { projectUuid })),
+            ).toEqual(true);
+            expect(
+                ability.can('view', subject('SemanticViewer', { projectUuid })),
             ).toEqual(true);
         });
         it('can not view private resources', () => {
@@ -1259,6 +1287,12 @@ describe('Project member permissions', () => {
             expect(
                 ability.can('manage', subject('SqlRunner', { projectUuid })),
             ).toEqual(false);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SemanticViewer', { projectUuid }),
+                ),
+            ).toEqual(false);
         });
         it('can download CSV', () => {
             expect(
@@ -1273,6 +1307,95 @@ describe('Project member permissions', () => {
         it('can view underlying data', () => {
             expect(
                 ability.can('view', subject('UnderlyingData', { projectUuid })),
+            ).toEqual(true);
+        });
+    });
+
+    describe('test project preview permissions', () => {
+        it('viewers can not create preview or regular projects', () => {
+            ability = defineAbilityForProjectMember(PROJECT_VIEWER);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Project', {
+                        projectUuid,
+                        type: ProjectType.PREVIEW,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Project', {
+                        projectUuid,
+                        type: ProjectType.DEFAULT,
+                    }),
+                ),
+            ).toEqual(false);
+        });
+
+        it('editor can not create preview or regular projects', () => {
+            ability = defineAbilityForProjectMember(PROJECT_EDITOR);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Project', {
+                        projectUuid,
+                        type: ProjectType.PREVIEW,
+                    }),
+                ),
+            ).toEqual(false);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Project', {
+                        projectUuid,
+                        type: ProjectType.DEFAULT,
+                    }),
+                ),
+            ).toEqual(false);
+        });
+
+        it('developers can create preview but no regular projects', () => {
+            ability = defineAbilityForProjectMember(PROJECT_DEVELOPER);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Project', {
+                        projectUuid,
+                        type: ProjectType.PREVIEW,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Project', {
+                        projectUuid,
+                        type: ProjectType.DEFAULT,
+                    }),
+                ),
+            ).toEqual(false);
+        });
+        it('admins can create preview and regular projects', () => {
+            ability = defineAbilityForProjectMember(PROJECT_ADMIN);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Project', {
+                        projectUuid,
+                        type: ProjectType.PREVIEW,
+                    }),
+                ),
+            ).toEqual(true);
+            expect(
+                ability.can(
+                    'create',
+                    subject('Project', {
+                        projectUuid,
+                        type: ProjectType.DEFAULT,
+                    }),
+                ),
             ).toEqual(true);
         });
     });

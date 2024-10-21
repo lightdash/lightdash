@@ -1,8 +1,12 @@
-import { DimensionType, type VizSqlColumn } from '@lightdash/common';
+import { DimensionType, type VizColumn } from '@lightdash/common';
 import { Stack, Title } from '@mantine/core';
+import { useMemo } from 'react';
+import {
+    useAppDispatch as useVizDispatch,
+    useAppSelector as useVizSelector,
+} from '../../../features/sqlRunner/store/hooks';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
-import { useVizDispatch, useVizSelector } from '../store';
 import {
     setGroupFieldIds,
     setYAxisAggregation,
@@ -11,26 +15,35 @@ import {
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 export const PieChartConfiguration = ({
-    sqlColumns,
+    columns,
 }: {
-    sqlColumns: VizSqlColumn[];
+    columns: VizColumn[];
 }) => {
     const dispatch = useVizDispatch();
 
     const groupField = useVizSelector(
-        (state) => state.pieChartConfig.config?.fieldConfig?.x?.reference,
+        (state) => state.pieChartConfig.fieldConfig?.x?.reference,
     );
     const groupFieldOptions = useVizSelector(
         (state) => state.pieChartConfig.options.groupFieldOptions,
     );
 
     const aggregateField = useVizSelector(
-        (state) => state.pieChartConfig.config?.fieldConfig?.y[0],
+        (state) => state.pieChartConfig.fieldConfig?.y[0],
     );
 
+    // NOTE that this form is only used on semantic viewer, so uses customMetricFieldOptions
     const aggregateFieldOptions = useVizSelector(
-        (state) => state.pieChartConfig.options.metricFieldOptions,
+        (state) => state.pieChartConfig.options.customMetricFieldOptions,
     );
+
+    const errors = useVizSelector((state) => state.pieChartConfig.errors);
+
+    const errorMessage = useMemo(() => {
+        return errors?.groupByFieldError?.references
+            ? `Column "${errors?.groupByFieldError?.references[0]}" not in SQL query`
+            : undefined;
+    }, [errors?.groupByFieldError?.references]);
 
     return (
         <Stack spacing="sm" mb="lg">
@@ -58,14 +71,12 @@ export const PieChartConfiguration = ({
                         dispatch(setGroupFieldIds(field));
                     }}
                     error={
-                        !!groupField &&
-                        groupFieldOptions.find(
-                            (x) => x.reference === groupField,
-                        ) === undefined &&
-                        `Column "${groupField}" not in SQL query`
+                        errors?.groupByFieldError?.references
+                            ? `Column "${errors?.groupByFieldError?.references[0]}" not in SQL query`
+                            : undefined
                     }
                     fieldType={
-                        sqlColumns?.find((x) => x.reference === groupField)
+                        columns?.find((x) => x.reference === groupField)
                             ?.type ?? DimensionType.STRING
                     }
                 />
@@ -80,12 +91,7 @@ export const PieChartConfiguration = ({
                         label: y.reference,
                     }))}
                     value={aggregateField?.reference}
-                    error={
-                        aggregateFieldOptions.find(
-                            (y) => y.reference === aggregateField?.reference,
-                        ) === undefined &&
-                        `Column "${aggregateField?.reference}" not in SQL query`
-                    }
+                    error={errorMessage}
                     placeholder="Select Y axis"
                     onChange={(value) => {
                         if (!value) return;
@@ -97,7 +103,7 @@ export const PieChartConfiguration = ({
                         );
                     }}
                     fieldType={
-                        sqlColumns?.find(
+                        columns?.find(
                             (x) => x.reference === aggregateField?.reference,
                         )?.type ?? DimensionType.STRING
                     }

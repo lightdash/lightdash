@@ -1,11 +1,19 @@
-import { type ApiError, type PivotChartData } from '..';
 import {
+    type ApiError,
+    type Explore,
+    type PivotChartData,
+    type PivotChartLayout,
+    type PullRequestCreated,
+    type QueryExecutionContext,
+} from '..';
+import {
+    type PivotIndexColum,
     type VizAggregationOptions,
     type VizBaseConfig,
     type VizCartesianChartConfig,
     type VizChartConfig,
+    type VizColumn,
     type VizPieChartConfig,
-    type VizSqlColumn,
     type VizTableConfig,
 } from '../visualizations/types';
 import { type Dashboard } from './dashboard';
@@ -22,21 +30,18 @@ export type SqlRunnerPayload = {
     userUuid: string;
     organizationUuid: string | undefined;
     sqlChartUuid?: string;
-    context: 'sqlChartView' | 'sqlRunner' | 'dashboardView'; // TODO: move scheduler types to Backend package. Can't import QueryExecutionProperties from LightdashAnalytics
+    context: QueryExecutionContext;
 } & SqlRunnerBody;
 
 type ApiSqlRunnerPivotQueryPayload = {
-    indexColumn:
-        | {
-              reference: string;
-              type: string;
-          }
-        | undefined;
+    savedSqlUuid?: string;
+    indexColumn: PivotIndexColum;
     valuesColumns: {
         reference: string;
         aggregation: VizAggregationOptions;
     }[];
     groupByColumns: { reference: string }[] | undefined;
+    sortBy: PivotChartLayout['sortBy'] | undefined;
 };
 
 export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
@@ -45,8 +50,6 @@ export type SqlRunnerPivotQueryPayload = SqlRunnerPayload &
 export type SqlRunnerBody = {
     sql: string;
     limit?: number;
-    slug?: string;
-    uuid?: string;
 };
 
 export type SqlRunnerPivotQueryBody = SqlRunnerBody &
@@ -59,7 +62,7 @@ export const sqlRunnerPivotQueryJob = 'sqlRunnerPivotQuery';
 
 type SqlRunnerJobStatusSuccessDetails = {
     fileUrl: string;
-    columns: VizSqlColumn[];
+    columns: VizColumn[];
 };
 
 type SqlRunnerPivotQueryJobStatusSuccessDetails =
@@ -190,5 +193,34 @@ export type ApiUpdateSqlChart = {
     results: {
         savedSqlUuid: string;
         savedSqlVersionUuid: string | null;
+    };
+};
+
+export type ApiCreateVirtualView = {
+    status: 'ok';
+    results: Pick<Explore, 'name'>;
+};
+
+export type CreateVirtualViewPayload = {
+    name: string;
+    sql: string;
+    columns: VizColumn[];
+};
+
+export type UpdateVirtualViewPayload = CreateVirtualViewPayload;
+
+export type ApiGithubDbtWriteBack = {
+    status: 'ok';
+    results: PullRequestCreated;
+};
+
+export type ApiGithubDbtWritePreview = {
+    status: 'ok';
+    results: {
+        url: string;
+        repo: string;
+        path: string;
+        files: string[];
+        owner: string;
     };
 };

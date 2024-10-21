@@ -1,16 +1,21 @@
 import {
     ApiCreateSqlChart,
+    ApiCreateVirtualView,
     ApiErrorPayload,
+    ApiGithubDbtWriteBack,
+    ApiGithubDbtWritePreview,
     ApiJobScheduledResponse,
     ApiSqlChart,
     ApiSuccessEmpty,
     ApiUpdateSqlChart,
-    ApiWarehouseCatalog,
     ApiWarehouseTableFields,
+    ApiWarehouseTablesCatalog,
     CreateSqlChart,
+    CreateVirtualViewPayload,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
     UpdateSqlChart,
+    UpdateVirtualViewPayload,
 } from '@lightdash/common';
 import {
     Body,
@@ -22,6 +27,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Query,
     Request,
     Response,
@@ -30,6 +36,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { getContextFromQueryOrHeader } from '../analytics/LightdashAnalytics';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -53,7 +60,7 @@ export class SqlRunnerController extends BaseController {
     async getTables(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiWarehouseCatalog> {
+    ): Promise<ApiWarehouseTablesCatalog> {
         this.setStatus(200);
         return {
             status: 'ok',
@@ -139,7 +146,12 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getResultJobFromSqlPivotQuery(req.user!, projectUuid, body),
+                .getResultJobFromSqlPivotQuery(
+                    req.user!,
+                    projectUuid,
+                    body,
+                    getContextFromQueryOrHeader(req),
+                ),
         };
     }
 
@@ -228,7 +240,7 @@ export class SqlRunnerController extends BaseController {
     /**
      * Schedules a job to get its results
      * @param projectUuid - the uuid of the project
-     * @param slug - the uuid of the saved chart
+     * @param slug - the slug of the saved chart
      * @param req - express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -241,12 +253,47 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
-
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getSqlChartResultJob(req.user!, projectUuid, slug),
+                .getSqlChartResultJob(
+                    req.user!,
+                    projectUuid,
+                    slug,
+                    undefined,
+                    getContextFromQueryOrHeader(req),
+                ),
+        };
+    }
+
+    /**
+     * Schedules a job to get its results
+     * @param projectUuid - the uuid of the project
+     * @param uuid - the uuid of the saved chart
+     * @param req - express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('saved/{uuid}/results-job')
+    @OperationId('getSavedSqlResultsJobByUuid')
+    async getSavedSqlResultsJobByUuid(
+        @Path() uuid: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getSqlChartResultJob(
+                    req.user!,
+                    projectUuid,
+                    undefined,
+                    uuid,
+                    getContextFromQueryOrHeader(req),
+                ),
         };
     }
 
@@ -361,6 +408,150 @@ export class SqlRunnerController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Create a virtual-view
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('virtual-view')
+    @OperationId('createVirtualView')
+    async createVirtualView(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateVirtualViewPayload,
+    ): Promise<ApiCreateVirtualView> {
+        this.setStatus(200);
+        const { name, sql, columns } = body;
+
+        const virtualViewName = await this.services
+            .getProjectService()
+            .createVirtualView(req.user!, projectUuid, {
+                name,
+                sql,
+                columns,
+            });
+
+        return {
+            status: 'ok',
+            results: virtualViewName,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('virtual-view/{name}')
+    @OperationId('updateVirtualView')
+    async updateVirtualView(
+        @Path() projectUuid: string,
+        @Path() name: string,
+        @Request() req: express.Request,
+        @Body() body: UpdateVirtualViewPayload,
+    ): Promise<ApiCreateVirtualView> {
+        this.setStatus(200);
+        const { name: virtualViewName } = await this.services
+            .getProjectService()
+            .updateVirtualView(req.user!, projectUuid, name, body);
+
+        return {
+            status: 'ok',
+            results: {
+                name: virtualViewName,
+            },
+        };
+    }
+
+    /**
+     * Delete a virtual-view
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('virtual-view/{name}')
+    @OperationId('deleteVirtualView')
+    async deleteVirtualView(
+        @Path() projectUuid: string,
+        @Path() name: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .deleteVirtualView(req.user!, projectUuid, name);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Preview write back from SQL runner
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('preview')
+    @OperationId('writeBackPreview')
+    async writeBackPreview(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateVirtualViewPayload,
+    ): Promise<ApiGithubDbtWritePreview> {
+        this.setStatus(200);
+        const { name } = body;
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .writeBackPreview(req.user!, projectUuid, name),
+        };
+    }
+
+    /**
+     * Write back from SQL runner
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('pull-request')
+    @OperationId('writeBackCreatePr')
+    async writeBackCreatePr(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: CreateVirtualViewPayload,
+    ): Promise<ApiGithubDbtWriteBack> {
+        this.setStatus(200);
+        const { name, sql, columns } = body;
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .createPullRequestFromSql(
+                    req.user!,
+                    projectUuid,
+                    name,
+                    sql,
+                    columns,
+                ),
         };
     }
 }

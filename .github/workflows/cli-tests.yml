@@ -60,13 +60,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9.x'
-      - run: pip install dbt-postgres~=${{ matrix.dbt }}.0
-
-      ## Remove dbt metrics for dbt 1.6
-      - name: Remove dbt metrics for dbt 1.6
-        if: matrix.dbt == '1.6' || matrix.dbt == '1.7' || matrix.dbt == '1.8'
-        run: |
-          rm ./examples/full-jaffle-shop-demo/dbt/models/metrics.yml
+      - run: pip install dbt-core~=${{ matrix.dbt }}.0 dbt-postgres~=${{ matrix.dbt }}.0
 
       ## DBT seed
       - name: Seed DBT
@@ -111,7 +105,7 @@ jobs:
         run: |
           lightdash_version=$(lightdash --version)
           package_version=$(yarn workspace @lightdash/cli versions | grep '@lightdash/cli' | cut -d"'" -f 4)
-          if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi 
+          if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
 
       # Run cypress tests
       - name: Cypress run

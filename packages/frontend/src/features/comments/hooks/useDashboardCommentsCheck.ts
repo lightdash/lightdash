@@ -1,3 +1,5 @@
+import { FeatureFlags } from '@lightdash/common';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { type UserWithAbility } from '../../../hooks/user/useUser';
 
 export const useDashboardCommentsCheck = (
@@ -13,8 +15,14 @@ export const useDashboardCommentsCheck = (
         'DashboardComments',
     );
 
+    const isDashboardCommentsEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardComments,
+    );
+
     return {
-        canViewDashboardComments,
-        canCreateDashboardComments,
+        canViewDashboardComments:
+            isDashboardCommentsEnabled && canViewDashboardComments,
+        canCreateDashboardComments:
+            isDashboardCommentsEnabled && canCreateDashboardComments,
     };
 };

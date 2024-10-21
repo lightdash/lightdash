@@ -6,6 +6,7 @@ import {
     DownloadFileType,
     ForbiddenError,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     LightdashPage,
     SessionUser,
     snakeCaseName,
@@ -55,6 +56,7 @@ export type Unfurl = {
     organizationUuid: string;
     resourceUuid: string | undefined;
     chartTileUuids?: (string | null)[];
+    sqlChartTileUuids?: (string | null)[];
 };
 
 export type ParsedUrl = {
@@ -124,6 +126,7 @@ export class UnfurlService extends BaseService {
         > & {
             resourceUuid?: string;
             chartTileUuids?: (string | null)[];
+            sqlChartTileUuids?: (string | null)[];
         }
     > {
         switch (parsedUrl.lightdashPage) {
@@ -143,6 +146,9 @@ export class UnfurlService extends BaseService {
                     chartTileUuids: dashboard.tiles
                         .filter(isDashboardChartTileType)
                         .map((t) => t.properties.savedChartUuid),
+                    sqlChartTileUuids: dashboard.tiles
+                        .filter(isDashboardSqlChartTile)
+                        .map((t) => t.properties.savedSqlUuid),
                 };
             case LightdashPage.CHART:
                 if (!parsedUrl.chartUuid)
@@ -211,6 +217,8 @@ export class UnfurlService extends BaseService {
             chartType,
             resourceUuid,
             chartTileUuids: rest.chartTileUuids,
+            // TODO: Add this back once FIXME is solved in saveScreenshot
+            // sqlChartTileUuids: rest.sqlChartTileUuids,
         };
     }
 
@@ -262,6 +270,7 @@ export class UnfurlService extends BaseService {
             resourceName: details?.title,
             selector,
             chartTileUuids: details?.chartTileUuids,
+            sqlChartTileUuids: details?.sqlChartTileUuids,
         });
 
         let imageUrl;
@@ -354,6 +363,7 @@ export class UnfurlService extends BaseService {
         resourceName = undefined,
         selector = 'body',
         chartTileUuids = undefined,
+        sqlChartTileUuids = undefined,
         retries = SCREENSHOT_RETRIES,
     }: {
         imageId: string;
@@ -367,6 +377,7 @@ export class UnfurlService extends BaseService {
         resourceName?: string;
         selector?: string;
         chartTileUuids?: (string | null)[] | undefined;
+        sqlChartTileUuids?: (string | null)[] | undefined;
         retries?: number;
     }): Promise<Buffer | undefined> {
         if (this.lightdashConfig.headlessBrowser?.host === undefined) {
@@ -483,15 +494,42 @@ export class UnfurlService extends BaseService {
 
                         if (lightdashPage === LightdashPage.DASHBOARD) {
                             // Wait for the all charts to load if we are in a dashboard
-                            chartResultsPromises = chartTileUuids?.map((id) => {
-                                const responsePattern = new RegExp(
-                                    `${id}/chart-and-results`,
+                            const exploreChartResultsPromises =
+                                chartTileUuids?.map((id) => {
+                                    const responsePattern = new RegExp(
+                                        `${id}/chart-and-results`,
+                                    );
+
+                                    return page?.waitForResponse(
+                                        responsePattern,
+                                        {
+                                            timeout: 60000,
+                                        },
+                                    ); // NOTE: No await here
+                                });
+                            // We wait for the sql charts to load and for the query to finish
+                            /*
+                             * FIXME: wait for /sqlRunner/saved/${id} and /\/sqlRunner\/runPivotQuery/, so that we can successfully capture the SQL charts visualizations
+                             *
+                             * We need to wait for /sqlRunner/saved/${id} so that we can successfully capture the SQL charts visualizations
+                             * We need to wait for /\/sqlRunner\/runPivotQuery/, so that we can successfully capture the SQL charts visualizations
+                             * Figure out how to wait for the Streamed query results from the warehouse when scheduling a dashboard of image type - this works already when exporting a dashboard, but not when scheduling it
+                             */
+                            const sqlChartResultsPromises =
+                                sqlChartTileUuids?.map(
+                                    (id) =>
+                                        page?.waitForResponse(
+                                            /\/sqlRunner\/results/,
+                                            {
+                                                timeout: 60000,
+                                            },
+                                        ), // NOTE: No await here
                                 );
 
-                                return page?.waitForResponse(responsePattern, {
-                                    timeout: 60000,
-                                }); // NOTE: No await here
-                            });
+                            chartResultsPromises = [
+                                ...(exploreChartResultsPromises || []),
+                                ...(sqlChartResultsPromises || []),
+                            ];
                         } else if (lightdashPage === LightdashPage.CHART) {
                             // Wait for the visualization to load if we are in an saved explore page
                             const responsePattern = new RegExp(
@@ -652,6 +690,7 @@ export class UnfurlService extends BaseService {
                             resourceName,
                             selector,
                             chartTileUuids,
+                            sqlChartTileUuids,
                             retries,
                         });
                     }

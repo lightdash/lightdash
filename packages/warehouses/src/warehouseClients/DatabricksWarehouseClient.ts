@@ -396,6 +396,21 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         }
     }
 
+    async getAllTables() {
+        const query = `
+            SELECT table_catalog, table_schema, table_name
+            FROM information_schema.tables
+            WHERE table_type = 'MANAGED' 
+            ORDER BY 1,2,3
+        `;
+        const { rows } = await this.runQuery(query, {}, undefined, undefined);
+        return rows.map((row) => ({
+            database: row.table_catalog,
+            schema: row.table_schema,
+            table: row.table_name,
+        }));
+    }
+
     async getTables(
         schema?: string,
         tags?: Record<string, string>,
@@ -442,7 +457,6 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             values.push(database);
         }
         const { rows } = await this.runQuery(query, tags, undefined, values);
-
         return this.parseWarehouseCatalog(rows, mapFieldType);
     }
 }

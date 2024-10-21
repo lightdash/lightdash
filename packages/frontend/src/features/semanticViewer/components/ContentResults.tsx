@@ -1,11 +1,14 @@
+import type { ApiError } from '@lightdash/common';
+import { TableDataModel } from '@lightdash/common';
 import { Box, Tabs, Text } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { Table } from '../../../components/DataViz/visualizations/Table';
-import { SemanticViewerResultsRunner } from '../runners/SemanticViewerResultsRunner';
-import { useAppSelector } from '../store/hooks';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
 import {
     selectResultsTableVizConfig,
     selectSemanticLayerInfo,
@@ -17,14 +20,21 @@ enum TabPanel {
     SQL = 'SQL',
 }
 
-const ContentResults: FC = () => {
+type ContentResultsProps = {
+    resultsError?: ApiError;
+    onTableHeaderClick: (fieldName: string) => void;
+};
+
+const ContentResults: FC<ContentResultsProps> = ({
+    onTableHeaderClick,
+    resultsError,
+}) => {
     const semanticViewerInfo = useAppSelector(selectSemanticLayerInfo);
-    const semanticQuery = useAppSelector(selectSemanticLayerQuery);
-    const { results, columns } = useAppSelector(
-        (state) => state.semanticViewer,
-    );
 
     const resultsTableVizConfig = useAppSelector(selectResultsTableVizConfig);
+    const { results, columnNames, fields } = useAppSelector(
+        (state) => state.semanticViewer,
+    );
 
     const [openPanel, setOpenPanel] = useState<TabPanel>();
 
@@ -36,14 +46,25 @@ const ContentResults: FC = () => {
         setOpenPanel(undefined);
     };
 
+    const semanticLayerQuery = useAppSelector((state) =>
+        selectSemanticLayerQuery(state),
+    );
+
     const resultsRunner = useMemo(() => {
-        return new SemanticViewerResultsRunner({
-            query: semanticQuery,
+        return new SemanticViewerResultsRunnerFrontend({
             rows: results ?? [],
-            columns: columns ?? [],
+            columnNames: columnNames ?? [],
+            fields,
             projectUuid: semanticViewerInfo.projectUuid,
         });
-    }, [columns, semanticViewerInfo, results, semanticQuery]);
+    }, [results, columnNames, semanticViewerInfo.projectUuid, fields]);
+
+    const thSortConfig = useMemo(() => {
+        return TableDataModel.getTableHeaderSortConfig(
+            columnNames,
+            semanticLayerQuery,
+        );
+    }, [columnNames, semanticLayerQuery]);
 
     return (
         <>
@@ -54,28 +75,45 @@ const ContentResults: FC = () => {
                     minSize={30}
                     style={{ display: 'flex' }}
                 >
-                    <Table
-                        resultsRunner={resultsRunner}
-                        config={resultsTableVizConfig}
-                        flexProps={{
-                            m: '-1px',
-                        }}
-                    />
+                    {resultsError ? (
+                        <SuboptimalState
+                            title="Failed to fetch results"
+                            description={
+                                resultsError.error.message ??
+                                'Please check your filters and field selection.'
+                            }
+                        />
+                    ) : results.length > 0 ? (
+                        <Table
+                            resultsRunner={resultsRunner}
+                            columnsConfig={resultsTableVizConfig.columns}
+                            thSortConfig={thSortConfig}
+                            onTHClick={onTableHeaderClick}
+                            flexProps={{
+                                m: '-1px',
+                            }}
+                        />
+                    ) : (
+                        <SuboptimalState
+                            title="No results"
+                            description="Select fields and adjust filters to see results."
+                        />
+                    )}
                 </Panel>
 
                 {openPanel === TabPanel.SQL && (
                     <>
                         <Box
                             component={PanelResizeHandle}
-                            bg="gray.3"
-                            h="two"
+                            bg="gray.2"
+                            h="xs"
                             sx={(theme) => ({
                                 transition: 'background-color 0.2s ease-in-out',
                                 '&[data-resize-handle-state="hover"]': {
-                                    backgroundColor: theme.colors.gray[5],
+                                    backgroundColor: theme.colors.gray[3],
                                 },
                                 '&[data-resize-handle-state="drag"]': {
-                                    backgroundColor: theme.colors.gray[8],
+                                    backgroundColor: theme.colors.gray[4],
                                 },
                             })}
                         />
