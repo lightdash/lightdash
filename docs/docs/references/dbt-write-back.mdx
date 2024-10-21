@@ -74,8 +74,8 @@ To create a job that does this, you'll want to:
 
 1. open dbt Cloud, head to `Deploy` --> `Jobs` and click `create new job`  
 2. toggle on `triggered by pull requests` in the `Git Trigger` section  
-3. add the command `dbt run --select tag:created-by-lightdash` 
-4. set `compare changes against environment` to `prod`. This will make sure that this job only runs when a model is changed from your pull request. 
+3. add the command `dbt run --select tag:created-by-lightdash`  
+4. set `compare changes against environment` to `prod`. This will make sure that this job only runs when a model is changed from your pull request
 
 <img
   src={dbtCloudRunAutomatically}
