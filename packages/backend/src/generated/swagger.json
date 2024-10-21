@@ -6979,6 +6979,9 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "timezone": {
+                        "type": "string"
+                    },
                     "cron": {
                         "type": "string"
                     },

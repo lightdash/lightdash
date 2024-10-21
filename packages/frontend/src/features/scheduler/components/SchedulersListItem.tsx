@@ -47,7 +47,10 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                     </Text>
                     <Group spacing="sm">
                         <Text color="gray" size={12}>
-                            {getHumanReadableCronExpression(scheduler.cron)}
+                            {getHumanReadableCronExpression(
+                                scheduler.cron,
+                                scheduler.timezone,
+                            )}
                         </Text>
 
                         <Box c="gray.4">

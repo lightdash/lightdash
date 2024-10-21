@@ -607,7 +607,6 @@ export class ProjectController extends BaseController {
         @Body() body: UpdateMultipleDashboards[],
         @Request() req: express.Request,
     ): Promise<ApiUpdateDashboardsResponse> {
-        console.log(body);
         this.setStatus(200);
 
         const results = await this.services

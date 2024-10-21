@@ -52,9 +52,6 @@ export const getDailyDatesFromCron = (
     const arr = stringToArray(cron);
     const startOfMinute = moment(when).startOf('minute').toDate(); // round down to the nearest minute so we can even process 00:00 on daily jobs
     const schedule = getSchedule(arr, startOfMinute, timezone);
-
-    console.log({ cron, when: when.toISOString(), timezone });
-
     const tomorrow = moment(startOfMinute)
         .utc()
         .add(1, 'day')
@@ -65,8 +62,6 @@ export const getDailyDatesFromCron = (
     while (schedule.next() < tomorrow) {
         dailyDates.push(schedule.date.toJSDate());
     }
-
-    console.log({ dailyDates: dailyDates.map((date) => date.toISOString()) });
 
     return dailyDates;
 };

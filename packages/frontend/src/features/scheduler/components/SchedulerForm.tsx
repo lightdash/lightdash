@@ -56,6 +56,7 @@ import FieldSelect from '../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
+import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
 import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
@@ -91,6 +92,7 @@ const DEFAULT_VALUES = {
     message: '',
     format: SchedulerFormat.CSV,
     cron: '0 9 * * 1',
+    timezone: undefined,
     options: {
         formatted: Values.FORMATTED,
         limit: Limit.TABLE,
@@ -183,6 +185,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         message: schedulerData.message,
         format: schedulerData.format,
         cron: schedulerData.cron,
+        timezone: schedulerData.timezone,
         options: formOptions,
         emailTargets: emailTargets,
         slackTargets: slackTargets,
@@ -347,6 +350,7 @@ const SchedulerForm: FC<Props> = ({
                 message: values.message,
                 format: values.format,
                 cron: values.cron,
+                timezone: values.timezone,
                 options,
                 targets,
                 ...(resource?.type === 'dashboard' && {
@@ -656,7 +660,13 @@ const SchedulerForm: FC<Props> = ({
                                     {...form.getInputProps('cron')}
                                     value={form.values.cron}
                                     name="cron"
-                                />
+                                >
+                                    <TimeZonePicker
+                                        size="sm"
+                                        style={{ alignSelf: 'flex-start' }}
+                                        {...form.getInputProps('timezone')}
+                                    />
+                                </CronInternalInputs>
                             </Box>
                         </Input.Wrapper>
                         {!isThresholdAlert && (
