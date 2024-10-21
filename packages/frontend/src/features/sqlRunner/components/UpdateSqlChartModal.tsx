@@ -50,7 +50,11 @@ export const UpdateSqlChartModal = ({
     onClose,
     onSuccess,
 }: Props) => {
-    const { data, isLoading: isChartLoading } = useSavedSqlChart({
+    const {
+        data,
+        isLoading: isChartLoading,
+        isSuccess: isChartSuccess,
+    } = useSavedSqlChart({
         projectUuid,
         uuid: savedSqlUuid,
     });
@@ -68,26 +72,27 @@ export const UpdateSqlChartModal = ({
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
-            description: '',
-            spaceUuid: '',
-            newSpaceName: '',
+            description: null,
+            spaceUuid: null,
+            newSpaceName: null,
         },
         validate: zodResolver(updateSqlChartSchema),
     });
 
     useEffect(() => {
-        if (data) {
-            if (!form.values.name && data.name) {
-                form.setFieldValue('name', data.name);
-            }
-            if (!form.values.description && data.description) {
-                form.setFieldValue('description', data.description);
-            }
-            if (!form.values.spaceUuid && data.space.uuid) {
-                form.setFieldValue('spaceUuid', data.space.uuid);
-            }
+        if (isChartSuccess && data) {
+            const values = {
+                name: data.name,
+                description: data.description,
+                spaceUuid: data.space.uuid,
+            };
+
+            form.setValues(values);
+            form.resetDirty(values);
         }
-    }, [data, form]);
+        // form can't be a dependency because it will cause infinite loop
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data, isChartSuccess]);
 
     const handleOnSubmit = form.onSubmit(
         async ({ name, description, spaceUuid, newSpaceName }) => {
