@@ -87,19 +87,30 @@ const GithubSettingsPanel: FC = () => {
     const status = useSearchParams('status');
     const { showToastWarning } = useToaster();
     const isWaitingForGithubRequest = status === 'github_request_sent';
+
+    const isValidGithubInstallation = data !== undefined && !isError;
+
     useEffect(() => {
-        if (isWaitingForGithubRequest) {
+        if (
+            isWaitingForGithubRequest &&
+            !isValidGithubInstallation &&
+            !isInitialLoading
+        ) {
             const toastKey = 'github_request_sent';
             showToastWarning({
-                title: 'GitHub App Installation Pending',
+                title: 'GitHub app installation pending',
                 subtitle:
-                    'The GitHub App is waiting to be authorized by an admin. It will be enabled later.',
+                    'The GitHub app is waiting to be authorized by a Github admin.',
                 key: toastKey,
             });
         }
-    }, [isWaitingForGithubRequest, showToastWarning]);
+    }, [
+        isWaitingForGithubRequest,
+        isValidGithubInstallation,
+        isInitialLoading,
+        showToastWarning,
+    ]);
 
-    const isValidGithubInstallation = data !== undefined && !isError;
     if (isInitialLoading) {
         return <Loader />;
     }
