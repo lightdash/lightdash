@@ -99,8 +99,8 @@ const ExplorerHeader: FC = memo(() => {
 
                 {userTimeZonesEnabled && (
                     <TimeZonePicker
-                        selectedTimezone={selectedTimezone}
                         onChange={setTimeZone}
+                        value={selectedTimezone}
                     />
                 )}
 

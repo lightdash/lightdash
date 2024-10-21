@@ -3,15 +3,9 @@ import { Select, type SelectProps } from '@mantine/core';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 
-export interface TimeZonePickerProps extends Omit<SelectProps, 'data'> {
-    selectedTimezone?: string;
-}
+export interface TimeZonePickerProps extends Omit<SelectProps, 'data'> {}
 
-const TimeZonePicker: FC<TimeZonePickerProps> = ({
-    onChange,
-    selectedTimezone,
-    ...rest
-}) => {
+const TimeZonePicker: FC<TimeZonePickerProps> = (props) => {
     const timeZoneOptions = useMemo(
         () =>
             Object.keys(TimeZone)
@@ -30,10 +24,8 @@ const TimeZonePicker: FC<TimeZonePickerProps> = ({
             maw={190}
             size="xs"
             placeholder="Select timezone"
-            value={selectedTimezone}
             data={timeZoneOptions}
-            onChange={onChange}
-            {...rest}
+            {...props}
         />
     );
 };
