@@ -10,8 +10,14 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine/core';
-import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconClock,
+    IconRefresh,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, type FC } from 'react';
 import { lightdashApi } from '../../../api';
@@ -194,16 +200,25 @@ const GithubSettingsPanel: FC = () => {
                 ) : (
                     <Flex justify="end">
                         {isWaitingForGithubRequest ? (
-                            <Button
-                                size="xs"
-                                component="a"
-                                target="_blank"
-                                color="yellow"
-                                variant="outline"
-                                href={GITHUB_INSTALL_URL}
+                            <Tooltip
+                                multiline
+                                maw={400}
+                                label={`
+                                An admin from your GitHub organization needs to approve this app
+                                installation. They should have received an email for a "Request to install lightdash" from GitHub.`}
                             >
-                                Cancel install
-                            </Button>
+                                <Button
+                                    size="xs"
+                                    component="a"
+                                    target="_blank"
+                                    color="yellow"
+                                    variant="outline"
+                                    href={GITHUB_INSTALL_URL}
+                                    leftIcon={<MantineIcon icon={IconClock} />}
+                                >
+                                    Pending approval
+                                </Button>
+                            </Tooltip>
                         ) : (
                             <Button
                                 size="xs"
