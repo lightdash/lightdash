@@ -1,3 +1,10 @@
+## [0.1309.4](https://github.com/lightdash/lightdash/compare/0.1309.3...0.1309.4) (2024-10-21)
+
+
+### Bug Fixes
+
+* show row and col checkbox state swap ([#11802](https://github.com/lightdash/lightdash/issues/11802)) ([1f066a2](https://github.com/lightdash/lightdash/commit/1f066a2880d0a6e5bc8dd49474953e38fd7d8a04))
+
 ## [0.1309.3](https://github.com/lightdash/lightdash/compare/0.1309.2...0.1309.3) (2024-10-21)
 
 
