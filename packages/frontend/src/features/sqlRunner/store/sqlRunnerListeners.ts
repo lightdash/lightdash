@@ -77,6 +77,24 @@ export const addChartConfigListener = (
             );
         },
         effect: async (_, listenerApi) => {
+            // TODO: this is the same as the listener for when the SQL query is run, should we combine them?
+            const state = listenerApi.getState();
+            const resultsRunner = selectSqlRunnerResultsRunner(state);
+            const selectedChartType = state.sqlRunner.selectedChartType;
+
+            if (!resultsRunner || !selectedChartType) return;
+            const completeConfigByKind = selectCompleteConfigByKind(
+                state,
+                selectedChartType,
+            );
+
+            const chartResultOptions = getChartConfigAndOptions(
+                resultsRunner,
+                selectedChartType,
+                completeConfigByKind,
+            );
+
+            listenerApi.dispatch(setChartOptionsAndConfig(chartResultOptions));
             await listenerApi.dispatch(prepareAndFetchChartData());
         },
     });
