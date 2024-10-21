@@ -43,6 +43,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import {
     cartesianChartSelectors,
     selectCompleteConfigByKind,
+    selectPivotChartDataByKind,
 } from '../../../components/DataViz/store/selectors';
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
@@ -109,9 +110,6 @@ export const ContentPanel: FC = () => {
     // currently editing chart config
     // TODO: these can be simplified by having a shared active viz chart used by slices
 
-    // used in many places to check if it's a table type
-    // used to update the chart options in redux, should these just be selectors??
-    // why do we have to remember to update them when the query results change?
     const currentVizConfig = useAppSelector((state) =>
         selectCompleteConfigByKind(state, selectedChartType),
     );
@@ -229,30 +227,9 @@ export const ContentPanel: FC = () => {
         selectSqlRunnerResultsRunner(state, sortBy),
     );
 
-    const pivotedChartInfo = useAppSelector((state) => {
-        console.log({ state });
-
-        if (selectedChartType === ChartKind.VERTICAL_BAR) {
-            return {
-                chartData: state.barChartConfig.chartData,
-                chartLoading: state.barChartConfig.chartDataLoading,
-                chartError: state.barChartConfig.chartDataError,
-            };
-        } else if (selectedChartType === ChartKind.LINE) {
-            return {
-                chartData: state.lineChartConfig.chartData,
-                chartLoading: state.lineChartConfig.chartDataLoading,
-                chartError: state.lineChartConfig.chartDataError,
-            };
-        } else if (selectedChartType === ChartKind.PIE) {
-            return {
-                chartData: state.pieChartConfig.chartData,
-                chartLoading: state.pieChartConfig.chartDataLoading,
-                chartError: state.pieChartConfig.chartDataError,
-            };
-        }
-        return undefined;
-    });
+    const pivotedChartInfo = useAppSelector((state) =>
+        selectPivotChartDataByKind(state, selectedChartType),
+    );
 
     const resultsFileUrl = useMemo(() => queryResults?.fileUrl, [queryResults]);
 
@@ -409,11 +386,10 @@ export const ContentPanel: FC = () => {
                             selectedChartType ? (
                                 <ChartDownload
                                     fileUrl={
-                                        pivotedChartInfo?.chartData
-                                            ?.chartFileUrl
+                                        pivotedChartInfo?.data?.chartFileUrl
                                     }
                                     columnNames={
-                                        pivotedChartInfo?.chartData?.columns?.map(
+                                        pivotedChartInfo?.data?.columns?.map(
                                             (c) => c.reference,
                                         ) ?? []
                                     }
@@ -538,14 +514,14 @@ export const ContentPanel: FC = () => {
                                                                         }
                                                                         spec={
                                                                             pivotedChartInfo
-                                                                                ?.chartData
+                                                                                ?.data
                                                                                 ?.chartSpec
                                                                         }
                                                                         isLoading={
-                                                                            !!pivotedChartInfo?.chartLoading
+                                                                            !!pivotedChartInfo?.loading
                                                                         }
                                                                         error={
-                                                                            pivotedChartInfo?.chartError
+                                                                            pivotedChartInfo?.error
                                                                         }
                                                                         style={{
                                                                             height: inputSectionHeight,
@@ -705,17 +681,15 @@ export const ContentPanel: FC = () => {
                                         isVisible={showChartResultsTable}
                                     >
                                         {selectedChartType &&
-                                            pivotedChartInfo?.chartData
+                                            pivotedChartInfo?.data
                                                 ?.tableData && (
                                                 <ChartDataTable
                                                     columnNames={
-                                                        pivotedChartInfo
-                                                            ?.chartData
+                                                        pivotedChartInfo?.data
                                                             .tableData?.columns
                                                     }
                                                     rows={
-                                                        pivotedChartInfo
-                                                            ?.chartData
+                                                        pivotedChartInfo?.data
                                                             .tableData?.rows ??
                                                         []
                                                     }

@@ -7,6 +7,7 @@ import {
     type CartesianChartDataModel,
     type CartesianChartDisplay,
     type PieChartDataModel,
+    type PivotChartData,
     type PivotChartLayout,
     type TableDataModel,
     type VizAggregationOptions,
@@ -63,20 +64,19 @@ const initialState: CartesianChartState = {
     chartDataError: undefined,
 };
 
-export const fetchPivotChartData = createAsyncThunk(
-    'cartesianChartBaseConfig/fetchPivotChartData',
-    async ({
-        vizDataModel,
-        limit,
-        sql,
-    }: {
+export const fetchPivotChartData = createAsyncThunk<
+    PivotChartData | undefined,
+    {
         vizDataModel:
             | TableDataModel
             | PieChartDataModel
             | CartesianChartDataModel;
         limit: number;
         sql: string;
-    }) => {
+    }
+>(
+    'cartesianChartBaseConfig/fetchPivotChartData',
+    async ({ vizDataModel, limit, sql }) => {
         const chartData = await vizDataModel.getPivotedChartData({
             limit,
             sql,

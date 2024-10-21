@@ -36,10 +36,8 @@ export const addSqlRunnerQueryListener = (
                 completeConfigByKind,
             );
 
-            console.log('dispatching options', chartResultOptions);
             listenerApi.dispatch(setChartOptionsAndConfig(chartResultOptions));
 
-            console.log('dispatching prepareAndFetchChartData');
             await listenerApi.dispatch(prepareAndFetchChartData());
         },
     });
@@ -54,13 +52,6 @@ export const addChartConfigListener = (
                 previousState.sqlRunner.selectedChartType;
             const currentSelectedChartType =
                 currentState.sqlRunner.selectedChartType;
-
-            console.log(
-                'previousSelectedChartType',
-                previousSelectedChartType,
-                'currentSelectedChartType',
-                currentSelectedChartType,
-            );
 
             const currentVizConfig = selectChartFieldConfigByKind(
                 currentState,
@@ -103,7 +94,6 @@ export const addChartTypeListener = (
                 completeConfigByKind,
             );
 
-            console.log('dispatching options', chartResultOptions);
             listenerApi.dispatch(setChartOptionsAndConfig(chartResultOptions));
             await listenerApi.dispatch(prepareAndFetchChartData());
         },
