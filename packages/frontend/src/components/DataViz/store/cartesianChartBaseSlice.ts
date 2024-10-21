@@ -97,7 +97,6 @@ export const prepareAndFetchChartData = createAsyncThunk(
         const { selectedChartType, limit, sql } = state.sqlRunner;
 
         const config = selectChartFieldConfigByKind(state, selectedChartType);
-        const display = selectChartDisplayByKind(state, selectedChartType);
 
         if (!resultsRunner) {
             throw new Error('No results runner available');
@@ -113,9 +112,18 @@ export const prepareAndFetchChartData = createAsyncThunk(
             fetchPivotChartData({ vizDataModel, limit, sql }),
         ).unwrap();
 
+        const getChartSpec = (orgColors: string[]) => {
+            const currentState = getState() as RootState;
+            const currentDisplay = selectChartDisplayByKind(
+                currentState,
+                selectedChartType,
+            );
+            return vizDataModel.getSpec(currentDisplay, orgColors);
+        };
+
         const info = {
             ...chartData,
-            chartSpec: vizDataModel.getSpec(display), // TODO: pass in colors from org
+            getChartSpec,
             tableData: vizDataModel.getPivotedTableData(),
             chartFileUrl: vizDataModel.getDataDownloadUrl(),
         };

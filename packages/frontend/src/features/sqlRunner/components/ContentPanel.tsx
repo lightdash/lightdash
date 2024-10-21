@@ -49,6 +49,7 @@ import { ChartDataTable } from '../../../components/DataViz/visualizations/Chart
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
+import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
@@ -86,9 +87,11 @@ export const ContentPanel: FC = () => {
     const isLoadingSqlQuery = useAppSelector(
         (state) => state.sqlRunner.isLoading,
     );
-
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
+
+    // Get organization colors to generate chart specs with a color palette defined by the organization
+    const { data: organization } = useOrganization();
 
     // State tracked by this component
     const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
@@ -106,9 +109,6 @@ export const ContentPanel: FC = () => {
         width: inputSectionWidth,
         height: inputSectionHeight,
     } = useElementSize();
-
-    // currently editing chart config
-    // TODO: these can be simplified by having a shared active viz chart used by slices
 
     const currentVizConfig = useAppSelector((state) =>
         selectCompleteConfigByKind(state, selectedChartType),
@@ -512,11 +512,10 @@ export const ContentPanel: FC = () => {
                                                                         config={
                                                                             c
                                                                         }
-                                                                        spec={
-                                                                            pivotedChartInfo
-                                                                                ?.data
-                                                                                ?.chartSpec
-                                                                        }
+                                                                        spec={pivotedChartInfo?.data?.getChartSpec(
+                                                                            organization?.chartColors ??
+                                                                                [],
+                                                                        )}
                                                                         isLoading={
                                                                             !!pivotedChartInfo?.loading
                                                                         }
