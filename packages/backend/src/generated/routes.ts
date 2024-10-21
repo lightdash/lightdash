@@ -6264,7 +6264,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                timezone: { dataType: 'string' },
+                timezone: { dataType: 'string', required: true },
                 cron: { dataType: 'string', required: true },
                 format: { ref: 'SchedulerFormat', required: true },
                 createdBy: { dataType: 'string', required: true },

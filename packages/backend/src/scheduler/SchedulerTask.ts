@@ -463,6 +463,7 @@ export default class SchedulerTask {
                 dashboardUuid,
                 name,
                 cron,
+                timezone,
                 thresholds,
             } = scheduler;
 
@@ -505,6 +506,7 @@ export default class SchedulerTask {
                     schedulerUuid || ''
                 }|scheduled delivery> ${getHumanReadableCronExpression(
                     cron,
+                    timezone,
                 )} from Lightdash\n${
                     this.s3Client.getExpirationWarning()?.slack || ''
                 }`,
@@ -1212,7 +1214,10 @@ export default class SchedulerTask {
                     details.description || '',
                     scheduler.message,
                     new Date().toLocaleDateString('en-GB'),
-                    getHumanReadableCronExpression(scheduler.cron),
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone,
+                    ),
                     imageUrl,
                     url,
                     schedulerUrl,
@@ -1230,7 +1235,10 @@ export default class SchedulerTask {
                     details.description || '',
                     scheduler.message,
                     new Date().toLocaleDateString('en-GB'),
-                    getHumanReadableCronExpression(scheduler.cron),
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone,
+                    ),
                     csvUrl,
                     url,
                     schedulerUrl,
@@ -1247,7 +1255,10 @@ export default class SchedulerTask {
                     details.description || '',
                     scheduler.message,
                     new Date().toLocaleDateString('en-GB'),
-                    getHumanReadableCronExpression(scheduler.cron),
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone,
+                    ),
                     csvUrls,
                     url,
                     schedulerUrl,
@@ -1487,7 +1498,10 @@ export default class SchedulerTask {
                 await this.googleDriveClient.uploadMetadata(
                     refreshToken,
                     gdriveId,
-                    getHumanReadableCronExpression(scheduler.cron),
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone,
+                    ),
                     undefined,
                     reportUrl,
                 );
@@ -1550,7 +1564,10 @@ export default class SchedulerTask {
                 await this.googleDriveClient.uploadMetadata(
                     refreshToken,
                     gdriveId,
-                    getHumanReadableCronExpression(scheduler.cron),
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone,
+                    ),
                     Object.values(chartNames),
                 );
 

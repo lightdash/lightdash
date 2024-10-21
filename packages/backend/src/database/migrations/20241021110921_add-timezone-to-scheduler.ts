@@ -5,7 +5,7 @@ const SchedulerTableName = 'scheduler';
 export async function up(knex: Knex): Promise<void> {
     if (await knex.schema.hasTable(SchedulerTableName)) {
         await knex.schema.alterTable(SchedulerTableName, (table) => {
-            table.string('timezone').nullable();
+            table.string('timezone').defaultTo('UTC').notNullable();
         });
     }
 }

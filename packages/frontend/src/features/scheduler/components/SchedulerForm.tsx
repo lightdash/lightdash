@@ -185,7 +185,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         message: schedulerData.message,
         format: schedulerData.format,
         cron: schedulerData.cron,
-        timezone: schedulerData.timezone ?? 'UTC',
+        timezone: schedulerData.timezone,
         options: formOptions,
         emailTargets: emailTargets,
         slackTargets: slackTargets,
@@ -350,7 +350,7 @@ const SchedulerForm: FC<Props> = ({
                 message: values.message,
                 format: values.format,
                 cron: values.cron,
-                timezone: values.timezone ?? 'UTC',
+                timezone: values.timezone,
                 options,
                 targets,
                 ...(resource?.type === 'dashboard' && {

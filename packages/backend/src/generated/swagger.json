@@ -7014,6 +7014,7 @@
                     "options",
                     "dashboardUuid",
                     "savedChartUuid",
+                    "timezone",
                     "cron",
                     "format",
                     "createdBy",
