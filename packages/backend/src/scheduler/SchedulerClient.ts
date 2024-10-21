@@ -46,11 +46,12 @@ const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
 
 export const getDailyDatesFromCron = (
     cron: string,
+    timezone: string = 'UTC',
     when = new Date(),
 ): Date[] => {
     const arr = stringToArray(cron);
     const startOfMinute = moment(when).startOf('minute').toDate(); // round down to the nearest minute so we can even process 00:00 on daily jobs
-    const schedule = getSchedule(arr, startOfMinute, 'UTC');
+    const schedule = getSchedule(arr, startOfMinute, timezone);
 
     const tomorrow = moment(startOfMinute)
         .utc()
@@ -417,7 +418,7 @@ export class SchedulerClient {
         scheduler: SchedulerAndTargets,
     ): Promise<void> {
         if (scheduler.enabled === false) return; // Do not add jobs for disabled schedulers
-        const dates = getDailyDatesFromCron(scheduler.cron);
+        const dates = getDailyDatesFromCron(scheduler.cron, scheduler.timezone);
         try {
             const promises = dates.map((date: Date) =>
                 this.addScheduledDeliveryJob(
