@@ -50,6 +50,7 @@ import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
@@ -65,11 +66,12 @@ import {
     selectSqlQueryResults,
     selectSqlRunnerResultsRunner,
     setActiveEditorTab,
+    setEditorHighlightError,
     setSqlLimit,
 } from '../store/sqlRunnerSlice';
 import { ChartDownload } from './Download/ChartDownload';
 import { ResultsDownload } from './Download/ResultsDownload';
-import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
+import { SqlEditor } from './SqlEditor';
 import { SqlQueryHistory } from './SqlQueryHistory';
 
 export const DEFAULT_SQL_LIMIT = 500;
@@ -85,7 +87,11 @@ export const ContentPanel: FC = () => {
     const limit = useAppSelector(selectLimit);
     const resultsTableConfig = useAppSelector(selectResultsTableConfig);
     const isLoadingSqlQuery = useAppSelector(
-        (state) => state.sqlRunner.isLoading,
+        (state) => state.sqlRunner.queryIsLoading,
+    );
+    const queryError = useAppSelector((state) => state.sqlRunner.queryError);
+    const editorHighlightError = useAppSelector(
+        (state) => state.sqlRunner.editorHighlightError,
     );
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
@@ -93,14 +99,13 @@ export const ContentPanel: FC = () => {
     // Get organization colors to generate chart specs with a color palette defined by the organization
     const { data: organization } = useOrganization();
 
+    const { showToastError } = useToaster();
+
     // State tracked by this component
     const [panelSizes, setPanelSizes] = useState<number[]>([100, 0]);
     const resultsPanelRef = useRef<ImperativePanelHandle>(null);
 
     // state for helping highlight errors in the editor
-    const [hightlightError, setHightlightError] = useState<
-        MonacoHighlightChar | undefined
-    >(undefined);
 
     const mode = useAppSelector((state) => state.sqlRunner.mode);
 
@@ -126,6 +131,7 @@ export const ContentPanel: FC = () => {
     const handleRunQuery = useCallback(
         async (sqlToUse: string) => {
             if (!sqlToUse) return;
+
             await dispatch(
                 runSqlQueryThunk({
                     sql: sqlToUse,
@@ -133,10 +139,20 @@ export const ContentPanel: FC = () => {
                     projectUuid,
                 }),
             );
-            notifications.clean();
         },
         [dispatch, projectUuid],
     );
+
+    useEffect(() => {
+        if (queryError) {
+            showToastError({
+                title: 'Could not fetch SQL query results',
+                subtitle: queryError.message,
+            });
+        } else {
+            notifications.clean();
+        }
+    }, [queryError, showToastError]);
 
     // Run query on cmd + enter
     useHotkeys([
@@ -460,16 +476,20 @@ export const ContentPanel: FC = () => {
                                 >
                                     <SqlEditor
                                         resetHighlightError={() =>
-                                            setHightlightError(undefined)
+                                            dispatch(
+                                                setEditorHighlightError(
+                                                    undefined,
+                                                ),
+                                            )
                                         }
                                         onSubmit={(submittedSQL) =>
                                             handleRunQuery(submittedSQL ?? '')
                                         }
                                         highlightText={
-                                            hightlightError
+                                            editorHighlightError
                                                 ? {
                                                       // set set single character highlight (no end/range defined)
-                                                      start: hightlightError,
+                                                      start: editorHighlightError,
                                                       end: undefined,
                                                   }
                                                 : undefined

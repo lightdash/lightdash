@@ -3,7 +3,7 @@ import {
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
     WarehouseTypes,
-    type ApiError,
+    type ApiErrorDetail,
     type RawResultRow,
     type SqlChart,
     type VizColumn,
@@ -16,6 +16,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
 import { format, type FormatOptionsWithLanguage } from 'sql-formatter';
 import { getResultsFromStream } from '../../../utils/request';
+import { type MonacoHighlightChar } from '../components/SqlEditor';
 import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
 import {
     scheduleSqlJob,
@@ -122,8 +123,9 @@ export interface SqlRunnerState {
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
     mode: 'default' | 'virtualView';
-    isLoading: boolean;
-    error: ApiError | null;
+    queryIsLoading: boolean;
+    queryError: ApiErrorDetail | undefined;
+    editorHighlightError: MonacoHighlightChar | undefined;
 }
 
 const initialState: SqlRunnerState = {
@@ -172,8 +174,9 @@ const initialState: SqlRunnerState = {
     sqlRows: undefined,
     activeConfigs: [ChartKind.VERTICAL_BAR],
     fetchResultsOnLoad: false,
-    isLoading: false,
-    error: null,
+    queryIsLoading: false,
+    queryError: undefined,
+    editorHighlightError: undefined,
 };
 
 const sqlHistoryReducer = createHistoryReducer<string | undefined>({
@@ -186,7 +189,7 @@ export const runSqlQuery = createAsyncThunk<
         fileUrl: string | undefined;
     },
     { sql: string; limit: number; projectUuid: string },
-    { rejectValue: ApiError }
+    { rejectValue: ApiErrorDetail }
 >(
     'sqlRunner/runSqlQuery',
     async ({ sql, limit, projectUuid }, { rejectWithValue }) => {
@@ -226,10 +229,14 @@ export const runSqlQuery = createAsyncThunk<
                     resultsRunner,
                 };
             } else {
-                return rejectWithValue(job);
+                console.log({ job });
+
+                return rejectWithValue(job.error);
             }
         } catch (error) {
-            return rejectWithValue(error as ApiError);
+            console.log({ error });
+
+            return rejectWithValue(error as ApiErrorDetail);
         }
     },
 );
@@ -359,18 +366,25 @@ export const sqlRunnerSlice = createSlice({
         ) => {
             state.warehouseConnectionType = action.payload;
         },
+        setEditorHighlightError: (
+            state,
+            action: PayloadAction<MonacoHighlightChar | undefined>,
+        ) => {
+            state.editorHighlightError = action.payload;
+        },
     },
     extraReducers: (builder) => {
         builder
             .addCase(runSqlQuery.pending, (state) => {
-                state.isLoading = true;
-                state.error = null;
+                state.queryIsLoading = true;
+                state.queryError = undefined;
             })
             .addCase(runSqlQuery.fulfilled, (state, action) => {
-                state.isLoading = false;
+                state.queryIsLoading = false;
                 state.sqlColumns = action.payload.columns;
                 state.sqlRows = action.payload.results;
                 state.fileUrl = action.payload.fileUrl;
+                state.editorHighlightError = undefined;
 
                 // setSqlRunnerResults reducer logic moved here
                 if (
@@ -425,8 +439,15 @@ export const sqlRunnerSlice = createSlice({
                 state.fileUrl = action.payload.fileUrl;
             })
             .addCase(runSqlQuery.rejected, (state, action) => {
-                state.isLoading = false;
-                state.error = action.payload ?? null;
+                state.queryIsLoading = false;
+                state.queryError = action.payload ?? undefined;
+
+                state.editorHighlightError = action.payload?.data
+                    ? {
+                          line: Number(action.payload.data.lineNumber),
+                          char: Number(action.payload.data.charNumber),
+                      }
+                    : undefined;
             });
     },
 });
@@ -446,6 +467,7 @@ export const {
     setQuoteChar,
     setWarehouseConnectionType,
     setMode,
+    setEditorHighlightError,
 } = sqlRunnerSlice.actions;
 
 export const {
