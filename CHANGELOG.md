@@ -1,3 +1,10 @@
+# [0.1310.0](https://github.com/lightdash/lightdash/compare/0.1309.5...0.1310.0) (2024-10-21)
+
+
+### Features
+
+* custom dimensions custom range float values ([#11981](https://github.com/lightdash/lightdash/issues/11981)) ([90c3d2e](https://github.com/lightdash/lightdash/commit/90c3d2e1b47df2ea0c75c1b94d27d919265ad263))
+
 ## [0.1309.5](https://github.com/lightdash/lightdash/compare/0.1309.4...0.1309.5) (2024-10-21)
 
 
