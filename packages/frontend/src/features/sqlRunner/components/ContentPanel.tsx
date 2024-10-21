@@ -1,6 +1,5 @@
 import {
     ChartKind,
-    isVizCartesianChartConfig,
     isVizTableConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -232,15 +231,8 @@ export const ContentPanel: FC = () => {
         [activeEditorTab],
     );
 
-    const sortBy = useMemo(() => {
-        if (isVizCartesianChartConfig(currentVizConfig)) {
-            return currentVizConfig.fieldConfig?.sortBy;
-        }
-        return undefined;
-    }, [currentVizConfig]);
-
     const resultsRunner = useAppSelector((state) =>
-        selectSqlRunnerResultsRunner(state, sortBy),
+        selectSqlRunnerResultsRunner(state),
     );
 
     const pivotedChartInfo = useAppSelector((state) =>

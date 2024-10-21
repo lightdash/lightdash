@@ -3,6 +3,7 @@
 import {
     ChartKind,
     isFormat,
+    isVizCartesianChartConfig,
     VIZ_DEFAULT_AGGREGATION,
     type CartesianChartDataModel,
     type CartesianChartDisplay,
@@ -23,6 +24,7 @@ import getChartDataModel from '../transformers/getChartDataModel';
 import {
     selectChartDisplayByKind,
     selectChartFieldConfigByKind,
+    selectCompleteConfigByKind,
 } from './selectors';
 
 export type CartesianChartState = {
@@ -92,7 +94,16 @@ export const prepareAndFetchChartData = createAsyncThunk(
     async (_, { getState, dispatch }) => {
         const state = getState() as RootState;
 
-        const resultsRunner = selectSqlRunnerResultsRunner(state);
+        const currentVizConfig = selectCompleteConfigByKind(
+            state,
+            state.sqlRunner.selectedChartType,
+        );
+
+        const sortBy = isVizCartesianChartConfig(currentVizConfig)
+            ? currentVizConfig.fieldConfig?.sortBy
+            : undefined;
+
+        const resultsRunner = selectSqlRunnerResultsRunner(state, sortBy);
 
         const { selectedChartType, limit, sql } = state.sqlRunner;
 
@@ -355,6 +366,9 @@ export const cartesianChartConfigSlice = createSlice({
         removeXAxisField: (state) => {
             if (!state.fieldConfig) return;
             delete state.fieldConfig.x;
+            if (state.fieldConfig.sortBy) {
+                state.fieldConfig.sortBy = undefined;
+            }
         },
 
         setSortBy: (
