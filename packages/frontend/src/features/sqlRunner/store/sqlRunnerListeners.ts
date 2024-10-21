@@ -1,7 +1,6 @@
 import { isAnyOf } from '@reduxjs/toolkit';
 import { isEqual } from 'lodash';
 import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
-import { prepareAndFetchChartData } from '../../../components/DataViz/store/cartesianChartBaseSlice';
 import {
     selectChartFieldConfigByKind,
     selectCompleteConfigByKind,
@@ -9,10 +8,10 @@ import {
 import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import { type startAppListening } from './listenerMiddleware';
 import {
-    runSqlQuery,
     selectSqlRunnerResultsRunner,
     setSelectedChartType,
 } from './sqlRunnerSlice';
+import { prepareAndFetchChartData, runSqlQuery } from './thunks';
 
 /**
  * Add a listener for when the SQL query is run.

@@ -11,14 +11,14 @@ import {
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import {
+    fetchPivotChartData,
+    prepareAndFetchChartData,
+} from '../../../features/sqlRunner/store/thunks';
+import {
     resetChartState,
     setChartConfig,
     setChartOptionsAndConfig,
 } from './actions/commonChartActions';
-import {
-    fetchPivotChartData,
-    prepareAndFetchChartData,
-} from './cartesianChartBaseSlice';
 
 export type PieChartState = {
     metadata: {

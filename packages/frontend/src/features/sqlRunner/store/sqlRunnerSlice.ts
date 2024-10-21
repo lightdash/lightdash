@@ -1,7 +1,5 @@
 import {
     ChartKind,
-    isApiSqlRunnerJobSuccessResponse,
-    isErrorDetails,
     WarehouseTypes,
     type ApiErrorDetail,
     type RawResultRow,
@@ -12,18 +10,13 @@ import {
     type VizTableConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
 import { format, type FormatOptionsWithLanguage } from 'sql-formatter';
-import { getResultsFromStream } from '../../../utils/request';
 import { type MonacoHighlightChar } from '../components/SqlEditor';
-import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
-import {
-    scheduleSqlJob,
-    type ResultsAndColumns,
-} from '../hooks/useSqlQueryRun';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
+import { runSqlQuery } from './thunks';
 
 export enum EditorTabs {
     SQL = 'SQL',
@@ -182,60 +175,6 @@ const initialState: SqlRunnerState = {
 const sqlHistoryReducer = createHistoryReducer<string | undefined>({
     maxHistoryItems: 5,
 });
-
-export const runSqlQuery = createAsyncThunk<
-    ResultsAndColumns & {
-        resultsRunner: SqlRunnerResultsRunnerFrontend;
-        fileUrl: string | undefined;
-    },
-    { sql: string; limit: number; projectUuid: string },
-    { rejectValue: ApiErrorDetail }
->(
-    'sqlRunner/runSqlQuery',
-    async ({ sql, limit, projectUuid }, { rejectWithValue }) => {
-        try {
-            const scheduledJob = await scheduleSqlJob({
-                projectUuid,
-                sql,
-                limit,
-            });
-
-            const job = await getSqlRunnerCompleteJob(scheduledJob.jobId);
-            if (isApiSqlRunnerJobSuccessResponse(job)) {
-                const url =
-                    job.details && !isErrorDetails(job.details)
-                        ? job.details.fileUrl
-                        : undefined;
-
-                const results = await getResultsFromStream<RawResultRow>(url);
-
-                const columns =
-                    job.details && !isErrorDetails(job.details)
-                        ? job.details.columns
-                        : [];
-
-                const resultsRunner = new SqlRunnerResultsRunnerFrontend({
-                    columns,
-                    rows: results,
-                    projectUuid,
-                    limit,
-                    sql,
-                });
-
-                return {
-                    fileUrl: url,
-                    results,
-                    columns,
-                    resultsRunner,
-                };
-            } else {
-                return rejectWithValue(job.error);
-            }
-        } catch (error) {
-            return rejectWithValue(error as ApiErrorDetail);
-        }
-    },
-);
 
 export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',

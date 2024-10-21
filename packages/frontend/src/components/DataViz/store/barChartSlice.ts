@@ -1,15 +1,15 @@
 import { ChartKind, isVizBarChartConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import {
+    fetchPivotChartData,
+    prepareAndFetchChartData,
+} from '../../../features/sqlRunner/store/thunks';
+import {
     resetChartState,
     setChartConfig,
     setChartOptionsAndConfig,
 } from './actions/commonChartActions';
-import {
-    cartesianChartConfigSlice,
-    fetchPivotChartData,
-    prepareAndFetchChartData,
-} from './cartesianChartBaseSlice';
+import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
 
 export const barChartConfigSlice = createSlice({
     name: 'barChartConfig',

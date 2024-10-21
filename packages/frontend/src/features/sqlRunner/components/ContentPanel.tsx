@@ -53,7 +53,6 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
-    runSqlQuery as runSqlQueryThunk,
     selectActiveChartType,
     selectActiveEditorTab,
     selectFetchResultsOnLoad,
@@ -68,6 +67,7 @@ import {
     setEditorHighlightError,
     setSqlLimit,
 } from '../store/sqlRunnerSlice';
+import { runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
 import { ResultsDownload } from './Download/ResultsDownload';
 import { SqlEditor } from './SqlEditor';
@@ -132,7 +132,7 @@ export const ContentPanel: FC = () => {
             if (!sqlToUse) return;
 
             await dispatch(
-                runSqlQueryThunk({
+                runSqlQuery({
                     sql: sqlToUse,
                     limit: DEFAULT_SQL_LIMIT,
                     projectUuid,
