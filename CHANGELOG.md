@@ -1,3 +1,10 @@
+## [0.1309.5](https://github.com/lightdash/lightdash/compare/0.1309.4...0.1309.5) (2024-10-21)
+
+
+### Bug Fixes
+
+* fix invalid slack message block when dashboard tile has no results ([#11956](https://github.com/lightdash/lightdash/issues/11956)) ([907b493](https://github.com/lightdash/lightdash/commit/907b493ea27d9b2ebd40318a38b6ddadac16cf81))
+
 ## [0.1309.4](https://github.com/lightdash/lightdash/compare/0.1309.3...0.1309.4) (2024-10-21)
 
 
