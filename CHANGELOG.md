@@ -1,3 +1,10 @@
+## [0.1310.1](https://github.com/lightdash/lightdash/compare/0.1310.0...0.1310.1) (2024-10-21)
+
+
+### Bug Fixes
+
+* save to space or dashboard modal ([#11946](https://github.com/lightdash/lightdash/issues/11946)) ([11e9d76](https://github.com/lightdash/lightdash/commit/11e9d763d2c938513e98024e600565450b6e9592))
+
 # [0.1310.0](https://github.com/lightdash/lightdash/compare/0.1309.5...0.1310.0) (2024-10-21)
 
 
