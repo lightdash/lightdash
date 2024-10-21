@@ -45,8 +45,13 @@ type SchedulerClientArguments = {
 const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
 
 export const getDailyDatesFromCron = (
-    cron: string,
-    timezone: string = 'UTC',
+    {
+        cron,
+        timezone = 'UTC',
+    }: {
+        cron: string;
+        timezone?: string;
+    },
     when = new Date(),
 ): Date[] => {
     const arr = stringToArray(cron);
@@ -417,7 +422,10 @@ export class SchedulerClient {
         scheduler: SchedulerAndTargets,
     ): Promise<void> {
         if (scheduler.enabled === false) return; // Do not add jobs for disabled schedulers
-        const dates = getDailyDatesFromCron(scheduler.cron, scheduler.timezone);
+        const dates = getDailyDatesFromCron({
+            cron: scheduler.cron,
+            timezone: scheduler.timezone,
+        });
         try {
             const promises = dates.map((date: Date) =>
                 this.addScheduledDeliveryJob(
