@@ -20,6 +20,7 @@ export const store = configureStore({
         tableVisConfig: tableVisSlice.reducer,
         [semanticViewerSlice.name]: semanticViewerSlice.reducer,
     },
+    // Add the listener middleware to the store, this is useful for listening to actions and running side effects
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware().prepend(listenerMiddleware.middleware),
     devTools: process.env.NODE_ENV === 'development',

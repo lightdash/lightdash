@@ -14,6 +14,11 @@ import {
     setSelectedChartType,
 } from './sqlRunnerSlice';
 
+/**
+ * Add a listener for when the SQL query is run.
+ * This listener will fetch the chart data and set the chart options and config.
+ * @param startListening - The startAppListening function from listenerMiddleware.ts
+ */
 export const addSqlRunnerQueryListener = (
     startListening: typeof startAppListening,
 ) => {
@@ -43,6 +48,11 @@ export const addSqlRunnerQueryListener = (
     });
 };
 
+/**
+ * Add a listener for when the chart config is changed.
+ * This listener will fetch the chart (runPivotQuery) data if the config has changed.
+ * @param startListening - The startAppListening function from listenerMiddleware.ts
+ */
 export const addChartConfigListener = (
     startListening: typeof startAppListening,
 ) => {
@@ -72,6 +82,11 @@ export const addChartConfigListener = (
     });
 };
 
+/**
+ * Add a listener for when the chart type is changed.
+ * This listener will fetch the chart (runPivotQuery) data if the chart type has changed.
+ * @param startListening - The startAppListening function from listenerMiddleware.ts
+ */
 export const addChartTypeListener = (
     startListening: typeof startAppListening,
 ) => {
