@@ -1079,7 +1079,7 @@ export type GithubInstallEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
-        byAdmin: boolean;
+        byAdmin?: boolean;
         error?: string; // only for error
     };
 };
