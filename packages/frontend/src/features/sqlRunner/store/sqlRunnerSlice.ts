@@ -66,6 +66,17 @@ const normalizeSQL = (
     }
 };
 
+export const compareSqlQueries = (
+    previousSql: string,
+    currentSql: string,
+    warehouseConnectionType: WarehouseTypes | undefined,
+): boolean => {
+    return (
+        normalizeSQL(previousSql, warehouseConnectionType) !==
+        normalizeSQL(currentSql, warehouseConnectionType)
+    );
+};
+
 export const DEFAULT_NAME = 'Untitled SQL Query';
 
 export interface SqlRunnerState {
@@ -282,7 +293,11 @@ export const sqlRunnerSlice = createSlice({
                 state.successfulSqlQueries.current || '',
                 state.warehouseConnectionType,
             );
-            state.hasUnrunChanges = normalizedNewSql !== normalizedCurrentSql;
+            state.hasUnrunChanges = compareSqlQueries(
+                normalizedNewSql,
+                normalizedCurrentSql,
+                state.warehouseConnectionType,
+            );
         },
         setSqlLimit: (state, action: PayloadAction<number>) => {
             state.limit = action.payload;
