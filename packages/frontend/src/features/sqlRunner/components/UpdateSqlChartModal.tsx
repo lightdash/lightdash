@@ -85,6 +85,7 @@ export const UpdateSqlChartModal = ({
                 name: data.name,
                 description: data.description,
                 spaceUuid: data.space.uuid,
+                newSpaceName: null,
             };
 
             form.setValues(values);

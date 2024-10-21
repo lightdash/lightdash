@@ -77,12 +77,11 @@ const SaveChartForm: FC<
     // because initial `projectUuid` is set to '' (empty string)
     // we should handle this by creating an impossible state
     // check first few lines inside `features/semanticViewer/store/selectors.ts`
-    const { data: spaces = [], isLoading: isLoadingSpace } = useSpaceSummaries(
-        projectUuid,
-        true,
-    );
-
-    const [isFormPopulated, setIsFormPopulated] = useState(false);
+    const {
+        data: spaces = [],
+        isLoading: isLoadingSpace,
+        isSuccess: isSuccessSpace,
+    } = useSpaceSummaries(projectUuid, true);
 
     const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
         useSpaceCreateMutation(projectUuid);
@@ -99,19 +98,19 @@ const SaveChartForm: FC<
     });
 
     useEffect(() => {
-        if (!isFormPopulated) {
-            if (name) {
-                form.setFieldValue('name', name);
-            }
-            if (description) {
-                form.setFieldValue('description', description);
-            }
-            if (spaces.length > 0) {
-                form.setFieldValue('spaceUuid', spaces[0].uuid);
-            }
-            setIsFormPopulated(true);
+        if (isSuccessSpace && spaces) {
+            const values = {
+                name,
+                description,
+                spaceUuid: spaces[0]?.uuid,
+                newSpaceName: null,
+            };
+            form.setValues(values);
+            form.resetDirty(values);
         }
-    }, [name, form, description, spaces, isFormPopulated]);
+        // form can't be a dependency because it will cause infinite loop
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [name, description, spaces, isSuccessSpace]);
 
     const {
         mutateAsync: createSavedSqlChart,
