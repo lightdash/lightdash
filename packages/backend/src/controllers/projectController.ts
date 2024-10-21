@@ -625,7 +625,7 @@ export class ProjectController extends BaseController {
         isAuthenticated,
         unauthorisedInDemo,
     ])
-    @SuccessResponse('200', 'Updated')
+    @SuccessResponse('200', 'Created')
     @Post('{projectUuid}/createPreview')
     @OperationId('createPreview')
     async createPreview(
