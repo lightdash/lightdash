@@ -1,3 +1,10 @@
+## [0.1309.3](https://github.com/lightdash/lightdash/compare/0.1309.2...0.1309.3) (2024-10-21)
+
+
+### Bug Fixes
+
+* comment service throwing ([#12001](https://github.com/lightdash/lightdash/issues/12001)) ([c97ec95](https://github.com/lightdash/lightdash/commit/c97ec952bf558fdff04e7f6b5b359dd769091d6c))
+
 ## [0.1309.2](https://github.com/lightdash/lightdash/compare/0.1309.1...0.1309.2) (2024-10-18)
 
 
