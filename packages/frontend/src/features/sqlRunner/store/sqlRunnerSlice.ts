@@ -229,13 +229,9 @@ export const runSqlQuery = createAsyncThunk<
                     resultsRunner,
                 };
             } else {
-                console.log({ job });
-
                 return rejectWithValue(job.error);
             }
         } catch (error) {
-            console.log({ error });
-
             return rejectWithValue(error as ApiErrorDetail);
         }
     },
