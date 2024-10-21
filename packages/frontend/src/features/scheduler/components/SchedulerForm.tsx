@@ -92,7 +92,7 @@ const DEFAULT_VALUES = {
     message: '',
     format: SchedulerFormat.CSV,
     cron: '0 9 * * 1',
-    timezone: undefined,
+    timezone: 'UTC',
     options: {
         formatted: Values.FORMATTED,
         limit: Limit.TABLE,
