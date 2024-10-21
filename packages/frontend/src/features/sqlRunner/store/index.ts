@@ -1,12 +1,12 @@
 // FIXES ts2742 issue with configureStore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-import type * as rtk from '@reduxjs/toolkit';
 import { configureStore } from '@reduxjs/toolkit';
 import { barChartConfigSlice } from '../../../components/DataViz/store/barChartSlice';
 import { lineChartConfigSlice } from '../../../components/DataViz/store/lineChartSlice';
 import { pieChartConfigSlice } from '../../../components/DataViz/store/pieChartSlice';
 import { tableVisSlice } from '../../../components/DataViz/store/tableVisSlice';
 import { semanticViewerSlice } from '../../semanticViewer/store/semanticViewerSlice';
+import { listenerMiddleware } from './listenerMiddleware';
 import { sqlRunnerSlice } from './sqlRunnerSlice';
 
 // TODO: move this store to `frontend/src`
@@ -20,6 +20,8 @@ export const store = configureStore({
         tableVisConfig: tableVisSlice.reducer,
         [semanticViewerSlice.name]: semanticViewerSlice.reducer,
     },
+    middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware().prepend(listenerMiddleware.middleware),
     devTools: process.env.NODE_ENV === 'development',
 });
 

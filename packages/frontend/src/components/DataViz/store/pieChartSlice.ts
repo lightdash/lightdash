@@ -15,6 +15,10 @@ import {
     setChartConfig,
     setChartOptionsAndConfig,
 } from './actions/commonChartActions';
+import {
+    fetchPivotChartData,
+    prepareAndFetchChartData,
+} from './cartesianChartBaseSlice';
 
 export type PieChartState = {
     metadata: {
@@ -24,6 +28,16 @@ export type PieChartState = {
     display: VizPieChartConfig['display'];
     options: VizPieChartOptions;
     errors: VizConfigErrors | undefined;
+    chartDataLoading: boolean;
+    chartDataError: Error | undefined;
+    chartData:
+        | Awaited<
+              ReturnType<
+                  typeof prepareAndFetchChartData['fulfilled']
+              >['payload']
+          >
+        | undefined;
+    series: string[] | undefined;
 };
 
 const initialState: PieChartState = {
@@ -40,6 +54,10 @@ const initialState: PieChartState = {
         customMetricFieldOptions: [],
     },
     errors: undefined,
+    chartDataLoading: false,
+    chartDataError: undefined,
+    chartData: undefined,
+    series: undefined,
 };
 
 export const pieChartConfigSlice = createSlice({
@@ -95,6 +113,32 @@ export const pieChartConfigSlice = createSlice({
         },
     },
     extraReducers: (builder) => {
+        // Include the extraReducers from cartesianChartConfigSlice
+        builder.addCase(prepareAndFetchChartData.pending, (state) => {
+            state.chartDataLoading = true;
+            state.chartDataError = undefined;
+        });
+        builder.addCase(prepareAndFetchChartData.fulfilled, (state, action) => {
+            state.chartDataLoading = false;
+            state.series = action.payload?.valuesColumns;
+            state.chartData = action.payload;
+        });
+        builder.addCase(prepareAndFetchChartData.rejected, (state, action) => {
+            state.chartDataLoading = false;
+            state.chartDataError = new Error(action.error.message);
+        });
+        builder.addCase(fetchPivotChartData.pending, (state) => {
+            state.chartDataLoading = true;
+            state.chartDataError = undefined;
+        });
+        builder.addCase(fetchPivotChartData.fulfilled, (state, action) => {
+            state.chartDataLoading = false;
+            state.series = action.payload?.valuesColumns;
+        });
+        builder.addCase(fetchPivotChartData.rejected, (state, action) => {
+            state.chartDataLoading = false;
+            state.chartDataError = new Error(action.error.message);
+        });
         builder.addCase(setChartOptionsAndConfig, (state, action) => {
             if (action.payload.type !== ChartKind.PIE) {
                 return;

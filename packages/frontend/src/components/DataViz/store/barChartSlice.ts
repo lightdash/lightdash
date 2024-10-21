@@ -5,7 +5,11 @@ import {
     setChartConfig,
     setChartOptionsAndConfig,
 } from './actions/commonChartActions';
-import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
+import {
+    cartesianChartConfigSlice,
+    fetchPivotChartData,
+    prepareAndFetchChartData,
+} from './cartesianChartBaseSlice';
 
 export const barChartConfigSlice = createSlice({
     name: 'barChartConfig',
@@ -14,6 +18,32 @@ export const barChartConfigSlice = createSlice({
         ...cartesianChartConfigSlice.caseReducers,
     },
     extraReducers: (builder) => {
+        // Include the extraReducers from cartesianChartConfigSlice
+        builder.addCase(prepareAndFetchChartData.pending, (state) => {
+            state.chartDataLoading = true;
+            state.chartDataError = undefined;
+        });
+        builder.addCase(prepareAndFetchChartData.fulfilled, (state, action) => {
+            state.chartDataLoading = false;
+            state.series = action.payload?.valuesColumns;
+            state.chartData = action.payload;
+        });
+        builder.addCase(prepareAndFetchChartData.rejected, (state, action) => {
+            state.chartDataLoading = false;
+            state.chartDataError = new Error(action.error.message);
+        });
+        builder.addCase(fetchPivotChartData.pending, (state) => {
+            state.chartDataLoading = true;
+            state.chartDataError = undefined;
+        });
+        builder.addCase(fetchPivotChartData.fulfilled, (state, action) => {
+            state.chartDataLoading = false;
+            state.series = action.payload?.valuesColumns;
+        });
+        builder.addCase(fetchPivotChartData.rejected, (state, action) => {
+            state.chartDataLoading = false;
+            state.chartDataError = new Error(action.error.message);
+        });
         builder.addCase(setChartOptionsAndConfig, (state, action) => {
             if (action.payload.type !== ChartKind.VERTICAL_BAR) {
                 return;

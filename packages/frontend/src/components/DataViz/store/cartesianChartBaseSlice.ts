@@ -4,15 +4,25 @@ import {
     ChartKind,
     isFormat,
     VIZ_DEFAULT_AGGREGATION,
+    type CartesianChartDataModel,
     type CartesianChartDisplay,
+    type PieChartDataModel,
     type PivotChartLayout,
+    type TableDataModel,
     type VizAggregationOptions,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import { createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { type RootState } from '../../../features/sqlRunner/store';
+import { selectSqlRunnerResultsRunner } from '../../../features/sqlRunner/store/sqlRunnerSlice';
+import getChartDataModel from '../transformers/getChartDataModel';
+import {
+    selectChartDisplayByKind,
+    selectChartFieldConfigByKind,
+} from './selectors';
 
 export type CartesianChartState = {
     metadata: {
@@ -23,6 +33,16 @@ export type CartesianChartState = {
     display: VizCartesianChartConfig['display'] | undefined;
     options: VizCartesianChartOptions;
     errors: VizConfigErrors | undefined;
+    chartData:
+        | Awaited<
+              ReturnType<
+                  typeof prepareAndFetchChartData['fulfilled']
+              >['payload']
+          >
+        | undefined;
+    chartDataLoading: boolean;
+    chartDataError: Error | null | undefined;
+    series?: string[];
 };
 
 const initialState: CartesianChartState = {
@@ -38,7 +58,71 @@ const initialState: CartesianChartState = {
         pivotLayoutOptions: [],
     },
     errors: undefined,
+    chartData: undefined,
+    chartDataLoading: false,
+    chartDataError: undefined,
 };
+
+export const fetchPivotChartData = createAsyncThunk(
+    'cartesianChartBaseConfig/fetchPivotChartData',
+    async ({
+        vizDataModel,
+        limit,
+        sql,
+    }: {
+        vizDataModel:
+            | TableDataModel
+            | PieChartDataModel
+            | CartesianChartDataModel;
+        limit: number;
+        sql: string;
+    }) => {
+        const chartData = await vizDataModel.getPivotedChartData({
+            limit,
+            sql,
+            sortBy: [],
+            filters: [],
+        });
+        return chartData;
+    },
+);
+
+export const prepareAndFetchChartData = createAsyncThunk(
+    'cartesianChartBaseConfig/prepareAndFetchChartData',
+    async (_, { getState, dispatch }) => {
+        const state = getState() as RootState;
+
+        const resultsRunner = selectSqlRunnerResultsRunner(state);
+
+        const { selectedChartType, limit, sql } = state.sqlRunner;
+
+        const config = selectChartFieldConfigByKind(state, selectedChartType);
+        const display = selectChartDisplayByKind(state, selectedChartType);
+
+        if (!resultsRunner) {
+            throw new Error('No results runner available');
+        }
+
+        const vizDataModel = getChartDataModel(
+            resultsRunner,
+            config,
+            selectedChartType ?? ChartKind.VERTICAL_BAR,
+        );
+
+        const chartData = await dispatch(
+            fetchPivotChartData({ vizDataModel, limit, sql }),
+        ).unwrap();
+
+        const info = {
+            ...chartData,
+            chartSpec: vizDataModel.getSpec(display), // TODO: pass in colors from org
+            tableData: vizDataModel.getPivotedTableData(),
+            chartFileUrl: vizDataModel.getDataDownloadUrl(),
+        };
+
+        return info;
+    },
+);
 
 export const cartesianChartConfigSlice = createSlice({
     name: 'cartesianChartBaseConfig',
