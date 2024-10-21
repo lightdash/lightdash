@@ -507,114 +507,110 @@ export const ContentPanel: FC = () => {
                                         EditorTabs.VISUALIZATION
                                     }
                                 >
-                                    {queryResults?.results &&
-                                        currentVizConfig &&
-                                        pivotedChartInfo?.chartData && (
-                                            <>
-                                                <Transition
-                                                    keepMounted
-                                                    mounted={!showTable}
-                                                    transition="fade"
-                                                    duration={400}
-                                                    timingFunction="ease"
-                                                >
-                                                    {(styles) => (
-                                                        <Box
-                                                            px="sm"
-                                                            pb="sm"
-                                                            style={styles}
-                                                        >
-                                                            {activeConfigs.chartConfigs.map(
-                                                                // TODO: are we rendering all charts here?
-                                                                (c) => (
-                                                                    <ConditionalVisibility
-                                                                        key={
-                                                                            c.type
+                                    {queryResults?.results && currentVizConfig && (
+                                        <>
+                                            <Transition
+                                                keepMounted
+                                                mounted={!showTable}
+                                                transition="fade"
+                                                duration={400}
+                                                timingFunction="ease"
+                                            >
+                                                {(styles) => (
+                                                    <Box
+                                                        px="sm"
+                                                        pb="sm"
+                                                        style={styles}
+                                                    >
+                                                        {activeConfigs.chartConfigs.map(
+                                                            // TODO: are we rendering all charts here?
+                                                            (c) => (
+                                                                <ConditionalVisibility
+                                                                    key={c.type}
+                                                                    isVisible={
+                                                                        selectedChartType ===
+                                                                        c.type
+                                                                    }
+                                                                >
+                                                                    <ChartView
+                                                                        config={
+                                                                            c
                                                                         }
-                                                                        isVisible={
-                                                                            selectedChartType ===
-                                                                            c.type
+                                                                        spec={
+                                                                            pivotedChartInfo
+                                                                                ?.chartData
+                                                                                ?.chartSpec
                                                                         }
-                                                                    >
-                                                                        <ChartView
-                                                                            config={
-                                                                                c
+                                                                        isLoading={
+                                                                            !!pivotedChartInfo?.chartLoading
+                                                                        }
+                                                                        error={
+                                                                            pivotedChartInfo?.chartError
+                                                                        }
+                                                                        style={{
+                                                                            height: inputSectionHeight,
+                                                                            flex: 1,
+                                                                        }}
+                                                                        onChartReady={(
+                                                                            instance,
+                                                                        ) => {
+                                                                            if (
+                                                                                c.type ===
+                                                                                selectedChartType
+                                                                            ) {
+                                                                                setActiveEchartsInstance(
+                                                                                    instance,
+                                                                                );
                                                                             }
-                                                                            spec={
-                                                                                pivotedChartInfo
-                                                                                    ?.chartData
-                                                                                    ?.chartSpec
-                                                                            }
-                                                                            isLoading={
-                                                                                !!pivotedChartInfo?.chartLoading
-                                                                            }
-                                                                            error={
-                                                                                pivotedChartInfo?.chartError
-                                                                            }
-                                                                            style={{
-                                                                                height: inputSectionHeight,
-                                                                                flex: 1,
-                                                                            }}
-                                                                            onChartReady={(
-                                                                                instance,
-                                                                            ) => {
-                                                                                if (
-                                                                                    c.type ===
-                                                                                    selectedChartType
-                                                                                ) {
-                                                                                    setActiveEchartsInstance(
-                                                                                        instance,
-                                                                                    );
-                                                                                }
-                                                                            }}
-                                                                        />
-                                                                    </ConditionalVisibility>
-                                                                ),
-                                                            )}
-                                                        </Box>
-                                                    )}
-                                                </Transition>
+                                                                        }}
+                                                                    />
+                                                                </ConditionalVisibility>
+                                                            ),
+                                                        )}
+                                                    </Box>
+                                                )}
+                                            </Transition>
 
-                                                <Transition
-                                                    keepMounted
-                                                    mounted={showTable}
-                                                    transition="fade"
-                                                    duration={300}
-                                                    timingFunction="ease"
-                                                >
-                                                    {(styles) => (
-                                                        <Box
-                                                            style={{
-                                                                flex: 1,
-                                                                height: inputSectionHeight,
-                                                                ...styles,
-                                                            }}
+                                            <Transition
+                                                keepMounted
+                                                mounted={showTable}
+                                                transition="fade"
+                                                duration={300}
+                                                timingFunction="ease"
+                                            >
+                                                {(styles) => (
+                                                    <Box
+                                                        style={{
+                                                            flex: 1,
+                                                            height: inputSectionHeight,
+                                                            ...styles,
+                                                        }}
+                                                    >
+                                                        <ConditionalVisibility
+                                                            isVisible={
+                                                                showTable
+                                                            }
                                                         >
-                                                            <ConditionalVisibility
-                                                                isVisible={
-                                                                    showTable
+                                                            <Table
+                                                                resultsRunner={
+                                                                    resultsRunner
                                                                 }
-                                                            >
-                                                                <Table
-                                                                    resultsRunner={
-                                                                        resultsRunner
-                                                                    }
-                                                                    columnsConfig={
-                                                                        activeConfigs
-                                                                            .tableConfig
-                                                                            ?.columns ??
-                                                                        {}
-                                                                    }
-                                                                    flexProps={{
-                                                                        mah: '100%',
-                                                                    }}
-                                                                />
-                                                            </ConditionalVisibility>
-                                                        </Box>
-                                                    )}
-                                                </Transition>
-                                            </>
-                                        )}
+                                                                columnsConfig={
+                                                                    activeConfigs
+                                                                        .tableConfig
+                                                                        ?.columns ??
+                                                                    {}
+                                                                }
+                                                                flexProps={{
+                                                                    mah: '100%',
+                                                                }}
+                                                            />
+                                                        </ConditionalVisibility>
+                                                    </Box>
+                                                )}
+                                            </Transition>
+                                        </>
+                                    )}
                                 </ConditionalVisibility>
                             </Box>
                         </Paper>
