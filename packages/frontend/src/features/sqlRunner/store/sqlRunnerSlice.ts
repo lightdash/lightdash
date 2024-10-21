@@ -1,6 +1,9 @@
 import {
     ChartKind,
+    isApiSqlRunnerJobSuccessResponse,
+    isErrorDetails,
     WarehouseTypes,
+    type ApiError,
     type RawResultRow,
     type SqlChart,
     type VizColumn,
@@ -9,10 +12,15 @@ import {
     type VizTableConfig,
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import { createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
 import { format, type FormatOptionsWithLanguage } from 'sql-formatter';
-import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
+import { getResultsFromStream } from '../../../utils/request';
+import { getSqlRunnerCompleteJob } from '../hooks/requestUtils';
+import {
+    scheduleSqlJob,
+    type ResultsAndColumns,
+} from '../hooks/useSqlQueryRun';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
 
@@ -114,6 +122,8 @@ export interface SqlRunnerState {
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
     mode: 'default' | 'virtualView';
+    isLoading: boolean;
+    error: ApiError | null;
 }
 
 const initialState: SqlRunnerState = {
@@ -162,11 +172,67 @@ const initialState: SqlRunnerState = {
     sqlRows: undefined,
     activeConfigs: [ChartKind.VERTICAL_BAR],
     fetchResultsOnLoad: false,
+    isLoading: false,
+    error: null,
 };
 
 const sqlHistoryReducer = createHistoryReducer<string | undefined>({
     maxHistoryItems: 5,
 });
+
+export const runSqlQuery = createAsyncThunk<
+    ResultsAndColumns & {
+        resultsRunner: SqlRunnerResultsRunnerFrontend;
+        fileUrl: string | undefined;
+    },
+    { sql: string; limit: number; projectUuid: string },
+    { rejectValue: ApiError }
+>(
+    'sqlRunner/runSqlQuery',
+    async ({ sql, limit, projectUuid }, { rejectWithValue }) => {
+        try {
+            const scheduledJob = await scheduleSqlJob({
+                projectUuid,
+                sql,
+                limit,
+            });
+
+            const job = await getSqlRunnerCompleteJob(scheduledJob.jobId);
+            if (isApiSqlRunnerJobSuccessResponse(job)) {
+                const url =
+                    job.details && !isErrorDetails(job.details)
+                        ? job.details.fileUrl
+                        : undefined;
+
+                const results = await getResultsFromStream<RawResultRow>(url);
+
+                const columns =
+                    job.details && !isErrorDetails(job.details)
+                        ? job.details.columns
+                        : [];
+
+                const resultsRunner = new SqlRunnerResultsRunnerFrontend({
+                    columns,
+                    rows: results,
+                    projectUuid,
+                    limit,
+                    sql,
+                });
+
+                return {
+                    fileUrl: url,
+                    results,
+                    columns,
+                    resultsRunner,
+                };
+            } else {
+                return rejectWithValue(job);
+            }
+        } catch (error) {
+            return rejectWithValue(error as ApiError);
+        }
+    },
+);
 
 export const sqlRunnerSlice = createSlice({
     name: 'sqlRunner',
@@ -209,61 +275,6 @@ export const sqlRunnerSlice = createSlice({
             if (action.payload.shouldOpenChartOnLoad) {
                 state.activeEditorTab = EditorTabs.VISUALIZATION;
             }
-        },
-        setSqlRunnerResults: (
-            state,
-            action: PayloadAction<ResultsAndColumns>,
-        ) => {
-            if (
-                action.payload.results.length === 0 ||
-                action.payload.columns.length === 0
-            ) {
-                return;
-            }
-
-            state.sqlColumns = action.payload.columns;
-            // Set the initial results table config
-            const columns = Object.keys(action.payload.results[0]).reduce<
-                VizTableConfig['columns']
-            >(
-                (acc, key) => ({
-                    ...acc,
-                    [key]: {
-                        visible: true,
-                        reference: key,
-                        label: key,
-                        frozen: true,
-                        order: undefined,
-                    },
-                }),
-                {},
-            );
-            // Set static results table
-            // TODO: should this be in a separate slice?
-            state.resultsTableConfig = {
-                columns,
-            };
-
-            if (!!state.sql) {
-                sqlHistoryReducer.addToHistory(state.successfulSqlQueries, {
-                    payload: {
-                        value: state.sql,
-                        compareFunc: (a, b) =>
-                            normalizeSQL(
-                                a || '',
-                                state.warehouseConnectionType,
-                            ) !==
-                            normalizeSQL(
-                                b || '',
-                                state.warehouseConnectionType,
-                            ),
-                    },
-                    type: 'sql',
-                });
-                state.hasUnrunChanges = false;
-            }
-            state.sqlRows = action.payload.results;
-            state.fileUrl = action.payload.fileUrl;
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
@@ -349,13 +360,81 @@ export const sqlRunnerSlice = createSlice({
             state.warehouseConnectionType = action.payload;
         },
     },
+    extraReducers: (builder) => {
+        builder
+            .addCase(runSqlQuery.pending, (state) => {
+                state.isLoading = true;
+                state.error = null;
+            })
+            .addCase(runSqlQuery.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.sqlColumns = action.payload.columns;
+                state.sqlRows = action.payload.results;
+                state.fileUrl = action.payload.fileUrl;
+
+                // setSqlRunnerResults reducer logic moved here
+                if (
+                    action.payload.results.length === 0 ||
+                    action.payload.columns.length === 0
+                ) {
+                    return;
+                }
+
+                state.sqlColumns = action.payload.columns;
+                // Set the initial results table config
+                const columns = Object.keys(action.payload.results[0]).reduce<
+                    VizTableConfig['columns']
+                >(
+                    (acc, key) => ({
+                        ...acc,
+                        [key]: {
+                            visible: true,
+                            reference: key,
+                            label: key,
+                            frozen: true,
+                            order: undefined,
+                        },
+                    }),
+                    {},
+                );
+                // Set static results table
+                // TODO: should this be in a separate slice?
+                state.resultsTableConfig = {
+                    columns,
+                };
+
+                if (!!state.sql) {
+                    sqlHistoryReducer.addToHistory(state.successfulSqlQueries, {
+                        payload: {
+                            value: state.sql,
+                            compareFunc: (a, b) =>
+                                normalizeSQL(
+                                    a || '',
+                                    state.warehouseConnectionType,
+                                ) !==
+                                normalizeSQL(
+                                    b || '',
+                                    state.warehouseConnectionType,
+                                ),
+                        },
+                        type: 'sql',
+                    });
+                    state.hasUnrunChanges = false;
+                }
+                state.sqlRows = action.payload.results;
+                state.fileUrl = action.payload.fileUrl;
+            })
+            .addCase(runSqlQuery.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload ?? null;
+            });
+    },
 });
 
 export const {
     toggleActiveTable,
     setProjectUuid,
     setFetchResultsOnLoad,
-    setSqlRunnerResults,
     updateName,
     setSql,
     setSqlLimit,
@@ -383,7 +462,6 @@ export const {
 
 export const selectSqlRunnerResultsRunner = createSelector(
     [
-        sqlRunnerSlice.selectors.selectSavedSqlChart,
         sqlRunnerSlice.selectors.selectColumns,
         sqlRunnerSlice.selectors.selectRows,
         selectProjectUuid,
@@ -391,7 +469,7 @@ export const selectSqlRunnerResultsRunner = createSelector(
         selectSql,
         (_state, sortBy?: VizSortBy[]) => sortBy,
     ],
-    (sqlChart, columns, rows, projectUuid, limit, sql, sortBy) => {
+    (columns, rows, projectUuid, limit, sql, sortBy) => {
         return new SqlRunnerResultsRunnerFrontend({
             columns: columns || [],
             rows: rows || [],
