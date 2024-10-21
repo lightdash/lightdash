@@ -149,7 +149,12 @@ export const CustomBinDimensionModal: FC<{
         }
     }, [setFieldValue, item, isEditing]);
 
-    const handleOnSubmit = form.onSubmit((values) => {
+    const handleOnSubmit = form.onSubmit((unparsedValues) => {
+        // manitne form does not produce zod parsed values
+        // so, number({ coerce: true }) does not work
+        // that's why we need to parse the values manually
+        const values = formSchema.parse(unparsedValues);
+
         if (item) {
             const sanitizedId = sanitizeId(
                 values.customDimensionLabel,
