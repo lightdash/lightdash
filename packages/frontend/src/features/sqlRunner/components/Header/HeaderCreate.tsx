@@ -1,4 +1,4 @@
-import { DbtProjectType, FeatureFlags } from '@lightdash/common';
+import { DbtProjectType } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -20,7 +20,6 @@ import { cartesianChartSelectors } from '../../../../components/DataViz/store/se
 import { useGitHubRepositories } from '../../../../components/UserSettings/GithubSettingsPanel';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
 import useHealth from '../../../../hooks/health/useHealth';
-import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../../hooks/useProject';
 import { CreateVirtualViewModal } from '../../../virtualView';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
@@ -50,7 +49,6 @@ export const HeaderCreate: FC = () => {
     const health = useHealth();
 
     const isGithubIntegrationEnabled =
-        useFeatureFlagEnabled(FeatureFlags.CustomSQLEnabled) &&
         health?.data?.hasGithub &&
         project?.dbtConnection.type === DbtProjectType.GITHUB;
     const { isError: githubIsNotInstalled } = useGitHubRepositories();

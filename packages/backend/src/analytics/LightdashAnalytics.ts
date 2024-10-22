@@ -1057,7 +1057,11 @@ export type SemanticLayerView = BaseTrack & {
     };
 };
 
-export type BaseVirtualViewEvent = BaseTrack & {
+export type VirtualViewEvent = BaseTrack & {
+    event:
+        | 'virtual_view.created'
+        | 'virtual_view.updated'
+        | 'virtual_view.deleted';
     userId: string;
     properties: {
         virtualViewId: string;
@@ -1067,16 +1071,28 @@ export type BaseVirtualViewEvent = BaseTrack & {
     };
 };
 
-export type VirtualViewCreatedEvent = BaseVirtualViewEvent & {
-    event: 'virtual_view.created';
+export type GithubInstallEvent = BaseTrack & {
+    event:
+        | 'github_install.started'
+        | 'github_install.completed'
+        | 'github_install.error';
+    userId: string;
+    properties: {
+        organizationId: string;
+        byAdmin?: boolean;
+        error?: string; // only for error
+    };
 };
 
-export type VirtualViewUpdatedEvent = BaseVirtualViewEvent & {
-    event: 'virtual_view.updated';
-};
-
-export type VirtualViewDeletedEvent = BaseVirtualViewEvent & {
-    event: 'virtual_view.deleted';
+export type WriteBackEvent = BaseTrack & {
+    event: 'write_back.created';
+    userId: string;
+    properties: {
+        name: string;
+        organizationId: string;
+        projectId: string;
+        context: QueryExecutionContext;
+    };
 };
 
 type TypedEvent =
@@ -1152,9 +1168,9 @@ type TypedEvent =
     | DeleteSqlChartEvent
     | CreateSqlChartVersionEvent
     | CommentsEvent
-    | VirtualViewCreatedEvent
-    | VirtualViewUpdatedEvent
-    | VirtualViewDeletedEvent;
+    | VirtualViewEvent
+    | GithubInstallEvent
+    | WriteBackEvent;
 
 type WrapTypedEvent = SemanticLayerView;
 

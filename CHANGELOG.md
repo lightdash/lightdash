@@ -1,3 +1,47 @@
+## [0.1310.2](https://github.com/lightdash/lightdash/compare/0.1310.1...0.1310.2) (2024-10-22)
+
+
+### Bug Fixes
+
+* GitHub app admin install ([#12011](https://github.com/lightdash/lightdash/issues/12011)) ([da8a8de](https://github.com/lightdash/lightdash/commit/da8a8de7f0233382feedab5d49893b2c37d679e7))
+* permission github dev ([#12012](https://github.com/lightdash/lightdash/issues/12012)) ([c6f5bfa](https://github.com/lightdash/lightdash/commit/c6f5bfac08bfff0cebdf8f252c4af603425db3ae))
+* remove custom sql feature flag from write back ([#12016](https://github.com/lightdash/lightdash/issues/12016)) ([d482824](https://github.com/lightdash/lightdash/commit/d482824559f192a5380fb79fd12d45e7aedc47b5))
+
+## [0.1310.1](https://github.com/lightdash/lightdash/compare/0.1310.0...0.1310.1) (2024-10-21)
+
+
+### Bug Fixes
+
+* save to space or dashboard modal ([#11946](https://github.com/lightdash/lightdash/issues/11946)) ([11e9d76](https://github.com/lightdash/lightdash/commit/11e9d763d2c938513e98024e600565450b6e9592))
+
+# [0.1310.0](https://github.com/lightdash/lightdash/compare/0.1309.5...0.1310.0) (2024-10-21)
+
+
+### Features
+
+* custom dimensions custom range float values ([#11981](https://github.com/lightdash/lightdash/issues/11981)) ([90c3d2e](https://github.com/lightdash/lightdash/commit/90c3d2e1b47df2ea0c75c1b94d27d919265ad263))
+
+## [0.1309.5](https://github.com/lightdash/lightdash/compare/0.1309.4...0.1309.5) (2024-10-21)
+
+
+### Bug Fixes
+
+* fix invalid slack message block when dashboard tile has no results ([#11956](https://github.com/lightdash/lightdash/issues/11956)) ([907b493](https://github.com/lightdash/lightdash/commit/907b493ea27d9b2ebd40318a38b6ddadac16cf81))
+
+## [0.1309.4](https://github.com/lightdash/lightdash/compare/0.1309.3...0.1309.4) (2024-10-21)
+
+
+### Bug Fixes
+
+* show row and col checkbox state swap ([#11802](https://github.com/lightdash/lightdash/issues/11802)) ([1f066a2](https://github.com/lightdash/lightdash/commit/1f066a2880d0a6e5bc8dd49474953e38fd7d8a04))
+
+## [0.1309.3](https://github.com/lightdash/lightdash/compare/0.1309.2...0.1309.3) (2024-10-21)
+
+
+### Bug Fixes
+
+* comment service throwing ([#12001](https://github.com/lightdash/lightdash/issues/12001)) ([c97ec95](https://github.com/lightdash/lightdash/commit/c97ec952bf558fdff04e7f6b5b359dd769091d6c))
+
 ## [0.1309.2](https://github.com/lightdash/lightdash/compare/0.1309.1...0.1309.2) (2024-10-18)
 
 
