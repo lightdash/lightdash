@@ -173,23 +173,6 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
 
-        setSeriesLabel: (
-            { display },
-            action: PayloadAction<{
-                reference: string;
-                label: string;
-                index: number;
-            }>,
-        ) => {
-            if (!display) display = {};
-            display.series = display.series || {};
-            display.series[action.payload.reference] = {
-                ...display.series[action.payload.reference],
-                yAxisIndex: action.payload.index,
-                label: action.payload.label,
-            };
-        },
-
         setYAxisPosition: (
             { display },
             action: PayloadAction<{
@@ -333,89 +316,53 @@ export const cartesianChartConfigSlice = createSlice({
                 };
             }
         },
-        setSeriesFormat: (
-            { display },
+        setSeriesProperties: (
+            { fieldConfig, display },
             action: PayloadAction<{
-                index: number;
-                format: string;
                 reference: string;
+                index: number;
+                label?: string;
+                format?: string;
+                type?: NonNullable<
+                    CartesianChartDisplay['series']
+                >[number]['type'];
+                color?: string;
             }>,
         ) => {
-            if (!display) return;
-            display = display || {};
+            if (!display) display = {};
+            display.series = display.series || {};
             display.yAxis = display.yAxis || [];
-            display.series = display.series || {};
 
-            const { index, format, reference } = action.payload;
-            const validFormat = isFormat(format) ? format : undefined;
+            const { reference, index, label, format, type, color } =
+                action.payload;
+            const validFormat = format && isFormat(format) ? format : undefined;
 
-            display.series = display.series || {};
             display.series[reference] = {
                 ...display.series[reference],
-                format: validFormat,
                 yAxisIndex: index,
+                ...(label && { label }),
+                ...(validFormat && { format: validFormat }),
+                ...(type && { type }),
+                ...(color && { color }),
             };
 
-            if (index === 0) {
-                display.yAxis = display.yAxis || [];
+            if (index === 0 && validFormat) {
                 display.yAxis[0] = {
                     ...display.yAxis[0],
                     format: validFormat,
                 };
             }
-        },
-        setSeriesChartType: (
-            { display },
-            action: PayloadAction<{
-                index: number;
-                type: NonNullable<
-                    CartesianChartDisplay['series']
-                >[number]['type'];
-                reference: string;
-            }>,
-        ) => {
-            if (!display) return;
-            display = display || {};
-            display.series = display.series || {};
 
-            const { index, type, reference } = action.payload;
-
-            display.series = display.series || {};
-            display.series[reference] = {
-                ...display.series[reference],
-                yAxisIndex: index,
-                type,
-            };
-        },
-        setSeriesColor: (
-            { fieldConfig, display },
-            action: PayloadAction<{
-                reference: string;
-                color: string;
-                index?: number;
-            }>,
-        ) => {
-            if (!fieldConfig) return;
-            display = display || {};
-            display.yAxis = display.yAxis || [];
-            display.series = display.series || {};
-
-            if (fieldConfig?.y.length === 1) {
-                const yReference = fieldConfig?.y[0].reference;
-                if (yReference) {
+            // Handle the case for single y-axis
+            if (fieldConfig?.y?.length === 1 && color) {
+                const yReference = fieldConfig.y[0].reference;
+                if (yReference === reference) {
                     display.series[yReference] = {
                         ...display.series[yReference],
                         yAxisIndex: 0,
-                        color: action.payload.color,
+                        color,
                     };
                 }
-            }
-            if (action.payload.index !== undefined) {
-                display.series[action.payload.reference] = {
-                    ...display.series[action.payload.reference],
-                    yAxisIndex: action.payload.index,
-                    color: action.payload.color,
-                };
             }
         },
     },
