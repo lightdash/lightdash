@@ -41,6 +41,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useValidationWithResults } from '../../../hooks/validation/useValidation';
 import { useSqlQueryRun } from '../../sqlRunner/hooks/useSqlQueryRun';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { compareSqlQueries } from '../../sqlRunner/store/sqlRunnerSlice';
 import { useUpdateVirtualView } from '../hooks/useVirtualView';
 import { compareColumns, type ColumnDiff } from '../utils/compareColumns';
 
@@ -337,8 +338,17 @@ export const HeaderVirtualView: FC<{
     const history = useHistory();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const hasUnrunChanges = useAppSelector(
-        (state) => state.sqlRunner.hasUnrunChanges,
+    const warehouseConnectionType = useAppSelector(
+        (state) => state.sqlRunner.warehouseConnectionType,
+    );
+    const hasUnrunChanges = useMemo(
+        () =>
+            compareSqlQueries(
+                virtualViewState.sql,
+                sql,
+                warehouseConnectionType,
+            ),
+        [sql, virtualViewState.sql, warehouseConnectionType],
     );
 
     const { mutateAsync: getValidation, isPolling: isRunningValidation } =
