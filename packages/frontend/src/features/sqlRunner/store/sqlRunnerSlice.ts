@@ -1,6 +1,7 @@
 import {
     ChartKind,
     WarehouseTypes,
+    type ApiErrorDetail,
     type RawResultRow,
     type SqlChart,
     type VizColumn,
@@ -12,9 +13,10 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
 import { format, type FormatOptionsWithLanguage } from 'sql-formatter';
-import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
+import { type MonacoHighlightChar } from '../components/SqlEditor';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
+import { runSqlQuery } from './thunks';
 
 export enum EditorTabs {
     SQL = 'SQL',
@@ -125,6 +127,9 @@ export interface SqlRunnerState {
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
     mode: 'default' | 'virtualView';
+    queryIsLoading: boolean;
+    queryError: ApiErrorDetail | undefined;
+    editorHighlightError: MonacoHighlightChar | undefined;
 }
 
 const initialState: SqlRunnerState = {
@@ -173,6 +178,9 @@ const initialState: SqlRunnerState = {
     sqlRows: undefined,
     activeConfigs: [ChartKind.VERTICAL_BAR],
     fetchResultsOnLoad: false,
+    queryIsLoading: false,
+    queryError: undefined,
+    editorHighlightError: undefined,
 };
 
 const sqlHistoryReducer = createHistoryReducer<string | undefined>({
@@ -220,61 +228,6 @@ export const sqlRunnerSlice = createSlice({
             if (action.payload.shouldOpenChartOnLoad) {
                 state.activeEditorTab = EditorTabs.VISUALIZATION;
             }
-        },
-        setSqlRunnerResults: (
-            state,
-            action: PayloadAction<ResultsAndColumns>,
-        ) => {
-            if (
-                action.payload.results.length === 0 ||
-                action.payload.columns.length === 0
-            ) {
-                return;
-            }
-
-            state.sqlColumns = action.payload.columns;
-            // Set the initial results table config
-            const columns = Object.keys(action.payload.results[0]).reduce<
-                VizTableConfig['columns']
-            >(
-                (acc, key) => ({
-                    ...acc,
-                    [key]: {
-                        visible: true,
-                        reference: key,
-                        label: key,
-                        frozen: true,
-                        order: undefined,
-                    },
-                }),
-                {},
-            );
-            // Set static results table
-            // TODO: should this be in a separate slice?
-            state.resultsTableConfig = {
-                columns,
-            };
-
-            if (!!state.sql) {
-                sqlHistoryReducer.addToHistory(state.successfulSqlQueries, {
-                    payload: {
-                        value: state.sql,
-                        compareFunc: (a, b) =>
-                            normalizeSQL(
-                                a || '',
-                                state.warehouseConnectionType,
-                            ) !==
-                            normalizeSQL(
-                                b || '',
-                                state.warehouseConnectionType,
-                            ),
-                    },
-                    type: 'sql',
-                });
-                state.hasUnrunChanges = false;
-            }
-            state.sqlRows = action.payload.results;
-            state.fileUrl = action.payload.fileUrl;
         },
         updateName: (state, action: PayloadAction<string>) => {
             state.name = action.payload;
@@ -363,6 +316,89 @@ export const sqlRunnerSlice = createSlice({
         ) => {
             state.warehouseConnectionType = action.payload;
         },
+        setEditorHighlightError: (
+            state,
+            action: PayloadAction<MonacoHighlightChar | undefined>,
+        ) => {
+            state.editorHighlightError = action.payload;
+        },
+    },
+    extraReducers: (builder) => {
+        builder
+            .addCase(runSqlQuery.pending, (state) => {
+                state.queryIsLoading = true;
+                state.queryError = undefined;
+            })
+            .addCase(runSqlQuery.fulfilled, (state, action) => {
+                state.queryIsLoading = false;
+                state.sqlColumns = action.payload.columns;
+                state.sqlRows = action.payload.results;
+                state.fileUrl = action.payload.fileUrl;
+                state.editorHighlightError = undefined;
+
+                // setSqlRunnerResults reducer logic moved here
+                if (
+                    action.payload.results.length === 0 ||
+                    action.payload.columns.length === 0
+                ) {
+                    return;
+                }
+
+                state.sqlColumns = action.payload.columns;
+                // Set the initial results table config
+                const columns = Object.keys(action.payload.results[0]).reduce<
+                    VizTableConfig['columns']
+                >(
+                    (acc, key) => ({
+                        ...acc,
+                        [key]: {
+                            visible: true,
+                            reference: key,
+                            label: key,
+                            frozen: true,
+                            order: undefined,
+                        },
+                    }),
+                    {},
+                );
+                // Set static results table
+                // TODO: should this be in a separate slice?
+                state.resultsTableConfig = {
+                    columns,
+                };
+
+                if (!!state.sql) {
+                    sqlHistoryReducer.addToHistory(state.successfulSqlQueries, {
+                        payload: {
+                            value: state.sql,
+                            compareFunc: (a, b) =>
+                                normalizeSQL(
+                                    a || '',
+                                    state.warehouseConnectionType,
+                                ) !==
+                                normalizeSQL(
+                                    b || '',
+                                    state.warehouseConnectionType,
+                                ),
+                        },
+                        type: 'sql',
+                    });
+                    state.hasUnrunChanges = false;
+                }
+                state.sqlRows = action.payload.results;
+                state.fileUrl = action.payload.fileUrl;
+            })
+            .addCase(runSqlQuery.rejected, (state, action) => {
+                state.queryIsLoading = false;
+                state.queryError = action.payload ?? undefined;
+
+                state.editorHighlightError = action.payload?.data
+                    ? {
+                          line: Number(action.payload.data.lineNumber),
+                          char: Number(action.payload.data.charNumber),
+                      }
+                    : undefined;
+            });
     },
 });
 
@@ -370,7 +406,6 @@ export const {
     toggleActiveTable,
     setProjectUuid,
     setFetchResultsOnLoad,
-    setSqlRunnerResults,
     updateName,
     setSql,
     setSqlLimit,
@@ -382,6 +417,7 @@ export const {
     setQuoteChar,
     setWarehouseConnectionType,
     setMode,
+    setEditorHighlightError,
 } = sqlRunnerSlice.actions;
 
 export const {
@@ -398,7 +434,6 @@ export const {
 
 export const selectSqlRunnerResultsRunner = createSelector(
     [
-        sqlRunnerSlice.selectors.selectSavedSqlChart,
         sqlRunnerSlice.selectors.selectColumns,
         sqlRunnerSlice.selectors.selectRows,
         selectProjectUuid,
@@ -406,7 +441,7 @@ export const selectSqlRunnerResultsRunner = createSelector(
         selectSql,
         (_state, sortBy?: VizSortBy[]) => sortBy,
     ],
-    (sqlChart, columns, rows, projectUuid, limit, sql, sortBy) => {
+    (columns, rows, projectUuid, limit, sql, sortBy) => {
         return new SqlRunnerResultsRunnerFrontend({
             columns: columns || [],
             rows: rows || [],
