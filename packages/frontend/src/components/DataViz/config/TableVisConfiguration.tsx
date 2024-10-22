@@ -2,10 +2,13 @@ import { type VizColumn } from '@lightdash/common';
 import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
+import {
+    useAppDispatch as useVizDispatch,
+    useAppSelector as useVizSelector,
+} from '../../../features/sqlRunner/store/hooks';
 import MantineIcon from '../../common/MantineIcon';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { TableFieldIcon } from '../Icons';
-import { useVizDispatch, useVizSelector } from '../store';
 import {
     updateColumnVisibility,
     updateFieldLabel,

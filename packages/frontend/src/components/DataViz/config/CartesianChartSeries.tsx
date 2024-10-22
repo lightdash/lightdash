@@ -5,10 +5,12 @@ import {
     type PivotChartLayout,
 } from '@lightdash/common';
 import { Group, Stack, TextInput } from '@mantine/core';
+import { useAppDispatch as useVizDispatch } from '../../../features/sqlRunner/store/hooks';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
-import { useVizDispatch, type CartesianChartActionsType } from '../store';
+import { type BarChartActionsType } from '../store/barChartSlice';
+import { type LineChartActionsType } from '../store/lineChartSlice';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 import { CartesianChartTypeConfig } from './CartesianChartTypeConfig';
 
@@ -21,7 +23,7 @@ export type ConfigurableSeries = {
 
 type SeriesColorProps = {
     selectedChartType: ChartKind;
-    actions: CartesianChartActionsType;
+    actions: BarChartActionsType | LineChartActionsType;
     series: ConfigurableSeries[];
 };
 

@@ -9,7 +9,7 @@ import {
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { useAppDispatch, useAppSelector } from '../../../sqlRunner/store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectFilters,

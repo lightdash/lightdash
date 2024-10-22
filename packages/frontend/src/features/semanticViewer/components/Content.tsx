@@ -9,9 +9,9 @@ import { selectCompleteConfigByKind } from '../../../components/DataViz/store/se
 import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useSemanticLayerQueryResults } from '../api/hooks';
 import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     selectAllSelectedFieldNames,
     selectSemanticLayerInfo,

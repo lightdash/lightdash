@@ -142,9 +142,19 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
     // eslint-disable-next-line class-methods-use-this
     async runGraphQlQuery<T>(query: string): Promise<T> {
-        return this.getClient().request(query, {
-            environmentId: this.environmentId,
-        });
+        try {
+            return await this.getClient().request(query, {
+                environmentId: this.environmentId,
+            });
+        } catch (error) {
+            // ! Collecting all errors, we might want to just send the first one so that the string isn't as big
+            const errors: string[] | undefined = error?.response?.errors?.map(
+                (e: { message: string }) =>
+                    this.transformers.errorToReadableError(e.message),
+            );
+
+            throw new DbtError(errors?.join('\n'));
+        }
     }
 
     async getResults(
@@ -287,22 +297,12 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 }
             }`;
 
-        try {
-            const response =
-                await this.runGraphQlQuery<DbtGraphQLCompileSqlResponse>(
-                    compileSqlQuery,
-                );
-
-            return this.transformers.sqlToString(response.compileSql.sql);
-        } catch (error) {
-            // ! Collecting all errors, we might want to just send the first one so that the string isn't as big
-            const errors: string[] | undefined = error?.response?.errors?.map(
-                (e: { message: string }) =>
-                    this.transformers.errorToReadableError(e.message),
+        const response =
+            await this.runGraphQlQuery<DbtGraphQLCompileSqlResponse>(
+                compileSqlQuery,
             );
 
-            throw new DbtError(errors?.join('\n'));
-        }
+        return this.transformers.sqlToString(response.compileSql.sql);
     }
 
     async getMetrics() {

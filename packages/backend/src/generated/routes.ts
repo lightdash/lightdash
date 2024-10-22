@@ -7113,6 +7113,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 indexColumn: { ref: 'PivotIndexColum', required: true },
+                savedSqlUuid: { dataType: 'string' },
             },
             validators: {},
         },

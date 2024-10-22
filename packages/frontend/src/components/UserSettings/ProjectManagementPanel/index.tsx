@@ -199,34 +199,34 @@ const ProjectManagementPanel: FC = () => {
                         This will create a preview project from $
                         {lastProject.name}. The new project will have the same
                         connections and credentials.
-                        <Group mt="sm" mb="sm">
-                            {' '}
-                            Preview name
-                            {/* TODO use inputWrapper*/}
-                            <Input
-                                value={previewName}
-                                defaultValue={`Preview of ${lastProject.name}`}
-                                onChange={(e) => {
-                                    // set preview name
-                                    setPreviewName(e.currentTarget.value);
-                                }}
-                            />
-                        </Group>
-                        <Button
-                            onClick={() => {
-                                // create preview project
-                                createPreviewProject({
-                                    projectUuid: lastProject.projectUuid,
-                                    name:
-                                        previewName ||
-                                        `Preview of ${lastProject.name}`,
-                                });
-                                setIsCreatePreview(false);
-                            }}
-                        >
-                            Create preview
-                        </Button>
                     </Text>
+                    <Group mt="sm" mb="sm">
+                        {' '}
+                        Preview name
+                        {/* TODO use inputWrapper*/}
+                        <Input
+                            value={previewName}
+                            defaultValue={`Preview of ${lastProject.name}`}
+                            onChange={(e) => {
+                                // set preview name
+                                setPreviewName(e.currentTarget.value);
+                            }}
+                        />
+                    </Group>
+                    <Button
+                        onClick={() => {
+                            // create preview project
+                            createPreviewProject({
+                                projectUuid: lastProject.projectUuid,
+                                name:
+                                    previewName ||
+                                    `Preview of ${lastProject.name}`,
+                            });
+                            setIsCreatePreview(false);
+                        }}
+                    >
+                        Create preview
+                    </Button>
                 </Modal>
             )}
         </Stack>
