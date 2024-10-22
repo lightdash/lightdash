@@ -17,10 +17,12 @@ const TimeZonePicker: FC<TimeZonePickerProps> = (props) => {
                 .map((key) => {
                     const minsOffset = getTzMinutesOffset('UTC', key);
                     const offsetString = formatMinutesOffset(minsOffset);
-                    const labelText =
+                    let labelText =
+                        key === 'UTC' ? key : `(UTC ${offsetString}) ${key}`;
+                    labelText =
                         dayjs.tz.guess() === key
-                            ? `${key} (${offsetString}) - Local`
-                            : `${key} (${offsetString})`;
+                            ? `${labelText} - Local`
+                            : labelText;
 
                     return { label: labelText, value: key };
                 }),
