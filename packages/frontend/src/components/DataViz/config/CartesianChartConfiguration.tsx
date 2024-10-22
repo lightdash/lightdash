@@ -30,7 +30,7 @@ export const CartesianChartConfig = ({
                 <Tabs.List>
                     <Tabs.Tab value="data">Data</Tabs.Tab>
                     <Tabs.Tab value="series">Series</Tabs.Tab>
-                    <Tabs.Tab value="styling">Styling</Tabs.Tab>
+                    <Tabs.Tab value="display">Display</Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="data" pt="xs">
@@ -48,7 +48,7 @@ export const CartesianChartConfig = ({
                     />
                 </Tabs.Panel>
 
-                <Tabs.Panel value="styling" pt="xs">
+                <Tabs.Panel value="display" pt="xs">
                     <CartesianChartStyling
                         actions={actions}
                         selectedChartType={selectedChartType}
