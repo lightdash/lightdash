@@ -92,6 +92,7 @@ import MetricQueryDataProvider, {
 } from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { type EchartSeriesClickEvent } from '../SimpleChart';
+import { DashboardMinimalDownloadCsv } from './DashboardMinimalDownloadCsv';
 import EditChartMenuItem from './EditChartMenuItem';
 import TileBase from './TileBase/index';
 
@@ -284,6 +285,7 @@ interface DashboardChartTileMainProps
     tile: IDashboardChartTile;
     chartAndResults: ApiChartAndResults;
     onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
+    canExportCsv?: boolean;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
@@ -1041,6 +1043,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             properties: { savedChartUuid, hideTitle, title },
         },
         chartAndResults,
+        canExportCsv,
     } = props;
     const { chart } = chartAndResults;
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -1052,6 +1055,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             description={chart.description}
             isLoading={false}
             minimal={true}
+            extraMenuItems={
+                canExportCsv && (
+                    <DashboardMinimalDownloadCsv
+                        chartAndResults={chartAndResults}
+                    />
+                )
+            }
             {...props}
         >
             <ValidDashboardChartTileMinimal
@@ -1069,6 +1079,7 @@ type DashboardChartTileProps = Omit<
     'chartAndResults'
 > & {
     minimal?: boolean;
+    canExportCsv?: boolean;
 };
 
 // Abstraction needed for enterprise version
@@ -1086,6 +1097,7 @@ export const GenericDashboardChartTile: FC<
     isLoading,
     data,
     error,
+    canExportCsv = false,
     ...rest
 }) => {
     const { projectUuid } = useParams<{
@@ -1163,6 +1175,7 @@ export const GenericDashboardChartTile: FC<
                     tile={tile}
                     isEditMode={isEditMode}
                     chartAndResults={data}
+                    canExportCsv={canExportCsv}
                 />
             ) : (
                 <DashboardChartTileMain
