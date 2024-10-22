@@ -84,22 +84,12 @@ export class GithubAppService extends BaseService {
             if (!state || state !== oauth?.state) {
                 throw new AuthorizationError('State does not match');
             }
-            if (setup_action === 'review') {
-                // User attempted to setup the app, didn't have permission in GitHub and sent a request to the admins
-                // We can't do anything at this point
-                throw new AuthorizationError(
-                    `You don't have permission on Github to install the app`,
-                );
-            }
 
             const userUuid = oauth.inviteCode;
             if (!userUuid) {
                 throw new ParameterError('User uuid not provided');
             }
 
-            if (!installation_id) {
-                throw new ParameterError('Installation id not provided');
-            }
             if (!code) {
                 throw new ParameterError('Code not provided');
             }
@@ -111,6 +101,57 @@ export class GithubAppService extends BaseService {
             if (refreshToken === undefined)
                 throw new ForbiddenError('Invalid authentication token');
 
+            const redirectUrl = new URL(oauth?.returnTo || '/');
+
+            if (setup_action === 'request') {
+                // User attempted to setup the app, didn't have permission in GitHub and sent a request to the admins
+                // We will try to poll for the installation id
+                console.info(
+                    'Waiting for Github app to be authorized by an admin',
+                );
+
+                const interval = setInterval(async () => {
+                    const response =
+                        await new OctokitRest().apps.listInstallationsForAuthenticatedUser(
+                            {
+                                headers: {
+                                    authorization: `Bearer ${token}`,
+                                },
+                            },
+                        );
+                    const { installations } = response.data;
+                    if (installations.length > 0) {
+                        const installationId = installations[0].id.toString();
+
+                        console.info(
+                            `Finishing Github authorized installation ${installationId}`,
+                        );
+                        await this.upsertInstallation(
+                            userUuid,
+                            installationId,
+                            token,
+                            refreshToken,
+                        );
+
+                        this.analytics.track({
+                            event: 'github_install.completed',
+                            userId: user.userUuid,
+                            properties: {
+                                organizationId: user.organizationUuid!,
+                                byAdmin: false,
+                            },
+                        });
+
+                        clearInterval(interval);
+                    }
+                }, 1000 * 60);
+
+                return `${redirectUrl.href}?status=github_request_sent`;
+            }
+
+            if (!installation_id) {
+                throw new ParameterError('Installation id not provided');
+            }
             // Verify installation
             const response =
                 await new OctokitRest().apps.listInstallationsForAuthenticatedUser(
@@ -138,10 +179,10 @@ export class GithubAppService extends BaseService {
                 userId: user.userUuid,
                 properties: {
                     organizationId: user.organizationUuid!,
+                    byAdmin: true,
                 },
             });
 
-            const redirectUrl = new URL(oauth?.returnTo || '/');
             return redirectUrl.href;
         } catch (error) {
             this.analytics.track({
@@ -149,6 +190,7 @@ export class GithubAppService extends BaseService {
                 userId: user.userUuid,
                 properties: {
                     organizationId: user.organizationUuid!,
+                    byAdmin: setup_action !== 'request',
                     error: error.message,
                 },
             });
@@ -160,9 +202,13 @@ export class GithubAppService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new Error('User is not part of an organization');
         }
+
+        // This endpoint is also used for developers on projects
+        // when using the sql runner, so we should allow access
+        // However github app is an organization property, so we can't check projects
         if (
             user.ability.cannot(
-                'update',
+                'view',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
                 }),
@@ -219,17 +265,7 @@ export class GithubAppService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new Error('User is not part of an organization');
         }
-        if (
-            user.ability.cannot(
-                'update',
-                subject('Organization', {
-                    organizationUuid: user.organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        // Delete app in github
+        // Permissions are checked on this.getInstallationId
         try {
             const installationId = await this.getInstallationId(user);
             const appOctokit = getOctokitRestForApp(installationId!);
@@ -246,19 +282,7 @@ export class GithubAppService extends BaseService {
     }
 
     async getRepos(user: SessionUser) {
-        if (!isUserWithOrg(user)) {
-            throw new Error('User is not part of an organization');
-        }
-        if (
-            user.ability.cannot(
-                'update',
-                subject('Organization', {
-                    organizationUuid: user.organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        // Permissions are checked on this.getInstallationId
         const installationId = await this.getInstallationId(user);
 
         if (installationId === undefined)

@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
+import { type prepareAndFetchChartData } from '../../../features/sqlRunner/store/thunks';
 
 export type CartesianChartState = {
     metadata: {
@@ -23,6 +24,16 @@ export type CartesianChartState = {
     display: VizCartesianChartConfig['display'] | undefined;
     options: VizCartesianChartOptions;
     errors: VizConfigErrors | undefined;
+    chartData:
+        | Awaited<
+              ReturnType<
+                  typeof prepareAndFetchChartData['fulfilled']
+              >['payload']
+          >
+        | undefined;
+    chartDataLoading: boolean;
+    chartDataError: Error | null | undefined;
+    series?: string[];
 };
 
 const initialState: CartesianChartState = {
@@ -38,6 +49,9 @@ const initialState: CartesianChartState = {
         pivotLayoutOptions: [],
     },
     errors: undefined,
+    chartData: undefined,
+    chartDataLoading: false,
+    chartDataError: undefined,
 };
 
 export const cartesianChartConfigSlice = createSlice({
@@ -263,6 +277,9 @@ export const cartesianChartConfigSlice = createSlice({
         removeXAxisField: (state) => {
             if (!state.fieldConfig) return;
             delete state.fieldConfig.x;
+            if (state.fieldConfig.sortBy) {
+                state.fieldConfig.sortBy = undefined;
+            }
         },
 
         setSortBy: (
