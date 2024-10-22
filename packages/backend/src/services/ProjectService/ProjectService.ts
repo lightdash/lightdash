@@ -2681,6 +2681,7 @@ export class ProjectService extends BaseService {
                 subject('CompileProject', {
                     organizationUuid,
                     projectUuid,
+                    type,
                 }),
             )
         ) {

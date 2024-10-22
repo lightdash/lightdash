@@ -553,6 +553,7 @@ export class ProjectModel {
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${ProjectTableName}.copied_from_project_uuid`,
+                `${ProjectTableName}.project_type`,
             ])
             .where('projects.project_uuid', projectUuid)
             .first();

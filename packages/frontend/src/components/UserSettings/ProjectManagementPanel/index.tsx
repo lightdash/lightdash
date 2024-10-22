@@ -107,6 +107,7 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
 };
 
 const ProjectManagementPanel: FC = () => {
+    const { user } = useApp();
     const { classes } = useTableStyles();
 
     const { data: projects = [], isInitialLoading: isLoadingProjects } =
@@ -134,14 +135,25 @@ const ProjectManagementPanel: FC = () => {
             <Group position="apart">
                 <Title order={5}>Project management settings</Title>
                 <Group>
-                    <Can I="create" a="Project">
+                    <Can
+                        I="create"
+                        this={subject('Project', {
+                            organizationUuid: user.data?.organizationUuid,
+                            type: ProjectType.DEFAULT,
+                        })}
+                    >
                         <Button component={Link} to="/createProject">
                             Create project
                         </Button>
                     </Can>
-                    {/* TODO Check if user can create a preview project , might require a change in the page too*/}
                     {lastProject && (
-                        <Can I="create" a="Project">
+                        <Can
+                            I="create"
+                            this={subject('Project', {
+                                organizationUuid: user.data?.organizationUuid,
+                                type: ProjectType.PREVIEW,
+                            })}
+                        >
                             <Button
                                 onClick={() => {
                                     setIsCreatePreview(true);
