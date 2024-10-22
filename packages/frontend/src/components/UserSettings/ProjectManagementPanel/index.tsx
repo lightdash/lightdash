@@ -4,11 +4,11 @@ import {
     Badge,
     Button,
     Group,
-    Input,
     Modal,
     Stack,
     Table,
     Text,
+    TextInput,
     Title,
 } from '@mantine/core';
 import { IconSettings, IconTrash } from '@tabler/icons-react';
@@ -113,7 +113,8 @@ const ProjectManagementPanel: FC = () => {
         useProjects();
     const { data: lastProjectUuid, isInitialLoading: isLoadingLastProject } =
         useActiveProject();
-    const { mutate: createPreviewProject } = useCreatePreviewMutation();
+    const { mutateAsync: createPreviewProject, isLoading: isPreviewCreating } =
+        useCreatePreviewMutation();
 
     const [deletingProjectUuid, setDeletingProjectUuid] = useState<string>();
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
@@ -196,27 +197,27 @@ const ProjectManagementPanel: FC = () => {
                     title={`Create preview from ${lastProject.name}`}
                 >
                     <Text>
-                        This will create a preview project from $
-                        {lastProject.name}. The new project will have the same
-                        connections and credentials.
+                        This will create a preview project from
+                        <Text span fw={500}>
+                            {lastProject.name}
+                        </Text>
+                        . The new project will have the same connections and
+                        credentials.
                     </Text>
-                    <Group mt="sm" mb="sm">
-                        {' '}
-                        Preview name
-                        {/* TODO use inputWrapper*/}
-                        <Input
-                            value={previewName}
-                            defaultValue={`Preview of ${lastProject.name}`}
-                            onChange={(e) => {
-                                // set preview name
-                                setPreviewName(e.currentTarget.value);
-                            }}
-                        />
-                    </Group>
+                    <TextInput
+                        mt="sm"
+                        mb="sm"
+                        label="Preview name"
+                        value={previewName}
+                        defaultValue={`Preview of ${lastProject.name}`}
+                        onChange={(e) => {
+                            setPreviewName(e.currentTarget.value);
+                        }}
+                    />
                     <Button
-                        onClick={() => {
-                            // create preview project
-                            createPreviewProject({
+                        disabled={isPreviewCreating}
+                        onClick={async () => {
+                            await createPreviewProject({
                                 projectUuid: lastProject.projectUuid,
                                 name:
                                     previewName ||
@@ -225,7 +226,9 @@ const ProjectManagementPanel: FC = () => {
                             setIsCreatePreview(false);
                         }}
                     >
-                        Create preview
+                        {isPreviewCreating
+                            ? 'Creating preview'
+                            : 'Create preview'}
                     </Button>
                 </Modal>
             )}

@@ -1,6 +1,6 @@
 import { type ApiError } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useToaster from './toaster/useToaster';
 
@@ -21,12 +21,16 @@ const createPreviewProject = async ({
     });
 
 export const useCreatePreviewMutation = () => {
+    const queryClient = useQueryClient();
+
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<string, ApiError, { projectUuid: string; name: string }>(
         (data) => createPreviewProject(data),
         {
             mutationKey: ['preview_project_create'],
-            onSuccess: (projectUuid) => {
+            onSuccess: async (projectUuid) => {
+                await queryClient.invalidateQueries(['projects']);
+
                 showToastSuccess({
                     title: `Preview project created`,
                     action: {
