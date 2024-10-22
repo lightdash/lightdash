@@ -82,22 +82,19 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                         }),
                                     );
                                 }}
-                                styles={{
+                                styles={(theme) => ({
                                     input: {
                                         backgroundColor: !columnsConfig[
                                             reference
                                         ].visible
-                                            ? '#f1f1f1'
+                                            ? theme.colors.gray[1]
                                             : '',
                                         cursor: !columnsConfig[reference]
                                             .visible
                                             ? 'not-allowed'
                                             : 'text',
                                     },
-                                    rightSection: {
-                                        pointerEvents: 'auto',
-                                    },
-                                }}
+                                })}
                             />
                         );
                     })}
