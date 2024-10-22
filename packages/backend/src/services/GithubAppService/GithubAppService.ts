@@ -160,9 +160,13 @@ export class GithubAppService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new Error('User is not part of an organization');
         }
+
+        // This endpoint is also used for developers on projects
+        // when using the sql runner, so we should allow access
+        // However github app is an organization property, so we can't check projects
         if (
             user.ability.cannot(
-                'update',
+                'view',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
                 }),
@@ -219,17 +223,7 @@ export class GithubAppService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new Error('User is not part of an organization');
         }
-        if (
-            user.ability.cannot(
-                'update',
-                subject('Organization', {
-                    organizationUuid: user.organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        // Delete app in github
+        // Permissions are checked on this.getInstallationId
         try {
             const installationId = await this.getInstallationId(user);
             const appOctokit = getOctokitRestForApp(installationId!);
@@ -246,19 +240,7 @@ export class GithubAppService extends BaseService {
     }
 
     async getRepos(user: SessionUser) {
-        if (!isUserWithOrg(user)) {
-            throw new Error('User is not part of an organization');
-        }
-        if (
-            user.ability.cannot(
-                'update',
-                subject('Organization', {
-                    organizationUuid: user.organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        // Permissions are checked on this.getInstallationId
         const installationId = await this.getInstallationId(user);
 
         if (installationId === undefined)
