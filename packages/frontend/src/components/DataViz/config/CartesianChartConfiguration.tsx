@@ -3,6 +3,7 @@ import { Stack, Tabs } from '@mantine/core';
 import { barChartConfigSlice } from '../store/barChartSlice';
 import { lineChartConfigSlice } from '../store/lineChartSlice';
 import { CartesianChartFieldConfiguration } from './CartesianChartFieldConfiguration';
+import { CartesianChartSeries } from './CartesianChartSeries';
 import { CartesianChartStyling } from './CartesianChartStyling';
 
 export const CartesianChartConfig = ({
@@ -28,6 +29,7 @@ export const CartesianChartConfig = ({
             <Tabs color="gray" defaultValue="data" keepMounted>
                 <Tabs.List>
                     <Tabs.Tab value="data">Data</Tabs.Tab>
+                    <Tabs.Tab value="series">Series</Tabs.Tab>
                     <Tabs.Tab value="styling">Styling</Tabs.Tab>
                 </Tabs.List>
 
@@ -36,6 +38,13 @@ export const CartesianChartConfig = ({
                         actions={actions}
                         columns={columns}
                         selectedChartType={selectedChartType}
+                    />
+                </Tabs.Panel>
+
+                <Tabs.Panel value="series" pt="xs">
+                    <CartesianChartSeries
+                        selectedChartType={selectedChartType}
+                        actions={actions}
                     />
                 </Tabs.Panel>
 
