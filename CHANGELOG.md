@@ -1,3 +1,10 @@
+# [0.1311.0](https://github.com/lightdash/lightdash/compare/0.1310.5...0.1311.0) (2024-10-22)
+
+
+### Features
+
+* use listener middleware to run pivot query ([#12002](https://github.com/lightdash/lightdash/issues/12002)) ([c77d17f](https://github.com/lightdash/lightdash/commit/c77d17f198d3f411ebf017a03e8f7452dc90188c))
+
 ## [0.1310.5](https://github.com/lightdash/lightdash/compare/0.1310.4...0.1310.5) (2024-10-22)
 
 
