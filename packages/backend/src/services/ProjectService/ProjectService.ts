@@ -3918,6 +3918,19 @@ export class ProjectService extends BaseService {
         },
         context: RequestMethod,
     ): Promise<string> {
+        // We first check if the user has permission to compile the parent project (requires developer)
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('CompileProject', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         // create preview project permissions are checked in `createWithoutCompile`
         const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,

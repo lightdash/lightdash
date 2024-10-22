@@ -80,10 +80,6 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
             type: ProjectType.PREVIEW,
         });
-        can('manage', 'CompileProject', {
-            organizationUuid: member.organizationUuid,
-            type: ProjectType.PREVIEW,
-        });
         can('create', 'Job');
         can('view', 'Job', { userUuid: member.userUuid });
         can('view', 'UnderlyingData', {
