@@ -16,8 +16,8 @@ import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { SemanticViewerResultsRunnerFrontend } from '../runners/SemanticViewerResultsRunnerFrontend';
-import { useAppSelector } from '../store/hooks';
 import {
     selectFilters,
     selectSemanticLayerInfo,

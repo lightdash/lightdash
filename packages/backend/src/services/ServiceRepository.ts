@@ -293,6 +293,7 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    analytics: this.context.lightdashAnalytics,
                 }),
         );
     }
@@ -305,6 +306,8 @@ export class ServiceRepository
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
                     userModel: this.models.getUserModel(),
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
                 }),
         );
     }
@@ -433,6 +436,7 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     s3Client: this.clients.getS3Client(),
+                    groupsModel: this.models.getGroupsModel(),
                 }),
         );
     }

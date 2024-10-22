@@ -6,8 +6,10 @@ import { barChartConfigSlice } from '../../../components/DataViz/store/barChartS
 import { lineChartConfigSlice } from '../../../components/DataViz/store/lineChartSlice';
 import { pieChartConfigSlice } from '../../../components/DataViz/store/pieChartSlice';
 import { tableVisSlice } from '../../../components/DataViz/store/tableVisSlice';
+import { semanticViewerSlice } from '../../semanticViewer/store/semanticViewerSlice';
 import { sqlRunnerSlice } from './sqlRunnerSlice';
 
+// TODO: move this store to `frontend/src`
 export const store = configureStore({
     reducer: {
         // TODO: important because selectors assume that
@@ -16,6 +18,7 @@ export const store = configureStore({
         lineChartConfig: lineChartConfigSlice.reducer,
         pieChartConfig: pieChartConfigSlice.reducer,
         tableVisConfig: tableVisSlice.reducer,
+        [semanticViewerSlice.name]: semanticViewerSlice.reducer,
     },
     devTools: process.env.NODE_ENV === 'development',
 });

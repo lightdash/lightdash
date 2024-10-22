@@ -6,15 +6,16 @@ import {
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import {
+    useAppDispatch as useVizDispatch,
+    useAppSelector as useVizSelector,
+} from '../../../features/sqlRunner/store/hooks';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
-import {
-    useVizDispatch,
-    useVizSelector,
-    type CartesianChartActionsType,
-} from '../store';
+import { type BarChartActionsType } from '../store/barChartSlice';
+import { type LineChartActionsType } from '../store/lineChartSlice';
 import { selectCurrentCartesianChartState } from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 import {
@@ -27,7 +28,7 @@ export const CartesianChartStyling = ({
     actions,
 }: {
     selectedChartType: ChartKind;
-    actions: CartesianChartActionsType;
+    actions: BarChartActionsType | LineChartActionsType;
 }) => {
     const { data: org } = useOrganization();
     const colors = org?.chartColors ?? ECHARTS_DEFAULT_COLORS;

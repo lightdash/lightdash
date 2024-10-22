@@ -13,16 +13,16 @@ import {
     useSemanticLayerViewFields,
 } from '../features/semanticViewer/api/hooks';
 import { SemanticViewerResultsRunnerFrontend } from '../features/semanticViewer/runners/SemanticViewerResultsRunnerFrontend';
-import { store } from '../features/semanticViewer/store';
-import {
-    useAppDispatch,
-    useAppSelector,
-} from '../features/semanticViewer/store/hooks';
 import { selectSemanticViewerState } from '../features/semanticViewer/store/selectors';
 import {
     initializeSemanticViewer,
     SemanticViewerStateStatus,
 } from '../features/semanticViewer/store/semanticViewerSlice';
+import { store } from '../features/sqlRunner/store';
+import {
+    useAppDispatch,
+    useAppSelector,
+} from '../features/sqlRunner/store/hooks';
 import { useApp } from '../providers/AppProvider';
 
 const SemanticViewerEditorPageWithStore = () => {

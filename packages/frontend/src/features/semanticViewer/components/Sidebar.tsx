@@ -12,7 +12,7 @@ import { IconChevronLeft } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { selectSemanticLayerInfo } from '../store/selectors';
 import {
     resetState,

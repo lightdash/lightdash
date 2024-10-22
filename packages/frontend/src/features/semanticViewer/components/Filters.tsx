@@ -1,7 +1,7 @@
 import { Box, Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { selectFilters } from '../store/selectors';
 import { setIsFiltersModalOpen } from '../store/semanticViewerSlice';
 import BadgeButton from './BadgeButton';

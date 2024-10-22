@@ -69,10 +69,12 @@ export const useSavedSqlChartResults = ({
                 getResultsFromStream,
                 context,
             });
+
             const resultsRunner = new SqlRunnerResultsRunnerFrontend({
                 rows: chartResults.results,
                 columns: chartResults.columns,
                 projectUuid: projectUuid!,
+                savedSqlUuid: chart.savedSqlUuid,
                 sql: chart.sql,
                 ...(isVizCartesianChartConfig(chart.config) && {
                     sortBy: chart.config.fieldConfig?.sortBy,
