@@ -1,3 +1,10 @@
+## [0.1310.3](https://github.com/lightdash/lightdash/compare/0.1310.2...0.1310.3) (2024-10-22)
+
+
+### Bug Fixes
+
+* style hidden column as read-only ([#11962](https://github.com/lightdash/lightdash/issues/11962)) ([2479024](https://github.com/lightdash/lightdash/commit/247902488adf7df827af1f29e42da754503ff213))
+
 ## [0.1310.2](https://github.com/lightdash/lightdash/compare/0.1310.1...0.1310.2) (2024-10-22)
 
 
