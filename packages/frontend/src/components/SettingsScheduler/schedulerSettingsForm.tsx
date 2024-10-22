@@ -49,6 +49,7 @@ const SchedulerSettingsForm: FC<Props> = ({ isLoading, project, onSubmit }) => {
                     size="sm"
                     variant="default"
                     maw="100%"
+                    searchable
                     {...form.getInputProps('timezone')}
                 />
                 <Flex justify="end" align="center" gap="sm">

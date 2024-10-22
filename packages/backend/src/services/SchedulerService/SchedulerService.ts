@@ -5,7 +5,7 @@ import {
     CreateSchedulerLog,
     DashboardDAO,
     ForbiddenError,
-    getTzOffsetMin,
+    getTzMinutesOffset,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
@@ -466,7 +466,7 @@ export class SchedulerService extends BaseService {
                     s.schedulerUuid,
                 );
 
-                const tzOffsetMin = getTzOffsetMin(
+                const tzOffsetMin = getTzMinutesOffset(
                     oldDefaultProjectTimezone,
                     newDefaultProjectTimezone,
                 );

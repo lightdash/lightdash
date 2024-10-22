@@ -42,7 +42,7 @@ export function isValidFrequency(cronExpression: string): boolean {
     return true;
 }
 
-export function getTzOffsetMin(oldTz: string, newTz: string) {
+export function getTzMinutesOffset(oldTz: string, newTz: string) {
     const date = new Date();
     const oldFormattedString = date.toLocaleString('en-US', {
         timeZone: oldTz,
@@ -55,4 +55,14 @@ export function getTzOffsetMin(oldTz: string, newTz: string) {
     return Math.round(
         (dateInNewZone.getTime() - dateInOldZone.getTime()) / (1000 * 60),
     );
+}
+
+export function formatMinutesOffset(offsetMins: number) {
+    const sign = offsetMins >= 0 ? '+' : '-';
+    const absOffset = Math.abs(offsetMins);
+    const hours = Math.floor(absOffset / 60);
+    const minutes = absOffset % 60;
+    const paddedHours = String(hours).padStart(2, '0');
+    const paddedMinutes = String(minutes).padStart(2, '0');
+    return `${sign}${paddedHours}:${paddedMinutes}`;
 }
