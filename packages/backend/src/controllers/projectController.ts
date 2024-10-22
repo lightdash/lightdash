@@ -26,6 +26,7 @@ import {
     type DuplicateDashboardParams,
     type SemanticLayerConnectionUpdate,
     type UpdateMultipleDashboards,
+    type UpdateSchedulerSettings,
 } from '@lightdash/common';
 import {
     Body,
@@ -645,6 +646,55 @@ export class ProjectController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/schedulerSettings')
+    @OperationId('updateSchedulerSettings')
+    async updateSchedulerSettings(
+        @Path() projectUuid: string,
+        @Body() body: UpdateSchedulerSettings,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        const { schedulerTimezone: oldDefaultProjectTimezone } =
+            await this.services
+                .getProjectService()
+                .getProject(projectUuid, req.user!);
+
+        await this.services
+            .getProjectService()
+            .updateDefaultSchedulerTimezone(
+                req.user!,
+                projectUuid,
+                body.schedulerTimezone,
+            );
+
+        try {
+            await this.services
+                .getSchedulerService()
+                .updateDefaultTimezoneSchedulers(req.user!, projectUuid, {
+                    oldDefaultProjectTimezone,
+                    newDefaultProjectTimezone: body.schedulerTimezone,
+                });
+        } catch (e) {
+            // reset the old timezone when it fails to set the hours
+            await this.services
+                .getProjectService()
+                .updateDefaultSchedulerTimezone(
+                    req.user!,
+                    projectUuid,
+                    oldDefaultProjectTimezone,
+                );
+
+            throw e;
+        }
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }

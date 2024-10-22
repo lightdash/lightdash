@@ -856,7 +856,7 @@ export type CreateProject = Omit<
 
 export type UpdateProject = Omit<
     Project,
-    'projectUuid' | 'organizationUuid' | 'type'
+    'projectUuid' | 'organizationUuid' | 'type' | 'schedulerTimezone'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };

@@ -393,6 +393,7 @@ export class ProjectModel {
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
                   semantic_layer_connection: Buffer | null;
+                  scheduler_timezone: string;
               }
             | {
                   name: string;
@@ -405,6 +406,7 @@ export class ProjectModel {
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
                   semantic_layer_connection: Buffer | null;
+                  scheduler_timezone: string;
               }
         )[];
         return wrapSentryTransaction(
@@ -455,6 +457,9 @@ export class ProjectModel {
                             .withSchema(ProjectTableName),
                         this.database
                             .ref('semantic_layer_connection')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('scheduler_timezone')
                             .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
@@ -508,6 +513,7 @@ export class ProjectModel {
                     dbtVersion: project.dbt_version,
                     upstreamProjectUuid: project.copied_from_project_uuid,
                     semanticLayerConnection,
+                    schedulerTimezone: project.scheduler_timezone,
                 };
                 if (!project.warehouse_type) {
                     return result;
@@ -636,6 +642,7 @@ export class ProjectModel {
             dbtVersion: project.dbtVersion,
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
             semanticLayerConnection: nonSensitiveSemanticLayerCredentials,
+            schedulerTimezone: project.schedulerTimezone,
         };
     }
 
@@ -2235,6 +2242,20 @@ export class ProjectModel {
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
                 semantic_layer_connection: null,
+            })
+            .where('project_uuid', projectUuid)
+            .returning('*');
+
+        return updatedProject;
+    }
+
+    async updateDefaultSchedulerTimezone(
+        projectUuid: string,
+        timezone: string,
+    ) {
+        const [updatedProject] = await this.database(ProjectTableName)
+            .update({
+                scheduler_timezone: timezone,
             })
             .where('project_uuid', projectUuid)
             .returning('*');

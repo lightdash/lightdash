@@ -471,6 +471,7 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
+                    projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     slackClient: this.clients.getSlackClient(),
                 }),

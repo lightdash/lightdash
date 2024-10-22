@@ -62,7 +62,9 @@ import { hasRequiredScopes } from '../../../components/UserSettings/SlackSetting
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useProject } from '../../../hooks/useProject';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
@@ -92,7 +94,7 @@ const DEFAULT_VALUES = {
     message: '',
     format: SchedulerFormat.CSV,
     cron: '0 9 * * 1',
-    timezone: 'UTC',
+    timezone: undefined,
     options: {
         formatted: Values.FORMATTED,
         limit: Limit.TABLE,
@@ -273,6 +275,9 @@ const SchedulerForm: FC<Props> = ({
 
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 0;
+
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: project } = useProject(activeProjectUuid);
 
     const form = useForm({
         initialValues:
@@ -654,7 +659,7 @@ const SchedulerForm: FC<Props> = ({
                                     />
                                 </Tooltip>
                             )}
-                            <Box>
+                            <Box w="100%">
                                 <CronInternalInputs
                                     disabled={disabled}
                                     {...form.getInputProps('cron')}
@@ -663,7 +668,15 @@ const SchedulerForm: FC<Props> = ({
                                 >
                                     <TimeZonePicker
                                         size="sm"
-                                        style={{ alignSelf: 'flex-start' }}
+                                        style={{ flexGrow: 1 }}
+                                        placeholder={`Project Default ${
+                                            project?.schedulerTimezone
+                                                ? `(${project?.schedulerTimezone})`
+                                                : ''
+                                        }`}
+                                        maw="30%"
+                                        searchable
+                                        clearable
                                         {...form.getInputProps('timezone')}
                                     />
                                 </CronInternalInputs>

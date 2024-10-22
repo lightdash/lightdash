@@ -8,11 +8,11 @@ export function getHumanReadableCronExpression(
         verbose: true,
         throwExceptionOnParseError: false,
     });
-    const valueWithUTC = value
+    const valueWithTimezone = value
         .replaceAll(' PM', ` PM (${timezone})`)
         .replaceAll(' AM', ` AM (${timezone})`);
 
-    return valueWithUTC[0].toLowerCase() + valueWithUTC.slice(1);
+    return valueWithTimezone[0].toLowerCase() + valueWithTimezone.slice(1);
 }
 
 export function isValidFrequency(cronExpression: string): boolean {
@@ -40,4 +40,19 @@ export function isValidFrequency(cronExpression: string): boolean {
     }
 
     return true;
+}
+
+export function getTzOffsetMin(oldTz: string, newTz: string) {
+    const date = new Date();
+    const oldFormattedString = date.toLocaleString('en-US', {
+        timeZone: oldTz,
+    });
+    const newFormattedString = date.toLocaleString('en-US', {
+        timeZone: newTz,
+    });
+    const dateInOldZone = new Date(oldFormattedString);
+    const dateInNewZone = new Date(newFormattedString);
+    return Math.round(
+        (dateInNewZone.getTime() - dateInOldZone.getTime()) / (1000 * 60),
+    );
 }

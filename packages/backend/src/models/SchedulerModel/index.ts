@@ -16,6 +16,7 @@ import {
     SchedulerSlackTarget,
     SchedulerWithLogs,
     UpdateSchedulerAndTargets,
+    type SchedulerCronUpdate,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../../database/entities/dashboards';
@@ -235,7 +236,7 @@ export class SchedulerModel {
                     format: newScheduler.format,
                     created_by: newScheduler.createdBy,
                     cron: newScheduler.cron,
-                    timezone: newScheduler.timezone,
+                    timezone: newScheduler.timezone ?? null,
                     saved_chart_uuid: newScheduler.savedChartUuid,
                     dashboard_uuid: newScheduler.dashboardUuid,
                     updated_at: new Date(),
@@ -309,7 +310,7 @@ export class SchedulerModel {
                     message: scheduler.message,
                     format: scheduler.format,
                     cron: scheduler.cron,
-                    timezone: scheduler.timezone,
+                    timezone: scheduler.timezone ?? null,
                     updated_at: new Date(),
                     options: scheduler.options,
                     filters:
@@ -673,5 +674,29 @@ export class SchedulerModel {
         )[0];
 
         return job;
+    }
+
+    async bulkUpdateSchedulersCron(
+        schedulerCronUpdates: SchedulerCronUpdate[],
+    ) {
+        await this.database.transaction(async (trx) => {
+            const updatePromises = schedulerCronUpdates.map(
+                async ({ schedulerUuid, cron }) => {
+                    const [scheduler] = await trx(SchedulerTableName).where(
+                        'scheduler_uuid',
+                        schedulerUuid,
+                    );
+
+                    if (scheduler) {
+                        await trx(SchedulerTableName)
+                            .update({ ...scheduler, cron })
+                            .where('scheduler_uuid', schedulerUuid)
+                            .andWhere({ timezone: null });
+                    }
+                },
+            );
+
+            await Promise.all(updatePromises);
+        });
     }
 }

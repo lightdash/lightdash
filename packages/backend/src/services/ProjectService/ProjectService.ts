@@ -4672,4 +4672,24 @@ export class ProjectService extends BaseService {
             },
         });
     }
+
+    async updateDefaultSchedulerTimezone(
+        user: SessionUser,
+        projectUuid: string,
+        schedulerTimezone: string,
+    ) {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        if (user.ability.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        const updatedProject =
+            await this.projectModel.updateDefaultSchedulerTimezone(
+                projectUuid,
+                schedulerTimezone,
+            );
+
+        return updatedProject;
+    }
 }

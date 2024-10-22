@@ -5330,6 +5330,9 @@
             },
             "Project": {
                 "properties": {
+                    "schedulerTimezone": {
+                        "type": "string"
+                    },
                     "semanticLayerConnection": {
                         "$ref": "#/components/schemas/SemanticLayerConnection"
                     },
@@ -5362,6 +5365,7 @@
                     }
                 },
                 "required": [
+                    "schedulerTimezone",
                     "dbtVersion",
                     "dbtConnection",
                     "type",
@@ -6550,6 +6554,15 @@
             "UpdateMultipleDashboards": {
                 "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name-or-description-or-spaceUuid_"
             },
+            "UpdateSchedulerSettings": {
+                "properties": {
+                    "schedulerTimezone": {
+                        "type": "string"
+                    }
+                },
+                "required": ["schedulerTimezone"],
+                "type": "object"
+            },
             "CacheMetadata": {
                 "properties": {
                     "cacheHit": {
@@ -7014,7 +7027,6 @@
                     "options",
                     "dashboardUuid",
                     "savedChartUuid",
-                    "timezone",
                     "cron",
                     "format",
                     "createdBy",

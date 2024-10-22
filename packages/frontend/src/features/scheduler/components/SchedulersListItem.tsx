@@ -15,6 +15,8 @@ import {
 import { IconCircleFilled, IconPencil, IconTrash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
+import { useProject } from '../../../hooks/useProject';
 import { useSchedulersEnabledUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
 
 type SchedulersListItemProps = {
@@ -38,6 +40,13 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
         [mutateSchedulerEnabled],
     );
 
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: project } = useProject(activeProjectUuid);
+
+    if (!project) {
+        return null;
+    }
+
     return (
         <Paper p="sm" mb="xs" withBorder sx={{ overflow: 'hidden' }}>
             <Group noWrap position="apart">
@@ -49,7 +58,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                         <Text color="gray" size={12}>
                             {getHumanReadableCronExpression(
                                 scheduler.cron,
-                                scheduler.timezone,
+                                scheduler.timezone ?? project.schedulerTimezone,
                             )}
                         </Text>
 

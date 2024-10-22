@@ -22,7 +22,7 @@ export type SchedulerDb = {
     updated_at: Date;
     created_by: string;
     cron: string;
-    timezone: string;
+    timezone: string | null;
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
     options: Record<string, any>;

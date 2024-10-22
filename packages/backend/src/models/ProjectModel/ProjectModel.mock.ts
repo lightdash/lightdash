@@ -97,6 +97,7 @@ export const expectedProject: Project = {
         type: WarehouseTypes.BIGQUERY,
     },
     dbtVersion: DefaultSupportedDbtVersion,
+    schedulerTimezone: 'UTC',
 };
 
 const metricFilter: MetricFilterRule = {

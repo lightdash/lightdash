@@ -328,6 +328,7 @@ export type Project = {
     upstreamProjectUuid?: string;
     dbtVersion: SupportedDbtVersions;
     semanticLayerConnection?: SemanticLayerConnection;
+    schedulerTimezone: string;
 };
 
 export type ProjectSummary = Pick<
@@ -349,6 +350,7 @@ export type IdContentMapping = {
     id: number | string;
     newId: number | string;
 };
+
 export type PreviewContentMapping = {
     charts: IdContentMapping[];
     chartVersions: IdContentMapping[];
@@ -357,4 +359,8 @@ export type PreviewContentMapping = {
     dashboardVersions: IdContentMapping[];
     savedSql: IdContentMapping[];
     savedSqlVersions: IdContentMapping[];
+};
+
+export type UpdateSchedulerSettings = {
+    schedulerTimezone: string;
 };

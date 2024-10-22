@@ -10,7 +10,7 @@ import { DataOps } from '../components/DataOps';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
-import SchedulersView from '../components/SchedulersView';
+import SettingsScheduler from '../components/SettingsScheduler';
 import SettingsSemanticLayer from '../components/SettingsSemanticLayer';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
@@ -95,7 +95,7 @@ const ProjectSettings: FC = () => {
                         exact
                         path={`/generalSettings/projectManagement/${projectUuid}/scheduledDeliveries`}
                     >
-                        <SchedulersView projectUuid={projectUuid} />
+                        <SettingsScheduler projectUuid={projectUuid} />
                     </Route>
 
                     <Route

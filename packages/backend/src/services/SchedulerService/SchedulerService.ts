@@ -5,6 +5,7 @@ import {
     CreateSchedulerLog,
     DashboardDAO,
     ForbiddenError,
+    getTzOffsetMin,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
@@ -14,10 +15,12 @@ import {
     ScheduledJobs,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerCronUpdate,
     SchedulerFormat,
     SessionUser,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
+import { arrayToString, stringToArray } from 'cron-converter';
 import cronstrue from 'cronstrue';
 import {
     LightdashAnalytics,
@@ -31,21 +34,21 @@ import {
     SchedulerLogDb,
 } from '../../database/entities/scheduler';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { BaseService } from '../BaseService';
 
 type SchedulerServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     schedulerModel: SchedulerModel;
-
     dashboardModel: DashboardModel;
-
     savedChartModel: SavedChartModel;
-
+    projectModel: ProjectModel;
     spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
@@ -68,6 +71,8 @@ export class SchedulerService extends BaseService {
 
     slackClient: SlackClient;
 
+    projectModel: ProjectModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -77,6 +82,7 @@ export class SchedulerService extends BaseService {
         spaceModel,
         schedulerClient,
         slackClient,
+        projectModel,
     }: SchedulerServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -87,6 +93,7 @@ export class SchedulerService extends BaseService {
         this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
+        this.projectModel = projectModel;
     }
 
     private async getSchedulerResource(
@@ -197,6 +204,17 @@ export class SchedulerService extends BaseService {
         schedulerUuid: string,
     ): Promise<SchedulerAndTargets> {
         return this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
+    }
+
+    async getSchedulerDefaultTimezone(schedulerUuid: string | undefined) {
+        if (!schedulerUuid) return 'UTC'; // When it is sendNow there is not schedulerUuid
+
+        const scheduler = await this.schedulerModel.getSchedulerAndTargets(
+            schedulerUuid,
+        );
+        const { projectUuid } = await this.getSchedulerResource(scheduler);
+        const project = await this.projectModel.get(projectUuid);
+        return project.schedulerTimezone;
     }
 
     async updateScheduler(
@@ -424,5 +442,44 @@ export class SchedulerService extends BaseService {
             scheduler,
             undefined,
         );
+    }
+
+    async updateDefaultTimezoneSchedulers(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            oldDefaultProjectTimezone,
+            newDefaultProjectTimezone,
+        }: {
+            oldDefaultProjectTimezone: string;
+            newDefaultProjectTimezone: string;
+        },
+    ) {
+        const schedulers = await this.schedulerModel.getSchedulerForProject(
+            projectUuid,
+        );
+
+        const schedulerUpdates = await Promise.all(
+            schedulers.map<Promise<SchedulerCronUpdate>>(async (s) => {
+                await this.checkUserCanUpdateSchedulerResource(
+                    user,
+                    s.schedulerUuid,
+                );
+
+                const tzOffsetMin = getTzOffsetMin(
+                    oldDefaultProjectTimezone,
+                    newDefaultProjectTimezone,
+                );
+
+                const adjustedcron = getAdjustedCronByOffset(
+                    s.cron,
+                    tzOffsetMin,
+                );
+
+                return { schedulerUuid: s.schedulerUuid, cron: adjustedcron };
+            }),
+        );
+
+        await this.schedulerModel.bulkUpdateSchedulersCron(schedulerUpdates);
     }
 }
