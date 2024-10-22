@@ -1,6 +1,7 @@
 import {
     ChartKind,
     friendlyName,
+    getDefaultColor,
     type AllVizChartConfig,
     type PivotChartLayout,
 } from '@lightdash/common';
@@ -245,13 +246,14 @@ const getSeries = createSelector(
             const seriesLabel = foundSeries?.label;
             const seriesColor = foundSeries?.color;
             const seriesType = foundSeries?.type;
+
             return {
                 reference: f.reference,
                 format: seriesFormat,
                 label:
                     seriesLabel ??
                     friendlyName(`${f.reference}_${f.aggregation}`),
-                color: seriesColor ?? colors[index],
+                color: seriesColor ?? getDefaultColor(index, colors),
                 type: seriesType,
                 ...(index === 0 && { position: yAxisPosition }),
             };

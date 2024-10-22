@@ -22,6 +22,19 @@ import {
 } from './types';
 import { type IResultsRunner } from './types/IResultsRunner';
 
+export const getDefaultColor = (index: number, orgColors?: string[]) => {
+    const colorPalette =
+        orgColors && orgColors.length > 0 ? orgColors : ECHARTS_DEFAULT_COLORS;
+
+    // This code assigns a color to a series in the chart
+    const color =
+        colorPalette[
+            index % colorPalette.length // This ensures we cycle through the colors if we have more series than colors
+        ];
+
+    return color;
+};
+
 // Empty config as default. This makes sense to be defined by the DataModel,
 // but is this the right place?
 const defaultFieldConfig: PivotChartLayout = {
@@ -308,16 +321,6 @@ export class CartesianChartDataModel {
         };
     }
 
-    static getDefaultColor(index: number, orgColors?: string[]) {
-        const colorPalette = orgColors || ECHARTS_DEFAULT_COLORS;
-        // This code assigns a color to a series in the chart
-        const color =
-            colorPalette[
-                index % colorPalette.length // This ensures we cycle through the colors if we have more series than colors
-            ];
-        return color;
-    }
-
     async getTransformedData(query?: SemanticLayerQuery) {
         if (!query) {
             return undefined;
@@ -455,6 +458,10 @@ export class CartesianChartDataModel {
         return transformedData.fileUrl;
     }
 
+    static getChartTypeByKind(kind: CartesianChartKind) {
+        return kind === ChartKind.VERTICAL_BAR ? 'bar' : kind; // TODO: there could be other types of charts that we need to support, but for now `bar` and `line` are the only ones we have
+    }
+
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
@@ -469,9 +476,6 @@ export class CartesianChartDataModel {
         const orgColors = colors;
 
         const DEFAULT_X_AXIS_TYPE = 'category';
-
-        const defaultSeriesType =
-            type === ChartKind.VERTICAL_BAR ? 'bar' : 'line';
 
         const shouldStack = display?.stack === true;
 
@@ -506,7 +510,9 @@ export class CartesianChartDataModel {
                         transformedData.indexColumn?.reference,
                         seriesColumn,
                     ],
-                    type: seriesType ?? defaultSeriesType,
+                    type: CartesianChartDataModel.getChartTypeByKind(
+                        seriesType ?? type,
+                    ),
                     stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
                     name:
                         seriesLabel ||
@@ -529,12 +535,7 @@ export class CartesianChartDataModel {
                               )
                             : undefined,
                     },
-                    color:
-                        seriesColor ||
-                        CartesianChartDataModel.getDefaultColor(
-                            index,
-                            orgColors,
-                        ),
+                    color: seriesColor ?? getDefaultColor(index, orgColors),
                     // this.getSeriesColor( seriesColumn, possibleXAxisValues, orgColors),
                 };
             },
