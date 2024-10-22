@@ -1,9 +1,6 @@
 import { ChartKind, isVizBarChartConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
-import {
-    fetchPivotChartData,
-    prepareAndFetchChartData,
-} from '../../../features/sqlRunner/store/thunks';
+import { prepareAndFetchChartData } from '../../../features/sqlRunner/store/thunks';
 import {
     resetChartState,
     setChartConfig,
@@ -29,18 +26,6 @@ export const barChartConfigSlice = createSlice({
             state.chartData = action.payload;
         });
         builder.addCase(prepareAndFetchChartData.rejected, (state, action) => {
-            state.chartDataLoading = false;
-            state.chartDataError = new Error(action.error.message);
-        });
-        builder.addCase(fetchPivotChartData.pending, (state) => {
-            state.chartDataLoading = true;
-            state.chartDataError = undefined;
-        });
-        builder.addCase(fetchPivotChartData.fulfilled, (state, action) => {
-            state.chartDataLoading = false;
-            state.series = action.payload?.valuesColumns;
-        });
-        builder.addCase(fetchPivotChartData.rejected, (state, action) => {
             state.chartDataLoading = false;
             state.chartDataError = new Error(action.error.message);
         });

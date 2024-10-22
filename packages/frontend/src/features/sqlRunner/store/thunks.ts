@@ -8,11 +8,7 @@ import {
     isErrorDetails,
     isVizCartesianChartConfig,
     type ApiErrorDetail,
-    type CartesianChartDataModel,
-    type PieChartDataModel,
-    type PivotChartData,
     type RawResultRow,
-    type TableDataModel,
 } from '@lightdash/common';
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { type RootState } from '.';
@@ -28,7 +24,6 @@ import {
     scheduleSqlJob,
     type ResultsAndColumns,
 } from '../hooks/useSqlQueryRun';
-import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
 
 /**
@@ -39,10 +34,7 @@ import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
  * @returns The results and the results runner
  */
 export const runSqlQuery = createAsyncThunk<
-    ResultsAndColumns & {
-        resultsRunner: SqlRunnerResultsRunnerFrontend;
-        fileUrl: string | undefined;
-    },
+    ResultsAndColumns,
     { sql: string; limit: number; projectUuid: string },
     { rejectValue: ApiErrorDetail }
 >(
@@ -69,19 +61,10 @@ export const runSqlQuery = createAsyncThunk<
                         ? job.details.columns
                         : [];
 
-                const resultsRunner = new SqlRunnerResultsRunnerFrontend({
-                    columns,
-                    rows: results,
-                    projectUuid,
-                    limit,
-                    sql,
-                });
-
                 return {
                     fileUrl: url,
                     results,
                     columns,
-                    resultsRunner,
                 };
             } else {
                 return rejectWithValue(job.error);
@@ -93,42 +76,12 @@ export const runSqlQuery = createAsyncThunk<
 );
 
 /**
- * Fetch pivot chart data
- * @param vizDataModel - The viz data model to fetch the pivot chart data for
- * @param limit - The limit of results to return
- * @param sql - The sql query to run
- * @returns The pivot chart data
- */
-export const fetchPivotChartData = createAsyncThunk<
-    PivotChartData | undefined,
-    {
-        vizDataModel:
-            | TableDataModel
-            | PieChartDataModel
-            | CartesianChartDataModel;
-        limit: number;
-        sql: string;
-    }
->(
-    'cartesianChartBaseConfig/fetchPivotChartData',
-    async ({ vizDataModel, limit, sql }) => {
-        const chartData = await vizDataModel.getPivotedChartData({
-            limit,
-            sql,
-            sortBy: [],
-            filters: [],
-        });
-        return chartData;
-    },
-);
-
-/**
  * Prepare and fetch chart data for the selected chart type
  * @returns The chart data - this includes the table data, chart file url, and a function to get the chart spec
  */
 export const prepareAndFetchChartData = createAsyncThunk(
     'cartesianChartBaseConfig/prepareAndFetchChartData',
-    async (_, { getState, dispatch }) => {
+    async (_, { getState }) => {
         const state = getState() as RootState;
 
         const currentVizConfig = selectCompleteConfigByKind(
@@ -156,9 +109,12 @@ export const prepareAndFetchChartData = createAsyncThunk(
             selectedChartType ?? ChartKind.VERTICAL_BAR,
         );
 
-        const chartData = await dispatch(
-            fetchPivotChartData({ vizDataModel, limit, sql }),
-        ).unwrap();
+        const chartData = await vizDataModel.getPivotedChartData({
+            limit,
+            sql,
+            sortBy: [],
+            filters: [],
+        });
 
         const getChartSpec = (orgColors: string[]) => {
             const currentState = getState() as RootState;

@@ -23,7 +23,13 @@ export const store = configureStore({
     },
     // Add the listener middleware to the store, this is useful for listening to actions and running side effects
     middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware().prepend(listenerMiddleware.middleware),
+        getDefaultMiddleware({
+            serializableCheck: {
+                // Ignore the getChartSpec function in the payload when pivoting chart data
+                // This is because the function is not serializable, but we need to keep its instance to get the correct chart spec (see prepareAndFetchChartData thunk)
+                ignoredActionPaths: ['payload.getChartSpec'],
+            },
+        }).prepend(listenerMiddleware.middleware),
     devTools: process.env.NODE_ENV === 'development',
 });
 
