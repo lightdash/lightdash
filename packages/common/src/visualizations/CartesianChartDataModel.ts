@@ -497,12 +497,16 @@ export class CartesianChartDataModel {
                     (s) => s.yAxisIndex === index,
                 )?.color;
 
+                const seriesType = Object.values(display?.series || {}).find(
+                    (s) => s.yAxisIndex === index,
+                )?.type;
+
                 return {
                     dimensions: [
                         transformedData.indexColumn?.reference,
                         seriesColumn,
                     ],
-                    type: defaultSeriesType,
+                    type: seriesType ?? defaultSeriesType,
                     stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
                     name:
                         seriesLabel ||
@@ -608,7 +612,7 @@ export type CartesianChartDisplay = {
     };
     yAxis?: {
         label?: string;
-        position?: string;
+        position?: string; // TODO: should this be in the series instead?
         format?: Format;
     }[];
     series?: {
