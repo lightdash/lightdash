@@ -690,8 +690,7 @@ export class SchedulerModel {
                     if (scheduler) {
                         await trx(SchedulerTableName)
                             .update({ ...scheduler, cron })
-                            .where('scheduler_uuid', schedulerUuid)
-                            .andWhere({ timezone: null });
+                            .where('scheduler_uuid', schedulerUuid);
                     }
                 },
             );

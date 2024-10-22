@@ -459,8 +459,15 @@ export class SchedulerService extends BaseService {
             projectUuid,
         );
 
-        const schedulerUpdates = await Promise.all(
-            schedulers.map<Promise<SchedulerCronUpdate>>(async (s) => {
+        const schedulerUpdatePromises = schedulers.reduce<
+            Promise<SchedulerCronUpdate>[]
+        >((acc, s) => {
+            // Only calculate updates for schedulers using project default timezone
+            if (s.timezone) {
+                return acc;
+            }
+
+            const schedulerUpdates = async () => {
                 await this.checkUserCanUpdateSchedulerResource(
                     user,
                     s.schedulerUuid,
@@ -476,9 +483,18 @@ export class SchedulerService extends BaseService {
                     tzOffsetMin,
                 );
 
-                return { schedulerUuid: s.schedulerUuid, cron: adjustedcron };
-            }),
-        );
+                return {
+                    schedulerUuid: s.schedulerUuid,
+                    cron: adjustedcron,
+                };
+            };
+
+            acc.push(schedulerUpdates());
+
+            return acc;
+        }, []);
+
+        const schedulerUpdates = await Promise.all(schedulerUpdatePromises);
 
         await this.schedulerModel.bulkUpdateSchedulersCron(schedulerUpdates);
     }
