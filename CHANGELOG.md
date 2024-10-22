@@ -1,3 +1,10 @@
+## [0.1310.4](https://github.com/lightdash/lightdash/compare/0.1310.3...0.1310.4) (2024-10-22)
+
+
+### Bug Fixes
+
+* update saved semantic viewer ([#12018](https://github.com/lightdash/lightdash/issues/12018)) ([143f706](https://github.com/lightdash/lightdash/commit/143f7065480aec9865838b3f025a377211afc42e))
+
 ## [0.1310.3](https://github.com/lightdash/lightdash/compare/0.1310.2...0.1310.3) (2024-10-22)
 
 
