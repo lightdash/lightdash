@@ -1,3 +1,10 @@
+## [0.1310.5](https://github.com/lightdash/lightdash/compare/0.1310.4...0.1310.5) (2024-10-22)
+
+
+### Bug Fixes
+
+* compare sqls on change to edit virtual view ([#12022](https://github.com/lightdash/lightdash/issues/12022)) ([0a52086](https://github.com/lightdash/lightdash/commit/0a52086a90b345933ea883ad5a16783d25460eba))
+
 ## [0.1310.4](https://github.com/lightdash/lightdash/compare/0.1310.3...0.1310.4) (2024-10-22)
 
 
