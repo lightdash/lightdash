@@ -1,5 +1,41 @@
 import { arrayToString, stringToArray } from 'cron-converter';
 
+function getOffsetMinute(minute: number, offsetMinutes: number) {
+    let newMinute = minute + offsetMinutes;
+    if (newMinute >= 60) {
+        newMinute %= 60;
+    } else if (newMinute < 0) {
+        newMinute = ((newMinute % 60) + 60) % 60;
+    }
+    return newMinute;
+}
+
+function getOffsetHour(hour: number, offsetMinutes: number) {
+    const hourOffset = offsetMinutes / 60;
+    let newHour = hour + hourOffset;
+    let dayOverflow = 0;
+
+    if (newHour >= 24) {
+        dayOverflow += Math.floor(newHour / 24);
+        newHour %= 24;
+    } else if (newHour < 0) {
+        dayOverflow += Math.floor(newHour / 24); // Correct negative hour overflow
+        newHour = ((newHour % 24) + 24) % 24;
+    }
+
+    return {
+        hour: newHour,
+        dayOverflow,
+    };
+}
+
+function getOffsetWeekDay(dayOfWeek: number, dayOverflow: number) {
+    let newDay = (dayOfWeek + dayOverflow) % 7;
+    if (newDay < 0) newDay += 7; // Handle negative wrap-around
+
+    return newDay;
+}
+
 /**
  * Adjust a cron expression given the a minute offset, doesn't take into account dayOfMonth and monthOfYear overflows
  * @param cronExpression
@@ -18,48 +54,32 @@ export function getAdjustedCronByOffset(
         dayOfWeek: cronParts[4],
     };
 
-    // Adjust minutes and handle overflow into hours
-    fields.minute = fields.minute.map((min) => {
-        let newMinute = min + offsetMinutes;
-        if (newMinute >= 60) {
-            newMinute %= 60;
-        } else if (newMinute < 0) {
-            newMinute = ((newMinute % 60) + 60) % 60;
-        }
-        return newMinute;
-    });
+    if (fields.minute.length === 1) {
+        // Adjust minutes and handle overflow into hours
+        fields.minute[0] = getOffsetMinute(fields.minute[0], offsetMinutes);
+    }
 
-    const hourOffset = offsetMinutes / 60;
-    let dayOverflow = 0; // Track day overflow for week adjustment
+    let dayOverflow = 0;
+    if (fields.hour.length === 1) {
+        // Adjust hours and handle overflow into the next day
+        const offsetHour = getOffsetHour(fields.hour[0], offsetMinutes);
+        dayOverflow = offsetHour.dayOverflow;
+        fields.hour[0] = offsetHour.hour;
+    }
 
-    // Adjust hours and handle overflow into the next day
-    fields.hour = fields.hour.map((hour) => {
-        let newHour = hour + hourOffset;
-        if (newHour >= 24) {
-            dayOverflow += Math.floor(newHour / 24);
-            newHour %= 24;
-        } else if (newHour < 0) {
-            dayOverflow += Math.floor(newHour / 24); // Correct negative hour overflow
-            newHour = ((newHour % 24) + 24) % 24;
-        }
-        return newHour;
-    });
+    if (fields.dayOfWeek.length === 1) {
+        // Adjust day of the week based on hour overflow which crossed full day thresholds
+        fields.dayOfWeek[0] = getOffsetWeekDay(
+            fields.dayOfWeek[0],
+            dayOverflow,
+        );
+    }
 
-    // Adjust day of the week based on hour overflow which crossed full day thresholds
-    fields.dayOfWeek = fields.dayOfWeek.map((day) => {
-        let newDay = (day + dayOverflow) % 7;
-        if (newDay < 0) newDay += 7; // Handle negative wrap-around
-        return newDay;
-    });
-
-    // Convert back to a string
-    const newCronExpression = arrayToString([
+    return arrayToString([
         fields.minute,
         fields.hour,
-        fields.dayOfMonth, // ! Overflows not handled
-        fields.monthOfYear, // ! Overflows not handled
+        fields.dayOfMonth, // ! Not calculating overflows
+        fields.monthOfYear, // ! Not calculating overflows
         fields.dayOfWeek,
     ]);
-
-    return newCronExpression;
 }
