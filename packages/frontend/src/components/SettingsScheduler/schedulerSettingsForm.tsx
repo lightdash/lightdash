@@ -2,7 +2,7 @@ import { type Project } from '@lightdash/common';
 import { Button, Flex, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelp } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../common/MantineIcon';
 import TimeZonePicker from '../common/TimeZonePicker';
@@ -25,18 +25,23 @@ const SchedulerSettingsForm: FC<Props> = ({ isLoading, project, onSubmit }) => {
         },
     });
 
+    const hasChanged = useMemo(
+        () => form.values.timezone !== project?.schedulerTimezone,
+        [form.values.timezone, project?.schedulerTimezone],
+    );
+
     return (
         <form onSubmit={form.onSubmit(onSubmit)}>
             <Stack w="100%">
                 <TimeZonePicker
                     label={
                         <Group display="inline-flex" spacing="xs">
-                            Timezone
+                            Default time zone
                             <Tooltip
                                 maw={400}
                                 label={
                                     <Text fw={400}>
-                                        Default timezone for the project's
+                                        Default time zone for the project's
                                         scheduled deliveries
                                     </Text>
                                 }
@@ -55,7 +60,7 @@ const SchedulerSettingsForm: FC<Props> = ({ isLoading, project, onSubmit }) => {
                 <Flex justify="end" align="center" gap="sm">
                     <Button
                         type="submit"
-                        disabled={!form.isValid()}
+                        disabled={!form.isValid() || !hasChanged}
                         loading={isLoading}
                     >
                         Update

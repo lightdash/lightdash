@@ -674,7 +674,7 @@ const SchedulerForm: FC<Props> = ({
                                                 ? `(${project?.schedulerTimezone})`
                                                 : ''
                                         }`}
-                                        maw="30%"
+                                        maw={350}
                                         searchable
                                         clearable
                                         {...form.getInputProps('timezone')}
