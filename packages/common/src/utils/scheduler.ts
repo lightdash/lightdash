@@ -1,5 +1,30 @@
 import cronstrue from 'cronstrue';
 
+export function getTzMinutesOffset(oldTz: string, newTz: string) {
+    const date = new Date();
+    const oldFormattedString = date.toLocaleString('en-US', {
+        timeZone: oldTz,
+    });
+    const newFormattedString = date.toLocaleString('en-US', {
+        timeZone: newTz,
+    });
+    const dateInOldZone = new Date(oldFormattedString);
+    const dateInNewZone = new Date(newFormattedString);
+    return Math.round(
+        (dateInNewZone.getTime() - dateInOldZone.getTime()) / (1000 * 60),
+    );
+}
+
+export function formatMinutesOffset(offsetMins: number) {
+    const sign = offsetMins >= 0 ? '+' : '-';
+    const absOffset = Math.abs(offsetMins);
+    const hours = Math.floor(absOffset / 60);
+    const minutes = absOffset % 60;
+    const paddedHours = String(hours).padStart(2, '0');
+    const paddedMinutes = String(minutes).padStart(2, '0');
+    return `${sign}${paddedHours}:${paddedMinutes}`;
+}
+
 export function getHumanReadableCronExpression(
     cronExpression: string,
     timezone: string,
@@ -8,9 +33,13 @@ export function getHumanReadableCronExpression(
         verbose: true,
         throwExceptionOnParseError: false,
     });
+
+    const minsOffset = getTzMinutesOffset('UTC', timezone);
+    const offsetString = formatMinutesOffset(minsOffset);
+
     const valueWithTimezone = value
-        .replaceAll(' PM', ` PM (${timezone})`)
-        .replaceAll(' AM', ` AM (${timezone})`);
+        .replaceAll(' PM', ` PM (UTC ${offsetString})`)
+        .replaceAll(' AM', ` AM (UTC ${offsetString})`);
 
     return valueWithTimezone[0].toLowerCase() + valueWithTimezone.slice(1);
 }
@@ -40,29 +69,4 @@ export function isValidFrequency(cronExpression: string): boolean {
     }
 
     return true;
-}
-
-export function getTzMinutesOffset(oldTz: string, newTz: string) {
-    const date = new Date();
-    const oldFormattedString = date.toLocaleString('en-US', {
-        timeZone: oldTz,
-    });
-    const newFormattedString = date.toLocaleString('en-US', {
-        timeZone: newTz,
-    });
-    const dateInOldZone = new Date(oldFormattedString);
-    const dateInNewZone = new Date(newFormattedString);
-    return Math.round(
-        (dateInNewZone.getTime() - dateInOldZone.getTime()) / (1000 * 60),
-    );
-}
-
-export function formatMinutesOffset(offsetMins: number) {
-    const sign = offsetMins >= 0 ? '+' : '-';
-    const absOffset = Math.abs(offsetMins);
-    const hours = Math.floor(absOffset / 60);
-    const minutes = absOffset % 60;
-    const paddedHours = String(hours).padStart(2, '0');
-    const paddedMinutes = String(minutes).padStart(2, '0');
-    return `${sign}${paddedHours}:${paddedMinutes}`;
 }

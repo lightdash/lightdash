@@ -1,8 +1,10 @@
 import {
     FeatureFlags,
+    formatMinutesOffset,
     getItemId,
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
+    getTzMinutesOffset,
     isDashboardScheduler,
     isNumericItem,
     isSchedulerCsvOptions,
@@ -457,6 +459,14 @@ const SchedulerForm: FC<Props> = ({
     const isThresholdAlertWithNoFields =
         isThresholdAlert && Object.keys(numericMetrics).length === 0;
 
+    const projectDefaultOffsetString = useMemo(() => {
+        if (!project) {
+            return;
+        }
+        const minsOffset = getTzMinutesOffset('UTC', project.schedulerTimezone);
+        return formatMinutesOffset(minsOffset);
+    }, [project]);
+
     return (
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
             <Tabs defaultValue="setup">
@@ -670,8 +680,8 @@ const SchedulerForm: FC<Props> = ({
                                         size="sm"
                                         style={{ flexGrow: 1 }}
                                         placeholder={`Project Default ${
-                                            project?.schedulerTimezone
-                                                ? `(${project?.schedulerTimezone})`
+                                            projectDefaultOffsetString
+                                                ? `(UTC ${projectDefaultOffsetString})`
                                                 : ''
                                         }`}
                                         maw={350}
