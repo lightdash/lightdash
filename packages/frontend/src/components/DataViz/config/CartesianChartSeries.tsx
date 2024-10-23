@@ -85,7 +85,7 @@ const SeriesItem = ({
                 color={color ?? colors[index]}
                 onColorChange={(c) => {
                     dispatch(
-                        actions.setSeriesProperties({
+                        actions.setSeriesColor({
                             reference,
                             index,
                             color: c,
@@ -102,15 +102,34 @@ const SeriesItem = ({
                 offset={0}
                 trapFocus
                 onClose={() => {
-                    dispatch(
-                        actions.setSeriesProperties({
-                            reference,
-                            index,
-                            label: form.values.label,
-                            type: form.values.type,
-                            format: form.values.format,
-                        }),
-                    );
+                    // TODO: have a single action for all changes
+                    if (form.values.label) {
+                        dispatch(
+                            actions.setSeriesLabel({
+                                reference,
+                                index,
+                                label: form.values.label,
+                            }),
+                        );
+                    }
+                    if (form.values.type) {
+                        dispatch(
+                            actions.setSeriesChartType({
+                                reference,
+                                index,
+                                type: form.values.type,
+                            }),
+                        );
+                    }
+                    if (form.values.format) {
+                        dispatch(
+                            actions.setSeriesFormat({
+                                reference,
+                                index,
+                                format: form.values.format,
+                            }),
+                        );
+                    }
                 }}
             >
                 <Popover.Target>
