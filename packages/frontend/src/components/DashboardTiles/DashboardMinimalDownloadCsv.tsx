@@ -1,6 +1,6 @@
 import { isField, type ApiChartAndResults } from '@lightdash/common';
 import { Menu } from '@mantine/core';
-import { IconDownload } from '@tabler/icons-react';
+import { IconTableExport } from '@tabler/icons-react';
 import { stringify } from 'csv-stringify/browser/esm';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
@@ -56,12 +56,12 @@ export const DashboardMinimalDownloadCsv: FC<{
 
     return (
         <Menu.Item
-            icon={<MantineIcon icon={IconDownload} />}
+            icon={<MantineIcon icon={IconTableExport} />}
             onClick={async () => {
                 await handleDownload();
             }}
         >
-            Download
+            Export CSV
         </Menu.Item>
     );
 };
