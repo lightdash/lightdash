@@ -675,7 +675,7 @@ export class ProjectController extends BaseController {
         try {
             await this.services
                 .getSchedulerService()
-                .updateDefaultTimezoneSchedulers(req.user!, projectUuid, {
+                .updateSchedulersWithDefaultTimezone(req.user!, projectUuid, {
                     oldDefaultProjectTimezone,
                     newDefaultProjectTimezone: body.schedulerTimezone,
                 });

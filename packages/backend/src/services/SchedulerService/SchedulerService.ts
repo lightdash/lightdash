@@ -444,7 +444,7 @@ export class SchedulerService extends BaseService {
         );
     }
 
-    async updateDefaultTimezoneSchedulers(
+    async updateSchedulersWithDefaultTimezone(
         user: SessionUser,
         projectUuid: string,
         {
