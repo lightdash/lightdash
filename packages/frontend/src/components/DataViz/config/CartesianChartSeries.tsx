@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlignLeft, IconAlignRight, IconPencil } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector,
@@ -58,6 +59,8 @@ const SeriesItem = ({
     selectedChartType,
 }: Pick<CartesianChartSeriesProps, 'selectedChartType' | 'actions'> &
     ConfigurableSeries & { colors: string[]; index: number }) => {
+    const [isSeriesConfigurationOpen, setIsSeriesConfigurationOpen] =
+        useState(false);
     const dispatch = useVizDispatch();
 
     const form = useForm({
@@ -68,6 +71,18 @@ const SeriesItem = ({
             format,
         },
     });
+
+    const { setFieldValue } = form;
+
+    useEffect(
+        function syncWithSelector() {
+            setFieldValue('label', label);
+            setFieldValue('type', type);
+            setFieldValue('format', format);
+        },
+        [label, type, format, setFieldValue],
+    );
+
     return (
         <Group
             spacing="xxs"
@@ -96,6 +111,7 @@ const SeriesItem = ({
             />
             <Popover
                 key={reference}
+                opened={isSeriesConfigurationOpen}
                 radius="md"
                 position="bottom"
                 shadow="md"
@@ -103,7 +119,7 @@ const SeriesItem = ({
                 trapFocus
                 onClose={() => {
                     // TODO: have a single action for all changes
-                    if (form.values.label) {
+                    if (form.values.label && form.isDirty('label')) {
                         dispatch(
                             actions.setSeriesLabel({
                                 reference,
@@ -112,7 +128,7 @@ const SeriesItem = ({
                             }),
                         );
                     }
-                    if (form.values.type) {
+                    if (form.values.type && form.isDirty('type')) {
                         dispatch(
                             actions.setSeriesChartType({
                                 reference,
@@ -121,7 +137,7 @@ const SeriesItem = ({
                             }),
                         );
                     }
-                    if (form.values.format) {
+                    if (form.values.format && form.isDirty('format')) {
                         dispatch(
                             actions.setSeriesFormat({
                                 reference,
@@ -130,6 +146,7 @@ const SeriesItem = ({
                             }),
                         );
                     }
+                    setIsSeriesConfigurationOpen(false);
                 }}
             >
                 <Popover.Target>
@@ -142,6 +159,9 @@ const SeriesItem = ({
                         c="dark.9"
                         fz={13}
                         fw={500}
+                        onClick={() => {
+                            setIsSeriesConfigurationOpen(true);
+                        }}
                     >
                         <Text fw={500} fz={13}>
                             {label}
@@ -157,7 +177,11 @@ const SeriesItem = ({
                                     Series {reference}
                                 </Text>
                             </Group>
-                            <CloseButton />
+                            <CloseButton
+                                onClick={() =>
+                                    setIsSeriesConfigurationOpen(false)
+                                }
+                            />
                         </Group>
                         <Divider c="gray.2" />
                         <Group position="apart">
@@ -248,6 +272,8 @@ export const CartesianChartSeries: React.FC<CartesianChartSeriesProps> = ({
     const series = useAppSelector((state) =>
         cartesianChartSelectors.getSeries(state, selectedChartType, colors),
     );
+
+    console.log(series);
 
     return (
         <Config>
