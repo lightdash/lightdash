@@ -685,7 +685,7 @@ const Dashboard: FC = () => {
                         <DateZoom isEditMode={isEditMode} />
                     )}
                 </Group>
-                <div style={{ margin: '0 -1.25em 0 -1.25em' }}>
+                <Group grow mx="-lg">
                     <DashboardTabs
                         isEditMode={isEditMode}
                         hasRequiredDashboardFiltersToSet={
@@ -703,7 +703,7 @@ const Dashboard: FC = () => {
                         setActiveTab={setActiveTab}
                         setAddingTab={setAddingTab}
                     />
-                </div>
+                </Group>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened

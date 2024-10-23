@@ -231,9 +231,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     });
                                 }
                             }}
-                            style={{
-                                marginTop: 5,
-                            }}
+                            mt="xs"
                             styles={
                                 tabsEnabled
                                     ? {
@@ -246,14 +244,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             variant="outline"
                         >
                             {sortedTabs && sortedTabs?.length > 0 && (
-                                <Tabs.List
-                                    style={{
-                                        backgroundColor:
-                                            'var(--mantine-color-gray-0)',
-                                        paddingLeft: '1.25em',
-                                        paddingRight: '1.25em',
-                                    }}
-                                >
+                                <Tabs.List bg="gray.0" px="lg">
                                     {sortedTabs?.map((tab, idx) => {
                                         return (
                                             <DraggableTab
@@ -300,7 +291,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     )}
                                 </Tabs.List>
                             )}
-                            <div style={{ padding: '0 1.25em 1.25em 1.25em' }}>
+                            <Group grow pb="lg" px="lg">
                                 <ResponsiveGridLayout
                                     {...getResponsiveGridLayoutProps()}
                                     className={`react-grid-layout-dashboard ${
@@ -351,7 +342,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         }
                                     })}
                                 </ResponsiveGridLayout>
-                            </div>
+                            </Group>
                             <LockedDashboardModal
                                 opened={
                                     hasRequiredDashboardFiltersToSet &&
