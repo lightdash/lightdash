@@ -74,23 +74,45 @@ export const DataVizAggregationConfig: FC<Props> = ({
 }) => {
     const aggregationOptionsWithNone = options ?? [];
 
+    const selectOptions = aggregationOptionsWithNone.map((option) => ({
+        value: option,
+        label:
+            option === VizAggregationOptions.ANY
+                ? 'Any value'
+                : capitalize(option),
+    }));
+
     return (
         <Select
-            radius="md"
-            data={aggregationOptionsWithNone.map((option) => ({
-                value: option,
-                label: capitalize(option),
-            }))}
+            withinPortal
+            fz="13px"
+            data={selectOptions}
             itemComponent={AggregationItem}
-            icon={aggregation && <AggregationIcon aggregation={aggregation} />}
             value={aggregation ?? aggregationOptionsWithNone?.[0]}
             onChange={(value: VizAggregationOptions | null) =>
                 value && onChangeAggregation(value)
             }
             styles={(theme) => ({
                 input: {
-                    width: '110px',
+                    width: '70px',
+                    height: '20px',
+                    minHeight: '20px',
+                    padding: 0,
+                    textAlign: 'center',
+                    backgroundColor: theme.fn.lighten(
+                        theme.colors.indigo[0],
+                        0.5,
+                    ),
+                    color: theme.colors.indigo[4],
                     fontWeight: 500,
+                    border: 'none',
+                    borderRadius: theme.radius.sm,
+                },
+                rightSection: {
+                    display: 'none',
+                },
+                dropdown: {
+                    minWidth: 'fit-content',
                 },
                 item: {
                     '&[data-selected="true"]': {
