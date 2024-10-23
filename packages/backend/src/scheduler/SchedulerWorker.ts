@@ -145,8 +145,14 @@ export class SchedulerWorker extends SchedulerTask {
                 const schedulers =
                     await this.schedulerService.getAllSchedulers();
                 const promises = schedulers.map(async (scheduler) => {
+                    const defaultTimezone =
+                        await this.schedulerService.getSchedulerDefaultTimezone(
+                            scheduler.schedulerUuid,
+                        );
+
                     await this.schedulerClient.generateDailyJobsForScheduler(
                         scheduler,
+                        defaultTimezone,
                     );
                 });
 

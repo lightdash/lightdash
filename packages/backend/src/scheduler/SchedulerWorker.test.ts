@@ -6,6 +6,7 @@ describe('Cron converter', () => {
         const executionDates = getDailyDatesFromCron(
             {
                 cron: '0 * * * *', // Every hour
+                timezone: 'UTC',
             },
             when,
         );
@@ -34,7 +35,7 @@ describe('Cron converter', () => {
     test('Make sure we can schedule at midnight', () => {
         const when = new Date(2023, 0, 1, 0, 0, 30); // Beggining of the day (30 seconds after midnight)
         const executionDates = getDailyDatesFromCron(
-            { cron: '0 * * * *' }, // Every hour
+            { cron: '0 * * * *', timezone: 'UTC' }, // Every hour
             when,
         );
 
@@ -44,7 +45,7 @@ describe('Cron converter', () => {
     test('Beginning and end of workday', () => {
         const when = new Date(2023, 0, 1, 0, 0, 30); // Beggining of the day (30 seconds after midnight)
         const executionDates = getDailyDatesFromCron(
-            { cron: '30 9,18 * * *' }, // at 9:30 and 18:30
+            { cron: '30 9,18 * * *', timezone: 'UTC' }, // at 9:30 and 18:30
             when,
         );
 
@@ -57,7 +58,7 @@ describe('Cron converter', () => {
     test('Get empty dates if scheduled on a different day', () => {
         const when = new Date(2023, 0, 1); // Beggining of the day
         const executionDates = getDailyDatesFromCron(
-            { cron: '0 * 30 * *' }, // every 30th day of the month
+            { cron: '0 * 30 * *', timezone: 'UTC' }, // every 30th day of the month
             when,
         );
 
@@ -65,7 +66,10 @@ describe('Cron converter', () => {
     });
 
     test('Get a date at the end of the day', () => {
-        const executionDates = getDailyDatesFromCron({ cron: '59 23 * * *' }); // at 23:59
+        const executionDates = getDailyDatesFromCron({
+            cron: '59 23 * * *',
+            timezone: 'UTC',
+        }); // at 23:59
 
         expect(executionDates.length).toStrictEqual(1);
         expect(executionDates[0].toISOString().split('T')[1]).toStrictEqual(
@@ -74,7 +78,10 @@ describe('Cron converter', () => {
     });
 
     test('Should not get a date at the beggining of the day', () => {
-        const executionDates = getDailyDatesFromCron({ cron: '0 0 * * *' }); // at 00:00
+        const executionDates = getDailyDatesFromCron({
+            cron: '0 0 * * *',
+            timezone: 'UTC',
+        }); // at 00:00
 
         expect(executionDates.length).toStrictEqual(0);
     });

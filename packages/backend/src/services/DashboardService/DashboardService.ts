@@ -39,6 +39,7 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
+import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -57,6 +58,7 @@ type DashboardServiceArguments = {
     savedChartModel: SavedChartModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    projectModel: ProjectModel;
 };
 
 export class DashboardService extends BaseService {
@@ -74,6 +76,8 @@ export class DashboardService extends BaseService {
 
     savedChartModel: SavedChartModel;
 
+    projectModel: ProjectModel;
+
     schedulerClient: SchedulerClient;
 
     slackClient: SlackClient;
@@ -88,6 +92,7 @@ export class DashboardService extends BaseService {
         savedChartModel,
         schedulerClient,
         slackClient,
+        projectModel,
     }: DashboardServiceArguments) {
         super();
         this.analytics = analytics;
@@ -97,6 +102,7 @@ export class DashboardService extends BaseService {
         this.pinnedListModel = pinnedListModel;
         this.schedulerModel = schedulerModel;
         this.savedChartModel = savedChartModel;
+        this.projectModel = projectModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
     }
@@ -885,7 +891,14 @@ export class DashboardService extends BaseService {
             user.organizationUuid,
             SchedulerModel.getSlackChannels(scheduler.targets),
         );
-        await this.schedulerClient.generateDailyJobsForScheduler(scheduler);
+
+        const { schedulerTimezone: defaultTimezone } =
+            await this.projectModel.get(projectUuid);
+
+        await this.schedulerClient.generateDailyJobsForScheduler(
+            scheduler,
+            defaultTimezone,
+        );
         return scheduler;
     }
 

@@ -282,8 +282,15 @@ export class SchedulerService extends BaseService {
         );
 
         // We only generate jobs if the scheduler is enabled
-        if (scheduler.enabled)
-            await this.schedulerClient.generateDailyJobsForScheduler(scheduler);
+        if (scheduler.enabled) {
+            const { schedulerTimezone: defaultTimezone } =
+                await this.projectModel.get(projectUuid);
+
+            await this.schedulerClient.generateDailyJobsForScheduler(
+                scheduler,
+                defaultTimezone,
+            );
+        }
 
         return scheduler;
     }
@@ -308,8 +315,15 @@ export class SchedulerService extends BaseService {
         );
 
         if (enabled) {
+            const defaultTimezone = await this.getSchedulerDefaultTimezone(
+                schedulerUuid,
+            );
+
             // If the scheduler is enabled, we need to generate the daily jobs
-            await this.schedulerClient.generateDailyJobsForScheduler(scheduler);
+            await this.schedulerClient.generateDailyJobsForScheduler(
+                scheduler,
+                defaultTimezone,
+            );
         }
 
         return scheduler;
