@@ -13,14 +13,23 @@ export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {
             radius="md"
             {...props}
             icon={<TableFieldIcon fieldType={fieldType} />}
-            styles={{
+            styles={(theme) => ({
                 input: {
                     fontWeight: 500,
+                    borderColor: theme.colors.gray[2],
+                    borderRadius: theme.radius.md,
+                    boxShadow: '0px 1px 2px 0px rgba(228, 229, 231, 0.24)',
                 },
                 item: {
                     '&[data-selected="true"]': {
                         fontWeight: 500,
                     },
+                },
+            })}
+            rightSectionWidth="min-content"
+            rightSectionProps={{
+                style: {
+                    padding: 6,
                 },
             }}
         />
