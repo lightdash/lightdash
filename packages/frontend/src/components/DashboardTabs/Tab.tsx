@@ -57,10 +57,8 @@ const DraggableTab: FC<DraggableTabProps> = ({
                         }}
                     >
                         <Group
-                            style={{
-                                paddingLeft: 16,
-                                paddingRight: 16,
-                            }}
+                            pt={isEditMode ? '1px' : 0} // Prevents line cutting through bottom of tab
+                            px={16}
                         >
                             {isEditMode ? (
                                 <Box

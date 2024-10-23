@@ -291,7 +291,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     )}
                                 </Tabs.List>
                             )}
-                            <Group grow pb="lg" px="lg">
+                            <Group
+                                grow
+                                pt={tabsEnabled ? 'lg' : undefined}
+                                pb="lg"
+                                px="lg"
+                            >
                                 <ResponsiveGridLayout
                                     {...getResponsiveGridLayoutProps()}
                                     className={`react-grid-layout-dashboard ${
