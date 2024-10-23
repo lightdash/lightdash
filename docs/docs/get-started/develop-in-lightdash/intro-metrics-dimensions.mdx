@@ -1,5 +1,26 @@
-import IntroMetricsDimensions from './../../snippets/intro-metrics-dimensions.mdx';
 
 # An intro to metrics and dimensions
 
-<IntroMetricsDimensions />
+**Metrics** and **Dimensions** are defined in your semantic layer. They are the building blocks for all queries and visuals you’ll create in Lightdash.
+
+- **Dimensions** are used to segment data in your Tables. [Learn more and see examples](/references/dimensions/).
+- **Metrics** are used to perform calculations on your Tables. [Learn more and see examples](/references/metrics).
+
+For example, let’s say we want **Unique Customers** and **Total Revenue** grouped by **Month** and **Order Status**. 
+
+- The data is being segmented by **Month** and **Order Status**, so those are the **dimensions**.
+- **Unique Customers** and **Total Revenue** will both need to be calculated from individual order totals and by counting unique customers, so they are **metrics**.
+
+Here’s the same question represented in SQL:
+
+```sql
+select 
+	order_month,
+	order_status,
+	count(distinct customer_id) as unique_customers,
+	sum(order_total) as total_revenue
+from orders
+group by 1,2
+```
+
+In the query, `order_month` and `order_status` are **dimensions**, and the columns that use aggregations (`unique_customers` and `total_revenue`) are **metrics**.

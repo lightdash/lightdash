@@ -1,16 +1,66 @@
-# 👩‍💻 Developing in Lightdash
+# 👩‍💻 Lightdash developer quickstart guide
 
-This tutorial is for people who are new to Lightdash and would like to develop their existing Lightdash project. We'll go over how to use Tables and the Explore view, how to develop Tables in your project, adding your first metrics, and some more advanced configurations for your Lightdash project's content.
+:::tip
+This quickstart guide is meant for people who will be developing in dbt and Lightdash. If that’s you, let's get started! We also have [a Notion version of this quickstart guide](https://lightdash.notion.site/Lightdash-developer-quickstart-3192f80173ef4f0bbbe0f0f88b726a76) that can be copied, customized, and shared with your whole team!
+:::
 
-1. [Exploring your content](/get-started/develop-in-lightdash/exploring-your-content)
-2. [An intro to metrics and dimensions](/get-started/develop-in-lightdash/intro-metrics-dimensions)
+In this guide you'll learn how to get set up as a Lightdash developer on an existing project, make, preview, and deploy changes to your semantic layer using the CLI, build custom metrics and dimensions in Lightdash, and build charts and dashboards on top of all of that.
+
+
+## Need-to-know Lightdash concepts
+
+[these should be individual pages to step through using the "next" button and we can offer a way for people to skip straight to "install the CLI" step if they don't want the contextual info]
+
+**Lightdash is a self-serve BI tool powered by a semantic layer.**
+
+Before we dive into the technical details of developing in Lightdash, take a second to review the following key concepts behind Lightdash. 
+
+
+### What is the Lightdash way? 
+
+**The Lightdash Way is about giving data consumers meaningful building blocks to answer their own data questions.** These blocks aren’t tables, joins and columns - they’re revenue, orders, customers and all the entities familiar to our end users.  Using these building blocks, our users can focus on answering the question they need, rather than figuring out the right datasets and how to join them. That’s what true data self-serve looks like in an org.
+
+For more details, and examples, [read more here](/best-practice/lightdash-way/).
+
+
+### What is Semantic BI?
+
+**Semantic BI means that key metrics are defined once, in a “semantic layer”, and made available to everyone.**
+
+[Read this blog](https://www.lightdash.com/blogpost/what-is-semantic-bi) post to learn why semantic BI isn't just a good option—it's the best one for forward-thinking companies aiming to democratize data access.
+
+
+### What are dimensions and metrics? 
+
+**Metrics** and **Dimensions** are defined in your semantic layer. They are the building blocks for all queries and visuals you’ll create in Lightdash.
+
+- **Dimensions** are used to segment data in your Tables. [Learn more and see examples](/references/dimensions/).
+- **Metrics** are used to perform calculations on your Tables. [Learn more and see examples](/references/metrics).
+
+[See an example here](/get-started/develop-in-lightdash/intro-metrics-dimensions).
+
+
+### See lightdash in action
+
+Before you spend too much time learning how to become a Lightdash developer, we recommend getting familiar with the experience of using Lightdash as a data explorer first. You can get started in your own project if somoene else has set it up, or try one of our live demos. There is an 🛒 [ecommerce project](https://github.com/lightdash/lightdash-demo-data-gardening) and [live demo](https://demo.lightdash.com/projects/2014e038-ff4b-4761-ae6f-fbf551e7b468/home), and a 🏥 [healthcare project](https://github.com/lightdash/lightdash-demo-healthcare) and [live demo](https://demo.lightdash.com/projects/7992ac17-dbb3-4c8e-8658-fcbc96eea949/home).
+
+
+## Lightdash developer setup
+
+
+Install the Lightdash CLI
+
+Add tables to Lightdash
+
+Create metrics
+
+[Explore your data](/get-started/develop-in-lightdash/exploring-your-content)
+
+Learn the Lightdash developer workflow
+
+
 3. [Using Tables and the Explore view](/get-started/develop-in-lightdash/using-explores)
 4. [Adding dimensions to Lightdash](/get-started/develop-in-lightdash/how-to-create-dimensions)
 5. [Adding your first metrics](/get-started/develop-in-lightdash/how-to-create-metrics)
 6. [Share insights with your team](/get-started/develop-in-lightdash/sharing-insights)
 
-:::tip
-
-Also check out the [Lightdash Developer Quickstart](https://lightdash.notion.site/Lightdash-developer-quickstart-3192f80173ef4f0bbbe0f0f88b726a76). The quickstart is built in Notion so you can make a copy and follow along, or customize and share with your whole team!
-
-:::
