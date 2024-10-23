@@ -1,3 +1,10 @@
+## [0.1311.1](https://github.com/lightdash/lightdash/compare/0.1311.0...0.1311.1) (2024-10-23)
+
+
+### Bug Fixes
+
+* **cli:** set preview project in config when preview is updated ([#12035](https://github.com/lightdash/lightdash/issues/12035)) ([a905596](https://github.com/lightdash/lightdash/commit/a905596728a6aea748b393b9cca27d10298474d5))
+
 # [0.1311.0](https://github.com/lightdash/lightdash/compare/0.1310.5...0.1311.0) (2024-10-22)
 
 
