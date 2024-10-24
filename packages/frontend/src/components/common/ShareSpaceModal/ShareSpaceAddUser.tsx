@@ -23,6 +23,7 @@ import {
     useAddSpaceShareMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
+import { DEFAULT_PAGE_SIZE } from '../Table/types';
 import { UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
@@ -42,7 +43,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const { data: infiniteOrganizationUsers, fetchNextPage } =
         useInfiniteOrganizationUsers({
             searchInput: debouncedSearchQuery,
-            pageSize: 10,
+            pageSize: DEFAULT_PAGE_SIZE,
         });
     const selectScrollRef = useRef<HTMLDivElement>(null);
     const { data: groups } = useOrganizationGroups({ includeMembers: 1 });
