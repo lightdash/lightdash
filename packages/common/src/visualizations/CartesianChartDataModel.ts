@@ -468,12 +468,14 @@ export class CartesianChartDataModel {
         const { type } = this;
         const orgColors = colors;
 
-        const DEFAULT_X_AXIS_TYPE = 'category';
+        const DEFAULT_X_AXIS_TYPE = VizIndexType.CATEGORY;
 
         const defaultSeriesType =
             type === ChartKind.VERTICAL_BAR ? 'bar' : 'line';
 
         const shouldStack = display?.stack === true;
+
+        const xAxisReference = transformedData.indexColumn?.reference;
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
@@ -498,10 +500,7 @@ export class CartesianChartDataModel {
                 )?.color;
 
                 return {
-                    dimensions: [
-                        transformedData.indexColumn?.reference,
-                        seriesColumn,
-                    ],
+                    dimensions: [xAxisReference, seriesColumn],
                     type: defaultSeriesType,
                     stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
                     name:
@@ -511,7 +510,7 @@ export class CartesianChartDataModel {
                             ' ',
                         ), // similar to friendlyName, but this will preserve special characters
                     encode: {
-                        x: transformedData.indexColumn?.reference,
+                        x: xAxisReference,
                         y: seriesColumn,
                     },
                     yAxisIndex:
@@ -536,25 +535,44 @@ export class CartesianChartDataModel {
             },
         );
 
+        const xAxisType =
+            display?.xAxis?.type ||
+            transformedData.indexColumn?.type ||
+            DEFAULT_X_AXIS_TYPE;
+
         const spec = {
             tooltip: {
                 trigger: 'axis',
                 appendToBody: true, // Similar to rendering a tooltip in a Portal
+                ...(xAxisType === VizIndexType.TIME && xAxisReference
+                    ? {
+                          axisPointer: {
+                              label: {
+                                  // ECharts converts timezone values to local time
+                                  // so we need to show the original value in the tooltip
+                                  // this function is loosely typed because we don't have ECharts types in common
+                                  formatter: (params: {
+                                      seriesData: {
+                                          value: Record<string, unknown>;
+                                      }[];
+                                  }) =>
+                                      params.seriesData[0]?.value[
+                                          xAxisReference
+                                      ],
+                              },
+                          },
+                      }
+                    : {}),
             },
             legend: {
                 show: !!(transformedData.valuesColumns.length > 1),
                 type: 'scroll',
             },
             xAxis: {
-                type:
-                    display?.xAxis?.type ||
-                    transformedData.indexColumn?.type ||
-                    DEFAULT_X_AXIS_TYPE,
+                type: xAxisType,
                 name:
                     display?.xAxis?.label ||
-                    friendlyName(
-                        transformedData.indexColumn?.reference || 'xAxisColumn',
-                    ),
+                    friendlyName(xAxisReference || 'xAxisColumn'),
                 nameLocation: 'center',
                 nameGap: 30,
                 nameTextStyle: {
