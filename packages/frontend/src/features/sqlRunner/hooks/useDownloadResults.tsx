@@ -5,6 +5,45 @@ import { useAppSelector } from '../store/hooks';
 import { useResultsFromStreamWorker } from './useResultsFromStreamWorker';
 import { useSqlQueryRun } from './useSqlQueryRun';
 
+export const downloadCsv = async (
+    rows: RawResultRow[],
+    columns: string[],
+    chartName: string | undefined,
+) => {
+    const csvHeader = columns;
+    const csvBody = rows.map((row) =>
+        csvHeader.map((reference) => row[reference] || '-'),
+    );
+    const csvContent: string = await new Promise<string>((resolve, reject) => {
+        stringify(
+            [csvHeader, ...csvBody],
+            {
+                delimiter: ',',
+            },
+            (err, output) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(output);
+                }
+            },
+        );
+    });
+
+    const blob = new Blob([csvContent], {
+        type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute(
+        'download',
+        `${chartName || 'SQL runner results'}-${new Date().toISOString()}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 /**
  * Hook to download results from a stream worker as a CSV file
  * @param fileUrl - The URL of the file to download
@@ -43,43 +82,7 @@ export const useDownloadResults = ({
             return;
         }
 
-        const csvHeader = columnNames;
-        const csvBody = results.map((row) =>
-            csvHeader.map((reference) => row[reference] || '-'),
-        );
-        const csvContent: string = await new Promise<string>(
-            (resolve, reject) => {
-                stringify(
-                    [csvHeader, ...csvBody],
-                    {
-                        delimiter: ',',
-                    },
-                    (err, output) => {
-                        if (err) {
-                            reject(err);
-                        } else {
-                            resolve(output);
-                        }
-                    },
-                );
-            },
-        );
-
-        const blob = new Blob([csvContent], {
-            type: 'text/csv;charset=utf-8;',
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute(
-            'download',
-            `${
-                chartName || 'SQL runner results'
-            }-${new Date().toISOString()}.csv`,
-        );
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        await downloadCsv(results, columnNames, chartName);
     }, [
         fileUrl,
         customLimit,

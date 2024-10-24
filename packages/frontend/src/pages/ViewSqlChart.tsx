@@ -20,7 +20,8 @@ import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTa
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import { ChartDownload } from '../features/sqlRunner/components/Download/ChartDownload';
-import { ResultsDownload } from '../features/sqlRunner/components/Download/ResultsDownload';
+import { ResultsDownloadFromData } from '../features/sqlRunner/components/Download/ResultsDownloadFromData';
+import { ResultsDownloadFromUrl } from '../features/sqlRunner/components/Download/ResultsDownloadFromUrl';
 import { Header } from '../features/sqlRunner/components/Header';
 import { useSavedSqlChartResults } from '../features/sqlRunner/hooks/useSavedSqlChartResults';
 import { store } from '../features/sqlRunner/store';
@@ -121,9 +122,14 @@ const ViewSqlChart = () => {
                                 onChange={(val: TabOption) => setActiveTab(val)}
                             />
                         </Group>
-                        {activeTab === TabOption.RESULTS &&
-                            chartResultsData && (
-                                <ResultsDownload
+                        {(activeTab === TabOption.RESULTS ||
+                            (activeTab === TabOption.CHART &&
+                                isVizTableConfig(chartData?.config))) &&
+                            chartResultsData &&
+                            // Table charts don't have a fileUrl,
+                            // So we will download the file directly from the resultsData
+                            (chartResultsData?.fileUrl ? (
+                                <ResultsDownloadFromUrl
                                     fileUrl={chartResultsData.fileUrl}
                                     columnNames={
                                         chartResultsData.chartUnderlyingData
@@ -131,7 +137,19 @@ const ViewSqlChart = () => {
                                     }
                                     chartName={chartData?.name}
                                 />
-                            )}
+                            ) : (
+                                <ResultsDownloadFromData
+                                    rows={
+                                        chartResultsData.chartUnderlyingData
+                                            ?.rows ?? []
+                                    }
+                                    columns={
+                                        chartResultsData.chartUnderlyingData
+                                            ?.columns ?? []
+                                    }
+                                    chartName={chartData?.name}
+                                />
+                            ))}
                         {activeTab === TabOption.CHART && echartsInstance && (
                             <ChartDownload
                                 echartsInstance={echartsInstance}
