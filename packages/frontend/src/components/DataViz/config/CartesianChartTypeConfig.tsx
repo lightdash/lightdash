@@ -60,6 +60,7 @@ export const CartesianChartTypeConfig: FC<Props> = ({ onChangeType, type }) => {
                 input: {
                     width: '150px',
                     fontWeight: 500,
+                    border: `1px solid ${theme.colors.gray[2]}`,
                 },
                 item: {
                     '&[data-selected="true"]': {

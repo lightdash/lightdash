@@ -173,23 +173,6 @@ export const cartesianChartConfigSlice = createSlice({
             }
         },
 
-        setSeriesLabel: (
-            { display },
-            action: PayloadAction<{
-                reference: string;
-                label: string;
-                index: number;
-            }>,
-        ) => {
-            if (!display) display = {};
-            display.series = display.series || {};
-            display.series[action.payload.reference] = {
-                ...display.series[action.payload.reference],
-                yAxisIndex: action.payload.index,
-                label: action.payload.label,
-            };
-        },
-
         setYAxisPosition: (
             { display },
             action: PayloadAction<{
@@ -333,6 +316,24 @@ export const cartesianChartConfigSlice = createSlice({
                 };
             }
         },
+
+        setSeriesLabel: (
+            { display },
+            action: PayloadAction<{
+                reference: string;
+                label: string;
+                index: number;
+            }>,
+        ) => {
+            if (!display) display = {};
+            display.series = display.series || {};
+            display.series[action.payload.reference] = {
+                ...display.series[action.payload.reference],
+                yAxisIndex: action.payload.index,
+                label: action.payload.label,
+            };
+        },
+
         setSeriesFormat: (
             { display },
             action: PayloadAction<{

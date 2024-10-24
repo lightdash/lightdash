@@ -1,5 +1,7 @@
 import {
     ChartKind,
+    friendlyName,
+    getDefaultColor,
     type AllVizChartConfig,
     type PivotChartLayout,
 } from '@lightdash/common';
@@ -226,6 +228,38 @@ const getGroupByField = createSelector(
     (chartState) => chartState?.fieldConfig?.groupBy?.[0],
 );
 
+const getSeries = createSelector(
+    [
+        (state, chartKind) =>
+            selectCurrentCartesianChartState(state, chartKind),
+        (_, __, colors: string[]) => colors,
+    ],
+    (chartState, colors) =>
+        chartState?.fieldConfig?.y.map((f, index) => {
+            // TODO: this is a bit of a hack to get the yAxis position for the first series. Each series should have its own position.
+            const yAxisPosition = chartState?.display?.yAxis?.[0]?.position;
+            const foundSeries = Object.values(
+                chartState?.display?.series || {},
+            ).find((s) => s.yAxisIndex === index);
+
+            const seriesFormat = foundSeries?.format;
+            const seriesLabel = foundSeries?.label;
+            const seriesColor = foundSeries?.color;
+            const seriesType = foundSeries?.type;
+
+            return {
+                reference: f.reference,
+                format: seriesFormat,
+                label:
+                    seriesLabel ??
+                    friendlyName(`${f.reference}_${f.aggregation}`),
+                color: seriesColor ?? getDefaultColor(index, colors),
+                type: seriesType,
+                ...(index === 0 && { position: yAxisPosition }),
+            };
+        }),
+);
+
 const getPivotLayoutOptions = createSelector(
     [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
     (chartState) => chartState?.options?.pivotLayoutOptions,
@@ -244,4 +278,5 @@ export const cartesianChartSelectors = {
     getGroupByField,
     getPivotLayoutOptions,
     getErrors,
+    getSeries,
 };

@@ -20,12 +20,15 @@ const FormatIcon: FC<{ format: string | undefined }> = ({ format }) => {
 
 type Props = {
     format: Format | undefined;
-    onChangeFormat: (value: string) => void;
+    onChangeFormat: (value: Format) => void;
 };
 
 const FormatItem = forwardRef<
     HTMLDivElement,
-    ComponentPropsWithoutRef<'div'> & { value: string; selected: boolean }
+    ComponentPropsWithoutRef<'div'> & {
+        value: Format | 'none';
+        selected: boolean;
+    }
 >(({ value, ...others }, ref) => (
     <Box ref={ref} {...others}>
         <Group noWrap spacing="xs">
@@ -51,11 +54,12 @@ export const CartesianChartFormatConfig: FC<Props> = ({
             itemComponent={FormatItem}
             icon={format && <FormatIcon format={format} />}
             value={format ?? formatOptionsWithNone?.[0]}
-            onChange={(value) => value && onChangeFormat(value)}
+            onChange={(value) => value && onChangeFormat(value as Format)}
             styles={(theme) => ({
                 input: {
                     width: '110px',
                     fontWeight: 500,
+                    border: `1px solid ${theme.colors.gray[2]}`,
                 },
                 item: {
                     '&[data-selected="true"]': {

@@ -4,6 +4,7 @@ import {
     Popover,
     Stack,
     TextInput,
+    type MantineSize,
 } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -15,6 +16,7 @@ interface Props {
     defaultColor?: string;
     swatches: string[];
     onColorChange: (newColor: string) => void;
+    radius?: MantineSize;
 }
 
 const ColorSelector: FC<Props> = ({
@@ -22,13 +24,15 @@ const ColorSelector: FC<Props> = ({
     defaultColor = 'rgba(0,0,0,.1)',
     swatches,
     onColorChange,
+    radius = 'md',
 }) => {
     const isValidHexColor = color && isHexCodeColor(color);
 
     return (
-        <Popover shadow="md" withArrow>
+        <Popover shadow="md" withArrow withinPortal>
             <Popover.Target>
                 <ColorSwatch
+                    radius={radius}
                     size={20}
                     color={isValidHexColor ? color : defaultColor}
                     sx={{

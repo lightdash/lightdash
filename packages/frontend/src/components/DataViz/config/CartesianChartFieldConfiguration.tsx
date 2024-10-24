@@ -8,7 +8,13 @@ import {
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box, Select, Stack } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    SegmentedControl,
+    Select,
+    Stack,
+} from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -21,7 +27,10 @@ import { Config } from '../../VisualizationConfigs/common/Config';
 import { FieldReferenceSelect } from '../FieldReferenceSelect';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
-import { cartesianChartSelectors } from '../store/selectors';
+import {
+    cartesianChartSelectors,
+    selectCurrentCartesianChartState,
+} from '../store/selectors';
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
 
 const YFieldsAxisConfig: FC<{
@@ -283,6 +292,10 @@ export const CartesianChartFieldConfiguration = ({
         cartesianChartSelectors.getErrors(state, selectedChartType),
     );
 
+    const currentConfig = useVizSelector((state) =>
+        selectCurrentCartesianChartState(state, selectedChartType),
+    );
+
     return (
         <Stack spacing="sm">
             <Config>
@@ -339,6 +352,31 @@ export const CartesianChartFieldConfiguration = ({
                         error={errors?.groupByFieldError}
                     />
                 </Config.Section>
+            </Config>
+            <Config>
+                <Config.Group>
+                    <Config.Label>{`Stacking`}</Config.Label>
+                    <SegmentedControl
+                        radius="md"
+                        disabled={!groupByField}
+                        data={[
+                            {
+                                value: 'None',
+                                label: 'None',
+                            },
+                            {
+                                value: 'Stacked',
+                                label: 'Stacked',
+                            },
+                        ]}
+                        defaultValue={
+                            currentConfig?.display?.stack ? 'Stacked' : 'None'
+                        }
+                        onChange={(value) =>
+                            dispatch(actions.setStacked(value === 'Stacked'))
+                        }
+                    />
+                </Config.Group>
             </Config>
         </Stack>
     );
