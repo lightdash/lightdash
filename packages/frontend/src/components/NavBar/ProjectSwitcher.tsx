@@ -306,10 +306,10 @@ const ProjectSwitcher = () => {
                             I="create"
                             this={subject('Project', {
                                 organizationUuid: user.data?.organizationUuid,
+                                projectUuid: activeProject.projectUuid,
                                 type: ProjectType.PREVIEW,
                             })}
                         >
-                            {' '}
                             <Menu.Item
                                 sx={{
                                     '&:hover': {

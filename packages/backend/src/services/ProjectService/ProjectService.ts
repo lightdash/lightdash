@@ -2667,23 +2667,25 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         requestMethod: RequestMethod,
+        skipPermissionCheck: boolean = false,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } = await this.projectModel.getSummary(
             projectUuid,
         );
         if (
-            user.ability.cannot(
+            !skipPermissionCheck &&
+            (user.ability.cannot(
                 'create',
                 subject('Job', { organizationUuid, projectUuid }),
             ) ||
-            user.ability.cannot(
-                'manage',
-                subject('CompileProject', {
-                    organizationUuid,
-                    projectUuid,
-                    type,
-                }),
-            )
+                user.ability.cannot(
+                    'manage',
+                    subject('CompileProject', {
+                        organizationUuid,
+                        projectUuid,
+                        type,
+                    }),
+                ))
         ) {
             throw new ForbiddenError();
         }
@@ -3918,13 +3920,14 @@ export class ProjectService extends BaseService {
         },
         context: RequestMethod,
     ): Promise<string> {
-        // We first check if the user has permission to compile the parent project (requires developer)
+        // We first check if the user has permission to create preview projects based on parent projectUuid
         if (
             user.ability.cannot(
-                'manage',
-                subject('CompileProject', {
+                'create',
+                subject('Project', {
                     organizationUuid: user.organizationUuid,
                     projectUuid,
+                    type: ProjectType.PREVIEW,
                 }),
             )
         ) {
@@ -3955,10 +3958,15 @@ export class ProjectService extends BaseService {
             previewData,
             context,
         );
+        // Since the project is new, and we have copied some permissions,
+        // it is possible that the user `abilities` are not uptodate
+        // Before we check permissions on scheduleCompileProject
+        // Permissions will be checked again with the uptodate user on scheduler
         await this.scheduleCompileProject(
             user,
             previewProject.project.projectUuid,
             context,
+            true, // Skip permission check
         );
         return previewProject.project.projectUuid;
     }
