@@ -5,6 +5,7 @@ import {
     SentryConfig,
 } from '@lightdash/common';
 import { type ClientAuthMethod } from 'openid-client';
+import internal from 'stream';
 import { VERSION } from '../version';
 
 export const getIntegerFromEnvironmentVariable = (
@@ -244,7 +245,7 @@ export type LightdashConfig = {
         enabled: boolean;
     };
     s3?: S3Config;
-    headlessBrowser?: HeadlessBrowserConfig;
+    headlessBrowser: HeadlessBrowserConfig;
     resultsCache: {
         enabled: boolean;
         cacheStateTimeSeconds: number;
@@ -288,6 +289,7 @@ export type SlackConfig = {
 export type HeadlessBrowserConfig = {
     host?: string;
     port?: string;
+    internalLightdashHost: string;
 };
 export type S3Config = {
     region?: string;
@@ -705,6 +707,8 @@ export const parseConfig = (): LightdashConfig => {
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,
             host: process.env.HEADLESS_BROWSER_HOST,
+            internalLightdashHost:
+                process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
         },
         resultsCache: {
             enabled: process.env.RESULTS_CACHE_ENABLED === 'true',

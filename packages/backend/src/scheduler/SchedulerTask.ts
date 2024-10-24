@@ -172,7 +172,7 @@ export default class SchedulerTask {
                 );
             return {
                 url: `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
-                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?context=${context}`,
+                minimalUrl: `${this.lightdashConfig.headlessBrowser.internalLightdashHost}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?context=${context}`,
                 details: {
                     name: chart.name,
                     description: chart.description,
@@ -202,7 +202,9 @@ export default class SchedulerTask {
 
             return {
                 url: `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view`,
-                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${
+                minimalUrl: `${
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost
+                }/minimal/projects/${
                     dashboard.projectUuid
                 }/dashboards/${dashboardUuid}${
                     queryParams.toString() ? `?${queryParams.toString()}` : ''

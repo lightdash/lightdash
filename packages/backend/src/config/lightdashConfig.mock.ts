@@ -150,4 +150,7 @@ export const lightdashConfigMock: LightdashConfig = {
         appName: 'lightdash-app-dev',
         redirectDomain: 'test',
     },
+    headlessBrowser: {
+        internalLightdashHost: 'https://test.lightdash.cloud',
+    },
 };
