@@ -517,9 +517,7 @@ const Dashboard: FC = () => {
                 if (
                     !prompt.pathname.includes(
                         `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
-                    ) &&
-                    // Allow user to add a new table
-                    !sessionStorage.getItem('unsavedDashboardTiles')
+                    )
                 ) {
                     // Set the blocked navigation location to navigate on confirming from user
                     setBlockedNavigationLocation(prompt.pathname);
