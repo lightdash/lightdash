@@ -43,7 +43,10 @@ services:
             - GITHUB_PRIVATE_KEY=${GITHUB_PRIVATE_KEY}
             - GITHUB_APP_ID=${GITHUB_APP_ID}
             - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-            - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET} 
+            - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+            - GOOGLE_DRIVE_API_KEY=${GOOGLE_DRIVE_API_KEY}
+            - AUTH_GOOGLE_OAUTH2_CLIENT_ID=${AUTH_GOOGLE_OAUTH2_CLIENT_ID}
+            - AUTH_GOOGLE_OAUTH2_CLIENT_SECRET=${AUTH_GOOGLE_OAUTH2_CLIENT_SECRET}
         volumes:
             - '../:/usr/app'
             - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'
