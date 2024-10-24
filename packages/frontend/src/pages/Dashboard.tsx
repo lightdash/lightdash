@@ -685,23 +685,25 @@ const Dashboard: FC = () => {
                         <DateZoom isEditMode={isEditMode} />
                     )}
                 </Group>
-                <DashboardTabs
-                    isEditMode={isEditMode}
-                    hasRequiredDashboardFiltersToSet={
-                        hasRequiredDashboardFiltersToSet
-                    }
-                    addingTab={addingTab}
-                    dashboardTiles={dashboardTiles}
-                    handleAddTiles={handleAddTiles}
-                    handleUpdateTiles={handleUpdateTiles}
-                    handleDeleteTile={handleDeleteTile}
-                    handleBatchDeleteTiles={handleBatchDeleteTiles}
-                    handleEditTile={handleEditTiles}
-                    setGridWidth={setGridWidth}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    setAddingTab={setAddingTab}
-                />
+                <Group grow mx="-lg">
+                    <DashboardTabs
+                        isEditMode={isEditMode}
+                        hasRequiredDashboardFiltersToSet={
+                            hasRequiredDashboardFiltersToSet
+                        }
+                        addingTab={addingTab}
+                        dashboardTiles={dashboardTiles}
+                        handleAddTiles={handleAddTiles}
+                        handleUpdateTiles={handleUpdateTiles}
+                        handleDeleteTile={handleDeleteTile}
+                        handleBatchDeleteTiles={handleBatchDeleteTiles}
+                        handleEditTile={handleEditTiles}
+                        setGridWidth={setGridWidth}
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
+                        setAddingTab={setAddingTab}
+                    />
+                </Group>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened
