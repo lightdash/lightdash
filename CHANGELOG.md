@@ -1,3 +1,10 @@
+# [0.1313.0](https://github.com/lightdash/lightdash/compare/0.1312.2...0.1313.0) (2024-10-24)
+
+
+### Features
+
+* add scheduled deliveries timezone and project level default ([#12015](https://github.com/lightdash/lightdash/issues/12015)) ([dfada71](https://github.com/lightdash/lightdash/commit/dfada71245952aabba2ae6064d98cdb2733ec4be))
+
 ## [0.1312.2](https://github.com/lightdash/lightdash/compare/0.1312.1...0.1312.2) (2024-10-24)
 
 
