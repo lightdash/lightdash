@@ -387,7 +387,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     type="submit"
                     loading={isSavingProject}
                 >
-                    Test & compile project
+                    Test & deploy project
                 </Button>
             </ProjectFormProvider>
         </FormContainer>
