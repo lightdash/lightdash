@@ -39,7 +39,6 @@ export const addSqlRunnerQueryListener = (
                 selectedChartType,
                 completeConfigByKind,
             );
-
             listenerApi.dispatch(setChartOptionsAndConfig(chartResultOptions));
 
             await listenerApi.dispatch(prepareAndFetchChartData());

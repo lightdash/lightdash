@@ -27,6 +27,7 @@ export const barChartConfigSlice = createSlice({
         });
         builder.addCase(prepareAndFetchChartData.rejected, (state, action) => {
             state.chartDataLoading = false;
+            state.chartData = undefined;
             state.chartDataError = new Error(action.error.message);
         });
         builder.addCase(setChartOptionsAndConfig, (state, action) => {
@@ -35,11 +36,8 @@ export const barChartConfigSlice = createSlice({
             }
 
             state.options = action.payload.options;
+            state.fieldConfig = action.payload.config.fieldConfig;
 
-            // Only set the initial config if it's not already set and the fieldConfig is present
-            if (!state.fieldConfig && action.payload.config.fieldConfig) {
-                state.fieldConfig = action.payload.config.fieldConfig;
-            }
             if (!state.display && action.payload.config.display) {
                 state.display = action.payload.config.display;
             }
