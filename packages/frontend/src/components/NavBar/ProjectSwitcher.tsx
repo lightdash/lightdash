@@ -310,27 +310,17 @@ const ProjectSwitcher = () => {
                                 type: ProjectType.PREVIEW,
                             })}
                         >
+                            <Menu.Divider />
+
                             <Menu.Item
-                                sx={{
-                                    '&:hover': {
-                                        backgroundColor: 'transparent',
-                                        cursor: 'default',
-                                    },
+                                onClick={(e) => {
+                                    setIsCreatePreview(!isCreatePreviewOpen);
+                                    e.stopPropagation();
                                 }}
                             >
-                                <Group spacing="sm" position="center" noWrap>
-                                    <Button
-                                        onClick={(e) => {
-                                            setIsCreatePreview(
-                                                !isCreatePreviewOpen,
-                                            );
-                                            e.stopPropagation();
-                                        }}
-                                        variant="light"
-                                    >
-                                        Create preview
-                                    </Button>
-                                </Group>
+                                <Text fz="xs" fw={500}>
+                                    + Create preview
+                                </Text>
                             </Menu.Item>
                         </Can>
                     )}
