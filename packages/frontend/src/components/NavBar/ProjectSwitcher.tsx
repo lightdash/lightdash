@@ -251,8 +251,6 @@ const ProjectSwitcher = () => {
         return null;
     }
 
-    const hasMultipleProjects = projects.length > 1;
-
     return (
         <>
             <Menu
@@ -261,7 +259,6 @@ const ProjectSwitcher = () => {
                 shadow="lg"
                 arrowOffset={16}
                 offset={-2}
-                disabled={!hasMultipleProjects}
                 styles={{
                     dropdown: {
                         maxHeight: 450,
@@ -275,9 +272,7 @@ const ProjectSwitcher = () => {
                         variant="default"
                         size="xs"
                         disabled={
-                            isLoadingProjects ||
-                            isLoadingActiveProjectUuid ||
-                            !hasMultipleProjects
+                            isLoadingProjects || isLoadingActiveProjectUuid
                         }
                         sx={(theme) => ({
                             '&:disabled': {
