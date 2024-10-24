@@ -166,4 +166,14 @@ Scheduled deliveries will be set to the project's default time zone that you pic
 
 Users can customize the time zone used in a scheduled delivery. This will override the project default for that scheduled delivery.
 
-If you update the project's default time zone, then scheduled deliveries where the time zone hasn't been customized will automatically be updated to use the new default time zone. 
+:::info
+
+If you update the project's default time zone, then scheduled deliveries where the time zone hasn't been customized will automatically be translated to use the new default time zone. 
+
+:::
+
+For example:
+- my project default time zone is set to UTC
+- I have a scheduled delivery set to `Weekly on Monday at 15:00`
+- I change the project default time zone to `(UTC -5:00) America/New York`
+- my scheduled delivery will now be set to `Weekly on Monday at 09:00`
