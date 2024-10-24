@@ -4,7 +4,12 @@ import {
     type KnexPaginateArgs,
     type OrganizationMemberProfileUpdate,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
@@ -77,11 +82,17 @@ export const useOrganizationUsers = (params?: {
     );
 };
 
-export const usePaginatedOrganizationUsers = (params: {
-    searchInput?: string;
-    includeGroups?: number;
-    paginateArgs?: KnexPaginateArgs;
-}) => {
+export const usePaginatedOrganizationUsers = (
+    params: {
+        searchInput?: string;
+        includeGroups?: number;
+        paginateArgs?: KnexPaginateArgs;
+    },
+    useQueryOpts: UseQueryOptions<
+        ApiOrganizationMemberProfiles['results'],
+        ApiError
+    > = {},
+) => {
     const setErrorResponse = useQueryError();
     return useQuery<ApiOrganizationMemberProfiles['results'], ApiError>({
         queryKey: [
@@ -97,6 +108,7 @@ export const usePaginatedOrganizationUsers = (params: {
                 params.searchInput,
             ),
         onError: (result) => setErrorResponse(result),
+        ...useQueryOpts,
     });
 };
 
