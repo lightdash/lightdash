@@ -157,8 +157,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             }
         }
 
-        console.log({ privateKey });
-
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
