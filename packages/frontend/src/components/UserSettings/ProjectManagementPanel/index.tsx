@@ -1,16 +1,6 @@
 import { subject } from '@casl/ability';
 import { ProjectType, type OrganizationProject } from '@lightdash/common';
-import {
-    Badge,
-    Button,
-    Group,
-    Modal,
-    Stack,
-    Table,
-    Text,
-    TextInput,
-    Title,
-} from '@mantine/core';
+import { Badge, Button, Group, Stack, Table, Text, Title } from '@mantine/core';
 import { IconSettings, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link, Redirect } from 'react-router-dom';
@@ -19,7 +9,6 @@ import {
     useActiveProject,
     useUpdateActiveProjectMutation,
 } from '../../../hooks/useActiveProject';
-import { useCreatePreviewMutation } from '../../../hooks/useProjectPreview';
 import { useProjects } from '../../../hooks/useProjects';
 import { useApp } from '../../../providers/AppProvider';
 import { Can } from '../../common/Authorization';
@@ -107,19 +96,15 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
 };
 
 const ProjectManagementPanel: FC = () => {
-    const { user } = useApp();
     const { classes } = useTableStyles();
 
     const { data: projects = [], isInitialLoading: isLoadingProjects } =
         useProjects();
     const { data: lastProjectUuid, isInitialLoading: isLoadingLastProject } =
         useActiveProject();
-    const { mutateAsync: createPreviewProject, isLoading: isPreviewCreating } =
-        useCreatePreviewMutation();
 
     const [deletingProjectUuid, setDeletingProjectUuid] = useState<string>();
-    const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
-    const [previewName, setPreviewName] = useState<string | undefined>();
+
     if (isLoadingProjects || isLoadingLastProject) return null;
 
     if (projects.length === 0) {
@@ -134,37 +119,12 @@ const ProjectManagementPanel: FC = () => {
         <Stack mb="lg">
             <Group position="apart">
                 <Title order={5}>Project management settings</Title>
-                <Group>
-                    <Can
-                        I="create"
-                        this={subject('Project', {
-                            organizationUuid: user.data?.organizationUuid,
-                            type: ProjectType.DEFAULT,
-                        })}
-                    >
-                        <Button component={Link} to="/createProject">
-                            Create project
-                        </Button>
-                    </Can>
-                    {lastProject && (
-                        <Can
-                            I="create"
-                            this={subject('Project', {
-                                organizationUuid: user.data?.organizationUuid,
-                                type: ProjectType.PREVIEW,
-                            })}
-                        >
-                            <Button
-                                onClick={() => {
-                                    setIsCreatePreview(true);
-                                }}
-                                variant="default"
-                            >
-                                Create preview
-                            </Button>
-                        </Can>
-                    )}
-                </Group>
+
+                <Can I="create" a="Project">
+                    <Button component={Link} to="/createProject">
+                        Create new
+                    </Button>
+                </Can>
             </Group>
 
             <SettingsCard sx={{ overflow: 'hidden' }} shadow="none" p={0}>
@@ -202,48 +162,6 @@ const ProjectManagementPanel: FC = () => {
                     projectUuid={deletingProjectUuid}
                 />
             ) : null}
-            {isCreatePreviewOpen && lastProject && (
-                <Modal
-                    opened={isCreatePreviewOpen}
-                    onClose={() => setIsCreatePreview(false)}
-                    title={`Create preview from ${lastProject.name}`}
-                >
-                    <Text>
-                        This will create a preview project from
-                        <Text span fw={500}>
-                            {lastProject.name}
-                        </Text>
-                        . The new project will have the same connections and
-                        credentials.
-                    </Text>
-                    <TextInput
-                        mt="sm"
-                        mb="sm"
-                        label="Preview name"
-                        value={previewName}
-                        defaultValue={`Preview of ${lastProject.name}`}
-                        onChange={(e) => {
-                            setPreviewName(e.currentTarget.value);
-                        }}
-                    />
-                    <Button
-                        disabled={isPreviewCreating}
-                        onClick={async () => {
-                            await createPreviewProject({
-                                projectUuid: lastProject.projectUuid,
-                                name:
-                                    previewName ||
-                                    `Preview of ${lastProject.name}`,
-                            });
-                            setIsCreatePreview(false);
-                        }}
-                    >
-                        {isPreviewCreating
-                            ? 'Creating preview'
-                            : 'Create preview'}
-                    </Button>
-                </Modal>
-            )}
         </Stack>
     );
 };
