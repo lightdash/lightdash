@@ -14,16 +14,9 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
-import {
-    forwardRef,
-    useCallback,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { forwardRef, useMemo, useRef, useState, type FC } from 'react';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
-import { usePaginatedOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import {
     useAddGroupSpaceShareMutation,
@@ -44,21 +37,13 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const [currentPage, setCurrentPage] = useState(1);
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const { data: projectAccess } = useProjectAccess(projectUuid);
-    const { data: paginatedOrganizationUsers } = usePaginatedOrganizationUsers(
-        {
+    const { data: infiniteOrganizationUsers, fetchNextPage } =
+        useInfiniteOrganizationUsers({
             searchInput: debouncedSearchQuery,
-            paginateArgs: {
-                page: currentPage,
-                pageSize: 2,
-            },
-        },
-        {
-            keepPreviousData: true,
-        },
-    );
+            pageSize: 10,
+        });
     const selectScrollRef = useRef<HTMLDivElement>(null);
     const { data: groups } = useOrganizationGroups({ includeMembers: 1 });
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
@@ -68,18 +53,23 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const { mutateAsync: shareGroupSpaceMutation } =
         useAddGroupSpaceShareMutation(projectUuid, space.uuid);
 
+    const organizationUsers = useMemo(
+        () => infiniteOrganizationUsers?.pages.map((p) => p.data).flat(),
+        [infiniteOrganizationUsers?.pages],
+    );
+
     const userUuids: string[] = useMemo(() => {
-        if (paginatedOrganizationUsers === undefined) return [];
+        if (organizationUsers === undefined) return [];
 
         const projectUserUuids =
             projectAccess?.map((project) => project.userUuid) || [];
 
-        const orgUserUuids = paginatedOrganizationUsers.data
+        const orgUserUuids = organizationUsers
             .filter((user) => user.role !== OrganizationMemberRole.MEMBER)
             .map((user) => user.userUuid);
 
         return [...new Set([...projectUserUuids, ...orgUserUuids])];
-    }, [paginatedOrganizationUsers, projectAccess]);
+    }, [organizationUsers, projectAccess]);
 
     const UserItemComponent = useMemo(() => {
         return forwardRef<HTMLDivElement, SelectItem>((props, ref) => {
@@ -98,7 +88,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 );
             }
 
-            const user = paginatedOrganizationUsers?.data.find(
+            const user = organizationUsers?.find(
                 (userAccess) => userAccess.userUuid === props.value,
             );
 
@@ -155,11 +145,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 </Group>
             );
         });
-    }, [paginatedOrganizationUsers, space.access]);
+    }, [organizationUsers, space.access]);
 
     const data = useMemo(() => {
         const usersSet = userUuids.map((userUuid): SelectItem | null => {
-            const user = paginatedOrganizationUsers?.data.find(
+            const user = organizationUsers?.find(
                 (a) => a.userUuid === userUuid,
             );
 
@@ -203,31 +193,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             (item): item is SelectItem => item !== null,
         );
     }, [
-        paginatedOrganizationUsers,
+        organizationUsers,
         userUuids,
         space.access,
         groups,
         space.groupsAccess,
     ]);
-
-    const filterByNameOrEmail = useCallback(
-        (value: string, selected: boolean, item: SelectItem) => {
-            if (selected) return true;
-            return (
-                item.label?.toLowerCase().includes(value.toLowerCase()) ||
-                (item.email &&
-                    item.email.toLowerCase().includes(value.toLowerCase()))
-            );
-        },
-        [],
-    );
-    const handleFetchMore = useCallback(() => {
-        setCurrentPage((prev) => prev + 1);
-    }, []);
-
-    const canLoadMore =
-        currentPage <
-        (paginatedOrganizationUsers?.pagination?.totalPageCount ?? 0);
 
     return (
         <Group>
@@ -246,17 +217,15 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 onChange={setUsersSelected}
                 data={data}
                 itemComponent={UserItemComponent}
-                filter={filterByNameOrEmail}
                 dropdownComponent={({ children, ...rest }: ScrollAreaProps) => (
                     <ScrollArea {...rest} viewportRef={selectScrollRef} h="100">
                         {children}
-                        {canLoadMore && (
-                            <Button variant="white" onClick={handleFetchMore}>
-                                fetch more
-                            </Button>
-                        )}
+                        <Button variant="white" onClick={() => fetchNextPage()}>
+                            fetch more
+                        </Button>
                     </ScrollArea>
                 )}
+                filter={() => true}
             />
 
             <Button
