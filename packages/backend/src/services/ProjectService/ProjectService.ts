@@ -2667,22 +2667,25 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         requestMethod: RequestMethod,
+        skipPermissionCheck: boolean = false,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } = await this.projectModel.getSummary(
             projectUuid,
         );
         if (
-            user.ability.cannot(
+            !skipPermissionCheck &&
+            (user.ability.cannot(
                 'create',
                 subject('Job', { organizationUuid, projectUuid }),
             ) ||
-            user.ability.cannot(
-                'manage',
-                subject('CompileProject', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
+                user.ability.cannot(
+                    'manage',
+                    subject('CompileProject', {
+                        organizationUuid,
+                        projectUuid,
+                        type,
+                    }),
+                ))
         ) {
             throw new ForbiddenError();
         }
@@ -3906,6 +3909,66 @@ export class ProjectService extends BaseService {
             }));
 
         return spacesWithUserAccess;
+    }
+
+    async createPreview(
+        user: SessionUser,
+        projectUuid: string,
+        data: {
+            name: string;
+            copyContent: boolean;
+        },
+        context: RequestMethod,
+    ): Promise<string> {
+        // We first check if the user has permission to create preview projects based on parent projectUuid
+        if (
+            user.ability.cannot(
+                'create',
+                subject('Project', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                    type: ProjectType.PREVIEW,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // create preview project permissions are checked in `createWithoutCompile`
+        const project = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (!project.warehouseConnection) {
+            throw new ParameterError(
+                `Missing warehouse connection for project ${projectUuid}`,
+            );
+        }
+        const previewData: CreateProject = {
+            name: data.name,
+            type: ProjectType.PREVIEW,
+            warehouseConnection: project.warehouseConnection,
+            dbtConnection: project.dbtConnection,
+            upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
+            dbtVersion: project.dbtVersion,
+        };
+
+        const previewProject = await this.createWithoutCompile(
+            user,
+            previewData,
+            context,
+        );
+        // Since the project is new, and we have copied some permissions,
+        // it is possible that the user `abilities` are not uptodate
+        // Before we check permissions on scheduleCompileProject
+        // Permissions will be checked again with the uptodate user on scheduler
+        await this.scheduleCompileProject(
+            user,
+            previewProject.project.projectUuid,
+            context,
+            true, // Skip permission check
+        );
+        return previewProject.project.projectUuid;
     }
 
     /* 
