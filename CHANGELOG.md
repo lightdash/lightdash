@@ -1,3 +1,10 @@
+## [0.1313.1](https://github.com/lightdash/lightdash/compare/0.1313.0...0.1313.1) (2024-10-24)
+
+
+### Bug Fixes
+
+* increase notification time for chart added to dashboard ([#12073](https://github.com/lightdash/lightdash/issues/12073)) ([449135c](https://github.com/lightdash/lightdash/commit/449135c57589bd0b17d3b7d93db252725598cbe8))
+
 # [0.1313.0](https://github.com/lightdash/lightdash/compare/0.1312.2...0.1313.0) (2024-10-24)
 
 
