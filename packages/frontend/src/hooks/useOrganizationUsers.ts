@@ -5,10 +5,11 @@ import {
     type OrganizationMemberProfileUpdate,
 } from '@lightdash/common';
 import {
+    useInfiniteQuery,
     useMutation,
     useQuery,
     useQueryClient,
-    type UseQueryOptions,
+    type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../api';
@@ -82,17 +83,11 @@ export const useOrganizationUsers = (params?: {
     );
 };
 
-export const usePaginatedOrganizationUsers = (
-    params: {
-        searchInput?: string;
-        includeGroups?: number;
-        paginateArgs?: KnexPaginateArgs;
-    },
-    useQueryOpts: UseQueryOptions<
-        ApiOrganizationMemberProfiles['results'],
-        ApiError
-    > = {},
-) => {
+export const usePaginatedOrganizationUsers = (params: {
+    searchInput?: string;
+    includeGroups?: number;
+    paginateArgs?: KnexPaginateArgs;
+}) => {
     const setErrorResponse = useQueryError();
     return useQuery<ApiOrganizationMemberProfiles['results'], ApiError>({
         queryKey: [
@@ -107,9 +102,97 @@ export const usePaginatedOrganizationUsers = (
                 params.paginateArgs,
                 params.searchInput,
             ),
+        select: (results) => {
+            if (params?.searchInput) {
+                return {
+                    ...results,
+                    data: new Fuse(results.data, {
+                        keys: ['firstName', 'lastName', 'email', 'role'],
+                        ignoreLocation: true,
+                        threshold: 0.3,
+                    })
+                        .search(params.searchInput)
+                        .map((result) => result.item),
+                };
+            }
+
+            return results;
+        },
         onError: (result) => setErrorResponse(result),
-        ...useQueryOpts,
     });
+};
+
+export const useInfiniteOrganizationUsers = (
+    params: {
+        searchInput?: string;
+        includeGroups?: number;
+        pageSize: number;
+    },
+    infinityQueryOpts: UseInfiniteQueryOptions<
+        ApiOrganizationMemberProfiles['results'],
+        ApiError
+    > = {},
+) => {
+    const setErrorResponse = useQueryError();
+    return useInfiniteQuery<ApiOrganizationMemberProfiles['results'], ApiError>(
+        {
+            queryKey: [
+                'organization_users',
+                params.includeGroups,
+                params.pageSize,
+                params.searchInput,
+            ],
+            queryFn: ({ pageParam }) => {
+                return getOrganizationUsersQuery(
+                    params.includeGroups,
+                    {
+                        pageSize: params.pageSize,
+                        page: pageParam ?? 1,
+                    },
+                    params.searchInput,
+                );
+            },
+            onError: (result) => setErrorResponse(result),
+            getNextPageParam: (lastPage) => {
+                if (lastPage.pagination) {
+                    return lastPage.pagination.page <
+                        lastPage.pagination.totalPageCount
+                        ? lastPage.pagination.page + 1
+                        : undefined;
+                }
+            },
+            select: (infiniteData) => {
+                const searchInput = params?.searchInput;
+                if (searchInput) {
+                    return {
+                        ...infiniteData,
+                        pages: infiniteData.pages.map((page) => {
+                            const fuse = new Fuse(Object.values(page.data), {
+                                keys: [
+                                    'firstName',
+                                    'lastName',
+                                    'email',
+                                    'role',
+                                ],
+                                ignoreLocation: true,
+                                threshold: 0.3,
+                            });
+
+                            return {
+                                ...page,
+                                data: fuse
+                                    .search(searchInput)
+                                    .map((result) => result.item),
+                            };
+                        }),
+                    };
+                }
+
+                return infiniteData;
+            },
+            ...infinityQueryOpts,
+        },
+    );
 };
 
 export const useDeleteOrganizationUserMutation = () => {
