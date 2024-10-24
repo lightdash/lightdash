@@ -1,3 +1,15 @@
+# [0.1312.0](https://github.com/lightdash/lightdash/compare/0.1311.1...0.1312.0) (2024-10-24)
+
+
+### Bug Fixes
+
+* refetch on mount custom metrics ([#12061](https://github.com/lightdash/lightdash/issues/12061)) ([0b9f3e7](https://github.com/lightdash/lightdash/commit/0b9f3e7de88c311fa5db4a86f4f1dee800ef5f7d))
+
+
+### Features
+
+* create preview from UI ([#11991](https://github.com/lightdash/lightdash/issues/11991)) ([0221b1d](https://github.com/lightdash/lightdash/commit/0221b1da8feb13953b1f9f42d4a33b8f21483fcf))
+
 ## [0.1311.1](https://github.com/lightdash/lightdash/compare/0.1311.0...0.1311.1) (2024-10-23)
 
 
