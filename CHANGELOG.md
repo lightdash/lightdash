@@ -1,3 +1,10 @@
+## [0.1313.2](https://github.com/lightdash/lightdash/compare/0.1313.1...0.1313.2) (2024-10-24)
+
+
+### Bug Fixes
+
+* timezone offsetting in the new chartviz tooltip ([#12058](https://github.com/lightdash/lightdash/issues/12058)) ([b2c395a](https://github.com/lightdash/lightdash/commit/b2c395afd55f6106bf8bf220ea946ef2da29f14b))
+
 ## [0.1313.1](https://github.com/lightdash/lightdash/compare/0.1313.0...0.1313.1) (2024-10-24)
 
 
