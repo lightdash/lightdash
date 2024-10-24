@@ -155,7 +155,7 @@ const configureSnowflakeWarehouse = (
 
 const testCompile = (): Cypress.Chainable<string> => {
     // Compile
-    cy.findByText('Test & compile project').click();
+    cy.findByText('Test & deploy project').click();
     cy.contains('Step 1/3', { timeout: 60000 });
     cy.contains('Step 2/3', { timeout: 60000 });
     cy.contains('Successfully synced dbt project!', { timeout: 60000 });
