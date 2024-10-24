@@ -133,22 +133,31 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials);
 
-        let decodedPrivateKey: string | undefined;
-        if (credentials.privateKey && credentials.privateKeyPass) {
-            // Get the private key from the file as an object and
-            // extract the private key from the object as a PEM-encoded string.
-            decodedPrivateKey = crypto
-                .createPrivateKey({
-                    key: credentials.privateKey,
-                    format: 'pem',
-                    passphrase: credentials.privateKeyPass,
-                })
-                .export({
-                    format: 'pem',
-                    type: 'pkcs8',
-                })
-                .toString('utf-8');
+        let privateKey: string | undefined;
+        if (credentials.privateKey) {
+            if (
+                typeof credentials.privateKeyPass === 'string' &&
+                credentials.privateKeyPass.length > 0
+            ) {
+                // Get the private key from the file as an object and
+                // extract the private key from the object as a PEM-encoded string.
+                privateKey = crypto
+                    .createPrivateKey({
+                        key: credentials.privateKey,
+                        format: 'pem',
+                        passphrase: credentials.privateKeyPass,
+                    })
+                    .export({
+                        format: 'pem',
+                        type: 'pkcs8',
+                    })
+                    .toString();
+            } else {
+                privateKey = credentials.privateKey;
+            }
         }
+
+        console.log({ privateKey });
 
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
@@ -161,9 +170,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 password: credentials.password,
                 authenticator: 'SNOWFLAKE',
             };
-        } else if (decodedPrivateKey) {
+        } else if (privateKey) {
             authenticationOptions = {
-                privateKey: decodedPrivateKey,
+                privateKey,
                 authenticator: 'SNOWFLAKE_JWT',
             };
         }
