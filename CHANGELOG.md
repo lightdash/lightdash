@@ -1,3 +1,10 @@
+## [0.1312.2](https://github.com/lightdash/lightdash/compare/0.1312.1...0.1312.2) (2024-10-24)
+
+
+### Bug Fixes
+
+* single project create preview ([#12072](https://github.com/lightdash/lightdash/issues/12072)) ([87ed042](https://github.com/lightdash/lightdash/commit/87ed042e545816ee7cc11383e18fd407619c4637))
+
 ## [0.1312.1](https://github.com/lightdash/lightdash/compare/0.1312.0...0.1312.1) (2024-10-24)
 
 
