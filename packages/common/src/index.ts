@@ -849,7 +849,7 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
 
 export type CreateProject = Omit<
     Project,
-    'projectUuid' | 'organizationUuid'
+    'projectUuid' | 'organizationUuid' | 'schedulerTimezone'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };

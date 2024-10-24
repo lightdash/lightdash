@@ -37,7 +37,9 @@ type CreateDbProject = Pick<
     | 'copied_from_project_uuid'
     | 'dbt_version'
     | 'semantic_layer_connection'
->;
+> & {
+    scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
+};
 type UpdateDbProject = Partial<
     Pick<
         DbProject,

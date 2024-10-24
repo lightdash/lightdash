@@ -3951,7 +3951,6 @@ export class ProjectService extends BaseService {
             dbtConnection: project.dbtConnection,
             upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
             dbtVersion: project.dbtVersion,
-            schedulerTimezone: project.schedulerTimezone,
         };
 
         const previewProject = await this.createWithoutCompile(

@@ -319,6 +319,12 @@ export class ProjectModel {
                             : null,
                     dbt_version: data.dbtVersion,
                     semantic_layer_connection: encryptedSemanticLayerConnection,
+                    ...(copiedProjects.length === 1
+                        ? {
+                              scheduler_timezone:
+                                  copiedProjects[0].scheduler_timezone,
+                          }
+                        : {}),
                 })
                 .returning('*');
 
