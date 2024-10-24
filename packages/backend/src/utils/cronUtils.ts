@@ -54,14 +54,18 @@ export function getAdjustedCronByOffset(
         dayOfWeek: cronParts[4],
     };
 
+    // Adjust minutes and handle overflow into hours
+    // Only adjusting when it is one value since we only allow custom "Hourly" crons
     if (fields.minute.length === 1) {
-        // Adjust minutes and handle overflow into hours
         fields.minute[0] = getOffsetMinute(fields.minute[0], offsetMinutes);
     }
 
     let dayOverflow = 0;
+
+    // Adjust hours and handle overflow into the next day
+    // Only adjusting when it is one value because when it is range the result might yield incorrect, e.g. `30 21-22 * * *` UTC if converted to UTC+2 should result in 2 crons
+    // 1 from 23:30 to 23:59 and then another from 00 to 00:30 but instead it results in `30 0-23 * * *` which is the oposite range
     if (fields.hour.length === 1) {
-        // Adjust hours and handle overflow into the next day
         const offsetHour = getOffsetHour(fields.hour[0], offsetMinutes);
         dayOverflow = offsetHour.dayOverflow;
         fields.hour[0] = offsetHour.hour;
