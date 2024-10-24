@@ -72,7 +72,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                 gdriveOrganizationName: '',
                 url: '',
             },
-            timezone: '',
+            timezone: undefined,
         },
     });
 
