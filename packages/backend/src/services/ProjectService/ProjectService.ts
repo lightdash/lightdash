@@ -2467,7 +2467,7 @@ export class ProjectService extends BaseService {
         return rows.map((row) => row[getItemId(field)]);
     }
 
-    async refreshAllTables(
+    private async refreshAllTables(
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
         requestMethod: RequestMethod,
@@ -2618,6 +2618,14 @@ export class ProjectService extends BaseService {
             });
             return explores;
         } catch (e) {
+            if (!(e instanceof LightdashError)) {
+                Sentry.captureException(e);
+            }
+            this.logger.error(
+                `Failed to compile all explores:${
+                    e instanceof Error ? e.stack : e
+                }`,
+            );
             const errorResponse = errorHandler(e);
             this.analytics.track({
                 event: 'project.error',
