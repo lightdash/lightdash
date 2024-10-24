@@ -5,21 +5,25 @@ import {
     Button,
     Group,
     MultiSelect,
+    ScrollArea,
     Stack,
     Text,
     Tooltip,
+    type ScrollAreaProps,
     type SelectItem,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
-import { forwardRef, useMemo, useState, type FC } from 'react';
+import { forwardRef, useMemo, useRef, useState, type FC } from 'react';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
-import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
+import { DEFAULT_PAGE_SIZE } from '../Table/types';
 import { UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
@@ -34,8 +38,14 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const { data: projectAccess } = useProjectAccess(projectUuid);
-    const { data: organizationUsers } = useOrganizationUsers();
+    const { data: infiniteOrganizationUsers, fetchNextPage } =
+        useInfiniteOrganizationUsers({
+            searchInput: debouncedSearchQuery,
+            pageSize: DEFAULT_PAGE_SIZE,
+        });
+    const selectScrollRef = useRef<HTMLDivElement>(null);
     const { data: groups } = useOrganizationGroups({ includeMembers: 1 });
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
@@ -43,6 +53,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     );
     const { mutateAsync: shareGroupSpaceMutation } =
         useAddGroupSpaceShareMutation(projectUuid, space.uuid);
+
+    const organizationUsers = useMemo(
+        () => infiniteOrganizationUsers?.pages.map((p) => p.data).flat(),
+        [infiniteOrganizationUsers?.pages],
+    );
 
     const userUuids: string[] = useMemo(() => {
         if (organizationUsers === undefined) return [];
@@ -202,6 +217,15 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 onChange={setUsersSelected}
                 data={data}
                 itemComponent={UserItemComponent}
+                dropdownComponent={({ children, ...rest }: ScrollAreaProps) => (
+                    <ScrollArea {...rest} viewportRef={selectScrollRef} h="100">
+                        {children}
+                        <Button variant="white" onClick={() => fetchNextPage()}>
+                            fetch more
+                        </Button>
+                    </ScrollArea>
+                )}
+                filter={() => true}
             />
 
             <Button
