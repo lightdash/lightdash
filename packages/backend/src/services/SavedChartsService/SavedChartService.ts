@@ -889,7 +889,13 @@ export class SavedChartService extends BaseService {
             SchedulerModel.getSlackChannels(scheduler.targets),
         );
 
-        await this.schedulerClient.generateDailyJobsForScheduler(scheduler);
+        const { schedulerTimezone: defaultTimezone } =
+            await this.projectModel.get(projectUuid);
+
+        await this.schedulerClient.generateDailyJobsForScheduler(
+            scheduler,
+            defaultTimezone,
+        );
 
         return scheduler;
     }

@@ -6,6 +6,7 @@ import {
     type Project,
     type SemanticLayerConnectionUpdate,
     type UpdateProject,
+    type UpdateSchedulerSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
@@ -40,6 +41,16 @@ const updateProjectSemanticLayerConnection = async (
 ) =>
     lightdashApi<undefined>({
         url: `/projects/${uuid}/semantic-layer-connection`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+const updateProjectSchedulerSettings = async (
+    uuid: string,
+    data: UpdateSchedulerSettings,
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/schedulerSettings`,
         method: 'PATCH',
         body: JSON.stringify(data),
     });
@@ -144,6 +155,20 @@ export const useProjectSemanticLayerDeleteMutation = (uuid: string) => {
             mutationKey: ['project_semantic_layer_delete', uuid],
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['project', uuid]);
+            },
+        },
+    );
+};
+
+export const useProjectUpdateSchedulerSettings = (uuid: string) => {
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, UpdateSchedulerSettings>(
+        (data) => updateProjectSchedulerSettings(uuid, data),
+        {
+            mutationKey: ['project_scheduler_settings_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['project', uuid]);
+                await queryClient.invalidateQueries(['schedulerLogs']);
             },
         },
     );

@@ -1,8 +1,10 @@
 import {
     FeatureFlags,
+    formatMinutesOffset,
     getItemId,
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
+    getTzMinutesOffset,
     isDashboardScheduler,
     isNumericItem,
     isSchedulerCsvOptions,
@@ -56,12 +58,15 @@ import FieldSelect from '../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
+import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
 import { hasRequiredScopes } from '../../../components/UserSettings/SlackSettingsPanel';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useProject } from '../../../hooks/useProject';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
@@ -91,6 +96,7 @@ const DEFAULT_VALUES = {
     message: '',
     format: SchedulerFormat.CSV,
     cron: '0 9 * * 1',
+    timezone: undefined,
     options: {
         formatted: Values.FORMATTED,
         limit: Limit.TABLE,
@@ -183,6 +189,7 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
         message: schedulerData.message,
         format: schedulerData.format,
         cron: schedulerData.cron,
+        timezone: schedulerData.timezone,
         options: formOptions,
         emailTargets: emailTargets,
         slackTargets: slackTargets,
@@ -271,6 +278,9 @@ const SchedulerForm: FC<Props> = ({
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 0;
 
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: project } = useProject(activeProjectUuid);
+
     const form = useForm({
         initialValues:
             savedSchedulerData !== undefined
@@ -347,6 +357,7 @@ const SchedulerForm: FC<Props> = ({
                 message: values.message,
                 format: values.format,
                 cron: values.cron,
+                timezone: values.timezone,
                 options,
                 targets,
                 ...(resource?.type === 'dashboard' && {
@@ -447,6 +458,14 @@ const SchedulerForm: FC<Props> = ({
 
     const isThresholdAlertWithNoFields =
         isThresholdAlert && Object.keys(numericMetrics).length === 0;
+
+    const projectDefaultOffsetString = useMemo(() => {
+        if (!project) {
+            return;
+        }
+        const minsOffset = getTzMinutesOffset('UTC', project.schedulerTimezone);
+        return formatMinutesOffset(minsOffset);
+    }, [project]);
 
     return (
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
@@ -650,13 +669,28 @@ const SchedulerForm: FC<Props> = ({
                                     />
                                 </Tooltip>
                             )}
-                            <Box>
+                            <Box w="100%">
                                 <CronInternalInputs
                                     disabled={disabled}
                                     {...form.getInputProps('cron')}
                                     value={form.values.cron}
                                     name="cron"
-                                />
+                                >
+                                    <TimeZonePicker
+                                        size="sm"
+                                        style={{ flexGrow: 1 }}
+                                        placeholder={`Project Default ${
+                                            projectDefaultOffsetString
+                                                ? `(UTC ${projectDefaultOffsetString})`
+                                                : ''
+                                        }`}
+                                        maw={350}
+                                        searchable
+                                        clearable
+                                        variant="default"
+                                        {...form.getInputProps('timezone')}
+                                    />
+                                </CronInternalInputs>
                             </Box>
                         </Input.Wrapper>
                         {!isThresholdAlert && (
