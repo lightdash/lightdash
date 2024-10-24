@@ -69,7 +69,7 @@ import {
 } from '../store/sqlRunnerSlice';
 import { runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
-import { ResultsDownload } from './Download/ResultsDownload';
+import { ResultsDownloadFromUrl } from './Download/ResultsDownloadFromUrl';
 import { SqlEditor } from './SqlEditor';
 import { SqlQueryHistory } from './SqlQueryHistory';
 
@@ -406,7 +406,7 @@ export const ContentPanel: FC = () => {
                                 />
                             ) : (
                                 mode === 'default' && (
-                                    <ResultsDownload
+                                    <ResultsDownloadFromUrl
                                         fileUrl={resultsFileUrl}
                                         columnNames={
                                             queryResults?.columns.map(
