@@ -687,6 +687,7 @@ const SchedulerForm: FC<Props> = ({
                                         maw={350}
                                         searchable
                                         clearable
+                                        variant="default"
                                         {...form.getInputProps('timezone')}
                                     />
                                 </CronInternalInputs>
