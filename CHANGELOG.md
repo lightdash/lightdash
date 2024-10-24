@@ -1,3 +1,10 @@
+## [0.1312.1](https://github.com/lightdash/lightdash/compare/0.1312.0...0.1312.1) (2024-10-24)
+
+
+### Bug Fixes
+
+* snowflake unencrypted key authentication ([#12062](https://github.com/lightdash/lightdash/issues/12062)) ([0b58d3f](https://github.com/lightdash/lightdash/commit/0b58d3f99e66dae666a61d466e49f1746a2df18c))
+
 # [0.1312.0](https://github.com/lightdash/lightdash/compare/0.1311.1...0.1312.0) (2024-10-24)
 
 
