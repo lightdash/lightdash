@@ -484,14 +484,15 @@ export class UserModel {
             throw new NotExistsError('Cannot find organization');
         }
 
+        const email = isOpenIdUser(createUser)
+            ? createUser.openId.email
+            : createUser.email;
         const duplicatedEmails = await this.database(EmailTableName).where(
             'email',
-            isOpenIdUser(createUser)
-                ? createUser.openId.email
-                : createUser.email,
+            email,
         );
         if (duplicatedEmails.length > 0) {
-            throw new ParameterError('Email already in use');
+            throw new ParameterError(`Email ${email} already in use`);
         }
 
         if (createUser.password && !validatePassword(createUser.password)) {
@@ -572,14 +573,16 @@ export class UserModel {
             ) {
                 throw new ParameterError("Password doesn't meet requirements");
             }
+
+            const email = isOpenIdUser(createUser)
+                ? createUser.openId.email
+                : createUser.email;
             const duplicatedEmails = await trx(EmailTableName).where(
                 'email',
-                isOpenIdUser(createUser)
-                    ? createUser.openId.email
-                    : createUser.email,
+                email,
             );
             if (duplicatedEmails.length > 0) {
-                throw new ParameterError('Email already in use');
+                throw new ParameterError(`Email ${email} already in use`);
             }
 
             const newUser = await this.createUserTransaction(trx, {
