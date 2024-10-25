@@ -689,7 +689,7 @@ export class SchedulerModel {
 
                     if (scheduler) {
                         await trx(SchedulerTableName)
-                            .update({ ...scheduler, cron })
+                            .update({ cron })
                             .where('scheduler_uuid', schedulerUuid);
                     }
                 },

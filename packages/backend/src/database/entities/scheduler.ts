@@ -81,6 +81,7 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'selected_tabs'
       >
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>
+    | Pick<SchedulerDb, 'cron'>
 >;
 
 export type SchedulerSlackTargetTable = Knex.CompositeTableType<
