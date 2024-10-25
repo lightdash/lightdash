@@ -1,3 +1,10 @@
+# [0.1314.0](https://github.com/lightdash/lightdash/compare/0.1313.4...0.1314.0) (2024-10-25)
+
+
+### Features
+
+* add time zone to gsheets sync ([#12082](https://github.com/lightdash/lightdash/issues/12082)) ([ddd51a8](https://github.com/lightdash/lightdash/commit/ddd51a8d587f82a183e10b1a27e0e9d691fa8bd7))
+
 ## [0.1313.4](https://github.com/lightdash/lightdash/compare/0.1313.3...0.1313.4) (2024-10-25)
 
 
