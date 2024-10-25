@@ -138,9 +138,11 @@ export class TableDataModel {
         spec: Record<string, any>;
         tableData: { columns: string[]; rows: RawResultRow[] } | undefined;
     } {
-        // Not implemented in table yet
         return {
-            spec: {},
+            spec: {
+                columns: this.columnsConfig,
+                visibleColumns: this.getVisibleColumns(),
+            },
             tableData: undefined,
         };
     }

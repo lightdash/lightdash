@@ -18,7 +18,7 @@ type Props = {
     chartName?: string;
 };
 
-export const ResultsDownload: FC<Props> = ({
+export const ResultsDownloadFromUrl: FC<Props> = ({
     fileUrl,
     columnNames,
     chartName,
