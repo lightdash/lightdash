@@ -7,11 +7,11 @@ import {
     type QueryExecutionContext,
 } from '..';
 import {
+    type AllVizChartConfig,
     type PivotIndexColum,
     type VizAggregationOptions,
     type VizBaseConfig,
     type VizCartesianChartConfig,
-    type VizChartConfig,
     type VizColumn,
     type VizPieChartConfig,
     type VizTableConfig,
@@ -154,7 +154,7 @@ export type CreateSqlChart = {
     description: string | null;
     sql: string;
     limit: number;
-    config: VizChartConfig;
+    config: AllVizChartConfig;
     spaceUuid: string;
 };
 
@@ -167,7 +167,7 @@ export type UpdateUnversionedSqlChart = {
 export type UpdateVersionedSqlChart = {
     sql: string;
     limit: number;
-    config: VizChartConfig;
+    config: AllVizChartConfig;
 };
 
 export type UpdateSqlChart = {
