@@ -1,3 +1,10 @@
+## [0.1313.4](https://github.com/lightdash/lightdash/compare/0.1313.3...0.1313.4) (2024-10-25)
+
+
+### Bug Fixes
+
+* amend button label when updating project settings ([#12079](https://github.com/lightdash/lightdash/issues/12079)) ([63bd200](https://github.com/lightdash/lightdash/commit/63bd20069fd9e53d68de5510d944ad75be2f6626))
+
 ## [0.1313.3](https://github.com/lightdash/lightdash/compare/0.1313.2...0.1313.3) (2024-10-25)
 
 
