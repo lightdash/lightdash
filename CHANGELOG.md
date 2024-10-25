@@ -1,3 +1,10 @@
+## [0.1313.3](https://github.com/lightdash/lightdash/compare/0.1313.2...0.1313.3) (2024-10-25)
+
+
+### Bug Fixes
+
+* add internal lightdash host variable ([#12042](https://github.com/lightdash/lightdash/issues/12042)) ([6f63e0c](https://github.com/lightdash/lightdash/commit/6f63e0c2201bb0561e4fce021313e812406ba2fd))
+
 ## [0.1313.2](https://github.com/lightdash/lightdash/compare/0.1313.1...0.1313.2) (2024-10-24)
 
 
