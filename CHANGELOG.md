@@ -1,3 +1,10 @@
+## [0.1315.1](https://github.com/lightdash/lightdash/compare/0.1315.0...0.1315.1) (2024-10-25)
+
+
+### Bug Fixes
+
+* **sql-runner:** hide buttons when user has no permission to manage c… ([#12064](https://github.com/lightdash/lightdash/issues/12064)) ([21bbafc](https://github.com/lightdash/lightdash/commit/21bbafc970ec2da5e82352f09324a5476b667adb))
+
 # [0.1315.0](https://github.com/lightdash/lightdash/compare/0.1314.0...0.1315.0) (2024-10-25)
 
 
