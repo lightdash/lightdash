@@ -1,3 +1,10 @@
+# [0.1315.0](https://github.com/lightdash/lightdash/compare/0.1314.0...0.1315.0) (2024-10-25)
+
+
+### Features
+
+* methods to activate/deactivate user ([#12091](https://github.com/lightdash/lightdash/issues/12091)) ([af6e227](https://github.com/lightdash/lightdash/commit/af6e22763e919c0ee3179ddaabd28a037f629150))
+
 # [0.1314.0](https://github.com/lightdash/lightdash/compare/0.1313.4...0.1314.0) (2024-10-25)
 
 
