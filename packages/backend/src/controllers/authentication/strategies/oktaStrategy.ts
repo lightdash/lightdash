@@ -4,7 +4,9 @@ import {
     LightdashError,
     OpenIdIdentityIssuerType,
     OpenIdUser,
+    UnexpectedServerError,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { Request, RequestHandler } from 'express';
 import { generators, Issuer, UserinfoResponse } from 'openid-client';
 import { Strategy } from 'passport-strategy';
@@ -81,6 +83,31 @@ const setupOktaIssuerClient = async () => {
 export class OpenIDClientOktaStrategy extends Strategy {
     async authenticate(req: Request) {
         try {
+            if (req.query.error) {
+                if (req.query.error === 'access_denied') {
+                    return this.fail(
+                        {
+                            message:
+                                'Your Okta account doesn’t currently have access to Lightdash. Please contact support or your Okta administrator to enable access.',
+                        },
+                        401,
+                    );
+                }
+                const errorMessage = `Okta authentication failed unexpectedly: ${req.query.error}, ${req.query.error_description}`;
+                Sentry.captureException(
+                    new UnexpectedServerError(errorMessage),
+                );
+                Logger.error(errorMessage);
+
+                return this.fail(
+                    {
+                        message:
+                            'Okta authentication failed. Please contact support.',
+                    },
+                    401,
+                );
+            }
+
             const client = await setupOktaIssuerClient();
 
             const redirectUri = new URL(
