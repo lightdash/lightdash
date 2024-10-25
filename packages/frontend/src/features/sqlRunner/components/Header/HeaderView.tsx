@@ -158,12 +158,7 @@ export const HeaderView: FC = () => {
                                             />
                                         }
                                         color="red"
-                                        disabled={
-                                            !(
-                                                canManageSqlRunner &&
-                                                canManageChart
-                                            )
-                                        }
+                                        disabled={!canManageSqlRunner}
                                         onClick={() =>
                                             dispatch(
                                                 toggleModal('deleteChartModal'),
