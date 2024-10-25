@@ -15,7 +15,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
 import { forwardRef, useMemo, useRef, useState, type FC } from 'react';
-import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
+import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import {
@@ -41,18 +41,29 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const { data: projectAccess } = useProjectAccess(projectUuid);
     const selectScrollRef = useRef<HTMLDivElement>(null);
-    const { data: groups } = useOrganizationGroups({ includeMembers: 1 });
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
     const { mutateAsync: shareGroupSpaceMutation } =
         useAddGroupSpaceShareMutation(projectUuid, space.uuid);
+
+    const {
+        data: infiniteOrganizationGroups,
+        fetchNextPage: fetchGroupsNextPage,
+        hasNextPage: hasGroupsNextPage,
+        isFetching: isGroupsFetching,
+    } = useInfiniteOrganizationGroups({
+        searchInput: debouncedSearchQuery,
+        includeMembers: 1,
+        pageSize: DEFAULT_PAGE_SIZE,
+    });
+
     const {
         data: infiniteOrganizationUsers,
-        fetchNextPage,
-        hasNextPage,
-        isFetching,
+        fetchNextPage: fetchUsersNextPage,
+        hasNextPage: hasUsersNextPage,
+        isFetching: isUsersFetching,
     } = useInfiniteOrganizationUsers({
         searchInput: debouncedSearchQuery,
         pageSize: DEFAULT_PAGE_SIZE,
@@ -61,6 +72,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const organizationUsers = useMemo(
         () => infiniteOrganizationUsers?.pages.map((p) => p.data).flat(),
         [infiniteOrganizationUsers?.pages],
+    );
+
+    const groups = useMemo(
+        () => infiniteOrganizationGroups?.pages.map((p) => p.data).flat(),
+        [infiniteOrganizationGroups?.pages],
     );
 
     const userUuids: string[] = useMemo(() => {
@@ -225,11 +241,16 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 dropdownComponent={({ children, ...rest }: ScrollAreaProps) => (
                     <ScrollArea {...rest} viewportRef={selectScrollRef} h="100">
                         {children}
-                        {hasNextPage && (
+                        {(hasUsersNextPage || hasGroupsNextPage) && (
                             <Button
                                 variant="white"
-                                onClick={() => fetchNextPage()}
-                                disabled={isFetching}
+                                onClick={async () => {
+                                    await Promise.all([
+                                        fetchGroupsNextPage(),
+                                        fetchUsersNextPage(),
+                                    ]);
+                                }}
+                                disabled={isUsersFetching || isGroupsFetching}
                             >
                                 fetch more
                             </Button>

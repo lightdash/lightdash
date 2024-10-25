@@ -119,6 +119,7 @@ import {
     type ApiChartContentResponse,
     type ApiContentResponse,
 } from './types/content';
+import type { ApiGroupListResponse } from './types/groups';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiSemanticLayerClientInfo,
@@ -687,7 +688,8 @@ type ApiResults =
     | ApiSemanticViewerChartUpdate['results']
     | ApiCreateVirtualView['results']
     | ApiGithubDbtWritePreview['results']
-    | ApiMetricsCatalog['results'];
+    | ApiMetricsCatalog['results']
+    | ApiGroupListResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

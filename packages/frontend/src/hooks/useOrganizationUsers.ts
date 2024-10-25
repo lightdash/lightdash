@@ -83,7 +83,11 @@ export const useOrganizationUsers = (params?: {
     );
 };
 
-export const usePaginatedOrganizationUsers = (params: {
+export const usePaginatedOrganizationUsers = ({
+    searchInput,
+    includeGroups,
+    paginateArgs,
+}: {
     searchInput?: string;
     includeGroups?: number;
     paginateArgs?: KnexPaginateArgs;
@@ -92,22 +96,22 @@ export const usePaginatedOrganizationUsers = (params: {
     return useQuery<ApiOrganizationMemberProfiles['results'], ApiError>({
         queryKey: [
             'organization_users',
-            params.includeGroups,
-            params.paginateArgs,
-            params.searchInput,
+            includeGroups,
+            paginateArgs,
+            searchInput,
         ],
         queryFn: () =>
-            getOrganizationUsersQuery(
-                params.includeGroups,
-                params.paginateArgs,
-                params.searchInput,
-            ),
+            getOrganizationUsersQuery(includeGroups, paginateArgs, searchInput),
         onError: (result) => setErrorResponse(result),
     });
 };
 
 export const useInfiniteOrganizationUsers = (
-    params: {
+    {
+        searchInput,
+        includeGroups,
+        pageSize,
+    }: {
         searchInput?: string;
         includeGroups?: number;
         pageSize: number;
@@ -122,18 +126,18 @@ export const useInfiniteOrganizationUsers = (
         {
             queryKey: [
                 'organization_users',
-                params.includeGroups,
-                params.pageSize,
-                params.searchInput,
+                includeGroups,
+                pageSize,
+                searchInput,
             ],
             queryFn: ({ pageParam }) => {
                 return getOrganizationUsersQuery(
-                    params.includeGroups,
+                    includeGroups,
                     {
-                        pageSize: params.pageSize,
+                        pageSize: pageSize,
                         page: pageParam ?? 1,
                     },
-                    params.searchInput,
+                    searchInput,
                 );
             },
             onError: (result) => setErrorResponse(result),

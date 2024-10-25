@@ -4208,9 +4208,26 @@
                     }
                 ]
             },
-            "ApiGroupListResponse": {
+            "KnexPaginatedData_Group-Array-or-GroupWithMembers-Array_": {
                 "properties": {
-                    "results": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
                         "anyOf": [
                             {
                                 "items": {
@@ -4225,6 +4242,15 @@
                                 "type": "array"
                             }
                         ]
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiGroupListResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_Group-Array-or-GroupWithMembers-Array_"
                     },
                     "status": {
                         "type": "string",
@@ -13166,6 +13192,24 @@
                 "security": [],
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
                         "description": "number of members to include",
                         "in": "query",
                         "name": "includeMembers",
@@ -13173,6 +13217,14 @@
                         "schema": {
                             "format": "double",
                             "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "searchQuery",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
