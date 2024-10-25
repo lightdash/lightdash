@@ -36,7 +36,10 @@ export const barChartConfigSlice = createSlice({
             }
 
             state.options = action.payload.options;
-            state.fieldConfig = action.payload.config.fieldConfig;
+            // Only set the initial config if it's not already set and the fieldConfig is present
+            if (!state.fieldConfig && action.payload.config.fieldConfig) {
+                state.fieldConfig = action.payload.config.fieldConfig;
+            }
 
             if (!state.display && action.payload.config.display) {
                 state.display = action.payload.config.display;
