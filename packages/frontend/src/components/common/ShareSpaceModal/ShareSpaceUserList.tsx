@@ -12,6 +12,7 @@ import {
     Badge,
     Collapse,
     Group,
+    Pagination,
     Paper,
     Select,
     Stack,
@@ -29,7 +30,8 @@ import {
     IconUsers,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
-import { forwardRef, useCallback, useMemo, type FC } from 'react';
+import { cloneDeep } from 'lodash';
+import { forwardRef, useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useAddGroupSpaceShareMutation,
@@ -38,6 +40,7 @@ import {
     useDeleteSpaceShareMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
+import { DEFAULT_PAGE_SIZE } from '../Table/types';
 import {
     UserAccessAction,
     UserAccessOptions,
@@ -152,139 +155,154 @@ const UserAccessList: FC<UserAccessListProps> = ({
     sessionUser,
     onAccessChange,
 }) => {
+    const [page, setPage] = useState(0);
+
+    // TODO: Get this paginated from the backend
+    const paginatedList: SpaceShare[][] = useMemo(() => {
+        const list: SpaceShare[][] = [];
+        const accessListClone = cloneDeep(accessList).sort(
+            sortByRole(sessionUser?.userUuid),
+        );
+        while (accessListClone.length) {
+            list.push(accessListClone.splice(0, DEFAULT_PAGE_SIZE));
+        }
+        return list;
+    }, [accessList, sessionUser?.userUuid]);
+
     return (
         <Stack spacing="sm">
-            {accessList
-                .sort(sortByRole(sessionUser?.userUuid))
-                .map((sharedUser) => {
-                    const needsToBePromotedToInteractiveViewer =
-                        sharedUser.projectRole === ProjectMemberRole.VIEWER &&
-                        sharedUser.role !== SpaceMemberRole.VIEWER;
-                    const isSessionUser =
-                        sharedUser.userUuid === sessionUser?.userUuid;
+            {paginatedList[page].map((sharedUser) => {
+                const needsToBePromotedToInteractiveViewer =
+                    sharedUser.projectRole === ProjectMemberRole.VIEWER &&
+                    sharedUser.role !== SpaceMemberRole.VIEWER;
+                const isSessionUser =
+                    sharedUser.userUuid === sessionUser?.userUuid;
 
-                    const userAccessTypes = UserAccessOptions.filter(
-                        (accessType) =>
-                            accessType.value !== UserAccessAction.DELETE ||
-                            sharedUser.hasDirectAccess,
-                    ).map((accessType) =>
-                        accessType.value === UserAccessAction.DELETE &&
-                        !isPrivate
-                            ? {
-                                  ...accessType,
-                                  title: 'Reset access',
-                                  selectDescription: `Reset user's access`,
-                              }
-                            : accessType,
-                    );
+                const userAccessTypes = UserAccessOptions.filter(
+                    (accessType) =>
+                        accessType.value !== UserAccessAction.DELETE ||
+                        sharedUser.hasDirectAccess,
+                ).map((accessType) =>
+                    accessType.value === UserAccessAction.DELETE && !isPrivate
+                        ? {
+                              ...accessType,
+                              title: 'Reset access',
+                              selectDescription: `Reset user's access`,
+                          }
+                        : accessType,
+                );
 
-                    return (
-                        <Group
-                            key={sharedUser.userUuid}
-                            spacing="sm"
-                            position="apart"
-                            noWrap
-                        >
-                            <Group>
-                                <Avatar
-                                    size={'sm'}
-                                    radius="xl"
-                                    tt="uppercase"
-                                    color="blue"
-                                >
-                                    {getInitials(
-                                        sharedUser.userUuid,
-                                        sharedUser.firstName,
-                                        sharedUser.lastName,
-                                        sharedUser.email,
-                                    )}
-                                </Avatar>
+                return (
+                    <Group
+                        key={sharedUser.userUuid}
+                        spacing="sm"
+                        position="apart"
+                        noWrap
+                    >
+                        <Group>
+                            <Avatar
+                                size={'sm'}
+                                radius="xl"
+                                tt="uppercase"
+                                color="blue"
+                            >
+                                {getInitials(
+                                    sharedUser.userUuid,
+                                    sharedUser.firstName,
+                                    sharedUser.lastName,
+                                    sharedUser.email,
+                                )}
+                            </Avatar>
 
-                                <Text fw={600} fz="sm">
-                                    {getUserNameOrEmail(
-                                        sharedUser.userUuid,
-                                        sharedUser.firstName,
-                                        sharedUser.lastName,
-                                        sharedUser.email,
-                                    )}
-                                    {isSessionUser ? (
-                                        <Text fw={400} span c="gray.6">
-                                            {' '}
-                                            (you)
-                                        </Text>
-                                    ) : null}
-                                </Text>
-                            </Group>
-                            {isSessionUser ||
-                            (!sharedUser.hasDirectAccess &&
-                                sharedUser.inheritedRole ===
-                                    ProjectMemberRole.ADMIN) ? (
-                                <Badge
-                                    size="xs"
-                                    color="gray.6"
-                                    radius="xs"
-                                    mr={'xs'}
-                                >
-                                    {UserAccessOptions.find(
-                                        (option) =>
-                                            option.value === sharedUser.role,
-                                    )?.title ?? sharedUser.role}
-                                </Badge>
-                            ) : (
-                                <Tooltip
-                                    disabled={
-                                        !needsToBePromotedToInteractiveViewer
-                                    }
-                                    withinPortal
-                                    label="User needs to be promoted to interactive viewer to have this space access"
-                                    maw={350}
-                                    multiline
-                                >
-                                    <Select
-                                        styles={{
-                                            input: {
-                                                fontWeight: 500,
-                                                textAlign: 'right',
-                                            },
-                                            rightSection: {
-                                                pointerEvents: 'none',
-                                            },
-                                        }}
-                                        size="xs"
-                                        variant="unstyled"
-                                        withinPortal
-                                        data={userAccessTypes.map((u) => ({
-                                            label: u.title,
-                                            ...u,
-                                        }))}
-                                        value={sharedUser.role}
-                                        itemComponent={UserAccessSelectItem}
-                                        onChange={(userAccessOption) => {
-                                            if (userAccessOption) {
-                                                onAccessChange(
-                                                    userAccessOption as UserAccessAction,
-                                                    sharedUser,
-                                                );
-                                            }
-                                        }}
-                                        error={
-                                            needsToBePromotedToInteractiveViewer
-                                        }
-                                        rightSection={
-                                            needsToBePromotedToInteractiveViewer ? (
-                                                <MantineIcon
-                                                    icon={IconAlertCircle}
-                                                    size="sm"
-                                                    color="red.6"
-                                                />
-                                            ) : null
-                                        }
-                                    />
-                                </Tooltip>
-                            )}
+                            <Text fw={600} fz="sm">
+                                {getUserNameOrEmail(
+                                    sharedUser.userUuid,
+                                    sharedUser.firstName,
+                                    sharedUser.lastName,
+                                    sharedUser.email,
+                                )}
+                                {isSessionUser ? (
+                                    <Text fw={400} span c="gray.6">
+                                        {' '}
+                                        (you)
+                                    </Text>
+                                ) : null}
+                            </Text>
                         </Group>
-                    );
-                })}
+                        {isSessionUser ||
+                        (!sharedUser.hasDirectAccess &&
+                            sharedUser.inheritedRole ===
+                                ProjectMemberRole.ADMIN) ? (
+                            <Badge
+                                size="xs"
+                                color="gray.6"
+                                radius="xs"
+                                mr={'xs'}
+                            >
+                                {UserAccessOptions.find(
+                                    (option) =>
+                                        option.value === sharedUser.role,
+                                )?.title ?? sharedUser.role}
+                            </Badge>
+                        ) : (
+                            <Tooltip
+                                disabled={!needsToBePromotedToInteractiveViewer}
+                                withinPortal
+                                label="User needs to be promoted to interactive viewer to have this space access"
+                                maw={350}
+                                multiline
+                            >
+                                <Select
+                                    styles={{
+                                        input: {
+                                            fontWeight: 500,
+                                            textAlign: 'right',
+                                        },
+                                        rightSection: {
+                                            pointerEvents: 'none',
+                                        },
+                                    }}
+                                    size="xs"
+                                    variant="unstyled"
+                                    withinPortal
+                                    data={userAccessTypes.map((u) => ({
+                                        label: u.title,
+                                        ...u,
+                                    }))}
+                                    value={sharedUser.role}
+                                    itemComponent={UserAccessSelectItem}
+                                    onChange={(userAccessOption) => {
+                                        if (userAccessOption) {
+                                            onAccessChange(
+                                                userAccessOption as UserAccessAction,
+                                                sharedUser,
+                                            );
+                                        }
+                                    }}
+                                    error={needsToBePromotedToInteractiveViewer}
+                                    rightSection={
+                                        needsToBePromotedToInteractiveViewer ? (
+                                            <MantineIcon
+                                                icon={IconAlertCircle}
+                                                size="sm"
+                                                color="red.6"
+                                            />
+                                        ) : null
+                                    }
+                                />
+                            </Tooltip>
+                        )}
+                    </Group>
+                );
+            })}
+            {paginatedList.length > 1 && (
+                <Pagination
+                    size="xs"
+                    value={page}
+                    onChange={setPage}
+                    total={paginatedList.length - 1}
+                />
+            )}
         </Stack>
     );
 };
