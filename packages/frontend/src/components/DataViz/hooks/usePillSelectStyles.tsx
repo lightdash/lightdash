@@ -34,6 +34,9 @@ export const usePillSelectStyles = createStyles(
             },
             marginRight: '6px',
         },
+        inputUnsetValue: {
+            color: theme.fn.lighten(textColor, 0.5),
+        },
         rightSection: {
             display: 'none',
         },

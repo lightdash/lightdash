@@ -1,5 +1,5 @@
 import { SortByDirection, type VizSortBy } from '@lightdash/common';
-import { Box, Group, Select, Text, useMantineTheme } from '@mantine/core';
+import { Box, Select, Text, useMantineTheme } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -26,6 +26,17 @@ type Props = {
     onChangeSortBy: (value: VizSortBy['direction'] | undefined) => void;
 };
 
+const getSortLabel = (label: SortByDirection | undefined) => {
+    switch (label) {
+        case SortByDirection.ASC:
+            return 'Sort ascending';
+        case SortByDirection.DESC:
+            return 'Sort descending';
+        default:
+            return 'No sorting';
+    }
+};
+
 const SortItem = forwardRef<
     HTMLDivElement,
     ComponentPropsWithoutRef<'div'> & {
@@ -35,16 +46,13 @@ const SortItem = forwardRef<
     }
 >(({ value, label, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Group noWrap spacing="xs">
-            {value && <SortIcon sortByDirection={value} />}
-            <Text>{label}</Text>
-        </Group>
+        <Text>{getSortLabel(value)}</Text>
     </Box>
 ));
 
 export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
     const { colors } = useMantineTheme();
-    const { classes } = usePillSelectStyles({
+    const { classes, cx } = usePillSelectStyles({
         backgroundColor: colors.gray[2],
         textColor: colors.gray[7],
         hoverColor: colors.gray[3],
@@ -53,7 +61,7 @@ export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
     const selectOptions = [
         {
             value: 'none',
-            label: 'No sort',
+            label: 'No sorting',
         },
         {
             value: SortByDirection.ASC,
@@ -74,27 +82,16 @@ export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
             onChange={(value: SortByDirection | 'none') =>
                 onChangeSortBy(value === 'none' ? undefined : value)
             }
-            icon={
-                sortBy ? (
-                    <MantineIcon
-                        color="gray.6"
-                        icon={
-                            sortBy === SortByDirection.ASC
-                                ? IconArrowRight
-                                : IconArrowLeft
-                        }
-                    />
-                ) : null
-            }
+            icon={sortBy ? <SortIcon sortByDirection={sortBy} /> : null}
             classNames={{
                 item: classes.item,
                 dropdown: classes.dropdown,
-                input: classes.input,
+                input: cx(classes.input, !sortBy && classes.inputUnsetValue),
                 rightSection: classes.rightSection,
             }}
             styles={{
                 input: {
-                    width: sortBy ? '110px' : '60px',
+                    width: '105px',
                 },
             }}
         />
