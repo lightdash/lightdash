@@ -85,7 +85,6 @@ export const DataVizAggregationConfig: FC<Props> = ({
     return (
         <Select
             withinPortal
-            fz="13px"
             data={selectOptions}
             itemComponent={AggregationItem}
             value={aggregation ?? aggregationOptionsWithNone?.[0]}
@@ -94,9 +93,12 @@ export const DataVizAggregationConfig: FC<Props> = ({
             }
             styles={(theme) => ({
                 input: {
-                    width: '70px',
-                    height: '20px',
-                    minHeight: '20px',
+                    width:
+                        aggregation === VizAggregationOptions.ANY
+                            ? '70px'
+                            : '50px',
+                    height: '24px',
+                    minHeight: '24px',
                     padding: 0,
                     textAlign: 'center',
                     backgroundColor: theme.fn.lighten(
@@ -107,6 +109,13 @@ export const DataVizAggregationConfig: FC<Props> = ({
                     fontWeight: 500,
                     border: 'none',
                     borderRadius: theme.radius.sm,
+                    fontSize: '13px',
+                    '&:hover': {
+                        backgroundColor: theme.fn.lighten(
+                            theme.colors.indigo[0],
+                            0.1,
+                        ),
+                    },
                 },
                 rightSection: {
                     display: 'none',

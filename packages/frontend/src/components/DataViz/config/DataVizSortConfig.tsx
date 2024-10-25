@@ -1,10 +1,10 @@
 import { SortByDirection, type VizSortBy } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Box, Group, Select, Text } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 
-const SortIcon: FC<{ sortByDirection: SortByDirection }> = ({
+const SortIcon: FC<{ sortByDirection: VizSortBy['direction'] }> = ({
     sortByDirection,
 }) => {
     let icon;
@@ -17,54 +17,118 @@ const SortIcon: FC<{ sortByDirection: SortByDirection }> = ({
             break;
     }
 
-    return <MantineIcon color="gray.6" icon={icon} />;
+    return icon ? <MantineIcon color="gray.6" icon={icon} /> : null;
 };
 
 type Props = {
     sortBy: VizSortBy['direction'] | undefined;
-    onChangeSortBy: (value: VizSortBy['direction']) => void;
+    onChangeSortBy: (value: VizSortBy['direction'] | undefined) => void;
 };
 
-export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
-    const currentSortDirection = sortBy || SortByDirection.ASC;
-    const isAscending = currentSortDirection === SortByDirection.ASC;
+const SortItem = forwardRef<
+    HTMLDivElement,
+    ComponentPropsWithoutRef<'div'> & {
+        label: string;
+        value: SortByDirection | undefined;
+        selected: boolean;
+    }
+>(({ value, label, ...others }, ref) => (
+    <Box ref={ref} {...others}>
+        <Group noWrap spacing="xs">
+            {value && <SortIcon sortByDirection={value} />}
+            <Text>{label}</Text>
+        </Group>
+    </Box>
+));
 
-    const toggleSort = () => {
-        const newDirection = isAscending
-            ? SortByDirection.DESC
-            : SortByDirection.ASC;
-        onChangeSortBy(newDirection);
-    };
+export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
+    console.log({ sortBy });
+
+    const selectOptions = [
+        {
+            value: 'none',
+            label: 'No sort',
+        },
+        {
+            value: SortByDirection.ASC,
+            label: 'Ascending',
+        },
+        {
+            value: SortByDirection.DESC,
+            label: 'Descending',
+        },
+    ];
 
     return (
-        <>
-            <Button
-                onClick={toggleSort}
-                rightIcon={
-                    isAscending ? (
-                        <SortIcon sortByDirection={SortByDirection.ASC} />
-                    ) : null
-                }
-                leftIcon={
-                    !isAscending ? (
-                        <SortIcon sortByDirection={SortByDirection.DESC} />
-                    ) : null
-                }
-                w="100%"
-                h="20px"
-                mih="20px"
-                px="xxs"
-                radius="md"
-                color="gray.0"
-                c="gray.6"
-                fw={500}
-                fz={13}
-                sx={(theme) => ({
+        <Select
+            withinPortal
+            fz="13px"
+            data={selectOptions}
+            itemComponent={SortItem}
+            value={sortBy ?? selectOptions[0].value}
+            onChange={(value: SortByDirection | 'none') =>
+                onChangeSortBy(value === 'none' ? undefined : value)
+            }
+            icon={
+                sortBy ? (
+                    <MantineIcon
+                        color="gray.6"
+                        icon={
+                            sortBy === SortByDirection.ASC
+                                ? IconArrowRight
+                                : IconArrowLeft
+                        }
+                    />
+                ) : null
+            }
+            styles={(theme) => ({
+                input: {
+                    width: sortBy ? '110px' : '50px',
+                    height: '24px',
+                    minHeight: '24px',
+                    padding: 0,
+                    textAlign: 'right',
+                    backgroundColor: theme.fn.lighten(
+                        theme.colors.gray[2],
+                        0.5,
+                    ),
+                    paddingLeft: '4px',
+                    color: theme.colors.gray[7],
+                    fontWeight: 500,
+                    border: 'none',
                     borderRadius: theme.radius.sm,
-                })}
-            >
-                {isAscending ? 'Ascending' : 'Descending'}
-            </Button>
-        </>
+                    '&[data-with-icon]': {
+                        padding: theme.spacing.sm,
+                    },
+                    fontSize: '13px',
+                    '&:hover': {
+                        backgroundColor: theme.fn.lighten(
+                            theme.colors.gray[2],
+                            0.1,
+                        ),
+                    },
+                },
+
+                rightSection: {
+                    display: 'none',
+                },
+                dropdown: {
+                    minWidth: 'fit-content',
+                },
+                item: {
+                    '&[data-selected="true"]': {
+                        color: theme.colors.gray[7],
+                        fontWeight: 500,
+                        backgroundColor: theme.colors.gray[2],
+                    },
+                    '&[data-selected="true"]:hover': {
+                        backgroundColor: theme.colors.gray[3],
+                    },
+                    '&:hover': {
+                        backgroundColor: theme.colors.gray[1],
+                    },
+                },
+            })}
+        />
     );
 };

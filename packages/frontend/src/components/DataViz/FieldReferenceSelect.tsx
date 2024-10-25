@@ -15,6 +15,7 @@ export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {
             icon={<TableFieldIcon fieldType={fieldType} />}
             styles={(theme) => ({
                 input: {
+                    height: '32px',
                     fontWeight: 500,
                     borderColor: theme.colors.gray[2],
                     borderRadius: theme.radius.md,

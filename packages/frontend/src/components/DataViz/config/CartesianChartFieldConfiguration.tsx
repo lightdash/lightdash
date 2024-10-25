@@ -173,12 +173,10 @@ const XFieldAxisConfig = ({
                             onChangeSortBy={(value) =>
                                 field.reference &&
                                 dispatch(
-                                    actions.setSortBy([
-                                        {
-                                            reference: field.reference,
-                                            direction: value,
-                                        },
-                                    ]),
+                                    actions.setSortBy({
+                                        reference: field.reference,
+                                        direction: value,
+                                    }),
                                 )
                             }
                         />
@@ -294,7 +292,7 @@ export const CartesianChartFieldConfiguration = ({
     );
 
     return (
-        <Stack spacing="md" mt="sm">
+        <Stack spacing="xl" mt="sm">
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis`}</Config.Heading>
