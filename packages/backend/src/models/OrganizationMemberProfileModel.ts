@@ -82,6 +82,14 @@ export class OrganizationMemberProfileModel {
     private static parseRow(
         member: DbOrganizationMemberProfile,
     ): OrganizationMemberProfile {
+        const isInviteExpired =
+            !member.is_active &&
+            !!member.expires_at &&
+            member.expires_at < new Date();
+
+        const isPending =
+            !member.is_active && !isInviteExpired && !!member.expires_at;
+
         return {
             userUuid: member.user_uuid,
             firstName: member.first_name,
@@ -90,9 +98,8 @@ export class OrganizationMemberProfileModel {
             organizationUuid: member.organization_uuid,
             role: member.role,
             isActive: member.is_active,
-            isInviteExpired:
-                !member.is_active &&
-                (!member.expires_at || member.expires_at < new Date()),
+            isInviteExpired,
+            isPending,
         };
     }
 

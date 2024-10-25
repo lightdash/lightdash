@@ -338,6 +338,7 @@ export class UserModel {
             isMarketingOptedIn,
             isTrackingAnonymized,
             isSetupComplete,
+            isActive,
         }: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
@@ -348,6 +349,7 @@ export class UserModel {
                     last_name: lastName,
                     is_setup_complete: isSetupComplete,
                     is_marketing_opted_in: isMarketingOptedIn,
+                    is_active: isActive,
                     is_tracking_anonymized: this.canTrackingBeAnonymized()
                         ? isTrackingAnonymized
                         : false,
@@ -560,6 +562,7 @@ export class UserModel {
 
     async createUser(
         createUser: CreateUserArgs | OpenIdUser,
+        isActive: boolean = true,
     ): Promise<LightdashUser> {
         const user = await this.database.transaction(async (trx) => {
             if (
@@ -581,7 +584,7 @@ export class UserModel {
 
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
-                isActive: true,
+                isActive,
             });
             return newUser;
         });
