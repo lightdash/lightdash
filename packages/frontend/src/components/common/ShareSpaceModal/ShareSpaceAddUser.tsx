@@ -40,11 +40,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const { data: projectAccess } = useProjectAccess(projectUuid);
-    const { data: infiniteOrganizationUsers, fetchNextPage } =
-        useInfiniteOrganizationUsers({
-            searchInput: debouncedSearchQuery,
-            pageSize: DEFAULT_PAGE_SIZE,
-        });
     const selectScrollRef = useRef<HTMLDivElement>(null);
     const { data: groups } = useOrganizationGroups({ includeMembers: 1 });
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
@@ -53,6 +48,15 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     );
     const { mutateAsync: shareGroupSpaceMutation } =
         useAddGroupSpaceShareMutation(projectUuid, space.uuid);
+    const {
+        data: infiniteOrganizationUsers,
+        fetchNextPage,
+        hasNextPage,
+        isFetching,
+    } = useInfiniteOrganizationUsers({
+        searchInput: debouncedSearchQuery,
+        pageSize: DEFAULT_PAGE_SIZE,
+    });
 
     const organizationUsers = useMemo(
         () => infiniteOrganizationUsers?.pages.map((p) => p.data).flat(),
@@ -221,12 +225,26 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 dropdownComponent={({ children, ...rest }: ScrollAreaProps) => (
                     <ScrollArea {...rest} viewportRef={selectScrollRef} h="100">
                         {children}
-                        <Button variant="white" onClick={() => fetchNextPage()}>
-                            fetch more
-                        </Button>
+                        {hasNextPage && (
+                            <Button
+                                variant="white"
+                                onClick={() => fetchNextPage()}
+                                disabled={isFetching}
+                            >
+                                fetch more
+                            </Button>
+                        )}
                     </ScrollArea>
                 )}
-                filter={() => true}
+                filter={(searchString, selected, item) => {
+                    return Boolean(
+                        item.group === 'Users' ||
+                            selected ||
+                            item.label
+                                ?.toLowerCase()
+                                .includes(searchString.toLowerCase()),
+                    );
+                }}
             />
 
             <Button

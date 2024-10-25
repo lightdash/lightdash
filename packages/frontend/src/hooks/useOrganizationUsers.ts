@@ -102,22 +102,6 @@ export const usePaginatedOrganizationUsers = (params: {
                 params.paginateArgs,
                 params.searchInput,
             ),
-        select: (results) => {
-            if (params?.searchInput) {
-                return {
-                    ...results,
-                    data: new Fuse(results.data, {
-                        keys: ['firstName', 'lastName', 'email', 'role'],
-                        ignoreLocation: true,
-                        threshold: 0.3,
-                    })
-                        .search(params.searchInput)
-                        .map((result) => result.item),
-                };
-            }
-
-            return results;
-        },
         onError: (result) => setErrorResponse(result),
     });
 };
@@ -160,35 +144,6 @@ export const useInfiniteOrganizationUsers = (
                         ? lastPage.pagination.page + 1
                         : undefined;
                 }
-            },
-            select: (infiniteData) => {
-                const searchInput = params?.searchInput;
-                if (searchInput) {
-                    return {
-                        ...infiniteData,
-                        pages: infiniteData.pages.map((page) => {
-                            const fuse = new Fuse(Object.values(page.data), {
-                                keys: [
-                                    'firstName',
-                                    'lastName',
-                                    'email',
-                                    'role',
-                                ],
-                                ignoreLocation: true,
-                                threshold: 0.3,
-                            });
-
-                            return {
-                                ...page,
-                                data: fuse
-                                    .search(searchInput)
-                                    .map((result) => result.item),
-                            };
-                        }),
-                    };
-                }
-
-                return infiniteData;
             },
             ...infinityQueryOpts,
         },
