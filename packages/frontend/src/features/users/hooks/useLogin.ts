@@ -45,8 +45,12 @@ export const useFetchLoginOptions = ({
                 window.location.pathname === '/login'
             ) {
                 showToastError({
-                    title: 'Your login has expired',
-                    subtitle: 'Please log in again to continue.',
+                    title: result.error.message
+                        ? 'Error logging in'
+                        : 'Your login has expired',
+                    subtitle:
+                        result.error.message ??
+                        'Please log in again to continue.',
                 });
             }
         },

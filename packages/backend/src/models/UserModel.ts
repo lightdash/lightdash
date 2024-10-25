@@ -303,6 +303,15 @@ export class UserModel {
         return results.length > 0;
     }
 
+    async isActiveByEmail(email: string): Promise<boolean> {
+        const results = await this.database('users')
+            .leftJoin('emails', 'users.user_id', 'emails.user_id')
+            .andWhere('emails.email', email)
+            .andWhere('emails.is_primary', true)
+            .select('users.is_active');
+        return results.length > 0 && results[0].is_active;
+    }
+
     async getUserByUuidAndPassword(
         userUuid: string,
         password: string,

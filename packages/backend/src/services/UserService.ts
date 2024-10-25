@@ -14,6 +14,7 @@ import {
     ForbiddenError,
     getEmailDomain,
     hasInviteCode,
+    InvalidUser,
     InviteLink,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
@@ -1545,7 +1546,12 @@ export class UserService extends BaseService {
                 redirectUri: undefined,
             };
         }
-
+        const isActive = await this.userModel.isActiveByEmail(email);
+        if (!isActive) {
+            throw new InvalidUser(
+                'User is inactive. Please contact support for assistance.',
+            );
+        }
         const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
         const hasPassword = await this.userModel.hasPasswordByEmail(email);
         const userOptions = hasPassword

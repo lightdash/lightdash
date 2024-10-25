@@ -7,7 +7,7 @@ import { URL } from 'url';
 import { lightdashConfig } from '../../config/lightdashConfig';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
-    if (req.user?.userUuid) {
+    if (req.user?.userUuid && req.user?.isActive) {
         next();
     } else {
         next(new AuthorizationError(`Failed to authorize user`));
