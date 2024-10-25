@@ -1,3 +1,10 @@
+## [0.1315.2](https://github.com/lightdash/lightdash/compare/0.1315.1...0.1315.2) (2024-10-25)
+
+
+### Bug Fixes
+
+* update chart when sql changes ([#12085](https://github.com/lightdash/lightdash/issues/12085)) ([527f96c](https://github.com/lightdash/lightdash/commit/527f96ca7e1fa358dec3f07d610d670e75e20e19))
+
 ## [0.1315.1](https://github.com/lightdash/lightdash/compare/0.1315.0...0.1315.1) (2024-10-25)
 
 
