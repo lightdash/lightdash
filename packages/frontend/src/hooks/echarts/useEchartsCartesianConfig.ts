@@ -1816,7 +1816,7 @@ const useEchartsCartesianConfig = (
                                 dim = dimensionNames[1];
                             } else {
                                 dim =
-                                    encode?.y[0] !== undefined
+                                    encode?.y?.[0] !== undefined
                                         ? dimensionNames[encode?.y[0]]
                                         : '';
                             }
