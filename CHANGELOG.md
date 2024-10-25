@@ -1,3 +1,10 @@
+## [0.1315.3](https://github.com/lightdash/lightdash/compare/0.1315.2...0.1315.3) (2024-10-25)
+
+
+### Bug Fixes
+
+* download results from data for sql table chart ([#12081](https://github.com/lightdash/lightdash/issues/12081)) ([77bb163](https://github.com/lightdash/lightdash/commit/77bb1636477444bc454890811247e4f64804d745))
+
 ## [0.1315.2](https://github.com/lightdash/lightdash/compare/0.1315.1...0.1315.2) (2024-10-25)
 
 
