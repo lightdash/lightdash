@@ -68,7 +68,6 @@ export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
     return (
         <Select
             withinPortal
-            fz="13px"
             data={selectOptions}
             itemComponent={SortItem}
             value={sortBy ?? selectOptions[0].value}

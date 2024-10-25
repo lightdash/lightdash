@@ -32,6 +32,7 @@ export const usePillSelectStyles = createStyles(
                 padding: 0,
                 paddingLeft: '16px',
             },
+            marginRight: '6px',
         },
         rightSection: {
             display: 'none',

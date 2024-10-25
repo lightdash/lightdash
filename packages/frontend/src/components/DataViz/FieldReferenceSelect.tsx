@@ -28,11 +28,6 @@ export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {
                 },
             })}
             rightSectionWidth="min-content"
-            rightSectionProps={{
-                style: {
-                    padding: 6,
-                },
-            }}
         />
     );
 };
