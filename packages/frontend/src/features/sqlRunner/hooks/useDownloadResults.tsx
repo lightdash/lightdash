@@ -1,4 +1,4 @@
-import { type RawResultRow } from '@lightdash/common';
+import { type RawResultRow, type VizColumnsConfig } from '@lightdash/common';
 import { stringify } from 'csv-stringify/browser/esm';
 import { useCallback } from 'react';
 import { useAppSelector } from '../store/hooks';
@@ -9,10 +9,20 @@ export const downloadCsv = async (
     rows: RawResultRow[],
     columns: string[],
     chartName: string | undefined,
+    columnsConfig?: VizColumnsConfig,
 ) => {
-    const csvHeader = columns;
+    const csvColumnIds = columns; // This is a list of sorted columns used by the rows to reference the data
+    let csvHeader = columns; // This is a list of sorted columns with the right labels
+
+    // If columnsConfig is defined, we will use this info to rename columns in csvHeader
+    // We need to respect the order of `columns``
+    if (columnsConfig !== undefined) {
+        csvHeader = csvColumnIds.map(
+            (reference) => columnsConfig[reference].label || reference,
+        );
+    }
     const csvBody = rows.map((row) =>
-        csvHeader.map((reference) => row[reference] || '-'),
+        csvColumnIds.map((reference) => row[reference] || '-'),
     );
     const csvContent: string = await new Promise<string>((resolve, reject) => {
         stringify(

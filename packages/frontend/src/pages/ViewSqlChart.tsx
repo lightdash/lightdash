@@ -144,7 +144,12 @@ const ViewSqlChart = () => {
                                             ?.rows ?? []
                                     }
                                     columns={
-                                        chartResultsData.chartUnderlyingData
+                                        // visible columns are sorted and filtered, we need to respect this order
+                                        chartResultsData.chartSpec.spec
+                                            ?.visibleColumns ?? []
+                                    }
+                                    columnsConfig={
+                                        chartResultsData.chartSpec.spec
                                             ?.columns ?? []
                                     }
                                     chartName={chartData?.name}
