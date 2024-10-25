@@ -27,6 +27,7 @@ export const barChartConfigSlice = createSlice({
         });
         builder.addCase(prepareAndFetchChartData.rejected, (state, action) => {
             state.chartDataLoading = false;
+            state.chartData = undefined;
             state.chartDataError = new Error(action.error.message);
         });
         builder.addCase(setChartOptionsAndConfig, (state, action) => {
