@@ -3,7 +3,7 @@ import {
     VizAggregationOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { Box, Group, Select, Text } from '@mantine/core';
+import { Box, Group, Select, Text, useMantineTheme } from '@mantine/core';
 import {
     IconAsterisk,
     IconMathFunction,
@@ -16,6 +16,7 @@ import {
 import { capitalize } from 'lodash';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import { usePillSelectStyles } from '../hooks/usePillSelectStyles';
 
 // TODO: this should be a typed enum (VizAggregationOptions) and exhaustive switch case
 const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
@@ -72,6 +73,11 @@ export const DataVizAggregationConfig: FC<Props> = ({
     onChangeAggregation,
     aggregation,
 }) => {
+    const { colors } = useMantineTheme();
+    const { classes } = usePillSelectStyles({
+        backgroundColor: colors.indigo[0],
+        textColor: colors.indigo[4],
+    });
     const aggregationOptionsWithNone = options ?? [];
 
     const selectOptions = aggregationOptionsWithNone.map((option) => ({
@@ -91,52 +97,20 @@ export const DataVizAggregationConfig: FC<Props> = ({
             onChange={(value: VizAggregationOptions | null) =>
                 value && onChangeAggregation(value)
             }
-            styles={(theme) => ({
+            classNames={{
+                item: classes.item,
+                dropdown: classes.dropdown,
+                input: classes.input,
+                rightSection: classes.rightSection,
+            }}
+            styles={{
                 input: {
                     width:
                         aggregation === VizAggregationOptions.ANY
                             ? '70px'
                             : '50px',
-                    height: '24px',
-                    minHeight: '24px',
-                    padding: 0,
-                    textAlign: 'center',
-                    backgroundColor: theme.fn.lighten(
-                        theme.colors.indigo[0],
-                        0.5,
-                    ),
-                    color: theme.colors.indigo[4],
-                    fontWeight: 500,
-                    border: 'none',
-                    borderRadius: theme.radius.sm,
-                    fontSize: '13px',
-                    '&:hover': {
-                        backgroundColor: theme.fn.lighten(
-                            theme.colors.indigo[0],
-                            0.1,
-                        ),
-                    },
                 },
-                rightSection: {
-                    display: 'none',
-                },
-                dropdown: {
-                    minWidth: 'fit-content',
-                },
-                item: {
-                    '&[data-selected="true"]': {
-                        color: theme.colors.gray[7],
-                        fontWeight: 500,
-                        backgroundColor: theme.colors.gray[2],
-                    },
-                    '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.gray[3],
-                    },
-                    '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
-                    },
-                },
-            })}
+            }}
         />
     );
 };

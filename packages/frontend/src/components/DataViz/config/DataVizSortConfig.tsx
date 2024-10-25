@@ -1,8 +1,9 @@
 import { SortByDirection, type VizSortBy } from '@lightdash/common';
-import { Box, Group, Select, Text } from '@mantine/core';
+import { Box, Group, Select, Text, useMantineTheme } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import { usePillSelectStyles } from '../hooks/usePillSelectStyles';
 
 const SortIcon: FC<{ sortByDirection: VizSortBy['direction'] }> = ({
     sortByDirection,
@@ -42,7 +43,12 @@ const SortItem = forwardRef<
 ));
 
 export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
-    console.log({ sortBy });
+    const { colors } = useMantineTheme();
+    const { classes } = usePillSelectStyles({
+        backgroundColor: colors.gray[2],
+        textColor: colors.gray[7],
+        hoverColor: colors.gray[3],
+    });
 
     const selectOptions = [
         {
@@ -81,54 +87,17 @@ export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
                     />
                 ) : null
             }
-            styles={(theme) => ({
+            classNames={{
+                item: classes.item,
+                dropdown: classes.dropdown,
+                input: classes.input,
+                rightSection: classes.rightSection,
+            }}
+            styles={{
                 input: {
-                    width: sortBy ? '110px' : '50px',
-                    height: '24px',
-                    minHeight: '24px',
-                    padding: 0,
-                    textAlign: 'right',
-                    backgroundColor: theme.fn.lighten(
-                        theme.colors.gray[2],
-                        0.5,
-                    ),
-                    paddingLeft: '4px',
-                    color: theme.colors.gray[7],
-                    fontWeight: 500,
-                    border: 'none',
-                    borderRadius: theme.radius.sm,
-                    '&[data-with-icon]': {
-                        padding: theme.spacing.sm,
-                    },
-                    fontSize: '13px',
-                    '&:hover': {
-                        backgroundColor: theme.fn.lighten(
-                            theme.colors.gray[2],
-                            0.1,
-                        ),
-                    },
+                    width: sortBy ? '110px' : '60px',
                 },
-
-                rightSection: {
-                    display: 'none',
-                },
-                dropdown: {
-                    minWidth: 'fit-content',
-                },
-                item: {
-                    '&[data-selected="true"]': {
-                        color: theme.colors.gray[7],
-                        fontWeight: 500,
-                        backgroundColor: theme.colors.gray[2],
-                    },
-                    '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.gray[3],
-                    },
-                    '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
-                    },
-                },
-            })}
+            }}
         />
     );
 };
