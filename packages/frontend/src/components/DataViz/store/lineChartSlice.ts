@@ -36,11 +36,11 @@ export const lineChartConfigSlice = createSlice({
             }
 
             state.options = action.payload.options;
+
             // Only set the initial config if it's not already set and the fieldConfig is present
             if (!state.fieldConfig && action.payload.config.fieldConfig) {
                 state.fieldConfig = action.payload.config.fieldConfig;
             }
-
             if (!state.display && action.payload.config.display) {
                 state.display = action.payload.config.display;
             }
