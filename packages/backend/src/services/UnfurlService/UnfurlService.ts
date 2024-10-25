@@ -319,7 +319,7 @@ export class UnfurlService extends BaseService {
             name: dashboard.name,
             minimalUrl: new URL(
                 `/minimal/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}${queryFilters}`,
-                this.lightdashConfig.siteUrl,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
             ).href,
             pageType: LightdashPage.DASHBOARD,
         };
@@ -765,7 +765,7 @@ export class UnfurlService extends BaseService {
                 lightdashPage: LightdashPage.DASHBOARD,
                 url,
                 minimalUrl: `${
-                    this.lightdashConfig.siteUrl
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost
                 }/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}?${searchParams.toString()}`,
                 projectUuid,
                 dashboardUuid,
@@ -779,7 +779,7 @@ export class UnfurlService extends BaseService {
                 url,
                 minimalUrl: new URL(
                     `/minimal/projects/${projectUuid}/saved/${chartUuid}`,
-                    this.lightdashConfig.siteUrl,
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
                 ).href,
                 projectUuid,
                 chartUuid,
@@ -790,12 +790,15 @@ export class UnfurlService extends BaseService {
 
             const urlWithoutParams = url.split('?')[0];
             const exploreModel = urlWithoutParams.split('/tables/')[1];
-
+            const internalUrl = url.replace(
+                this.lightdashConfig.siteUrl,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
+            );
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.EXPLORE,
                 url,
-                minimalUrl: url,
+                minimalUrl: internalUrl,
                 projectUuid,
                 exploreModel,
             };
@@ -815,7 +818,7 @@ export class UnfurlService extends BaseService {
         const response = await fetch(
             new URL(
                 `/api/v1/headless-browser/login/${userUuid}`,
-                this.lightdashConfig.siteUrl,
+                this.lightdashConfig.headlessBrowser.internalLightdashHost,
             ).href,
             {
                 method: 'POST',
