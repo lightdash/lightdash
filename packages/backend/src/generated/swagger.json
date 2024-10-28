@@ -8478,7 +8478,7 @@
                     }
                 ]
             },
-            "VizChartConfig": {
+            "AllVizChartConfig": {
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/VizBarChartConfig"
@@ -8500,7 +8500,7 @@
                         "type": "string"
                     },
                     "config": {
-                        "$ref": "#/components/schemas/VizChartConfig"
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "limit": {
                         "type": "number",
@@ -8570,7 +8570,7 @@
             "UpdateVersionedSqlChart": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/VizChartConfig"
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "limit": {
                         "type": "number",
@@ -10197,7 +10197,7 @@
                         "type": "string"
                     },
                     "config": {
-                        "$ref": "#/components/schemas/VizChartConfig"
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "semanticLayerQuery": {
                         "$ref": "#/components/schemas/SemanticLayerQuery"
@@ -10223,22 +10223,6 @@
                     "name"
                 ],
                 "type": "object"
-            },
-            "AllVizChartConfig": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBarChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizLineChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizPieChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizTableConfig"
-                    }
-                ]
             },
             "SavedSemanticViewerChart": {
                 "properties": {
@@ -10397,7 +10381,7 @@
                                 "$ref": "#/components/schemas/ChartKind"
                             },
                             "config": {
-                                "$ref": "#/components/schemas/VizChartConfig"
+                                "$ref": "#/components/schemas/AllVizChartConfig"
                             },
                             "semanticLayerQuery": {
                                 "$ref": "#/components/schemas/SemanticLayerQuery"
@@ -10675,7 +10659,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1315.5",
+        "version": "0.1315.7",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
