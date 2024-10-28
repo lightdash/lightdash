@@ -1,3 +1,15 @@
+# [0.1319.0](https://github.com/lightdash/lightdash/compare/0.1318.0...0.1319.0) (2024-10-28)
+
+
+### Bug Fixes
+
+* analytic event virtual view saved chart ([#12128](https://github.com/lightdash/lightdash/issues/12128)) ([56e0da9](https://github.com/lightdash/lightdash/commit/56e0da97f65cfe6b36a31432a28e74ecf50a24f6))
+
+
+### Features
+
+* updated_at added to users table ([#12133](https://github.com/lightdash/lightdash/issues/12133)) ([f87a352](https://github.com/lightdash/lightdash/commit/f87a352b7f19b1af9fce1fa414bb84e49d6de185))
+
 # [0.1318.0](https://github.com/lightdash/lightdash/compare/0.1317.2...0.1318.0) (2024-10-28)
 
 
