@@ -6,20 +6,20 @@ describe('Lightdash chart summaries endpoints', () => {
     beforeEach(() => {
         cy.login();
     });
-    it('List should not include charts saved in dashboards', () => {
+    it('List should include charts saved in dashboards', () => {
         cy.request(chartSummariesEndpointPath).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results.map((chart) => chart.name)).to.not.include(
+            expect(resp.body.results.map((chart) => chart.name)).to.include(
                 '[Saved in dashboard] How much revenue do we have per payment method?',
             );
         });
     });
-    it('List should include charts saved in dashboards', () => {
+    it('List should exclude charts saved in dashboards', () => {
         cy.request(
-            `${chartSummariesEndpointPath}?includeChartSavedInDashboards=true`,
+            `${chartSummariesEndpointPath}?excludeChartsSavedInDashboard=true`,
         ).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results.map((chart) => chart.name)).to.include(
+            expect(resp.body.results.map((chart) => chart.name)).to.not.include(
                 '[Saved in dashboard] How much revenue do we have per payment method?',
             );
         });

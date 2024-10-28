@@ -12990,9 +12990,9 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
-                includeChartSavedInDashboards: {
+                excludeChartsSavedInDashboard: {
                     in: 'query',
-                    name: 'includeChartSavedInDashboards',
+                    name: 'excludeChartsSavedInDashboard',
                     dataType: 'boolean',
                 },
             };

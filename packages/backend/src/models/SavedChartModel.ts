@@ -1112,7 +1112,7 @@ export class SavedChartModel {
         spaceUuids?: string[];
         slug?: string;
         exploreName?: string;
-        includeChartSavedInDashboards?: boolean;
+        excludeChartsSavedInDashboard?: boolean;
     }): Promise<(ChartSummary & { updatedAt: Date })[]> {
         return Sentry.startSpan(
             {
@@ -1128,8 +1128,10 @@ export class SavedChartModel {
                     );
                 }
 
-                if (filters.includeChartSavedInDashboards) {
-                    // Join only the charts from the latest dashboard version
+                if (filters.excludeChartsSavedInDashboard) {
+                    void query.whereNotNull(`${SavedChartsTableName}.space_id`); // Note: charts saved in dashboards have saved_queries.space_id = null
+                } else {
+                    // Get charts not saved in a dashboard OR the charts saved a dashboard AND used in the latest dashboard version
                     void query
                         .leftJoin(
                             DashboardVersionsTableName,
@@ -1151,34 +1153,34 @@ export class SavedChartModel {
                                     `${SavedChartsTableName}.saved_query_id`,
                                 );
                             },
-                        );
-
-                    // Get charts not saved in a dashboard OR the charts saved a dashboard AND used in the latest dashboard version
-                    void query.where((whereBuilder) => {
-                        void whereBuilder
-                            .whereNull(`${DashboardsTableName}.dashboard_id`)
-                            .orWhere((orWhereBuilder) => {
-                                void orWhereBuilder
-                                    .whereNotNull(
-                                        `${DashboardTileChartTableName}.saved_chart_id`,
-                                    )
-                                    .andWhere(
-                                        `${DashboardVersionsTableName}.created_at`,
-                                        '=',
-                                        this.database
-                                            .from(DashboardVersionsTableName)
-                                            .max('created_at')
-                                            .where(
-                                                `${DashboardVersionsTableName}.dashboard_id`,
-                                                this.database.ref(
-                                                    `${DashboardsTableName}.dashboard_id`,
+                        )
+                        .where((whereBuilder) => {
+                            void whereBuilder
+                                .whereNull(
+                                    `${DashboardsTableName}.dashboard_id`,
+                                )
+                                .orWhere((orWhereBuilder) => {
+                                    void orWhereBuilder
+                                        .whereNotNull(
+                                            `${DashboardTileChartTableName}.saved_chart_id`,
+                                        )
+                                        .andWhere(
+                                            `${DashboardVersionsTableName}.created_at`,
+                                            '=',
+                                            this.database
+                                                .from(
+                                                    DashboardVersionsTableName,
+                                                )
+                                                .max('created_at')
+                                                .where(
+                                                    `${DashboardVersionsTableName}.dashboard_id`,
+                                                    this.database.ref(
+                                                        `${DashboardsTableName}.dashboard_id`,
+                                                    ),
                                                 ),
-                                            ),
-                                    );
-                            });
-                    });
-                } else {
-                    void query.whereNotNull(`${SavedChartsTableName}.space_id`); // Note: charts saved in dashboards have saved_queries.space_id = null
+                                        );
+                                });
+                        });
                 }
 
                 if (filters.spaceUuids) {
