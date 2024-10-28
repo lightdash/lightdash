@@ -3,7 +3,14 @@ import {
     VizAggregationOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { Box, Group, Select, Text, useMantineTheme } from '@mantine/core';
+import {
+    Box,
+    Group,
+    Select,
+    Text,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine/core';
 import {
     IconAsterisk,
     IconMathFunction,
@@ -89,28 +96,30 @@ export const DataVizAggregationConfig: FC<Props> = ({
     }));
 
     return (
-        <Select
-            withinPortal
-            data={selectOptions}
-            itemComponent={AggregationItem}
-            value={aggregation ?? aggregationOptionsWithNone?.[0]}
-            onChange={(value: VizAggregationOptions | null) =>
-                value && onChangeAggregation(value)
-            }
-            classNames={{
-                item: classes.item,
-                dropdown: classes.dropdown,
-                input: classes.input,
-                rightSection: classes.rightSection,
-            }}
-            styles={{
-                input: {
-                    width:
-                        aggregation === VizAggregationOptions.ANY
-                            ? '70px'
-                            : '50px',
-                },
-            }}
-        />
+        <Tooltip label="Aggregation type" variant="xs" withinPortal>
+            <Select
+                withinPortal
+                data={selectOptions}
+                itemComponent={AggregationItem}
+                value={aggregation ?? aggregationOptionsWithNone?.[0]}
+                onChange={(value: VizAggregationOptions | null) =>
+                    value && onChangeAggregation(value)
+                }
+                classNames={{
+                    item: classes.item,
+                    dropdown: classes.dropdown,
+                    input: classes.input,
+                    rightSection: classes.rightSection,
+                }}
+                styles={{
+                    input: {
+                        width:
+                            aggregation === VizAggregationOptions.ANY
+                                ? '70px'
+                                : '50px',
+                    },
+                }}
+            />
+        </Tooltip>
     );
 };

@@ -1,5 +1,5 @@
 import { SortByDirection, type VizSortBy } from '@lightdash/common';
-import { Box, Select, Text, useMantineTheme } from '@mantine/core';
+import { Box, Select, Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -74,26 +74,31 @@ export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
     ];
 
     return (
-        <Select
-            withinPortal
-            data={selectOptions}
-            itemComponent={SortItem}
-            value={sortBy ?? selectOptions[0].value}
-            onChange={(value: SortByDirection | 'none') =>
-                onChangeSortBy(value === 'none' ? undefined : value)
-            }
-            icon={sortBy ? <SortIcon sortByDirection={sortBy} /> : null}
-            classNames={{
-                item: classes.item,
-                dropdown: classes.dropdown,
-                input: cx(classes.input, !sortBy && classes.inputUnsetValue),
-                rightSection: classes.rightSection,
-            }}
-            styles={{
-                input: {
-                    width: '105px',
-                },
-            }}
-        />
+        <Tooltip label="Sort by" variant="xs" withinPortal>
+            <Select
+                withinPortal
+                data={selectOptions}
+                itemComponent={SortItem}
+                value={sortBy ?? selectOptions[0].value}
+                onChange={(value: SortByDirection | 'none') =>
+                    onChangeSortBy(value === 'none' ? undefined : value)
+                }
+                icon={sortBy ? <SortIcon sortByDirection={sortBy} /> : null}
+                classNames={{
+                    item: classes.item,
+                    dropdown: classes.dropdown,
+                    input: cx(
+                        classes.input,
+                        !sortBy && classes.inputUnsetValue,
+                    ),
+                    rightSection: classes.rightSection,
+                }}
+                styles={{
+                    input: {
+                        width: '105px',
+                    },
+                }}
+            />
+        </Tooltip>
     );
 };
