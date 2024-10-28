@@ -37,7 +37,12 @@ export const parseFieldsFromCompiledTable = (
         ...Object.values(table.metrics),
     ].filter((f) => !f.hidden); // Filter out hidden fields from catalog
     return tableFields.map((field) =>
-        parseFieldFromMetricOrDimension(table, field, []),
+        parseFieldFromMetricOrDimension(
+            table,
+            field,
+            [],
+            field.requiredAttributes ?? table.requiredAttributes,
+        ),
     );
 };
 

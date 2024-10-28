@@ -119,6 +119,7 @@ export class CatalogModel {
                 }
             })
             .andWhere(function userAttributesFiltering() {
+                console.log({ userAttributes });
                 void this.whereJsonSubsetOf(
                     'required_attributes',
                     userAttributes,
