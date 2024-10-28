@@ -5,7 +5,7 @@ import {
     isFormat,
     VIZ_DEFAULT_AGGREGATION,
     type CartesianChartDisplay,
-    type PivotChartLayout,
+    type SortByDirection,
     type VizAggregationOptions,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
@@ -284,10 +284,23 @@ export const cartesianChartConfigSlice = createSlice({
 
         setSortBy: (
             { fieldConfig },
-            action: PayloadAction<PivotChartLayout['sortBy']>,
+            action: PayloadAction<{
+                reference: string;
+                direction: SortByDirection | undefined;
+            }>,
         ) => {
             if (!fieldConfig) return;
-            fieldConfig.sortBy = action.payload;
+
+            if (action.payload.direction) {
+                fieldConfig.sortBy = [
+                    {
+                        reference: action.payload.reference,
+                        direction: action.payload.direction,
+                    },
+                ];
+            } else {
+                fieldConfig.sortBy = undefined;
+            }
         },
 
         setStacked: ({ display }, action: PayloadAction<boolean>) => {
