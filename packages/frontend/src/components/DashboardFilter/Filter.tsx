@@ -12,7 +12,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
-import { IconFilter } from '@tabler/icons-react';
+import { IconFilter, IconGripVertical } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
@@ -74,6 +74,8 @@ const Filter: FC<Props> = ({
 
     const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
         useDisclosure();
+
+    const isDraggable = isEditMode && !isTemporary;
 
     const defaultFilterRule = useMemo(() => {
         if (!filterableFieldsByTileUuid || !field || !filterRule) return;
@@ -221,6 +223,16 @@ const Filter: FC<Props> = ({
                                     : 'default'
                             }
                             bg="white"
+                            leftIcon={
+                                isDraggable && (
+                                    <MantineIcon
+                                        icon={IconGripVertical}
+                                        color="gray"
+                                        cursor="grab"
+                                        size="sm"
+                                    />
+                                )
+                            }
                             rightIcon={
                                 (isEditMode || isTemporary) && (
                                     <CloseButton size="sm" onClick={onRemove} />
