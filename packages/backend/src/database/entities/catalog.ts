@@ -1,4 +1,4 @@
-import { CatalogType } from '@lightdash/common';
+import { CatalogType, type UserAttributeValueMap } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export type DbCatalog = {
@@ -10,6 +10,7 @@ export type DbCatalog = {
     search_vector: string;
     embedding_vector?: string;
     field_type?: string;
+    required_attributes: Record<string, string | string[]> | null;
 };
 
 export type DbCatalogIn = Pick<
@@ -20,6 +21,7 @@ export type DbCatalogIn = Pick<
     | 'description'
     | 'type'
     | 'field_type'
+    | 'required_attributes'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
 export type DbCatalogUpdate = Pick<DbCatalog, 'embedding_vector'>;

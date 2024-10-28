@@ -13,6 +13,7 @@ export const convertExploresToCatalog = (
             name: explore.name,
             description: baseTable?.description || null,
             type: CatalogType.Table,
+            required_attributes: baseTable.requiredAttributes ?? null,
         };
 
         const dimensionsAndMetrics = [
@@ -29,6 +30,10 @@ export const convertExploresToCatalog = (
             description: field.description || null,
             type: CatalogType.Field,
             field_type: field.fieldType,
+            required_attributes:
+                field.requiredAttributes ??
+                baseTable.requiredAttributes ??
+                null,
         }));
 
         return [...acc, table, ...fields];

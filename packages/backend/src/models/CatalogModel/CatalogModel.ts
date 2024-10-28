@@ -6,19 +6,19 @@ import {
     Explore,
     FieldType,
     NotFoundError,
+    TableSelectionType,
     UnexpectedServerError,
     type KnexPaginateArgs,
     type KnexPaginatedData,
+    type TablesConfiguration,
+    type UserAttributeValueMap,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     CatalogTableName,
     type DbCatalog,
 } from '../../database/entities/catalog';
-import {
-    CachedExploreTableName,
-    type DbCachedExplore,
-} from '../../database/entities/projects';
+import { CachedExploreTableName } from '../../database/entities/projects';
 import KnexPaginate from '../../database/pagination';
 import { wrapSentryTransaction } from '../../utils';
 import {
@@ -48,6 +48,8 @@ export class CatalogModel {
         limit = 50,
         excludeUnmatched = true,
         searchRankFunction = getFullTextSearchRankCalcSql,
+        tablesConfiguration,
+        userAttributes,
         paginateArgs,
     }: {
         searchQuery?: string;
@@ -61,6 +63,8 @@ export class CatalogModel {
             database: Knex;
             variables: Record<string, string>;
         }) => Knex.Raw<any>;
+        tablesConfiguration: TablesConfiguration;
+        userAttributes: UserAttributeValueMap;
         paginateArgs?: KnexPaginateArgs;
     }): Promise<KnexPaginatedData<(CatalogTable | CatalogField)[]>> {
         const searchRankRawSql = searchQuery
@@ -82,13 +86,44 @@ export class CatalogModel {
                     search_rank: searchRankRawSql ?? 0,
                 },
                 `${CachedExploreTableName}.explore`,
+                `required_attributes`,
             )
             .leftJoin(
                 CachedExploreTableName,
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
             )
-            .where(`${CatalogTableName}.project_uuid`, projectUuid);
+            .where(`${CatalogTableName}.project_uuid`, projectUuid)
+            // tables configuration filtering
+            .andWhere(function tablesConfigurationFiltering() {
+                const {
+                    tableSelection: { type: tableSelectionType, value },
+                } = tablesConfiguration;
+
+                if (tableSelectionType === TableSelectionType.WITH_TAGS) {
+                    void this.whereJsonPath(
+                        'explore',
+                        '$.tags',
+                        'IN',
+                        tablesConfiguration.tableSelection.value ?? [],
+                    );
+                } else if (
+                    tableSelectionType === TableSelectionType.WITH_NAMES
+                ) {
+                    void this.whereJsonPath(
+                        'explore',
+                        '$.baseTable',
+                        'IN',
+                        tablesConfiguration.tableSelection.value ?? [],
+                    );
+                }
+            })
+            .andWhere(function userAttributesFiltering() {
+                void this.whereJsonSubsetOf(
+                    'required_attributes',
+                    userAttributes,
+                ).orWhere('required_attributes', null);
+            });
 
         if (exploreName) {
             catalogItemsQuery = catalogItemsQuery.andWhere(

@@ -23,6 +23,7 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
+import { difference } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -201,53 +202,21 @@ export class CatalogService<
                 userAttributesSize: Object.keys(userAttributes).length,
                 query,
             },
-            async () => {
-                const { data: catalog, pagination } =
-                    await wrapSentryTransaction(
-                        'CatalogService.searchCatalog.modelSearch',
-                        {},
-                        async () =>
-                            this.catalogModel.search({
-                                projectUuid,
-                                searchQuery: query,
-                                filter,
-                                type,
-                                paginateArgs,
-                            }),
-                    );
-                // Filter table selection
-                const catalogFiltered = catalog.filter((c) => {
-                    if (c.type === CatalogType.Table)
-                        return CatalogService.isExploreFiltered(
-                            tablesConfiguration,
-                            c,
-                        );
-                    return CatalogService.isExploreFiltered(
-                        tablesConfiguration,
-                        { name: c.tableName, tags: c.tags },
-                    );
-                });
-
-                // Filter required attributes
-                const attributeFilteredCatalog = await wrapSentryTransaction(
-                    'CatalogService.searchCatalog.filterAttributes',
-                    {
-                        catalogSize: catalog.length,
-                    },
+            async () =>
+                wrapSentryTransaction(
+                    'CatalogService.searchCatalog.modelSearch',
+                    {},
                     async () =>
-                        catalogFiltered.filter((c) =>
-                            hasUserAttributes(
-                                c.requiredAttributes,
-                                userAttributes,
-                            ),
-                        ),
-                );
-
-                return {
-                    pagination,
-                    data: attributeFilteredCatalog,
-                };
-            },
+                        this.catalogModel.search({
+                            projectUuid,
+                            searchQuery: query,
+                            filter,
+                            type,
+                            paginateArgs,
+                            tablesConfiguration,
+                            userAttributes,
+                        }),
+                ),
         );
     }
 
