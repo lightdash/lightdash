@@ -413,6 +413,11 @@ export class SavedChartService extends BaseService {
             savedChartUuid,
             data,
         );
+
+        const cachedExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            savedChart.tableName,
+        );
         this.analytics.track({
             event: 'saved_chart.updated',
             userId: user.userUuid,
@@ -420,6 +425,10 @@ export class SavedChartService extends BaseService {
                 projectId: savedChart.projectUuid,
                 savedQueryId: savedChartUuid,
                 dashboardId: savedChart.dashboardUuid ?? undefined,
+                virtualViewId:
+                    cachedExplore?.type === ExploreType.VIRTUAL
+                        ? cachedExplore.name
+                        : undefined,
             },
         });
         if (dashboardUuid && !savedChart.dashboardUuid) {
@@ -730,7 +739,6 @@ export class SavedChartService extends BaseService {
             projectUuid,
             savedChart.tableName,
         );
-
         this.analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
@@ -816,6 +824,11 @@ export class SavedChartService extends BaseService {
         const newSavedChartProperties =
             SavedChartService.getCreateEventProperties(newSavedChart);
 
+        const cachedExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            newSavedChart.tableName,
+        );
+
         this.analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
@@ -823,6 +836,10 @@ export class SavedChartService extends BaseService {
                 ...newSavedChartProperties,
                 duplicated: true,
                 dashboardId: newSavedChart.dashboardUuid ?? undefined,
+                virtualViewId:
+                    cachedExplore?.type === ExploreType.VIRTUAL
+                        ? cachedExplore.name
+                        : undefined,
             },
         });
 
