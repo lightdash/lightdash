@@ -7,6 +7,7 @@ import {
     DashboardDAO,
     DashboardTab,
     DashboardTileTypes,
+    ExploreType,
     ForbiddenError,
     generateSlug,
     hasChartsInDashboard,
@@ -420,6 +421,11 @@ export class DashboardService extends BaseService {
                                     ),
                                 },
                             );
+                        const cachedExplore =
+                            await this.projectModel.getExploreFromCache(
+                                projectUuid,
+                                duplicatedChart.tableName,
+                            );
                         this.analytics.track({
                             event: 'saved_chart.created',
                             userId: user.userUuid,
@@ -430,6 +436,10 @@ export class DashboardService extends BaseService {
                                 dashboardId:
                                     duplicatedChart.dashboardUuid ?? undefined,
                                 duplicated: true,
+                                virtualViewId:
+                                    cachedExplore?.type === ExploreType.VIRTUAL
+                                        ? cachedExplore.name
+                                        : undefined,
                             },
                         });
                         return {
