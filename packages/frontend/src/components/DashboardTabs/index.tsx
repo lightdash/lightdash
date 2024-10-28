@@ -232,7 +232,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     });
                                 }
                             }}
-                            mt="xs"
+                            mt={tabsEnabled ? 'sm' : 'xs'}
                             styles={
                                 tabsEnabled
                                     ? {
