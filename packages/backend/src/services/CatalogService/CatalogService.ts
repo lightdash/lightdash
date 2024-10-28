@@ -19,6 +19,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UserAttributeValueMap,
+    type KnexPaginateArgs,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -494,5 +495,18 @@ export class CatalogService<
             }),
         );
         return { charts: chartAnalytics };
+    }
+
+    async getMetricsCatalog(
+        user: SessionUser,
+        projectUuid: string,
+        _paginateArgs?: KnexPaginateArgs,
+        search?: string,
+    ) {
+        return this.getCatalog(user, projectUuid, {
+            search,
+            filter: CatalogFilter.Metrics,
+            type: CatalogType.Field,
+        });
     }
 }

@@ -4,6 +4,7 @@ import {
     ApiCatalogResults,
     ApiCatalogSearch,
     ApiErrorPayload,
+    type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
     Get,
@@ -133,6 +134,45 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getFieldAnalytics(req.user!, projectUuid, table, field);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get metrics catalog
+     * @param projectUuid
+     * @param query contains filters for the catalog items as well as pagination
+     * - search: string
+     * - page: number
+     * - pageSize: number
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics')
+    @OperationId('getMetricsCatalog')
+    async getMetricsCatalog(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() search?: ApiCatalogSearch['search'],
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<{ status: 'ok'; results: ApiCatalogResults }> {
+        this.setStatus(200);
+
+        const paginateArgs: KnexPaginateArgs | undefined =
+            page && pageSize
+                ? {
+                      page,
+                      pageSize,
+                  }
+                : undefined;
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricsCatalog(req.user!, projectUuid, paginateArgs, search);
+
         return {
             status: 'ok',
             results,
