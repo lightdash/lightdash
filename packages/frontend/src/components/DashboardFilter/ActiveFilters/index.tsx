@@ -11,8 +11,8 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { Group, Skeleton } from '@mantine/core';
-import { type FC, type ReactNode } from 'react';
+import { Group, Skeleton, useMantineTheme } from '@mantine/core';
+import { useMemo, type FC, type ReactNode } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import Filter from '../Filter';
 import InvalidFilter from '../InvalidFilter';
@@ -33,12 +33,16 @@ const DraggableItem: FC<{
         id,
         disabled,
     });
+
     const style = transform
-        ? {
-              transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        ? ({
+              position: 'relative',
+              zIndex: 1,
+              transform: `translate(${transform.x}px, ${transform.y}px)`,
               opacity: 0.8,
-          }
+          } as const)
         : undefined;
+
     return (
         <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
             {children}
@@ -52,22 +56,26 @@ const DroppableArea: FC<{ id: string; children: ReactNode }> = ({
 }) => {
     const { active, isOver, over, setNodeRef } = useDroppable({ id });
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const placeHolderStyle = { boxShadow: 'unset' };
-    if (isOver && active && over && active.id !== over.id) {
-        const oldIndex = dashboardFilters.dimensions.findIndex(
-            (item) => item.id === active.id,
-        );
-        const newIndex = dashboardFilters.dimensions.findIndex(
-            (item) => item.id === over.id,
-        );
-        if (newIndex < oldIndex) {
-            placeHolderStyle.boxShadow = '-8px 0px #6495ed';
-        } else if (newIndex > oldIndex) {
-            placeHolderStyle.boxShadow = '8px 0px #6495ed';
+    const { colors } = useMantineTheme();
+
+    const placeholderStyle = useMemo(() => {
+        if (isOver && active && over && active.id !== over.id) {
+            const oldIndex = dashboardFilters.dimensions.findIndex(
+                (item) => item.id === active.id,
+            );
+            const newIndex = dashboardFilters.dimensions.findIndex(
+                (item) => item.id === over.id,
+            );
+            if (newIndex < oldIndex) {
+                return { boxShadow: `-8px 0px ${colors.blue[4]}` };
+            } else if (newIndex > oldIndex) {
+                return { boxShadow: `8px 0px ${colors.blue[4]}` };
+            }
         }
-    }
+    }, [isOver, active, over, dashboardFilters.dimensions, colors]);
+
     return (
-        <div ref={setNodeRef} style={{ ...placeHolderStyle }}>
+        <div ref={setNodeRef} style={placeholderStyle}>
             {children}
         </div>
     );
@@ -157,59 +165,56 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
             >
-                <>
-                    {dashboardFilters.dimensions.map((item, index) => {
-                        const field =
-                            allFilterableFieldsMap[item.target.fieldId];
-                        return (
-                            <DroppableArea key={item.id} id={item.id}>
-                                <DraggableItem
-                                    key={item.id}
-                                    id={item.id}
-                                    disabled={!isEditMode}
-                                >
-                                    {field ? (
-                                        <Filter
-                                            key={item.id}
-                                            isEditMode={isEditMode}
-                                            field={field}
-                                            filterRule={item}
-                                            openPopoverId={openPopoverId}
-                                            onPopoverOpen={onPopoverOpen}
-                                            onPopoverClose={onPopoverClose}
-                                            onRemove={() =>
-                                                removeDimensionDashboardFilter(
-                                                    index,
-                                                    false,
-                                                )
-                                            }
-                                            onUpdate={(value) =>
-                                                updateDimensionDashboardFilter(
-                                                    value,
-                                                    index,
-                                                    false,
-                                                    isEditMode,
-                                                )
-                                            }
-                                        />
-                                    ) : (
-                                        <InvalidFilter
-                                            key={item.id}
-                                            isEditMode={isEditMode}
-                                            filterRule={item}
-                                            onRemove={() =>
-                                                removeDimensionDashboardFilter(
-                                                    index,
-                                                    false,
-                                                )
-                                            }
-                                        />
-                                    )}
-                                </DraggableItem>
-                            </DroppableArea>
-                        );
-                    })}
-                </>
+                {dashboardFilters.dimensions.map((item, index) => {
+                    const field = allFilterableFieldsMap[item.target.fieldId];
+                    return (
+                        <DroppableArea key={item.id} id={item.id}>
+                            <DraggableItem
+                                key={item.id}
+                                id={item.id}
+                                disabled={!isEditMode}
+                            >
+                                {field ? (
+                                    <Filter
+                                        key={item.id}
+                                        isEditMode={isEditMode}
+                                        field={field}
+                                        filterRule={item}
+                                        openPopoverId={openPopoverId}
+                                        onPopoverOpen={onPopoverOpen}
+                                        onPopoverClose={onPopoverClose}
+                                        onRemove={() =>
+                                            removeDimensionDashboardFilter(
+                                                index,
+                                                false,
+                                            )
+                                        }
+                                        onUpdate={(value) =>
+                                            updateDimensionDashboardFilter(
+                                                value,
+                                                index,
+                                                false,
+                                                isEditMode,
+                                            )
+                                        }
+                                    />
+                                ) : (
+                                    <InvalidFilter
+                                        key={item.id}
+                                        isEditMode={isEditMode}
+                                        filterRule={item}
+                                        onRemove={() =>
+                                            removeDimensionDashboardFilter(
+                                                index,
+                                                false,
+                                            )
+                                        }
+                                    />
+                                )}
+                            </DraggableItem>
+                        </DroppableArea>
+                    );
+                })}
                 <DragOverlay />
             </DndContext>
 
