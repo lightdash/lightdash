@@ -11,7 +11,7 @@ import {
     type SelectItem,
 } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
-import { forwardRef, useMemo, useState, type FC } from 'react';
+import { forwardRef, useCallback, useMemo, useState, type FC } from 'react';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
@@ -156,6 +156,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     user.email,
                 ),
                 group: 'Users',
+                email: user.email,
             };
         });
 
@@ -185,6 +186,18 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         space.groupsAccess,
     ]);
 
+    const filterByNameOrEmail = useCallback(
+        (value: string, selected: boolean, item: SelectItem) => {
+            if (selected) return true;
+            return (
+                item.label?.toLowerCase().includes(value.toLowerCase()) ||
+                (item.email &&
+                    item.email.toLowerCase().includes(value.toLowerCase()))
+            );
+        },
+        [],
+    );
+
     return (
         <Group>
             <MultiSelect
@@ -202,6 +215,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 onChange={setUsersSelected}
                 data={data}
                 itemComponent={UserItemComponent}
+                filter={filterByNameOrEmail}
             />
 
             <Button
