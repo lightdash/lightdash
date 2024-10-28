@@ -1,3 +1,10 @@
+## [0.1317.2](https://github.com/lightdash/lightdash/compare/0.1317.1...0.1317.2) (2024-10-28)
+
+
+### Bug Fixes
+
+* private space filter user email ([#12122](https://github.com/lightdash/lightdash/issues/12122)) ([f717407](https://github.com/lightdash/lightdash/commit/f7174075c204e934710786e25f0343a96daac1b6))
+
 ## [0.1317.1](https://github.com/lightdash/lightdash/compare/0.1317.0...0.1317.1) (2024-10-28)
 
 
