@@ -14,7 +14,7 @@ const parseFieldFromMetricOrDimension = (
     table: CompiledTable,
     field: CompiledMetric | CompiledDimension,
     tags: string[],
-    requiredAttributes?: Record<string, string | string[]>,
+    requiredAttributes: Record<string, string | string[]> | undefined,
 ): CatalogField => ({
     name: field.name,
     label: field.label,
