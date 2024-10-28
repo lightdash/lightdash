@@ -379,6 +379,28 @@
             "ApiCatalogAnalyticsResults": {
                 "$ref": "#/components/schemas/CatalogAnalytics"
             },
+            "CatalogFieldWithAnalytics": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CatalogField"
+                    },
+                    {
+                        "properties": {
+                            "analytics": {
+                                "$ref": "#/components/schemas/CatalogAnalytics"
+                            }
+                        },
+                        "required": ["analytics"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiMetricsCatalogResults": {
+                "items": {
+                    "$ref": "#/components/schemas/CatalogFieldWithAnalytics"
+                },
+                "type": "array"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -10659,7 +10681,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1315.7",
+        "version": "0.1316.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -10931,6 +10953,83 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics": {
+            "get": {
+                "operationId": "getMetricsCatalog",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiMetricsCatalogResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get metrics catalog",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]

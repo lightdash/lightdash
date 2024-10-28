@@ -19,6 +19,9 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UserAttributeValueMap,
+    type ApiMetricsCatalogResults,
+    type CatalogFieldWithAnalytics,
+    type KnexPaginateArgs,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -182,8 +185,8 @@ export class CatalogService<
 
     private async searchCatalog(
         projectUuid: string,
-        query: string,
         userAttributes: UserAttributeValueMap,
+        query?: string,
         type?: CatalogType,
         filter?: CatalogFilter,
     ): Promise<(CatalogTable | CatalogField)[]> {
@@ -303,8 +306,8 @@ export class CatalogService<
             // On search we don't show explore errors, because they are not indexed
             return this.searchCatalog(
                 projectUuid,
-                search,
                 userAttributes,
+                search,
                 type,
                 filter,
             );
@@ -494,5 +497,55 @@ export class CatalogService<
             }),
         );
         return { charts: chartAnalytics };
+    }
+
+    async getMetricsCatalog(
+        user: SessionUser,
+        projectUuid: string,
+        _paginateArgs?: KnexPaginateArgs, // TODO: Pagination on `searchCatalog`
+        search?: string,
+    ): Promise<CatalogFieldWithAnalytics[]> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const catalogMetrics = await this.searchCatalog(
+            projectUuid,
+            userAttributes,
+            search,
+            CatalogType.Field,
+            CatalogFilter.Metrics,
+        );
+
+        const analyticsPromises = catalogMetrics
+            .filter(
+                (item): item is CatalogField => item.type === CatalogType.Field,
+            )
+            .map<Promise<CatalogFieldWithAnalytics>>(async (metric) => ({
+                ...metric,
+                analytics: await this.getFieldAnalytics(
+                    user,
+                    projectUuid,
+                    metric.tableName,
+                    metric.name,
+                ),
+            }));
+
+        return Promise.all(analyticsPromises);
     }
 }
