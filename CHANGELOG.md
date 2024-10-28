@@ -1,3 +1,10 @@
+## [0.1319.1](https://github.com/lightdash/lightdash/compare/0.1319.0...0.1319.1) (2024-10-28)
+
+
+### Bug Fixes
+
+* **auth:** show actionable error message when Okta authentication has access denied ([#12102](https://github.com/lightdash/lightdash/issues/12102)) ([82c9f79](https://github.com/lightdash/lightdash/commit/82c9f79188b7b3ecb46d160f9cd93b65b41f09d0))
+
 # [0.1319.0](https://github.com/lightdash/lightdash/compare/0.1318.0...0.1319.0) (2024-10-28)
 
 
