@@ -1,3 +1,10 @@
+import { Box } from '@mantine/core';
+import { MetricsTable } from './MetricsTable';
+
 export const MetricsCatalogPanel = () => {
-    return <div>MetricsCatalogPanel</div>;
+    return (
+        <Box>
+            <MetricsTable />
+        </Box>
+    );
 };
