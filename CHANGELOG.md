@@ -1,3 +1,10 @@
+## [0.1317.1](https://github.com/lightdash/lightdash/compare/0.1317.0...0.1317.1) (2024-10-28)
+
+
+### Bug Fixes
+
+* improve ux for registering users ([#12100](https://github.com/lightdash/lightdash/issues/12100)) ([fa0c44a](https://github.com/lightdash/lightdash/commit/fa0c44aff40c8a86a5dd1ae0dda91a58be09c8a1))
+
 # [0.1317.0](https://github.com/lightdash/lightdash/compare/0.1316.1...0.1317.0) (2024-10-28)
 
 
