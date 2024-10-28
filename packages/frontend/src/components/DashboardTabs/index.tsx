@@ -17,6 +17,7 @@ import {
 } from '../../pages/Dashboard';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { TrackSection } from '../../providers/TrackingProvider';
+import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { LockedDashboardModal } from '../common/modal/LockedDashboardModal';
@@ -209,7 +210,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 setHaveTabsChanged(true);
             }}
         >
-            <Droppable droppableId="tabs" direction="horizontal">
+            <Droppable droppableId="dashboard-tabs" direction="horizontal">
                 {(provided) => (
                     <div {...provided.droppableProps} ref={provided.innerRef}>
                         <Tabs
@@ -237,6 +238,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     ? {
                                           root: {
                                               backgroundColor: 'white',
+                                              flexGrow: 1,
                                           },
                                       }
                                     : undefined

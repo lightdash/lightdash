@@ -5,7 +5,7 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Box, Button, Flex, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -673,6 +673,7 @@ const Dashboard: FC = () => {
                         onTogglePin={handleDashboardPinning}
                     />
                 }
+                withFullHeight={true}
             >
                 <Group position="apart" align="flex-start" noWrap>
                     {dashboardChartTiles && dashboardChartTiles.length > 0 && (
@@ -685,7 +686,7 @@ const Dashboard: FC = () => {
                         <DateZoom isEditMode={isEditMode} />
                     )}
                 </Group>
-                <Group grow mx="-lg">
+                <Flex mx="-lg" style={{ flexGrow: 1, flexDirection: 'column' }}>
                     <DashboardTabs
                         isEditMode={isEditMode}
                         hasRequiredDashboardFiltersToSet={
@@ -703,7 +704,7 @@ const Dashboard: FC = () => {
                         setActiveTab={setActiveTab}
                         setAddingTab={setAddingTab}
                     />
-                </Group>
+                </Flex>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened
