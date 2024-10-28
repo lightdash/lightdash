@@ -345,7 +345,7 @@ export class UserModel {
         await this.database.transaction(async (trx) => {
             const [user] = await trx(UserTableName)
                 .where('user_uuid', userUuid)
-                .update<Partial<DbUserUpdate>>({
+                .update<DbUserUpdate>({
                     first_name: firstName,
                     last_name: lastName,
                     is_setup_complete: isSetupComplete,
