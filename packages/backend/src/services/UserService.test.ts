@@ -42,6 +42,7 @@ const userModel = {
     createPendingUser: jest.fn(async () => newUser),
     findSessionUserByPrimaryEmail: jest.fn(async () => sessionUser),
     joinOrg: jest.fn(async () => sessionUser),
+    hasUsers: jest.fn(async () => false),
 };
 
 const openIdIdentityModel = {

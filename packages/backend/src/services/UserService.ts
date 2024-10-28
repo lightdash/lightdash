@@ -488,6 +488,35 @@ export class UserService extends BaseService {
         }
     }
 
+    /**
+     * In this method we check if the user is allowed to register in this instance before registerUser happens.
+     * If the instance is a single org, and there are already users and orgs,
+     * and the user's email domain is allowed in the org whitelisted,
+     * we throw a ForbiddenError.
+     * @param inviteCode invite code
+     * @param email email for the user registering
+     */
+    async checkNewUserRegistrationAllowed(
+        inviteCode: string | undefined,
+        email: string,
+    ) {
+        if (
+            inviteCode === undefined &&
+            !this.lightdashConfig.allowMultiOrgs &&
+            (await this.userModel.hasUsers()) &&
+            (await this.organizationModel.hasOrgs()) &&
+            (
+                await this.organizationModel.getAllowedOrgsForDomain(
+                    getEmailDomain(email),
+                )
+            ).length < 1
+        ) {
+            throw new ForbiddenError(
+                `You can't register a new user with email ${email} on this instance. Please contact your organization administrator and ask for an invite`,
+            );
+        }
+    }
+
     async loginWithOpenId(
         openIdUser: OpenIdUser,
         authenticatedUser: SessionUser | undefined,
@@ -673,6 +702,10 @@ export class UserService extends BaseService {
         }
 
         // Create user
+        await this.checkNewUserRegistrationAllowed(
+            inviteCode,
+            openIdUser.openId.email,
+        );
         const createdUser = await this.activateUserWithOpenId(
             openIdUser,
             inviteCode,
@@ -1003,6 +1036,8 @@ export class UserService extends BaseService {
                 password: user.password,
             });
         } else {
+            await this.checkNewUserRegistrationAllowed(undefined, user.email);
+
             lightdashUser = await this.registerUser({
                 firstName: user.firstName,
                 lastName: user.lastName,
