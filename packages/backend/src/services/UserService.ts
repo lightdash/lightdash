@@ -512,7 +512,7 @@ export class UserService extends BaseService {
             ).length !== 1
         ) {
             throw new ForbiddenError(
-                `You can't register a new user on this instance. Please contact your organization administrator and ask for an invite`,
+                `You can't register a new user with email ${email} on this instance. Please contact your organization administrator and ask for an invite`,
             );
         }
     }
