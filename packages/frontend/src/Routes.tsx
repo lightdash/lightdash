@@ -24,6 +24,7 @@ import Home from './pages/Home';
 import Invite from './pages/Invite';
 import JoinOrganization from './pages/JoinOrganization';
 import Login from './pages/Login';
+import MetricsCatalog from './pages/MetricsCatalog';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
 import PasswordRecovery from './pages/PasswordRecovery';
@@ -347,6 +348,15 @@ const Routes: FC = () => {
                                         <NavBar />
                                         <TrackPage name={PageName.CATALOG}>
                                             <Catalog />
+                                        </TrackPage>
+                                    </Route>
+
+                                    <Route path="/projects/:projectUuid/metrics">
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.METRICS_CATALOG}
+                                        >
+                                            <MetricsCatalog />
                                         </TrackPage>
                                     </Route>
 
