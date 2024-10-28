@@ -1,3 +1,11 @@
+# [0.1318.0](https://github.com/lightdash/lightdash/compare/0.1317.2...0.1318.0) (2024-10-28)
+
+
+### Features
+
+* reorderable dashboard filters ([#11985](https://github.com/lightdash/lightdash/issues/11985)) ([38ca215](https://github.com/lightdash/lightdash/commit/38ca2157e5da479dfe79fb06a397de359bec9f04))
+* show catalog metrics in table ([#12132](https://github.com/lightdash/lightdash/issues/12132)) ([8a9c045](https://github.com/lightdash/lightdash/commit/8a9c0458570ea6b4c09f0dac6b95a68a33149668))
+
 ## [0.1317.2](https://github.com/lightdash/lightdash/compare/0.1317.1...0.1317.2) (2024-10-28)
 
 
