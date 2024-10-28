@@ -1,3 +1,10 @@
+## [0.1316.1](https://github.com/lightdash/lightdash/compare/0.1316.0...0.1316.1) (2024-10-28)
+
+
+### Bug Fixes
+
+* handle undefined queryKey ([#12112](https://github.com/lightdash/lightdash/issues/12112)) ([19d6340](https://github.com/lightdash/lightdash/commit/19d63400ecb56d387ced897d6c7ba806ef5b27e3))
+
 # [0.1316.0](https://github.com/lightdash/lightdash/compare/0.1315.7...0.1316.0) (2024-10-28)
 
 
