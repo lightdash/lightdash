@@ -7,10 +7,19 @@ import {
     FieldType,
     NotFoundError,
     UnexpectedServerError,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { CatalogTableName } from '../../database/entities/catalog';
-import { CachedExploreTableName } from '../../database/entities/projects';
+import {
+    CatalogTableName,
+    type DbCatalog,
+} from '../../database/entities/catalog';
+import {
+    CachedExploreTableName,
+    type DbCachedExplore,
+} from '../../database/entities/projects';
+import KnexPaginate from '../../database/pagination';
 import { wrapSentryTransaction } from '../../utils';
 import {
     getFullTextSearchQuery,
@@ -39,6 +48,7 @@ export class CatalogModel {
         limit = 50,
         excludeUnmatched = true,
         searchRankFunction = getFullTextSearchRankCalcSql,
+        paginateArgs,
     }: {
         searchQuery?: string;
         projectUuid: string;
@@ -51,7 +61,8 @@ export class CatalogModel {
             database: Knex;
             variables: Record<string, string>;
         }) => Knex.Raw<any>;
-    }): Promise<(CatalogTable | CatalogField)[]> {
+        paginateArgs?: KnexPaginateArgs;
+    }): Promise<KnexPaginatedData<(CatalogTable | CatalogField)[]>> {
         const searchRankRawSql = searchQuery
             ? searchRankFunction({
                   database: this.database,
@@ -118,15 +129,23 @@ export class CatalogModel {
             .orderBy('search_rank', 'desc')
             .limit(limit ?? 50);
 
-        const catalogItems = await catalogItemsQuery;
+        const paginatedCatalogItems = await KnexPaginate.paginate(
+            catalogItemsQuery.select<(DbCatalog & { explore: Explore })[]>(),
+            paginateArgs,
+        );
+
         const catalog = await wrapSentryTransaction(
             'CatalogModel.search.parse',
             {
-                catalogSize: catalogItems.length,
+                catalogSize: paginatedCatalogItems.data.length,
             },
-            async () => catalogItems.map(parseCatalog),
+            async () => paginatedCatalogItems.data.map(parseCatalog),
         );
-        return catalog;
+
+        return {
+            pagination: paginatedCatalogItems.pagination,
+            data: catalog,
+        };
     }
 
     async getMetadata(projectUuid: string, name: string): Promise<Explore> {

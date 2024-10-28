@@ -19,9 +19,9 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UserAttributeValueMap,
-    type ApiMetricsCatalogResults,
     type CatalogFieldWithAnalytics,
     type KnexPaginateArgs,
+    type KnexPaginatedData,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -189,7 +189,8 @@ export class CatalogService<
         query?: string,
         type?: CatalogType,
         filter?: CatalogFilter,
-    ): Promise<(CatalogTable | CatalogField)[]> {
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<(CatalogTable | CatalogField)[]>> {
         const tablesConfiguration =
             await this.projectModel.getTablesConfiguration(projectUuid);
 
@@ -201,17 +202,19 @@ export class CatalogService<
                 query,
             },
             async () => {
-                const catalog = await wrapSentryTransaction(
-                    'CatalogService.searchCatalog.modelSearch',
-                    {},
-                    async () =>
-                        this.catalogModel.search({
-                            projectUuid,
-                            searchQuery: query,
-                            filter,
-                            type,
-                        }),
-                );
+                const { data: catalog, pagination } =
+                    await wrapSentryTransaction(
+                        'CatalogService.searchCatalog.modelSearch',
+                        {},
+                        async () =>
+                            this.catalogModel.search({
+                                projectUuid,
+                                searchQuery: query,
+                                filter,
+                                type,
+                                paginateArgs,
+                            }),
+                    );
                 // Filter table selection
                 const catalogFiltered = catalog.filter((c) => {
                     if (c.type === CatalogType.Table)
@@ -226,7 +229,7 @@ export class CatalogService<
                 });
 
                 // Filter required attributes
-                return wrapSentryTransaction(
+                const attributeFilteredCatalog = await wrapSentryTransaction(
                     'CatalogService.searchCatalog.filterAttributes',
                     {
                         catalogSize: catalog.length,
@@ -239,6 +242,11 @@ export class CatalogService<
                             ),
                         ),
                 );
+
+                return {
+                    pagination,
+                    data: attributeFilteredCatalog,
+                };
             },
         );
     }
@@ -247,7 +255,7 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
         { search, type, filter }: ApiCatalogSearch,
-    ) {
+    ): Promise<KnexPaginatedData<(CatalogField | CatalogTable)[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -263,9 +271,13 @@ export class CatalogService<
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
+
         if (!explores) {
-            return [];
+            return {
+                data: [],
+            };
         }
+
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
@@ -312,18 +324,24 @@ export class CatalogService<
                 filter,
             );
         }
-        if (type === CatalogType.Field)
-            return CatalogService.getCatalogFields(
-                filteredExplores,
-                userAttributes,
-            );
+
+        if (type === CatalogType.Field) {
+            return {
+                data: await CatalogService.getCatalogFields(
+                    filteredExplores,
+                    userAttributes,
+                ),
+            };
+        }
 
         // all tables
-        return this.getCatalogTables(
-            projectUuid,
-            filteredExplores,
-            userAttributes,
-        );
+        return {
+            data: await this.getCatalogTables(
+                projectUuid,
+                filteredExplores,
+                userAttributes,
+            ),
+        };
     }
 
     async getMetadata(user: SessionUser, projectUuid: string, table: string) {
@@ -502,9 +520,9 @@ export class CatalogService<
     async getMetricsCatalog(
         user: SessionUser,
         projectUuid: string,
-        _paginateArgs?: KnexPaginateArgs, // TODO: Pagination on `searchCatalog`
+        paginateArgs?: KnexPaginateArgs, // TODO: Pagination on `searchCatalog`
         search?: string,
-    ): Promise<CatalogFieldWithAnalytics[]> {
+    ): Promise<KnexPaginatedData<CatalogFieldWithAnalytics[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -524,17 +542,21 @@ export class CatalogService<
                 userUuid: user.userUuid,
             });
 
-        const catalogMetrics = await this.searchCatalog(
+        // ! Pagination here might not work as expected because there's some filtering being applied after the data is fetched
+        const paginatedCatalogMetrics = await this.searchCatalog(
             projectUuid,
             userAttributes,
             search,
             CatalogType.Field,
             CatalogFilter.Metrics,
+            paginateArgs,
         );
+
+        const { data: catalogMetrics, pagination } = paginatedCatalogMetrics;
 
         const analyticsPromises = catalogMetrics
             .filter(
-                (item): item is CatalogField => item.type === CatalogType.Field,
+                (item): item is CatalogField => item.type === CatalogType.Field, // This is for type narrowing the values returned from `searchCatalog`
             )
             .map<Promise<CatalogFieldWithAnalytics>>(async (metric) => ({
                 ...metric,
@@ -546,6 +568,9 @@ export class CatalogService<
                 ),
             }));
 
-        return Promise.all(analyticsPromises);
+        return {
+            pagination,
+            data: await Promise.all(analyticsPromises),
+        };
     }
 }
