@@ -12,7 +12,6 @@ import {
     Badge,
     Collapse,
     Group,
-    Pagination,
     Paper,
     Select,
     Stack,
@@ -40,6 +39,7 @@ import {
     useDeleteSpaceShareMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
+import PaginateControl from '../PaginateControl';
 import { DEFAULT_PAGE_SIZE } from '../Table/types';
 import {
     UserAccessAction,
@@ -155,23 +155,37 @@ const UserAccessList: FC<UserAccessListProps> = ({
     sessionUser,
     onAccessChange,
 }) => {
-    const [page, setPage] = useState(0);
+    const [page, setPage] = useState(1);
 
-    // TODO: Get this paginated from the backend
+    // TODO: Paginate space access from backend
     const paginatedList: SpaceShare[][] = useMemo(() => {
         const list: SpaceShare[][] = [];
         const accessListClone = cloneDeep(accessList).sort(
             sortByRole(sessionUser?.userUuid),
         );
+
         while (accessListClone.length) {
             list.push(accessListClone.splice(0, DEFAULT_PAGE_SIZE));
         }
+
         return list;
     }, [accessList, sessionUser?.userUuid]);
 
+    const handleNextPage = useCallback(() => {
+        if (page < paginatedList.length) {
+            setPage((prev) => prev + 1);
+        }
+    }, [page, paginatedList.length]);
+
+    const handlePreviousPage = useCallback(() => {
+        if (page > 1) {
+            setPage((prev) => prev - 1);
+        }
+    }, [page]);
+
     return (
         <Stack spacing="sm">
-            {paginatedList[page].map((sharedUser) => {
+            {paginatedList[page - 1].map((sharedUser) => {
                 const needsToBePromotedToInteractiveViewer =
                     sharedUser.projectRole === ProjectMemberRole.VIEWER &&
                     sharedUser.role !== SpaceMemberRole.VIEWER;
@@ -296,11 +310,14 @@ const UserAccessList: FC<UserAccessListProps> = ({
                 );
             })}
             {paginatedList.length > 1 && (
-                <Pagination
-                    size="xs"
-                    value={page}
-                    onChange={setPage}
-                    total={paginatedList.length - 1}
+                <PaginateControl
+                    currentPage={page}
+                    totalPages={paginatedList.length}
+                    hasNextPage={page < paginatedList.length}
+                    hasPreviousPage={page > 1}
+                    onNextPage={handleNextPage}
+                    onPreviousPage={handlePreviousPage}
+                    style={{ alignSelf: 'flex-end' }}
                 />
             )}
         </Stack>

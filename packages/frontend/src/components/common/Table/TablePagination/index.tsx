@@ -1,7 +1,6 @@
-import { Button, Group, SegmentedControl, Text } from '@mantine/core';
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
+import { SegmentedControl, Text } from '@mantine/core';
 import { type FC } from 'react';
-import MantineIcon from '../../MantineIcon';
+import PaginateControl from '../../PaginateControl';
 import { TableFooter } from '../Table.styles';
 import { useTableContext } from '../TableProvider';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../types';
@@ -44,40 +43,14 @@ const TablePagination: FC = () => {
             )}
 
             {table.getPageCount() > 1 ? (
-                <Group>
-                    <Text color="gray.7" size="xs">
-                        Page{' '}
-                        <Text span fw={600} color="black">
-                            {table.getState().pagination.pageIndex + 1}
-                        </Text>{' '}
-                        of{' '}
-                        <Text span fw={600} color="black">
-                            {table.getPageCount()}
-                        </Text>
-                    </Text>
-
-                    <Button.Group>
-                        <Button
-                            size="xs"
-                            variant="outline"
-                            color="gray.7"
-                            onClick={() => table.previousPage()}
-                            disabled={!table.getCanPreviousPage()}
-                        >
-                            <MantineIcon icon={IconChevronLeft} />
-                        </Button>
-
-                        <Button
-                            size="xs"
-                            variant="outline"
-                            color="gray.7"
-                            onClick={() => table.nextPage()}
-                            disabled={!table.getCanNextPage()}
-                        >
-                            <MantineIcon icon={IconChevronRight} />
-                        </Button>
-                    </Button.Group>
-                </Group>
+                <PaginateControl
+                    currentPage={table.getState().pagination.pageIndex + 1}
+                    totalPages={table.getPageCount()}
+                    onPreviousPage={table.previousPage}
+                    onNextPage={table.nextPage}
+                    hasPreviousPage={table.getCanPreviousPage()}
+                    hasNextPage={table.getCanNextPage()}
+                />
             ) : pagination?.showResultsTotal ? (
                 <ResultCount
                     count={table.getPreGroupedRowModel().rows.length}
