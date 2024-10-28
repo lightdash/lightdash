@@ -1,3 +1,10 @@
+# [0.1317.0](https://github.com/lightdash/lightdash/compare/0.1316.1...0.1317.0) (2024-10-28)
+
+
+### Features
+
+* add metrics catalog endpoint ([#12130](https://github.com/lightdash/lightdash/issues/12130)) ([bb5a355](https://github.com/lightdash/lightdash/commit/bb5a35511de39df416791989e81271553076daf8))
+
 ## [0.1316.1](https://github.com/lightdash/lightdash/compare/0.1316.0...0.1316.1) (2024-10-28)
 
 
