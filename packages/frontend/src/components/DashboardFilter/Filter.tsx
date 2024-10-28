@@ -224,7 +224,14 @@ const Filter: FC<Props> = ({
                             }
                             bg="white"
                             leftIcon={
-                                isDraggable && <IconGripVertical size={12} />
+                                isDraggable && (
+                                    <MantineIcon
+                                        icon={IconGripVertical}
+                                        color="gray"
+                                        cursor="grab"
+                                        size="sm"
+                                    />
+                                )
                             }
                             rightIcon={
                                 (isEditMode || isTemporary) && (
