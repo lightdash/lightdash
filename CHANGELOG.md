@@ -1,3 +1,10 @@
+# [0.1316.0](https://github.com/lightdash/lightdash/compare/0.1315.7...0.1316.0) (2024-10-28)
+
+
+### Features
+
+* create `/metrics` route with placeholder ([#12123](https://github.com/lightdash/lightdash/issues/12123)) ([3eb5f19](https://github.com/lightdash/lightdash/commit/3eb5f19d99e70650ca073be60b117dd4556a927f))
+
 ## [0.1315.7](https://github.com/lightdash/lightdash/compare/0.1315.6...0.1315.7) (2024-10-28)
 
 
