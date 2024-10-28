@@ -13382,6 +13382,15 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "description": "Whether to include charts that are saved in dashboards",
+                        "in": "query",
+                        "name": "includeChartSavedInDashboards",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ]
             }

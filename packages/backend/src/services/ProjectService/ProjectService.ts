@@ -3731,6 +3731,7 @@ export class ProjectService extends BaseService {
     async getChartSummaries(
         user: SessionUser,
         projectUuid: string,
+        includeChartSavedInDashboards: boolean = false,
     ): Promise<ChartSummary[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3765,6 +3766,7 @@ export class ProjectService extends BaseService {
         return this.savedChartModel.find({
             projectUuid,
             spaceUuids: allowedSpaceUuids,
+            includeChartSavedInDashboards,
         });
     }
 
