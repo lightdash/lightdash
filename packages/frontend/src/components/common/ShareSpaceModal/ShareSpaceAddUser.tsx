@@ -252,7 +252,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                                 }}
                                 disabled={isUsersFetching || isGroupsFetching}
                             >
-                                fetch more
+                                <Text size="xs">Load more</Text>
                             </Button>
                         )}
                     </ScrollArea>
