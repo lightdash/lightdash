@@ -10,6 +10,7 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
+    ExploreType,
     ForbiddenError,
     generateSlug,
     isChartScheduler,
@@ -724,12 +725,22 @@ export class SavedChartService extends BaseService {
                 updatedByUser: user,
             },
         );
+
+        const cachedExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            savedChart.tableName,
+        );
+
         this.analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
             properties: {
                 ...SavedChartService.getCreateEventProperties(newSavedChart),
                 dashboardId: newSavedChart.dashboardUuid ?? undefined,
+                virtualViewId:
+                    cachedExplore?.type === ExploreType.VIRTUAL
+                        ? cachedExplore.name
+                        : undefined,
             },
         });
 
