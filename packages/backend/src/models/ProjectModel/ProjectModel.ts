@@ -64,7 +64,10 @@ import {
 } from '../../database/entities/organizations';
 import { PinnedListTableName } from '../../database/entities/pinnedList';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
-import { DbProjectMembership } from '../../database/entities/projectMemberships';
+import {
+    DbProjectMembership,
+    ProjectMembershipsTableName,
+} from '../../database/entities/projectMemberships';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
@@ -186,20 +189,77 @@ export class ProjectModel {
         if (orgs.length === 0) {
             throw new NotExistsError('Cannot find organization');
         }
-        const projects = await this.database('projects')
+
+        const organizationId = orgs[0].organization_id;
+
+        const projects = await this.database
+            .with('agg_project_group_access_counts', (q) => {
+                void q
+                    .select(
+                        'projects.project_uuid',
+                        this.database.raw(`COUNT(*) as member_count`),
+                    )
+                    .from(ProjectGroupAccessTableName)
+                    .groupBy('projects.project_uuid')
+                    .leftJoin(
+                        'projects',
+                        'projects.project_uuid',
+                        `${ProjectGroupAccessTableName}.project_uuid`,
+                    )
+                    .where('projects.organization_id', organizationId);
+            })
+            .with('agg_project_membership_counts', (q) => {
+                void q
+                    .select(
+                        'projects.project_uuid',
+                        this.database.raw(`COUNT(*) as member_count`),
+                    )
+                    .from(ProjectMembershipsTableName)
+                    .groupBy('projects.project_uuid')
+                    .leftJoin(
+                        'projects',
+                        'projects.project_id',
+                        `${ProjectMembershipsTableName}.project_id`,
+                    )
+                    .where('projects.organization_id', organizationId);
+            })
+            .from('projects')
             .leftJoin(
                 WarehouseCredentialTableName,
                 'projects.project_id',
-                'warehouse_credentials.project_id',
+                `${WarehouseCredentialTableName}.project_id`,
             )
             .select(
-                'project_uuid',
-                'name',
-                'project_type',
-                `warehouse_type`,
-                `encrypted_credentials`,
+                'projects.project_uuid',
+                'projects.name',
+                'projects.project_type',
+                `${WarehouseCredentialTableName}.warehouse_type`,
+                `${WarehouseCredentialTableName}.encrypted_credentials`,
+                this.database.raw(
+                    '(agg_project_group_access_counts.member_count + agg_project_membership_counts.member_count) as member_count',
+                ),
             )
-            .where('organization_id', orgs[0].organization_id);
+            .leftJoin(
+                'agg_project_group_access_counts',
+                'projects.project_uuid',
+                'agg_project_group_access_counts.project_uuid',
+            )
+            .leftJoin(
+                'agg_project_membership_counts',
+                'projects.project_uuid',
+                'agg_project_membership_counts.project_uuid',
+            )
+            .where('organization_id', organizationId)
+            .orderByRaw(
+                `
+                    CASE
+                        WHEN projects.project_type = 'DEFAULT' THEN 0
+                        ELSE 1
+                    END,
+                    member_count DESC,
+                    projects.created_at ASC
+                `,
+            );
 
         return projects.map<OrganizationProject>(
             ({
