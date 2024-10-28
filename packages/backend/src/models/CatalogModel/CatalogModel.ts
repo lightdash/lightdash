@@ -40,7 +40,7 @@ export class CatalogModel {
         excludeUnmatched = true,
         searchRankFunction = getFullTextSearchRankCalcSql,
     }: {
-        searchQuery: string;
+        searchQuery?: string;
         projectUuid: string;
         exploreName?: string;
         filter?: CatalogFilter;
@@ -52,13 +52,15 @@ export class CatalogModel {
             variables: Record<string, string>;
         }) => Knex.Raw<any>;
     }): Promise<(CatalogTable | CatalogField)[]> {
-        const searchRankRawSql = searchRankFunction({
-            database: this.database,
-            variables: {
-                searchVectorColumn: `${CatalogTableName}.search_vector`,
-                searchQuery,
-            },
-        });
+        const searchRankRawSql = searchQuery
+            ? searchRankFunction({
+                  database: this.database,
+                  variables: {
+                      searchVectorColumn: `${CatalogTableName}.search_vector`,
+                      searchQuery,
+                  },
+              })
+            : undefined;
 
         let catalogItemsQuery = this.database(CatalogTableName)
             .column(
@@ -66,7 +68,7 @@ export class CatalogModel {
                 'description',
                 'type',
                 {
-                    search_rank: searchRankRawSql,
+                    search_rank: searchRankRawSql ?? 0,
                 },
                 `${CachedExploreTableName}.explore`,
             )
@@ -105,7 +107,7 @@ export class CatalogModel {
             }
         }
 
-        if (excludeUnmatched) {
+        if (excludeUnmatched && searchQuery) {
             catalogItemsQuery = catalogItemsQuery.andWhereRaw(
                 `"${CatalogTableName}".search_vector @@ to_tsquery('lightdash_english_config', ?)`,
                 getFullTextSearchQuery(searchQuery),

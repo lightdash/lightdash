@@ -379,6 +379,28 @@
             "ApiCatalogAnalyticsResults": {
                 "$ref": "#/components/schemas/CatalogAnalytics"
             },
+            "CatalogFieldWithAnalytics": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CatalogField"
+                    },
+                    {
+                        "properties": {
+                            "analytics": {
+                                "$ref": "#/components/schemas/CatalogAnalytics"
+                            }
+                        },
+                        "required": ["analytics"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiMetricsCatalogResults": {
+                "items": {
+                    "$ref": "#/components/schemas/CatalogFieldWithAnalytics"
+                },
+                "type": "array"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -10947,7 +10969,7 @@
                                 "schema": {
                                     "properties": {
                                         "results": {
-                                            "$ref": "#/components/schemas/ApiCatalogResults"
+                                            "$ref": "#/components/schemas/ApiMetricsCatalogResults"
                                         },
                                         "status": {
                                             "type": "string",
