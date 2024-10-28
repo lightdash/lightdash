@@ -103,7 +103,7 @@ describe('SQL Runner (new)', () => {
             .should('be.visible');
 
         // Add a new series
-        cy.contains('Add').click();
+        cy.get('button[data-testid="add-y-axis-field"]').click();
         cy.get('.echarts-for-react')
             .find('text')
             .contains('Customer id sum')
@@ -122,10 +122,7 @@ describe('SQL Runner (new)', () => {
             .should('be.visible');
 
         // Verify that the chart is not displayed when the configuration is incomplete
-        cy.get('input[placeholder="Select X axis"]')
-            .siblings()
-            .find('button.mantine-CloseButton-root')
-            .click();
+        cy.get('button[data-testid="remove-x-axis-field"]').click();
         cy.contains('Incomplete chart configuration').should('be.visible');
         cy.contains("You're missing an X axis").should('be.visible');
     });

@@ -188,6 +188,7 @@ const XFieldAxisConfig = ({
                     color="gray.6"
                     variant="subtle"
                     onClick={() => dispatch(actions.removeXAxisField())}
+                    data-testid="remove-x-axis-field"
                 >
                     <MantineIcon icon={IconMinus} />
                 </ActionIcon>
@@ -318,6 +319,7 @@ export const CartesianChartFieldConfiguration = ({
                                 onClick={() =>
                                     dispatch(actions.addYAxisField())
                                 }
+                                data-testid="add-y-axis-field"
                             >
                                 <MantineIcon icon={IconPlus} />
                             </ActionIcon>
