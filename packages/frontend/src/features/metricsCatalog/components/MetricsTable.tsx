@@ -1,117 +1,53 @@
-import { Anchor, Button, Text, Tooltip } from '@mantine/core';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { type CatalogFieldWithAnalytics } from '@lightdash/common';
+import { Badge, HoverCard, Text } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
-    type MRT_ColumnFiltersState,
-    type MRT_SortingState,
     type MRT_Virtualizer,
 } from 'mantine-react-table';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type UIEvent,
-} from 'react';
+import { useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 
-type MetricData = {
-    metricName: string;
-    friendlyName: string;
-    description: string;
-    directory: string;
-    tableName: string;
-    groupName: string;
-    usage: number;
-    metricId: string; // for linking to explore view
-};
-
-type MetricApiResponse = {
-    data: Array<MetricData>;
-    meta: {
-        totalRowCount: number;
-    };
-};
-
-const generateMockData = (start: number, size: number): MetricApiResponse => {
-    const mockMetrics: MetricData[] = Array.from({ length: size }).map(
-        (_, index) => ({
-            metricId: `metric-${start + index}`,
-            metricName: `daily_active_users_${start + index}`,
-            friendlyName: `Daily Active Users ${start + index}`,
-            description: `# Daily Active Users\n\nThis metric tracks the number of unique users who performed any action in the last 24 hours.\n\n## Calculation\nCount of distinct user_ids where last_seen > now() - interval '1 day'`,
-            directory: `user_metrics`,
-            tableName: 'User Analytics',
-            groupName: 'Engagement Metrics',
-            usage: Math.floor(Math.random() * 100),
-        }),
-    );
-
-    return {
-        data: mockMetrics,
-        meta: {
-            totalRowCount: 1000, // Total mock records
-        },
-    };
-};
-
-const columns: MRT_ColumnDef<MetricData>[] = [
+const columns: MRT_ColumnDef<CatalogFieldWithAnalytics>[] = [
     {
-        accessorKey: 'friendlyName',
+        accessorKey: 'name',
         header: 'Metric Name',
-        Cell: ({ row }) => (
-            <Anchor
-                href={`/explore?metric=${row.original.metricId}`}
-                style={{ textDecoration: 'none', color: 'inherit' }}
-            >
-                {row.original.friendlyName}
-            </Anchor>
-        ),
+        Cell: ({ row }) => <Text fw={500}>{row.original.label}</Text>,
     },
     {
         accessorKey: 'description',
         header: 'Description',
         Cell: ({ row }) => (
-            <Tooltip
-                multiline
-                variant="xs"
-                withinPortal
-                label={<MarkdownPreview source={row.original.description} />}
-            >
-                <Text lineClamp={2}>{row.original.description}</Text>
-            </Tooltip>
+            <HoverCard withinPortal>
+                <HoverCard.Target>
+                    <Text lineClamp={2}>{row.original.description}</Text>
+                </HoverCard.Target>
+                <HoverCard.Dropdown>
+                    <MarkdownPreview
+                        source={row.original.description}
+                        style={{
+                            fontSize: '12px',
+                        }}
+                    />
+                </HoverCard.Dropdown>
+            </HoverCard>
         ),
     },
     {
         accessorKey: 'directory',
         header: 'Directory',
-        Cell: ({ row }) => (
-            <Text>
-                {row.original.groupName
-                    ? `${row.original.tableName} / ${row.original.groupName}`
-                    : row.original.tableName}
-            </Text>
-        ),
+        Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
     {
         accessorKey: 'usage',
         header: 'Usage',
         Cell: ({ row }) => (
-            <Tooltip
-                label="Click to view saved charts"
-                withinPortal
-                variant="xs"
-            >
-                <Button
-                    variant="subtle"
-                    // onClick={() => showSavedCharts(row.original.metricId)}
-                >
-                    {row.original.usage} uses
-                </Button>
-            </Tooltip>
+            <Badge fw={500} radius="sm" color="indigo">
+                {row.original.analytics?.charts.length} uses
+            </Badge>
         ),
     },
 ];
@@ -119,110 +55,47 @@ const columns: MRT_ColumnDef<MetricData>[] = [
 const fetchSize = 25;
 
 export const MetricsTable = () => {
-    const tableContainerRef = useRef<HTMLDivElement>(null); //we can get access to the underlying TableContainer element and react to its scroll events
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null); //we can get access to the underlying Virtualizer instance and call its scrollToIndex method
+        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
 
-    const [columnFilters, setColumnFilters] = useState<MRT_ColumnFiltersState>(
-        [],
-    );
-    const [globalFilter, setGlobalFilter] = useState<string>();
-    const [sorting, setSorting] = useState<MRT_SortingState>([]);
-
-    const { data, fetchNextPage, isError, isFetching, isLoading } =
-        useInfiniteQuery<MetricApiResponse>({
-            queryKey: ['table-data', columnFilters, globalFilter, sorting],
-            queryFn: async ({ pageParam = 0 }) => {
-                // Simulate network delay
-                await new Promise((resolve) => setTimeout(resolve, 500));
-                return generateMockData(pageParam * fetchSize, fetchSize);
-            },
-            getNextPageParam: (_lastGroup, groups) => groups.length,
-            keepPreviousData: true,
-            refetchOnWindowFocus: false,
-        });
-
-    const flatData = useMemo(
-        () => data?.pages.flatMap((page) => page.data) ?? [],
-        [data],
-    );
-
-    const totalDBRowCount = data?.pages?.[0]?.meta?.totalRowCount ?? 0;
-    const totalFetched = flatData.length;
-
-    //called on scroll and possibly on mount to fetch more data as the user scrolls and reaches bottom of table
-    const fetchMoreOnBottomReached = useCallback(
-        (containerRefElement?: HTMLDivElement | null) => {
-            if (containerRefElement) {
-                const { scrollHeight, scrollTop, clientHeight } =
-                    containerRefElement;
-                //once the user has scrolled within 400px of the bottom of the table, fetch more data if we can
-                if (
-                    scrollHeight - scrollTop - clientHeight < 400 &&
-                    !isFetching &&
-                    totalFetched < totalDBRowCount
-                ) {
-                    void fetchNextPage();
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalDBRowCount],
-    );
-
-    //scroll to top of table when sorting or filters change
-    useEffect(() => {
-        if (rowVirtualizerInstanceRef.current) {
-            try {
-                rowVirtualizerInstanceRef.current.scrollToIndex(0);
-            } catch (e) {
-                console.error(e);
-            }
-        }
-    }, [sorting, columnFilters, globalFilter]);
-
-    //a check on mount to see if the table is already scrolled to the bottom and immediately needs to fetch more data
-    useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
-    }, [fetchMoreOnBottomReached]);
+    const { data, isLoading } = useMetricsCatalog({
+        projectUuid: projectUuid!,
+        pageSize: fetchSize,
+    });
 
     const table = useMantineReactTable({
         columns,
-        data: flatData,
-        enablePagination: false,
+        data: data?.pages.flatMap((page) => page) ?? [],
         enableColumnResizing: true,
         enableRowNumbers: true,
-        enableRowVirtualization: true, //optional, but recommended if it is likely going to be more than 100 rows
-        manualFiltering: true,
-        manualSorting: true,
+        enableRowVirtualization: true,
+        enablePagination: false,
+        enableSorting: false,
+        enableFilters: false,
+        enableGlobalFilter: false,
+        enableFullScreenToggle: false,
+        enableDensityToggle: false,
+        enableColumnActions: false,
+        enableColumnFilters: false,
+        enableHiding: false,
         mantineTableContainerProps: {
-            ref: tableContainerRef, //get access to the table container element
-            sx: { maxHeight: '600px' }, //give the table a max height
-            onScroll: (
-                event: UIEvent<HTMLDivElement>, //add an event listener to the table container element
-            ) => fetchMoreOnBottomReached(event.target as HTMLDivElement),
+            ref: tableContainerRef,
+            sx: { maxHeight: '600px', minHeight: '600px' },
         },
-        mantineToolbarAlertBannerProps: {
-            color: 'red',
-            children: 'Error loading data',
+        mantineTableProps: {
+            highlightOnHover: true,
+            withColumnBorders: true,
         },
-        onColumnFiltersChange: setColumnFilters,
-        onGlobalFilterChange: setGlobalFilter,
-        onSortingChange: setSorting,
-        renderBottomToolbarCustomActions: () => (
-            <Text>
-                Fetched {totalFetched} of {totalDBRowCount} total rows.
-            </Text>
-        ),
+        enableTopToolbar: false,
+        enableBottomToolbar: false,
         state: {
-            columnFilters,
-            globalFilter,
             isLoading,
-            showAlertBanner: isError,
-            showProgressBars: isFetching,
-            sorting,
+            density: 'xs',
         },
-        rowVirtualizerInstanceRef, //get access to the virtualizer instance
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerInstanceRef,
+        rowVirtualizerProps: { overscan: 40 },
     });
 
     return <MantineReactTable table={table} />;

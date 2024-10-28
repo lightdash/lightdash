@@ -1,9 +1,15 @@
-import { Box } from '@mantine/core';
+import { Group, Stack, Title } from '@mantine/core';
+import RefreshDbtButton from '../../../components/RefreshDbtButton';
+import { MetricsTable } from './MetricsTable';
 
 export const MetricsCatalogPanel = () => {
     return (
-        <Box>
+        <Stack>
+            <Group position="apart">
+                <Title order={4}>Metrics Catalog</Title>
+                <RefreshDbtButton />
+            </Group>
             <MetricsTable />
-        </Box>
+        </Stack>
     );
 };
