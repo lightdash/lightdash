@@ -1,3 +1,10 @@
+## [0.1315.7](https://github.com/lightdash/lightdash/compare/0.1315.6...0.1315.7) (2024-10-28)
+
+
+### Bug Fixes
+
+* Add `@Middlewares` to `updateSchedulerSettings` ([#12121](https://github.com/lightdash/lightdash/issues/12121)) ([049c51a](https://github.com/lightdash/lightdash/commit/049c51a3e1d1f34e1ae7fd0808b09cddfad0b907))
+
 ## [0.1315.6](https://github.com/lightdash/lightdash/compare/0.1315.5...0.1315.6) (2024-10-28)
 
 
