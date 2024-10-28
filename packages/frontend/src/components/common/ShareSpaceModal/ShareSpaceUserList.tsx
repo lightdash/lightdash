@@ -187,7 +187,7 @@ const UserAccessList: FC<UserAccessListProps> = ({
 
     return (
         <Stack spacing="sm">
-            {paginatedList[page - 1].map((sharedUser) => {
+            {paginatedList[page - 1]?.map((sharedUser) => {
                 const needsToBePromotedToInteractiveViewer =
                     sharedUser.projectRole === ProjectMemberRole.VIEWER &&
                     sharedUser.role !== SpaceMemberRole.VIEWER;
@@ -369,7 +369,7 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
 
     return (
         <Stack spacing="sm">
-            {paginatedList[page - 1].map((group) => {
+            {paginatedList[page - 1]?.map((group) => {
                 const userAccessTypes = UserAccessOptions.map((accessType) =>
                     accessType.value === UserAccessAction.DELETE
                         ? {

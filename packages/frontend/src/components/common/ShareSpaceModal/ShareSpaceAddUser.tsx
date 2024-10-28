@@ -231,7 +231,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     useEffect(() => {
         selectScrollRef.current?.scrollTo({
             top: selectScrollRef.current?.scrollHeight,
-            behavior: 'instant',
         });
     }, [data]);
 
