@@ -189,6 +189,7 @@ export const MetricsTable = () => {
         columns,
         data: flatData,
         enablePagination: false,
+        enableColumnResizing: true,
         enableRowNumbers: true,
         enableRowVirtualization: true, //optional, but recommended if it is likely going to be more than 100 rows
         manualFiltering: true,
