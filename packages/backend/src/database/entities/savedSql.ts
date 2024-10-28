@@ -1,4 +1,4 @@
-import { ChartKind, VizChartConfig } from '@lightdash/common';
+import { AllVizChartConfig, ChartKind } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const SavedSqlTableName = 'saved_sql';
@@ -68,7 +68,7 @@ export type DbSavedSqlVersion = {
     created_at: Date;
     sql: string;
     limit: number;
-    config: VizChartConfig;
+    config: AllVizChartConfig;
     chart_kind: ChartKind;
     created_by_user_uuid: string;
 };

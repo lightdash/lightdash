@@ -7696,7 +7696,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizChartConfig: {
+    AllVizChartConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
@@ -7716,7 +7716,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 spaceUuid: { dataType: 'string', required: true },
-                config: { ref: 'VizChartConfig', required: true },
+                config: { ref: 'AllVizChartConfig', required: true },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 description: {
@@ -7784,7 +7784,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                config: { ref: 'VizChartConfig', required: true },
+                config: { ref: 'AllVizChartConfig', required: true },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
             },
@@ -9277,7 +9277,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 spaceUuid: { dataType: 'string', required: true },
-                config: { ref: 'VizChartConfig', required: true },
+                config: { ref: 'AllVizChartConfig', required: true },
                 semanticLayerQuery: {
                     ref: 'SemanticLayerQuery',
                     required: true,
@@ -9300,20 +9300,6 @@ const models: TsoaRoute.Models = {
                 },
                 name: { dataType: 'string', required: true },
             },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AllVizChartConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'VizBarChartConfig' },
-                { ref: 'VizLineChartConfig' },
-                { ref: 'VizPieChartConfig' },
-                { ref: 'VizTableConfig' },
-            ],
             validators: {},
         },
     },
@@ -9456,7 +9442,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         chartKind: { ref: 'ChartKind', required: true },
-                        config: { ref: 'VizChartConfig', required: true },
+                        config: { ref: 'AllVizChartConfig', required: true },
                         semanticLayerQuery: {
                             ref: 'SemanticLayerQuery',
                             required: true,

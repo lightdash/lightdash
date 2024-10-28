@@ -10,7 +10,6 @@ import type {
     SortByDirection,
     SpaceSummary,
     VizAggregationOptions,
-    VizChartConfig,
 } from '..';
 import { type FieldType } from './field';
 import { type SchedulerJobStatus } from './scheduler';
@@ -322,7 +321,7 @@ export type SemanticViewerChartCreate = {
     description: string | null;
     semanticLayerView: string | null;
     semanticLayerQuery: SemanticLayerQuery;
-    config: VizChartConfig;
+    config: AllVizChartConfig;
     spaceUuid: string;
 };
 
@@ -340,7 +339,7 @@ export type SemanticViewerChartUpdate = {
     versionedData?: {
         semanticLayerView: string | null;
         semanticLayerQuery: SemanticLayerQuery;
-        config: VizChartConfig;
+        config: AllVizChartConfig;
         chartKind: ChartKind;
     };
 };
