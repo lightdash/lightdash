@@ -649,6 +649,11 @@ export class ProjectController extends BaseController {
         };
     }
 
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Updated')
     @Patch('{projectUuid}/schedulerSettings')
     @OperationId('updateSchedulerSettings')
