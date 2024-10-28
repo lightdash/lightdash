@@ -148,12 +148,14 @@ type UserAccessListProps = {
         action: UserAccessAction,
         currentUserAccess: SpaceShare,
     ) => void;
+    pageSize?: number;
 };
 const UserAccessList: FC<UserAccessListProps> = ({
     isPrivate,
     accessList,
     sessionUser,
     onAccessChange,
+    pageSize,
 }) => {
     const [page, setPage] = useState(1);
 
@@ -165,11 +167,11 @@ const UserAccessList: FC<UserAccessListProps> = ({
         );
 
         while (accessListClone.length) {
-            list.push(accessListClone.splice(0, DEFAULT_PAGE_SIZE));
+            list.push(accessListClone.splice(0, pageSize ?? DEFAULT_PAGE_SIZE));
         }
 
         return list;
-    }, [accessList, sessionUser?.userUuid]);
+    }, [accessList, pageSize, sessionUser?.userUuid]);
 
     const handleNextPage = useCallback(() => {
         if (page < paginatedList.length) {
@@ -331,15 +333,43 @@ type GroupAccessListProps = {
         action: UserAccessAction,
         currentGroupAccess: SpaceGroup,
     ) => void;
+    pageSize?: number;
 };
 const GroupsAccessList: FC<GroupAccessListProps> = ({
     isPrivate,
     onAccessChange,
     groupsAccess,
+    pageSize,
 }) => {
+    const [page, setPage] = useState(1);
+
+    // TODO: Paginate group access from backend
+    const paginatedList: SpaceGroup[][] = useMemo(() => {
+        const list: SpaceGroup[][] = [];
+        const accessListClone = cloneDeep(groupsAccess);
+
+        while (accessListClone.length) {
+            list.push(accessListClone.splice(0, pageSize ?? DEFAULT_PAGE_SIZE));
+        }
+
+        return list;
+    }, [groupsAccess, pageSize]);
+
+    const handleNextPage = useCallback(() => {
+        if (page < paginatedList.length) {
+            setPage((prev) => prev + 1);
+        }
+    }, [page, paginatedList.length]);
+
+    const handlePreviousPage = useCallback(() => {
+        if (page > 1) {
+            setPage((prev) => prev - 1);
+        }
+    }, [page]);
+
     return (
         <Stack spacing="sm">
-            {groupsAccess.map((group) => {
+            {paginatedList[page - 1].map((group) => {
                 const userAccessTypes = UserAccessOptions.map((accessType) =>
                     accessType.value === UserAccessAction.DELETE
                         ? {
@@ -405,6 +435,17 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
                     </Group>
                 );
             })}
+            {paginatedList.length > 1 && (
+                <PaginateControl
+                    currentPage={page}
+                    totalPages={paginatedList.length}
+                    hasNextPage={page < paginatedList.length}
+                    hasPreviousPage={page > 1}
+                    onNextPage={handleNextPage}
+                    onPreviousPage={handlePreviousPage}
+                    style={{ alignSelf: 'flex-end' }}
+                />
+            )}
         </Stack>
     );
 };
@@ -562,6 +603,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         isPrivate={space.isPrivate}
                         groupsAccess={space.groupsAccess}
                         onAccessChange={handleGroupAccessChange}
+                        pageSize={5}
                     />
                 </>
             )}
@@ -575,6 +617,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                         accessList={accessByType.direct}
                         sessionUser={sessionUser}
                         onAccessChange={handleAccessChange}
+                        pageSize={5}
                     />
                 </>
             )}

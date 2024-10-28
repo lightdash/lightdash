@@ -14,7 +14,14 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
-import { forwardRef, useMemo, useRef, useState, type FC } from 'react';
+import {
+    forwardRef,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
@@ -220,6 +227,13 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         groups,
         space.groupsAccess,
     ]);
+
+    useEffect(() => {
+        selectScrollRef.current?.scrollTo({
+            top: selectScrollRef.current?.scrollHeight,
+            behavior: 'instant',
+        });
+    }, [data]);
 
     return (
         <Group>
