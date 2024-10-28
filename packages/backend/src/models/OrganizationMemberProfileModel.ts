@@ -122,6 +122,7 @@ export class OrganizationMemberProfileModel {
         organizationUuid: string,
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
     ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         let query = this.queryBuilder()
             .where(
@@ -129,7 +130,7 @@ export class OrganizationMemberProfileModel {
                 organizationUuid,
             )
             .select<DbOrganizationMemberProfile[]>(SelectColumns);
-
+        // apply search query if present
         if (searchQuery) {
             query = getColumnMatchRegexQuery(query, searchQuery, [
                 'first_name',
@@ -138,12 +139,15 @@ export class OrganizationMemberProfileModel {
                 'role',
             ]);
         }
-
+        // apply sorting if present
+        if (sort && sort.column && sort.direction) {
+            query = query.orderBy(sort.column, sort.direction);
+        }
+        // paginate the results
         const { pagination, data } = await KnexPaginate.paginate(
             query,
             paginateArgs,
         );
-
         return {
             pagination,
             data: data.map(OrganizationMemberProfileModel.parseRow),
