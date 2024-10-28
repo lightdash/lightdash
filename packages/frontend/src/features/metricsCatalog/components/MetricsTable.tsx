@@ -30,6 +30,12 @@ const MetricUsageButton = ({
             onClick={() =>
                 hasChartsUsage && dispatch(setActiveMetric(row.original))
             }
+            sx={{
+                '&[data-disabled]': {
+                    backgroundColor: 'transparent',
+                    fontWeight: 400,
+                },
+            }}
         >
             {hasChartsUsage
                 ? `${row.original.analytics?.charts.length} uses`
