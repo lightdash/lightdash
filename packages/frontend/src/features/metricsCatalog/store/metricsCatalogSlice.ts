@@ -7,14 +7,12 @@ type MetricsCatalogState = {
             isOpen: boolean;
         };
     };
-    activeMetricChartsUsage:
-        | CatalogFieldWithAnalytics['analytics']['charts']
-        | undefined;
+    activeMetric: CatalogFieldWithAnalytics | undefined;
     projectUuid: string | undefined;
 };
 
 const initialState: MetricsCatalogState = {
-    activeMetricChartsUsage: undefined,
+    activeMetric: undefined,
     projectUuid: undefined,
     modals: {
         chartUsageModal: {
@@ -30,17 +28,14 @@ export const metricsCatalogSlice = createSlice({
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
-        setActiveMetricChartsUsage: (
+        setActiveMetric: (
             state,
-            action: PayloadAction<
-                MetricsCatalogState['activeMetricChartsUsage']
-            >,
+            action: PayloadAction<CatalogFieldWithAnalytics | undefined>,
         ) => {
-            state.activeMetricChartsUsage = action.payload;
+            state.activeMetric = action.payload;
             state.modals.chartUsageModal.isOpen = !!action.payload;
         },
     },
 });
 
-export const { setActiveMetricChartsUsage, setProjectUuid } =
-    metricsCatalogSlice.actions;
+export const { setActiveMetric, setProjectUuid } = metricsCatalogSlice.actions;
