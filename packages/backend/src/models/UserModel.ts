@@ -66,6 +66,7 @@ export type DbUserDetails = {
     is_setup_complete: boolean;
     role?: OrganizationMemberRole;
     is_active: boolean;
+    updated_at: Date;
 };
 
 export const mapDbUserDetailsToLightdashUser = (
@@ -344,7 +345,7 @@ export class UserModel {
         await this.database.transaction(async (trx) => {
             const [user] = await trx(UserTableName)
                 .where('user_uuid', userUuid)
-                .update<DbUserUpdate>({
+                .update<Partial<DbUserUpdate>>({
                     first_name: firstName,
                     last_name: lastName,
                     is_setup_complete: isSetupComplete,
@@ -353,6 +354,7 @@ export class UserModel {
                     is_tracking_anonymized: this.canTrackingBeAnonymized()
                         ? isTrackingAnonymized
                         : false,
+                    updated_at: new Date(),
                 })
                 .returning('*');
 
@@ -535,6 +537,7 @@ export class UserModel {
                         ? activateUser.openId.lastName
                         : activateUser.lastName,
                     is_active: true,
+                    updated_at: new Date(),
                 })
                 .returning('*');
 
@@ -847,6 +850,10 @@ export class UserModel {
                 user_id: user.user_id,
                 role,
             });
+
+            await trx(UserTableName) // Update updated_at for user
+                .where('user_uuid', userUuid)
+                .update({ updated_at: new Date() });
 
             const projectMemberships = Object.entries(projects || {}).map(
                 async ([projectUuid, projectRole]) => {
