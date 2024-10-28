@@ -57,6 +57,7 @@ import {
     DbDashboard,
     DbDashboardTabs,
 } from '../../database/entities/dashboards';
+import { GroupMembershipTableName } from '../../database/entities/groupMemberships';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import {
     DbOrganization,
@@ -197,7 +198,9 @@ export class ProjectModel {
                 void q
                     .select(
                         'projects.project_uuid',
-                        this.database.raw(`COUNT(*) as member_count`),
+                        this.database.raw(
+                            `COUNT(distinct ${GroupMembershipTableName}.user_id) as member_count`,
+                        ),
                     )
                     .from(ProjectGroupAccessTableName)
                     .groupBy('projects.project_uuid')
@@ -206,13 +209,20 @@ export class ProjectModel {
                         'projects.project_uuid',
                         `${ProjectGroupAccessTableName}.project_uuid`,
                     )
+                    .leftJoin(
+                        GroupMembershipTableName,
+                        `${GroupMembershipTableName}.group_uuid`,
+                        `${ProjectGroupAccessTableName}.group_uuid`,
+                    )
                     .where('projects.organization_id', organizationId);
             })
             .with('agg_project_membership_counts', (q) => {
                 void q
                     .select(
                         'projects.project_uuid',
-                        this.database.raw(`COUNT(*) as member_count`),
+                        this.database.raw(
+                            `COUNT(distinct ${ProjectMembershipsTableName}.user_id) as member_count`,
+                        ),
                     )
                     .from(ProjectMembershipsTableName)
                     .groupBy('projects.project_uuid')
