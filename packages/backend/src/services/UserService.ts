@@ -509,7 +509,7 @@ export class UserService extends BaseService {
                 await this.organizationModel.getAllowedOrgsForDomain(
                     getEmailDomain(email),
                 )
-            ).length !== 1
+            ).length < 1
         ) {
             throw new ForbiddenError(
                 `You can't register a new user with email ${email} on this instance. Please contact your organization administrator and ask for an invite`,
