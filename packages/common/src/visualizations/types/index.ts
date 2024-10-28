@@ -206,7 +206,6 @@ export type VizTableConfig = VizBaseConfig & {
     display: VizTableDisplay | undefined;
 };
 
-// TODO: this is a duplicate of VizChartConfig
 export type AllVizChartConfig =
     | VizBarChartConfig
     | VizLineChartConfig
@@ -235,12 +234,6 @@ export const isVizPieChartConfig = (
 export const isVizTableConfig = (
     value: VizBaseConfig | undefined,
 ): value is VizTableConfig => !!value && value.type === ChartKind.TABLE;
-
-export type VizChartConfig =
-    | VizBarChartConfig
-    | VizLineChartConfig
-    | VizPieChartConfig
-    | VizTableConfig;
 
 export type VizConfigErrors = {
     indexFieldError?: {

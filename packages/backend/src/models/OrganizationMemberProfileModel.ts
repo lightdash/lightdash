@@ -82,6 +82,14 @@ export class OrganizationMemberProfileModel {
     private static parseRow(
         member: DbOrganizationMemberProfile,
     ): OrganizationMemberProfile {
+        const isInviteExpired =
+            !member.is_active &&
+            !!member.expires_at &&
+            member.expires_at < new Date();
+
+        const isPending =
+            !member.is_active && !isInviteExpired && !!member.expires_at;
+
         return {
             userUuid: member.user_uuid,
             firstName: member.first_name,
@@ -90,9 +98,8 @@ export class OrganizationMemberProfileModel {
             organizationUuid: member.organization_uuid,
             role: member.role,
             isActive: member.is_active,
-            isInviteExpired:
-                !member.is_active &&
-                (!member.expires_at || member.expires_at < new Date()),
+            isInviteExpired,
+            isPending,
         };
     }
 
@@ -115,6 +122,7 @@ export class OrganizationMemberProfileModel {
         organizationUuid: string,
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
     ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         let query = this.queryBuilder()
             .where(
@@ -122,7 +130,7 @@ export class OrganizationMemberProfileModel {
                 organizationUuid,
             )
             .select<DbOrganizationMemberProfile[]>(SelectColumns);
-
+        // apply search query if present
         if (searchQuery) {
             query = getColumnMatchRegexQuery(query, searchQuery, [
                 'first_name',
@@ -131,12 +139,15 @@ export class OrganizationMemberProfileModel {
                 'role',
             ]);
         }
-
+        // apply sorting if present
+        if (sort && sort.column && sort.direction) {
+            query = query.orderBy(sort.column, sort.direction);
+        }
+        // paginate the results
         const { pagination, data } = await KnexPaginate.paginate(
             query,
             paginateArgs,
         );
-
         return {
             pagination,
             data: data.map(OrganizationMemberProfileModel.parseRow),

@@ -97,24 +97,6 @@ const traceTasks = (tasks: TaskList) => {
     return tracedTasks;
 };
 
-export const getDailyDatesFromCron = (
-    cron: string,
-    when = new Date(),
-): Date[] => {
-    const arr = stringToArray(cron);
-    const startOfMinute = moment(when).startOf('minute').toDate(); // round down to the nearest minute so we can even process 00:00 on daily jobs
-    const schedule = getSchedule(arr, startOfMinute, 'UTC');
-    const tomorrow = moment(startOfMinute)
-        .add(1, 'day')
-        .startOf('day')
-        .toDate();
-    const dailyDates: Date[] = [];
-    while (schedule.next() < tomorrow) {
-        dailyDates.push(schedule.date.toJSDate());
-    }
-    return dailyDates;
-};
-
 const workerLogger = new GraphileLogger((scope) => (_, message, meta) => {
     Logger.debug(message, { meta, scope });
 });
@@ -163,8 +145,14 @@ export class SchedulerWorker extends SchedulerTask {
                 const schedulers =
                     await this.schedulerService.getAllSchedulers();
                 const promises = schedulers.map(async (scheduler) => {
+                    const defaultTimezone =
+                        await this.schedulerService.getSchedulerDefaultTimezone(
+                            scheduler.schedulerUuid,
+                        );
+
                     await this.schedulerClient.generateDailyJobsForScheduler(
                         scheduler,
+                        defaultTimezone,
                     );
                 });
 

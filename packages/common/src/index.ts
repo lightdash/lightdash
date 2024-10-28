@@ -539,6 +539,7 @@ export type UpdateUserArgs = {
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
     isSetupComplete: boolean;
+    isActive: boolean;
 };
 
 export type PasswordResetLink = {
@@ -849,14 +850,14 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
 
 export type CreateProject = Omit<
     Project,
-    'projectUuid' | 'organizationUuid'
+    'projectUuid' | 'organizationUuid' | 'schedulerTimezone'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
 
 export type UpdateProject = Omit<
     Project,
-    'projectUuid' | 'organizationUuid' | 'type'
+    'projectUuid' | 'organizationUuid' | 'type' | 'schedulerTimezone'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };

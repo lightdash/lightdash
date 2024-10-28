@@ -172,7 +172,7 @@ export default class SchedulerTask {
                 );
             return {
                 url: `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${chartUuid}`,
-                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?context=${context}`,
+                minimalUrl: `${this.lightdashConfig.headlessBrowser.internalLightdashHost}/minimal/projects/${chart.projectUuid}/saved/${chartUuid}?context=${context}`,
                 details: {
                     name: chart.name,
                     description: chart.description,
@@ -202,7 +202,9 @@ export default class SchedulerTask {
 
             return {
                 url: `${this.lightdashConfig.siteUrl}/projects/${dashboard.projectUuid}/dashboards/${dashboardUuid}/view`,
-                minimalUrl: `${this.lightdashConfig.siteUrl}/minimal/projects/${
+                minimalUrl: `${
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost
+                }/minimal/projects/${
                     dashboard.projectUuid
                 }/dashboards/${dashboardUuid}${
                     queryParams.toString() ? `?${queryParams.toString()}` : ''
@@ -463,6 +465,7 @@ export default class SchedulerTask {
                 dashboardUuid,
                 name,
                 cron,
+                timezone,
                 thresholds,
             } = scheduler;
 
@@ -471,7 +474,6 @@ export default class SchedulerTask {
                 schedulerUuid,
                 jobId,
                 jobGroup: notification.jobGroup,
-
                 scheduledTime,
                 target: channel,
                 targetType: 'slack',
@@ -494,6 +496,11 @@ export default class SchedulerTask {
                 // pdfFile, // TODO: add pdf to slack
             } = notificationPageData;
 
+            const defaultSchedulerTimezone =
+                await this.schedulerService.getSchedulerDefaultTimezone(
+                    schedulerUuid,
+                );
+
             const getBlocksArgs = {
                 title: name,
                 name: details.name,
@@ -505,6 +512,7 @@ export default class SchedulerTask {
                     schedulerUuid || ''
                 }|scheduled delivery> ${getHumanReadableCronExpression(
                     cron,
+                    timezone ?? defaultSchedulerTimezone,
                 )} from Lightdash\n${
                     this.s3Client.getExpirationWarning()?.slack || ''
                 }`,
@@ -1158,6 +1166,11 @@ export default class SchedulerTask {
 
             const schedulerUrl = `${url}?scheduler_uuid=${schedulerUuid}`;
 
+            const defaultSchedulerTimezone =
+                await this.schedulerService.getSchedulerDefaultTimezone(
+                    schedulerUuid,
+                );
+
             if (thresholds !== undefined && thresholds.length > 0) {
                 // We assume the threshold is possitive , so we don't need to get results here
                 if (imageUrl === undefined) {
@@ -1212,7 +1225,10 @@ export default class SchedulerTask {
                     details.description || '',
                     scheduler.message,
                     new Date().toLocaleDateString('en-GB'),
-                    getHumanReadableCronExpression(scheduler.cron),
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone ?? defaultSchedulerTimezone,
+                    ),
                     imageUrl,
                     url,
                     schedulerUrl,
@@ -1230,7 +1246,10 @@ export default class SchedulerTask {
                     details.description || '',
                     scheduler.message,
                     new Date().toLocaleDateString('en-GB'),
-                    getHumanReadableCronExpression(scheduler.cron),
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone ?? defaultSchedulerTimezone,
+                    ),
                     csvUrl,
                     url,
                     schedulerUrl,
@@ -1240,6 +1259,7 @@ export default class SchedulerTask {
                 if (csvUrls === undefined) {
                     throw new Error('Missing CSV URLS');
                 }
+
                 await this.emailClient.sendDashboardCsvNotificationEmail(
                     recipient,
                     name,
@@ -1247,7 +1267,10 @@ export default class SchedulerTask {
                     details.description || '',
                     scheduler.message,
                     new Date().toLocaleDateString('en-GB'),
-                    getHumanReadableCronExpression(scheduler.cron),
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone ?? defaultSchedulerTimezone,
+                    ),
                     csvUrls,
                     url,
                     schedulerUrl,
@@ -1448,6 +1471,12 @@ export default class SchedulerTask {
                 const chart = await this.schedulerService.savedChartModel.get(
                     savedChartUuid,
                 );
+
+                const defaultSchedulerTimezone =
+                    await this.schedulerService.getSchedulerDefaultTimezone(
+                        schedulerUuid,
+                    );
+
                 const { rows } = await this.projectService.getResultsForChart(
                     user,
                     savedChartUuid,
@@ -1487,7 +1516,10 @@ export default class SchedulerTask {
                 await this.googleDriveClient.uploadMetadata(
                     refreshToken,
                     gdriveId,
-                    getHumanReadableCronExpression(scheduler.cron),
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone ?? defaultSchedulerTimezone,
+                    ),
                     undefined,
                     reportUrl,
                 );
@@ -1508,6 +1540,12 @@ export default class SchedulerTask {
                     user,
                     dashboardUuid,
                 );
+
+                const defaultSchedulerTimezone =
+                    await this.schedulerService.getSchedulerDefaultTimezone(
+                        schedulerUuid,
+                    );
+
                 const chartUuids = dashboard.tiles.reduce<string[]>(
                     (acc, tile) => {
                         if (
@@ -1550,7 +1588,10 @@ export default class SchedulerTask {
                 await this.googleDriveClient.uploadMetadata(
                     refreshToken,
                     gdriveId,
-                    getHumanReadableCronExpression(scheduler.cron),
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone ?? defaultSchedulerTimezone,
+                    ),
                     Object.values(chartNames),
                 );
 

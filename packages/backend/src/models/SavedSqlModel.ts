@@ -1,4 +1,5 @@
 import {
+    AllVizChartConfig,
     CreateSqlChart,
     generateSlug,
     NotFoundError,
@@ -6,7 +7,6 @@ import {
     SqlChart,
     UpdateSqlChart,
     VizBaseConfig,
-    VizChartConfig,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DashboardsTableName } from '../database/entities/dashboards';
@@ -256,7 +256,7 @@ export class SavedSqlModel {
         data: {
             savedSqlUuid: string;
             userUuid: string;
-            config: VizChartConfig;
+            config: AllVizChartConfig;
             sql: string;
             limit: number;
         },

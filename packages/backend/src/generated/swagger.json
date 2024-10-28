@@ -379,6 +379,28 @@
             "ApiCatalogAnalyticsResults": {
                 "$ref": "#/components/schemas/CatalogAnalytics"
             },
+            "CatalogFieldWithAnalytics": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CatalogField"
+                    },
+                    {
+                        "properties": {
+                            "analytics": {
+                                "$ref": "#/components/schemas/CatalogAnalytics"
+                            }
+                        },
+                        "required": ["analytics"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiMetricsCatalogResults": {
+                "items": {
+                    "$ref": "#/components/schemas/CatalogFieldWithAnalytics"
+                },
+                "type": "array"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -3837,6 +3859,10 @@
             },
             "OrganizationMemberProfile": {
                 "properties": {
+                    "isPending": {
+                        "type": "boolean",
+                        "description": "Whether the user has a pending invite to the organization"
+                    },
                     "isInviteExpired": {
                         "type": "boolean",
                         "description": "Whether the user's invite to the organization has expired"
@@ -5330,6 +5356,9 @@
             },
             "Project": {
                 "properties": {
+                    "schedulerTimezone": {
+                        "type": "string"
+                    },
                     "semanticLayerConnection": {
                         "$ref": "#/components/schemas/SemanticLayerConnection"
                     },
@@ -5362,6 +5391,7 @@
                     }
                 },
                 "required": [
+                    "schedulerTimezone",
                     "dbtVersion",
                     "dbtConnection",
                     "type",
@@ -6550,6 +6580,15 @@
             "UpdateMultipleDashboards": {
                 "$ref": "#/components/schemas/Pick_Dashboard.uuid-or-name-or-description-or-spaceUuid_"
             },
+            "UpdateSchedulerSettings": {
+                "properties": {
+                    "schedulerTimezone": {
+                        "type": "string"
+                    }
+                },
+                "required": ["schedulerTimezone"],
+                "type": "object"
+            },
             "CacheMetadata": {
                 "properties": {
                     "cacheHit": {
@@ -6978,6 +7017,9 @@
                     "savedChartUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "timezone": {
+                        "type": "string"
                     },
                     "cron": {
                         "type": "string"
@@ -8458,7 +8500,7 @@
                     }
                 ]
             },
-            "VizChartConfig": {
+            "AllVizChartConfig": {
                 "anyOf": [
                     {
                         "$ref": "#/components/schemas/VizBarChartConfig"
@@ -8480,7 +8522,7 @@
                         "type": "string"
                     },
                     "config": {
-                        "$ref": "#/components/schemas/VizChartConfig"
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "limit": {
                         "type": "number",
@@ -8550,7 +8592,7 @@
             "UpdateVersionedSqlChart": {
                 "properties": {
                     "config": {
-                        "$ref": "#/components/schemas/VizChartConfig"
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "limit": {
                         "type": "number",
@@ -10177,7 +10219,7 @@
                         "type": "string"
                     },
                     "config": {
-                        "$ref": "#/components/schemas/VizChartConfig"
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "semanticLayerQuery": {
                         "$ref": "#/components/schemas/SemanticLayerQuery"
@@ -10203,22 +10245,6 @@
                     "name"
                 ],
                 "type": "object"
-            },
-            "AllVizChartConfig": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBarChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizLineChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizPieChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizTableConfig"
-                    }
-                ]
             },
             "SavedSemanticViewerChart": {
                 "properties": {
@@ -10377,7 +10403,7 @@
                                 "$ref": "#/components/schemas/ChartKind"
                             },
                             "config": {
-                                "$ref": "#/components/schemas/VizChartConfig"
+                                "$ref": "#/components/schemas/AllVizChartConfig"
                             },
                             "semanticLayerQuery": {
                                 "$ref": "#/components/schemas/SemanticLayerQuery"
@@ -10655,7 +10681,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1309.1",
+        "version": "0.1316.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -10927,6 +10953,83 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics": {
+            "get": {
+                "operationId": "getMetricsCatalog",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiMetricsCatalogResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get metrics catalog",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]
@@ -14235,6 +14338,124 @@
                                     "$ref": "#/components/schemas/UpdateMultipleDashboards"
                                 },
                                 "type": "array"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/createPreview": {
+            "post": {
+                "operationId": "createPreview",
+                "responses": {
+                    "200": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "copyContent": {
+                                        "type": "boolean"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["copyContent", "name"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/schedulerSettings": {
+            "patch": {
+                "operationId": "updateSchedulerSettings",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateSchedulerSettings"
                             }
                         }
                     }

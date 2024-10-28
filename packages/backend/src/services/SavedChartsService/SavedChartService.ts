@@ -10,6 +10,7 @@ import {
     CreateSavedChart,
     CreateSavedChartVersion,
     CreateSchedulerAndTargetsWithoutIds,
+    ExploreType,
     ForbiddenError,
     generateSlug,
     isChartScheduler,
@@ -412,6 +413,11 @@ export class SavedChartService extends BaseService {
             savedChartUuid,
             data,
         );
+
+        const cachedExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            savedChart.tableName,
+        );
         this.analytics.track({
             event: 'saved_chart.updated',
             userId: user.userUuid,
@@ -419,6 +425,10 @@ export class SavedChartService extends BaseService {
                 projectId: savedChart.projectUuid,
                 savedQueryId: savedChartUuid,
                 dashboardId: savedChart.dashboardUuid ?? undefined,
+                virtualViewId:
+                    cachedExplore?.type === ExploreType.VIRTUAL
+                        ? cachedExplore.name
+                        : undefined,
             },
         });
         if (dashboardUuid && !savedChart.dashboardUuid) {
@@ -724,12 +734,21 @@ export class SavedChartService extends BaseService {
                 updatedByUser: user,
             },
         );
+
+        const cachedExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            savedChart.tableName,
+        );
         this.analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
             properties: {
                 ...SavedChartService.getCreateEventProperties(newSavedChart),
                 dashboardId: newSavedChart.dashboardUuid ?? undefined,
+                virtualViewId:
+                    cachedExplore?.type === ExploreType.VIRTUAL
+                        ? cachedExplore.name
+                        : undefined,
             },
         });
 
@@ -805,6 +824,11 @@ export class SavedChartService extends BaseService {
         const newSavedChartProperties =
             SavedChartService.getCreateEventProperties(newSavedChart);
 
+        const cachedExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            newSavedChart.tableName,
+        );
+
         this.analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
@@ -812,6 +836,10 @@ export class SavedChartService extends BaseService {
                 ...newSavedChartProperties,
                 duplicated: true,
                 dashboardId: newSavedChart.dashboardUuid ?? undefined,
+                virtualViewId:
+                    cachedExplore?.type === ExploreType.VIRTUAL
+                        ? cachedExplore.name
+                        : undefined,
             },
         });
 
@@ -889,7 +917,13 @@ export class SavedChartService extends BaseService {
             SchedulerModel.getSlackChannels(scheduler.targets),
         );
 
-        await this.schedulerClient.generateDailyJobsForScheduler(scheduler);
+        const { schedulerTimezone: defaultTimezone } =
+            await this.projectModel.get(projectUuid);
+
+        await this.schedulerClient.generateDailyJobsForScheduler(
+            scheduler,
+            defaultTimezone,
+        );
 
         return scheduler;
     }

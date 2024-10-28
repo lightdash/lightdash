@@ -15,6 +15,7 @@ import {
     DbtExposure,
     isDuplicateDashboardParams,
     ParameterError,
+    RequestMethod,
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
@@ -25,6 +26,7 @@ import {
     type DuplicateDashboardParams,
     type SemanticLayerConnectionUpdate,
     type UpdateMultipleDashboards,
+    type UpdateSchedulerSettings,
 } from '@lightdash/common';
 import {
     Body,
@@ -606,7 +608,6 @@ export class ProjectController extends BaseController {
         @Body() body: UpdateMultipleDashboards[],
         @Request() req: express.Request,
     ): Promise<ApiUpdateDashboardsResponse> {
-        console.log(body);
         this.setStatus(200);
 
         const results = await this.services
@@ -616,6 +617,89 @@ export class ProjectController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Created')
+    @Post('{projectUuid}/createPreview')
+    @OperationId('createPreview')
+    async createPreview(
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            name: string;
+            copyContent: boolean;
+        },
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: string }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getProjectService()
+            .createPreview(req.user!, projectUuid, body, RequestMethod.WEB_APP);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/schedulerSettings')
+    @OperationId('updateSchedulerSettings')
+    async updateSchedulerSettings(
+        @Path() projectUuid: string,
+        @Body() body: UpdateSchedulerSettings,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        const { schedulerTimezone: oldDefaultProjectTimezone } =
+            await this.services
+                .getProjectService()
+                .getProject(projectUuid, req.user!);
+
+        await this.services
+            .getProjectService()
+            .updateDefaultSchedulerTimezone(
+                req.user!,
+                projectUuid,
+                body.schedulerTimezone,
+            );
+
+        try {
+            await this.services
+                .getSchedulerService()
+                .updateSchedulersWithDefaultTimezone(req.user!, projectUuid, {
+                    oldDefaultProjectTimezone,
+                    newDefaultProjectTimezone: body.schedulerTimezone,
+                });
+        } catch (e) {
+            // reset the old timezone when it fails to set the hours
+            await this.services
+                .getProjectService()
+                .updateDefaultSchedulerTimezone(
+                    req.user!,
+                    projectUuid,
+                    oldDefaultProjectTimezone,
+                );
+
+            throw e;
+        }
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }

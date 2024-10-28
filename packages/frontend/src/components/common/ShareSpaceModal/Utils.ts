@@ -7,7 +7,7 @@ export const getUserNameOrEmail = (
     email: string | undefined,
 ) => {
     if (firstName && lastName) {
-        return `${firstName}  ${lastName}`;
+        return `${firstName} ${lastName}`;
     } else if (email) {
         return email;
     } else {

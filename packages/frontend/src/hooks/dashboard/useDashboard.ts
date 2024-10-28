@@ -263,6 +263,7 @@ export const useUpdateDashboard = (
                                   ),
                           }
                         : undefined,
+                    autoClose: 10000,
                 });
             },
             onError: ({ error }) => {

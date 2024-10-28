@@ -290,7 +290,7 @@ export const UpdateProjectConnection: FC<{
                 <Button type="submit" loading={isSaving} disabled={isDisabled}>
                     {data?.dbtConnection?.type === DbtProjectType.NONE
                         ? 'Save and test'
-                        : 'Test & compile project'}
+                        : 'Test & deploy project'}
                 </Button>
             </Card>
         </FormContainer>
@@ -387,7 +387,7 @@ export const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     type="submit"
                     loading={isSavingProject}
                 >
-                    Test & compile project
+                    Test & deploy project
                 </Button>
             </ProjectFormProvider>
         </FormContainer>

@@ -7,6 +7,7 @@ import {
     DashboardDAO,
     DashboardTab,
     DashboardTileTypes,
+    ExploreType,
     ForbiddenError,
     generateSlug,
     hasChartsInDashboard,
@@ -39,6 +40,7 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
+import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -57,6 +59,7 @@ type DashboardServiceArguments = {
     savedChartModel: SavedChartModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    projectModel: ProjectModel;
 };
 
 export class DashboardService extends BaseService {
@@ -74,6 +77,8 @@ export class DashboardService extends BaseService {
 
     savedChartModel: SavedChartModel;
 
+    projectModel: ProjectModel;
+
     schedulerClient: SchedulerClient;
 
     slackClient: SlackClient;
@@ -88,6 +93,7 @@ export class DashboardService extends BaseService {
         savedChartModel,
         schedulerClient,
         slackClient,
+        projectModel,
     }: DashboardServiceArguments) {
         super();
         this.analytics = analytics;
@@ -97,6 +103,7 @@ export class DashboardService extends BaseService {
         this.pinnedListModel = pinnedListModel;
         this.schedulerModel = schedulerModel;
         this.savedChartModel = savedChartModel;
+        this.projectModel = projectModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
     }
@@ -414,6 +421,11 @@ export class DashboardService extends BaseService {
                                     ),
                                 },
                             );
+                        const cachedExplore =
+                            await this.projectModel.getExploreFromCache(
+                                projectUuid,
+                                duplicatedChart.tableName,
+                            );
                         this.analytics.track({
                             event: 'saved_chart.created',
                             userId: user.userUuid,
@@ -424,6 +436,10 @@ export class DashboardService extends BaseService {
                                 dashboardId:
                                     duplicatedChart.dashboardUuid ?? undefined,
                                 duplicated: true,
+                                virtualViewId:
+                                    cachedExplore?.type === ExploreType.VIRTUAL
+                                        ? cachedExplore.name
+                                        : undefined,
                             },
                         });
                         return {
@@ -885,7 +901,14 @@ export class DashboardService extends BaseService {
             user.organizationUuid,
             SchedulerModel.getSlackChannels(scheduler.targets),
         );
-        await this.schedulerClient.generateDailyJobsForScheduler(scheduler);
+
+        const { schedulerTimezone: defaultTimezone } =
+            await this.projectModel.get(projectUuid);
+
+        await this.schedulerClient.generateDailyJobsForScheduler(
+            scheduler,
+            defaultTimezone,
+        );
         return scheduler;
     }
 

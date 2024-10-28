@@ -38,6 +38,10 @@ export type OrganizationMemberProfile = {
      * Whether the user's invite to the organization has expired
      */
     isInviteExpired?: boolean;
+    /**
+     * Whether the user has a pending invite to the organization
+     */
+    isPending?: boolean;
 };
 
 export type OrganizationMemberProfileWithGroups = OrganizationMemberProfile & {

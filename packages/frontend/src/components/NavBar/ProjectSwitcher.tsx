@@ -1,7 +1,18 @@
+import { subject } from '@casl/ability';
 import { ProjectType, type OrganizationProject } from '@lightdash/common';
-import { Badge, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
+import {
+    Badge,
+    Button,
+    Group,
+    MantineProvider,
+    Menu,
+    Modal,
+    Text,
+    TextInput,
+    Tooltip,
+} from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory, useRouteMatch } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -9,8 +20,68 @@ import {
     useUpdateActiveProjectMutation,
 } from '../../hooks/useActiveProject';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
+import { useCreatePreviewMutation } from '../../hooks/useProjectPreview';
 import { useProjects } from '../../hooks/useProjects';
+import { useApp } from '../../providers/AppProvider';
+import { Can } from '../common/Authorization';
 
+const CreatePreviewModal = ({
+    isOpened,
+    onClose,
+    projectName,
+    projectUuid,
+}: {
+    isOpened: boolean;
+    onClose: () => void;
+    projectName: string;
+    projectUuid: string;
+}) => {
+    const { mutateAsync: createPreviewProject, isLoading: isPreviewCreating } =
+        useCreatePreviewMutation();
+
+    const [previewName, setPreviewName] = useState<string | undefined>();
+
+    return (
+        <MantineProvider inherit theme={{ colorScheme: 'light' }}>
+            <Modal
+                opened={isOpened}
+                onClose={() => onClose()}
+                title={`Create preview from ${projectName}`}
+            >
+                <Text>
+                    This will create a preview project from
+                    <Text span fw={500}>
+                        {projectName}
+                    </Text>
+                    . The new project will have the same connections and
+                    credentials.
+                </Text>
+                <TextInput
+                    mt="sm"
+                    mb="sm"
+                    label="Preview name"
+                    value={previewName}
+                    defaultValue={`Preview of ${projectName}`}
+                    onChange={(e) => {
+                        setPreviewName(e.currentTarget.value);
+                    }}
+                />
+                <Button
+                    disabled={isPreviewCreating}
+                    onClick={async () => {
+                        await createPreviewProject({
+                            projectUuid: projectUuid,
+                            name: previewName || `Preview of ${projectName}`,
+                        });
+                        onClose();
+                    }}
+                >
+                    {isPreviewCreating ? 'Creating preview' : 'Create preview'}
+                </Button>
+            </Modal>
+        </MantineProvider>
+    );
+};
 const InactiveProjectItem: FC<{
     item: OrganizationProject;
     handleProjectChange: (newUuid: string) => void;
@@ -168,6 +239,8 @@ const ProjectSwitcher = () => {
         if (!activeProjectUuid || !projects) return [];
         return projects.filter((p) => p.projectUuid !== activeProjectUuid);
     }, [activeProjectUuid, projects]);
+    const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
+    const { user } = useApp();
 
     if (
         isLoadingProjects ||
@@ -178,57 +251,85 @@ const ProjectSwitcher = () => {
         return null;
     }
 
-    const hasMultipleProjects = projects.length > 1;
-
     return (
-        <Menu
-            position="bottom-end"
-            withArrow
-            shadow="lg"
-            arrowOffset={16}
-            offset={-2}
-            disabled={!hasMultipleProjects}
-            styles={{
-                dropdown: {
-                    maxHeight: 450,
-                    overflow: 'auto',
-                },
-            }}
-        >
-            <Menu.Target>
-                <Button
-                    maw={200}
-                    variant="default"
-                    size="xs"
-                    disabled={
-                        isLoadingProjects ||
-                        isLoadingActiveProjectUuid ||
-                        !hasMultipleProjects
-                    }
-                    sx={(theme) => ({
-                        '&:disabled': {
-                            color: theme.white,
-                            backgroundColor: theme.colors.dark[6],
-                            borderColor: theme.colors.dark[4],
-                        },
-                    })}
-                >
-                    <Text truncate>
-                        {activeProject?.name ?? 'Select a project'}
-                    </Text>
-                </Button>
-            </Menu.Target>
+        <>
+            <Menu
+                position="bottom-end"
+                withArrow
+                shadow="lg"
+                arrowOffset={16}
+                offset={-2}
+                styles={{
+                    dropdown: {
+                        maxHeight: 450,
+                        overflow: 'auto',
+                    },
+                }}
+            >
+                <Menu.Target>
+                    <Button
+                        maw={200}
+                        variant="default"
+                        size="xs"
+                        disabled={
+                            isLoadingProjects || isLoadingActiveProjectUuid
+                        }
+                        sx={(theme) => ({
+                            '&:disabled': {
+                                color: theme.white,
+                                backgroundColor: theme.colors.dark[6],
+                                borderColor: theme.colors.dark[4],
+                            },
+                        })}
+                    >
+                        <Text truncate>
+                            {activeProject?.name ?? 'Select a project'}
+                        </Text>
+                    </Button>
+                </Menu.Target>
 
-            <Menu.Dropdown maw={400}>
-                {inactiveProjects.map((item) => (
-                    <InactiveProjectItem
-                        key={item.projectUuid}
-                        item={item}
-                        handleProjectChange={handleProjectChange}
-                    />
-                ))}
-            </Menu.Dropdown>
-        </Menu>
+                <Menu.Dropdown maw={400}>
+                    {inactiveProjects.map((item) => (
+                        <InactiveProjectItem
+                            key={item.projectUuid}
+                            item={item}
+                            handleProjectChange={handleProjectChange}
+                        />
+                    ))}
+                    {activeProject && (
+                        <Can
+                            I="create"
+                            this={subject('Project', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid: activeProject.projectUuid,
+                                type: ProjectType.PREVIEW,
+                            })}
+                        >
+                            <Menu.Divider />
+
+                            <Menu.Item
+                                onClick={(e) => {
+                                    setIsCreatePreview(!isCreatePreviewOpen);
+                                    e.stopPropagation();
+                                }}
+                            >
+                                <Text fz="xs" fw={500}>
+                                    + Create preview
+                                </Text>
+                            </Menu.Item>
+                        </Can>
+                    )}
+                </Menu.Dropdown>
+            </Menu>
+            {activeProject && (
+                <CreatePreviewModal
+                    isOpened={isCreatePreviewOpen}
+                    onClose={() => setIsCreatePreview(false)}
+                    projectName={activeProject.name}
+                    projectUuid={activeProject.projectUuid}
+                />
+            )}
+        </>
     );
 };
 

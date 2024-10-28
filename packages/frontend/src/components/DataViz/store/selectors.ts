@@ -163,6 +163,39 @@ export const selectCurrentCartesianChartState = createSelector(
     },
 );
 
+export const selectPivotChartDataByKind = createSelector(
+    [
+        (_, chartKind) => chartKind,
+        selectBarChartConfigState,
+        selectLineChartConfigState,
+        selectPieChartConfigState,
+    ],
+    (chartKind, barChartConfig, lineChartConfig, pieChartConfig) => {
+        switch (chartKind) {
+            case ChartKind.VERTICAL_BAR:
+                return {
+                    data: barChartConfig.chartData,
+                    loading: barChartConfig.chartDataLoading,
+                    error: barChartConfig.chartDataError,
+                };
+            case ChartKind.LINE:
+                return {
+                    data: lineChartConfig.chartData,
+                    loading: lineChartConfig.chartDataLoading,
+                    error: lineChartConfig.chartDataError,
+                };
+            case ChartKind.PIE:
+                return {
+                    data: pieChartConfig.chartData,
+                    loading: pieChartConfig.chartDataLoading,
+                    error: pieChartConfig.chartDataError,
+                };
+            default:
+                return undefined;
+        }
+    },
+);
+
 const getIndexLayoutOptions = createSelector(
     [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
     (chartState) => chartState?.options?.indexLayoutOptions,

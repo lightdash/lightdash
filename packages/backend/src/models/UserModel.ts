@@ -66,6 +66,7 @@ export type DbUserDetails = {
     is_setup_complete: boolean;
     role?: OrganizationMemberRole;
     is_active: boolean;
+    updated_at: Date;
 };
 
 export const mapDbUserDetailsToLightdashUser = (
@@ -338,6 +339,7 @@ export class UserModel {
             isMarketingOptedIn,
             isTrackingAnonymized,
             isSetupComplete,
+            isActive,
         }: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
@@ -348,9 +350,11 @@ export class UserModel {
                     last_name: lastName,
                     is_setup_complete: isSetupComplete,
                     is_marketing_opted_in: isMarketingOptedIn,
+                    is_active: isActive,
                     is_tracking_anonymized: this.canTrackingBeAnonymized()
                         ? isTrackingAnonymized
                         : false,
+                    updated_at: new Date(),
                 })
                 .returning('*');
 
@@ -482,14 +486,15 @@ export class UserModel {
             throw new NotExistsError('Cannot find organization');
         }
 
+        const email = isOpenIdUser(createUser)
+            ? createUser.openId.email
+            : createUser.email;
         const duplicatedEmails = await this.database(EmailTableName).where(
             'email',
-            isOpenIdUser(createUser)
-                ? createUser.openId.email
-                : createUser.email,
+            email,
         );
         if (duplicatedEmails.length > 0) {
-            throw new ParameterError('Email already in use');
+            throw new ParameterError(`Email ${email} already in use`);
         }
 
         if (createUser.password && !validatePassword(createUser.password)) {
@@ -532,6 +537,7 @@ export class UserModel {
                         ? activateUser.openId.lastName
                         : activateUser.lastName,
                     is_active: true,
+                    updated_at: new Date(),
                 })
                 .returning('*');
 
@@ -560,6 +566,7 @@ export class UserModel {
 
     async createUser(
         createUser: CreateUserArgs | OpenIdUser,
+        isActive: boolean = true,
     ): Promise<LightdashUser> {
         const user = await this.database.transaction(async (trx) => {
             if (
@@ -569,19 +576,21 @@ export class UserModel {
             ) {
                 throw new ParameterError("Password doesn't meet requirements");
             }
+
+            const email = isOpenIdUser(createUser)
+                ? createUser.openId.email
+                : createUser.email;
             const duplicatedEmails = await trx(EmailTableName).where(
                 'email',
-                isOpenIdUser(createUser)
-                    ? createUser.openId.email
-                    : createUser.email,
+                email,
             );
             if (duplicatedEmails.length > 0) {
-                throw new ParameterError('Email already in use');
+                throw new ParameterError(`Email ${email} already in use`);
             }
 
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
-                isActive: true,
+                isActive,
             });
             return newUser;
         });
@@ -841,6 +850,10 @@ export class UserModel {
                 user_id: user.user_id,
                 role,
             });
+
+            await trx(UserTableName) // Update updated_at for user
+                .where('user_uuid', userUuid)
+                .update({ updated_at: new Date() });
 
             const projectMemberships = Object.entries(projects || {}).map(
                 async ([projectUuid, projectRole]) => {

@@ -17,7 +17,7 @@ const queryPredicate = (query: Query) => {
         const firstQueryKey =
             typeof query.queryKey === 'string'
                 ? query.queryKey
-                : query.queryKey[0];
+                : query.queryKey?.[0];
         return firstQueryKey === key;
     });
 };

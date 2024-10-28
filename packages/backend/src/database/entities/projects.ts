@@ -24,6 +24,7 @@ export type DbProject = {
     copied_from_project_uuid: string | null;
     dbt_version: string;
     semantic_layer_connection: Buffer | null;
+    scheduler_timezone: string;
 };
 
 type CreateDbProject = Pick<
@@ -36,7 +37,9 @@ type CreateDbProject = Pick<
     | 'copied_from_project_uuid'
     | 'dbt_version'
     | 'semantic_layer_connection'
->;
+> & {
+    scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
+};
 type UpdateDbProject = Partial<
     Pick<
         DbProject,
@@ -48,6 +51,7 @@ type UpdateDbProject = Partial<
         | 'dbt_version'
         | 'copied_from_project_uuid'
         | 'semantic_layer_connection'
+        | 'scheduler_timezone'
     >
 >;
 

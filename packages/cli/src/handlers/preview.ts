@@ -298,6 +298,7 @@ export const startPreviewHandler = async (
 
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
+        await setPreviewProject(previewProject.projectUuid, projectName);
         await LightdashAnalytics.track({
             event: 'start_preview.update',
             properties: {

@@ -60,6 +60,11 @@ export type CatalogTable = Pick<
 export type CatalogItem = CatalogField | CatalogTable;
 export type ApiCatalogResults = CatalogItem[];
 
+export type CatalogFieldWithAnalytics = CatalogField & {
+    analytics: CatalogAnalytics;
+};
+export type ApiMetricsCatalogResults = CatalogFieldWithAnalytics[];
+
 export type CatalogMetadata = {
     name: string;
     description: string | undefined;

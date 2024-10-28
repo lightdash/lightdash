@@ -307,6 +307,7 @@ type UpdateSavedChartEvent = BaseTrack & {
         projectId: string;
         savedQueryId: string;
         dashboardId: string | undefined;
+        virtualViewId: string | undefined;
     };
 };
 type DeleteSavedChartEvent = BaseTrack & {
@@ -391,6 +392,7 @@ export type CreateSavedChartEvent = BaseTrack & {
     properties: CreateSavedChartVersionEvent['properties'] & {
         dashboardId: string | undefined;
         duplicated?: boolean;
+        virtualViewId: string | undefined;
     };
 };
 
@@ -1079,6 +1081,7 @@ export type GithubInstallEvent = BaseTrack & {
     userId: string;
     properties: {
         organizationId: string;
+        byAdmin?: boolean;
         error?: string; // only for error
     };
 };

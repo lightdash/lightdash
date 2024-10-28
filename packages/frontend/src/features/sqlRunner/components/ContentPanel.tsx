@@ -1,6 +1,5 @@
 import {
     ChartKind,
-    isVizCartesianChartConfig,
     isVizTableConfig,
     type VizTableConfig,
 } from '@lightdash/common';
@@ -38,25 +37,19 @@ import {
     PanelResizeHandle,
     type ImperativePanelHandle,
 } from 'react-resizable-panels';
-import { useAsync } from 'react-use';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { setChartOptionsAndConfig } from '../../../components/DataViz/store/actions/commonChartActions';
 import {
     cartesianChartSelectors,
-    selectChartDisplayByKind,
-    selectChartFieldConfigByKind,
     selectCompleteConfigByKind,
+    selectPivotChartDataByKind,
 } from '../../../components/DataViz/store/selectors';
-import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
-import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useSqlQueryRun } from '../hooks/useSqlQueryRun';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
     EditorTabs,
@@ -71,12 +64,13 @@ import {
     selectSqlQueryResults,
     selectSqlRunnerResultsRunner,
     setActiveEditorTab,
+    setEditorHighlightError,
     setSqlLimit,
-    setSqlRunnerResults,
 } from '../store/sqlRunnerSlice';
+import { runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
-import { ResultsDownload } from './Download/ResultsDownload';
-import { SqlEditor, type MonacoHighlightChar } from './SqlEditor';
+import { ResultsDownloadFromUrl } from './Download/ResultsDownloadFromUrl';
+import { SqlEditor } from './SqlEditor';
 import { SqlQueryHistory } from './SqlQueryHistory';
 
 export const DEFAULT_SQL_LIMIT = 500;
@@ -91,12 +85,19 @@ export const ContentPanel: FC = () => {
     const activeEditorTab = useAppSelector(selectActiveEditorTab);
     const limit = useAppSelector(selectLimit);
     const resultsTableConfig = useAppSelector(selectResultsTableConfig);
-
+    const isLoadingSqlQuery = useAppSelector(
+        (state) => state.sqlRunner.queryIsLoading,
+    );
+    const queryError = useAppSelector((state) => state.sqlRunner.queryError);
+    const editorHighlightError = useAppSelector(
+        (state) => state.sqlRunner.editorHighlightError,
+    );
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
 
-    // Data we need from hooks
+    // Get organization colors to generate chart specs with a color palette defined by the organization
     const { data: organization } = useOrganization();
+
     const { showToastError } = useToaster();
 
     // State tracked by this component
@@ -104,9 +105,6 @@ export const ContentPanel: FC = () => {
     const resultsPanelRef = useRef<ImperativePanelHandle>(null);
 
     // state for helping highlight errors in the editor
-    const [hightlightError, setHightlightError] = useState<
-        MonacoHighlightChar | undefined
-    >(undefined);
 
     const mode = useAppSelector((state) => state.sqlRunner.mode);
 
@@ -116,22 +114,6 @@ export const ContentPanel: FC = () => {
         height: inputSectionHeight,
     } = useElementSize();
 
-    // currently editing chart config
-    // TODO: these can be simplified by having a shared active viz chart used by slices
-
-    // only needed for viz data model
-    const currentFieldConfig = useAppSelector((state) =>
-        selectChartFieldConfigByKind(state, selectedChartType),
-    );
-
-    // only needed for chart spec - also a hook is used to sync it (can remove I think)
-    const currentDisplay = useAppSelector((state) =>
-        selectChartDisplayByKind(state, selectedChartType),
-    );
-
-    // used in many places to check if it's a table type
-    // used to update the chart options in redux, should these just be selectors??
-    // why do we have to remember to update them when the query results change?
     const currentVizConfig = useAppSelector((state) =>
         selectCompleteConfigByKind(state, selectedChartType),
     );
@@ -143,54 +125,33 @@ export const ContentPanel: FC = () => {
         [activeEditorTab, selectedChartType],
     );
 
-    const { mutateAsync: runSqlQuery, isLoading } = useSqlQueryRun(
-        projectUuid,
-        {
-            onSuccess: (_data) => {
-                // reset error highlighting
-                setHightlightError(undefined);
-            },
-            onError: ({ error }) => {
-                showToastError({
-                    title: 'Could not fetch SQL query results',
-                    subtitle: error.message,
-                });
-
-                if (error?.data) {
-                    // highlight error in editor
-                    const line = error?.data?.lineNumber;
-                    const char = error?.data?.charNumber;
-                    if (line && char) {
-                        setHightlightError({
-                            line: Number(error.data.lineNumber),
-                            char: Number(error.data.charNumber),
-                        });
-                    }
-                }
-            },
-        },
-    );
-
-    // React Query Mutation does not have a way to keep previous results
-    // like the React Query useQuery hook does. So we need to store the results
-    // in the state to keep them around when the query is re-run.
     const queryResults = useAppSelector(selectSqlQueryResults);
 
     const handleRunQuery = useCallback(
         async (sqlToUse: string) => {
             if (!sqlToUse) return;
-            const newQueryResults = await runSqlQuery({
-                sql: sqlToUse,
-                limit: DEFAULT_SQL_LIMIT,
-            });
 
-            if (newQueryResults) {
-                dispatch(setSqlRunnerResults(newQueryResults));
-            }
-            notifications.clean();
+            await dispatch(
+                runSqlQuery({
+                    sql: sqlToUse,
+                    limit: DEFAULT_SQL_LIMIT,
+                    projectUuid,
+                }),
+            );
         },
-        [runSqlQuery, dispatch],
+        [dispatch, projectUuid],
     );
+
+    useEffect(() => {
+        if (queryError) {
+            showToastError({
+                title: 'Could not fetch SQL query results',
+                subtitle: queryError.message,
+            });
+        } else {
+            notifications.clean();
+        }
+    }, [queryError, showToastError]);
 
     // Run query on cmd + enter
     useHotkeys([
@@ -270,85 +231,15 @@ export const ContentPanel: FC = () => {
         [activeEditorTab],
     );
 
-    const sortBy = useMemo(() => {
-        if (isVizCartesianChartConfig(currentVizConfig)) {
-            return currentVizConfig.fieldConfig?.sortBy;
-        }
-        return undefined;
-    }, [currentVizConfig]);
-
     const resultsRunner = useAppSelector((state) =>
-        selectSqlRunnerResultsRunner(state, sortBy),
+        selectSqlRunnerResultsRunner(state),
     );
 
-    const vizDataModel = useMemo(() => {
-        return getChartDataModel(
-            resultsRunner,
-            currentFieldConfig,
-            selectedChartType ?? ChartKind.VERTICAL_BAR,
-        );
-    }, [currentFieldConfig, resultsRunner, selectedChartType]);
-
-    const {
-        loading: chartLoading,
-        error: chartError,
-        value: chartData,
-    } = useAsync(
-        async () =>
-            vizDataModel.getPivotedChartData({
-                limit,
-                sql,
-                sortBy: [],
-                filters: [],
-            }),
-        [vizDataModel],
+    const pivotedChartInfo = useAppSelector((state) =>
+        selectPivotChartDataByKind(state, selectedChartType),
     );
 
-    const { chartSpec, tableData, chartFileUrl } = useMemo(() => {
-        if (!chartData)
-            return {
-                chartSpec: undefined,
-                tableData: undefined,
-                fileUrl: undefined,
-            };
-
-        return {
-            chartSpec: vizDataModel.getSpec(
-                currentDisplay,
-                organization?.chartColors,
-            ),
-            tableData: vizDataModel.getPivotedTableData(),
-            chartFileUrl: vizDataModel.getDataDownloadUrl(),
-        };
-    }, [vizDataModel, currentDisplay, chartData, organization?.chartColors]);
     const resultsFileUrl = useMemo(() => queryResults?.fileUrl, [queryResults]);
-
-    useEffect(() => {
-        if (!resultsRunner || !selectedChartType) return;
-        // Return a merged configuration for the specific chart
-        // based on the new results runner, this has info on available fields
-        // (which in the sql runner changes on executing the sql query)
-        // But it can be derived from the columns in the store!!
-        //
-        // It also computes errors, also only applicable to each chart
-
-        // It returns chartKind but it just passes through
-
-        // And it returns options - but should we be compiling these on the fly??
-        const chartResultOptions = getChartConfigAndOptions(
-            resultsRunner,
-            selectedChartType,
-            currentVizConfig,
-        );
-
-        dispatch(setChartOptionsAndConfig(chartResultOptions));
-    }, [
-        resultsRunner,
-        selectedChartType,
-        dispatch,
-        currentVizConfig,
-        currentDisplay,
-    ]);
 
     useEffect(() => {
         if (queryResults && panelSizes[1] === 0) {
@@ -465,7 +356,7 @@ export const ContentPanel: FC = () => {
                                     ]}
                                     value={activeEditorTab}
                                     onChange={(value: EditorTabs) => {
-                                        if (isLoading) {
+                                        if (isLoadingSqlQuery) {
                                             return;
                                         }
 
@@ -487,7 +378,7 @@ export const ContentPanel: FC = () => {
                                 <SqlQueryHistory />
                             )}
                             <RunSqlQueryButton
-                                isLoading={isLoading}
+                                isLoading={isLoadingSqlQuery}
                                 disabled={!sql}
                                 onSubmit={() => handleRunQuery(sql)}
                                 {...(canSetSqlLimit
@@ -502,14 +393,20 @@ export const ContentPanel: FC = () => {
                             !isVizTableConfig(currentVizConfig) &&
                             selectedChartType ? (
                                 <ChartDownload
-                                    fileUrl={chartFileUrl}
-                                    columnNames={tableData?.columns ?? []}
+                                    fileUrl={
+                                        pivotedChartInfo?.data?.chartFileUrl
+                                    }
+                                    columnNames={
+                                        pivotedChartInfo?.data?.columns?.map(
+                                            (c) => c.reference,
+                                        ) ?? []
+                                    }
                                     chartName={savedSqlChart?.name}
                                     echartsInstance={activeEchartsInstance}
                                 />
                             ) : (
                                 mode === 'default' && (
-                                    <ResultsDownload
+                                    <ResultsDownloadFromUrl
                                         fileUrl={resultsFileUrl}
                                         columnNames={
                                             queryResults?.columns.map(
@@ -571,16 +468,20 @@ export const ContentPanel: FC = () => {
                                 >
                                     <SqlEditor
                                         resetHighlightError={() =>
-                                            setHightlightError(undefined)
+                                            dispatch(
+                                                setEditorHighlightError(
+                                                    undefined,
+                                                ),
+                                            )
                                         }
                                         onSubmit={(submittedSQL) =>
                                             handleRunQuery(submittedSQL ?? '')
                                         }
                                         highlightText={
-                                            hightlightError
+                                            editorHighlightError
                                                 ? {
                                                       // set set single character highlight (no end/range defined)
-                                                      start: hightlightError,
+                                                      start: editorHighlightError,
                                                       end: undefined,
                                                   }
                                                 : undefined
@@ -594,112 +495,109 @@ export const ContentPanel: FC = () => {
                                         EditorTabs.VISUALIZATION
                                     }
                                 >
-                                    {queryResults?.results &&
-                                        resultsRunner &&
-                                        currentVizConfig && (
-                                            <>
-                                                <Transition
-                                                    keepMounted
-                                                    mounted={!showTable}
-                                                    transition="fade"
-                                                    duration={400}
-                                                    timingFunction="ease"
-                                                >
-                                                    {(styles) => (
-                                                        <Box
-                                                            px="sm"
-                                                            pb="sm"
-                                                            style={styles}
-                                                        >
-                                                            {activeConfigs.chartConfigs.map(
-                                                                // TODO: are we rendering all charts here?
-                                                                (c) => (
-                                                                    <ConditionalVisibility
-                                                                        key={
-                                                                            c.type
+                                    {queryResults?.results && currentVizConfig && (
+                                        <>
+                                            <Transition
+                                                keepMounted
+                                                mounted={!showTable}
+                                                transition="fade"
+                                                duration={400}
+                                                timingFunction="ease"
+                                            >
+                                                {(styles) => (
+                                                    <Box
+                                                        px="sm"
+                                                        pb="sm"
+                                                        style={styles}
+                                                    >
+                                                        {activeConfigs.chartConfigs.map(
+                                                            // TODO: are we rendering all charts here?
+                                                            (c) => (
+                                                                <ConditionalVisibility
+                                                                    key={c.type}
+                                                                    isVisible={
+                                                                        selectedChartType ===
+                                                                        c.type
+                                                                    }
+                                                                >
+                                                                    <ChartView
+                                                                        config={
+                                                                            c
                                                                         }
-                                                                        isVisible={
-                                                                            selectedChartType ===
-                                                                            c.type
+                                                                        spec={pivotedChartInfo?.data?.getChartSpec(
+                                                                            organization?.chartColors ??
+                                                                                [],
+                                                                        )}
+                                                                        isLoading={
+                                                                            !!pivotedChartInfo?.loading
                                                                         }
-                                                                    >
-                                                                        <ChartView
-                                                                            config={
-                                                                                c
+                                                                        error={
+                                                                            pivotedChartInfo?.error
+                                                                        }
+                                                                        style={{
+                                                                            height: inputSectionHeight,
+                                                                            flex: 1,
+                                                                        }}
+                                                                        onChartReady={(
+                                                                            instance,
+                                                                        ) => {
+                                                                            if (
+                                                                                c.type ===
+                                                                                selectedChartType
+                                                                            ) {
+                                                                                setActiveEchartsInstance(
+                                                                                    instance,
+                                                                                );
                                                                             }
-                                                                            spec={
-                                                                                chartSpec
-                                                                            }
-                                                                            isLoading={
-                                                                                chartLoading
-                                                                            }
-                                                                            error={
-                                                                                chartError
-                                                                            }
-                                                                            style={{
-                                                                                height: inputSectionHeight,
-                                                                                flex: 1,
-                                                                            }}
-                                                                            onChartReady={(
-                                                                                instance,
-                                                                            ) => {
-                                                                                if (
-                                                                                    c.type ===
-                                                                                    selectedChartType
-                                                                                ) {
-                                                                                    setActiveEchartsInstance(
-                                                                                        instance,
-                                                                                    );
-                                                                                }
-                                                                            }}
-                                                                        />
-                                                                    </ConditionalVisibility>
-                                                                ),
-                                                            )}
-                                                        </Box>
-                                                    )}
-                                                </Transition>
+                                                                        }}
+                                                                    />
+                                                                </ConditionalVisibility>
+                                                            ),
+                                                        )}
+                                                    </Box>
+                                                )}
+                                            </Transition>
 
-                                                <Transition
-                                                    keepMounted
-                                                    mounted={showTable}
-                                                    transition="fade"
-                                                    duration={300}
-                                                    timingFunction="ease"
-                                                >
-                                                    {(styles) => (
-                                                        <Box
-                                                            style={{
-                                                                flex: 1,
-                                                                height: inputSectionHeight,
-                                                                ...styles,
-                                                            }}
+                                            <Transition
+                                                keepMounted
+                                                mounted={showTable}
+                                                transition="fade"
+                                                duration={300}
+                                                timingFunction="ease"
+                                            >
+                                                {(styles) => (
+                                                    <Box
+                                                        style={{
+                                                            flex: 1,
+                                                            height: inputSectionHeight,
+                                                            ...styles,
+                                                        }}
+                                                    >
+                                                        <ConditionalVisibility
+                                                            isVisible={
+                                                                showTable
+                                                            }
                                                         >
-                                                            <ConditionalVisibility
-                                                                isVisible={
-                                                                    showTable
+                                                            <Table
+                                                                resultsRunner={
+                                                                    resultsRunner
                                                                 }
-                                                            >
-                                                                <Table
-                                                                    resultsRunner={
-                                                                        resultsRunner
-                                                                    }
-                                                                    columnsConfig={
-                                                                        activeConfigs
-                                                                            .tableConfig
-                                                                            ?.columns ??
-                                                                        {}
-                                                                    }
-                                                                    flexProps={{
-                                                                        mah: '100%',
-                                                                    }}
-                                                                />
-                                                            </ConditionalVisibility>
-                                                        </Box>
-                                                    )}
-                                                </Transition>
-                                            </>
-                                        )}
+                                                                columnsConfig={
+                                                                    activeConfigs
+                                                                        .tableConfig
+                                                                        ?.columns ??
+                                                                    {}
+                                                                }
+                                                                flexProps={{
+                                                                    mah: '100%',
+                                                                }}
+                                                            />
+                                                        </ConditionalVisibility>
+                                                    </Box>
+                                                )}
+                                            </Transition>
+                                        </>
+                                    )}
                                 </ConditionalVisibility>
                             </Box>
                         </Paper>
@@ -771,7 +669,7 @@ export const ContentPanel: FC = () => {
                                 loaderProps={{
                                     size: 'xs',
                                 }}
-                                visible={isLoading}
+                                visible={isLoadingSqlQuery}
                             />
                             {queryResults?.results && resultsRunner && (
                                 <>
@@ -793,17 +691,24 @@ export const ContentPanel: FC = () => {
                                     <ConditionalVisibility
                                         isVisible={showChartResultsTable}
                                     >
-                                        {selectedChartType && tableData && (
-                                            <ChartDataTable
-                                                columnNames={
-                                                    tableData?.columns ?? []
-                                                }
-                                                rows={tableData?.rows ?? []}
-                                                flexProps={{
-                                                    mah: '100%',
-                                                }}
-                                            />
-                                        )}
+                                        {selectedChartType &&
+                                            pivotedChartInfo?.data
+                                                ?.tableData && (
+                                                <ChartDataTable
+                                                    columnNames={
+                                                        pivotedChartInfo?.data
+                                                            .tableData?.columns
+                                                    }
+                                                    rows={
+                                                        pivotedChartInfo?.data
+                                                            .tableData?.rows ??
+                                                        []
+                                                    }
+                                                    flexProps={{
+                                                        mah: '100%',
+                                                    }}
+                                                />
+                                            )}
                                     </ConditionalVisibility>
                                 </>
                             )}

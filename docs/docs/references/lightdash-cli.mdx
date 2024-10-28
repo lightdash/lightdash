@@ -340,7 +340,7 @@ All standard [dbt options](#dbt-options) work with `lightdash generate`.
   - (default: false)
   - exclude Lightdash metadata from the generated .yml
 
-**Examples:**
+**Example:**
 
 Generate or update YAML file for a single dbt model to cover all columns in the database:
 
@@ -367,6 +367,15 @@ This command does not support using dbt options.
   - The directory of the dbt project
 - `--output [path]`
   - The path where the output exposures YAML file will be written
+
+**Example:**
+
+Create or update YAML file called `lightdash-exposures.yml` in the current directory with all exposures in Lightdash:
+
+```bash
+lightdash generate-exposures --output ./lightdash-exposures.yml
+```
+
 
 ### `lightdash dbt run`
 

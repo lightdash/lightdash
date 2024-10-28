@@ -15,6 +15,7 @@ export enum TimeZone {
     'Europe/Paris' = 'Europe/Paris',
     'Europe/Athens' = 'Europe/Athens',
     'Europe/Moscow' = 'Europe/Moscow',
+    'Europe/London' = 'Europe/London',
     'Asia/Dubai' = 'Asia/Dubai',
     'Asia/Karachi' = 'Asia/Karachi',
     'Asia/Dhaka' = 'Asia/Dhaka',

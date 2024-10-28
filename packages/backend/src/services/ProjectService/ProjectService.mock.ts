@@ -242,6 +242,7 @@ export const projectWithSensitiveFields: Project = {
         api_key: 'api_key',
         environment_id: 'environment_id',
     },
+    schedulerTimezone: 'UTC',
 };
 
 export const projectSummary: ProjectSummary = {

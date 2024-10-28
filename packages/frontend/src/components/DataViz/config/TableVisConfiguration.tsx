@@ -53,6 +53,7 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                         <TableFieldIcon fieldType={fieldType} />
                                     )
                                 }
+                                readOnly={!columnsConfig[reference].visible}
                                 rightSection={
                                     <ActionIcon
                                         onClick={() =>
@@ -84,6 +85,19 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                         }),
                                     );
                                 }}
+                                styles={(theme) => ({
+                                    input: {
+                                        backgroundColor: !columnsConfig[
+                                            reference
+                                        ].visible
+                                            ? theme.colors.gray[1]
+                                            : '',
+                                        cursor: !columnsConfig[reference]
+                                            .visible
+                                            ? 'not-allowed'
+                                            : 'text',
+                                    },
+                                })}
                             />
                         );
                     })}
