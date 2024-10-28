@@ -10,6 +10,7 @@ export type DbUser = {
     is_tracking_anonymized: boolean;
     is_setup_complete: boolean;
     is_active: boolean;
+    updated_at: Date;
 };
 
 export type DbUserIn = Pick<
@@ -31,6 +32,7 @@ export type DbUserUpdate = Partial<
         | 'is_tracking_anonymized'
         | 'is_setup_complete'
         | 'is_active'
+        | 'updated_at'
     >
 >;
 
