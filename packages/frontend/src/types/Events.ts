@@ -48,6 +48,7 @@ export enum PageName {
     VERIFY_EMAIL = 'verify_email',
     JOIN_ORGANIZATION = 'join_organization',
     CATALOG = 'catalog',
+    METRICS_CATALOG = 'metrics_catalog',
 }
 
 export enum CategoryName {
