@@ -3837,6 +3837,10 @@
             },
             "OrganizationMemberProfile": {
                 "properties": {
+                    "isPending": {
+                        "type": "boolean",
+                        "description": "Whether the user has a pending invite to the organization"
+                    },
                     "isInviteExpired": {
                         "type": "boolean",
                         "description": "Whether the user's invite to the organization has expired"
@@ -10671,7 +10675,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1312.0",
+        "version": "0.1315.5",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

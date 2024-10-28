@@ -682,16 +682,9 @@ export class SchedulerModel {
         await this.database.transaction(async (trx) => {
             const updatePromises = schedulerCronUpdates.map(
                 async ({ schedulerUuid, cron }) => {
-                    const [scheduler] = await trx(SchedulerTableName).where(
-                        'scheduler_uuid',
-                        schedulerUuid,
-                    );
-
-                    if (scheduler) {
-                        await trx(SchedulerTableName)
-                            .update({ ...scheduler, cron })
-                            .where('scheduler_uuid', schedulerUuid);
-                    }
+                    await trx(SchedulerTableName)
+                        .update({ cron })
+                        .where('scheduler_uuid', schedulerUuid);
                 },
             );
 

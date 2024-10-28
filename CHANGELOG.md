@@ -1,3 +1,39 @@
+## [0.1315.7](https://github.com/lightdash/lightdash/compare/0.1315.6...0.1315.7) (2024-10-28)
+
+
+### Bug Fixes
+
+* Add `@Middlewares` to `updateSchedulerSettings` ([#12121](https://github.com/lightdash/lightdash/issues/12121)) ([049c51a](https://github.com/lightdash/lightdash/commit/049c51a3e1d1f34e1ae7fd0808b09cddfad0b907))
+
+## [0.1315.6](https://github.com/lightdash/lightdash/compare/0.1315.5...0.1315.6) (2024-10-28)
+
+
+### Bug Fixes
+
+* check if y is defined ([#12109](https://github.com/lightdash/lightdash/issues/12109)) ([333126b](https://github.com/lightdash/lightdash/commit/333126b47c7228ec6c72a37ba0a6440724a3fd47))
+* handle error when share link does not exist ([#12117](https://github.com/lightdash/lightdash/issues/12117)) ([10bc465](https://github.com/lightdash/lightdash/commit/10bc4658f10e0e0b235e7442a64d67e3c3d5b261))
+
+## [0.1315.5](https://github.com/lightdash/lightdash/compare/0.1315.4...0.1315.5) (2024-10-28)
+
+
+### Bug Fixes
+
+* do not clear dashboard storage on cancel ([#12094](https://github.com/lightdash/lightdash/issues/12094)) ([582a22b](https://github.com/lightdash/lightdash/commit/582a22b9ebe5496f83d662b9933a20a3c4c40637))
+
+## [0.1315.4](https://github.com/lightdash/lightdash/compare/0.1315.3...0.1315.4) (2024-10-25)
+
+
+### Bug Fixes
+
+* update only cron in bulk cron update ([#12107](https://github.com/lightdash/lightdash/issues/12107)) ([20ce481](https://github.com/lightdash/lightdash/commit/20ce48168d56bba741340d414521f031137d44dd))
+
+## [0.1315.3](https://github.com/lightdash/lightdash/compare/0.1315.2...0.1315.3) (2024-10-25)
+
+
+### Bug Fixes
+
+* download results from data for sql table chart ([#12081](https://github.com/lightdash/lightdash/issues/12081)) ([77bb163](https://github.com/lightdash/lightdash/commit/77bb1636477444bc454890811247e4f64804d745))
+
 ## [0.1315.2](https://github.com/lightdash/lightdash/compare/0.1315.1...0.1315.2) (2024-10-25)
 
 

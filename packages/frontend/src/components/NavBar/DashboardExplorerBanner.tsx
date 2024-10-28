@@ -18,8 +18,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     }>();
     const [isCancelling, setIsCancelling] = useState(false);
 
-    const { getEditingDashboardInfo, clearDashboardStorage } =
-        useDashboardStorage();
+    const { getEditingDashboardInfo } = useDashboardStorage();
     const { name: dashboardName, dashboardUuid } = getEditingDashboardInfo();
 
     const action = useMemo(() => {
@@ -67,9 +66,10 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     }, [action]);
 
     const handleOnCancel = useCallback(() => {
+        // Cancel the action and navigate back to the dashboard, restoring the existing state (in case there were some unsaved changes)
+        // Similar to the behaviour from `SaveToDashboard`
+        // so do not clear the storage here
         setIsCancelling(true);
-        // Also clear dashboard storage when navigating back to dashboard
-        clearDashboardStorage();
 
         history.push(
             `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
@@ -81,13 +81,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             // Clear the banner after navigating back to dashboard, but only after a delay so that the user can see the banner change
             setIsCancelling(false);
         }, 1000);
-    }, [
-        clearDashboardStorage,
-        dashboardUuid,
-        history,
-        projectUuid,
-        savedQueryUuid,
-    ]);
+    }, [dashboardUuid, history, projectUuid, savedQueryUuid]);
 
     return (
         <>
