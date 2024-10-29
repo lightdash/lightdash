@@ -168,6 +168,7 @@ const ProjectSwitcher = () => {
     const { showToastSuccess } = useToaster();
     const history = useHistory();
 
+    const { user } = useApp();
     const { isInitialLoading: isLoadingProjects, data: projects } =
         useProjects();
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
@@ -242,11 +243,23 @@ const ProjectSwitcher = () => {
 
     const inactiveProjects = useMemo(() => {
         if (!activeProjectUuid || !projects) return [];
-        return projects.filter((p) => p.projectUuid !== activeProjectUuid);
-    }, [activeProjectUuid, projects]);
+        return projects
+            .filter((p) => p.projectUuid !== activeProjectUuid)
+            .filter((project) => {
+                return (
+                    project.type === ProjectType.DEFAULT ||
+                    user.data?.ability.can(
+                        'create',
+                        subject('Project', {
+                            organizationUuid: user.data?.organizationUuid,
+                            type: project.type,
+                        }),
+                    )
+                );
+            });
+    }, [activeProjectUuid, projects, user.data]);
 
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
-    const { user } = useApp();
 
     if (
         isLoadingProjects ||

@@ -76,10 +76,6 @@ export const organizationMemberAbilities: Record<
     },
     interactive_viewer(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
-        can('create', 'Project', {
-            organizationUuid: member.organizationUuid,
-            type: ProjectType.PREVIEW,
-        });
         can('create', 'Job');
         can('view', 'Job', { userUuid: member.userUuid });
         can('view', 'UnderlyingData', {
@@ -180,6 +176,10 @@ export const organizationMemberAbilities: Record<
     },
     developer(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
+        can('create', 'Project', {
+            organizationUuid: member.organizationUuid,
+            type: ProjectType.PREVIEW,
+        });
         can('manage', 'VirtualView', {
             organizationUuid: member.organizationUuid,
         });
