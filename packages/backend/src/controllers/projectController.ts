@@ -103,6 +103,7 @@ export class ProjectController extends BaseController {
      * List all charts summaries in a project
      * @param projectUuid The uuid of the project to get charts for
      * @param req express request
+     * @param excludeChartsSavedInDashboard Whether to exclude charts that are saved in dashboards
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -111,13 +112,18 @@ export class ProjectController extends BaseController {
     async getChartSummariesInProject(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() excludeChartsSavedInDashboard?: boolean,
     ): Promise<ApiChartSummaryListResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getChartSummaries(req.user!, projectUuid),
+                .getChartSummaries(
+                    req.user!,
+                    projectUuid,
+                    excludeChartsSavedInDashboard,
+                ),
         };
     }
 

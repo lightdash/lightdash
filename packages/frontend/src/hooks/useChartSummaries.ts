@@ -4,7 +4,7 @@ import { lightdashApi } from '../api';
 
 const getChartSummariesInProject = async (projectUuid: string) => {
     return lightdashApi<ChartSummary[]>({
-        url: `/projects/${projectUuid}/chart-summaries`,
+        url: `/projects/${projectUuid}/chart-summaries?excludeChartsSavedInDashboard=true`,
         method: 'GET',
         body: undefined,
     });
