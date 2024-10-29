@@ -10,7 +10,6 @@ import { MetricsTable } from './MetricsTable';
 export const MetricsCatalogPanel = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const params = useParams<{ projectUuid: string }>();
-    console.log({ params });
 
     const dispatch = useAppDispatch();
     const isMetricUsageModalOpen = useAppSelector(
