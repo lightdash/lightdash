@@ -12,7 +12,11 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
-import { IconFilter, IconGripVertical, IconInfoCircle } from '@tabler/icons-react';
+import {
+    IconFilter,
+    IconGripVertical,
+    IconInfoCircle,
+} from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
@@ -257,11 +261,7 @@ const Filter: FC<Props> = ({
                             }
                             styles={{
                                 inner: {
-                                    color:
-                                        inactiveFilterInfo &&
-                                        !hasUnsetRequiredFilter
-                                            ? 'gray'
-                                            : 'black',
+                                    color: 'black',
                                 },
                                 root: {
                                     border: hasUnsetRequiredFilter

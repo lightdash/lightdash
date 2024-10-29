@@ -11,13 +11,13 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { Group, Skeleton, useMantineTheme } from '@mantine/core';
-import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import {
     getDashboardFilterRulesForTile,
     isTileFilterable,
     type DashboardFilters,
 } from '@lightdash/common';
+import { Group, Skeleton, useMantineTheme } from '@mantine/core';
+import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import Filter from '../Filter';
 import InvalidFilter from '../InvalidFilter';
@@ -99,6 +99,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
     );
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
@@ -129,32 +130,61 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     });
     const dragSensors = useSensors(mouseSensor, touchSensor);
 
+    const sortedTabUuids = useMemo(() => {
+        const sortedTabs = dashboardTabs?.sort((a, b) => a.order - b.order);
+        return sortedTabs?.map((tab) => tab.uuid) || [];
+    }, [dashboardTabs]);
+
     const makeTabGetter = useCallback(
         (filters: DashboardFilters) => {
+            if (!dashboardTiles) return () => [];
             return (filterId: string) => {
-                return (
-                    dashboardTiles?.reduce((acc, tile) => {
-                        if (!isTileFilterable(tile)) return acc;
-                        const filtersForTile = getDashboardFilterRulesForTile(
-                            tile.uuid,
-                            filters.dimensions,
-                        );
-                        const filterIdsForTile = filtersForTile.map(
-                            (tileFilter) => tileFilter.id,
-                        );
-                        if (
-                            tile.tabUuid &&
-                            filterIdsForTile.includes(filterId) &&
-                            !acc.includes(tile.tabUuid)
-                        ) {
-                            acc.push(tile.tabUuid);
-                        }
-                        return acc;
-                    }, [] as string[]) || []
-                );
+                const { tabsUsingThisFilter, otherTabsWithFilterableTiles } =
+                    dashboardTiles.reduce(
+                        (acc, tile) => {
+                            if (!tile.tabUuid || !isTileFilterable(tile))
+                                return acc;
+
+                            const filterIdsForTile =
+                                getDashboardFilterRulesForTile(
+                                    tile.uuid,
+                                    filters.dimensions,
+                                ).map((tileFilter) => tileFilter.id);
+
+                            if (filterIdsForTile.includes(filterId)) {
+                                if (
+                                    !acc.tabsUsingThisFilter.includes(
+                                        tile.tabUuid,
+                                    )
+                                ) {
+                                    acc.tabsUsingThisFilter.push(tile.tabUuid);
+                                }
+                            } else if (
+                                !acc.otherTabsWithFilterableTiles.includes(
+                                    tile.tabUuid,
+                                )
+                            ) {
+                                acc.otherTabsWithFilterableTiles.push(
+                                    tile.tabUuid,
+                                );
+                            }
+                            return acc;
+                        },
+                        {
+                            tabsUsingThisFilter: [] as string[],
+                            otherTabsWithFilterableTiles: [] as string[],
+                        },
+                    );
+
+                return sortedTabUuids.filter((tabUuid: string) => {
+                    return (
+                        tabsUsingThisFilter.includes(tabUuid) ||
+                        !otherTabsWithFilterableTiles.includes(tabUuid)
+                    );
+                });
             };
         },
-        [dashboardTiles],
+        [dashboardTiles, sortedTabUuids],
     );
 
     const getTabsUsingFilter = useCallback(
