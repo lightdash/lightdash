@@ -101,20 +101,28 @@ export class CatalogModel {
                 } = tablesConfiguration;
 
                 if (tableSelectionType === TableSelectionType.WITH_TAGS) {
-                    void this.whereJsonPath(
-                        'explore',
-                        '$.tags',
-                        'IN',
-                        tablesConfiguration.tableSelection.value ?? [],
+                    // For tags, we need to check if ANY of the required tags exist in explore's tags array
+                    void this.whereRaw(
+                        `
+                        EXISTS (
+                            SELECT 1
+                            FROM jsonb_array_elements_text(?) AS required_tag
+                            WHERE required_tag = ANY(
+                                SELECT jsonb_array_elements_text(explore->'tags')
+                            )
+                        )
+                    `,
+                        [JSON.stringify(value ?? [])],
                     );
                 } else if (
                     tableSelectionType === TableSelectionType.WITH_NAMES
                 ) {
-                    void this.whereJsonPath(
-                        'explore',
-                        '$.baseTable',
-                        'IN',
-                        tablesConfiguration.tableSelection.value ?? [],
+                    // For table names, we check if the baseTable matches any of the required names
+                    void this.whereRaw(
+                        `
+                        (explore->>'baseTable')::text = ANY(?)
+                    `,
+                        [value ?? []],
                     );
                 }
             })
