@@ -1,3 +1,10 @@
+# [0.1320.0](https://github.com/lightdash/lightdash/compare/0.1319.2...0.1320.0) (2024-10-29)
+
+
+### Features
+
+* **api:** include charts saved in dashboards in charts summary list by default ([#12137](https://github.com/lightdash/lightdash/issues/12137)) ([4f619a1](https://github.com/lightdash/lightdash/commit/4f619a162768aae3e6fda091b39f4c6b58783c54))
+
 ## [0.1319.2](https://github.com/lightdash/lightdash/compare/0.1319.1...0.1319.2) (2024-10-29)
 
 
