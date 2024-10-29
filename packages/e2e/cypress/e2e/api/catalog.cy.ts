@@ -97,6 +97,7 @@ describe('Lightdash catalog search', () => {
                     "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
                 type: 'table',
                 tags: [],
+                requiredAttributes: {},
             });
 
             const field = resp.body.results.find(
@@ -113,6 +114,7 @@ describe('Lightdash catalog search', () => {
                 basicType: 'number',
                 fieldType: 'dimension',
                 tags: [],
+                requiredAttributes: {},
             });
         });
     });
@@ -138,6 +140,7 @@ describe('Lightdash catalog search', () => {
                 basicType: 'string',
                 type: 'field',
                 tags: [],
+                requiredAttributes: {},
             });
         });
     });
@@ -161,6 +164,7 @@ describe('Lightdash catalog search', () => {
                 basicType: 'number',
                 type: 'field',
                 tags: [],
+                requiredAttributes: {},
             });
         });
     });
@@ -180,6 +184,7 @@ describe('Lightdash catalog search', () => {
                     f.tableLabel === 'Users' &&
                     f.type === 'field',
             );
+
             expect(matchingField).to.eql({
                 name: 'customer_id',
                 tableLabel: 'Users',
@@ -190,12 +195,14 @@ describe('Lightdash catalog search', () => {
                 basicType: 'number',
                 fieldType: 'dimension',
                 tags: [],
+                requiredAttributes: {},
             });
 
             // Check for a table
             const matchingTable = resp.body.results.find(
                 (t) => t.name === 'customers',
             );
+
             expect(matchingTable).to.eql({
                 name: 'customers',
                 label: 'Customers',
@@ -203,6 +210,7 @@ describe('Lightdash catalog search', () => {
                     "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
                 type: 'table',
                 tags: [],
+                requiredAttributes: {},
             });
         });
     });
@@ -228,6 +236,7 @@ describe('Lightdash catalog search', () => {
                 basicType: 'number',
                 fieldType: 'metric',
                 tags: [],
+                requiredAttributes: {},
             });
         });
     });

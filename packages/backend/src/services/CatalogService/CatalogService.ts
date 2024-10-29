@@ -488,7 +488,7 @@ export class CatalogService<
     async getMetricsCatalog(
         user: SessionUser,
         projectUuid: string,
-        paginateArgs?: KnexPaginateArgs, // TODO: Pagination on `searchCatalog`
+        paginateArgs?: KnexPaginateArgs,
         search?: string,
     ): Promise<KnexPaginatedData<CatalogFieldWithAnalytics[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -510,7 +510,6 @@ export class CatalogService<
                 userUuid: user.userUuid,
             });
 
-        // ! Pagination here might not work as expected because there's some filtering being applied after the data is fetched
         const paginatedCatalogMetrics = await this.searchCatalog(
             projectUuid,
             userAttributes,
