@@ -229,8 +229,8 @@ export const MetricsTable = () => {
                 {isFetching
                     ? 'Loading more...'
                     : hasNextPage
-                    ? 'Scroll for more'
-                    : 'All metrics loaded'}
+                    ? `Scroll for more metrics (${flatData.length} loaded)`
+                    : `All metrics loaded (${flatData.length})`}
             </Text>
         ),
         state: {
