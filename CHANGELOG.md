@@ -1,3 +1,10 @@
+# [0.1326.0](https://github.com/lightdash/lightdash/compare/0.1325.0...0.1326.0) (2024-10-29)
+
+
+### Features
+
+* allow searching metrics table ([#12160](https://github.com/lightdash/lightdash/issues/12160)) ([bf433bf](https://github.com/lightdash/lightdash/commit/bf433bf69e88f8e800bf0829ad00f2f994da7904))
+
 # [0.1325.0](https://github.com/lightdash/lightdash/compare/0.1324.0...0.1325.0) (2024-10-29)
 
 
