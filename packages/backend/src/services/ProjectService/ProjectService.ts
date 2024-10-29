@@ -53,6 +53,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
+    getTimezoneLabel,
     hasIntersection,
     IntrinsicUserAttributes,
     isCustomSqlDimension,
@@ -4697,6 +4698,16 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 schedulerTimezone,
             );
+
+        this.analytics.track({
+            event: 'default_scheduler_timezone.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizatoinUuid: project.organizationUuid,
+                timeZone: getTimezoneLabel(schedulerTimezone),
+            },
+        });
 
         return updatedProject;
     }

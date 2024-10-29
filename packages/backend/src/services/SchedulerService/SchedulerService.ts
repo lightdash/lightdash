@@ -5,6 +5,7 @@ import {
     CreateSchedulerLog,
     DashboardDAO,
     ForbiddenError,
+    getTimezoneLabel,
     getTzMinutesOffset,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
@@ -273,6 +274,7 @@ export class SchedulerService extends BaseService {
                         ? scheduler.filters.length
                         : 0,
                 }),
+                timeZone: getTimezoneLabel(scheduler.timezone),
             },
         };
         this.analytics.track(updateSchedulerEventData);

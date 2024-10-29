@@ -850,6 +850,16 @@ export type SchedulerUpsertEvent = BaseTrack & {
             schedulerTargetId: string;
             type: 'slack' | 'email';
         }>;
+        timeZone: string | undefined;
+    };
+};
+export type SchedulerTimezoneUpdateEvent = BaseTrack & {
+    event: 'default_scheduler_time_zone.updated';
+    userId: string;
+    properties: {
+        projectId: string;
+        organizationId?: string;
+        timeZone: string;
     };
 };
 
@@ -1172,7 +1182,8 @@ type TypedEvent =
     | CommentsEvent
     | VirtualViewEvent
     | GithubInstallEvent
-    | WriteBackEvent;
+    | WriteBackEvent
+    | SchedulerTimezoneUpdateEvent;
 
 type WrapTypedEvent = SemanticLayerView;
 
