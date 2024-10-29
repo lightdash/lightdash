@@ -176,7 +176,6 @@ export const MetricsTable = () => {
         ),
         state: {
             isLoading: isFetching,
-            showProgressBars: isFetching,
             density: 'xs',
         },
         rowVirtualizerInstanceRef,
