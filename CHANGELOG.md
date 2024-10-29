@@ -1,3 +1,10 @@
+# [0.1321.0](https://github.com/lightdash/lightdash/compare/0.1320.0...0.1321.0) (2024-10-29)
+
+
+### Features
+
+* project list ordering ([#12140](https://github.com/lightdash/lightdash/issues/12140)) ([53a9d88](https://github.com/lightdash/lightdash/commit/53a9d886fa2add9a247b0112fe0b2ead128ac543))
+
 # [0.1320.0](https://github.com/lightdash/lightdash/compare/0.1319.2...0.1320.0) (2024-10-29)
 
 
