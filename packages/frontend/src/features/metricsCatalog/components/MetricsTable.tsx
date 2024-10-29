@@ -154,7 +154,6 @@ export const MetricsTable = () => {
             setSearch(s);
         },
         enableTopToolbar: true,
-        enableFilterMatchHighlighting: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: { maxHeight: '600px', minHeight: '600px' },
