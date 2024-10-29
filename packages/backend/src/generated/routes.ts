@@ -467,6 +467,44 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    KnexPaginateArgs: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                page: { dataType: 'double', required: true },
+                pageSize: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    KnexPaginatedData_ApiMetricsCatalogResults_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pagination: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'KnexPaginateArgs' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                totalPageCount: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+                data: { ref: 'ApiMetricsCatalogResults', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCreateComment: {
         dataType: 'refAlias',
         type: {
@@ -3537,18 +3575,6 @@ const models: TsoaRoute.Models = {
                 lastName: { dataType: 'string', required: true },
                 firstName: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    KnexPaginateArgs: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                page: { dataType: 'double', required: true },
-                pageSize: { dataType: 'double', required: true },
             },
             validators: {},
         },

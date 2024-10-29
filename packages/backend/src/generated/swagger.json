@@ -401,6 +401,46 @@
                 },
                 "type": "array"
             },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "KnexPaginatedData_ApiMetricsCatalogResults_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/ApiMetricsCatalogResults"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -3905,20 +3945,6 @@
                 ],
                 "type": "object",
                 "description": "Profile for a user's membership in an organization"
-            },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
-                "type": "object"
             },
             "KnexPaginatedData_OrganizationMemberProfile-Array_": {
                 "properties": {
@@ -10969,7 +10995,7 @@
                                 "schema": {
                                     "properties": {
                                         "results": {
-                                            "$ref": "#/components/schemas/ApiMetricsCatalogResults"
+                                            "$ref": "#/components/schemas/KnexPaginatedData_ApiMetricsCatalogResults_"
                                         },
                                         "status": {
                                             "type": "string",
