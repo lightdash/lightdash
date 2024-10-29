@@ -1,3 +1,10 @@
+# [0.1323.0](https://github.com/lightdash/lightdash/compare/0.1322.0...0.1323.0) (2024-10-29)
+
+
+### Features
+
+* open usage chart in modal and let user open chart ([#12138](https://github.com/lightdash/lightdash/issues/12138)) ([22e51c6](https://github.com/lightdash/lightdash/commit/22e51c6b19332ce71f6484022fa9043626f66113))
+
 # [0.1322.0](https://github.com/lightdash/lightdash/compare/0.1321.0...0.1322.0) (2024-10-29)
 
 
