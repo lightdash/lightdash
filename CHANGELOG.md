@@ -1,3 +1,10 @@
+# [0.1325.0](https://github.com/lightdash/lightdash/compare/0.1324.0...0.1325.0) (2024-10-29)
+
+
+### Features
+
+* add infinite scroll to metrics table ([#12139](https://github.com/lightdash/lightdash/issues/12139)) ([1729a92](https://github.com/lightdash/lightdash/commit/1729a9288565322828959d38e16bfe437f8ec2f8))
+
 # [0.1324.0](https://github.com/lightdash/lightdash/compare/0.1323.0...0.1324.0) (2024-10-29)
 
 
