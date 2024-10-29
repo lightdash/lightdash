@@ -6,6 +6,7 @@ import { barChartConfigSlice } from '../../../components/DataViz/store/barChartS
 import { lineChartConfigSlice } from '../../../components/DataViz/store/lineChartSlice';
 import { pieChartConfigSlice } from '../../../components/DataViz/store/pieChartSlice';
 import { tableVisSlice } from '../../../components/DataViz/store/tableVisSlice';
+import { metricsCatalogSlice } from '../../metricsCatalog/store/metricsCatalogSlice';
 import { semanticViewerSlice } from '../../semanticViewer/store/semanticViewerSlice';
 import { listenerMiddleware } from './listenerMiddleware';
 import { sqlRunnerSlice } from './sqlRunnerSlice';
@@ -20,6 +21,7 @@ export const store = configureStore({
         pieChartConfig: pieChartConfigSlice.reducer,
         tableVisConfig: tableVisSlice.reducer,
         [semanticViewerSlice.name]: semanticViewerSlice.reducer,
+        [metricsCatalogSlice.name]: metricsCatalogSlice.reducer,
     },
     // Add the listener middleware to the store, this is useful for listening to actions and running side effects
     middleware: (getDefaultMiddleware) =>
