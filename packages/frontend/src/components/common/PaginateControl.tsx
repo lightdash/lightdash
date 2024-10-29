@@ -1,7 +1,6 @@
-import { Button, Group, Text, type GroupProps } from '@mantine/core';
+import { Group, Pagination, Text, type GroupProps } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import type { FC } from 'react';
-import MantineIcon from './MantineIcon';
 
 type PaginateControlProps = GroupProps & {
     currentPage: number;
@@ -34,27 +33,16 @@ const PaginateControl: FC<PaginateControlProps> = ({
                 </Text>
             </Text>
 
-            <Button.Group>
-                <Button
-                    size="xs"
-                    variant="outline"
-                    color="gray.7"
-                    onClick={onPreviousPage}
-                    disabled={!hasPreviousPage}
-                >
-                    <MantineIcon icon={IconChevronLeft} />
-                </Button>
-
-                <Button
-                    size="xs"
-                    variant="outline"
-                    color="gray.7"
-                    onClick={onNextPage}
-                    disabled={!hasNextPage}
-                >
-                    <MantineIcon icon={IconChevronRight} />
-                </Button>
-            </Button.Group>
+            <Pagination.Root
+                total={totalPages}
+                onNextPage={onNextPage}
+                onPreviousPage={onPreviousPage}
+            >
+                <Group spacing="xs" position="center">
+                    <Pagination.Previous icon={IconChevronLeft} />
+                    <Pagination.Next icon={IconChevronRight} />
+                </Group>
+            </Pagination.Root>
         </Group>
     );
 };

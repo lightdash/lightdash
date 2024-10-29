@@ -226,7 +226,7 @@ const GroupsView: FC = () => {
                     </thead>
                     <tbody>
                         {groups && groups.length ? (
-                            groups?.map((group) => {
+                            groups.map((group) => {
                                 if (!isGroupWithMembers(group)) {
                                     return null;
                                 }
