@@ -29,7 +29,6 @@ import {
     IconUsers,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
-import { cloneDeep } from 'lodash';
 import { forwardRef, useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -162,7 +161,7 @@ const UserAccessList: FC<UserAccessListProps> = ({
     // TODO: Paginate space access from backend
     const paginatedList: SpaceShare[][] = useMemo(() => {
         const list: SpaceShare[][] = [];
-        const accessListClone = cloneDeep(accessList).sort(
+        const accessListClone = structuredClone(accessList).sort(
             sortByRole(sessionUser?.userUuid),
         );
 
@@ -346,7 +345,7 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
     // TODO: Paginate group access from backend
     const paginatedList: SpaceGroup[][] = useMemo(() => {
         const list: SpaceGroup[][] = [];
-        const accessListClone = cloneDeep(groupsAccess);
+        const accessListClone = structuredClone(groupsAccess);
 
         while (accessListClone.length) {
             list.push(accessListClone.splice(0, pageSize ?? DEFAULT_PAGE_SIZE));
