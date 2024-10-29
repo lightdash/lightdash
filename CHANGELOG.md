@@ -1,3 +1,10 @@
+# [0.1322.0](https://github.com/lightdash/lightdash/compare/0.1321.0...0.1322.0) (2024-10-29)
+
+
+### Features
+
+* add pagination to /dataCatalog/metrics endpoint ([#12136](https://github.com/lightdash/lightdash/issues/12136)) ([e14460d](https://github.com/lightdash/lightdash/commit/e14460d51b20fb6c8a0f0b9d2370a43ad0d14087))
+
 # [0.1321.0](https://github.com/lightdash/lightdash/compare/0.1320.0...0.1321.0) (2024-10-29)
 
 
