@@ -8,7 +8,7 @@ import {
     type MRT_Row,
     type MRT_Virtualizer,
 } from 'mantine-react-table';
-import { useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type UIEvent } from 'react';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { setActiveMetric } from '../store/metricsCatalogSlice';
@@ -81,8 +81,6 @@ const columns: MRT_ColumnDef<CatalogFieldWithAnalytics>[] = [
     },
 ];
 
-const fetchSize = 25;
-
 export const MetricsTable = () => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
@@ -91,14 +89,42 @@ export const MetricsTable = () => {
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
 
-    const { data, isLoading } = useMetricsCatalog({
-        projectUuid: projectUuid!,
-        pageSize: fetchSize,
+    const { data, fetchNextPage, hasNextPage, isFetching } = useMetricsCatalog({
+        projectUuid,
+        pageSize: 20, // TODO: turn into constant
     });
+
+    const flatData = useMemo(
+        () => data?.pages.flatMap((page) => page.data) ?? [],
+        [data],
+    );
+
+    //called on scroll and possibly on mount to fetch more data as the user scrolls and reaches bottom of table
+    const fetchMoreOnBottomReached = useCallback(
+        (containerRefElement?: HTMLDivElement | null) => {
+            if (containerRefElement) {
+                const { scrollHeight, scrollTop, clientHeight } =
+                    containerRefElement;
+                //once the user has scrolled within 100px of the bottom of the table, fetch more data if we can
+                if (
+                    scrollHeight - scrollTop - clientHeight < 100 &&
+                    !isFetching &&
+                    hasNextPage
+                ) {
+                    void fetchNextPage();
+                }
+            }
+        },
+        [fetchNextPage, isFetching, hasNextPage],
+    );
+    // // Check if we need to fetch more data on mount
+    useEffect(() => {
+        fetchMoreOnBottomReached(tableContainerRef.current);
+    }, [fetchMoreOnBottomReached]);
 
     const table = useMantineReactTable({
         columns,
-        data: data?.pages.flatMap((page) => page) ?? [],
+        data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: true,
         enableRowVirtualization: true,
@@ -114,15 +140,27 @@ export const MetricsTable = () => {
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: { maxHeight: '600px', minHeight: '600px' },
+            onScroll: (event: UIEvent<HTMLDivElement>) =>
+                fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: true,
         },
         enableTopToolbar: false,
-        enableBottomToolbar: false,
+        enableBottomToolbar: true,
+        renderBottomToolbarCustomActions: () => (
+            <Text>
+                {isFetching
+                    ? 'Loading more...'
+                    : hasNextPage
+                    ? 'Scroll for more'
+                    : 'All metrics loaded'}
+            </Text>
+        ),
         state: {
-            isLoading,
+            isLoading: isFetching,
+            showProgressBars: isFetching,
             density: 'xs',
         },
         rowVirtualizerInstanceRef,

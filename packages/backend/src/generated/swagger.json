@@ -441,6 +441,20 @@
                 "required": ["data"],
                 "type": "object"
             },
+            "ApiMetricsCatalog": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_ApiMetricsCatalogResults_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -10993,18 +11007,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "results": {
-                                            "$ref": "#/components/schemas/KnexPaginatedData_ApiMetricsCatalogResults_"
-                                        },
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["results", "status"],
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ApiMetricsCatalog"
                                 }
                             }
                         }
