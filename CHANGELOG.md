@@ -1,3 +1,10 @@
+# [0.1324.0](https://github.com/lightdash/lightdash/compare/0.1323.0...0.1324.0) (2024-10-29)
+
+
+### Features
+
+* added totalCount to pagination response ([#12159](https://github.com/lightdash/lightdash/issues/12159)) ([142a019](https://github.com/lightdash/lightdash/commit/142a0198a0d0ef31406266c413a4575a1882db59))
+
 # [0.1323.0](https://github.com/lightdash/lightdash/compare/0.1322.0...0.1323.0) (2024-10-29)
 
 
