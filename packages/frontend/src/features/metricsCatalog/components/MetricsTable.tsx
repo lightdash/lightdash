@@ -8,7 +8,15 @@ import {
     type MRT_Row,
     type MRT_Virtualizer,
 } from 'mantine-react-table';
-import { useCallback, useEffect, useMemo, useRef, type UIEvent } from 'react';
+import {
+    useCallback,
+    useDeferredValue,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type UIEvent,
+} from 'react';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { setActiveMetric } from '../store/metricsCatalogSlice';
@@ -89,9 +97,13 @@ export const MetricsTable = () => {
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
 
+    const [search, setSearch] = useState<string | undefined>(undefined);
+    const deferredSearch = useDeferredValue(search);
+
     const { data, fetchNextPage, hasNextPage, isFetching } = useMetricsCatalog({
         projectUuid,
         pageSize: 20, // TODO: turn into constant
+        search: deferredSearch,
     });
 
     const flatData = useMemo(
@@ -117,7 +129,8 @@ export const MetricsTable = () => {
         },
         [fetchNextPage, isFetching, hasNextPage],
     );
-    // // Check if we need to fetch more data on mount
+
+    // Check if we need to fetch more data on mount
     useEffect(() => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
@@ -130,13 +143,17 @@ export const MetricsTable = () => {
         enableRowVirtualization: true,
         enablePagination: false,
         enableSorting: false,
-        enableFilters: false,
-        enableGlobalFilter: false,
+        enableFilters: true,
         enableFullScreenToggle: false,
         enableDensityToggle: false,
         enableColumnActions: false,
         enableColumnFilters: false,
         enableHiding: false,
+        enableGlobalFilterModes: true,
+        onGlobalFilterChange: (s: string) => {
+            setSearch(s);
+        },
+        enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: { maxHeight: '600px', minHeight: '600px' },
@@ -147,7 +164,6 @@ export const MetricsTable = () => {
             highlightOnHover: true,
             withColumnBorders: true,
         },
-        enableTopToolbar: false,
         enableBottomToolbar: true,
         renderBottomToolbarCustomActions: () => (
             <Text>

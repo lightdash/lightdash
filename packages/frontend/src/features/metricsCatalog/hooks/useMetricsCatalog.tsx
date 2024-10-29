@@ -63,7 +63,7 @@ export const useMetricsCatalog = ({
                     : undefined;
             }
         },
-        enabled: !!projectUuid,
+        enabled: !!projectUuid && (!!search ? search.length > 2 : true),
         keepPreviousData: true,
     });
 };
