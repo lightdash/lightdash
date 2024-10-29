@@ -113,6 +113,7 @@ import { type ValidationResponse } from './types/validation';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
+    type ApiMetricsCatalog,
 } from './types/catalog';
 import {
     type ApiChartContentResponse,
@@ -685,7 +686,8 @@ type ApiResults =
     | ApiSemanticViewerChartGet['results']
     | ApiSemanticViewerChartUpdate['results']
     | ApiCreateVirtualView['results']
-    | ApiGithubDbtWritePreview['results'];
+    | ApiGithubDbtWritePreview['results']
+    | ApiMetricsCatalog['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

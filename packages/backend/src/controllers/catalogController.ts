@@ -4,9 +4,8 @@ import {
     ApiCatalogResults,
     ApiCatalogSearch,
     ApiErrorPayload,
-    type ApiMetricsCatalogResults,
+    ApiMetricsCatalog,
     type KnexPaginateArgs,
-    type KnexPaginatedData,
 } from '@lightdash/common';
 import {
     Get,
@@ -161,10 +160,7 @@ export class CatalogController extends BaseController {
         @Query() search?: ApiCatalogSearch['search'],
         @Query() page?: number,
         @Query() pageSize?: number,
-    ): Promise<{
-        status: 'ok';
-        results: KnexPaginatedData<ApiMetricsCatalogResults>;
-    }> {
+    ): Promise<ApiMetricsCatalog> {
         this.setStatus(200);
 
         const paginateArgs: KnexPaginateArgs | undefined =
