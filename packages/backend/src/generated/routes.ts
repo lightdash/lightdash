@@ -491,6 +491,10 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                totalResults: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
                                 totalPageCount: {
                                     dataType: 'double',
                                     required: true,
@@ -3607,6 +3611,10 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                totalResults: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
                                 totalPageCount: {
                                     dataType: 'double',
                                     required: true,
@@ -3877,6 +3885,10 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                totalResults: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
                                 totalPageCount: {
                                     dataType: 'double',
                                     required: true,
@@ -8831,6 +8843,10 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                totalResults: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
                                 totalPageCount: {
                                     dataType: 'double',
                                     required: true,
