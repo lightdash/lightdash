@@ -1,4 +1,7 @@
-import { type CatalogFieldWithAnalytics } from '@lightdash/common';
+import {
+    friendlyName,
+    type CatalogFieldWithAnalytics,
+} from '@lightdash/common';
 import { Box, Button, HoverCard, Text } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
@@ -62,7 +65,9 @@ const columns: MRT_ColumnDef<CatalogFieldWithAnalytics>[] = [
     {
         accessorKey: 'name',
         header: 'Metric Name',
-        Cell: ({ row }) => <Text fw={500}>{row.original.label}</Text>,
+        Cell: ({ row }) => (
+            <Text fw={500}>{friendlyName(row.original.label)}</Text>
+        ),
     },
     {
         accessorKey: 'description',
