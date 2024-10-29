@@ -106,11 +106,8 @@ const UseMetricButton = ({
     row: MRT_Row<CatalogFieldWithAnalytics>;
 }) => {
     const [currentTableName, setCurrentTableName] = useState<string>();
-    const {
-        data: explore,
-        isLoading,
-        isFetching,
-    } = useExplore(currentTableName);
+    const { data: explore, isFetching } = useExplore(currentTableName);
+    const [isNavigating, setIsNavigating] = useState(false);
     const history = useHistory();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
@@ -118,10 +115,12 @@ const UseMetricButton = ({
 
     useEffect(() => {
         if (!!currentTableName && explore && projectUuid) {
+            setIsNavigating(true);
             const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
                 row.original,
                 explore,
             );
+
             history.push(
                 getExplorerUrlFromCreateSavedChartVersion(
                     projectUuid,
@@ -140,7 +139,7 @@ const UseMetricButton = ({
             onClick={() => {
                 setCurrentTableName(row.original.tableName);
             }}
-            loading={isFetching && isLoading}
+            loading={isFetching || isNavigating}
         >
             Use Metric
         </Button>
