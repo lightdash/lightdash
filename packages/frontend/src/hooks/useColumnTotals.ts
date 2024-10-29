@@ -31,15 +31,14 @@ export const isSummable = (item: Item | undefined) => {
     if (isCustomDimension(item)) {
         return false;
     }
-    const numericTypes: string[] = [
-        DimensionType.NUMBER,
-        MetricType.NUMBER,
-        MetricType.COUNT,
-        MetricType.SUM,
-    ];
+    const numericTypes: string[] = [MetricType.COUNT, MetricType.SUM];
+    const isNumberDimension =
+        isDimension(item) && item.type === DimensionType.NUMBER;
+    const isNumbericType =
+        numericTypes.includes(item.type) || isNumberDimension;
     const isPercent = item.format === 'percent';
     const isDatePart = isDimension(item) && item.timeInterval;
-    return numericTypes.includes(item.type) && !isPercent && !isDatePart;
+    return isNumbericType && !isPercent && !isDatePart;
 };
 
 const getResultColumnTotals = (
