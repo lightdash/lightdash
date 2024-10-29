@@ -44,6 +44,7 @@ export default class KnexPaginate {
                     page,
                     pageSize,
                     totalPageCount: Math.ceil(count / pageSize),
+                    totalResults: count,
                 },
             };
         }

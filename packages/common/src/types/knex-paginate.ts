@@ -7,5 +7,6 @@ export type KnexPaginatedData<T> = {
     data: T;
     pagination?: KnexPaginateArgs & {
         totalPageCount: number;
+        totalResults: number;
     };
 };
