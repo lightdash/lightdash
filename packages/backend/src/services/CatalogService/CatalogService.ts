@@ -23,7 +23,6 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
-import { difference } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
