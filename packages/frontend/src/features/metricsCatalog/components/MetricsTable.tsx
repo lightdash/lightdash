@@ -1,5 +1,5 @@
 import { type CatalogFieldWithAnalytics } from '@lightdash/common';
-import { Button, HoverCard, Text } from '@mantine/core';
+import { Box, Button, HoverCard, Text } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
     MantineReactTable,
@@ -17,6 +17,12 @@ import {
     useState,
     type UIEvent,
 } from 'react';
+import { useHistory } from 'react-router-dom';
+import { useExplore } from '../../../hooks/useExplore';
+import {
+    createMetricPreviewUnsavedChartVersion,
+    getExplorerUrlFromCreateSavedChartVersion,
+} from '../../../hooks/useExplorerRoute';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { setActiveMetric } from '../store/metricsCatalogSlice';
@@ -89,6 +95,48 @@ const columns: MRT_ColumnDef<CatalogFieldWithAnalytics>[] = [
     },
 ];
 
+const UseMetricButton = ({
+    row,
+}: {
+    row: MRT_Row<CatalogFieldWithAnalytics>;
+}) => {
+    const [currentTableName, setCurrentTableName] = useState<string>();
+    const { data: explore } = useExplore(currentTableName);
+    const history = useHistory();
+    const projectUuid = useAppSelector(
+        (state) => state.metricsCatalog.projectUuid,
+    );
+
+    useEffect(() => {
+        if (!!currentTableName && explore && projectUuid) {
+            const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
+                row.original,
+                explore,
+            );
+            history.push(
+                getExplorerUrlFromCreateSavedChartVersion(
+                    projectUuid,
+                    unsavedChartVersion,
+                ),
+            );
+        }
+    }, [currentTableName, explore, projectUuid, row.original, history]);
+
+    return (
+        <Button
+            color="blue"
+            size="xs"
+            compact
+            variant="subtle"
+            onClick={() => {
+                setCurrentTableName(row.original.tableName);
+            }}
+        >
+            Use Metric
+        </Button>
+    );
+};
+
 export const MetricsTable = () => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
@@ -140,6 +188,8 @@ export const MetricsTable = () => {
         data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: true,
+        enableRowActions: true,
+        positionActionsColumn: 'last',
         enableRowVirtualization: true,
         enablePagination: false,
         enableSorting: false,
@@ -180,6 +230,16 @@ export const MetricsTable = () => {
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 40 },
+        displayColumnDefOptions: {
+            'mrt-row-actions': {
+                header: '',
+            },
+        },
+        renderRowActions: ({ row }) => (
+            <Box>
+                <UseMetricButton row={row} />
+            </Box>
+        ),
     });
 
     return <MantineReactTable table={table} />;

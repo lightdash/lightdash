@@ -2,10 +2,14 @@ import {
     ChartType,
     CustomDimensionType,
     DateGranularity,
+    DimensionType,
+    getDateDimension,
+    getItemId,
     isCartesianChartConfig,
     type CreateSavedChartVersion,
     type CustomBinDimension,
     type CustomDimension,
+    type Explore,
     type MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
@@ -38,6 +42,42 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
     tableConfig: {
         columnOrder: [],
     },
+};
+
+export const createMetricPreviewUnsavedChartVersion = (
+    metric: Record<'name' | 'tableName', string>,
+    explore: Explore,
+): CreateSavedChartVersion => {
+    // Find the best date dimension to use
+    const dateDimensions = Object.entries(
+        explore.tables[metric.tableName].dimensions,
+    ).filter(([_, dim]) =>
+        [DimensionType.DATE, DimensionType.TIMESTAMP].includes(dim.type),
+    );
+
+    // Try to find a dimension with a date granularity, if not, leave empty
+    const dateWithGranularity = dateDimensions.find(([dimId]) => {
+        const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
+        return !!baseDimensionId && !!newTimeFrame;
+    });
+
+    return {
+        ...DEFAULT_EMPTY_EXPLORE_CONFIG,
+        tableName: metric.tableName,
+        metricQuery: {
+            ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
+            exploreName: metric.tableName,
+            dimensions: dateWithGranularity
+                ? [getItemId(dateWithGranularity[1])]
+                : [],
+            metrics: [
+                getItemId({
+                    name: metric.name,
+                    table: metric.tableName,
+                }),
+            ],
+        },
+    };
 };
 
 export const getExplorerUrlFromCreateSavedChartVersion = (
