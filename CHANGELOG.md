@@ -1,3 +1,10 @@
+## [0.1319.2](https://github.com/lightdash/lightdash/compare/0.1319.1...0.1319.2) (2024-10-29)
+
+
+### Bug Fixes
+
+* add classnames to sql runner tables ([#12134](https://github.com/lightdash/lightdash/issues/12134)) ([132f292](https://github.com/lightdash/lightdash/commit/132f292487b78ca0476c769d9dc743dfd1e3fd22))
+
 ## [0.1319.1](https://github.com/lightdash/lightdash/compare/0.1319.0...0.1319.1) (2024-10-28)
 
 
