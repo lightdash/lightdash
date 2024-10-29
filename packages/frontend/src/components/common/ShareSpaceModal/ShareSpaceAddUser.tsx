@@ -256,6 +256,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                         {children}
                         {(hasUsersNextPage || hasGroupsNextPage) && (
                             <Button
+                                size="xs"
                                 variant="white"
                                 onClick={async () => {
                                     await Promise.all([
@@ -265,7 +266,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                                 }}
                                 disabled={isUsersFetching || isGroupsFetching}
                             >
-                                <Text size="xs">Load more</Text>
+                                <Text>Load more</Text>
                             </Button>
                         )}
                     </ScrollArea>
