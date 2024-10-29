@@ -56,10 +56,28 @@ export const createMetricPreviewUnsavedChartVersion = (
     );
 
     // Try to find a dimension with a date granularity, if not, leave empty
-    const dateWithGranularity = dateDimensions.find(([dimId]) => {
+    let dateWithGranularity = dateDimensions.find(([dimId]) => {
         const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
         return !!baseDimensionId && !!newTimeFrame;
     });
+
+    if (!dateWithGranularity) {
+        // Look through all other tables for date dimensions when no date dimension is found in the current table - there could be a joined table with a date dimension
+        dateWithGranularity = Object.entries(explore.tables)
+            .filter(([tableName]) => tableName !== metric.tableName)
+            .flatMap(([_, table]) =>
+                Object.entries(table.dimensions).filter(([__, dim]) =>
+                    [DimensionType.DATE, DimensionType.TIMESTAMP].includes(
+                        dim.type,
+                    ),
+                ),
+            )
+            .find(([dimId]) => {
+                const { baseDimensionId, newTimeFrame } =
+                    getDateDimension(dimId);
+                return !!baseDimensionId && !!newTimeFrame;
+            });
+    }
 
     return {
         ...DEFAULT_EMPTY_EXPLORE_CONFIG,

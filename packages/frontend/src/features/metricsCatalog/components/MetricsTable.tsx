@@ -106,7 +106,11 @@ const UseMetricButton = ({
     row: MRT_Row<CatalogFieldWithAnalytics>;
 }) => {
     const [currentTableName, setCurrentTableName] = useState<string>();
-    const { data: explore } = useExplore(currentTableName);
+    const {
+        data: explore,
+        isLoading,
+        isFetching,
+    } = useExplore(currentTableName);
     const history = useHistory();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
@@ -136,6 +140,7 @@ const UseMetricButton = ({
             onClick={() => {
                 setCurrentTableName(row.original.tableName);
             }}
+            loading={isFetching && isLoading}
         >
             Use Metric
         </Button>
