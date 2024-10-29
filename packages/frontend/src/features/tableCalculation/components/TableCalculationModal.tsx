@@ -52,7 +52,7 @@ const TableCalculationModal: FC<Props> = ({
     const theme = useMantineTheme();
     const [isFullscreen, toggleFullscreen] = useToggle(false);
 
-    const { showToastError } = useToaster();
+    const { addToastError } = useToaster();
 
     const tableCalculations = useExplorerContext(
         (context) =>
@@ -111,7 +111,7 @@ const TableCalculationModal: FC<Props> = ({
     const handleSubmit = form.onSubmit((data) => {
         const { name, sql } = data;
         if (sql.length === 0)
-            return showToastError({ title: 'SQL cannot be empty' });
+            return addToastError({ title: 'SQL cannot be empty' });
 
         try {
             onSave({
@@ -122,7 +122,7 @@ const TableCalculationModal: FC<Props> = ({
                 type: data.type,
             });
         } catch (e) {
-            showToastError({
+            addToastError({
                 title: 'Error saving',
                 subtitle: e.message,
             });
