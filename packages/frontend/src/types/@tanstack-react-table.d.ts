@@ -2,7 +2,7 @@ import { type ItemsMap, type PivotReference } from '@lightdash/common';
 import { type MouseEventHandler } from 'react';
 import { type Sort } from '../components/common/Table/types';
 
-declare module '@tanstack/table-core' {
+declare module '@tanstack/react-table' {
     interface ColumnMeta {
         isInvalidItem?: boolean;
         width?: number;
