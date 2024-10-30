@@ -570,7 +570,7 @@ export class OrganizationService extends BaseService {
             data: allowedGroups.map<GroupWithMembers>((group) => ({
                 ...group,
                 members: groupMembersMap[group.uuid] || [],
-                memberUuids: groupMembersMap[group.uuid].map(
+                memberUuids: (groupMembersMap[group.uuid] || []).map(
                     (member) => member.userUuid,
                 ),
             })),
