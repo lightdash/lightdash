@@ -1,3 +1,10 @@
+## [0.1327.1](https://github.com/lightdash/lightdash/compare/0.1327.0...0.1327.1) (2024-10-30)
+
+
+### Bug Fixes
+
+* building with tanstack react table type ([#12171](https://github.com/lightdash/lightdash/issues/12171)) ([9692e8c](https://github.com/lightdash/lightdash/commit/9692e8cd17daa1f6f9b2e1234da74a844d1df1a6))
+
 # [0.1327.0](https://github.com/lightdash/lightdash/compare/0.1326.1...0.1327.0) (2024-10-30)
 
 
