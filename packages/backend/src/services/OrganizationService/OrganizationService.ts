@@ -23,6 +23,7 @@ import {
     UpdateOrganization,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
+import { groupBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GroupsModel } from '../../models/GroupsModel';
@@ -557,18 +558,22 @@ export class OrganizationService extends BaseService {
             };
         }
 
-        const groupsWithMembers = await Promise.all(
-            allowedGroups.map((group) =>
-                this.groupsModel.getGroupWithMembers(
-                    group.uuid,
-                    includeMembers,
-                ),
-            ),
-        );
+        // fetch members for each group
+        const { data: groupMembers } = await this.groupsModel.findGroupMembers({
+            organizationUuid: actor.organizationUuid,
+            groupUuids: allowedGroups.map((group) => group.uuid),
+        });
+        const groupMembersMap = groupBy(groupMembers, 'groupUuid');
 
         return {
             pagination,
-            data: groupsWithMembers,
+            data: allowedGroups.map<GroupWithMembers>((group) => ({
+                ...group,
+                members: groupMembersMap[group.uuid] || [],
+                memberUuids: groupMembersMap[group.uuid].map(
+                    (member) => member.userUuid,
+                ),
+            })),
         };
     }
 }
