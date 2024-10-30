@@ -8,6 +8,7 @@ import {
     NotFoundError,
     TableSelectionType,
     UnexpectedServerError,
+    type ApiSort,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type TablesConfiguration,
@@ -51,6 +52,7 @@ export class CatalogModel {
         tablesConfiguration,
         userAttributes,
         paginateArgs,
+        sortArgs,
     }: {
         searchQuery?: string;
         projectUuid: string;
@@ -66,6 +68,7 @@ export class CatalogModel {
         tablesConfiguration: TablesConfiguration;
         userAttributes: UserAttributeValueMap;
         paginateArgs?: KnexPaginateArgs;
+        sortArgs?: ApiSort;
     }): Promise<KnexPaginatedData<(CatalogTable | CatalogField)[]>> {
         const searchRankRawSql = searchQuery
             ? searchRankFunction({
@@ -211,6 +214,11 @@ export class CatalogModel {
         catalogItemsQuery = catalogItemsQuery
             .orderBy('search_rank', 'desc')
             .limit(limit ?? 50);
+
+        if (sortArgs) {
+            const { sort, order } = sortArgs;
+            catalogItemsQuery = catalogItemsQuery.orderBy(sort, order);
+        }
 
         const paginatedCatalogItems = await KnexPaginate.paginate(
             catalogItemsQuery.select<(DbCatalog & { explore: Explore })[]>(),
