@@ -5,7 +5,6 @@ import {
     Collapse,
     CopyButton,
     Group,
-    ScrollArea,
     Stack,
     Text,
     Title,
@@ -103,59 +102,64 @@ const MultipleToastBody = ({
                 </Button>
             </Group>
 
-            <Collapse in={!listCollapsed} w="100%">
-                <ScrollArea style={{ height: 155, width: '100%' }}>
-                    <Stack spacing="xs" pb="sm">
-                        {toastsData.map((toastData, index) => (
-                            <Group
-                                key={`${toastData.subtitle}-${index}`}
-                                position="apart"
-                                spacing="xxs"
-                                noWrap
-                                sx={(theme) => ({
-                                    width: '100%',
-                                    border: `1px solid ${theme.colors.red[3]}`,
-                                    borderRadius: '4px',
-                                    padding: theme.spacing.xs,
-                                })}
-                            >
-                                {toastData.apiError ? (
-                                    <ApiErrorDisplay
-                                        apiError={toastData.apiError}
-                                    />
-                                ) : (
-                                    <>
-                                        {toastData.title && (
-                                            <Title order={6}>
-                                                {toastData.title}
-                                            </Title>
-                                        )}
-                                        {toastData.subtitle && (
-                                            <MarkdownPreview
-                                                source={toastData.subtitle.toString()}
-                                                linkTarget="_blank"
-                                                style={{
-                                                    backgroundColor:
-                                                        'transparent',
-                                                    color: 'white',
-                                                    fontSize: '12px',
-                                                }}
-                                            />
-                                        )}
-                                    </>
-                                )}
+            <Collapse
+                in={!listCollapsed}
+                style={{
+                    maxHeight: 155,
+                    overflow: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                <Stack spacing="xs" pb="sm">
+                    {toastsData.map((toastData, index) => (
+                        <Group
+                            key={`${toastData.subtitle}-${index}`}
+                            position="apart"
+                            spacing="xxs"
+                            noWrap
+                            sx={(theme) => ({
+                                width: '100%',
+                                border: `1px solid ${theme.colors.red[3]}`,
+                                borderRadius: '4px',
+                                padding: theme.spacing.xs,
+                            })}
+                        >
+                            {toastData.apiError ? (
+                                <ApiErrorDisplay
+                                    apiError={toastData.apiError}
+                                />
+                            ) : (
+                                <>
+                                    {toastData.title && (
+                                        <Title order={6}>
+                                            {toastData.title}
+                                        </Title>
+                                    )}
+                                    {toastData.subtitle && (
+                                        <MarkdownPreview
+                                            source={toastData.subtitle.toString()}
+                                            linkTarget="_blank"
+                                            style={{
+                                                backgroundColor: 'transparent',
+                                                color: 'white',
+                                                fontSize: '12px',
+                                            }}
+                                        />
+                                    )}
+                                </>
+                            )}
 
-                                <ActionIcon
-                                    variant="transparent"
-                                    size="xs"
-                                    onClick={() => onCloseError?.(toastData)}
-                                >
-                                    <MantineIcon icon={IconX} color="white" />
-                                </ActionIcon>
-                            </Group>
-                        ))}
-                    </Stack>
-                </ScrollArea>
+                            <ActionIcon
+                                variant="transparent"
+                                size="xs"
+                                onClick={() => onCloseError?.(toastData)}
+                            >
+                                <MantineIcon icon={IconX} color="white" />
+                            </ActionIcon>
+                        </Group>
+                    ))}
+                </Stack>
             </Collapse>
         </Stack>
     );
