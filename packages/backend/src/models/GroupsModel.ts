@@ -318,7 +318,7 @@ export class GroupsModel {
                 group.organization_id,
             )
             .whereIn('user_uuid', memberUuids)
-            .select('user_id', 'user_uuid');
+            .select('users.user_id', 'user_uuid');
 
         if (users.length === 0) {
             return [];
