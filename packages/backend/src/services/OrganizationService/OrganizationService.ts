@@ -482,7 +482,7 @@ export class OrganizationService extends BaseService {
     async addGroupToOrganization(
         actor: SessionUser,
         createGroup: CreateGroup,
-    ): Promise<Group | GroupWithMembers> {
+    ): Promise<GroupWithMembers> {
         if (
             actor.organizationUuid === undefined ||
             actor.ability.cannot(

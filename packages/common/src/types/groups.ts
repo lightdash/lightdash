@@ -87,6 +87,11 @@ export type ApiGroupResponse = {
     results: Group | GroupWithMembers;
 };
 
+export type ApiCreateGroupResponse = {
+    status: 'ok';
+    results: GroupWithMembers;
+};
+
 export type ApiGroupListResponse = {
     status: 'ok';
     results: KnexPaginatedData<Group[] | GroupWithMembers[]>;
