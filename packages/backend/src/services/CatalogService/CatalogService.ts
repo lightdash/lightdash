@@ -541,11 +541,10 @@ export class CatalogService<
                 Object.keys(catalogFieldMap),
             );
 
-        const chartUsagesByFieldName = Object.keys(catalogFieldMap).reduce<
-            Record<string, number>
-        >((acc, fieldId) => {
-            acc[catalogFieldMap[fieldId].fieldName] =
-                chartSummariesByFieldId[fieldId]?.length ?? 0;
+        const chartUsagesByFieldName = Object.entries(
+            chartSummariesByFieldId,
+        ).reduce<Record<string, number>>((acc, [fieldId, chartSummaries]) => {
+            acc[catalogFieldMap[fieldId].fieldName] = chartSummaries.length;
             return acc;
         }, {});
 
