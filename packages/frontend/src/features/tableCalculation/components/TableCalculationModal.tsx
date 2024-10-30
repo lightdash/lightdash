@@ -111,7 +111,10 @@ const TableCalculationModal: FC<Props> = ({
     const handleSubmit = form.onSubmit((data) => {
         const { name, sql } = data;
         if (sql.length === 0)
-            return addToastError({ title: 'SQL cannot be empty' });
+            return addToastError({
+                title: 'SQL cannot be empty',
+                key: 'table-calculation-modal',
+            });
 
         try {
             onSave({
@@ -125,6 +128,7 @@ const TableCalculationModal: FC<Props> = ({
             addToastError({
                 title: 'Error saving',
                 subtitle: e.message,
+                key: 'table-calculation-modal',
             });
         }
     });

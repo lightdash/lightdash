@@ -116,7 +116,7 @@ const MultipleToastBody = ({
                                     width: '100%',
                                     border: `1px solid ${theme.colors.red[3]}`,
                                     borderRadius: '4px',
-                                    padding: theme.spacing.sm,
+                                    padding: theme.spacing.xs,
                                 })}
                             >
                                 {toastData.apiError ? (
@@ -224,6 +224,7 @@ const useToaster = () => {
                                     style={{
                                         color: toastColor ? 'white' : undefined,
                                         fontSize: '12px',
+                                        width: '100%',
                                     }}
                                 >
                                     {subtitle}
