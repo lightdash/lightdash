@@ -11,6 +11,7 @@ import {
     Explore,
     ExploreError,
     ForbiddenError,
+    getItemId,
     hasIntersection,
     InlineErrorType,
     isExploreError,
@@ -439,8 +440,7 @@ export class CatalogService<
     async getFieldAnalytics(
         user: SessionUser,
         projectUuid: string,
-        table: string,
-        field: string,
+        fieldId: string,
     ): Promise<CatalogAnalytics> {
         const { organizationUuid } = user;
         if (
@@ -452,30 +452,13 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const chartSummaries = await this.savedChartModel.find({
-            projectUuid,
-            exploreName: table,
-        });
+        const chartSummaries =
+            await this.savedChartModel.getChartWithFieldSummaries(
+                projectUuid,
+                fieldId,
+            );
 
-        const chartsWithAccess = await this.filterChartsWithAccess(
-            user,
-            projectUuid,
-            chartSummaries,
-        );
-
-        const chartsPromises = chartsWithAccess.map((chart) =>
-            this.savedChartModel.get(chart.uuid),
-        );
-        const charts = await Promise.all(chartsPromises);
-        const chartsWithFields = charts.filter((chart) => {
-            const fields = [
-                ...chart.metricQuery.dimensions,
-                ...chart.metricQuery.metrics,
-            ];
-            const fieldRef = `${table}_${field}`;
-            return fields.includes(fieldRef);
-        });
-        const chartAnalytics: CatalogAnalytics['charts'] = chartsWithFields.map(
+        const chartAnalytics: CatalogAnalytics['charts'] = chartSummaries.map(
             (chart) => ({
                 name: chart.name,
                 uuid: chart.uuid,
@@ -485,6 +468,7 @@ export class CatalogService<
                 dashboardUuid: chart.dashboardUuid,
             }),
         );
+
         return { charts: chartAnalytics };
     }
 
@@ -535,14 +519,16 @@ export class CatalogService<
                 analytics: await this.getFieldAnalytics(
                     user,
                     projectUuid,
-                    metric.tableName,
-                    metric.name,
+                    getItemId({
+                        name: metric.name,
+                        table: metric.tableName,
+                    }),
                 ),
             }));
 
         return {
             pagination,
-            data: await Promise.all(analyticsPromises),
+            data: await Promise.all(analyticsPromises), // ! This is very bad practive, temporary until we have `chart_usage` count
         };
     }
 }

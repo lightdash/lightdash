@@ -5,6 +5,7 @@ import {
     ApiCatalogSearch,
     ApiErrorPayload,
     ApiMetricsCatalog,
+    getItemId,
     type ApiSort,
     type KnexPaginateArgs,
 } from '@lightdash/common';
@@ -136,7 +137,14 @@ export class CatalogController extends BaseController {
         this.setStatus(200);
         const results = await this.services
             .getCatalogService()
-            .getFieldAnalytics(req.user!, projectUuid, table, field);
+            .getFieldAnalytics(
+                req.user!,
+                projectUuid,
+                getItemId({
+                    name: field,
+                    table,
+                }),
+            );
         return {
             status: 'ok',
             results,
