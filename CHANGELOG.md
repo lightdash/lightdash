@@ -1,3 +1,15 @@
+# [0.1327.0](https://github.com/lightdash/lightdash/compare/0.1326.1...0.1327.0) (2024-10-30)
+
+
+### Bug Fixes
+
+* paginate space share ([#12088](https://github.com/lightdash/lightdash/issues/12088)) ([547ad80](https://github.com/lightdash/lightdash/commit/547ad8083fc47a848b33110ea6a09f440c7b160f))
+
+
+### Features
+
+* open metric preview on click of metric in table ([#12161](https://github.com/lightdash/lightdash/issues/12161)) ([96b0bb0](https://github.com/lightdash/lightdash/commit/96b0bb09ed3bf877f6690202034a6ae0aa5f4782))
+
 ## [0.1326.1](https://github.com/lightdash/lightdash/compare/0.1326.0...0.1326.1) (2024-10-30)
 
 
