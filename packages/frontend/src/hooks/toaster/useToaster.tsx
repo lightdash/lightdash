@@ -32,12 +32,12 @@ import MantineIcon from '../../components/common/MantineIcon';
 
 const ApiErrorDisplay = ({ apiError }: { apiError: ApiErrorDetail }) => {
     return apiError.id ? (
-        <>
+        <Stack spacing="xxs">
             <Text mb={0}>{apiError.message}</Text>
             <Text mb={0} weight="bold">
-                You can contact support with the following error ID
+                You can contact support with this error ID
             </Text>
-            <Group>
+            <Group spacing="xxs">
                 <Text mb={0} weight="bold">
                     {apiError.id}
                 </Text>
@@ -62,7 +62,7 @@ const ApiErrorDisplay = ({ apiError }: { apiError: ApiErrorDetail }) => {
                     )}
                 </CopyButton>
             </Group>
-        </>
+        </Stack>
     ) : (
         apiError.message
     );
@@ -74,7 +74,7 @@ const MultipleToastBody = ({
 }: {
     title?: ReactNode;
     toastsData: NotificationData[];
-    onCloseError?: (key?: string) => void;
+    onCloseError?: (errorData: NotificationData) => void;
 }) => {
     const [listCollapsed, setListCollapsed] = useState(true);
 
@@ -110,7 +110,7 @@ const MultipleToastBody = ({
                             <Group
                                 key={`${toastData.subtitle}-${index}`}
                                 position="apart"
-                                spacing="xs"
+                                spacing="xxs"
                                 noWrap
                                 sx={(theme) => ({
                                     width: '100%',
@@ -119,26 +119,36 @@ const MultipleToastBody = ({
                                     padding: theme.spacing.sm,
                                 })}
                             >
-                                {toastData.title && (
-                                    <Title order={6}>{toastData.title}</Title>
-                                )}
-                                {toastData.subtitle && (
-                                    <MarkdownPreview
-                                        source={toastData.subtitle.toString()}
-                                        linkTarget="_blank"
-                                        style={{
-                                            backgroundColor: 'transparent',
-                                            color: 'white',
-                                            fontSize: '12px',
-                                        }}
+                                {toastData.apiError ? (
+                                    <ApiErrorDisplay
+                                        apiError={toastData.apiError}
                                     />
+                                ) : (
+                                    <>
+                                        {toastData.title && (
+                                            <Title order={6}>
+                                                {toastData.title}
+                                            </Title>
+                                        )}
+                                        {toastData.subtitle && (
+                                            <MarkdownPreview
+                                                source={toastData.subtitle.toString()}
+                                                linkTarget="_blank"
+                                                style={{
+                                                    backgroundColor:
+                                                        'transparent',
+                                                    color: 'white',
+                                                    fontSize: '12px',
+                                                }}
+                                            />
+                                        )}
+                                    </>
                                 )}
+
                                 <ActionIcon
                                     variant="transparent"
                                     size="xs"
-                                    onClick={() =>
-                                        onCloseError?.(toastData.messageKey)
-                                    }
+                                    onClick={() => onCloseError?.(toastData)}
                                 >
                                     <MantineIcon icon={IconX} color="white" />
                                 </ActionIcon>
@@ -160,10 +170,8 @@ type NotificationData = Omit<
     action?: PolymorphicComponentProps<'button', ButtonProps> & {
         icon?: Icon;
     };
-
-    // TODO: maybe not have these on the type
-    messageKey?: string;
     apiError?: ApiErrorDetail;
+    messageKey?: string;
 };
 
 const useToaster = () => {
@@ -352,25 +360,33 @@ const useToaster = () => {
     // addToastError and removeToastError, which pass different specific functions to
     // update the error list
     const updateToastError = useCallback(
-        (
-            {
+        ({
+            errorData,
+            updateErrorsFunction,
+            onCloseError,
+        }: {
+            errorData: NotificationData;
+            updateErrorsFunction: (
+                key: string,
+                errorData: NotificationData,
+            ) => void;
+            onCloseError: (data: NotificationData) => void;
+        }) => {
+            const {
+                // By default errors will be grouped under 'error-list'.
+                // Consumers can override this by passing a custom key.
                 key = 'error-list',
                 title,
                 subtitle,
+                apiError,
+                messageKey,
                 ...restProps
-            }: NotificationData,
-            updateErrors: (
-                key: string,
-                subtitle: NotificationData['subtitle'],
-            ) => void,
-            removeToastError: (data: NotificationData) => void,
-        ) => {
-            if (!subtitle && !title) return;
+            } = errorData;
 
-            const message = subtitle ?? title;
+            if (!subtitle && !title && !apiError) return;
 
             // Execute the specific error update function (add or remove)
-            updateErrors(key, message);
+            updateErrorsFunction(key, errorData);
 
             const hasMultipleErrors = currentErrors.current[key]?.length > 1;
 
@@ -378,17 +394,15 @@ const useToaster = () => {
                 <MultipleToastBody
                     title={title}
                     toastsData={currentErrors.current[key]}
-                    onCloseError={(errorMessage) =>
-                        removeToastError({
-                            key,
-                            title,
-                            subtitle: errorMessage,
-                            ...restProps,
-                        })
-                    }
+                    onCloseError={(error) => onCloseError(error)}
+                />
+            ) : currentErrors.current[key][0].apiError ? (
+                <ApiErrorDisplay
+                    apiError={currentErrors.current[key][0].apiError}
                 />
             ) : (
-                currentErrors.current[key][0].subtitle
+                currentErrors.current[key][0].subtitle ||
+                currentErrors.current[key][0].title
             );
 
             showToastError({
@@ -403,29 +417,29 @@ const useToaster = () => {
 
     const removeToastError = useCallback(
         (notificationData: NotificationData) => {
-            updateToastError(
-                notificationData,
-                (key, messageKey) => {
+            updateToastError({
+                errorData: notificationData,
+                updateErrorsFunction: (key, errorData) => {
                     currentErrors.current[key] = currentErrors.current[
                         key
-                    ].filter((d) => d.messageKey !== messageKey);
+                    ].filter((d) => d.messageKey !== errorData.messageKey);
 
                     if (currentErrors.current[key].length === 0) {
                         notifications.hide(key);
                     }
                 },
-                removeToastError,
-            );
+                onCloseError: removeToastError,
+            });
         },
         [updateToastError],
     );
 
     const addToastError = useCallback(
         (notificationData: NotificationData) => {
-            updateToastError(
-                notificationData,
-                (key, message) => {
-                    if (!message) return;
+            updateToastError({
+                errorData: notificationData,
+                updateErrorsFunction: (key, errorData) => {
+                    if (!errorData) return;
                     if (currentErrors.current[key]) {
                         currentErrors.current[key].push({
                             ...notificationData,
@@ -437,8 +451,8 @@ const useToaster = () => {
                         ];
                     }
                 },
-                removeToastError,
-            );
+                onCloseError: removeToastError,
+            });
         },
         [removeToastError, updateToastError],
     );
