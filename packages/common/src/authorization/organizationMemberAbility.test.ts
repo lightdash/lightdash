@@ -49,6 +49,45 @@ describe('Organization member permissions', () => {
                 true,
             );
         });
+
+        it('can create a project in their own organization', () => {
+            const check = {
+                organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+            };
+
+            expect(ability.can('create', subject('Project', check))).toEqual(
+                true,
+            );
+        });
+
+        it('cannot create a project in another organization', () => {
+            const org = { organizationUuid: '789', type: ProjectType.DEFAULT };
+
+            expect(ability.can('create', subject('Project', org))).toEqual(
+                false,
+            );
+        });
+
+        it('can create a project in their own organization with different types', () => {
+            const check1 = {
+                organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                type: ProjectType.DEFAULT,
+            };
+
+            expect(ability.can('create', subject('Project', check1))).toEqual(
+                true,
+            );
+
+            const check2 = {
+                organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                type: ProjectType.PREVIEW,
+            };
+
+            expect(ability.can('create', subject('Project', check2))).toEqual(
+                true,
+            );
+        });
+
         it('can manage member profiles', () => {
             expect(ability.can('manage', 'OrganizationMemberProfile')).toEqual(
                 true,
@@ -380,6 +419,16 @@ describe('Organization member permissions', () => {
         });
         it('cannot manage organizations', () => {
             expect(ability.can('manage', 'Organization')).toEqual(false);
+        });
+
+        it('cannot create a project in organization they belong to', () => {
+            const check = {
+                organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+            };
+
+            expect(ability.can('create', subject('Project', check))).toEqual(
+                false,
+            );
         });
 
         it('can view and manage public & accessable dashboards', () => {
@@ -747,6 +796,7 @@ describe('Organization member permissions', () => {
             expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
         });
     });
+
     describe('when user is an developer', () => {
         beforeEach(() => {
             ability = defineAbilityForOrganizationMember(
@@ -761,7 +811,18 @@ describe('Organization member permissions', () => {
         it('can use the SemanticViewer', () => {
             expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
         });
+
+        it('cannot create a project in organization they belong to', () => {
+            const check = {
+                organizationUuid: ORGANIZATION_DEVELOPER.organizationUuid,
+            };
+
+            expect(ability.can('create', subject('Project', check))).toEqual(
+                false,
+            );
+        });
     });
+
     describe('when user is a member', () => {
         beforeEach(() => {
             ability = defineAbilityForOrganizationMember(ORGANIZATION_MEMBER);
@@ -779,6 +840,16 @@ describe('Organization member permissions', () => {
         });
         it('cannot view charts', () => {
             expect(ability.can('view', 'SavedChart')).toEqual(false);
+        });
+
+        it('cannot create a project in organization they belong to', () => {
+            const check = {
+                organizationUuid: ORGANIZATION_MEMBER.organizationUuid,
+            };
+
+            expect(ability.can('create', subject('Project', check))).toEqual(
+                false,
+            );
         });
     });
     describe('when user is a viewer', () => {
@@ -1100,20 +1171,17 @@ describe('Organization member permissions', () => {
                 false,
             );
         });
-        it('cannot create PREVIEW Project', () => {
-            const org = { organizationUuid: '456', type: ProjectType.PREVIEW };
 
-            expect(ability.can('create', subject('Project', org))).toEqual(
+        it('cannot create a project in organization they belong to', () => {
+            const check = {
+                organizationUuid: ORGANIZATION_VIEWER.organizationUuid,
+            };
+
+            expect(ability.can('create', subject('Project', check))).toEqual(
                 false,
             );
         });
-        it('cannot create DEFAULT Project', () => {
-            const org = { organizationUuid: '456', type: ProjectType.DEFAULT };
 
-            expect(ability.can('create', subject('Project', org))).toEqual(
-                false,
-            );
-        });
         it('cannot create any resource, except space when have editor space role', () => {
             expect(
                 ability.can(
@@ -1361,24 +1429,17 @@ describe('Organization member permissions', () => {
             );
         });
 
-        it('can create PREVIEW Project', () => {
-            expect(ability.can('create', subject('Job', {}))).toEqual(true);
+        it('cannot create a project in organization they belong to', () => {
+            const check = {
+                organizationUuid:
+                    ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+            };
 
-            const org = { organizationUuid: '456', type: ProjectType.PREVIEW };
-
-            expect(ability.can('create', subject('Project', org))).toEqual(
-                true,
-            );
-        });
-        it('cannot create DEFAULT Project', () => {
-            expect(ability.can('create', subject('Job', {}))).toEqual(true);
-
-            const org = { organizationUuid: '456', type: ProjectType.DEFAULT };
-
-            expect(ability.can('create', subject('Project', org))).toEqual(
+            expect(ability.can('create', subject('Project', check))).toEqual(
                 false,
             );
         });
+
         it('cannot create any resource, except space when have editor space role', () => {
             expect(
                 ability.can(
@@ -1636,99 +1697,6 @@ describe('Organization member permissions', () => {
                     subject('Job', { userUuid: 'another-user-uuid' }),
                 ),
             ).toEqual(false);
-        });
-    });
-
-    describe('test project preview permissions', () => {
-        const { organizationUuid } = ORGANIZATION_VIEWER;
-
-        it('developers can not create preview or regular projects', () => {
-            ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
-            expect(
-                ability.can(
-                    'create',
-                    subject('Project', {
-                        organizationUuid,
-                        type: ProjectType.PREVIEW,
-                    }),
-                ),
-            ).toEqual(false);
-            expect(
-                ability.can(
-                    'create',
-                    subject('Project', {
-                        organizationUuid,
-                        type: ProjectType.DEFAULT,
-                    }),
-                ),
-            ).toEqual(false);
-        });
-
-        it('editor can not create preview or regular projects', () => {
-            ability = defineAbilityForOrganizationMember(ORGANIZATION_EDITOR);
-            expect(
-                ability.can(
-                    'create',
-                    subject('Project', {
-                        organizationUuid,
-                        type: ProjectType.PREVIEW,
-                    }),
-                ),
-            ).toEqual(true);
-            expect(
-                ability.can(
-                    'create',
-                    subject('Project', {
-                        organizationUuid,
-                        type: ProjectType.DEFAULT,
-                    }),
-                ),
-            ).toEqual(false);
-        });
-
-        it('developers can create preview but no regular projects', () => {
-            ability = defineAbilityForOrganizationMember(
-                ORGANIZATION_DEVELOPER,
-            );
-            expect(
-                ability.can(
-                    'create',
-                    subject('Project', {
-                        organizationUuid,
-                        type: ProjectType.PREVIEW,
-                    }),
-                ),
-            ).toEqual(true);
-            expect(
-                ability.can(
-                    'create',
-                    subject('Project', {
-                        organizationUuid,
-                        type: ProjectType.DEFAULT,
-                    }),
-                ),
-            ).toEqual(false);
-        });
-        it('admins can create preview and regular projects', () => {
-            ability = defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);
-            expect(
-                ability.can(
-                    'create',
-                    subject('Project', {
-                        organizationUuid,
-                        type: ProjectType.PREVIEW,
-                    }),
-                ),
-            ).toEqual(true);
-            expect(
-                ability.can(
-                    'create',
-                    subject('Project', {
-                        organizationUuid,
-                        type: ProjectType.DEFAULT,
-                    }),
-                ),
-            ).toEqual(true);
         });
     });
 });

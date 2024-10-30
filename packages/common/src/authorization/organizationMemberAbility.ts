@@ -213,6 +213,10 @@ export const organizationMemberAbilities: Record<
         can('manage', 'CompileProject', {
             organizationUuid: member.organizationUuid,
         });
+        can('create', 'Project', {
+            organizationUuid: member.organizationUuid,
+            type: ProjectType.PREVIEW,
+        });
     },
     admin(member, { can }) {
         organizationMemberAbilities.developer(member, { can });
@@ -223,6 +227,9 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'SavedChart', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('create', 'Project', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Project', {

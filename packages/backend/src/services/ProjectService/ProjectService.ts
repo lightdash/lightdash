@@ -286,6 +286,47 @@ export class ProjectService extends BaseService {
         this.groupsModel = groupsModel;
     }
 
+    static hasProjectOrPreviewProjectCreateAccess(
+        user: SessionUser,
+        data: CreateProject,
+    ) {
+        switch (data.type) {
+            case ProjectType.DEFAULT:
+                // user has permission to create project on an organization level
+                return user.ability.can(
+                    'create',
+                    subject('Project', {
+                        organizationUuid: user.organizationUuid,
+                        type: ProjectType.DEFAULT,
+                    }),
+                );
+            case ProjectType.PREVIEW:
+                return (
+                    // user has permission to create preview project on an organization level
+                    user.ability.can(
+                        'create',
+                        subject('Project', {
+                            organizationUuid: user.organizationUuid,
+                            type: ProjectType.PREVIEW,
+                        }),
+                    ) ||
+                    // user has permission to create preview project on a project level
+                    user.ability.can(
+                        'create',
+                        subject('Project', {
+                            upstreamProjectUuid: data.upstreamProjectUuid,
+                            type: ProjectType.PREVIEW,
+                        }),
+                    )
+                );
+            default:
+                return assertUnreachable(
+                    data.type,
+                    `Unknown project type: ${data.type}`,
+                );
+        }
+    }
+
     private async _resolveWarehouseClientSshKeys<
         T extends { warehouseConnection: CreateWarehouseCredentials },
     >(args: T): Promise<T> {
@@ -424,16 +465,9 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } = user;
+
         if (
-            user.ability.cannot(
-                'create',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid: data.upstreamProjectUuid,
-                    type: data.type,
-                }),
-            )
+            !ProjectService.hasProjectOrPreviewProjectCreateAccess(user, data)
         ) {
             throw new ForbiddenError();
         }
@@ -466,23 +500,17 @@ export class ProjectService extends BaseService {
 
         let hasContentCopy = false;
 
-        if (data.upstreamProjectUuid) {
+        if (data.type === ProjectType.PREVIEW) {
+            if (!data.upstreamProjectUuid) {
+                throw new ParameterError(
+                    'upstreamProjectUuid must be provided for preview projects',
+                );
+            }
+
             try {
                 const projectSummary = await this.projectModel.getSummary(
                     data.upstreamProjectUuid,
                 );
-                if (
-                    user.ability.cannot(
-                        'create',
-                        subject('Project', {
-                            organizationUuid: projectSummary.organizationUuid,
-                            projectUuid: data.upstreamProjectUuid,
-                            type: data.type,
-                        }),
-                    )
-                ) {
-                    throw new ForbiddenError();
-                }
                 await this.copyUserAccessOnPreview(
                     data.upstreamProjectUuid,
                     projectUuid,
@@ -516,16 +544,9 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } = user;
+
         if (
-            user.ability.cannot(
-                'create',
-                subject('Job', { organizationUuid }),
-            ) ||
-            user.ability.cannot(
-                'create',
-                subject('Project', { organizationUuid }),
-            )
+            !ProjectService.hasProjectOrPreviewProjectCreateAccess(user, data)
         ) {
             throw new ForbiddenError();
         }
@@ -3931,20 +3952,6 @@ export class ProjectService extends BaseService {
         },
         context: RequestMethod,
     ): Promise<string> {
-        // We first check if the user has permission to create preview projects based on parent projectUuid
-        if (
-            user.ability.cannot(
-                'create',
-                subject('Project', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid,
-                    type: ProjectType.PREVIEW,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         // create preview project permissions are checked in `createWithoutCompile`
         const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,
@@ -3982,7 +3989,7 @@ export class ProjectService extends BaseService {
         return previewProject.project.projectUuid;
     }
 
-    /* 
+    /*
         Copy user permissions from upstream project
         if the user is a viewer in the org, but an editor in a project
         we want the user to also be an editor in the preview project

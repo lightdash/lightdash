@@ -1318,7 +1318,7 @@ describe('Project member permissions', () => {
                 ability.can(
                     'create',
                     subject('Project', {
-                        projectUuid,
+                        upstreamProjectUuid: projectUuid,
                         type: ProjectType.PREVIEW,
                     }),
                 ),
@@ -1327,7 +1327,7 @@ describe('Project member permissions', () => {
                 ability.can(
                     'create',
                     subject('Project', {
-                        projectUuid,
+                        upstreamProjectUuid: projectUuid,
                         type: ProjectType.DEFAULT,
                     }),
                 ),
@@ -1340,7 +1340,7 @@ describe('Project member permissions', () => {
                 ability.can(
                     'create',
                     subject('Project', {
-                        projectUuid,
+                        upstreamProjectUuid: projectUuid,
                         type: ProjectType.PREVIEW,
                     }),
                 ),
@@ -1349,7 +1349,7 @@ describe('Project member permissions', () => {
                 ability.can(
                     'create',
                     subject('Project', {
-                        projectUuid,
+                        upstreamProjectUuid: projectUuid,
                         type: ProjectType.DEFAULT,
                     }),
                 ),
@@ -1362,7 +1362,7 @@ describe('Project member permissions', () => {
                 ability.can(
                     'create',
                     subject('Project', {
-                        projectUuid,
+                        upstreamProjectUuid: projectUuid,
                         type: ProjectType.PREVIEW,
                     }),
                 ),
@@ -1371,19 +1371,22 @@ describe('Project member permissions', () => {
                 ability.can(
                     'create',
                     subject('Project', {
-                        projectUuid,
+                        upstreamProjectUuid: projectUuid,
                         type: ProjectType.DEFAULT,
                     }),
                 ),
             ).toEqual(false);
         });
-        it('admins can create preview and regular projects', () => {
+
+        // only organization admins can create regular projects
+        // we no longer support project admins creating regular projects as it doesn't make sense
+        it('admins can create preview but no regular projects', () => {
             ability = defineAbilityForProjectMember(PROJECT_ADMIN);
             expect(
                 ability.can(
                     'create',
                     subject('Project', {
-                        projectUuid,
+                        upstreamProjectUuid: projectUuid,
                         type: ProjectType.PREVIEW,
                     }),
                 ),
@@ -1392,11 +1395,11 @@ describe('Project member permissions', () => {
                 ability.can(
                     'create',
                     subject('Project', {
-                        projectUuid,
+                        upstreamProjectUuid: projectUuid,
                         type: ProjectType.DEFAULT,
                     }),
                 ),
-            ).toEqual(true);
+            ).toEqual(false);
         });
     });
 });
