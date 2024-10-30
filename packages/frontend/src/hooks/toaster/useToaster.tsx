@@ -64,7 +64,7 @@ const ApiErrorDisplay = ({ apiError }: { apiError: ApiErrorDetail }) => {
             </Group>
         </Stack>
     ) : (
-        apiError.message
+        <>{apiError.message}</>
     );
 };
 
