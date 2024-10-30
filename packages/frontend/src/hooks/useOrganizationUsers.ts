@@ -4,7 +4,13 @@ import {
     type KnexPaginateArgs,
     type OrganizationMemberProfileUpdate,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useInfiniteQuery,
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseInfiniteQueryOptions,
+} from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import { lightdashApi } from '../api';
 import { useApp } from '../providers/AppProvider';
@@ -77,7 +83,11 @@ export const useOrganizationUsers = (params?: {
     );
 };
 
-export const usePaginatedOrganizationUsers = (params: {
+export const usePaginatedOrganizationUsers = ({
+    searchInput,
+    includeGroups,
+    paginateArgs,
+}: {
     searchInput?: string;
     includeGroups?: number;
     paginateArgs?: KnexPaginateArgs;
@@ -86,18 +96,62 @@ export const usePaginatedOrganizationUsers = (params: {
     return useQuery<ApiOrganizationMemberProfiles['results'], ApiError>({
         queryKey: [
             'organization_users',
-            params.includeGroups,
-            params.paginateArgs,
-            params.searchInput,
+            includeGroups,
+            paginateArgs,
+            searchInput,
         ],
         queryFn: () =>
-            getOrganizationUsersQuery(
-                params.includeGroups,
-                params.paginateArgs,
-                params.searchInput,
-            ),
+            getOrganizationUsersQuery(includeGroups, paginateArgs, searchInput),
         onError: (result) => setErrorResponse(result),
     });
+};
+
+export const useInfiniteOrganizationUsers = (
+    {
+        searchInput,
+        includeGroups,
+        pageSize,
+    }: {
+        searchInput?: string;
+        includeGroups?: number;
+        pageSize: number;
+    },
+    infinityQueryOpts: UseInfiniteQueryOptions<
+        ApiOrganizationMemberProfiles['results'],
+        ApiError
+    > = {},
+) => {
+    const setErrorResponse = useQueryError();
+    return useInfiniteQuery<ApiOrganizationMemberProfiles['results'], ApiError>(
+        {
+            queryKey: [
+                'organization_users',
+                includeGroups,
+                pageSize,
+                searchInput,
+            ],
+            queryFn: ({ pageParam }) => {
+                return getOrganizationUsersQuery(
+                    includeGroups,
+                    {
+                        pageSize: pageSize,
+                        page: pageParam ?? 1,
+                    },
+                    searchInput,
+                );
+            },
+            onError: (result) => setErrorResponse(result),
+            getNextPageParam: (lastPage) => {
+                if (lastPage.pagination) {
+                    return lastPage.pagination.page <
+                        lastPage.pagination.totalPageCount
+                        ? lastPage.pagination.page + 1
+                        : undefined;
+                }
+            },
+            ...infinityQueryOpts,
+        },
+    );
 };
 
 export const useDeleteOrganizationUserMutation = () => {

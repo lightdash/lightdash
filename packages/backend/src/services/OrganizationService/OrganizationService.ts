@@ -532,19 +532,29 @@ export class OrganizationService extends BaseService {
     async listGroupsInOrganization(
         actor: SessionUser,
         includeMembers?: number,
-    ): Promise<Group[] | GroupWithMembers[]> {
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+    ): Promise<KnexPaginatedData<Group[] | GroupWithMembers[]>> {
         if (actor.organizationUuid === undefined) {
             throw new ForbiddenError();
         }
-        const groups = await this.groupsModel.find({
-            organizationUuid: actor.organizationUuid,
-        });
+        const { pagination, data: groups } = await this.groupsModel.find(
+            {
+                organizationUuid: actor.organizationUuid,
+                searchQuery,
+            },
+            paginateArgs,
+        );
+
         const allowedGroups = groups.filter((group) =>
             actor.ability.can('view', subject('Group', group)),
         );
 
         if (includeMembers === undefined) {
-            return allowedGroups;
+            return {
+                pagination,
+                data: allowedGroups,
+            };
         }
 
         const groupsWithMembers = await Promise.all(
@@ -556,6 +566,9 @@ export class OrganizationService extends BaseService {
             ),
         );
 
-        return groupsWithMembers;
+        return {
+            pagination,
+            data: groupsWithMembers,
+        };
     }
 }

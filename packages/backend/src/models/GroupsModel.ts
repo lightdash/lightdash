@@ -8,19 +8,27 @@ import {
     ProjectGroupAccess,
     UnexpectedDatabaseError,
     UpdateGroupWithMembers,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { uniq } from 'lodash';
 import differenceBy from 'lodash/differenceBy';
 import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
-import { OrganizationTableName } from '../database/entities/organizations';
+import type { DbGroup } from '../database/entities/groups';
+import {
+    OrganizationTableName,
+    type DbOrganization,
+} from '../database/entities/organizations';
 import {
     DBProjectGroupAccess,
     ProjectGroupAccessTableName,
     UpdateDBProjectGroupAccess,
 } from '../database/entities/projectGroupAccess';
 import { UserTableName } from '../database/entities/users';
+import KnexPaginate from '../database/pagination';
+import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
 
 export class GroupsModel {
     database: Knex;
@@ -29,27 +37,45 @@ export class GroupsModel {
         this.database = args.database;
     }
 
-    async find(filters: { organizationUuid: string }): Promise<Group[]> {
-        const query = this.database('groups')
+    async find(
+        filters: { organizationUuid: string; searchQuery?: string },
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<Group[]>> {
+        let query = this.database('groups')
             .innerJoin(
                 'organizations',
                 'groups.organization_id',
                 'organizations.organization_id',
             )
-            .select();
+            .select<(DbGroup & DbOrganization)[]>();
+
         if (filters.organizationUuid) {
-            void query.where(
+            query = query.where(
                 'organizations.organization_uuid',
                 filters.organizationUuid,
             );
         }
-        const groups = await query;
-        return groups.map((group) => ({
-            uuid: group.group_uuid,
-            name: group.name,
-            createdAt: group.created_at,
-            organizationUuid: group.organization_uuid,
-        }));
+
+        if (filters.searchQuery) {
+            query = getColumnMatchRegexQuery(query, filters.searchQuery, [
+                'name',
+            ]);
+        }
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            pagination,
+            data: data.map((group) => ({
+                uuid: group.group_uuid,
+                name: group.name,
+                createdAt: group.created_at,
+                organizationUuid: group.organization_uuid,
+            })),
+        };
     }
 
     async createGroup(

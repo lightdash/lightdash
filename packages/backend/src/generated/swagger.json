@@ -424,12 +424,16 @@
                             },
                             {
                                 "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "totalPageCount": {
                                         "type": "number",
                                         "format": "double"
                                     }
                                 },
-                                "required": ["totalPageCount"],
+                                "required": ["totalResults", "totalPageCount"],
                                 "type": "object"
                             }
                         ]
@@ -3969,12 +3973,16 @@
                             },
                             {
                                 "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "totalPageCount": {
                                         "type": "number",
                                         "format": "double"
                                     }
                                 },
-                                "required": ["totalPageCount"],
+                                "required": ["totalResults", "totalPageCount"],
                                 "type": "object"
                             }
                         ]
@@ -4208,9 +4216,30 @@
                     }
                 ]
             },
-            "ApiGroupListResponse": {
+            "KnexPaginatedData_Group-Array-or-GroupWithMembers-Array_": {
                 "properties": {
-                    "results": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
                         "anyOf": [
                             {
                                 "items": {
@@ -4225,6 +4254,15 @@
                                 "type": "array"
                             }
                         ]
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiGroupListResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_Group-Array-or-GroupWithMembers-Array_"
                     },
                     "status": {
                         "type": "string",
@@ -9713,12 +9751,16 @@
                             },
                             {
                                 "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "totalPageCount": {
                                         "type": "number",
                                         "format": "double"
                                     }
                                 },
-                                "required": ["totalPageCount"],
+                                "required": ["totalResults", "totalPageCount"],
                                 "type": "object"
                             }
                         ]
@@ -10721,7 +10763,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1319.0",
+        "version": "0.1324.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13166,6 +13208,24 @@
                 "security": [],
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
                         "description": "number of members to include",
                         "in": "query",
                         "name": "includeMembers",
@@ -13173,6 +13233,14 @@
                         "schema": {
                             "format": "double",
                             "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "searchQuery",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]

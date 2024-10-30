@@ -50,7 +50,9 @@ describe('Groups API', () => {
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(
-                resp.body.results.find((group) => group.name === 'Org A Group'),
+                resp.body.results.data.find(
+                    (group) => group.name === 'Org A Group',
+                ),
             ).to.not.eq(undefined); // Depends on a previous test
         });
     });
@@ -62,7 +64,7 @@ describe('Groups API', () => {
             method: 'GET',
         }).then((resp) => {
             expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.length(0);
+            expect(resp.body.results.data).to.length(0);
         });
     });
 
