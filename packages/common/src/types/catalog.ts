@@ -35,6 +35,7 @@ export type ApiCatalogSearch = {
     type?: CatalogType;
     filter?: CatalogFilter;
 };
+
 export type CatalogField = Pick<
     Field,
     'name' | 'label' | 'fieldType' | 'tableLabel' | 'description'

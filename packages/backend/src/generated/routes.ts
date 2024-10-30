@@ -524,6 +524,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSortDirection: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['asc'] },
+                { dataType: 'enum', enums: ['desc'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCreateComment: {
         dataType: 'refAlias',
         type: {
@@ -10067,6 +10079,8 @@ export function RegisterRoutes(app: express.Router) {
                 search: { in: 'query', name: 'search', dataType: 'string' },
                 page: { in: 'query', name: 'page', dataType: 'double' },
                 pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+                sort: { in: 'query', name: 'sort', dataType: 'string' },
+                order: { in: 'query', name: 'order', ref: 'ApiSortDirection' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

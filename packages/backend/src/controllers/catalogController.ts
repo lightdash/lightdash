@@ -5,6 +5,7 @@ import {
     ApiCatalogSearch,
     ApiErrorPayload,
     ApiMetricsCatalog,
+    type ApiSort,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
@@ -160,6 +161,8 @@ export class CatalogController extends BaseController {
         @Query() search?: ApiCatalogSearch['search'],
         @Query() page?: number,
         @Query() pageSize?: number,
+        @Query() sort?: ApiSort['sort'],
+        @Query() order?: ApiSort['order'],
     ): Promise<ApiMetricsCatalog> {
         this.setStatus(200);
 
@@ -171,9 +174,24 @@ export class CatalogController extends BaseController {
                   }
                 : undefined;
 
+        const sortArgs: ApiSort | undefined = sort
+            ? {
+                  sort,
+                  order,
+              }
+            : undefined;
+
         const results = await this.services
             .getCatalogService()
-            .getMetricsCatalog(req.user!, projectUuid, paginateArgs, search);
+            .getMetricsCatalog(
+                req.user!,
+                projectUuid,
+                paginateArgs,
+                {
+                    search,
+                },
+                sortArgs,
+            );
 
         return {
             status: 'ok',

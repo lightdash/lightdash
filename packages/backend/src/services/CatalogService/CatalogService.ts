@@ -19,6 +19,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UserAttributeValueMap,
+    type ApiSort,
     type CatalogFieldWithAnalytics,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -190,6 +191,7 @@ export class CatalogService<
         type?: CatalogType,
         filter?: CatalogFilter,
         paginateArgs?: KnexPaginateArgs,
+        sortArgs?: ApiSort,
     ): Promise<KnexPaginatedData<(CatalogTable | CatalogField)[]>> {
         const tablesConfiguration =
             await this.projectModel.getTablesConfiguration(projectUuid);
@@ -214,6 +216,7 @@ export class CatalogService<
                             paginateArgs,
                             tablesConfiguration,
                             userAttributes,
+                            sortArgs,
                         }),
                 ),
         );
@@ -489,7 +492,8 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
-        search?: string,
+        { search }: ApiCatalogSearch = {},
+        sortArgs?: ApiSort,
     ): Promise<KnexPaginatedData<CatalogFieldWithAnalytics[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -517,6 +521,7 @@ export class CatalogService<
             CatalogType.Field,
             CatalogFilter.Metrics,
             paginateArgs,
+            sortArgs,
         );
 
         const { data: catalogMetrics, pagination } = paginatedCatalogMetrics;
