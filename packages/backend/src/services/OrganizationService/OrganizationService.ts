@@ -495,27 +495,11 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const group = await this.groupsModel.createGroup({
+        const groupWithMembers = await this.groupsModel.createGroup({
             organizationUuid: actor.organizationUuid,
             ...createGroup,
         });
 
-        if (createGroup.members === undefined) {
-            return group;
-        }
-
-        await Promise.all(
-            createGroup.members.map((member) =>
-                this.groupsModel.addGroupMember({
-                    groupUuid: group.uuid,
-                    userUuid: member.userUuid,
-                }),
-            ),
-        );
-
-        const groupWithMembers = await this.groupsModel.getGroupWithMembers(
-            group.uuid,
-        );
         this.analytics.track({
             userId: actor.userUuid,
             event: 'group.created',
