@@ -347,12 +347,31 @@ export class OrganizationController extends BaseController {
     @OperationId('ListGroupsInOrganization')
     async listGroupsInOrganization(
         @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
         @Query() includeMembers?: number,
+        @Query() searchQuery?: string,
     ): Promise<ApiGroupListResponse> {
+        let paginateArgs: KnexPaginateArgs | undefined;
+
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize,
+            };
+        }
+
         const groups = await this.services
             .getOrganizationService()
-            .listGroupsInOrganization(req.user!, includeMembers);
+            .listGroupsInOrganization(
+                req.user!,
+                includeMembers,
+                paginateArgs,
+                searchQuery,
+            );
+
         this.setStatus(200);
+
         return {
             status: 'ok',
             results: groups,

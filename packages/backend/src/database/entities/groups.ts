@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 
-type DbGroup = {
+export type DbGroup = {
     group_uuid: string;
     name: string;
     created_at: Date;

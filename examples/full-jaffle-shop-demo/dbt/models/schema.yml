@@ -51,7 +51,7 @@ models:
           dimension:
             type: number
             required_attributes:
-              is_admin: 'true'
+              is_admin: "true"
           metrics:
             average_age:
               type: average
@@ -159,14 +159,14 @@ models:
         meta:
           dimension:
             type: date
-            time_intervals: ['DAY', 'WEEK', 'MONTH', 'YEAR']
+            time_intervals: ["DAY", "WEEK", "MONTH", "YEAR"]
           metrics:
             date_of_first_order:
               type: min
             date_of_most_recent_order:
               type: max
       - name: status
-        description: "{{ doc(\"orders_status\") }}"
+        description: '{{ doc("orders_status") }}'
         meta:
           dimension:
             colors:

@@ -653,6 +653,7 @@ export const ContentPanel: FC = () => {
                             display: hideResultsPanel ? 'none' : 'flex',
                             flexDirection: 'column',
                         }}
+                        className="sentry-block ph-no-capture"
                     >
                         <Box
                             h="100%"

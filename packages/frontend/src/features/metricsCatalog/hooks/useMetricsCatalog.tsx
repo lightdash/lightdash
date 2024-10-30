@@ -1,48 +1,69 @@
-import { type ApiMetricsCatalogResults } from '@lightdash/common';
+import {
+    type ApiError,
+    type ApiMetricsCatalog,
+    type KnexPaginateArgs,
+} from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
 type UseMetricsCatalogOptions = {
-    projectUuid: string;
+    projectUuid?: string;
     search?: string;
-    pageSize?: number;
-    enabled?: boolean;
 };
-
-const DEFAULT_PAGE_SIZE = 25;
 
 const getMetricsCatalog = async ({
     projectUuid,
-}: // search,
-// pageParam = 0, // Changed from page to pageParam
-// pageSize,
-UseMetricsCatalogOptions & { pageParam?: number }) =>
-    lightdashApi<ApiMetricsCatalogResults>({
+    search,
+    paginateArgs,
+}: {
+    projectUuid: string;
+    search?: string;
+    paginateArgs?: KnexPaginateArgs;
+}) => {
+    const urlParams = new URLSearchParams({
+        ...(paginateArgs
+            ? {
+                  page: String(paginateArgs.page),
+                  pageSize: String(paginateArgs.pageSize),
+              }
+            : {}),
+        ...(search ? { search } : {}),
+    }).toString();
+
+    return lightdashApi<ApiMetricsCatalog['results']>({
+        url: `/projects/${projectUuid}/dataCatalog/metrics${
+            urlParams ? `?${urlParams}` : ''
+        }`,
         method: 'GET',
-        url: `/projects/${projectUuid}/dataCatalog/metrics`,
         body: undefined,
-        // TODO: Add query parameters for pagination
-        // params: {
-        //     offset: pageParam * pageSize,
-        //     limit: pageSize,
-        //     search
-        // }
     });
+};
 
 export const useMetricsCatalog = ({
     projectUuid,
     search,
-    pageSize = DEFAULT_PAGE_SIZE,
-    enabled = true,
-}: UseMetricsCatalogOptions) => {
-    return useInfiniteQuery({
-        queryKey: ['metrics-catalog', projectUuid, search, pageSize],
+    pageSize,
+}: UseMetricsCatalogOptions & Pick<KnexPaginateArgs, 'pageSize'>) => {
+    return useInfiniteQuery<ApiMetricsCatalog['results'], ApiError>({
+        queryKey: ['metrics-catalog', projectUuid, pageSize, search],
         queryFn: ({ pageParam }) =>
-            getMetricsCatalog({ projectUuid, search, pageSize, pageParam }),
-        getNextPageParam: (_lastPage, allPages) => {
-            // TODO: Implement proper next page calculation based on API response
-            return allPages.length;
+            getMetricsCatalog({
+                projectUuid: projectUuid!, // projectUuid is only enabled if truthy
+                search,
+                paginateArgs: {
+                    page: pageParam ?? 1,
+                    pageSize,
+                },
+            }),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.pagination) {
+                return lastPage.pagination.page <
+                    lastPage.pagination.totalPageCount
+                    ? lastPage.pagination.page + 1
+                    : undefined;
+            }
         },
-        enabled: enabled && !!projectUuid,
+        enabled: !!projectUuid && (!!search ? search.length > 2 : true),
+        keepPreviousData: true,
     });
 };

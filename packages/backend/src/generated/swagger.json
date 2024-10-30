@@ -401,6 +401,68 @@
                 },
                 "type": "array"
             },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "KnexPaginatedData_ApiMetricsCatalogResults_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/ApiMetricsCatalogResults"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiMetricsCatalog": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_ApiMetricsCatalogResults_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSortDirection": {
+                "type": "string",
+                "enum": ["asc", "desc"]
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -3906,20 +3968,6 @@
                 "type": "object",
                 "description": "Profile for a user's membership in an organization"
             },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
-                "type": "object"
-            },
             "KnexPaginatedData_OrganizationMemberProfile-Array_": {
                 "properties": {
                     "pagination": {
@@ -3929,12 +3977,16 @@
                             },
                             {
                                 "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "totalPageCount": {
                                         "type": "number",
                                         "format": "double"
                                     }
                                 },
-                                "required": ["totalPageCount"],
+                                "required": ["totalResults", "totalPageCount"],
                                 "type": "object"
                             }
                         ]
@@ -4168,9 +4220,30 @@
                     }
                 ]
             },
-            "ApiGroupListResponse": {
+            "KnexPaginatedData_Group-Array-or-GroupWithMembers-Array_": {
                 "properties": {
-                    "results": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
                         "anyOf": [
                             {
                                 "items": {
@@ -4185,6 +4258,15 @@
                                 "type": "array"
                             }
                         ]
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiGroupListResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_Group-Array-or-GroupWithMembers-Array_"
                     },
                     "status": {
                         "type": "string",
@@ -9673,12 +9755,16 @@
                             },
                             {
                                 "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "totalPageCount": {
                                         "type": "number",
                                         "format": "double"
                                     }
                                 },
-                                "required": ["totalPageCount"],
+                                "required": ["totalResults", "totalPageCount"],
                                 "type": "object"
                             }
                         ]
@@ -10681,7 +10767,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1316.1",
+        "version": "0.1327.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -10967,18 +11053,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "results": {
-                                            "$ref": "#/components/schemas/ApiMetricsCatalogResults"
-                                        },
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["results", "status"],
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ApiMetricsCatalog"
                                 }
                             }
                         }
@@ -11030,6 +11105,22 @@
                         "schema": {
                             "format": "double",
                             "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/ApiSortDirection"
                         }
                     }
                 ]
@@ -13137,6 +13228,24 @@
                 "security": [],
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
                         "description": "number of members to include",
                         "in": "query",
                         "name": "includeMembers",
@@ -13144,6 +13253,14 @@
                         "schema": {
                             "format": "double",
                             "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "searchQuery",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
@@ -13381,6 +13498,15 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Whether to exclude charts that are saved in dashboards",
+                        "in": "query",
+                        "name": "excludeChartsSavedInDashboard",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
                         }
                     }
                 ]

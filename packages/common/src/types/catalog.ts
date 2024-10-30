@@ -9,6 +9,7 @@ import {
     type Field,
     type FieldType,
 } from './field';
+import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartSummary } from './savedCharts';
 import { type TableBase } from './table';
 
@@ -34,6 +35,7 @@ export type ApiCatalogSearch = {
     type?: CatalogType;
     filter?: CatalogFilter;
 };
+
 export type CatalogField = Pick<
     Field,
     'name' | 'label' | 'fieldType' | 'tableLabel' | 'description'
@@ -64,6 +66,11 @@ export type CatalogFieldWithAnalytics = CatalogField & {
     analytics: CatalogAnalytics;
 };
 export type ApiMetricsCatalogResults = CatalogFieldWithAnalytics[];
+
+export type ApiMetricsCatalog = {
+    status: 'ok';
+    results: KnexPaginatedData<ApiMetricsCatalogResults>;
+};
 
 export type CatalogMetadata = {
     name: string;

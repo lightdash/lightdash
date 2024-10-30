@@ -13,6 +13,7 @@ import {
     ExploreType,
     ForbiddenError,
     generateSlug,
+    getTimezoneLabel,
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
@@ -885,6 +886,7 @@ export class SavedChartService extends BaseService {
             dashboardUuid: null,
             savedChartUuid: chartUuid,
         });
+
         const createSchedulerEventData: SchedulerUpsertEvent = {
             userId: user.userUuid,
             event: 'scheduler.created',
@@ -908,6 +910,7 @@ export class SavedChartService extends BaseService {
                     scheduler.format === SchedulerFormat.GSHEETS
                         ? []
                         : scheduler.targets.map(getSchedulerTargetType),
+                timeZone: getTimezoneLabel(scheduler.timezone),
             },
         };
         this.analytics.track(createSchedulerEventData);

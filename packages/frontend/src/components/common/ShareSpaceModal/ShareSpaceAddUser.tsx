@@ -3,23 +3,36 @@ import {
     Avatar,
     Badge,
     Button,
+    Center,
     Group,
+    Loader,
     MultiSelect,
+    ScrollArea,
     Stack,
     Text,
     Tooltip,
+    type ScrollAreaProps,
     type SelectItem,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
-import { forwardRef, useCallback, useMemo, useState, type FC } from 'react';
-import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
-import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import {
+    forwardRef,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
+import { useInfiniteOrganizationGroups } from '../../../hooks/useOrganizationGroups';
+import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
 } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
+import { DEFAULT_PAGE_SIZE } from '../Table/types';
 import { UserAccessOptions } from './ShareSpaceSelect';
 import { getInitials, getUserNameOrEmail } from './Utils';
 
@@ -34,15 +47,52 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 }) => {
     const [usersSelected, setUsersSelected] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const { data: projectAccess } = useProjectAccess(projectUuid);
-    const { data: organizationUsers } = useOrganizationUsers();
-    const { data: groups } = useOrganizationGroups({ includeMembers: 1 });
+    const selectScrollRef = useRef<HTMLDivElement>(null);
     const { mutateAsync: shareSpaceMutation } = useAddSpaceShareMutation(
         projectUuid,
         space.uuid,
     );
     const { mutateAsync: shareGroupSpaceMutation } =
         useAddGroupSpaceShareMutation(projectUuid, space.uuid);
+
+    const {
+        data: infiniteOrganizationGroups,
+        fetchNextPage: fetchGroupsNextPage,
+        hasNextPage: hasGroupsNextPage,
+        isFetching: isGroupsFetching,
+    } = useInfiniteOrganizationGroups(
+        {
+            searchInput: debouncedSearchQuery,
+            includeMembers: 1,
+            pageSize: DEFAULT_PAGE_SIZE,
+        },
+        { keepPreviousData: true },
+    );
+
+    const {
+        data: infiniteOrganizationUsers,
+        fetchNextPage: fetchUsersNextPage,
+        hasNextPage: hasUsersNextPage,
+        isFetching: isUsersFetching,
+    } = useInfiniteOrganizationUsers(
+        {
+            searchInput: debouncedSearchQuery,
+            pageSize: DEFAULT_PAGE_SIZE,
+        },
+        { keepPreviousData: true },
+    );
+
+    const organizationUsers = useMemo(
+        () => infiniteOrganizationUsers?.pages.map((p) => p.data).flat(),
+        [infiniteOrganizationUsers?.pages],
+    );
+
+    const groups = useMemo(
+        () => infiniteOrganizationGroups?.pages.map((p) => p.data).flat(),
+        [infiniteOrganizationGroups?.pages],
+    );
 
     const userUuids: string[] = useMemo(() => {
         if (organizationUsers === undefined) return [];
@@ -186,17 +236,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         space.groupsAccess,
     ]);
 
-    const filterByNameOrEmail = useCallback(
-        (value: string, selected: boolean, item: SelectItem) => {
-            if (selected) return true;
-            return (
-                item.label?.toLowerCase().includes(value.toLowerCase()) ||
-                (item.email &&
-                    item.email.toLowerCase().includes(value.toLowerCase()))
-            );
-        },
-        [],
-    );
+    useEffect(() => {
+        selectScrollRef.current?.scrollTo({
+            top: selectScrollRef.current?.scrollHeight,
+        });
+    }, [data]);
 
     return (
         <Group>
@@ -215,7 +259,46 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 onChange={setUsersSelected}
                 data={data}
                 itemComponent={UserItemComponent}
-                filter={filterByNameOrEmail}
+                maxDropdownHeight={300}
+                dropdownComponent={({ children, ...rest }: ScrollAreaProps) => (
+                    <ScrollArea {...rest} viewportRef={selectScrollRef}>
+                        {isUsersFetching || isGroupsFetching ? (
+                            <Center h={300}>
+                                <Loader size="md" />
+                            </Center>
+                        ) : (
+                            <>
+                                {children}
+                                {(hasUsersNextPage || hasGroupsNextPage) && (
+                                    <Button
+                                        size="xs"
+                                        variant="white"
+                                        onClick={async () => {
+                                            await Promise.all([
+                                                fetchGroupsNextPage(),
+                                                fetchUsersNextPage(),
+                                            ]);
+                                        }}
+                                        disabled={
+                                            isUsersFetching || isGroupsFetching
+                                        }
+                                    >
+                                        <Text>Load more</Text>
+                                    </Button>
+                                )}
+                            </>
+                        )}
+                    </ScrollArea>
+                )}
+                filter={(searchString, selected, item) => {
+                    return Boolean(
+                        item.group === 'Users' ||
+                            selected ||
+                            item.label
+                                ?.toLowerCase()
+                                .includes(searchString.toLowerCase()),
+                    );
+                }}
             />
 
             <Button

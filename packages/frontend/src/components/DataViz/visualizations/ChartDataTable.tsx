@@ -59,6 +59,7 @@ export const ChartDataTable = ({
                 flexGrow: 1,
                 ...flexProps?.sx,
             }}
+            className="sentry-block ph-no-capture"
         >
             <TableStyled>
                 <thead>

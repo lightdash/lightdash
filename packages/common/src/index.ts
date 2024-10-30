@@ -113,11 +113,13 @@ import { type ValidationResponse } from './types/validation';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
+    type ApiMetricsCatalog,
 } from './types/catalog';
 import {
     type ApiChartContentResponse,
     type ApiContentResponse,
 } from './types/content';
+import type { ApiGroupListResponse } from './types/groups';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiSemanticLayerClientInfo,
@@ -156,6 +158,7 @@ export * from './types/api/comments';
 export * from './types/api/errors';
 export * from './types/api/notifications';
 export * from './types/api/share';
+export * from './types/api/sort';
 export * from './types/api/success';
 export * from './types/api/uuid';
 export * from './types/catalog';
@@ -685,7 +688,9 @@ type ApiResults =
     | ApiSemanticViewerChartGet['results']
     | ApiSemanticViewerChartUpdate['results']
     | ApiCreateVirtualView['results']
-    | ApiGithubDbtWritePreview['results'];
+    | ApiGithubDbtWritePreview['results']
+    | ApiMetricsCatalog['results']
+    | ApiGroupListResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

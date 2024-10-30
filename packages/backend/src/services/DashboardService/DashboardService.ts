@@ -893,6 +893,7 @@ export class DashboardService extends BaseService {
                     isDashboardScheduler(scheduler) && scheduler.filters
                         ? scheduler.filters.length
                         : 0,
+                timeZone: scheduler.timezone,
             },
         };
         this.analytics.track(createSchedulerData);

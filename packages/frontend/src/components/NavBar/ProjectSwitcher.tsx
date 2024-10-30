@@ -25,6 +25,12 @@ import { useProjects } from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
 import { Can } from '../common/Authorization';
 
+const MENU_TEXT_PROPS = {
+    c: 'gray.2',
+    fz: 'xs',
+    fw: 500,
+};
+
 const CreatePreviewModal = ({
     isOpened,
     onClose,
@@ -104,15 +110,14 @@ const InactiveProjectItem: FC<{
                 >
                     <Text
                         ref={truncatedRef}
-                        c="gray.2"
-                        fz="xs"
-                        fw={500}
+                        {...MENU_TEXT_PROPS}
                         truncate
                         maw={350}
                     >
                         {item.name}
                     </Text>
                 </Tooltip>
+
                 {item.type === ProjectType.PREVIEW && (
                     <Badge
                         color="yellow.1"
@@ -239,6 +244,7 @@ const ProjectSwitcher = () => {
         if (!activeProjectUuid || !projects) return [];
         return projects.filter((p) => p.projectUuid !== activeProjectUuid);
     }, [activeProjectUuid, projects]);
+
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
     const { user } = useApp();
 
@@ -296,6 +302,7 @@ const ProjectSwitcher = () => {
                             handleProjectChange={handleProjectChange}
                         />
                     ))}
+
                     {activeProject && (
                         <Can
                             I="create"
@@ -313,7 +320,7 @@ const ProjectSwitcher = () => {
                                     e.stopPropagation();
                                 }}
                             >
-                                <Text fz="xs" fw={500}>
+                                <Text {...MENU_TEXT_PROPS}>
                                     + Create preview
                                 </Text>
                             </Menu.Item>
@@ -321,6 +328,7 @@ const ProjectSwitcher = () => {
                     )}
                 </Menu.Dropdown>
             </Menu>
+
             {activeProject && (
                 <CreatePreviewModal
                     isOpened={isCreatePreviewOpen}

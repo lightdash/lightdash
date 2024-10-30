@@ -59,6 +59,7 @@ const ChartView = memo<Props>(
 
                 {spec && (
                     <EChartsReact
+                        className="sentry-block ph-no-capture"
                         option={spec}
                         notMerge
                         opts={{ renderer: 'svg' }}

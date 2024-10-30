@@ -19,9 +19,10 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UserAttributeValueMap,
-    type ApiMetricsCatalogResults,
+    type ApiSort,
     type CatalogFieldWithAnalytics,
     type KnexPaginateArgs,
+    type KnexPaginatedData,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -189,7 +190,9 @@ export class CatalogService<
         query?: string,
         type?: CatalogType,
         filter?: CatalogFilter,
-    ): Promise<(CatalogTable | CatalogField)[]> {
+        paginateArgs?: KnexPaginateArgs,
+        sortArgs?: ApiSort,
+    ): Promise<KnexPaginatedData<(CatalogTable | CatalogField)[]>> {
         const tablesConfiguration =
             await this.projectModel.getTablesConfiguration(projectUuid);
 
@@ -200,8 +203,8 @@ export class CatalogService<
                 userAttributesSize: Object.keys(userAttributes).length,
                 query,
             },
-            async () => {
-                const catalog = await wrapSentryTransaction(
+            async () =>
+                wrapSentryTransaction(
                     'CatalogService.searchCatalog.modelSearch',
                     {},
                     async () =>
@@ -210,36 +213,12 @@ export class CatalogService<
                             searchQuery: query,
                             filter,
                             type,
-                        }),
-                );
-                // Filter table selection
-                const catalogFiltered = catalog.filter((c) => {
-                    if (c.type === CatalogType.Table)
-                        return CatalogService.isExploreFiltered(
+                            paginateArgs,
                             tablesConfiguration,
-                            c,
-                        );
-                    return CatalogService.isExploreFiltered(
-                        tablesConfiguration,
-                        { name: c.tableName, tags: c.tags },
-                    );
-                });
-
-                // Filter required attributes
-                return wrapSentryTransaction(
-                    'CatalogService.searchCatalog.filterAttributes',
-                    {
-                        catalogSize: catalog.length,
-                    },
-                    async () =>
-                        catalogFiltered.filter((c) =>
-                            hasUserAttributes(
-                                c.requiredAttributes,
-                                userAttributes,
-                            ),
-                        ),
-                );
-            },
+                            userAttributes,
+                            sortArgs,
+                        }),
+                ),
         );
     }
 
@@ -247,7 +226,7 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
         { search, type, filter }: ApiCatalogSearch,
-    ) {
+    ): Promise<KnexPaginatedData<(CatalogField | CatalogTable)[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -263,9 +242,13 @@ export class CatalogService<
         const explores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
+
         if (!explores) {
-            return [];
+            return {
+                data: [],
+            };
         }
+
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
@@ -312,18 +295,24 @@ export class CatalogService<
                 filter,
             );
         }
-        if (type === CatalogType.Field)
-            return CatalogService.getCatalogFields(
-                filteredExplores,
-                userAttributes,
-            );
+
+        if (type === CatalogType.Field) {
+            return {
+                data: await CatalogService.getCatalogFields(
+                    filteredExplores,
+                    userAttributes,
+                ),
+            };
+        }
 
         // all tables
-        return this.getCatalogTables(
-            projectUuid,
-            filteredExplores,
-            userAttributes,
-        );
+        return {
+            data: await this.getCatalogTables(
+                projectUuid,
+                filteredExplores,
+                userAttributes,
+            ),
+        };
     }
 
     async getMetadata(user: SessionUser, projectUuid: string, table: string) {
@@ -502,9 +491,10 @@ export class CatalogService<
     async getMetricsCatalog(
         user: SessionUser,
         projectUuid: string,
-        _paginateArgs?: KnexPaginateArgs, // TODO: Pagination on `searchCatalog`
-        search?: string,
-    ): Promise<CatalogFieldWithAnalytics[]> {
+        paginateArgs?: KnexPaginateArgs,
+        { search }: ApiCatalogSearch = {},
+        sortArgs?: ApiSort,
+    ): Promise<KnexPaginatedData<CatalogFieldWithAnalytics[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -524,17 +514,21 @@ export class CatalogService<
                 userUuid: user.userUuid,
             });
 
-        const catalogMetrics = await this.searchCatalog(
+        const paginatedCatalogMetrics = await this.searchCatalog(
             projectUuid,
             userAttributes,
             search,
             CatalogType.Field,
             CatalogFilter.Metrics,
+            paginateArgs,
+            sortArgs,
         );
+
+        const { data: catalogMetrics, pagination } = paginatedCatalogMetrics;
 
         const analyticsPromises = catalogMetrics
             .filter(
-                (item): item is CatalogField => item.type === CatalogType.Field,
+                (item): item is CatalogField => item.type === CatalogType.Field, // This is for type narrowing the values returned from `searchCatalog`
             )
             .map<Promise<CatalogFieldWithAnalytics>>(async (metric) => ({
                 ...metric,
@@ -546,6 +540,9 @@ export class CatalogService<
                 ),
             }));
 
-        return Promise.all(analyticsPromises);
+        return {
+            pagination,
+            data: await Promise.all(analyticsPromises),
+        };
     }
 }

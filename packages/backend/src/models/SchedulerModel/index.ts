@@ -62,7 +62,7 @@ export class SchedulerModel {
             updatedAt: scheduler.updated_at,
             createdBy: scheduler.created_by,
             cron: scheduler.cron,
-            timezone: scheduler.timezone,
+            timezone: scheduler.timezone ?? undefined,
             savedChartUuid: scheduler.saved_chart_uuid,
             dashboardUuid: scheduler.dashboard_uuid,
             format: scheduler.format,

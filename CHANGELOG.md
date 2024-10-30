@@ -1,3 +1,106 @@
+# [0.1329.0](https://github.com/lightdash/lightdash/compare/0.1328.1...0.1329.0) (2024-10-30)
+
+
+### Features
+
+* stacking error list ([#12162](https://github.com/lightdash/lightdash/issues/12162)) ([9248153](https://github.com/lightdash/lightdash/commit/9248153064b92b76ff311e5400e5b2d210447b32))
+
+## [0.1328.1](https://github.com/lightdash/lightdash/compare/0.1328.0...0.1328.1) (2024-10-30)
+
+
+### Bug Fixes
+
+* group members map unsafe access ([#12178](https://github.com/lightdash/lightdash/issues/12178)) ([a81e1b0](https://github.com/lightdash/lightdash/commit/a81e1b0761cd2212a4f9ef77472a9e1212866441))
+
+# [0.1328.0](https://github.com/lightdash/lightdash/compare/0.1327.1...0.1328.0) (2024-10-30)
+
+
+### Features
+
+* add sorting to dataCatalog/metrics endpoint ([#12172](https://github.com/lightdash/lightdash/issues/12172)) ([f8d6909](https://github.com/lightdash/lightdash/commit/f8d6909afebc65d991716bb9113970df278f1337))
+
+## [0.1327.1](https://github.com/lightdash/lightdash/compare/0.1327.0...0.1327.1) (2024-10-30)
+
+
+### Bug Fixes
+
+* building with tanstack react table type ([#12171](https://github.com/lightdash/lightdash/issues/12171)) ([9692e8c](https://github.com/lightdash/lightdash/commit/9692e8cd17daa1f6f9b2e1234da74a844d1df1a6))
+
+# [0.1327.0](https://github.com/lightdash/lightdash/compare/0.1326.1...0.1327.0) (2024-10-30)
+
+
+### Bug Fixes
+
+* paginate space share ([#12088](https://github.com/lightdash/lightdash/issues/12088)) ([547ad80](https://github.com/lightdash/lightdash/commit/547ad8083fc47a848b33110ea6a09f440c7b160f))
+
+
+### Features
+
+* open metric preview on click of metric in table ([#12161](https://github.com/lightdash/lightdash/issues/12161)) ([96b0bb0](https://github.com/lightdash/lightdash/commit/96b0bb09ed3bf877f6690202034a6ae0aa5f4782))
+
+## [0.1326.1](https://github.com/lightdash/lightdash/compare/0.1326.0...0.1326.1) (2024-10-30)
+
+
+### Bug Fixes
+
+* remove number metric total calculation on pivot ([#12152](https://github.com/lightdash/lightdash/issues/12152)) ([5bd7863](https://github.com/lightdash/lightdash/commit/5bd7863e332ba88bc5646cb3ec9d1562a35f95fe))
+
+# [0.1326.0](https://github.com/lightdash/lightdash/compare/0.1325.0...0.1326.0) (2024-10-29)
+
+
+### Features
+
+* allow searching metrics table ([#12160](https://github.com/lightdash/lightdash/issues/12160)) ([bf433bf](https://github.com/lightdash/lightdash/commit/bf433bf69e88f8e800bf0829ad00f2f994da7904))
+
+# [0.1325.0](https://github.com/lightdash/lightdash/compare/0.1324.0...0.1325.0) (2024-10-29)
+
+
+### Features
+
+* add infinite scroll to metrics table ([#12139](https://github.com/lightdash/lightdash/issues/12139)) ([1729a92](https://github.com/lightdash/lightdash/commit/1729a9288565322828959d38e16bfe437f8ec2f8))
+
+# [0.1324.0](https://github.com/lightdash/lightdash/compare/0.1323.0...0.1324.0) (2024-10-29)
+
+
+### Features
+
+* added totalCount to pagination response ([#12159](https://github.com/lightdash/lightdash/issues/12159)) ([142a019](https://github.com/lightdash/lightdash/commit/142a0198a0d0ef31406266c413a4575a1882db59))
+
+# [0.1323.0](https://github.com/lightdash/lightdash/compare/0.1322.0...0.1323.0) (2024-10-29)
+
+
+### Features
+
+* open usage chart in modal and let user open chart ([#12138](https://github.com/lightdash/lightdash/issues/12138)) ([22e51c6](https://github.com/lightdash/lightdash/commit/22e51c6b19332ce71f6484022fa9043626f66113))
+
+# [0.1322.0](https://github.com/lightdash/lightdash/compare/0.1321.0...0.1322.0) (2024-10-29)
+
+
+### Features
+
+* add pagination to /dataCatalog/metrics endpoint ([#12136](https://github.com/lightdash/lightdash/issues/12136)) ([e14460d](https://github.com/lightdash/lightdash/commit/e14460d51b20fb6c8a0f0b9d2370a43ad0d14087))
+
+# [0.1321.0](https://github.com/lightdash/lightdash/compare/0.1320.0...0.1321.0) (2024-10-29)
+
+
+### Features
+
+* project list ordering ([#12140](https://github.com/lightdash/lightdash/issues/12140)) ([53a9d88](https://github.com/lightdash/lightdash/commit/53a9d886fa2add9a247b0112fe0b2ead128ac543))
+
+# [0.1320.0](https://github.com/lightdash/lightdash/compare/0.1319.2...0.1320.0) (2024-10-29)
+
+
+### Features
+
+* **api:** include charts saved in dashboards in charts summary list by default ([#12137](https://github.com/lightdash/lightdash/issues/12137)) ([4f619a1](https://github.com/lightdash/lightdash/commit/4f619a162768aae3e6fda091b39f4c6b58783c54))
+
+## [0.1319.2](https://github.com/lightdash/lightdash/compare/0.1319.1...0.1319.2) (2024-10-29)
+
+
+### Bug Fixes
+
+* add classnames to sql runner tables ([#12134](https://github.com/lightdash/lightdash/issues/12134)) ([132f292](https://github.com/lightdash/lightdash/commit/132f292487b78ca0476c769d9dc743dfd1e3fd22))
+
 ## [0.1319.1](https://github.com/lightdash/lightdash/compare/0.1319.0...0.1319.1) (2024-10-28)
 
 

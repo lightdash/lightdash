@@ -63,6 +63,7 @@ export const Table = <T extends IResultsRunner>({
                 flexGrow: 1,
                 ...flexProps?.sx,
             }}
+            className="sentry-block ph-no-capture"
         >
             <TableStyled>
                 <thead>

@@ -23,6 +23,7 @@ import {
     UpdateOrganization,
     validateOrganizationEmailDomains,
 } from '@lightdash/common';
+import { groupBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GroupsModel } from '../../models/GroupsModel';
@@ -532,30 +533,47 @@ export class OrganizationService extends BaseService {
     async listGroupsInOrganization(
         actor: SessionUser,
         includeMembers?: number,
-    ): Promise<Group[] | GroupWithMembers[]> {
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+    ): Promise<KnexPaginatedData<Group[] | GroupWithMembers[]>> {
         if (actor.organizationUuid === undefined) {
             throw new ForbiddenError();
         }
-        const groups = await this.groupsModel.find({
-            organizationUuid: actor.organizationUuid,
-        });
+        const { pagination, data: groups } = await this.groupsModel.find(
+            {
+                organizationUuid: actor.organizationUuid,
+                searchQuery,
+            },
+            paginateArgs,
+        );
+
         const allowedGroups = groups.filter((group) =>
             actor.ability.can('view', subject('Group', group)),
         );
 
         if (includeMembers === undefined) {
-            return allowedGroups;
+            return {
+                pagination,
+                data: allowedGroups,
+            };
         }
 
-        const groupsWithMembers = await Promise.all(
-            allowedGroups.map((group) =>
-                this.groupsModel.getGroupWithMembers(
-                    group.uuid,
-                    includeMembers,
-                ),
-            ),
-        );
+        // fetch members for each group
+        const { data: groupMembers } = await this.groupsModel.findGroupMembers({
+            organizationUuid: actor.organizationUuid,
+            groupUuids: allowedGroups.map((group) => group.uuid),
+        });
+        const groupMembersMap = groupBy(groupMembers, 'groupUuid');
 
-        return groupsWithMembers;
+        return {
+            pagination,
+            data: allowedGroups.map<GroupWithMembers>((group) => ({
+                ...group,
+                members: groupMembersMap[group.uuid] || [],
+                memberUuids: (groupMembersMap[group.uuid] || []).map(
+                    (member) => member.userUuid,
+                ),
+            })),
+        };
     }
 }

@@ -1,8 +1,4 @@
-import {
-    formatMinutesOffset,
-    getTzMinutesOffset,
-    TimeZone,
-} from '@lightdash/common';
+import { getTimezoneLabel, TimeZone } from '@lightdash/common';
 import { Select, type SelectProps } from '@mantine/core';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
@@ -15,14 +11,7 @@ const TimeZonePicker: FC<TimeZonePickerProps> = (props) => {
             Object.keys(TimeZone)
                 .filter((key) => isNaN(Number(key)))
                 .map((key) => {
-                    const minsOffset = getTzMinutesOffset('UTC', key);
-                    const offsetString = formatMinutesOffset(minsOffset);
-                    const keyWithNoUnderscores = key.replaceAll('_', ' ');
-
-                    let labelText =
-                        key === 'UTC'
-                            ? keyWithNoUnderscores
-                            : `(UTC ${offsetString}) ${keyWithNoUnderscores}`;
+                    let labelText = getTimezoneLabel(key) || key;
 
                     labelText =
                         dayjs.tz.guess() === key

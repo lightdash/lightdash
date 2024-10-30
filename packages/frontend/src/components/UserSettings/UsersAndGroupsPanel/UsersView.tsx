@@ -378,7 +378,7 @@ const UsersView: FC = () => {
     const isGroupManagementEnabled = health.data.hasGroups;
 
     if (isLoadingUsers) {
-        return <LoadingState title="Loading users" />;
+        return <LoadingState title="Loading users" size="md" />;
     }
 
     return (

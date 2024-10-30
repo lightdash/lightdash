@@ -57,7 +57,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             </Button>
 
             <Modal
-                size="lg"
+                size="xl"
                 title={
                     <Group spacing="xs">
                         <MantineIcon size="lg" icon={IconFolderShare} />

@@ -53,6 +53,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
+    getTimezoneLabel,
     hasIntersection,
     IntrinsicUserAttributes,
     isCustomSqlDimension,
@@ -3731,6 +3732,7 @@ export class ProjectService extends BaseService {
     async getChartSummaries(
         user: SessionUser,
         projectUuid: string,
+        excludeChartsSavedInDashboard: boolean = false,
     ): Promise<ChartSummary[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -3765,6 +3767,7 @@ export class ProjectService extends BaseService {
         return this.savedChartModel.find({
             projectUuid,
             spaceUuids: allowedSpaceUuids,
+            excludeChartsSavedInDashboard,
         });
     }
 
@@ -4697,6 +4700,16 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 schedulerTimezone,
             );
+
+        this.analytics.track({
+            event: 'default_scheduler_timezone.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationUuid: project.organizationUuid,
+                timeZone: getTimezoneLabel(schedulerTimezone),
+            },
+        });
 
         return updatedProject;
     }

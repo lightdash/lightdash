@@ -14,6 +14,7 @@ const parseFieldFromMetricOrDimension = (
     table: CompiledTable,
     field: CompiledMetric | CompiledDimension,
     tags: string[],
+    requiredAttributes: Record<string, string | string[]> | undefined,
 ): CatalogField => ({
     name: field.name,
     label: field.label,
@@ -24,7 +25,7 @@ const parseFieldFromMetricOrDimension = (
     fieldType: field.fieldType,
     basicType: getBasicType(field),
     type: CatalogType.Field,
-    requiredAttributes: field?.requiredAttributes || table.requiredAttributes,
+    requiredAttributes,
     tags,
 });
 
@@ -36,7 +37,12 @@ export const parseFieldsFromCompiledTable = (
         ...Object.values(table.metrics),
     ].filter((f) => !f.hidden); // Filter out hidden fields from catalog
     return tableFields.map((field) =>
-        parseFieldFromMetricOrDimension(table, field, []),
+        parseFieldFromMetricOrDimension(
+            table,
+            field,
+            [],
+            field.requiredAttributes ?? table.requiredAttributes,
+        ),
     );
 };
 
@@ -52,7 +58,7 @@ export const parseCatalog = (
             groupLabel: dbCatalog.explore.groupLabel,
             description: dbCatalog.description || undefined,
             type: CatalogType.Table,
-            requiredAttributes: baseTable.requiredAttributes,
+            requiredAttributes: dbCatalog.required_attributes ?? undefined,
             tags: dbCatalog.explore.tags,
         };
     }
@@ -76,5 +82,6 @@ export const parseCatalog = (
         baseTable,
         findField,
         dbCatalog.explore.tags,
+        dbCatalog.required_attributes ?? undefined,
     );
 };
