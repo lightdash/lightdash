@@ -48,11 +48,12 @@ import {
     SqlRunnerPivotQueryPayload,
     ThresholdOperator,
     ThresholdOptions,
+    updateCatalogChartUsagesJob,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
+    type SchedulerUpdateCatalogChartUsagesPayload,
 } from '@lightdash/common';
-import { consoleLogFactory } from 'graphile-worker';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
 import {
@@ -73,6 +74,7 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import type { CatalogService } from '../services/CatalogService/CatalogService';
 import { CsvService } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
@@ -99,6 +101,7 @@ type SchedulerTaskArguments = {
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     semanticLayerService: SemanticLayerService;
+    catalogService: CatalogService;
 };
 
 type RunQueryTags = {
@@ -139,6 +142,8 @@ export default class SchedulerTask {
 
     private readonly semanticLayerService: SemanticLayerService;
 
+    private readonly catalogService: CatalogService;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -155,6 +160,7 @@ export default class SchedulerTask {
         this.schedulerClient = args.schedulerClient;
         this.slackClient = args.slackClient;
         this.semanticLayerService = args.semanticLayerService;
+        this.catalogService = args.catalogService;
     }
 
     protected async getChartOrDashboard(
@@ -1962,5 +1968,28 @@ export default class SchedulerTask {
             }
             throw e; // Cascade error to it can be retried by graphile
         }
+    }
+
+    protected async updateCatalogChartUsages(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SchedulerUpdateCatalogChartUsagesPayload,
+    ) {
+        await this.logWrapper(
+            {
+                task: updateCatalogChartUsagesJob,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                },
+            },
+            async () =>
+                this.catalogService.updateChartUsages(
+                    payload.projectUuid,
+                    payload.catalogFieldMap,
+                ),
+        );
     }
 }

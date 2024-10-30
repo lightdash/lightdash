@@ -9,6 +9,7 @@ import {
     TableSelectionType,
     UnexpectedServerError,
     type ApiSort,
+    type ChartSummary,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type TablesConfiguration,
@@ -253,5 +254,27 @@ export class CatalogModel {
         }
 
         return explores[0].explore;
+    }
+
+    async updateChartUsages(
+        projectUuid: string,
+        chartUsagesByFieldName: Record<string, number>,
+    ) {
+        await this.database.transaction(async (trx) => {
+            const updatePromises = Object.entries(chartUsagesByFieldName).map(
+                ([fieldName, chartUsage]) =>
+                    trx(CatalogTableName)
+                        .where(`${CatalogTableName}.name`, fieldName)
+                        .andWhere(
+                            `${CatalogTableName}.project_uuid`,
+                            projectUuid,
+                        )
+                        .update({
+                            chart_usage: chartUsage,
+                        }),
+            );
+
+            await Promise.all(updatePromises);
+        });
     }
 }

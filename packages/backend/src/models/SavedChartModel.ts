@@ -622,9 +622,10 @@ export class SavedChartModel {
 
     async getChartWithFieldSummaries(
         projectUuid: string,
-        fieldId: string,
-    ): Promise<ChartSummary[]> {
-        return this.getChartSummaryQuery()
+        fieldIds: string[],
+    ): Promise<Record<string, ChartSummary[]>> {
+        const results = await this.getChartSummaryQuery()
+            .select(`${SavedChartVersionFieldsTableName}.name as fieldId`)
             .leftJoin(
                 SavedChartVersionsTableName,
                 `${SavedChartsTableName}.saved_query_id`,
@@ -635,7 +636,7 @@ export class SavedChartModel {
                 `${SavedChartVersionsTableName}.saved_queries_version_id`,
                 `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
             )
-            .where(`${SavedChartVersionFieldsTableName}.name`, fieldId)
+            .whereIn(`${SavedChartVersionFieldsTableName}.name`, fieldIds)
             .where(
                 // filter by last version
                 `${SavedChartVersionsTableName}.saved_queries_version_id`,
@@ -646,6 +647,16 @@ export class SavedChartModel {
                                            limit 1)`),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        // Group results by fieldId
+        return results.reduce<Record<string, ChartSummary[]>>((acc, chart) => {
+            const { fieldId, ...chartSummary } = chart;
+            if (!acc[fieldId]) {
+                acc[fieldId] = [];
+            }
+            acc[fieldId].push(chartSummary);
+            return acc;
+        }, {});
     }
 
     async get(

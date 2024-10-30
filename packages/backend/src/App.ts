@@ -103,6 +103,7 @@ const schedulerWorkerFactory = (context: {
         slackClient: context.clients.getSlackClient(),
         semanticLayerService:
             context.serviceRepository.getSemanticLayerService(),
+        catalogService: context.serviceRepository.getCatalogService(),
     });
 
 const slackBotFactory = (context: {

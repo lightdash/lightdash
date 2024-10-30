@@ -11,6 +11,7 @@ export type DbCatalog = {
     embedding_vector?: string;
     field_type?: string;
     required_attributes: Record<string, string | string[]> | null;
+    chart_usage: number | null;
 };
 
 export type DbCatalogIn = Pick<
@@ -22,9 +23,12 @@ export type DbCatalogIn = Pick<
     | 'type'
     | 'field_type'
     | 'required_attributes'
+    | 'chart_usage'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
-export type DbCatalogUpdate = Pick<DbCatalog, 'embedding_vector'>;
+export type DbCatalogUpdate =
+    | Pick<DbCatalog, 'embedding_vector'>
+    | Pick<DbCatalog, 'chart_usage'>;
 
 export type CatalogTable = Knex.CompositeTableType<
     DbCatalog,

@@ -133,3 +133,18 @@ export const getBasicType = (
             return assertUnreachable(type, `Invalid field type ${type}`);
     }
 };
+
+export type CatalogFieldMap = {
+    [fieldId: string]: {
+        fieldName: string;
+        tableName: string;
+    };
+};
+
+export type SchedulerUpdateCatalogChartUsagesPayload = {
+    projectUuid: string;
+    catalogFieldMap: CatalogFieldMap;
+    userUuid: string;
+};
+
+export const updateCatalogChartUsagesJob = 'updateCatalogChartUsages';

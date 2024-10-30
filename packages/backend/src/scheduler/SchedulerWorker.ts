@@ -3,6 +3,7 @@ import {
     semanticLayerQueryJob,
     sqlRunnerJob,
     sqlRunnerPivotQueryJob,
+    updateCatalogChartUsagesJob,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
@@ -496,6 +497,24 @@ export class SchedulerWorker extends SchedulerTask {
                                 error: e.message,
                             },
                         });
+                    },
+                );
+            },
+            [updateCatalogChartUsagesJob]: async (
+                payload: any,
+                helpers: JobHelpers,
+            ) => {
+                await SchedulerClient.processJob(
+                    updateCatalogChartUsagesJob,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.updateCatalogChartUsages(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        );
                     },
                 );
             },

@@ -10,6 +10,7 @@ import {
     assertUnreachable,
     CacheMetadata,
     CalculateTotalFromQuery,
+    CatalogType,
     ChartSummary,
     CompiledDimension,
     convertCustomMetricToDbt,
@@ -589,10 +590,17 @@ export class ProjectService extends BaseService {
                     );
                 }
 
-                await this.projectModel.saveExploresToCache(
+                const { catalogFieldMap } =
+                    await this.projectModel.saveExploresToCache(
+                        projectUuid,
+                        explores,
+                    );
+
+                await this.schedulerClient.updateCatalogChartUsages({
                     projectUuid,
-                    explores,
-                );
+                    catalogFieldMap,
+                    userUuid: user.userUuid,
+                });
 
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
@@ -656,7 +664,17 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        await this.projectModel.saveExploresToCache(projectUuid, explores);
+
+        const { catalogFieldMap } = await this.projectModel.saveExploresToCache(
+            projectUuid,
+            explores,
+        );
+
+        await this.schedulerClient.updateCatalogChartUsages({
+            projectUuid,
+            catalogFieldMap,
+            userUuid: user.userUuid,
+        });
 
         await this.schedulerClient.generateValidation({
             userUuid: user.userUuid,
@@ -802,10 +820,17 @@ export class ProjectService extends BaseService {
                         }
                     },
                 );
-                await this.projectModel.saveExploresToCache(
+                const { catalogFieldMap } =
+                    await this.projectModel.saveExploresToCache(
+                        projectUuid,
+                        explores,
+                    );
+
+                await this.schedulerClient.updateCatalogChartUsages({
                     projectUuid,
-                    explores,
-                );
+                    catalogFieldMap,
+                    userUuid: user.userUuid,
+                });
             }
 
             await this.jobModel.update(job.jobUuid, {
@@ -2773,10 +2798,18 @@ export class ProjectService extends BaseService {
                     async () =>
                         this.refreshAllTables(user, projectUuid, requestMethod),
                 );
-                await this.projectModel.saveExploresToCache(
+                const { catalogFieldMap } =
+                    await this.projectModel.saveExploresToCache(
+                        projectUuid,
+                        explores,
+                    );
+
+                await this.schedulerClient.updateCatalogChartUsages({
                     projectUuid,
-                    explores,
-                );
+                    catalogFieldMap,
+                    userUuid: user.userUuid,
+                });
+
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
                 });

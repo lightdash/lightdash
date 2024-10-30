@@ -21,6 +21,7 @@ import {
     TableSelectionType,
     UserAttributeValueMap,
     type ApiSort,
+    type CatalogFieldMap,
     type CatalogFieldWithAnalytics,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -453,21 +454,19 @@ export class CatalogService<
         }
 
         const chartSummaries =
-            await this.savedChartModel.getChartWithFieldSummaries(
-                projectUuid,
+            await this.savedChartModel.getChartWithFieldSummaries(projectUuid, [
                 fieldId,
-            );
+            ]);
 
-        const chartAnalytics: CatalogAnalytics['charts'] = chartSummaries.map(
-            (chart) => ({
+        const chartAnalytics =
+            chartSummaries[fieldId]?.map((chart) => ({
                 name: chart.name,
                 uuid: chart.uuid,
                 spaceUuid: chart.spaceUuid,
                 spaceName: chart.spaceName,
                 dashboardName: chart.dashboardName,
                 dashboardUuid: chart.dashboardUuid,
-            }),
-        );
+            })) ?? [];
 
         return { charts: chartAnalytics };
     }
@@ -530,5 +529,31 @@ export class CatalogService<
             pagination,
             data: await Promise.all(analyticsPromises), // ! This is very bad practive, temporary until we have `chart_usage` count
         };
+    }
+
+    async updateChartUsages(
+        projectUuid: string,
+        catalogFieldMap: CatalogFieldMap,
+    ) {
+        const chartSummariesByFieldId =
+            await this.savedChartModel.getChartWithFieldSummaries(
+                projectUuid,
+                Object.keys(catalogFieldMap),
+            );
+
+        const chartUsagesByFieldName = Object.keys(catalogFieldMap).reduce<
+            Record<string, number>
+        >((acc, fieldId) => {
+            acc[catalogFieldMap[fieldId].fieldName] =
+                chartSummariesByFieldId[fieldId]?.length ?? 0;
+            return acc;
+        }, {});
+
+        await this.catalogModel.updateChartUsages(
+            projectUuid,
+            chartUsagesByFieldName,
+        );
+
+        return chartUsagesByFieldName;
     }
 }

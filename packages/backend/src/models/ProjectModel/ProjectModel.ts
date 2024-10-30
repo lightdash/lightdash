@@ -35,6 +35,7 @@ import {
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
+    type CatalogFieldMap,
     type CubeSemanticLayerConnection,
     type DbtSemanticLayerConnection,
     type SemanticLayerConnection,
@@ -931,9 +932,15 @@ export class ProjectModel {
     async indexCatalog(
         projectUuid: string,
         cachedExplores: (Explore & { cachedExploreUuid: string })[],
-    ): Promise<DbCatalogIn[]> {
+    ): Promise<{
+        catalogInserts: DbCatalogIn[];
+        catalogFieldMap: CatalogFieldMap;
+    }> {
         if (cachedExplores.length === 0) {
-            return [];
+            return {
+                catalogInserts: [],
+                catalogFieldMap: {},
+            };
         }
 
         try {
@@ -941,22 +948,23 @@ export class ProjectModel {
                 'indexCatalog',
                 { projectUuid, cachedExploresSize: cachedExplores.length },
                 async () => {
-                    const catalogItems = await wrapSentryTransaction(
-                        'indexCatalog.convertExploresToCatalog',
-                        {
-                            projectUuid,
-                            cachedExploresLength: cachedExplores.length,
-                        },
-                        async () =>
-                            convertExploresToCatalog(
+                    const { catalogInserts, catalogFieldMap } =
+                        await wrapSentryTransaction(
+                            'indexCatalog.convertExploresToCatalog',
+                            {
                                 projectUuid,
-                                cachedExplores,
-                            ),
-                    );
+                                cachedExploresLength: cachedExplores.length,
+                            },
+                            async () =>
+                                convertExploresToCatalog(
+                                    projectUuid,
+                                    cachedExplores,
+                                ),
+                        );
 
                     const transactionInserts = await wrapSentryTransaction(
                         'indexCatalog.insert',
-                        { projectUuid, catalogSize: catalogItems.length },
+                        { projectUuid, catalogSize: catalogInserts.length },
                         () =>
                             this.database.transaction(async (trx) => {
                                 await trx(CatalogTableName)
@@ -964,7 +972,10 @@ export class ProjectModel {
                                     .delete();
 
                                 const inserts = await this.database
-                                    .batchInsert(CatalogTableName, catalogItems)
+                                    .batchInsert(
+                                        CatalogTableName,
+                                        catalogInserts,
+                                    )
                                     .returning('*')
                                     .transacting(trx);
 
@@ -972,14 +983,20 @@ export class ProjectModel {
                             }),
                     );
 
-                    return transactionInserts;
+                    return {
+                        catalogInserts: transactionInserts,
+                        catalogFieldMap,
+                    };
                 },
             );
 
             return wrapped;
         } catch (e) {
             Logger.error(`Failed to index catalog ${projectUuid}, ${e}`);
-            return [];
+            return {
+                catalogInserts: [],
+                catalogFieldMap: {},
+            };
         }
     }
 
@@ -1014,7 +1031,11 @@ export class ProjectModel {
     async saveExploresToCache(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
-    ): Promise<DbCachedExplores> {
+    ): Promise<{
+        cachedExplores: DbCachedExplores;
+        catalogInserts: DbCatalogIn[];
+        catalogFieldMap: CatalogFieldMap;
+    }> {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
             {},
@@ -1057,10 +1078,12 @@ export class ProjectModel {
                         explores,
                         cachedExplore,
                     );
-                await this.indexCatalog(
-                    projectUuid,
-                    exploresWithCachedExploreUuid,
-                );
+
+                const { catalogInserts, catalogFieldMap } =
+                    await this.indexCatalog(
+                        projectUuid,
+                        exploresWithCachedExploreUuid,
+                    );
 
                 // cache explores together
                 const [cachedExplores] = await this.database(
@@ -1074,7 +1097,11 @@ export class ProjectModel {
                     .merge()
                     .returning('*');
 
-                return cachedExplores;
+                return {
+                    cachedExplores,
+                    catalogInserts,
+                    catalogFieldMap,
+                };
             },
         );
     }

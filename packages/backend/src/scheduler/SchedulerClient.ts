@@ -23,8 +23,10 @@ import {
     SqlRunnerPayload,
     sqlRunnerPivotQueryJob,
     SqlRunnerPivotQueryPayload,
+    updateCatalogChartUsagesJob,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
+    type SchedulerUpdateCatalogChartUsagesPayload,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -708,6 +710,31 @@ export class SchedulerClient {
         });
 
         return { jobId };
+    }
+
+    async updateCatalogChartUsages(
+        payload: SchedulerUpdateCatalogChartUsagesPayload,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            updateCatalogChartUsagesJob,
+            payload,
+            now,
+        );
+        await this.schedulerModel.logSchedulerJob({
+            task: updateCatalogChartUsagesJob,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+            },
+        });
+
+        return jobId;
     }
 
     async getJobStatistics(): Promise<
