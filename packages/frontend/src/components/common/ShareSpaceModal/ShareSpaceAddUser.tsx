@@ -3,7 +3,9 @@ import {
     Avatar,
     Badge,
     Button,
+    Center,
     Group,
+    Loader,
     MultiSelect,
     ScrollArea,
     Stack,
@@ -60,21 +62,27 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         fetchNextPage: fetchGroupsNextPage,
         hasNextPage: hasGroupsNextPage,
         isFetching: isGroupsFetching,
-    } = useInfiniteOrganizationGroups({
-        searchInput: debouncedSearchQuery,
-        includeMembers: 1,
-        pageSize: DEFAULT_PAGE_SIZE,
-    });
+    } = useInfiniteOrganizationGroups(
+        {
+            searchInput: debouncedSearchQuery,
+            includeMembers: 1,
+            pageSize: DEFAULT_PAGE_SIZE,
+        },
+        { keepPreviousData: true },
+    );
 
     const {
         data: infiniteOrganizationUsers,
         fetchNextPage: fetchUsersNextPage,
         hasNextPage: hasUsersNextPage,
         isFetching: isUsersFetching,
-    } = useInfiniteOrganizationUsers({
-        searchInput: debouncedSearchQuery,
-        pageSize: DEFAULT_PAGE_SIZE,
-    });
+    } = useInfiniteOrganizationUsers(
+        {
+            searchInput: debouncedSearchQuery,
+            pageSize: DEFAULT_PAGE_SIZE,
+        },
+        { keepPreviousData: true },
+    );
 
     const organizationUsers = useMemo(
         () => infiniteOrganizationUsers?.pages.map((p) => p.data).flat(),
@@ -251,23 +259,34 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 onChange={setUsersSelected}
                 data={data}
                 itemComponent={UserItemComponent}
+                maxDropdownHeight={300}
                 dropdownComponent={({ children, ...rest }: ScrollAreaProps) => (
-                    <ScrollArea {...rest} viewportRef={selectScrollRef} h="100">
-                        {children}
-                        {(hasUsersNextPage || hasGroupsNextPage) && (
-                            <Button
-                                size="xs"
-                                variant="white"
-                                onClick={async () => {
-                                    await Promise.all([
-                                        fetchGroupsNextPage(),
-                                        fetchUsersNextPage(),
-                                    ]);
-                                }}
-                                disabled={isUsersFetching || isGroupsFetching}
-                            >
-                                <Text>Load more</Text>
-                            </Button>
+                    <ScrollArea {...rest} viewportRef={selectScrollRef}>
+                        {isUsersFetching || isGroupsFetching ? (
+                            <Center h={300}>
+                                <Loader size="md" />
+                            </Center>
+                        ) : (
+                            <>
+                                {children}
+                                {(hasUsersNextPage || hasGroupsNextPage) && (
+                                    <Button
+                                        size="xs"
+                                        variant="white"
+                                        onClick={async () => {
+                                            await Promise.all([
+                                                fetchGroupsNextPage(),
+                                                fetchUsersNextPage(),
+                                            ]);
+                                        }}
+                                        disabled={
+                                            isUsersFetching || isGroupsFetching
+                                        }
+                                    >
+                                        <Text>Load more</Text>
+                                    </Button>
+                                )}
+                            </>
                         )}
                     </ScrollArea>
                 )}
