@@ -1,6 +1,7 @@
 import {
     CreateGroup,
     Group,
+    GroupMember,
     GroupMembership,
     GroupWithMembers,
     NotExistsError,
@@ -14,8 +15,11 @@ import {
 import { Knex } from 'knex';
 import { uniq } from 'lodash';
 import differenceBy from 'lodash/differenceBy';
-import { EmailTableName } from '../database/entities/emails';
-import { GroupMembershipTableName } from '../database/entities/groupMemberships';
+import { DbEmail, EmailTableName } from '../database/entities/emails';
+import {
+    DbGroupMembership,
+    GroupMembershipTableName,
+} from '../database/entities/groupMemberships';
 import type { DbGroup } from '../database/entities/groups';
 import {
     OrganizationTableName,
@@ -26,7 +30,7 @@ import {
     ProjectGroupAccessTableName,
     UpdateDBProjectGroupAccess,
 } from '../database/entities/projectGroupAccess';
-import { UserTableName } from '../database/entities/users';
+import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
 
@@ -74,6 +78,78 @@ export class GroupsModel {
                 name: group.name,
                 createdAt: group.created_at,
                 organizationUuid: group.organization_uuid,
+            })),
+        };
+    }
+
+    async findGroupMembers(
+        filters: {
+            organizationUuid?: string;
+            groupUuids?: string[];
+        },
+        options?: {
+            paginateArgs?: KnexPaginateArgs;
+        },
+    ): Promise<KnexPaginatedData<Array<GroupMember & GroupMembership>>> {
+        const membersQuery = this.database
+            .from(GroupMembershipTableName)
+            .innerJoin(
+                UserTableName,
+                `${GroupMembershipTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .innerJoin(
+                EmailTableName,
+                `${UserTableName}.user_id`,
+                `${EmailTableName}.user_id`,
+            )
+            .andWhere(`${EmailTableName}.is_primary`, true)
+            .select<
+                Array<
+                    Pick<DbGroupMembership, 'group_uuid'> &
+                        Pick<DbUser, 'user_uuid' | 'first_name' | 'last_name'> &
+                        Pick<DbEmail, 'email'>
+                >
+            >(
+                `${GroupMembershipTableName}.group_uuid`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${EmailTableName}.email`,
+            );
+
+        if (filters.organizationUuid) {
+            void membersQuery
+                .innerJoin(
+                    OrganizationTableName,
+                    `${GroupMembershipTableName}.organization_id`,
+                    `${OrganizationTableName}.organization_id`,
+                )
+                .where(
+                    `${OrganizationTableName}.organization_uuid`,
+                    filters.organizationUuid,
+                );
+        }
+
+        if (filters.groupUuids && filters.groupUuids.length > 0) {
+            void membersQuery.whereIn(
+                `${GroupMembershipTableName}.group_uuid`,
+                filters.groupUuids,
+            );
+        }
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            membersQuery,
+            options?.paginateArgs,
+        );
+        return {
+            pagination,
+            data: data.map((row) => ({
+                groupUuid: row.group_uuid,
+                userUuid: row.user_uuid,
+                email: row.email,
+                firstName: row.first_name,
+                lastName: row.last_name,
             })),
         };
     }
