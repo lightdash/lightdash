@@ -4704,7 +4704,7 @@ export class ProjectService extends BaseService {
             userId: user.userUuid,
             properties: {
                 projectId: projectUuid,
-                organizatoinUuid: project.organizationUuid,
+                organizationUuid: project.organizationUuid,
                 timeZone: getTimezoneLabel(schedulerTimezone),
             },
         });
