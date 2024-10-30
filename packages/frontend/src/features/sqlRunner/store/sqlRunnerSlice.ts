@@ -214,6 +214,9 @@ export const sqlRunnerSlice = createSlice({
     },
     reducers: {
         resetState: () => initialState,
+        setState: (state, action: PayloadAction<typeof initialState>) => {
+            return action.payload;
+        },
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
         },
@@ -418,6 +421,7 @@ export const {
     setWarehouseConnectionType,
     setMode,
     setEditorHighlightError,
+    setState,
 } = sqlRunnerSlice.actions;
 
 export const {

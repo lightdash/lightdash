@@ -29,11 +29,15 @@ import {
     setQuoteChar,
     setSavedChartData,
     setSql,
+    setState,
     setWarehouseConnectionType,
+    type SqlRunnerState,
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { HeaderVirtualView } from '../features/virtualView';
 import { type VirtualViewState } from '../features/virtualView/components/HeaderVirtualView';
 import { useProject } from '../hooks/useProject';
+import useSearchParams from '../hooks/useSearchParams';
+import { useGetShare } from '../hooks/useShare';
 
 const SqlRunnerNew = ({
     isEditMode,
@@ -47,6 +51,10 @@ const SqlRunnerNew = ({
     const mode = useAppSelector((state) => state.sqlRunner.mode);
 
     const params = useParams<{ projectUuid: string; slug?: string }>();
+    const share = useSearchParams('share');
+    const { data: sqlRunnerState, error: shareError } = useGetShare(
+        share || undefined,
+    );
 
     const location = useLocation<{ sql?: string }>();
     const history = useHistory();
@@ -54,6 +62,21 @@ const SqlRunnerNew = ({
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const { data: project } = useProject(projectUuid);
 
+    useEffect(() => {
+        if (shareError) return;
+        if (sqlRunnerState?.params) {
+            try {
+                const reduxState = JSON.parse(
+                    sqlRunnerState.params,
+                ) as SqlRunnerState;
+                dispatch(setState(reduxState));
+            } catch (e) {
+                console.error(
+                    'Unable to parse sql runner redux state from shared URL',
+                );
+            }
+        }
+    }, [sqlRunnerState, dispatch, shareError]);
     useUnmount(() => {
         dispatch(resetState());
         dispatch(resetChartState());
