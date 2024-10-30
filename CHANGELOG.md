@@ -1,3 +1,10 @@
+## [0.1326.1](https://github.com/lightdash/lightdash/compare/0.1326.0...0.1326.1) (2024-10-30)
+
+
+### Bug Fixes
+
+* remove number metric total calculation on pivot ([#12152](https://github.com/lightdash/lightdash/issues/12152)) ([5bd7863](https://github.com/lightdash/lightdash/commit/5bd7863e332ba88bc5646cb3ec9d1562a35f95fe))
+
 # [0.1326.0](https://github.com/lightdash/lightdash/compare/0.1325.0...0.1326.0) (2024-10-29)
 
 
