@@ -1,3 +1,10 @@
+## [0.1328.1](https://github.com/lightdash/lightdash/compare/0.1328.0...0.1328.1) (2024-10-30)
+
+
+### Bug Fixes
+
+* group members map unsafe access ([#12178](https://github.com/lightdash/lightdash/issues/12178)) ([a81e1b0](https://github.com/lightdash/lightdash/commit/a81e1b0761cd2212a4f9ef77472a9e1212866441))
+
 # [0.1328.0](https://github.com/lightdash/lightdash/compare/0.1327.1...0.1328.0) (2024-10-30)
 
 
