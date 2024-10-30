@@ -1,3 +1,10 @@
+# [0.1329.0](https://github.com/lightdash/lightdash/compare/0.1328.1...0.1329.0) (2024-10-30)
+
+
+### Features
+
+* stacking error list ([#12162](https://github.com/lightdash/lightdash/issues/12162)) ([9248153](https://github.com/lightdash/lightdash/commit/9248153064b92b76ff311e5400e5b2d210447b32))
+
 ## [0.1328.1](https://github.com/lightdash/lightdash/compare/0.1328.0...0.1328.1) (2024-10-30)
 
 
