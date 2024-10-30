@@ -1,3 +1,10 @@
+# [0.1328.0](https://github.com/lightdash/lightdash/compare/0.1327.1...0.1328.0) (2024-10-30)
+
+
+### Features
+
+* add sorting to dataCatalog/metrics endpoint ([#12172](https://github.com/lightdash/lightdash/issues/12172)) ([f8d6909](https://github.com/lightdash/lightdash/commit/f8d6909afebc65d991716bb9113970df278f1337))
+
 ## [0.1327.1](https://github.com/lightdash/lightdash/compare/0.1327.0...0.1327.1) (2024-10-30)
 
 
