@@ -21,7 +21,6 @@ import {
     UserAttributeValueMap,
     type ApiSort,
     type CatalogFieldMap,
-    type CatalogFieldWithAnalytics,
     type ChartUsageUpdate,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -479,7 +478,7 @@ export class CatalogService<
         paginateArgs?: KnexPaginateArgs,
         { search }: ApiCatalogSearch = {},
         sortArgs?: ApiSort,
-    ): Promise<KnexPaginatedData<CatalogFieldWithAnalytics[]>> {
+    ): Promise<KnexPaginatedData<CatalogField[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );

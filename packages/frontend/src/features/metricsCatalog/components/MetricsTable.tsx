@@ -1,7 +1,4 @@
-import {
-    friendlyName,
-    type CatalogFieldWithAnalytics,
-} from '@lightdash/common';
+import { friendlyName, type CatalogField } from '@lightdash/common';
 import { Box, Button, HoverCard, Text } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
@@ -31,11 +28,7 @@ import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { setActiveMetric } from '../store/metricsCatalogSlice';
 
-const MetricUsageButton = ({
-    row,
-}: {
-    row: MRT_Row<CatalogFieldWithAnalytics>;
-}) => {
+const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
     const hasChartsUsage = row.original.chartUsage ?? 0 > 0;
     const dispatch = useAppDispatch();
     return (
@@ -60,7 +53,7 @@ const MetricUsageButton = ({
     );
 };
 
-const columns: MRT_ColumnDef<CatalogFieldWithAnalytics>[] = [
+const columns: MRT_ColumnDef<CatalogField>[] = [
     {
         accessorKey: 'name',
         header: 'Metric Name',
@@ -103,11 +96,7 @@ const columns: MRT_ColumnDef<CatalogFieldWithAnalytics>[] = [
     },
 ];
 
-const UseMetricButton = ({
-    row,
-}: {
-    row: MRT_Row<CatalogFieldWithAnalytics>;
-}) => {
+const UseMetricButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
     const [currentTableName, setCurrentTableName] = useState<string>();
     const { data: explore, isFetching } = useExplore(currentTableName);
     const [isNavigating, setIsNavigating] = useState(false);
