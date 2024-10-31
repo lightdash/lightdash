@@ -499,7 +499,7 @@ export class CatalogService<
                 userUuid: user.userUuid,
             });
 
-        const paginatedCatalogMetrics = await this.searchCatalog(
+        const paginatedCatalog = await this.searchCatalog(
             projectUuid,
             userAttributes,
             search,
@@ -509,22 +509,15 @@ export class CatalogService<
             sortArgs,
         );
 
-        const { data: catalogMetrics, pagination } = paginatedCatalogMetrics;
-        const data = catalogMetrics
-            .filter(
-                (item): item is CatalogField => item.type === CatalogType.Field, // This is for type narrowing the values returned from `searchCatalog`
-            )
-            // TODO: to be removed after chart_usage
-            .map<CatalogFieldWithAnalytics>((metric) => ({
-                ...metric,
-                analytics: {
-                    charts: [],
-                },
-            }));
+        const { data: catalogMetrics, pagination } = paginatedCatalog;
+
+        const paginatedCatalogMetrics = catalogMetrics.filter(
+            (item): item is CatalogField => item.type === CatalogType.Field, // This is for type narrowing the values returned from `searchCatalog`
+        );
 
         return {
             pagination,
-            data,
+            data: paginatedCatalogMetrics,
         };
     }
 

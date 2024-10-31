@@ -459,19 +459,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CatalogFieldWithAnalytics: {
         dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'CatalogField' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        analytics: { ref: 'CatalogAnalytics', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
+        type: { ref: 'CatalogField', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiMetricsCatalogResults: {

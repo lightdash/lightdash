@@ -64,9 +64,7 @@ export type CatalogTable = Pick<
 export type CatalogItem = CatalogField | CatalogTable;
 export type ApiCatalogResults = CatalogItem[];
 
-export type CatalogFieldWithAnalytics = CatalogField & {
-    analytics: CatalogAnalytics;
-};
+export type CatalogFieldWithAnalytics = CatalogField;
 export type ApiMetricsCatalogResults = CatalogFieldWithAnalytics[];
 
 export type ApiMetricsCatalog = {

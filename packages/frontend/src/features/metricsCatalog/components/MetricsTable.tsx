@@ -36,7 +36,7 @@ const MetricUsageButton = ({
 }: {
     row: MRT_Row<CatalogFieldWithAnalytics>;
 }) => {
-    const hasChartsUsage = row.original.analytics?.charts.length > 0;
+    const hasChartsUsage = row.original.chartUsage ?? 0 > 0;
     const dispatch = useAppDispatch();
     return (
         <Button
@@ -55,9 +55,7 @@ const MetricUsageButton = ({
                 },
             }}
         >
-            {hasChartsUsage
-                ? `${row.original.analytics?.charts.length} uses`
-                : 'No usage'}
+            {hasChartsUsage ? `${row.original.chartUsage} uses` : 'No usage'}
         </Button>
     );
 };
