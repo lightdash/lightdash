@@ -13,11 +13,13 @@ import {
     ExploreType,
     ForbiddenError,
     generateSlug,
+    getItemId,
     getTimezoneLabel,
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
+    isExploreError,
     isUserWithOrg,
     isValidFrequency,
     ParameterError,
@@ -32,6 +34,9 @@ import {
     UpdateMultipleSavedChart,
     UpdateSavedChart,
     ViewStatistics,
+    type CatalogFieldWhere,
+    type Explore,
+    type ExploreError,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import {
@@ -43,6 +48,7 @@ import {
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -64,6 +70,7 @@ type SavedChartServiceArguments = {
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     dashboardModel: DashboardModel;
+    catalogModel: CatalogModel;
 };
 
 export class SavedChartService extends BaseService {
@@ -87,6 +94,8 @@ export class SavedChartService extends BaseService {
 
     private readonly dashboardModel: DashboardModel;
 
+    private readonly catalogModel: CatalogModel;
+
     constructor(args: SavedChartServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -99,6 +108,7 @@ export class SavedChartService extends BaseService {
         this.schedulerClient = args.schedulerClient;
         this.slackClient = args.slackClient;
         this.dashboardModel = args.dashboardModel;
+        this.catalogModel = args.catalogModel;
     }
 
     private async checkUpdateAccess(
@@ -306,13 +316,164 @@ export class SavedChartService extends BaseService {
         return eventProperties;
     }
 
+    private async getCatalogFieldWhereByFieldIds(
+        projectUuid: string,
+        fieldIds: string[],
+        explore: Explore | ExploreError,
+    ) {
+        if (isExploreError(explore)) {
+            return {};
+        }
+
+        const tableNameByFieldIdEntries = fieldIds.map<
+            [string, string | undefined]
+        >((fieldId) => {
+            const table = Object.values(explore.tables).find(
+                (exploreTable) =>
+                    Object.values(exploreTable.dimensions).some(
+                        (dimension) =>
+                            getItemId({
+                                table:
+                                    exploreTable.originalName ??
+                                    exploreTable.name,
+                                name: dimension.name,
+                            }) === fieldId,
+                    ) ||
+                    Object.values(exploreTable.metrics).some(
+                        (metric) =>
+                            getItemId({
+                                table:
+                                    exploreTable.originalName ??
+                                    exploreTable.name,
+                                name: metric.name,
+                            }) === fieldId,
+                    ),
+            );
+
+            if (!table) {
+                return [fieldId, undefined];
+            }
+
+            return [fieldId, table.originalName ?? table.name];
+        });
+
+        const tableNameByFieldIds = Object.fromEntries(
+            tableNameByFieldIdEntries,
+        );
+
+        const tableNames = Object.values(tableNameByFieldIds).filter(
+            (tableName): tableName is string => tableName !== undefined,
+        );
+
+        const cachedExploreUuidsByTableName =
+            await this.catalogModel.findTablesCachedExploreUuid(
+                projectUuid,
+                tableNames,
+            );
+
+        return Object.fromEntries(
+            Object.entries(tableNameByFieldIds).map<
+                [string, CatalogFieldWhere | undefined]
+            >(([fieldId, tableName]) => {
+                const cachedExploreUuid =
+                    tableName && cachedExploreUuidsByTableName[tableName];
+
+                if (!cachedExploreUuid) {
+                    return [fieldId, undefined];
+                }
+
+                return [
+                    fieldId,
+                    {
+                        cachedExploreUuid,
+                        fieldName: fieldId.replace(`${tableName}_`, ''),
+                    },
+                ];
+            }),
+        );
+    }
+
+    private async updateChartFieldUsage(
+        projectUuid: string,
+        chartExploreName: string,
+        {
+            oldChartMetrics,
+            newChartMetrics,
+            oldChartDimensions,
+            newChartDimensions,
+        }: {
+            oldChartMetrics: string[];
+            newChartMetrics: string[];
+            oldChartDimensions: string[];
+            newChartDimensions: string[];
+        },
+    ) {
+        const chartCachedExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            chartExploreName,
+        );
+
+        const removedMetrics = oldChartMetrics.filter(
+            (metric) => !newChartMetrics.includes(metric),
+        );
+
+        const removedDimensions = oldChartDimensions.filter(
+            (dimension) => !newChartDimensions.includes(dimension),
+        );
+
+        const catalogFieldWhereByFieldId =
+            await this.getCatalogFieldWhereByFieldIds(
+                projectUuid,
+                [
+                    ...newChartMetrics,
+                    ...newChartDimensions,
+                    ...removedMetrics,
+                    ...removedDimensions,
+                ],
+                chartCachedExplore,
+            );
+
+        const fieldsToIncrementUsage: CatalogFieldWhere[] = [
+            ...newChartMetrics,
+            ...newChartDimensions,
+        ]
+            .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
+            .filter(
+                (fieldWhere): fieldWhere is CatalogFieldWhere =>
+                    fieldWhere !== undefined,
+            );
+
+        const fieldsToDecrementUsage: CatalogFieldWhere[] = [
+            ...removedMetrics,
+            ...removedDimensions,
+        ]
+            .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
+            .filter(
+                (fieldWhere): fieldWhere is CatalogFieldWhere =>
+                    fieldWhere !== undefined,
+            );
+
+        await this.catalogModel.updateChartUsages(
+            projectUuid,
+            fieldsToIncrementUsage,
+            fieldsToDecrementUsage,
+        );
+    }
+
     async createVersion(
         user: SessionUser,
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
-        const { organizationUuid, projectUuid, spaceUuid } =
-            await this.savedChartModel.getSummary(savedChartUuid);
+        const {
+            organizationUuid,
+            projectUuid,
+            spaceUuid,
+            metricQuery: {
+                metrics: oldChartMetrics,
+                dimensions: oldChartDimensions,
+            },
+        } = await this.savedChartModel.get(savedChartUuid);
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const access = await this.spaceModel.getUserSpaceAccess(
@@ -351,6 +512,13 @@ export class SavedChartService extends BaseService {
             data,
             user,
         );
+
+        await this.updateChartFieldUsage(projectUuid, savedChart.tableName, {
+            oldChartMetrics,
+            oldChartDimensions,
+            newChartMetrics: data.metricQuery.metrics,
+            newChartDimensions: data.metricQuery.dimensions,
+        });
 
         this.analytics.track({
             event: 'saved_chart_version.created',
