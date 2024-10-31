@@ -49,6 +49,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { getChartUsageFieldsToUpdate } from '../../models/CatalogModel/utils';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -316,128 +317,24 @@ export class SavedChartService extends BaseService {
         return eventProperties;
     }
 
-    private async getCatalogFieldWhereByFieldIds(
-        projectUuid: string,
-        fieldIds: string[],
-        explore: Explore | ExploreError,
-    ) {
-        if (isExploreError(explore)) {
-            return {};
-        }
-
-        const tableNameByFieldIdEntries = fieldIds.map<
-            [string, string | undefined]
-        >((fieldId) => {
-            const table = Object.values(explore.tables).find(
-                (exploreTable) =>
-                    Object.values(exploreTable.dimensions).some(
-                        (dimension) =>
-                            getItemId({
-                                table:
-                                    exploreTable.originalName ??
-                                    exploreTable.name,
-                                name: dimension.name,
-                            }) === fieldId,
-                    ) ||
-                    Object.values(exploreTable.metrics).some(
-                        (metric) =>
-                            getItemId({
-                                table:
-                                    exploreTable.originalName ??
-                                    exploreTable.name,
-                                name: metric.name,
-                            }) === fieldId,
-                    ),
-            );
-
-            if (!table) {
-                return [fieldId, undefined];
-            }
-
-            return [fieldId, table.originalName ?? table.name];
-        });
-
-        const tableNameByFieldIds = Object.fromEntries(
-            tableNameByFieldIdEntries,
-        );
-
-        const tableNames = Object.values(tableNameByFieldIds).filter(
-            (tableName): tableName is string => tableName !== undefined,
-        );
-
-        const cachedExploreUuidsByTableName =
-            await this.catalogModel.findTablesCachedExploreUuid(
-                projectUuid,
-                tableNames,
-            );
-
-        return Object.fromEntries(
-            Object.entries(tableNameByFieldIds).map<
-                [string, CatalogFieldWhere | undefined]
-            >(([fieldId, tableName]) => {
-                const cachedExploreUuid =
-                    tableName && cachedExploreUuidsByTableName[tableName];
-
-                if (!cachedExploreUuid) {
-                    return [fieldId, undefined];
-                }
-
-                return [
-                    fieldId,
-                    {
-                        cachedExploreUuid,
-                        fieldName: fieldId.replace(`${tableName}_`, ''),
-                    },
-                ];
-            }),
-        );
-    }
-
     private async updateChartFieldUsage(
         projectUuid: string,
         chartExplore: Explore | ExploreError,
-        {
-            oldChartFields,
-            newChartFields,
-        }: {
+        chartFields: {
             oldChartFields: string[];
             newChartFields: string[];
         },
     ) {
-        const addedFields = newChartFields.filter(
-            (field) => !oldChartFields.includes(field),
-        );
-
-        const removedFields = oldChartFields.filter(
-            (field) => !newChartFields.includes(field),
-        );
-
-        const catalogFieldWhereByFieldId =
-            await this.getCatalogFieldWhereByFieldIds(
-                projectUuid,
-                [...newChartFields, ...removedFields],
-                chartExplore,
-            );
-
-        const fieldsToIncrementUsage: CatalogFieldWhere[] = addedFields
-            .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
-            .filter(
-                (fieldWhere): fieldWhere is CatalogFieldWhere =>
-                    fieldWhere !== undefined,
-            );
-
-        const fieldsToDecrementUsage: CatalogFieldWhere[] = removedFields
-            .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
-            .filter(
-                (fieldWhere): fieldWhere is CatalogFieldWhere =>
-                    fieldWhere !== undefined,
-            );
-
-        await this.catalogModel.updateChartUsages(
+        const fieldsToUpdate = await getChartUsageFieldsToUpdate(
             projectUuid,
-            fieldsToIncrementUsage,
-            fieldsToDecrementUsage,
+            chartExplore,
+            chartFields,
+            this.catalogModel.findTablesCachedExploreUuid.bind(
+                this.catalogModel,
+            ),
         );
+
+        await this.catalogModel.updateChartUsages(projectUuid, fieldsToUpdate);
     }
 
     async createVersion(

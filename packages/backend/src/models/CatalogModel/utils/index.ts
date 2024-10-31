@@ -2,7 +2,10 @@ import {
     CatalogType,
     Explore,
     getItemId,
+    isExploreError,
     type CatalogFieldMap,
+    type CatalogFieldWhere,
+    type ExploreError,
 } from '@lightdash/common';
 import { DbCatalogIn } from '../../../database/entities/catalog';
 
@@ -68,3 +71,129 @@ export const convertExploresToCatalog = (
         catalogFieldMap,
     };
 };
+
+export async function getCatalogFieldWhereByFieldIds(
+    projectUuid: string,
+    fieldIds: string[],
+    explore: Explore | ExploreError,
+    findTablesCachedExploreUuid: (
+        projectUuid: string,
+        tableNames: string[],
+    ) => Promise<Record<string, string>>,
+) {
+    if (isExploreError(explore)) {
+        return {};
+    }
+
+    const tableNameByFieldIdEntries = fieldIds.map<
+        [string, string | undefined]
+    >((fieldId) => {
+        const table = Object.values(explore.tables).find(
+            (exploreTable) =>
+                Object.values(exploreTable.dimensions).some(
+                    (dimension) =>
+                        getItemId({
+                            table:
+                                exploreTable.originalName ?? exploreTable.name,
+                            name: dimension.name,
+                        }) === fieldId,
+                ) ||
+                Object.values(exploreTable.metrics).some(
+                    (metric) =>
+                        getItemId({
+                            table:
+                                exploreTable.originalName ?? exploreTable.name,
+                            name: metric.name,
+                        }) === fieldId,
+                ),
+        );
+
+        if (!table) {
+            return [fieldId, undefined];
+        }
+
+        return [fieldId, table.originalName ?? table.name];
+    });
+
+    const tableNameByFieldIds = Object.fromEntries(tableNameByFieldIdEntries);
+
+    const tableNames = Object.values(tableNameByFieldIds).filter(
+        (tableName): tableName is string => tableName !== undefined,
+    );
+
+    const cachedExploreUuidsByTableName = await findTablesCachedExploreUuid(
+        projectUuid,
+        tableNames,
+    );
+
+    return Object.fromEntries(
+        Object.entries(tableNameByFieldIds).map<
+            [string, CatalogFieldWhere | undefined]
+        >(([fieldId, tableName]) => {
+            const cachedExploreUuid =
+                tableName && cachedExploreUuidsByTableName[tableName];
+
+            if (!cachedExploreUuid) {
+                return [fieldId, undefined];
+            }
+
+            return [
+                fieldId,
+                {
+                    cachedExploreUuid,
+                    fieldName: fieldId.replace(`${tableName}_`, ''),
+                },
+            ];
+        }),
+    );
+}
+
+export async function getChartUsageFieldsToUpdate(
+    projectUuid: string,
+    chartExplore: Explore | ExploreError,
+    {
+        oldChartFields,
+        newChartFields,
+    }: {
+        oldChartFields: string[];
+        newChartFields: string[];
+    },
+    findTablesCachedExploreUuid: (
+        projectUuid: string,
+        tableNames: string[],
+    ) => Promise<Record<string, string>>,
+) {
+    const addedFields = newChartFields.filter(
+        (field) => !oldChartFields.includes(field),
+    );
+
+    const removedFields = oldChartFields.filter(
+        (field) => !newChartFields.includes(field),
+    );
+
+    const catalogFieldWhereByFieldId = await getCatalogFieldWhereByFieldIds(
+        projectUuid,
+        [...addedFields, ...removedFields],
+        chartExplore,
+        findTablesCachedExploreUuid,
+    );
+
+    const fieldsToIncrement: CatalogFieldWhere[] = addedFields
+        .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
+        .filter(
+            (fieldWhere): fieldWhere is CatalogFieldWhere =>
+                fieldWhere !== undefined,
+        );
+
+    const fieldsToDecrement: CatalogFieldWhere[] = removedFields
+        .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
+        .filter(
+            (fieldWhere): fieldWhere is CatalogFieldWhere =>
+                fieldWhere !== undefined,
+        );
+
+    return {
+        fieldsToIncrement,
+        fieldsToDecrement,
+    };
+}

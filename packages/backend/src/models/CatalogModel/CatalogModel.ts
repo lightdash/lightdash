@@ -290,8 +290,13 @@ export class CatalogModel {
 
     async updateChartUsages(
         projectUuid: string,
-        fieldsToIncrement: CatalogFieldWhere[],
-        fieldsToDecrement: CatalogFieldWhere[],
+        {
+            fieldsToIncrement,
+            fieldsToDecrement,
+        }: {
+            fieldsToIncrement: CatalogFieldWhere[];
+            fieldsToDecrement: CatalogFieldWhere[];
+        },
     ) {
         await this.database.transaction(async (trx) => {
             const incrementPromises = fieldsToIncrement.map(
