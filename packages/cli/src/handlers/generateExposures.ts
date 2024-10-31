@@ -13,6 +13,7 @@ type GenerateExposuresHandlerOptions = {
     projectDir: string;
     verbose: boolean;
     output?: string;
+    exposureType?: string;
 };
 
 export const generateExposuresHandler = async (
@@ -49,10 +50,14 @@ export const generateExposuresHandler = async (
     try {
         const absoluteProjectPath = path.resolve(options.projectDir);
 
+        const queryParams = options.exposureType
+            ? { exposureType: options.exposureType }
+            : undefined;
         const exposures = await lightdashApi<Record<string, DbtExposure>>({
             method: 'GET',
             url: `/api/v1/projects/${config.context.project}/dbt-exposures`,
             body: undefined,
+            queryParams,
         });
 
         console.info(

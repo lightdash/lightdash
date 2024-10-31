@@ -661,6 +661,10 @@ ${styles.bold('Examples:')}
         'The path where the output exposures YAML file will be written',
         undefined,
     )
+    .option(
+        '--exposure-type <type>',
+        'The type of exposures to generate. This must be one of "application", "analysis", or "dashboard"',
+    )
     .action(generateExposuresHandler);
 
 const errorHandler = (err: Error) => {

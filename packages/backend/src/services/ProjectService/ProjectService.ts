@@ -4323,6 +4323,7 @@ export class ProjectService extends BaseService {
     async getDbtExposures(
         user: SessionUser,
         projectUuid: string,
+        exposureType?: DbtExposureType,
     ): Promise<Record<string, DbtExposure>> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         if (user.ability.cannot('manage', subject('Project', projectSummary))) {
@@ -4335,10 +4336,10 @@ export class ProjectService extends BaseService {
             throw new NotFoundError('No explores found');
         }
 
+        // Collect 'analysis' exposures
         const charts = await this.savedChartModel.findInfoForDbtExposures(
             projectUuid,
         );
-
         const chartExposures = charts.reduce<DbtExposure[]>((acc, chart) => {
             acc.push({
                 name: `ld_chart_${snakeCaseName(chart.uuid)}`,
@@ -4358,10 +4359,11 @@ export class ProjectService extends BaseService {
             });
             return acc;
         }, []);
+
+        // Collect 'dashboard' exposures
         const dashboards = await this.dashboardModel.findInfoForDbtExposures(
             projectUuid,
         );
-
         const dashboardExposures = dashboards.reduce<DbtExposure[]>(
             (acc, dashboard) => {
                 acc.push({
@@ -4399,6 +4401,7 @@ export class ProjectService extends BaseService {
             [],
         );
 
+        // Collect 'application' exposures
         const projectExposure: DbtExposure = {
             name: `ld_project_${snakeCaseName(projectSummary.projectUuid)}`,
             type: DbtExposureType.APPLICATION,
@@ -4415,14 +4418,23 @@ export class ProjectService extends BaseService {
             tags: ['lightdash', 'project'],
         };
 
-        return [
+        // combine all exposures
+        let allExposures = [
             projectExposure,
             ...chartExposures,
             ...dashboardExposures,
-        ].reduce<Record<string, DbtExposure>>((acc, exposure) => {
-            acc[exposure.name] = exposure;
-            return acc;
-        }, {});
+        ];
+        // filter by exposure type if provided
+        if (exposureType !== undefined) {
+            allExposures = allExposures.filter(
+                (exposure) => exposure.type === exposureType,
+            );
+        }
+        // Return as a map
+        return allExposures.reduce<Record<string, DbtExposure>>(
+            (acc, exposure) => ({ ...acc, [exposure.name]: exposure }),
+            {},
+        );
     }
 
     async getProjectCredentialsPreference(

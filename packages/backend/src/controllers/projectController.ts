@@ -13,6 +13,7 @@ import {
     CalculateTotalFromQuery,
     CreateProjectMember,
     DbtExposure,
+    DbtExposureType,
     isDuplicateDashboardParams,
     ParameterError,
     RequestMethod,
@@ -365,11 +366,12 @@ export class ProjectController extends BaseController {
     async GetDbtExposures(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() exposureType?: DbtExposureType,
     ): Promise<{ status: 'ok'; results: Record<string, DbtExposure> }> {
         this.setStatus(200);
         const exposures = await this.services
             .getProjectService()
-            .getDbtExposures(req.user!, projectUuid);
+            .getDbtExposures(req.user!, projectUuid, exposureType);
         return {
             status: 'ok',
             results: exposures,

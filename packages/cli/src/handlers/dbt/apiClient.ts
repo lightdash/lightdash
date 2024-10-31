@@ -19,11 +19,13 @@ type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
     url: string;
     body: BodyInit | undefined;
+    queryParams?: Record<string, string>;
 };
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
     body,
+    queryParams,
 }: LightdashApiProps): Promise<T> => {
     const config = await getConfig();
     if (!(config.context?.apiKey && config.context.serverUrl)) {
@@ -43,10 +45,16 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
                 : RequestMethod.CLI,
         ...proxyAuthorizationHeader,
     };
-    const fullUrl = new URL(url, config.context.serverUrl).href;
-    GlobalState.debug(`> Making HTTP query to: ${fullUrl}`);
+    const fullUrl = new URL(url, config.context.serverUrl);
+    // Add query params to the URL if they exist
+    if (queryParams && method === 'GET') {
+        Object.keys(queryParams).forEach((key) =>
+            fullUrl.searchParams.append(key, queryParams[key]),
+        );
+    }
+    GlobalState.debug(`> Making HTTP query to: ${fullUrl.href}`);
 
-    return fetch(fullUrl, { method, headers, body })
+    return fetch(fullUrl.href, { method, headers, body })
         .then((r) => {
             GlobalState.debug(`> HTTP request returned status: ${r.status}`);
 
