@@ -322,9 +322,9 @@ export class ProjectService extends BaseService {
                     const upstreamProject = await this.projectModel.get(
                         data.upstreamProjectUuid,
                     );
-                    if (upstreamProject.type === ProjectType.DEFAULT) {
+                    if (upstreamProject.type === ProjectType.PREVIEW) {
                         throw new ForbiddenError(
-                            'Cannot create a preview project from a default project',
+                            'Cannot create a preview project from a preview project',
                         );
                     }
                 }
