@@ -35,6 +35,7 @@ import {
 } from '../features/sqlRunner/store/sqlRunnerSlice';
 import { HeaderVirtualView } from '../features/virtualView';
 import { type VirtualViewState } from '../features/virtualView/components/HeaderVirtualView';
+import useToaster from '../hooks/toaster/useToaster';
 import { useProject } from '../hooks/useProject';
 import useSearchParams from '../hooks/useSearchParams';
 import { useGetShare } from '../hooks/useShare';
@@ -61,9 +62,16 @@ const SqlRunnerNew = ({
 
     const [isLeftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const { data: project } = useProject(projectUuid);
+    const { showToastError } = useToaster();
 
     useEffect(() => {
-        if (shareError) return;
+        if (shareError) {
+            showToastError({
+                title: `Unable to load shared SQL runner state`,
+                subtitle: shareError.error.message,
+            });
+            return;
+        }
         if (sqlRunnerState?.params) {
             try {
                 const reduxState = JSON.parse(
@@ -76,7 +84,7 @@ const SqlRunnerNew = ({
                 );
             }
         }
-    }, [sqlRunnerState, dispatch, shareError]);
+    }, [sqlRunnerState, dispatch, shareError, showToastError]);
     useUnmount(() => {
         dispatch(resetState());
         dispatch(resetChartState());
