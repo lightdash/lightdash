@@ -318,37 +318,28 @@ export class ProjectService extends BaseService {
                 throw new ForbiddenError();
 
             case ProjectType.PREVIEW:
-                if (data.upstreamProjectUuid) {
-                    // if the upstream project is provided, user must have access to the upstream project level
-                    if (
-                        user.ability.can(
-                            'create',
-                            subject('Project', {
-                                upstreamProjectUuid: data.upstreamProjectUuid,
-                                type: ProjectType.PREVIEW,
-                            }),
-                        )
-                    ) {
-                        return true;
-                    }
-
-                    throw new ForbiddenError();
-                } else {
-                    // if the upstream project is not provided, user must have permission to create project on an organization level
-                    if (
-                        user.ability.can(
-                            'create',
-                            subject('Project', {
-                                organizationUuid: user.organizationUuid,
-                                type: ProjectType.PREVIEW,
-                            }),
-                        )
-                    ) {
-                        return true;
-                    }
-
-                    throw new ForbiddenError();
+                // if the upstream project is not provided, user must have access to create project ONLY on an organization level
+                // if the upstream project is provided, user must have access to the upstream project level OR on an organization level
+                if (
+                    user.ability.can(
+                        'create',
+                        subject('Project', {
+                            upstreamProjectUuid: data.upstreamProjectUuid,
+                            type: ProjectType.PREVIEW,
+                        }),
+                    ) ||
+                    user.ability.can(
+                        'create',
+                        subject('Project', {
+                            organizationUuid: user.organizationUuid,
+                            type: ProjectType.PREVIEW,
+                        }),
+                    )
+                ) {
+                    return true;
                 }
+
+                throw new ForbiddenError();
 
             default:
                 return assertUnreachable(
