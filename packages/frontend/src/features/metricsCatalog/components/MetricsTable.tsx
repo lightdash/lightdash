@@ -1,4 +1,8 @@
-import { friendlyName, type CatalogField } from '@lightdash/common';
+import {
+    friendlyName,
+    type CatalogField,
+    type CatalogItem,
+} from '@lightdash/common';
 import { Box, Button, HoverCard, Text } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
@@ -89,9 +93,9 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
     {
-        accessorKey: 'usage',
-        header: 'Usage',
-        enableSorting: false,
+        accessorKey: 'chartUsage',
+        header: 'Popularity',
+        enableSorting: true,
         Cell: ({ row }) => <MetricUsageButton row={row} />,
     },
 ];
@@ -149,15 +153,23 @@ export const MetricsTable = () => {
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
 
-    const [sorting, setSorting] = useState<MRT_SortingState>([]);
+    // Enable sorting by highest popularity(how many charts use the metric) by default
+    const initialSorting = [
+        {
+            id: 'chartUsage',
+            desc: true,
+        },
+    ];
+
+    const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
 
     const { data, fetchNextPage, hasNextPage, isFetching } = useMetricsCatalog({
         projectUuid,
         pageSize: 20,
         search: deferredSearch,
-        // TODO: Handle multiple sorting - for now just use the first one - metric name
+        // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
         ...(sorting.length > 0 && {
-            sortBy: sorting[0].id,
+            sortBy: sorting[0].id as keyof CatalogItem,
             sortDirection: sorting[0].desc ? 'desc' : 'asc',
         }),
     });
