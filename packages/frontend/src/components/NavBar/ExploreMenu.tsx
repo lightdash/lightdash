@@ -119,8 +119,9 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 to={`/projects/${projectUuid}/sql-runner`}
                                 onClick={(event) => {
                                     if (
-                                        history.location.pathname ===
-                                        `/projects/${projectUuid}/sql-runner`
+                                        history.location.pathname.startsWith(
+                                            `/projects/${projectUuid}/sql-runner`,
+                                        )
                                     ) {
                                         event.preventDefault();
                                         window.open(
