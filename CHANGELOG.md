@@ -1,3 +1,10 @@
+# [0.1336.0](https://github.com/lightdash/lightdash/compare/0.1335.0...0.1336.0) (2024-10-31)
+
+
+### Features
+
+* project list no previews for members and below ([#12158](https://github.com/lightdash/lightdash/issues/12158)) ([a8c14d3](https://github.com/lightdash/lightdash/commit/a8c14d35e6dbe4da4ac764e8f9ee2d05df13f874))
+
 # [0.1335.0](https://github.com/lightdash/lightdash/compare/0.1334.1...0.1335.0) (2024-10-31)
 
 
