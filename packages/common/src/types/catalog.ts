@@ -141,7 +141,7 @@ export type CatalogFieldMap = {
     };
 };
 
-export type SchedulerUpdateCatalogChartUsagesPayload = {
+export type SchedulersetCatalogChartUsagesPayload = {
     projectUuid: string;
     catalogFieldMap: CatalogFieldMap;
     userUuid: string;
@@ -156,4 +156,4 @@ export type ChartUsageIn = CatalogFieldWhere & {
     chartUsage: number;
 };
 
-export const updateCatalogChartUsagesJob = 'updateCatalogChartUsage';
+export const setCatalogChartUsagesJob = 'setCatalogChartUsages';

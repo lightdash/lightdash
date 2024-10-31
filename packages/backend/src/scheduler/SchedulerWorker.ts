@@ -1,9 +1,9 @@
 import {
     SchedulerJobStatus,
     semanticLayerQueryJob,
+    setCatalogChartUsagesJob,
     sqlRunnerJob,
     sqlRunnerPivotQueryJob,
-    updateCatalogChartUsagesJob,
 } from '@lightdash/common';
 import { getSchedule, stringToArray } from 'cron-converter';
 import {
@@ -500,17 +500,17 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            [updateCatalogChartUsagesJob]: async (
+            [setCatalogChartUsagesJob]: async (
                 payload: any,
                 helpers: JobHelpers,
             ) => {
                 await SchedulerClient.processJob(
-                    updateCatalogChartUsagesJob,
+                    setCatalogChartUsagesJob,
                     helpers.job.id,
                     helpers.job.run_at,
                     payload,
                     async () => {
-                        await this.updateCatalogChartUsage(
+                        await this.setCatalogChartUsages(
                             helpers.job.id,
                             helpers.job.run_at,
                             payload,

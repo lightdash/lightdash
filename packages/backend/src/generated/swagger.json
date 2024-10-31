@@ -7372,7 +7372,7 @@
                             "sqlRunner",
                             "sqlRunnerPivotQuery",
                             "semanticLayer",
-                            "updateCatalogChartUsage"
+                            "setCatalogChartUsages"
                         ]
                     }
                 },
