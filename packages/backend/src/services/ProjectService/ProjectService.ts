@@ -300,17 +300,11 @@ export class ProjectService extends BaseService {
             );
         }
 
-        if (data.type === ProjectType.PREVIEW && !data.upstreamProjectUuid) {
-            throw new ParameterError(
-                'upstreamProjectUuid must be provided for preview projects',
-            );
-        }
-
         switch (data.type) {
             case ProjectType.DEFAULT:
-                // user has permission to create project on an organization level
+                // checks if user has permission to create project on an organization level
                 if (
-                    user.ability.cannot(
+                    user.ability.can(
                         'create',
                         subject('Project', {
                             organizationUuid: user.organizationUuid,
@@ -318,34 +312,44 @@ export class ProjectService extends BaseService {
                         }),
                     )
                 ) {
-                    throw new ForbiddenError();
+                    return true;
                 }
 
-                return true;
+                throw new ForbiddenError();
 
             case ProjectType.PREVIEW:
-                if (
-                    // user has permission to create preview project on an organization level
-                    user.ability.cannot(
-                        'create',
-                        subject('Project', {
-                            organizationUuid: user.organizationUuid,
-                            type: ProjectType.PREVIEW,
-                        }),
-                    ) ||
-                    // user has permission to create preview project on a project level
-                    user.ability.cannot(
-                        'create',
-                        subject('Project', {
-                            upstreamProjectUuid: data.upstreamProjectUuid,
-                            type: ProjectType.PREVIEW,
-                        }),
-                    )
-                ) {
+                if (data.upstreamProjectUuid) {
+                    // if the upstream project is provided, user must have access to the upstream project level
+                    if (
+                        user.ability.can(
+                            'create',
+                            subject('Project', {
+                                upstreamProjectUuid: data.upstreamProjectUuid,
+                                type: ProjectType.PREVIEW,
+                            }),
+                        )
+                    ) {
+                        return true;
+                    }
+
+                    throw new ForbiddenError();
+                } else {
+                    // if the upstream project is not provided, user must have permission to create project on an organization level
+                    if (
+                        user.ability.can(
+                            'create',
+                            subject('Project', {
+                                organizationUuid: user.organizationUuid,
+                                type: ProjectType.PREVIEW,
+                            }),
+                        )
+                    ) {
+                        return true;
+                    }
+
                     throw new ForbiddenError();
                 }
 
-                return true;
             default:
                 return assertUnreachable(
                     data.type,
