@@ -9,6 +9,7 @@ import {
     TableSelectionType,
     UnexpectedServerError,
     type ApiSort,
+    type CatalogFieldWhere,
     type CatalogItem,
     type ChartUsageIn,
     type KnexPaginateArgs,
@@ -287,6 +288,47 @@ export class CatalogModel {
             );
 
             await Promise.all(updatePromises);
+        });
+    }
+
+    async updateChartUsages(
+        projectUuid: string,
+        fieldsToIncrement: CatalogFieldWhere[],
+        fieldsToDecrement: CatalogFieldWhere[],
+    ) {
+        await this.database.transaction(async (trx) => {
+            const incrementPromises = fieldsToIncrement.map(
+                ({ fieldName, cachedExploreUuid }) =>
+                    trx(CatalogTableName)
+                        .where(`${CatalogTableName}.name`, fieldName)
+                        .andWhere(
+                            `${CatalogTableName}.cached_explore_uuid`,
+                            cachedExploreUuid,
+                        )
+                        .andWhere(
+                            `${CatalogTableName}.project_uuid`,
+                            projectUuid,
+                        )
+                        .increment('chart_usage', 1),
+            );
+
+            const decrementPromises = fieldsToDecrement.map(
+                ({ fieldName, cachedExploreUuid }) =>
+                    trx(CatalogTableName)
+                        .where(`${CatalogTableName}.name`, fieldName)
+                        .andWhere(
+                            `${CatalogTableName}.cached_explore_uuid`,
+                            cachedExploreUuid,
+                        )
+                        .andWhere(
+                            `${CatalogTableName}.project_uuid`,
+                            projectUuid,
+                        )
+                        .where('chart_usage', '>', 0) // Ensure we don't decrement below 0
+                        .decrement('chart_usage', 1),
+            );
+
+            await Promise.all([...incrementPromises, ...decrementPromises]);
         });
     }
 }

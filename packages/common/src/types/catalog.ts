@@ -147,10 +147,13 @@ export type SchedulerUpdateCatalogChartUsagesPayload = {
     userUuid: string;
 };
 
-export type ChartUsageIn = {
+export type CatalogFieldWhere = {
     fieldName: string;
-    chartUsage: number;
     cachedExploreUuid: string;
+};
+
+export type ChartUsageIn = CatalogFieldWhere & {
+    chartUsage: number;
 };
 
 export const updateCatalogChartUsagesJob = 'updateCatalogChartUsage';
