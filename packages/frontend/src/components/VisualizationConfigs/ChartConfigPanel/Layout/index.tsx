@@ -346,39 +346,37 @@ export const Layout: FC<Props> = ({ items }) => {
                                 );
                             })}
                     </Stack>
-                    {pivotDimensions &&
-                        pivotDimensions.length > 0 &&
-                        canBeStacked && (
-                            <Tooltip
-                                variant="xs"
-                                label="x-axis must be non-numeric to enable stacking"
-                                withinPortal
-                                position="top-start"
-                                disabled={!isXAxisFieldNumeric}
-                            >
-                                <Group spacing="xs">
-                                    <Config.Label>Stacking</Config.Label>
-                                    <SegmentedControl
-                                        disabled={isXAxisFieldNumeric}
-                                        value={
-                                            !isXAxisFieldNumeric && isStacked
-                                                ? 'stack'
-                                                : 'noStacking'
-                                        }
-                                        onChange={(value) =>
-                                            setStacking(value === 'stack')
-                                        }
-                                        data={[
-                                            {
-                                                label: 'None',
-                                                value: 'noStacking',
-                                            },
-                                            { label: 'Stack', value: 'stack' },
-                                        ]}
-                                    />
-                                </Group>
-                            </Tooltip>
-                        )}
+                    {canBeStacked && (
+                        <Tooltip
+                            variant="xs"
+                            label="x-axis must be non-numeric to enable stacking"
+                            withinPortal
+                            position="top-start"
+                            disabled={!isXAxisFieldNumeric}
+                        >
+                            <Group spacing="xs">
+                                <Config.Label>Stacking</Config.Label>
+                                <SegmentedControl
+                                    disabled={isXAxisFieldNumeric}
+                                    value={
+                                        !isXAxisFieldNumeric && isStacked
+                                            ? 'stack'
+                                            : 'noStacking'
+                                    }
+                                    onChange={(value) =>
+                                        setStacking(value === 'stack')
+                                    }
+                                    data={[
+                                        {
+                                            label: 'None',
+                                            value: 'noStacking',
+                                        },
+                                        { label: 'Stack', value: 'stack' },
+                                    ]}
+                                />
+                            </Group>
+                        </Tooltip>
+                    )}
                 </Config.Section>
             </Config>
         </Stack>
