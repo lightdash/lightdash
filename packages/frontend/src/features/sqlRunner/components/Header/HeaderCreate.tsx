@@ -1,5 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Group,
     Menu,
@@ -8,10 +9,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import {
     IconBrandGithub,
     IconChevronDown,
     IconDeviceFloppy,
+    IconLink,
     IconTableAlias,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -20,7 +23,9 @@ import { cartesianChartSelectors } from '../../../../components/DataViz/store/se
 import { useGitHubRepositories } from '../../../../components/UserSettings/GithubSettingsPanel';
 import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
 import useHealth from '../../../../hooks/health/useHealth';
+import useToaster from '../../../../hooks/toaster/useToaster';
 import { useProject } from '../../../../hooks/useProject';
+import { useCreateShareMutation } from '../../../../hooks/useShare';
 import { CreateVirtualViewModal } from '../../../virtualView';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
@@ -47,6 +52,8 @@ export const HeaderCreate: FC = () => {
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
     const health = useHealth();
+    const sqlRunnerState = useAppSelector((state) => state.sqlRunner);
+    const { mutateAsync: createShareUrl } = useCreateShareMutation();
 
     const isGithubIntegrationEnabled =
         health?.data?.hasGithub &&
@@ -130,6 +137,19 @@ export const HeaderCreate: FC = () => {
                 return <MantineIcon icon={IconBrandGithub} />;
         }
     }, []);
+    const clipboard = useClipboard({ timeout: 500 });
+    const { showToastSuccess } = useToaster();
+
+    const handleCreateShareUrl = useCallback(async () => {
+        const path = window.location.pathname;
+        const shareUrl = await createShareUrl({
+            path,
+            params: JSON.stringify(sqlRunnerState),
+        });
+        const fullUrl = `${window.location.origin}${window.location.pathname}?share=${shareUrl.nanoid}`;
+        clipboard.copy(fullUrl);
+        showToastSuccess({ title: 'Shared URL copied to clipboard!' });
+    }, [createShareUrl, sqlRunnerState, clipboard, showToastSuccess]);
 
     return (
         <>
@@ -296,6 +316,12 @@ export const HeaderCreate: FC = () => {
                                 </Menu.Dropdown>
                             </Menu>
                         </Button.Group>
+                        <ActionIcon
+                            variant="default"
+                            onClick={handleCreateShareUrl}
+                        >
+                            <MantineIcon icon={IconLink} />
+                        </ActionIcon>
                     </Group>
                 </Group>
             </Paper>
