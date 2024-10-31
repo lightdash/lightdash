@@ -10,7 +10,7 @@ import {
     UnexpectedServerError,
     type ApiSort,
     type CatalogItem,
-    type ChartUsageUpdate,
+    type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type TablesConfiguration,
@@ -264,9 +264,9 @@ export class CatalogModel {
         return explores[0].explore;
     }
 
-    async updateChartUsages(
+    async setChartUsages(
         projectUuid: string,
-        chartUsageUpdates: ChartUsageUpdate[],
+        chartUsageUpdates: ChartUsageIn[],
     ) {
         await this.database.transaction(async (trx) => {
             const updatePromises = chartUsageUpdates.map(

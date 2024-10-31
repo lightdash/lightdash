@@ -1986,7 +1986,7 @@ export default class SchedulerTask {
                 },
             },
             async () =>
-                this.catalogService.updateChartUsages(
+                this.catalogService.setChartUsages(
                     payload.projectUuid,
                     payload.catalogFieldMap,
                 ),

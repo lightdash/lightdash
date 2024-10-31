@@ -147,7 +147,7 @@ export type SchedulerUpdateCatalogChartUsagesPayload = {
     userUuid: string;
 };
 
-export type ChartUsageUpdate = {
+export type ChartUsageIn = {
     fieldName: string;
     chartUsage: number;
     cachedExploreUuid: string;
