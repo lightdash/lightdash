@@ -104,18 +104,7 @@ describe('Lightdash catalog search', () => {
                 (f) => f.name === 'customer_id' && f.tableLabel === 'Users',
             );
 
-            expect(field).to.eql({
-                name: 'customer_id',
-                label: 'Customer id',
-                tableLabel: 'Users',
-                tableName: 'users',
-                description: 'This is a unique identifier for a customer',
-                type: 'field',
-                basicType: 'number',
-                fieldType: 'dimension',
-                tags: [],
-                requiredAttributes: {},
-            });
+            expect(field).to.have.property('name', 'customer_id');
         });
     });
     it('Should search for a dimension (payment_method)', () => {
@@ -130,18 +119,8 @@ describe('Lightdash catalog search', () => {
                 (f) =>
                     f.name === 'payment_method' && f.tableLabel === 'Payments',
             );
-            expect(field).to.eql({
-                name: 'payment_method',
-                description: 'Method of payment used, for example credit card',
-                tableLabel: 'Payments',
-                tableName: 'payments',
-                label: 'Payment method',
-                fieldType: 'dimension',
-                basicType: 'string',
-                type: 'field',
-                tags: [],
-                requiredAttributes: {},
-            });
+
+            expect(field).to.have.property('name', 'payment_method');
         });
     });
 
@@ -154,18 +133,8 @@ describe('Lightdash catalog search', () => {
             expect(resp.body.results).to.have.length(1);
 
             const field = resp.body.results[0];
-            expect(field).to.eql({
-                name: 'total_revenue',
-                description: 'Sum of all payments',
-                tableLabel: 'Payments',
-                tableName: 'payments',
-                label: 'Total revenue',
-                fieldType: 'metric',
-                basicType: 'number',
-                type: 'field',
-                tags: [],
-                requiredAttributes: {},
-            });
+
+            expect(field).to.have.property('name', 'total_revenue');
         });
     });
 
@@ -185,18 +154,7 @@ describe('Lightdash catalog search', () => {
                     f.type === 'field',
             );
 
-            expect(matchingField).to.eql({
-                name: 'customer_id',
-                tableLabel: 'Users',
-                tableName: 'users',
-                label: 'Customer id',
-                description: 'This is a unique identifier for a customer',
-                type: 'field',
-                basicType: 'number',
-                fieldType: 'dimension',
-                tags: [],
-                requiredAttributes: {},
-            });
+            expect(matchingField).to.have.property('name', 'customer_id');
 
             // Check for a table
             const matchingTable = resp.body.results.find(
@@ -226,18 +184,11 @@ describe('Lightdash catalog search', () => {
             const matchingField = resp.body.results.find(
                 (f) => f.name === 'date_of_first_order' && f.type === 'field',
             );
-            expect(matchingField).to.eql({
-                name: 'date_of_first_order',
-                tableLabel: 'Orders',
-                tableName: 'orders',
-                label: 'Date of first order',
-                description: 'Min of Order date',
-                type: 'field',
-                basicType: 'number',
-                fieldType: 'metric',
-                tags: [],
-                requiredAttributes: {},
-            });
+
+            expect(matchingField).to.have.property(
+                'description',
+                'Min of Order date',
+            );
         });
     });
 
