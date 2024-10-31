@@ -227,6 +227,7 @@ export const organizationMemberAbilities: Record<
         });
         can('create', 'Project', {
             organizationUuid: member.organizationUuid,
+            type: { $in: [ProjectType.DEFAULT, ProjectType.PREVIEW] },
         });
         can('manage', 'Project', {
             organizationUuid: member.organizationUuid,
