@@ -221,7 +221,7 @@ export const MetricsTable = () => {
         enableColumnActions: false,
         enableColumnFilters: false,
         enableHiding: false,
-        enableGlobalFilterModes: true,
+        enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
             setSearch(s);
         },
@@ -246,6 +246,11 @@ export const MetricsTable = () => {
             sx: {
                 boxShadow: 'none',
             },
+        },
+        mantineSearchTextInputProps: {
+            placeholder: 'Search metrics',
+            sx: { minWidth: '300px' },
+            variant: 'default',
         },
         enableBottomToolbar: true,
         renderBottomToolbarCustomActions: () => (
