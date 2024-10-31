@@ -415,14 +415,14 @@ export class SavedChartService extends BaseService {
                 chartExplore,
             );
 
-        const fieldsToIncrementUsage: CatalogFieldWhere[] = [...newChartFields]
+        const fieldsToIncrementUsage: CatalogFieldWhere[] = newChartFields
             .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
             .filter(
                 (fieldWhere): fieldWhere is CatalogFieldWhere =>
                     fieldWhere !== undefined,
             );
 
-        const fieldsToDecrementUsage: CatalogFieldWhere[] = [...removedFields]
+        const fieldsToDecrementUsage: CatalogFieldWhere[] = removedFields
             .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
             .filter(
                 (fieldWhere): fieldWhere is CatalogFieldWhere =>
