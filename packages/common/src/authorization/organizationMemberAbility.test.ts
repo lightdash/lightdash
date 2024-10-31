@@ -1812,7 +1812,7 @@ describe('Organization member permissions', () => {
             const ability = defineAbilityForOrganizationMember(membership);
 
             describe(`user is '${membership.role}' role`, () => {
-                it('can create a project in organization they belong to', () => {
+                it('checks if users can create project in organization they belong to', () => {
                     expect(
                         ability.can(
                             'create',
@@ -1824,7 +1824,7 @@ describe('Organization member permissions', () => {
                     ).toEqual(canCreateProject);
                 });
 
-                it('cannot create a project in another organization', () => {
+                it('checks that users cannot create a project in another organization', () => {
                     expect(
                         ability.can(
                             'create',
@@ -1836,7 +1836,7 @@ describe('Organization member permissions', () => {
                     ).toEqual(false);
                 });
 
-                it('can create a PREVIEW project in organization they belong to', () => {
+                it('checks if users can create a PREVIEW project in organization they belong to', () => {
                     expect(
                         ability.can(
                             'create',
@@ -1848,7 +1848,7 @@ describe('Organization member permissions', () => {
                     ).toEqual(canCreatePreview);
                 });
 
-                it('cannot create a PREVIEW project in another organization', () => {
+                it('checks that users cannot create a PREVIEW project in another organization', () => {
                     expect(
                         ability.can(
                             'create',
