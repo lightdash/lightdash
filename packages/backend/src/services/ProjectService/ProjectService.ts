@@ -329,21 +329,13 @@ export class ProjectService extends BaseService {
                     }
                 }
 
-                // if the upstream project is provided, user must have access to the upstream project level OR on an organization level
-                // if the upstream project is not provided, user must have access to create project ONLY on an organization level
-                // thus, either of the following conditions must be met
                 if (
-                    user.ability.can(
-                        'create',
-                        subject('Project', {
-                            upstreamProjectUuid: data.upstreamProjectUuid,
-                            type: ProjectType.PREVIEW,
-                        }),
-                    ) ||
+                    // checks if user has permission to create project on an organization level or from an upstream project on a project level
                     user.ability.can(
                         'create',
                         subject('Project', {
                             organizationUuid: user.organizationUuid,
+                            upstreamProjectUuid: data.upstreamProjectUuid,
                             type: ProjectType.PREVIEW,
                         }),
                     )
