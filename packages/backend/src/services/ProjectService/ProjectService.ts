@@ -286,7 +286,7 @@ export class ProjectService extends BaseService {
         this.groupsModel = groupsModel;
     }
 
-    static validateProjectCreationPermissions(
+    private async validateProjectCreationPermissions(
         user: SessionUser,
         data: CreateProject,
     ) {
@@ -318,8 +318,20 @@ export class ProjectService extends BaseService {
                 throw new ForbiddenError();
 
             case ProjectType.PREVIEW:
-                // if the upstream project is not provided, user must have access to create project ONLY on an organization level
+                if (data.upstreamProjectUuid) {
+                    const upstreamProject = await this.projectModel.get(
+                        data.upstreamProjectUuid,
+                    );
+                    if (upstreamProject.type === ProjectType.DEFAULT) {
+                        throw new ForbiddenError(
+                            'Cannot create a preview project from a default project',
+                        );
+                    }
+                }
+
                 // if the upstream project is provided, user must have access to the upstream project level OR on an organization level
+                // if the upstream project is not provided, user must have access to create project ONLY on an organization level
+                // thus, either of the following conditions must be met
                 if (
                     user.ability.can(
                         'create',
@@ -488,7 +500,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        ProjectService.validateProjectCreationPermissions(user, data);
+        await this.validateProjectCreationPermissions(user, data);
 
         const createProject = await this._resolveWarehouseClientSshKeys(data);
         const projectUuid = await this.projectModel.create(
@@ -559,7 +571,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        ProjectService.validateProjectCreationPermissions(user, data);
+        await this.validateProjectCreationPermissions(user, data);
 
         const createProject = await this._resolveWarehouseClientSshKeys(data);
 
