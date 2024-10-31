@@ -1,3 +1,10 @@
+# [0.1332.0](https://github.com/lightdash/lightdash/compare/0.1331.1...0.1332.0) (2024-10-31)
+
+
+### Features
+
+* allow sorting by popularity and by default ([#12196](https://github.com/lightdash/lightdash/issues/12196)) ([05d7140](https://github.com/lightdash/lightdash/commit/05d71407a7898632341f0da5e2cba7df388e0d56))
+
 ## [0.1331.1](https://github.com/lightdash/lightdash/compare/0.1331.0...0.1331.1) (2024-10-31)
 
 
