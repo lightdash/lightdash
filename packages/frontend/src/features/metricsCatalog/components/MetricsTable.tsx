@@ -248,7 +248,7 @@ export const MetricsTable = () => {
             },
         },
         mantineSearchTextInputProps: {
-            placeholder: 'Search metrics by name or popularity',
+            placeholder: 'Search by metric name or description',
             sx: { minWidth: '300px' },
             variant: 'default',
         },
