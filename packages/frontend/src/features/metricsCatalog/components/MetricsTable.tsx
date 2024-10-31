@@ -132,7 +132,6 @@ const UseMetricButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
 
     return (
         <Button
-            color="blue"
             size="xs"
             compact
             variant="subtle"
@@ -141,7 +140,7 @@ const UseMetricButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
             }}
             loading={isFetching || isGeneratingPreviewUrl}
         >
-            Use Metric
+            Explore
         </Button>
     );
 };
