@@ -76,10 +76,6 @@ export const organizationMemberAbilities: Record<
     },
     interactive_viewer(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
-        can('create', 'Project', {
-            organizationUuid: member.organizationUuid,
-            type: ProjectType.PREVIEW,
-        });
         can('create', 'Job');
         can('view', 'Job', { userUuid: member.userUuid });
         can('view', 'UnderlyingData', {
@@ -213,6 +209,10 @@ export const organizationMemberAbilities: Record<
         can('manage', 'CompileProject', {
             organizationUuid: member.organizationUuid,
         });
+        can('create', 'Project', {
+            organizationUuid: member.organizationUuid,
+            type: ProjectType.PREVIEW,
+        });
     },
     admin(member, { can }) {
         organizationMemberAbilities.developer(member, { can });
@@ -224,6 +224,10 @@ export const organizationMemberAbilities: Record<
         });
         can('manage', 'SavedChart', {
             organizationUuid: member.organizationUuid,
+        });
+        can('create', 'Project', {
+            organizationUuid: member.organizationUuid,
+            type: { $in: [ProjectType.DEFAULT, ProjectType.PREVIEW] },
         });
         can('manage', 'Project', {
             organizationUuid: member.organizationUuid,

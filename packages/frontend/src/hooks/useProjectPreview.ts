@@ -45,7 +45,7 @@ export const useCreatePreviewMutation = () => {
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to create project`,
+                    title: `Failed to create preview project`,
                     apiError: error,
                 });
             },
