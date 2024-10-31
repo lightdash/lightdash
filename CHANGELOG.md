@@ -1,3 +1,10 @@
+# [0.1330.0](https://github.com/lightdash/lightdash/compare/0.1329.0...0.1330.0) (2024-10-31)
+
+
+### Features
+
+* allow sorting by name in metrics catalog ([#12176](https://github.com/lightdash/lightdash/issues/12176)) ([5c3d502](https://github.com/lightdash/lightdash/commit/5c3d502a9b4145b955aa2e429db144edfc435a18))
+
 # [0.1329.0](https://github.com/lightdash/lightdash/compare/0.1328.1...0.1329.0) (2024-10-30)
 
 
