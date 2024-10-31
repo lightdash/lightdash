@@ -397,51 +397,32 @@ export class SavedChartService extends BaseService {
         projectUuid: string,
         chartExplore: Explore | ExploreError,
         {
-            oldChartMetrics,
-            newChartMetrics,
-            oldChartDimensions,
-            newChartDimensions,
+            oldChartFields,
+            newChartFields,
         }: {
-            oldChartMetrics: string[];
-            newChartMetrics: string[];
-            oldChartDimensions: string[];
-            newChartDimensions: string[];
+            oldChartFields: string[];
+            newChartFields: string[];
         },
     ) {
-        const removedMetrics = oldChartMetrics.filter(
-            (metric) => !newChartMetrics.includes(metric),
-        );
-
-        const removedDimensions = oldChartDimensions.filter(
-            (dimension) => !newChartDimensions.includes(dimension),
+        const removedFields = oldChartFields.filter(
+            (field) => !newChartFields.includes(field),
         );
 
         const catalogFieldWhereByFieldId =
             await this.getCatalogFieldWhereByFieldIds(
                 projectUuid,
-                [
-                    ...newChartMetrics,
-                    ...newChartDimensions,
-                    ...removedMetrics,
-                    ...removedDimensions,
-                ],
+                [...newChartFields, ...removedFields],
                 chartExplore,
             );
 
-        const fieldsToIncrementUsage: CatalogFieldWhere[] = [
-            ...newChartMetrics,
-            ...newChartDimensions,
-        ]
+        const fieldsToIncrementUsage: CatalogFieldWhere[] = [...newChartFields]
             .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
             .filter(
                 (fieldWhere): fieldWhere is CatalogFieldWhere =>
                     fieldWhere !== undefined,
             );
 
-        const fieldsToDecrementUsage: CatalogFieldWhere[] = [
-            ...removedMetrics,
-            ...removedDimensions,
-        ]
+        const fieldsToDecrementUsage: CatalogFieldWhere[] = [...removedFields]
             .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
             .filter(
                 (fieldWhere): fieldWhere is CatalogFieldWhere =>
@@ -531,10 +512,11 @@ export class SavedChartService extends BaseService {
             );
 
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartMetrics,
-                oldChartDimensions,
-                newChartMetrics: data.metricQuery.metrics,
-                newChartDimensions: data.metricQuery.dimensions,
+                oldChartFields: [...oldChartMetrics, ...oldChartDimensions],
+                newChartFields: [
+                    ...data.metricQuery.metrics,
+                    ...data.metricQuery.dimensions,
+                ],
             });
         } catch (error) {
             this.logger.error(
@@ -779,10 +761,8 @@ export class SavedChartService extends BaseService {
             );
 
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartMetrics: metrics,
-                oldChartDimensions: dimensions,
-                newChartMetrics: [],
-                newChartDimensions: [],
+                oldChartFields: [...metrics, ...dimensions],
+                newChartFields: [],
             });
         } catch (error) {
             this.logger.error(
@@ -966,10 +946,11 @@ export class SavedChartService extends BaseService {
 
         try {
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartMetrics: [],
-                oldChartDimensions: [],
-                newChartMetrics: newSavedChart.metricQuery.metrics,
-                newChartDimensions: newSavedChart.metricQuery.dimensions,
+                oldChartFields: [],
+                newChartFields: [
+                    ...newSavedChart.metricQuery.metrics,
+                    ...newSavedChart.metricQuery.dimensions,
+                ],
             });
         } catch (error) {
             this.logger.error(
@@ -1071,10 +1052,11 @@ export class SavedChartService extends BaseService {
 
         try {
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartMetrics: [],
-                oldChartDimensions: [],
-                newChartMetrics: newSavedChart.metricQuery.metrics,
-                newChartDimensions: newSavedChart.metricQuery.dimensions,
+                oldChartFields: [],
+                newChartFields: [
+                    ...newSavedChart.metricQuery.metrics,
+                    ...newSavedChart.metricQuery.dimensions,
+                ],
             });
         } catch (error) {
             this.logger.error(
@@ -1291,11 +1273,14 @@ export class SavedChartService extends BaseService {
                 newChartVersion.projectUuid,
                 cachedExplore,
                 {
-                    oldChartMetrics: currentChartVersion.metricQuery.metrics,
-                    oldChartDimensions:
-                        currentChartVersion.metricQuery.dimensions,
-                    newChartMetrics: newChartVersion.metricQuery.metrics,
-                    newChartDimensions: newChartVersion.metricQuery.dimensions,
+                    oldChartFields: [
+                        ...currentChartVersion.metricQuery.metrics,
+                        ...currentChartVersion.metricQuery.dimensions,
+                    ],
+                    newChartFields: [
+                        ...newChartVersion.metricQuery.metrics,
+                        ...newChartVersion.metricQuery.dimensions,
+                    ],
                 },
             );
         } catch (error) {
