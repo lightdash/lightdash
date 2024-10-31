@@ -242,6 +242,11 @@ export const MetricsTable = () => {
             highlightOnHover: true,
             withColumnBorders: true,
         },
+        mantineTableHeadRowProps: {
+            sx: {
+                boxShadow: 'none',
+            },
+        },
         enableBottomToolbar: true,
         renderBottomToolbarCustomActions: () => (
             <Text>
