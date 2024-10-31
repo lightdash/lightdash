@@ -1,3 +1,10 @@
+## [0.1331.1](https://github.com/lightdash/lightdash/compare/0.1331.0...0.1331.1) (2024-10-31)
+
+
+### Bug Fixes
+
+* add group members in a single insert ([#12174](https://github.com/lightdash/lightdash/issues/12174)) ([9c3c66e](https://github.com/lightdash/lightdash/commit/9c3c66e1532b61bc0a4b820050a5ce97f9fee415))
+
 # [0.1331.0](https://github.com/lightdash/lightdash/compare/0.1330.0...0.1331.0) (2024-10-31)
 
 
