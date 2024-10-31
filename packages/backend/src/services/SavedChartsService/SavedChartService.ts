@@ -395,7 +395,7 @@ export class SavedChartService extends BaseService {
 
     private async updateChartFieldUsage(
         projectUuid: string,
-        chartExploreName: string,
+        chartExplore: Explore | ExploreError,
         {
             oldChartMetrics,
             newChartMetrics,
@@ -408,11 +408,6 @@ export class SavedChartService extends BaseService {
             newChartDimensions: string[];
         },
     ) {
-        const chartCachedExplore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            chartExploreName,
-        );
-
         const removedMetrics = oldChartMetrics.filter(
             (metric) => !newChartMetrics.includes(metric),
         );
@@ -430,7 +425,7 @@ export class SavedChartService extends BaseService {
                     ...removedMetrics,
                     ...removedDimensions,
                 ],
-                chartCachedExplore,
+                chartExplore,
             );
 
         const fieldsToIncrementUsage: CatalogFieldWhere[] = [
@@ -530,16 +525,17 @@ export class SavedChartService extends BaseService {
         });
 
         try {
-            await this.updateChartFieldUsage(
+            const cachedExplore = await this.projectModel.getExploreFromCache(
                 projectUuid,
                 savedChart.tableName,
-                {
-                    oldChartMetrics,
-                    oldChartDimensions,
-                    newChartMetrics: data.metricQuery.metrics,
-                    newChartDimensions: data.metricQuery.dimensions,
-                },
             );
+
+            await this.updateChartFieldUsage(projectUuid, cachedExplore, {
+                oldChartMetrics,
+                oldChartDimensions,
+                newChartMetrics: data.metricQuery.metrics,
+                newChartDimensions: data.metricQuery.dimensions,
+            });
         } catch (error) {
             this.logger.error(
                 `Error updating chart field usage for chart ${savedChartUuid}`,
@@ -747,8 +743,13 @@ export class SavedChartService extends BaseService {
     }
 
     async delete(user: SessionUser, savedChartUuid: string): Promise<void> {
-        const { organizationUuid, projectUuid, spaceUuid } =
-            await this.savedChartModel.getSummary(savedChartUuid);
+        const {
+            organizationUuid,
+            projectUuid,
+            spaceUuid,
+            metricQuery: { metrics, dimensions },
+            tableName,
+        } = await this.savedChartModel.get(savedChartUuid);
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
         const access = await this.spaceModel.getUserSpaceAccess(
             user.userUuid,
@@ -770,6 +771,26 @@ export class SavedChartService extends BaseService {
         }
 
         const deletedChart = await this.savedChartModel.delete(savedChartUuid);
+
+        try {
+            const cachedExplore = await this.projectModel.getExploreFromCache(
+                projectUuid,
+                tableName,
+            );
+
+            await this.updateChartFieldUsage(projectUuid, cachedExplore, {
+                oldChartMetrics: metrics,
+                oldChartDimensions: dimensions,
+                newChartMetrics: [],
+                newChartDimensions: [],
+            });
+        } catch (error) {
+            this.logger.error(
+                `Error updating chart field usage for chart ${savedChartUuid}`,
+                error,
+            );
+        }
+
         this.analytics.track({
             event: 'saved_chart.deleted',
             userId: user.userUuid,
@@ -919,6 +940,7 @@ export class SavedChartService extends BaseService {
             projectUuid,
             savedChart.tableName,
         );
+
         this.analytics.track({
             event: 'saved_chart.created',
             userId: user.userUuid,
@@ -941,6 +963,20 @@ export class SavedChartService extends BaseService {
                 properties,
             });
         });
+
+        try {
+            await this.updateChartFieldUsage(projectUuid, cachedExplore, {
+                oldChartMetrics: [],
+                oldChartDimensions: [],
+                newChartMetrics: newSavedChart.metricQuery.metrics,
+                newChartDimensions: newSavedChart.metricQuery.dimensions,
+            });
+        } catch (error) {
+            this.logger.error(
+                `Error updating chart field usage for chart ${newSavedChart.uuid}`,
+                error,
+            );
+        }
 
         return { ...newSavedChart, isPrivate, access };
     }
@@ -1032,6 +1068,21 @@ export class SavedChartService extends BaseService {
                 duplicateOfSavedQueryId: chartUuid,
             },
         });
+
+        try {
+            await this.updateChartFieldUsage(projectUuid, cachedExplore, {
+                oldChartMetrics: [],
+                oldChartDimensions: [],
+                newChartMetrics: newSavedChart.metricQuery.metrics,
+                newChartDimensions: newSavedChart.metricQuery.dimensions,
+            });
+        } catch (error) {
+            this.logger.error(
+                `Error updating chart field usage for chart ${newSavedChart.uuid}`,
+                error,
+            );
+        }
+
         return { ...newSavedChart, isPrivate: space.isPrivate, access };
     }
 
@@ -1204,11 +1255,12 @@ export class SavedChartService extends BaseService {
         versionUuid: string,
     ): Promise<void> {
         await this.checkUpdateAccess(user, chartUuid);
+        const currentChartVersion = await this.savedChartModel.get(chartUuid);
         const chartVersion = await this.savedChartModel.get(
             chartUuid,
             versionUuid,
         );
-        const savedChart = await this.savedChartModel.createVersion(
+        const newChartVersion = await this.savedChartModel.createVersion(
             chartUuid,
             chartVersion,
             user,
@@ -1217,15 +1269,40 @@ export class SavedChartService extends BaseService {
             event: 'saved_chart_version.rollback',
             userId: user.userUuid,
             properties: {
-                projectId: savedChart.projectUuid,
-                savedQueryId: savedChart.uuid,
+                projectId: newChartVersion.projectUuid,
+                savedQueryId: newChartVersion.uuid,
                 versionId: versionUuid,
             },
         });
         this.analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
-            properties: SavedChartService.getCreateEventProperties(savedChart),
+            properties:
+                SavedChartService.getCreateEventProperties(newChartVersion),
         });
+
+        try {
+            const cachedExplore = await this.projectModel.getExploreFromCache(
+                newChartVersion.projectUuid,
+                newChartVersion.tableName,
+            );
+
+            await this.updateChartFieldUsage(
+                newChartVersion.projectUuid,
+                cachedExplore,
+                {
+                    oldChartMetrics: currentChartVersion.metricQuery.metrics,
+                    oldChartDimensions:
+                        currentChartVersion.metricQuery.dimensions,
+                    newChartMetrics: newChartVersion.metricQuery.metrics,
+                    newChartDimensions: newChartVersion.metricQuery.dimensions,
+                },
+            );
+        } catch (error) {
+            this.logger.error(
+                `Error updating chart field usage for chart ${newChartVersion.uuid}`,
+                error,
+            );
+        }
     }
 }
