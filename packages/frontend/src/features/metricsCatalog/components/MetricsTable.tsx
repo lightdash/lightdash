@@ -70,7 +70,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Description',
         enableSorting: false,
         Cell: ({ row }) => (
-            <HoverCard withinPortal>
+            <HoverCard withinPortal shadow="lg" position="right">
                 <HoverCard.Target>
                     <Text lineClamp={2}>{row.original.description}</Text>
                 </HoverCard.Target>
@@ -87,7 +87,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
     },
     {
         accessorKey: 'directory',
-        header: 'Directory',
+        header: 'table',
         enableSorting: false,
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
