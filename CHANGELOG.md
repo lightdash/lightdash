@@ -1,3 +1,10 @@
+# [0.1334.0](https://github.com/lightdash/lightdash/compare/0.1333.0...0.1334.0) (2024-10-31)
+
+
+### Features
+
+* open sql runner in a new tab if already on sql runner ([#12180](https://github.com/lightdash/lightdash/issues/12180)) ([074e514](https://github.com/lightdash/lightdash/commit/074e514d9568be85bee48c058a20fa7b41aec870))
+
 # [0.1333.0](https://github.com/lightdash/lightdash/compare/0.1332.0...0.1333.0) (2024-10-31)
 
 
