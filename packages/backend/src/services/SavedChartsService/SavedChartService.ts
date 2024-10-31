@@ -513,13 +513,6 @@ export class SavedChartService extends BaseService {
             user,
         );
 
-        await this.updateChartFieldUsage(projectUuid, savedChart.tableName, {
-            oldChartMetrics,
-            oldChartDimensions,
-            newChartMetrics: data.metricQuery.metrics,
-            newChartDimensions: data.metricQuery.dimensions,
-        });
-
         this.analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
@@ -535,6 +528,24 @@ export class SavedChartService extends BaseService {
                 properties,
             });
         });
+
+        try {
+            await this.updateChartFieldUsage(
+                projectUuid,
+                savedChart.tableName,
+                {
+                    oldChartMetrics,
+                    oldChartDimensions,
+                    newChartMetrics: data.metricQuery.metrics,
+                    newChartDimensions: data.metricQuery.dimensions,
+                },
+            );
+        } catch (error) {
+            this.logger.error(
+                `Error updating chart field usage for chart ${savedChartUuid}`,
+                error,
+            );
+        }
 
         return {
             ...savedChart,
