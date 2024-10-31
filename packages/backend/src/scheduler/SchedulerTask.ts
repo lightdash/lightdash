@@ -1970,7 +1970,7 @@ export default class SchedulerTask {
         }
     }
 
-    protected async updateCatalogChartUsages(
+    protected async updateCatalogChartUsage(
         jobId: string,
         scheduledTime: Date,
         payload: SchedulerUpdateCatalogChartUsagesPayload,

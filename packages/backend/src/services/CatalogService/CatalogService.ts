@@ -453,13 +453,13 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const chartSummaries =
-            await this.savedChartModel.getChartWithFieldSummaries(projectUuid, [
+        const chartUsageByFieldId =
+            await this.savedChartModel.getChartUsageByFieldId(projectUuid, [
                 fieldId,
             ]);
 
         const chartAnalytics =
-            chartSummaries[fieldId]?.map((chart) => ({
+            chartUsageByFieldId[fieldId]?.map((chart) => ({
                 name: chart.name,
                 uuid: chart.uuid,
                 spaceUuid: chart.spaceUuid,
@@ -535,14 +535,14 @@ export class CatalogService<
         projectUuid: string,
         catalogFieldMap: CatalogFieldMap,
     ) {
-        const chartSummariesByFieldId =
-            await this.savedChartModel.getChartWithFieldSummaries(
+        const chartUsagesByFieldId =
+            await this.savedChartModel.getChartUsageByFieldId(
                 projectUuid,
                 Object.keys(catalogFieldMap),
             );
 
-        const chartUsagesByFieldName = Object.entries(
-            chartSummariesByFieldId,
+        const chartUsageCountByFieldName = Object.entries(
+            chartUsagesByFieldId,
         ).reduce<Record<string, number>>((acc, [fieldId, chartSummaries]) => {
             acc[catalogFieldMap[fieldId].fieldName] = chartSummaries.length;
             return acc;
@@ -550,9 +550,9 @@ export class CatalogService<
 
         await this.catalogModel.updateChartUsages(
             projectUuid,
-            chartUsagesByFieldName,
+            chartUsageCountByFieldName,
         );
 
-        return chartUsagesByFieldName;
+        return chartUsageCountByFieldName;
     }
 }

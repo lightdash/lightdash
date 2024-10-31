@@ -596,7 +596,7 @@ export class ProjectService extends BaseService {
                         explores,
                     );
 
-                await this.schedulerClient.updateCatalogChartUsages({
+                await this.schedulerClient.updateCatalogChartUsage({
                     projectUuid,
                     catalogFieldMap,
                     userUuid: user.userUuid,
@@ -670,7 +670,7 @@ export class ProjectService extends BaseService {
             explores,
         );
 
-        await this.schedulerClient.updateCatalogChartUsages({
+        await this.schedulerClient.updateCatalogChartUsage({
             projectUuid,
             catalogFieldMap,
             userUuid: user.userUuid,
@@ -826,7 +826,7 @@ export class ProjectService extends BaseService {
                         explores,
                     );
 
-                await this.schedulerClient.updateCatalogChartUsages({
+                await this.schedulerClient.updateCatalogChartUsage({
                     projectUuid,
                     catalogFieldMap,
                     userUuid: user.userUuid,
@@ -2804,7 +2804,7 @@ export class ProjectService extends BaseService {
                         explores,
                     );
 
-                await this.schedulerClient.updateCatalogChartUsages({
+                await this.schedulerClient.updateCatalogChartUsage({
                     projectUuid,
                     catalogFieldMap,
                     userUuid: user.userUuid,

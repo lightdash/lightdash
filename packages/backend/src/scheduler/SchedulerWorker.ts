@@ -510,7 +510,7 @@ export class SchedulerWorker extends SchedulerTask {
                     helpers.job.run_at,
                     payload,
                     async () => {
-                        await this.updateCatalogChartUsages(
+                        await this.updateCatalogChartUsage(
                             helpers.job.id,
                             helpers.job.run_at,
                             payload,

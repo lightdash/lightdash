@@ -147,4 +147,4 @@ export type SchedulerUpdateCatalogChartUsagesPayload = {
     userUuid: string;
 };
 
-export const updateCatalogChartUsagesJob = 'updateCatalogChartUsages';
+export const updateCatalogChartUsagesJob = 'updateCatalogChartUsage';

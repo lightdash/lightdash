@@ -51,7 +51,7 @@ export type SchedulerLog = {
         | 'sqlRunner'
         | 'sqlRunnerPivotQuery'
         | 'semanticLayer'
-        | 'updateCatalogChartUsages';
+        | 'updateCatalogChartUsage';
     schedulerUuid?: string;
     jobId: string;
     jobGroup?: string;

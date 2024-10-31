@@ -712,7 +712,8 @@ export class SchedulerClient {
         return { jobId };
     }
 
-    async updateCatalogChartUsages(
+    // Updates catalog with chart usages after the catalog is indexed - for example, metric_1 is used by 2 charts, so its chart_usage will be 2
+    async updateCatalogChartUsage(
         payload: SchedulerUpdateCatalogChartUsagesPayload,
     ) {
         const graphileClient = await this.graphileUtils;

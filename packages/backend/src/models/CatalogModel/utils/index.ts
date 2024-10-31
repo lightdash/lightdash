@@ -13,6 +13,7 @@ export const convertExploresToCatalog = (
     catalogInserts: DbCatalogIn[];
     catalogFieldMap: CatalogFieldMap;
 } => {
+    // Track fields' ids and names to calculate their chart usage
     const catalogFieldMap: CatalogFieldMap = {};
 
     const catalogInserts = cachedExplores.reduce<DbCatalogIn[]>(

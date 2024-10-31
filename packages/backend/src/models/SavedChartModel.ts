@@ -620,7 +620,7 @@ export class SavedChartModel {
         return savedChart;
     }
 
-    async getChartWithFieldSummaries(
+    async getChartUsageByFieldId(
         projectUuid: string,
         fieldIds: string[],
     ): Promise<Record<string, ChartSummary[]>> {
