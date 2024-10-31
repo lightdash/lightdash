@@ -265,12 +265,9 @@ export class CatalogModel {
         return explores[0].explore;
     }
 
-    async setChartUsages(
-        projectUuid: string,
-        chartUsageUpdates: ChartUsageIn[],
-    ) {
+    async setChartUsages(projectUuid: string, chartUsages: ChartUsageIn[]) {
         await this.database.transaction(async (trx) => {
-            const updatePromises = chartUsageUpdates.map(
+            const updatePromises = chartUsages.map(
                 ({ fieldName, chartUsage, cachedExploreUuid }) =>
                     trx(CatalogTableName)
                         .where(`${CatalogTableName}.name`, fieldName)
