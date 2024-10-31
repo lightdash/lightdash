@@ -251,14 +251,16 @@ describe('Lightdash API tests for viewer org user', () => {
         });
     });
 
-    it('Should get a forbidden (403) from POST project', () => {
+    it('Should get a forbidden error (403) from POST project', () => {
         const endpoint = `${apiUrl}/org/projects/`;
 
         cy.request({
             url: endpoint,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: {},
+            body: {
+                type: 'DEFAULT',
+            },
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(403);
@@ -327,7 +329,9 @@ describe('Lightdash API tests for interactive_viewer org user', () => {
             url: endpoint,
             headers: { 'Content-type': 'application/json' },
             method: 'POST',
-            body: {},
+            body: {
+                type: 'DEFAULT',
+            },
             failOnStatusCode: false,
         }).then((resp) => {
             expect(resp.status).to.eq(403);
