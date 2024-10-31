@@ -46,6 +46,7 @@ export type CatalogField = Pick<
         tableName: string;
         tableGroupLabel?: string;
         tags?: string[]; // Tags from table, for filtering
+        chartUsage: number | undefined;
     };
 
 export type CatalogTable = Pick<
@@ -57,6 +58,7 @@ export type CatalogTable = Pick<
     groupLabel?: string;
     tags?: string[];
     joinedTables?: CompiledExploreJoin[]; // Matched type in explore
+    chartUsage: number | undefined;
 };
 
 export type CatalogItem = CatalogField | CatalogTable;
@@ -133,3 +135,25 @@ export const getBasicType = (
             return assertUnreachable(type, `Invalid field type ${type}`);
     }
 };
+
+export type CatalogFieldMap = {
+    [fieldId: string]: {
+        fieldName: string;
+        tableName: string;
+        cachedExploreUuid: string;
+    };
+};
+
+export type SchedulerUpdateCatalogChartUsagesPayload = {
+    projectUuid: string;
+    catalogFieldMap: CatalogFieldMap;
+    userUuid: string;
+};
+
+export type ChartUsageUpdate = {
+    fieldName: string;
+    chartUsage: number;
+    cachedExploreUuid: string;
+};
+
+export const updateCatalogChartUsagesJob = 'updateCatalogChartUsage';

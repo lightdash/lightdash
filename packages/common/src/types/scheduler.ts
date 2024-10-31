@@ -50,7 +50,8 @@ export type SchedulerLog = {
         | 'validateProject'
         | 'sqlRunner'
         | 'sqlRunnerPivotQuery'
-        | 'semanticLayer';
+        | 'semanticLayer'
+        | 'updateCatalogChartUsage';
     schedulerUuid?: string;
     jobId: string;
     jobGroup?: string;

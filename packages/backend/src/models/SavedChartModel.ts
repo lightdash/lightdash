@@ -59,6 +59,7 @@ import {
     SavedChartCustomDimensionsTableName,
     SavedChartCustomSqlDimensionsTableName,
     SavedChartsTableName,
+    SavedChartVersionFieldsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
@@ -617,6 +618,45 @@ export class SavedChartModel {
             .delete()
             .where('saved_query_uuid', savedChartUuid);
         return savedChart;
+    }
+
+    async getChartUsageByFieldId(
+        projectUuid: string,
+        fieldIds: string[],
+    ): Promise<Record<string, ChartSummary[]>> {
+        const results = await this.getChartSummaryQuery()
+            .select(`${SavedChartVersionFieldsTableName}.name as fieldId`)
+            .leftJoin(
+                SavedChartVersionsTableName,
+                `${SavedChartsTableName}.saved_query_id`,
+                `${SavedChartVersionsTableName}.saved_query_id`,
+            )
+            .leftJoin(
+                SavedChartVersionFieldsTableName,
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
+            )
+            .whereIn(`${SavedChartVersionFieldsTableName}.name`, fieldIds)
+            .where(
+                // filter by last version
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                this.database.raw(`(select saved_queries_version_id
+                                           from ${SavedChartVersionsTableName}
+                                           where saved_queries.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
+                                           order by ${SavedChartVersionsTableName}.created_at desc
+                                           limit 1)`),
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+        // Group results by fieldId
+        return results.reduce<Record<string, ChartSummary[]>>((acc, chart) => {
+            const { fieldId, ...chartSummary } = chart;
+            if (!acc[fieldId]) {
+                acc[fieldId] = [];
+            }
+            acc[fieldId].push(chartSummary);
+            return acc;
+        }, {});
     }
 
     async get(

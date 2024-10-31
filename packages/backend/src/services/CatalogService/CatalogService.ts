@@ -20,7 +20,9 @@ import {
     TableSelectionType,
     UserAttributeValueMap,
     type ApiSort,
+    type CatalogFieldMap,
     type CatalogFieldWithAnalytics,
+    type ChartUsageUpdate,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
@@ -156,6 +158,7 @@ export class CatalogService<
                             explore.tables?.[explore.baseTable]?.description,
                         type: CatalogType.Table,
                         joinedTables: explore.joinedTables,
+                        chartUsage: undefined,
                     },
                 ];
             }
@@ -177,6 +180,7 @@ export class CatalogService<
                         groupLabel: explore.groupLabel,
                         joinedTables: explore.joinedTables,
                         tags: explore.tags,
+                        chartUsage: undefined,
                     },
                 ];
             }
@@ -439,8 +443,7 @@ export class CatalogService<
     async getFieldAnalytics(
         user: SessionUser,
         projectUuid: string,
-        table: string,
-        field: string,
+        fieldId: string,
     ): Promise<CatalogAnalytics> {
         const { organizationUuid } = user;
         if (
@@ -452,39 +455,21 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const chartSummaries = await this.savedChartModel.find({
-            projectUuid,
-            exploreName: table,
-        });
+        const chartUsageByFieldId =
+            await this.savedChartModel.getChartUsageByFieldId(projectUuid, [
+                fieldId,
+            ]);
 
-        const chartsWithAccess = await this.filterChartsWithAccess(
-            user,
-            projectUuid,
-            chartSummaries,
-        );
-
-        const chartsPromises = chartsWithAccess.map((chart) =>
-            this.savedChartModel.get(chart.uuid),
-        );
-        const charts = await Promise.all(chartsPromises);
-        const chartsWithFields = charts.filter((chart) => {
-            const fields = [
-                ...chart.metricQuery.dimensions,
-                ...chart.metricQuery.metrics,
-            ];
-            const fieldRef = `${table}_${field}`;
-            return fields.includes(fieldRef);
-        });
-        const chartAnalytics: CatalogAnalytics['charts'] = chartsWithFields.map(
-            (chart) => ({
+        const chartAnalytics =
+            chartUsageByFieldId[fieldId]?.map((chart) => ({
                 name: chart.name,
                 uuid: chart.uuid,
                 spaceUuid: chart.spaceUuid,
                 spaceName: chart.spaceName,
                 dashboardName: chart.dashboardName,
                 dashboardUuid: chart.dashboardUuid,
-            }),
-        );
+            })) ?? [];
+
         return { charts: chartAnalytics };
     }
 
@@ -525,24 +510,55 @@ export class CatalogService<
         );
 
         const { data: catalogMetrics, pagination } = paginatedCatalogMetrics;
-
-        const analyticsPromises = catalogMetrics
+        const data = catalogMetrics
             .filter(
                 (item): item is CatalogField => item.type === CatalogType.Field, // This is for type narrowing the values returned from `searchCatalog`
             )
-            .map<Promise<CatalogFieldWithAnalytics>>(async (metric) => ({
+            // TODO: to be removed after chart_usage
+            .map<CatalogFieldWithAnalytics>((metric) => ({
                 ...metric,
-                analytics: await this.getFieldAnalytics(
-                    user,
-                    projectUuid,
-                    metric.tableName,
-                    metric.name,
-                ),
+                analytics: {
+                    charts: [],
+                },
             }));
 
         return {
             pagination,
-            data: await Promise.all(analyticsPromises),
+            data,
+        };
+    }
+
+    async updateChartUsages(
+        projectUuid: string,
+        catalogFieldMap: CatalogFieldMap,
+    ) {
+        const chartUsagesByFieldId =
+            await this.savedChartModel.getChartUsageByFieldId(
+                projectUuid,
+                Object.keys(catalogFieldMap),
+            );
+
+        const chartUsageUpdates = Object.entries(chartUsagesByFieldId).reduce<
+            ChartUsageUpdate[]
+        >((acc, [fieldId, chartSummaries]) => {
+            const { fieldName, cachedExploreUuid } = catalogFieldMap[fieldId];
+
+            acc.push({
+                fieldName,
+                chartUsage: chartSummaries.length,
+                cachedExploreUuid,
+            });
+
+            return acc;
+        }, []);
+
+        await this.catalogModel.updateChartUsages(
+            projectUuid,
+            chartUsageUpdates,
+        );
+
+        return {
+            chartUsageUpdates,
         };
     }
 }

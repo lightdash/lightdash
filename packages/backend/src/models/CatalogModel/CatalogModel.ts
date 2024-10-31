@@ -9,6 +9,8 @@ import {
     TableSelectionType,
     UnexpectedServerError,
     type ApiSort,
+    type CatalogItem,
+    type ChartUsageUpdate,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type TablesConfiguration,
@@ -17,6 +19,7 @@ import {
 import { Knex } from 'knex';
 import {
     CatalogTableName,
+    getDbCatalogColumnFromCatalogProperty,
     type DbCatalog,
 } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
@@ -90,6 +93,7 @@ export class CatalogModel {
                 },
                 `${CachedExploreTableName}.explore`,
                 `required_attributes`,
+                `chart_usage`,
             )
             .leftJoin(
                 CachedExploreTableName,
@@ -217,7 +221,12 @@ export class CatalogModel {
 
         if (sortArgs) {
             const { sort, order } = sortArgs;
-            catalogItemsQuery = catalogItemsQuery.orderBy(sort, order);
+            catalogItemsQuery = catalogItemsQuery.orderBy(
+                getDbCatalogColumnFromCatalogProperty(
+                    sort as keyof CatalogItem, // Can be cast here since we have an exhaustive switch/case in getDbCatalogColumnFromCatalogProperty
+                ),
+                order,
+            );
         }
 
         const paginatedCatalogItems = await KnexPaginate.paginate(
@@ -253,5 +262,31 @@ export class CatalogModel {
         }
 
         return explores[0].explore;
+    }
+
+    async updateChartUsages(
+        projectUuid: string,
+        chartUsageUpdates: ChartUsageUpdate[],
+    ) {
+        await this.database.transaction(async (trx) => {
+            const updatePromises = chartUsageUpdates.map(
+                ({ fieldName, chartUsage, cachedExploreUuid }) =>
+                    trx(CatalogTableName)
+                        .where(`${CatalogTableName}.name`, fieldName)
+                        .andWhere(
+                            `${CatalogTableName}.cached_explore_uuid`,
+                            cachedExploreUuid,
+                        )
+                        .andWhere(
+                            `${CatalogTableName}.project_uuid`,
+                            projectUuid,
+                        )
+                        .update({
+                            chart_usage: chartUsage,
+                        }),
+            );
+
+            await Promise.all(updatePromises);
+        });
     }
 }
