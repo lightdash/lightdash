@@ -229,6 +229,9 @@ export const MetricsTable = () => {
         manualSorting: true,
         onSortingChange: setSorting,
         enableTopToolbar: true,
+        mantinePaperProps: {
+            shadow: undefined,
+        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: { maxHeight: '600px', minHeight: '600px' },
