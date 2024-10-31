@@ -264,10 +264,10 @@ const ProjectSwitcher = () => {
                 switch (project.type) {
                     case ProjectType.DEFAULT:
                         return true;
-                    // check if user has permission to create preview project on an organization level (developer, admin)
-                    // or check if user has permission to create preview project on a project level
-                    // - they should have permission (developer, admin) to the upstream project
                     case ProjectType.PREVIEW:
+                        // check if user has permission to create preview project on an organization level (developer, admin)
+                        // or check if user has permission to create preview project on a project level
+                        // - they should have permission (developer, admin) to the upstream project
                         return (
                             orgRoleCanCreatePreviews ||
                             user.data?.ability.can(
@@ -345,6 +345,7 @@ const ProjectSwitcher = () => {
                     ))}
 
                     {activeProject &&
+                    activeProject.type === ProjectType.DEFAULT &&
                     (orgRoleCanCreatePreviews ||
                         user.data?.ability.can(
                             'create',
