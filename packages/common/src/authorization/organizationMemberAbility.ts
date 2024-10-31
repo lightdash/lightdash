@@ -176,10 +176,6 @@ export const organizationMemberAbilities: Record<
     },
     developer(member, { can }) {
         organizationMemberAbilities.editor(member, { can });
-        can('create', 'Project', {
-            organizationUuid: member.organizationUuid,
-            type: ProjectType.PREVIEW,
-        });
         can('manage', 'VirtualView', {
             organizationUuid: member.organizationUuid,
         });
