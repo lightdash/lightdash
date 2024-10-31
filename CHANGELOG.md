@@ -1,3 +1,10 @@
+## [0.1334.1](https://github.com/lightdash/lightdash/compare/0.1334.0...0.1334.1) (2024-10-31)
+
+
+### Bug Fixes
+
+* allow stacking in ungrouped bar charts ([#12193](https://github.com/lightdash/lightdash/issues/12193)) ([511b6ca](https://github.com/lightdash/lightdash/commit/511b6cae9bf786617d78d5806f7fb3010b6e4cc7))
+
 # [0.1334.0](https://github.com/lightdash/lightdash/compare/0.1333.0...0.1334.0) (2024-10-31)
 
 
