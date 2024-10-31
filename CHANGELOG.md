@@ -1,3 +1,10 @@
+# [0.1335.0](https://github.com/lightdash/lightdash/compare/0.1334.1...0.1335.0) (2024-10-31)
+
+
+### Features
+
+* update chart usage counter ([#12200](https://github.com/lightdash/lightdash/issues/12200)) ([73c2877](https://github.com/lightdash/lightdash/commit/73c2877ec465b63d99f148aa34b750f00402c74f))
+
 ## [0.1334.1](https://github.com/lightdash/lightdash/compare/0.1334.0...0.1334.1) (2024-10-31)
 
 
