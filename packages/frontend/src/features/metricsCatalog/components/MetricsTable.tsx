@@ -22,7 +22,6 @@ import {
     useState,
     type UIEvent,
 } from 'react';
-import { useHistory } from 'react-router-dom';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     createMetricPreviewUnsavedChartVersion,
@@ -71,7 +70,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Description',
         enableSorting: false,
         Cell: ({ row }) => (
-            <HoverCard withinPortal>
+            <HoverCard withinPortal shadow="lg" position="right">
                 <HoverCard.Target>
                     <Text lineClamp={2}>{row.original.description}</Text>
                 </HoverCard.Target>
@@ -88,7 +87,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
     },
     {
         accessorKey: 'directory',
-        header: 'Directory',
+        header: 'Table',
         enableSorting: false,
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
@@ -101,30 +100,35 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
 ];
 
 const UseMetricButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
-    const [currentTableName, setCurrentTableName] = useState<string>();
-    const { data: explore, isFetching } = useExplore(currentTableName);
-    const [isNavigating, setIsNavigating] = useState(false);
-    const history = useHistory();
+    const [isGeneratingPreviewUrl, setIsGeneratingPreviewUrl] = useState(false);
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const [currentTableName, setCurrentTableName] = useState<string>();
+    const { isFetching } = useExplore(currentTableName, {
+        onSuccess(explore) {
+            if (!!currentTableName && explore && projectUuid) {
+                setIsGeneratingPreviewUrl(true);
+                const unsavedChartVersion =
+                    createMetricPreviewUnsavedChartVersion(
+                        row.original,
+                        explore,
+                    );
 
-    useEffect(() => {
-        if (!!currentTableName && explore && projectUuid) {
-            setIsNavigating(true);
-            const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
-                row.original,
-                explore,
-            );
+                const { pathname, search } =
+                    getExplorerUrlFromCreateSavedChartVersion(
+                        projectUuid,
+                        unsavedChartVersion,
+                    );
+                const url = new URL(pathname, window.location.origin);
+                url.search = new URLSearchParams(search).toString();
 
-            history.push(
-                getExplorerUrlFromCreateSavedChartVersion(
-                    projectUuid,
-                    unsavedChartVersion,
-                ),
-            );
-        }
-    }, [currentTableName, explore, projectUuid, row.original, history]);
+                window.open(url.href, '_blank');
+                setIsGeneratingPreviewUrl(false);
+                setCurrentTableName(undefined);
+            }
+        },
+    });
 
     return (
         <Button
@@ -135,7 +139,7 @@ const UseMetricButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
             onClick={() => {
                 setCurrentTableName(row.original.tableName);
             }}
-            loading={isFetching || isNavigating}
+            loading={isFetching || isGeneratingPreviewUrl}
         >
             Use Metric
         </Button>
