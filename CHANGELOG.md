@@ -1,3 +1,10 @@
+# [0.1333.0](https://github.com/lightdash/lightdash/compare/0.1332.0...0.1333.0) (2024-10-31)
+
+
+### Features
+
+* get field analytics on button click ([#12195](https://github.com/lightdash/lightdash/issues/12195)) ([492537b](https://github.com/lightdash/lightdash/commit/492537b9ed92790d08ca1f70e0fae3e89beb9a84))
+
 # [0.1332.0](https://github.com/lightdash/lightdash/compare/0.1331.1...0.1332.0) (2024-10-31)
 
 
