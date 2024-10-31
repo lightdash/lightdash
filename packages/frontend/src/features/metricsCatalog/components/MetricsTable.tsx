@@ -9,6 +9,7 @@ import {
     useMantineReactTable,
     type MRT_ColumnDef,
     type MRT_Row,
+    type MRT_SortingState,
     type MRT_Virtualizer,
 } from 'mantine-react-table';
 import {
@@ -65,6 +66,7 @@ const columns: MRT_ColumnDef<CatalogFieldWithAnalytics>[] = [
     {
         accessorKey: 'name',
         header: 'Metric Name',
+        enableSorting: true,
         Cell: ({ row }) => (
             <Text fw={500}>{friendlyName(row.original.label)}</Text>
         ),
@@ -72,6 +74,7 @@ const columns: MRT_ColumnDef<CatalogFieldWithAnalytics>[] = [
     {
         accessorKey: 'description',
         header: 'Description',
+        enableSorting: false,
         Cell: ({ row }) => (
             <HoverCard withinPortal>
                 <HoverCard.Target>
@@ -91,11 +94,13 @@ const columns: MRT_ColumnDef<CatalogFieldWithAnalytics>[] = [
     {
         accessorKey: 'directory',
         header: 'Directory',
+        enableSorting: false,
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
     {
         accessorKey: 'usage',
         header: 'Usage',
+        enableSorting: false,
         Cell: ({ row }) => <MetricUsageButton row={row} />,
     },
 ];
@@ -157,10 +162,17 @@ export const MetricsTable = () => {
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
 
+    const [sorting, setSorting] = useState<MRT_SortingState>([]);
+
     const { data, fetchNextPage, hasNextPage, isFetching } = useMetricsCatalog({
         projectUuid,
-        pageSize: 20, // TODO: turn into constant
+        pageSize: 20,
         search: deferredSearch,
+        // TODO: Handle multiple sorting - for now just use the first one - metric name
+        ...(sorting.length > 0 && {
+            sortBy: sorting[0].id,
+            sortDirection: sorting[0].desc ? 'desc' : 'asc',
+        }),
     });
 
     const flatData = useMemo(
@@ -174,9 +186,9 @@ export const MetricsTable = () => {
             if (containerRefElement) {
                 const { scrollHeight, scrollTop, clientHeight } =
                     containerRefElement;
-                //once the user has scrolled within 100px of the bottom of the table, fetch more data if we can
+                //once the user has scrolled within 200px of the bottom of the table, fetch more data if we can
                 if (
-                    scrollHeight - scrollTop - clientHeight < 100 &&
+                    scrollHeight - scrollTop - clientHeight < 200 &&
                     !isFetching &&
                     hasNextPage
                 ) {
@@ -201,7 +213,6 @@ export const MetricsTable = () => {
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
         enablePagination: false,
-        enableSorting: false,
         enableFilters: true,
         enableFullScreenToggle: false,
         enableDensityToggle: false,
@@ -212,6 +223,9 @@ export const MetricsTable = () => {
         onGlobalFilterChange: (s: string) => {
             setSearch(s);
         },
+        enableSorting: true,
+        manualSorting: true,
+        onSortingChange: setSorting,
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
@@ -234,7 +248,8 @@ export const MetricsTable = () => {
             </Text>
         ),
         state: {
-            isLoading: isFetching,
+            sorting,
+            showProgressBars: isFetching,
             density: 'xs',
         },
         rowVirtualizerInstanceRef,
