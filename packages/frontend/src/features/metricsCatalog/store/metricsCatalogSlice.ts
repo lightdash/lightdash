@@ -1,4 +1,4 @@
-import type { CatalogFieldWithAnalytics } from '@lightdash/common';
+import type { CatalogField } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 type MetricsCatalogState = {
@@ -7,7 +7,7 @@ type MetricsCatalogState = {
             isOpen: boolean;
         };
     };
-    activeMetric: CatalogFieldWithAnalytics | undefined;
+    activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
 };
 
@@ -30,7 +30,7 @@ export const metricsCatalogSlice = createSlice({
         },
         setActiveMetric: (
             state,
-            action: PayloadAction<CatalogFieldWithAnalytics | undefined>,
+            action: PayloadAction<CatalogField | undefined>,
         ) => {
             state.activeMetric = action.payload;
             state.modals.chartUsageModal.isOpen = !!action.payload;

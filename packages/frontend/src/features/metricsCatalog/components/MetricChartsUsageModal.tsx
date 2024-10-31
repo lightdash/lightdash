@@ -1,26 +1,17 @@
-import {
-    Anchor,
-    Group,
-    List,
-    Modal,
-    Stack,
-    Text,
-    type ModalProps,
-} from '@mantine/core';
+import { Group, Modal, Stack, Text, type ModalProps } from '@mantine/core';
 import { IconDeviceAnalytics } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useAppSelector } from '../../sqlRunner/store/hooks';
 
 type Props = ModalProps;
 
 export const MetricChartsUsageModal: FC<Props> = ({ opened, onClose }) => {
-    const activeMetric = useAppSelector(
-        (state) => state.metricsCatalog.activeMetric,
-    );
-    const projectUuid = useAppSelector(
-        (state) => state.metricsCatalog.projectUuid,
-    );
+    // const activeMetric = useAppSelector(
+    //     (state) => state.metricsCatalog.activeMetric,
+    // );
+    // const projectUuid = useAppSelector(
+    //     (state) => state.metricsCatalog.projectUuid,
+    // );
 
     return (
         <Modal
@@ -43,7 +34,8 @@ export const MetricChartsUsageModal: FC<Props> = ({ opened, onClose }) => {
         >
             <Stack p="md" spacing="xs">
                 <Text>This metric is used in the following charts:</Text>
-                <List pl="sm">
+                {/* TODO: Add charts usage endpoint query data here */}
+                {/* <List pl="sm">
                     {activeMetric?.analytics?.charts.map((chart) => (
                         <List.Item key={chart.uuid} fz="sm">
                             <Anchor
@@ -54,7 +46,7 @@ export const MetricChartsUsageModal: FC<Props> = ({ opened, onClose }) => {
                             </Anchor>
                         </List.Item>
                     ))}
-                </List>
+                </List> */}
             </Stack>
         </Modal>
     );
