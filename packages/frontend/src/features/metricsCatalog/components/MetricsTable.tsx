@@ -248,10 +248,11 @@ export const MetricsTable = () => {
             },
         },
         mantineSearchTextInputProps: {
-            placeholder: 'Search metrics',
+            placeholder: 'Search metrics by name or popularity',
             sx: { minWidth: '300px' },
             variant: 'default',
         },
+        positionGlobalFilter: 'left',
         enableBottomToolbar: true,
         renderBottomToolbarCustomActions: () => (
             <Text>
@@ -266,6 +267,9 @@ export const MetricsTable = () => {
             sorting,
             showProgressBars: isFetching,
             density: 'xs',
+        },
+        initialState: {
+            showGlobalFilter: true, // Show search input by default
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 40 },
