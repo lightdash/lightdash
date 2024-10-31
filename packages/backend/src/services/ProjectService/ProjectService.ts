@@ -529,10 +529,6 @@ export class ProjectService extends BaseService {
                 const projectSummary = await this.projectModel.getSummary(
                     data.upstreamProjectUuid,
                 );
-                await this.copyUserAccessOnPreview(
-                    data.upstreamProjectUuid,
-                    projectUuid,
-                );
                 await this.copyContentOnPreview(
                     data.upstreamProjectUuid,
                     projectUuid,
@@ -4001,65 +3997,6 @@ export class ProjectService extends BaseService {
             true, // Skip permission check
         );
         return previewProject.project.projectUuid;
-    }
-
-    /*
-        Copy user permissions from upstream project
-        if the user is a viewer in the org, but an editor in a project
-        we want the user to also be an editor in the preview project
-    */
-    async copyUserAccessOnPreview(
-        upstreamProjectUuid: string,
-        previewProjectUuid: string,
-    ): Promise<void> {
-        this.logger.info(
-            `Copying access from project ${upstreamProjectUuid} to preview project ${previewProjectUuid}`,
-        );
-        await wrapSentryTransaction<void>(
-            'duplicateUserAccess',
-            {
-                previewProjectUuid,
-                upstreamProjectUuid,
-            },
-            async () => {
-                const projectAccesses =
-                    await this.projectModel.getProjectAccess(
-                        upstreamProjectUuid,
-                    );
-                const groupAccesses =
-                    await this.projectModel.getProjectGroupAccesses(
-                        upstreamProjectUuid,
-                    );
-
-                this.logger.info(
-                    `Copying ${projectAccesses.length} user access on ${previewProjectUuid}`,
-                );
-                this.logger.info(
-                    `Copying ${groupAccesses.length} group access on ${previewProjectUuid}`,
-                );
-                const insertProjectAccessPromises = projectAccesses.map(
-                    (projectAccess) =>
-                        this.projectModel.createProjectAccess(
-                            previewProjectUuid,
-                            projectAccess.email,
-                            projectAccess.role,
-                        ),
-                );
-                const insertGroupAccessPromises = groupAccesses.map(
-                    (groupAccess) =>
-                        this.groupsModel.addProjectAccess({
-                            groupUuid: groupAccess.groupUuid,
-                            projectUuid: previewProjectUuid,
-                            role: groupAccess.role,
-                        }),
-                );
-
-                await Promise.all([
-                    ...insertGroupAccessPromises,
-                    ...insertProjectAccessPromises,
-                ]);
-            },
-        );
     }
 
     async copyContentOnPreview(
