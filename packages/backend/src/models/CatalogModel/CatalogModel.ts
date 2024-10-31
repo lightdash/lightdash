@@ -331,4 +331,29 @@ export class CatalogModel {
             await Promise.all([...incrementPromises, ...decrementPromises]);
         });
     }
+
+    async findTablesCachedExploreUuid(
+        projectUuid: string,
+        tableNames: string[],
+    ) {
+        return this.database.transaction(async (trx) => {
+            const tableCachedExploreUuidsByTableName = await trx(
+                CatalogTableName,
+            )
+                .where(`${CatalogTableName}.name`, 'in', tableNames)
+                .andWhere(`${CatalogTableName}.type`, CatalogType.Table)
+                .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
+                .select('name', 'cached_explore_uuid');
+
+            return tableCachedExploreUuidsByTableName.reduce<
+                Record<string, string>
+            >(
+                (acc, table) => ({
+                    ...acc,
+                    [table.name]: table.cached_explore_uuid,
+                }),
+                {},
+            );
+        });
+    }
 }
