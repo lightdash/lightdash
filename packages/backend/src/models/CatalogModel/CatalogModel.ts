@@ -9,7 +9,7 @@ import {
     TableSelectionType,
     UnexpectedServerError,
     type ApiSort,
-    type ChartSummary,
+    type CatalogItem,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type TablesConfiguration,
@@ -18,6 +18,7 @@ import {
 import { Knex } from 'knex';
 import {
     CatalogTableName,
+    getDbCatalogColumnFromCatalogProperty,
     type DbCatalog,
 } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
@@ -219,7 +220,12 @@ export class CatalogModel {
 
         if (sortArgs) {
             const { sort, order } = sortArgs;
-            catalogItemsQuery = catalogItemsQuery.orderBy(sort, order);
+            catalogItemsQuery = catalogItemsQuery.orderBy(
+                getDbCatalogColumnFromCatalogProperty(
+                    sort as keyof CatalogItem, // Can be cast here since we have an exhaustive switch/case in getDbCatalogColumnFromCatalogProperty
+                ),
+                order,
+            );
         }
 
         const paginatedCatalogItems = await KnexPaginate.paginate(
