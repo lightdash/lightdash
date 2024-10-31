@@ -132,7 +132,6 @@ const UseMetricButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
 
     return (
         <Button
-            color="blue"
             size="xs"
             compact
             variant="subtle"
@@ -141,7 +140,7 @@ const UseMetricButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
             }}
             loading={isFetching || isGeneratingPreviewUrl}
         >
-            Use Metric
+            Explore
         </Button>
     );
 };
@@ -211,7 +210,7 @@ export const MetricsTable = () => {
         columns,
         data: flatData,
         enableColumnResizing: true,
-        enableRowNumbers: true,
+        enableRowNumbers: false,
         enableRowActions: true,
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
@@ -222,7 +221,7 @@ export const MetricsTable = () => {
         enableColumnActions: false,
         enableColumnFilters: false,
         enableHiding: false,
-        enableGlobalFilterModes: true,
+        enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
             setSearch(s);
         },
@@ -230,6 +229,9 @@ export const MetricsTable = () => {
         manualSorting: true,
         onSortingChange: setSorting,
         enableTopToolbar: true,
+        mantinePaperProps: {
+            shadow: undefined,
+        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: { maxHeight: '600px', minHeight: '600px' },
@@ -240,6 +242,17 @@ export const MetricsTable = () => {
             highlightOnHover: true,
             withColumnBorders: true,
         },
+        mantineTableHeadRowProps: {
+            sx: {
+                boxShadow: 'none',
+            },
+        },
+        mantineSearchTextInputProps: {
+            placeholder: 'Search by metric name or description',
+            sx: { minWidth: '300px' },
+            variant: 'default',
+        },
+        positionGlobalFilter: 'left',
         enableBottomToolbar: true,
         renderBottomToolbarCustomActions: () => (
             <Text>
@@ -254,6 +267,9 @@ export const MetricsTable = () => {
             sorting,
             showProgressBars: isFetching,
             density: 'xs',
+        },
+        initialState: {
+            showGlobalFilter: true, // Show search input by default
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 40 },
