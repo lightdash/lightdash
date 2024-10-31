@@ -170,6 +170,7 @@ export class OrganizationController extends BaseController {
     /**
      * Gets all the members of the current user's organization
      * @param req express request
+     * @param projectUuid filter users who can view this project
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/users')
@@ -180,6 +181,7 @@ export class OrganizationController extends BaseController {
         @Query() pageSize?: number,
         @Query() page?: number,
         @Query() searchQuery?: string,
+        @Query() projectUuid?: string,
     ): Promise<ApiOrganizationMemberProfiles> {
         this.setStatus(200);
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -195,7 +197,13 @@ export class OrganizationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .getUsers(req.user!, includeGroups, paginateArgs, searchQuery),
+                .getUsers(
+                    req.user!,
+                    includeGroups,
+                    paginateArgs,
+                    searchQuery,
+                    projectUuid,
+                ),
         };
     }
 

@@ -12405,6 +12405,11 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'searchQuery',
                     dataType: 'string',
                 },
+                projectUuid: {
+                    in: 'query',
+                    name: 'projectUuid',
+                    dataType: 'string',
+                },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
