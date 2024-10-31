@@ -10,7 +10,8 @@ import { lightdashApi } from '../../../api';
 type UseMetricsCatalogOptions = {
     projectUuid?: string;
     search?: string;
-    sortBy?: ApiSort['sort'];
+    // TODO: update with the expected sort options that the backend can handle; also, update to a different type when multiple sorting is enabled
+    sortBy?: ApiSort['sort'] | 'name' | 'chartUsage';
     sortDirection?: ApiSort['order'];
 };
 
