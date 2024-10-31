@@ -140,6 +140,7 @@ export type CatalogFieldMap = {
     [fieldId: string]: {
         fieldName: string;
         tableName: string;
+        cachedExploreUuid: string;
     };
 };
 
@@ -147,6 +148,12 @@ export type SchedulerUpdateCatalogChartUsagesPayload = {
     projectUuid: string;
     catalogFieldMap: CatalogFieldMap;
     userUuid: string;
+};
+
+export type ChartUsageUpdate = {
+    fieldName: string;
+    chartUsage: number;
+    cachedExploreUuid: string;
 };
 
 export const updateCatalogChartUsagesJob = 'updateCatalogChartUsage';

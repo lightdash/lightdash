@@ -22,6 +22,7 @@ import {
     type ApiSort,
     type CatalogFieldMap,
     type CatalogFieldWithAnalytics,
+    type ChartUsageUpdate,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
@@ -537,18 +538,27 @@ export class CatalogService<
                 Object.keys(catalogFieldMap),
             );
 
-        const chartUsageCountByFieldName = Object.entries(
-            chartUsagesByFieldId,
-        ).reduce<Record<string, number>>((acc, [fieldId, chartSummaries]) => {
-            acc[catalogFieldMap[fieldId].fieldName] = chartSummaries.length;
+        const chartUsageUpdates = Object.entries(chartUsagesByFieldId).reduce<
+            ChartUsageUpdate[]
+        >((acc, [fieldId, chartSummaries]) => {
+            const { fieldName, cachedExploreUuid } = catalogFieldMap[fieldId];
+
+            acc.push({
+                fieldName,
+                chartUsage: chartSummaries.length,
+                cachedExploreUuid,
+            });
+
             return acc;
-        }, {});
+        }, []);
 
         await this.catalogModel.updateChartUsages(
             projectUuid,
-            chartUsageCountByFieldName,
+            chartUsageUpdates,
         );
 
-        return chartUsageCountByFieldName;
+        return {
+            chartUsageUpdates,
+        };
     }
 }

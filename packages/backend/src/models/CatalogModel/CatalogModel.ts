@@ -10,6 +10,7 @@ import {
     UnexpectedServerError,
     type ApiSort,
     type CatalogItem,
+    type ChartUsageUpdate,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type TablesConfiguration,
@@ -265,13 +266,17 @@ export class CatalogModel {
 
     async updateChartUsages(
         projectUuid: string,
-        chartUsagesByFieldName: Record<string, number>,
+        chartUsageUpdates: ChartUsageUpdate[],
     ) {
         await this.database.transaction(async (trx) => {
-            const updatePromises = Object.entries(chartUsagesByFieldName).map(
-                ([fieldName, chartUsage]) =>
+            const updatePromises = chartUsageUpdates.map(
+                ({ fieldName, chartUsage, cachedExploreUuid }) =>
                     trx(CatalogTableName)
                         .where(`${CatalogTableName}.name`, fieldName)
+                        .andWhere(
+                            `${CatalogTableName}.cached_explore_uuid`,
+                            cachedExploreUuid,
+                        )
                         .andWhere(
                             `${CatalogTableName}.project_uuid`,
                             projectUuid,

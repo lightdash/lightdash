@@ -40,6 +40,7 @@ export const convertExploresToCatalog = (
                 catalogFieldMap[getItemId(field)] = {
                     fieldName: field.name,
                     tableName: field.table,
+                    cachedExploreUuid: explore.cachedExploreUuid,
                 };
 
                 return {
