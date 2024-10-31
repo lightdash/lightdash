@@ -41,6 +41,63 @@ export class GroupsModel {
         this.database = args.database;
     }
 
+    static async addGroupMembers(
+        trx: Knex,
+        groupUuid: string,
+        memberUuids: string[],
+    ): Promise<GroupMembership[]> {
+        // Check if the group exists
+        const group = await trx('groups')
+            .where('group_uuid', groupUuid)
+            .first('group_uuid', 'organization_id');
+        if (group === undefined) {
+            throw new NotFoundError(`No group found`);
+        }
+
+        // Check what members exist and are part of the organization
+        const users = await trx('users')
+            .innerJoin(
+                'organization_memberships',
+                'users.user_id',
+                'organization_memberships.user_id',
+            )
+            .where(
+                'organization_memberships.organization_id',
+                group.organization_id,
+            )
+            .whereIn('user_uuid', memberUuids)
+            .select('users.user_id', 'user_uuid');
+
+        if (users.length === 0) {
+            return [];
+        }
+
+        const membershipsToAdd = users.map((user) => ({
+            group_uuid: groupUuid,
+            user_id: user.user_id,
+            organization_id: group.organization_id,
+        }));
+
+        // Add members to the group
+        const membershipsAdded = await trx('group_memberships')
+            .insert(membershipsToAdd)
+            .onConflict()
+            .ignore()
+            .returning('*');
+
+        // Return the added memberships
+        return membershipsAdded.reduce<GroupMembership[]>((acc, membership) => {
+            const user = users.find((u) => u.user_id === membership.user_id);
+            if (user) {
+                acc.push({
+                    groupUuid: membership.group_uuid,
+                    userUuid: user.user_uuid,
+                });
+            }
+            return acc;
+        }, []);
+    }
+
     async find(
         filters: { organizationUuid: string; searchQuery?: string },
         paginateArgs?: KnexPaginateArgs,
@@ -155,30 +212,35 @@ export class GroupsModel {
     }
 
     async createGroup(
-        group: CreateGroup & { organizationUuid: string },
-    ): Promise<Group> {
-        const results = await this.database.raw<{
-            rows: { created_at: Date; group_uuid: string }[];
-        }>(
-            `
-            INSERT INTO groups (name, organization_id)
-            SELECT ?, organization_id
-            FROM organizations
-            WHERE organization_uuid = ?
-            RETURNING group_uuid, groups.created_at
-        `,
-            [group.name, group.organizationUuid],
-        );
-        const [row] = results.rows;
-        if (row === undefined) {
-            throw new UnexpectedDatabaseError(`Failed to create organization`);
-        }
-        return {
-            uuid: row.group_uuid,
-            name: group.name,
-            createdAt: row.created_at,
-            organizationUuid: group.organizationUuid,
-        };
+        createGroup: CreateGroup & { organizationUuid: string },
+    ): Promise<GroupWithMembers> {
+        const groupUuid = await this.database.transaction(async (trx) => {
+            const results = await trx.raw<{
+                rows: { created_at: Date; group_uuid: string }[];
+            }>(
+                `
+                    INSERT INTO groups (name, organization_id)
+                    SELECT ?, organization_id
+                    FROM organizations
+                    WHERE organization_uuid = ? RETURNING group_uuid, groups.created_at
+                `,
+                [createGroup.name, createGroup.organizationUuid],
+            );
+            const [row] = results.rows;
+            if (row === undefined) {
+                throw new UnexpectedDatabaseError(`Failed to create group`);
+            }
+
+            if (createGroup.members && createGroup.members.length > 0) {
+                await GroupsModel.addGroupMembers(
+                    trx,
+                    row.group_uuid,
+                    createGroup.members.map((m) => m.userUuid),
+                );
+            }
+            return row.group_uuid;
+        });
+        return this.getGroupWithMembers(groupUuid);
     }
 
     async getGroup(groupUuid: string): Promise<Group> {
@@ -270,31 +332,15 @@ export class GroupsModel {
         await this.database('groups').where('group_uuid', groupUuid).del();
     }
 
-    async addGroupMember(
-        member: GroupMembership,
-    ): Promise<GroupMembership | undefined> {
-        // This will return undefined if
-        // - the group uuid doesn't exist
-        // - the user uuid doesn't exist
-        // - the user is already a member of the group
-        // - the user is not a member of the group's parent organization
-        const {
-            rows: [insertedMembership],
-        } = await this.database.raw(
-            `
-            INSERT INTO group_memberships (group_uuid, user_id, organization_id)
-            SELECT groups.group_uuid, users.user_id, organization_memberships.organization_id
-            FROM groups
-            INNER JOIN organization_memberships ON groups.organization_id = organization_memberships.organization_id
-            INNER JOIN users ON organization_memberships.user_id = users.user_id
-                AND users.user_uuid = :userUuid
-            WHERE groups.group_uuid = :groupUuid
-            ON CONFLICT DO NOTHING
-            RETURNING *
-        `,
-            member,
+    async addGroupMembers(
+        groupUuid: string,
+        memberUuids: string[],
+    ): Promise<GroupMembership[]> {
+        return GroupsModel.addGroupMembers(
+            this.database,
+            groupUuid,
+            memberUuids,
         );
-        return insertedMembership === undefined ? undefined : member;
     }
 
     async removeGroupMember(member: GroupMembership): Promise<boolean> {

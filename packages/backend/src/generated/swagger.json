@@ -4199,6 +4199,20 @@
             "UpdateAllowedEmailDomains": {
                 "$ref": "#/components/schemas/Omit_AllowedEmailDomains.organizationUuid_"
             },
+            "ApiCreateGroupResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/GroupWithMembers"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_Group.name_": {
                 "properties": {
                     "name": {
@@ -13175,7 +13189,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiGroupResponse"
+                                    "$ref": "#/components/schemas/ApiCreateGroupResponse"
                                 }
                             }
                         }

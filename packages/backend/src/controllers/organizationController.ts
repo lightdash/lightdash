@@ -1,4 +1,5 @@
 import {
+    ApiCreateGroupResponse,
     ApiErrorPayload,
     ApiGroupListResponse,
     ApiGroupResponse,
@@ -326,7 +327,7 @@ export class OrganizationController extends BaseController {
     async createGroup(
         @Request() req: express.Request,
         @Body() body: CreateGroup,
-    ): Promise<ApiGroupResponse> {
+    ): Promise<ApiCreateGroupResponse> {
         const group = await this.services
             .getOrganizationService()
             .addGroupToOrganization(req.user!, body);

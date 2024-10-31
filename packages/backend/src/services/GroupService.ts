@@ -50,7 +50,10 @@ export class GroupsService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const groupMembership = await this.groupsModel.addGroupMember(member);
+        const [groupMembership] = await this.groupsModel.addGroupMembers(
+            member.groupUuid,
+            [member.userUuid],
+        );
         if (groupMembership) {
             const updatedGroup = await this.groupsModel.getGroupWithMembers(
                 member.groupUuid,

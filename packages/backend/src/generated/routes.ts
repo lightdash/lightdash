@@ -3869,6 +3869,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCreateGroupResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'GroupWithMembers', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Group.name_': {
         dataType: 'refAlias',
         type: {

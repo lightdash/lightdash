@@ -110,7 +110,7 @@ export const useInfiniteOrganizationGroups = (
 };
 
 const createGroupQuery = async (data: CreateGroup) =>
-    lightdashApi<Group>({
+    lightdashApi<GroupWithMembers>({
         url: `/org/groups`,
         method: 'POST',
         body: JSON.stringify(data),
@@ -119,7 +119,7 @@ const createGroupQuery = async (data: CreateGroup) =>
 export const useGroupCreateMutation = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<Group, ApiError, CreateGroup>(
+    return useMutation<GroupWithMembers, ApiError, CreateGroup>(
         (data) => createGroupQuery(data),
         {
             mutationKey: ['create_group'],
