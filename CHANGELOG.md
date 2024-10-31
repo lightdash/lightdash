@@ -1,3 +1,11 @@
+# [0.1331.0](https://github.com/lightdash/lightdash/compare/0.1330.0...0.1331.0) (2024-10-31)
+
+
+### Features
+
+* get a field's chart usage and store in catalog ([#12182](https://github.com/lightdash/lightdash/issues/12182)) ([1ef7cbf](https://github.com/lightdash/lightdash/commit/1ef7cbf42e0f731081e07c69ea31d5d0e79bd564))
+* share url in sql runner ([#12177](https://github.com/lightdash/lightdash/issues/12177)) ([a5587c1](https://github.com/lightdash/lightdash/commit/a5587c1d5285ce4e5910ff0659a55ab98cd3b0d0))
+
 # [0.1330.0](https://github.com/lightdash/lightdash/compare/0.1329.0...0.1330.0) (2024-10-31)
 
 
