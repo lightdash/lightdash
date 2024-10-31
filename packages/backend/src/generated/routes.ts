@@ -151,6 +151,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        chartUsage: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'double' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
                         tags: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -265,6 +273,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        chartUsage: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'double' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
                         joinedTables: {
                             dataType: 'array',
                             array: {
@@ -6612,6 +6628,10 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: ['sqlRunner'] },
                         { dataType: 'enum', enums: ['sqlRunnerPivotQuery'] },
                         { dataType: 'enum', enums: ['semanticLayer'] },
+                        {
+                            dataType: 'enum',
+                            enums: ['updateCatalogChartUsage'],
+                        },
                     ],
                     required: true,
                 },

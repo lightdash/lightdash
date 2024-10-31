@@ -158,6 +158,7 @@ export class CatalogService<
                             explore.tables?.[explore.baseTable]?.description,
                         type: CatalogType.Table,
                         joinedTables: explore.joinedTables,
+                        chartUsage: undefined,
                     },
                 ];
             }
@@ -179,6 +180,7 @@ export class CatalogService<
                         groupLabel: explore.groupLabel,
                         joinedTables: explore.joinedTables,
                         tags: explore.tags,
+                        chartUsage: undefined,
                     },
                 ];
             }
@@ -508,26 +510,21 @@ export class CatalogService<
         );
 
         const { data: catalogMetrics, pagination } = paginatedCatalogMetrics;
-
-        const analyticsPromises = catalogMetrics
+        const data = catalogMetrics
             .filter(
                 (item): item is CatalogField => item.type === CatalogType.Field, // This is for type narrowing the values returned from `searchCatalog`
             )
-            .map<Promise<CatalogFieldWithAnalytics>>(async (metric) => ({
+            // TODO: to be removed after chart_usage
+            .map<CatalogFieldWithAnalytics>((metric) => ({
                 ...metric,
-                analytics: await this.getFieldAnalytics(
-                    user,
-                    projectUuid,
-                    getItemId({
-                        name: metric.name,
-                        table: metric.tableName,
-                    }),
-                ),
+                analytics: {
+                    charts: [],
+                },
             }));
 
         return {
             pagination,
-            data: await Promise.all(analyticsPromises), // ! This is very bad practive, temporary until we have `chart_usage` count
+            data,
         };
     }
 

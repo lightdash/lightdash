@@ -13,8 +13,15 @@ import { DbCatalog } from '../../../database/entities/catalog';
 const parseFieldFromMetricOrDimension = (
     table: CompiledTable,
     field: CompiledMetric | CompiledDimension,
-    tags: string[],
-    requiredAttributes: Record<string, string | string[]> | undefined,
+    {
+        tags,
+        requiredAttributes,
+        chartUsage,
+    }: {
+        tags: string[];
+        requiredAttributes: Record<string, string | string[]> | undefined;
+        chartUsage: number | undefined;
+    },
 ): CatalogField => ({
     name: field.name,
     label: field.label,
@@ -27,6 +34,7 @@ const parseFieldFromMetricOrDimension = (
     type: CatalogType.Field,
     requiredAttributes,
     tags,
+    chartUsage,
 });
 
 export const parseFieldsFromCompiledTable = (
@@ -37,12 +45,12 @@ export const parseFieldsFromCompiledTable = (
         ...Object.values(table.metrics),
     ].filter((f) => !f.hidden); // Filter out hidden fields from catalog
     return tableFields.map((field) =>
-        parseFieldFromMetricOrDimension(
-            table,
-            field,
-            [],
-            field.requiredAttributes ?? table.requiredAttributes,
-        ),
+        parseFieldFromMetricOrDimension(table, field, {
+            tags: [],
+            requiredAttributes:
+                field.requiredAttributes ?? table.requiredAttributes,
+            chartUsage: undefined,
+        }),
     );
 };
 
@@ -60,6 +68,7 @@ export const parseCatalog = (
             type: CatalogType.Table,
             requiredAttributes: dbCatalog.required_attributes ?? undefined,
             tags: dbCatalog.explore.tags,
+            chartUsage: dbCatalog.chart_usage ?? undefined,
         };
     }
 
@@ -78,10 +87,9 @@ export const parseCatalog = (
             `Field ${dbCatalog.name} not found in explore ${dbCatalog.explore.name}`,
         );
     }
-    return parseFieldFromMetricOrDimension(
-        baseTable,
-        findField,
-        dbCatalog.explore.tags,
-        dbCatalog.required_attributes ?? undefined,
-    );
+    return parseFieldFromMetricOrDimension(baseTable, findField, {
+        tags: dbCatalog.explore.tags,
+        requiredAttributes: dbCatalog.required_attributes ?? undefined,
+        chartUsage: dbCatalog.chart_usage ?? 0,
+    });
 };

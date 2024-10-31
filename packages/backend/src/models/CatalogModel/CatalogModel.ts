@@ -91,6 +91,7 @@ export class CatalogModel {
                 },
                 `${CachedExploreTableName}.explore`,
                 `required_attributes`,
+                `chart_usage`,
             )
             .leftJoin(
                 CachedExploreTableName,
