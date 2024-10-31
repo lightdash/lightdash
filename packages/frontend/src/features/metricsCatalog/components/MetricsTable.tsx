@@ -210,7 +210,7 @@ export const MetricsTable = () => {
         columns,
         data: flatData,
         enableColumnResizing: true,
-        enableRowNumbers: true,
+        enableRowNumbers: false,
         enableRowActions: true,
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
