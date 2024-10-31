@@ -404,6 +404,10 @@ export class SavedChartService extends BaseService {
             newChartFields: string[];
         },
     ) {
+        const addedFields = newChartFields.filter(
+            (field) => !oldChartFields.includes(field),
+        );
+
         const removedFields = oldChartFields.filter(
             (field) => !newChartFields.includes(field),
         );
@@ -415,7 +419,7 @@ export class SavedChartService extends BaseService {
                 chartExplore,
             );
 
-        const fieldsToIncrementUsage: CatalogFieldWhere[] = newChartFields
+        const fieldsToIncrementUsage: CatalogFieldWhere[] = addedFields
             .map((fieldId) => catalogFieldWhereByFieldId[fieldId])
             .filter(
                 (fieldWhere): fieldWhere is CatalogFieldWhere =>
