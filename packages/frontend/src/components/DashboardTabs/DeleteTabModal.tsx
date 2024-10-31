@@ -5,9 +5,9 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import {
-    Badge,
     Button,
     Group,
+    List,
     Modal,
     Radio,
     Select,
@@ -48,12 +48,23 @@ export const TabDeleteModal: FC<AddProps> = ({
         string | undefined
     >();
 
+    const destinationTabs = useMemo(
+        () =>
+            dashboardTabs?.filter((otherTab) => otherTab.uuid !== tab.uuid) ||
+            [],
+        [dashboardTabs, tab.uuid],
+    );
+
     useEffect(() => {
         if (modalProps.opened) {
             setRemoveAction(RemoveActions.MOVE);
-            setDestinationTabId(undefined);
+            const destinationTab =
+                destinationTabs.length === 1
+                    ? destinationTabs[0].uuid
+                    : undefined;
+            setDestinationTabId(destinationTab);
         }
-    }, [modalProps.opened]);
+    }, [modalProps.opened, destinationTabs]);
 
     const { showToastSuccess } = useToaster();
 
@@ -119,20 +130,32 @@ export const TabDeleteModal: FC<AddProps> = ({
         >
             <Stack spacing="lg" pt="sm">
                 <Text>
-                    {`What would you like to do with the tile${pluralTiles} in this tab?`}
+                    What would you like to do with the tiles in this tab before
+                    removing it?
                 </Text>
                 <Radio.Group
+                    size="xs"
                     value={removeAction}
                     onChange={(val: RemoveActions) => setRemoveAction(val)}
                 >
-                    <Stack spacing="xs" mt="xs">
+                    <Stack spacing="xs" mt={0}>
                         <Radio
-                            label={`Delete tile${pluralTiles} in tab`}
+                            label="Delete all tiles in this tab"
                             value={RemoveActions.DELETE}
+                            styles={(theme) => ({
+                                label: {
+                                    paddingLeft: theme.spacing.xs,
+                                },
+                            })}
                         />
                         <Radio
-                            label="Move to another tab"
+                            label="Transfer all tiles to another tab"
                             value={RemoveActions.MOVE}
+                            styles={(theme) => ({
+                                label: {
+                                    paddingLeft: theme.spacing.xs,
+                                },
+                            })}
                         />
                         {dashboardTabs?.length &&
                             removeAction === RemoveActions.MOVE && (
@@ -142,17 +165,16 @@ export const TabDeleteModal: FC<AddProps> = ({
                                     onChange={(value) =>
                                         setDestinationTabId(value || undefined)
                                     }
-                                    data={dashboardTabs
-                                        .filter(
-                                            (otherTab) =>
-                                                otherTab.uuid !== tab.uuid,
-                                        )
-                                        .map((otherTab) => ({
-                                            value: otherTab.uuid,
-                                            label: otherTab.name,
-                                        }))}
+                                    data={destinationTabs.map((otherTab) => ({
+                                        value: otherTab.uuid,
+                                        label: otherTab.name,
+                                    }))}
                                     withinPortal
-                                    ml={32}
+                                    styles={(theme) => ({
+                                        root: {
+                                            paddingLeft: theme.spacing.xl,
+                                        },
+                                    })}
                                 />
                             )}
                     </Stack>
@@ -161,24 +183,29 @@ export const TabDeleteModal: FC<AddProps> = ({
                 {removeAction === RemoveActions.DELETE && (
                     <>
                         <Text>
-                            Are you sure you want to remove tab{' '}
-                            <b>"{tab.name}"</b> and{' '}
+                            Are you sure you want to delete the tab{' '}
+                            <b>"{tab.name}"</b> and its{' '}
                             <b>{tilesToRemove?.length}</b> tile{pluralTiles}?
                         </Text>
                         {newSavedCharts.length > 0 && (
                             <Group spacing="xs">
                                 <Text>
-                                    On save, this will permanently delete
+                                    On save, this action will also permanently
+                                    delete the following
                                     {newSavedCharts.length === 1
-                                        ? ' this tile '
-                                        : ' these tiles '}
-                                    created from within the dashboard:
+                                        ? ' chart that was '
+                                        : ' charts that were '}
+                                    created from within it:
                                 </Text>
-                                {newSavedCharts.map((tile) => (
-                                    <Badge key={tile.uuid}>
-                                        {tile.properties.chartName}
-                                    </Badge>
-                                ))}
+                                <List size="sm" pr={20}>
+                                    {newSavedCharts.map((tile) => (
+                                        <List.Item key={tile.uuid}>
+                                            <Text>
+                                                {tile.properties.chartName}
+                                            </Text>
+                                        </List.Item>
+                                    ))}
+                                </List>
                             </Group>
                         )}
                     </>
@@ -204,7 +231,7 @@ export const TabDeleteModal: FC<AddProps> = ({
                     >
                         {removeAction === RemoveActions.MOVE
                             ? 'Transfer'
-                            : `Delete tile${pluralTiles}`}
+                            : 'Delete tiles'}
                     </Button>
                 </Group>
             </Stack>
