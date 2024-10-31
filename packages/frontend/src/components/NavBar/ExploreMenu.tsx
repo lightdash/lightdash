@@ -117,6 +117,19 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
                                 to={`/projects/${projectUuid}/sql-runner`}
+                                onClick={(event) => {
+                                    if (
+                                        history.location.pathname.startsWith(
+                                            `/projects/${projectUuid}/sql-runner`,
+                                        )
+                                    ) {
+                                        event.preventDefault();
+                                        window.open(
+                                            `/projects/${projectUuid}/sql-runner`,
+                                            '_blank',
+                                        );
+                                    }
+                                }}
                                 icon={IconTerminal2}
                             />
                         </Can>
