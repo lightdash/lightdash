@@ -40,6 +40,7 @@ import {
     semanticLayerQueryJob,
     SemanticLayerQueryPayload,
     SessionUser,
+    setCatalogChartUsagesJob,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
     sqlRunnerJob,
@@ -48,11 +49,10 @@ import {
     SqlRunnerPivotQueryPayload,
     ThresholdOperator,
     ThresholdOptions,
-    updateCatalogChartUsagesJob,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
-    type SchedulerUpdateCatalogChartUsagesPayload,
+    type SchedulersetCatalogChartUsagesPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -1970,14 +1970,14 @@ export default class SchedulerTask {
         }
     }
 
-    protected async updateCatalogChartUsage(
+    protected async setCatalogChartUsages(
         jobId: string,
         scheduledTime: Date,
-        payload: SchedulerUpdateCatalogChartUsagesPayload,
+        payload: SchedulersetCatalogChartUsagesPayload,
     ) {
         await this.logWrapper(
             {
-                task: updateCatalogChartUsagesJob,
+                task: setCatalogChartUsagesJob,
                 jobId,
                 scheduledTime,
                 details: {
@@ -1986,7 +1986,7 @@ export default class SchedulerTask {
                 },
             },
             async () =>
-                this.catalogService.updateChartUsages(
+                this.catalogService.setChartUsages(
                     payload.projectUuid,
                     payload.catalogFieldMap,
                 ),

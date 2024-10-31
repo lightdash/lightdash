@@ -9,8 +9,9 @@ import {
     TableSelectionType,
     UnexpectedServerError,
     type ApiSort,
+    type CatalogFieldWhere,
     type CatalogItem,
-    type ChartUsageUpdate,
+    type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type TablesConfiguration,
@@ -264,12 +265,9 @@ export class CatalogModel {
         return explores[0].explore;
     }
 
-    async updateChartUsages(
-        projectUuid: string,
-        chartUsageUpdates: ChartUsageUpdate[],
-    ) {
+    async setChartUsages(projectUuid: string, chartUsages: ChartUsageIn[]) {
         await this.database.transaction(async (trx) => {
-            const updatePromises = chartUsageUpdates.map(
+            const updatePromises = chartUsages.map(
                 ({ fieldName, chartUsage, cachedExploreUuid }) =>
                     trx(CatalogTableName)
                         .where(`${CatalogTableName}.name`, fieldName)
@@ -287,6 +285,77 @@ export class CatalogModel {
             );
 
             await Promise.all(updatePromises);
+        });
+    }
+
+    async updateChartUsages(
+        projectUuid: string,
+        {
+            fieldsToIncrement,
+            fieldsToDecrement,
+        }: {
+            fieldsToIncrement: CatalogFieldWhere[];
+            fieldsToDecrement: CatalogFieldWhere[];
+        },
+    ) {
+        await this.database.transaction(async (trx) => {
+            const incrementPromises = fieldsToIncrement.map(
+                ({ fieldName, cachedExploreUuid }) =>
+                    trx(CatalogTableName)
+                        .where(`${CatalogTableName}.name`, fieldName)
+                        .andWhere(
+                            `${CatalogTableName}.cached_explore_uuid`,
+                            cachedExploreUuid,
+                        )
+                        .andWhere(
+                            `${CatalogTableName}.project_uuid`,
+                            projectUuid,
+                        )
+                        .increment('chart_usage', 1),
+            );
+
+            const decrementPromises = fieldsToDecrement.map(
+                ({ fieldName, cachedExploreUuid }) =>
+                    trx(CatalogTableName)
+                        .where(`${CatalogTableName}.name`, fieldName)
+                        .andWhere(
+                            `${CatalogTableName}.cached_explore_uuid`,
+                            cachedExploreUuid,
+                        )
+                        .andWhere(
+                            `${CatalogTableName}.project_uuid`,
+                            projectUuid,
+                        )
+                        .where('chart_usage', '>', 0) // Ensure we don't decrement below 0
+                        .decrement('chart_usage', 1),
+            );
+
+            await Promise.all([...incrementPromises, ...decrementPromises]);
+        });
+    }
+
+    async findTablesCachedExploreUuid(
+        projectUuid: string,
+        tableNames: string[],
+    ) {
+        return this.database.transaction(async (trx) => {
+            const tableCachedExploreUuidsByTableName = await trx(
+                CatalogTableName,
+            )
+                .where(`${CatalogTableName}.name`, 'in', tableNames)
+                .andWhere(`${CatalogTableName}.type`, CatalogType.Table)
+                .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
+                .select('name', 'cached_explore_uuid');
+
+            return tableCachedExploreUuidsByTableName.reduce<
+                Record<string, string>
+            >(
+                (acc, table) => ({
+                    ...acc,
+                    [table.name]: table.cached_explore_uuid,
+                }),
+                {},
+            );
         });
     }
 }

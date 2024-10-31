@@ -6623,10 +6623,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: ['sqlRunner'] },
                         { dataType: 'enum', enums: ['sqlRunnerPivotQuery'] },
                         { dataType: 'enum', enums: ['semanticLayer'] },
-                        {
-                            dataType: 'enum',
-                            enums: ['updateCatalogChartUsage'],
-                        },
+                        { dataType: 'enum', enums: ['setCatalogChartUsages'] },
                     ],
                     required: true,
                 },

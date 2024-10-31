@@ -18,15 +18,15 @@ import {
     SchedulerJobStatus,
     semanticLayerQueryJob,
     SemanticLayerQueryPayload,
+    setCatalogChartUsagesJob,
     SlackNotificationPayload,
     sqlRunnerJob,
     SqlRunnerPayload,
     sqlRunnerPivotQueryJob,
     SqlRunnerPivotQueryPayload,
-    updateCatalogChartUsagesJob,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
-    type SchedulerUpdateCatalogChartUsagesPayload,
+    type SchedulersetCatalogChartUsagesPayload,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -713,19 +713,19 @@ export class SchedulerClient {
     }
 
     // Updates catalog with chart usages after the catalog is indexed - for example, metric_1 is used by 2 charts, so its chart_usage will be 2
-    async updateCatalogChartUsage(
-        payload: SchedulerUpdateCatalogChartUsagesPayload,
+    async setCatalogChartUsages(
+        payload: SchedulersetCatalogChartUsagesPayload,
     ) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            updateCatalogChartUsagesJob,
+            setCatalogChartUsagesJob,
             payload,
             now,
         );
         await this.schedulerModel.logSchedulerJob({
-            task: updateCatalogChartUsagesJob,
+            task: setCatalogChartUsagesJob,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,
