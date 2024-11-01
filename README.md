@@ -385,6 +385,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/sanjay-sol"><img src="https://avatars.githubusercontent.com/u/114111046?v=4?s=100" width="100px;" alt="sanjay sirangi"/><br /><sub><b>sanjay sirangi</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=sanjay-sol" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/varunguleriaCodes"><img src="https://avatars.githubusercontent.com/u/152203177?v=4?s=100" width="100px;" alt="Varun Guleria"/><br /><sub><b>Varun Guleria</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=varunguleriaCodes" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Guru6163"><img src="https://avatars.githubusercontent.com/u/42559222?v=4?s=100" width="100px;" alt="Guruprasath Sankaran"/><br /><sub><b>Guruprasath Sankaran</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Guru6163" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/VenkataRohan"><img src="https://avatars.githubusercontent.com/u/83659881?v=4?s=100" width="100px;" alt="VenkataRohan"/><br /><sub><b>VenkataRohan</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=VenkataRohan" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
