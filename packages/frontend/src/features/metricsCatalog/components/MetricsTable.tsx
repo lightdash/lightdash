@@ -117,11 +117,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Table',
         enableSorting: false,
         size: 150,
-        Cell: ({ table, row }) => (
-            <Highlight highlight={table.getState().globalFilter || ''}>
-                {row.original.tableName}
-            </Highlight>
-        ),
+        Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
     {
         accessorKey: 'chartUsage',
