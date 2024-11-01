@@ -5,7 +5,7 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Box, Button, Flex, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException, useProfiler } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -606,7 +606,6 @@ const Dashboard: FC = () => {
             </Modal>
 
             <Page
-                withPaddedContent
                 title={dashboard.name}
                 header={
                     <DashboardHeader
@@ -673,8 +672,9 @@ const Dashboard: FC = () => {
                         onTogglePin={handleDashboardPinning}
                     />
                 }
+                withFullHeight={true}
             >
-                <Group position="apart" align="flex-start" noWrap>
+                <Group position="apart" align="flex-start" noWrap px={'lg'}>
                     {dashboardChartTiles && dashboardChartTiles.length > 0 && (
                         <DashboardFilter
                             isEditMode={isEditMode}
@@ -685,23 +685,25 @@ const Dashboard: FC = () => {
                         <DateZoom isEditMode={isEditMode} />
                     )}
                 </Group>
-                <DashboardTabs
-                    isEditMode={isEditMode}
-                    hasRequiredDashboardFiltersToSet={
-                        hasRequiredDashboardFiltersToSet
-                    }
-                    addingTab={addingTab}
-                    dashboardTiles={dashboardTiles}
-                    handleAddTiles={handleAddTiles}
-                    handleUpdateTiles={handleUpdateTiles}
-                    handleDeleteTile={handleDeleteTile}
-                    handleBatchDeleteTiles={handleBatchDeleteTiles}
-                    handleEditTile={handleEditTiles}
-                    setGridWidth={setGridWidth}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    setAddingTab={setAddingTab}
-                />
+                <Flex style={{ flexGrow: 1, flexDirection: 'column' }}>
+                    <DashboardTabs
+                        isEditMode={isEditMode}
+                        hasRequiredDashboardFiltersToSet={
+                            hasRequiredDashboardFiltersToSet
+                        }
+                        addingTab={addingTab}
+                        dashboardTiles={dashboardTiles}
+                        handleAddTiles={handleAddTiles}
+                        handleUpdateTiles={handleUpdateTiles}
+                        handleDeleteTile={handleDeleteTile}
+                        handleBatchDeleteTiles={handleBatchDeleteTiles}
+                        handleEditTile={handleEditTiles}
+                        setGridWidth={setGridWidth}
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
+                        setAddingTab={setAddingTab}
+                    />
+                </Flex>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened
