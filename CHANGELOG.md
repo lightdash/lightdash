@@ -1,3 +1,10 @@
+## [0.1338.1](https://github.com/lightdash/lightdash/compare/0.1338.0...0.1338.1) (2024-11-01)
+
+
+### Bug Fixes
+
+* open threshold edit modal on click of link ([#12119](https://github.com/lightdash/lightdash/issues/12119)) ([7b70a0c](https://github.com/lightdash/lightdash/commit/7b70a0c95a99657fee58a3761a8c0b1067d9d11c))
+
 # [0.1338.0](https://github.com/lightdash/lightdash/compare/0.1337.0...0.1338.0) (2024-11-01)
 
 
