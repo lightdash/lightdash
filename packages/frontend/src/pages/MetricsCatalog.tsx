@@ -1,20 +1,32 @@
+import { MantineProvider } from '@mantine/core';
 import { type FC } from 'react';
 import { Provider } from 'react-redux';
 import Page from '../components/common/Page/Page';
 import { MetricsCatalogPanel } from '../features/metricsCatalog';
 import { store } from '../features/sqlRunner/store';
+import { getMantineThemeOverride } from '../mantineTheme';
 
 const MetricsCatalog: FC = () => {
     return (
         <Provider store={store}>
-            <Page
-                withFitContent
-                withPaddedContent
-                withRightSidebar
-                withLargeContent
+            <MantineProvider
+                theme={{
+                    // TODO: Introduce Inter as a font in the theme globally
+                    ...getMantineThemeOverride(),
+                    fontFamily: `Inter, ${
+                        getMantineThemeOverride().fontFamily
+                    }`,
+                }}
             >
-                <MetricsCatalogPanel />
-            </Page>
+                <Page
+                    withFitContent
+                    withPaddedContent
+                    withRightSidebar
+                    withLargeContent
+                >
+                    <MetricsCatalogPanel />
+                </Page>
+            </MantineProvider>
         </Provider>
     );
 };
