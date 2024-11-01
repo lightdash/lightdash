@@ -339,6 +339,7 @@ export class ProjectModel {
     }
 
     async create(
+        userUuid: string,
         organizationUuid: string,
         data: CreateProject,
     ): Promise<string> {
@@ -396,6 +397,7 @@ export class ProjectModel {
                                   copiedProjects[0].scheduler_timezone,
                           }
                         : {}),
+                    created_by_user_uuid: userUuid,
                 })
                 .returning('*');
 

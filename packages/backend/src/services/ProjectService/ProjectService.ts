@@ -497,6 +497,7 @@ export class ProjectService extends BaseService {
 
         const createProject = await this._resolveWarehouseClientSshKeys(data);
         const projectUuid = await this.projectModel.create(
+            user.userUuid,
             user.organizationUuid,
             createProject,
         );
@@ -615,6 +616,7 @@ export class ProjectService extends BaseService {
                     JobStepType.CREATING_PROJECT,
                     async () =>
                         this.projectModel.create(
+                            user.userUuid,
                             user.organizationUuid,
                             createProject,
                         ),
