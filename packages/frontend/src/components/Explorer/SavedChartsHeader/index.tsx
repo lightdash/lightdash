@@ -275,11 +275,7 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
             const thresholdUuidFromUrlParams =
                 getThresholdUuidFromUrlParams(search);
             if (thresholdUuidFromUrlParams) {
-                if (isSync) {
-                    syncWithGoogleSheetsModalHandlers.open();
-                } else {
-                    thresholdAlertsModalHandlers.open();
-                }
+                thresholdAlertsModalHandlers.open();
             }
         }
     }, [
