@@ -213,6 +213,10 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
             type: ProjectType.PREVIEW,
         });
+        can('delete', 'Project', {
+            organizationUuid: member.organizationUuid,
+            type: ProjectType.PREVIEW,
+        });
     },
     admin(member, { can }) {
         organizationMemberAbilities.developer(member, { can });
@@ -228,6 +232,9 @@ export const organizationMemberAbilities: Record<
         can('create', 'Project', {
             organizationUuid: member.organizationUuid,
             type: { $in: [ProjectType.DEFAULT, ProjectType.PREVIEW] },
+        });
+        can('delete', 'Project', {
+            organizationUuid: member.organizationUuid,
         });
         can('manage', 'Project', {
             organizationUuid: member.organizationUuid,
