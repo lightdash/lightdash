@@ -1,3 +1,10 @@
+# [0.1338.0](https://github.com/lightdash/lightdash/compare/0.1337.0...0.1338.0) (2024-11-01)
+
+
+### Features
+
+* **global-search:** get all users in created by ([#12125](https://github.com/lightdash/lightdash/issues/12125)) ([80c4c3d](https://github.com/lightdash/lightdash/commit/80c4c3dde43b02c28dbd3b4b6f945d1a7c741063))
+
 # [0.1337.0](https://github.com/lightdash/lightdash/compare/0.1336.0...0.1337.0) (2024-11-01)
 
 
