@@ -295,11 +295,11 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                 search: newParams.toString(),
             });
         } else {
-            const ThresholdUuidFromUrlParams =
+            const thresholdUuidFromUrlParams =
                 getThresholdUuidFromUrlParams(search);
-            if (ThresholdUuidFromUrlParams) {
+            if (thresholdUuidFromUrlParams) {
                 setState(States.EDIT);
-                setSchedulerUuid(ThresholdUuidFromUrlParams);
+                setSchedulerUuid(thresholdUuidFromUrlParams);
 
                 // remove from url param after modal is open
                 const newParams = new URLSearchParams(search);
