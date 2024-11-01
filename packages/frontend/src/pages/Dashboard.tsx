@@ -606,7 +606,6 @@ const Dashboard: FC = () => {
             </Modal>
 
             <Page
-                withPaddedContent
                 title={dashboard.name}
                 header={
                     <DashboardHeader
@@ -675,7 +674,7 @@ const Dashboard: FC = () => {
                 }
                 withFullHeight={true}
             >
-                <Group position="apart" align="flex-start" noWrap>
+                <Group position="apart" align="flex-start" noWrap px={'lg'}>
                     {dashboardChartTiles && dashboardChartTiles.length > 0 && (
                         <DashboardFilter
                             isEditMode={isEditMode}
@@ -686,7 +685,7 @@ const Dashboard: FC = () => {
                         <DateZoom isEditMode={isEditMode} />
                     )}
                 </Group>
-                <Flex mx="-lg" style={{ flexGrow: 1, flexDirection: 'column' }}>
+                <Flex style={{ flexGrow: 1, flexDirection: 'column' }}>
                     <DashboardTabs
                         isEditMode={isEditMode}
                         hasRequiredDashboardFiltersToSet={
