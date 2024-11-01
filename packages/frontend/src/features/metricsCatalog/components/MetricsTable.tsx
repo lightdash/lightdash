@@ -1,9 +1,5 @@
-import {
-    friendlyName,
-    type CatalogField,
-    type CatalogItem,
-} from '@lightdash/common';
-import { Box, Button, HoverCard, Text } from '@mantine/core';
+import { type CatalogField, type CatalogItem } from '@lightdash/common';
+import { Box, Button, Highlight, HoverCard, Text } from '@mantine/core';
 import { IconChartBar } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
@@ -78,8 +74,10 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'name',
         header: 'Metric Name',
         enableSorting: true,
-        Cell: ({ row }) => (
-            <Text fw={500}>{friendlyName(row.original.label)}</Text>
+        Cell: ({ row, table }) => (
+            <Highlight highlight={table.getState().globalFilter || ''}>
+                {row.original.label}
+            </Highlight>
         ),
     },
     {
@@ -87,10 +85,21 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Description',
         enableSorting: false,
         size: 400,
-        Cell: ({ row }) => (
-            <HoverCard withinPortal shadow="lg" position="right">
+        Cell: ({ table, row }) => (
+            <HoverCard
+                withinPortal
+                shadow="lg"
+                position="right"
+                disabled={!row.original.description}
+            >
                 <HoverCard.Target>
-                    <Text lineClamp={2}>{row.original.description}</Text>
+                    <Text lineClamp={2}>
+                        <Highlight
+                            highlight={table.getState().globalFilter || ''}
+                        >
+                            {row.original.description ?? ''}
+                        </Highlight>
+                    </Text>
                 </HoverCard.Target>
                 <HoverCard.Dropdown>
                     <MarkdownPreview
@@ -292,6 +301,7 @@ export const MetricsTable = () => {
             sorting,
             showProgressBars: isFetching,
             density: 'md',
+            globalFilter: search ?? '',
         },
         initialState: {
             showGlobalFilter: true, // Show search input by default
@@ -308,6 +318,7 @@ export const MetricsTable = () => {
                 <UseMetricButton row={row} />
             </Box>
         ),
+        enableFilterMatchHighlighting: true,
     });
 
     return <MantineReactTable table={table} />;
