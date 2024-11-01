@@ -99,4 +99,3 @@ id,user_id,order_date,status
 98,41,2018-04-07,placed
 99,85,2018-04-09,placed
 100,85,null,placed
-
