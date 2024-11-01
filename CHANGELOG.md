@@ -1,3 +1,10 @@
+# [0.1337.0](https://github.com/lightdash/lightdash/compare/0.1336.0...0.1337.0) (2024-11-01)
+
+
+### Features
+
+* project list pin new preview menu item and add label ([#12210](https://github.com/lightdash/lightdash/issues/12210)) ([2b4d706](https://github.com/lightdash/lightdash/commit/2b4d706c32b1b46f2041fede653bce3f09051b57))
+
 # [0.1336.0](https://github.com/lightdash/lightdash/compare/0.1335.0...0.1336.0) (2024-10-31)
 
 
