@@ -69,6 +69,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'description',
         header: 'Description',
         enableSorting: false,
+        size: 400,
         Cell: ({ row }) => (
             <HoverCard withinPortal shadow="lg" position="right">
                 <HoverCard.Target>
@@ -95,6 +96,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'chartUsage',
         header: 'Popularity',
         enableSorting: true,
+        size: 100,
         Cell: ({ row }) => <MetricUsageButton row={row} />,
     },
 ];
