@@ -48,6 +48,7 @@ const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
             }
             leftIcon={
                 <MantineIcon
+                    display={hasChartsUsage ? 'block' : 'none'}
                     icon={IconChartBar}
                     color="gray.6"
                     size={12}
