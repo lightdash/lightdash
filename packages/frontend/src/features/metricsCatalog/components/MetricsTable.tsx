@@ -29,6 +29,8 @@ import {
     createMetricPreviewUnsavedChartVersion,
     getExplorerUrlFromCreateSavedChartVersion,
 } from '../../../hooks/useExplorerRoute';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { setActiveMetric } from '../store/metricsCatalogSlice';
@@ -36,6 +38,22 @@ import { setActiveMetric } from '../store/metricsCatalogSlice';
 const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
     const hasChartsUsage = row.original.chartUsage ?? 0 > 0;
     const dispatch = useAppDispatch();
+    const { track } = useTracking();
+
+    const handleChartUsageClick = () => {
+        if (hasChartsUsage) {
+            track({
+                name: EventName.METRICS_CATALOG_CHART_USAGE_CLICKED,
+                properties: {
+                    metricName: row.original.name,
+                    chartCount: row.original.chartUsage ?? 0,
+                    tableName: row.original.tableName,
+                },
+            });
+            dispatch(setActiveMetric(row.original));
+        }
+    };
+
     return (
         <Button
             size="xs"
@@ -43,9 +61,7 @@ const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
             color="gray.6"
             variant="default"
             disabled={!hasChartsUsage}
-            onClick={() =>
-                hasChartsUsage && dispatch(setActiveMetric(row.original))
-            }
+            onClick={handleChartUsageClick}
             leftIcon={
                 <MantineIcon
                     display={hasChartsUsage ? 'block' : 'none'}
@@ -125,6 +141,7 @@ const UseMetricButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
         (state) => state.metricsCatalog.projectUuid,
     );
     const [currentTableName, setCurrentTableName] = useState<string>();
+    const { track } = useTracking();
     const { isFetching } = useExplore(currentTableName, {
         onSuccess(explore) {
             if (!!currentTableName && explore && projectUuid) {
@@ -150,14 +167,23 @@ const UseMetricButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
         },
     });
 
+    const handleExploreClick = () => {
+        track({
+            name: EventName.METRICS_CATALOG_EXPLORE_CLICKED,
+            properties: {
+                metricName: row.original.name,
+                tableName: row.original.tableName,
+            },
+        });
+        setCurrentTableName(row.original.tableName);
+    };
+
     return (
         <Button
             size="xs"
             compact
             variant="subtle"
-            onClick={() => {
-                setCurrentTableName(row.original.tableName);
-            }}
+            onClick={handleExploreClick}
             loading={isFetching || isGeneratingPreviewUrl}
         >
             Explore
