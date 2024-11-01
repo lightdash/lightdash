@@ -375,7 +375,7 @@ const ProjectSwitcher = () => {
                             bg="gray.9"
                             sx={(theme) => ({
                                 // fixes scroll overlap
-                                boxShadow: `0 4px ${theme.colors.dark[9]}`,
+                                boxShadow: `0 4px ${theme.colors.gray[9]}`,
                             })}
                         >
                             <Menu.Divider />
