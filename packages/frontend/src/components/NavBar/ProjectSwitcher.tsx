@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    Box,
     Button,
     Group,
     MantineProvider,
@@ -15,7 +16,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconArrowRight } from '@tabler/icons-react';
+import { IconArrowRight, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory, useRouteMatch } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -27,6 +28,7 @@ import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useCreatePreviewMutation } from '../../hooks/useProjectPreview';
 import { useProjects } from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
+import MantineIcon from '../common/MantineIcon';
 
 const MENU_TEXT_PROPS = {
     c: 'gray.2',
@@ -355,7 +357,15 @@ const ProjectSwitcher = () => {
                                 type: ProjectType.PREVIEW,
                             }),
                         )) ? (
-                        <>
+                        <Box
+                            pos="sticky"
+                            bottom={0}
+                            bg="gray.9"
+                            sx={(theme) => ({
+                                // fixes scroll overlap
+                                boxShadow: `0 4px ${theme.colors.dark[9]}`,
+                            })}
+                        >
                             <Menu.Divider />
 
                             <Menu.Item
@@ -363,12 +373,11 @@ const ProjectSwitcher = () => {
                                     setIsCreatePreview(!isCreatePreviewOpen);
                                     e.stopPropagation();
                                 }}
+                                icon={<MantineIcon icon={IconPlus} size="md" />}
                             >
-                                <Text {...MENU_TEXT_PROPS}>
-                                    + Create preview
-                                </Text>
+                                <Text {...MENU_TEXT_PROPS}>Create Preview</Text>
                             </Menu.Item>
-                        </>
+                        </Box>
                     ) : null}
                 </Menu.Dropdown>
             </Menu>
