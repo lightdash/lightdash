@@ -192,6 +192,11 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
 
+        can('manage', 'Project', {
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
+        });
+
         can('create', 'Project', {
             upstreamProjectUuid: member.projectUuid,
             type: ProjectType.PREVIEW,
