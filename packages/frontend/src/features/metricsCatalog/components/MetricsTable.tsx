@@ -4,6 +4,7 @@ import {
     type CatalogItem,
 } from '@lightdash/common';
 import { Box, Button, HoverCard, Text } from '@mantine/core';
+import { IconChartBar } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
     MantineReactTable,
@@ -22,6 +23,7 @@ import {
     useState,
     type UIEvent,
 } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     createMetricPreviewUnsavedChartVersion,
@@ -38,11 +40,20 @@ const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
         <Button
             size="xs"
             compact
-            color="indigo"
-            variant="subtle"
+            color="gray.6"
+            variant="default"
             disabled={!hasChartsUsage}
             onClick={() =>
                 hasChartsUsage && dispatch(setActiveMetric(row.original))
+            }
+            leftIcon={
+                <MantineIcon
+                    icon={IconChartBar}
+                    color="gray.6"
+                    size={12}
+                    strokeWidth={1.2}
+                    fill="gray.2"
+                />
             }
             sx={{
                 '&[data-disabled]': {
@@ -50,8 +61,13 @@ const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
                     fontWeight: 400,
                 },
             }}
+            styles={{
+                leftIcon: {
+                    marginRight: 4,
+                },
+            }}
         >
-            {hasChartsUsage ? `${row.original.chartUsage} uses` : 'No usage'}
+            {hasChartsUsage ? `${row.original.chartUsage}` : 'No usage'}
         </Button>
     );
 };
