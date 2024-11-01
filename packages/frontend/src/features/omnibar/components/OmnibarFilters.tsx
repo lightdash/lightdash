@@ -251,7 +251,6 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                         withinPortal
                         value={filters?.createdByUuid}
                         allowDeselect
-                        limit={5}
                         data={
                             organizationUsers?.map((user) => ({
                                 value: user.userUuid,
