@@ -4,6 +4,7 @@ import {
     type CatalogItem,
 } from '@lightdash/common';
 import { Box, Button, HoverCard, Text } from '@mantine/core';
+import { IconChartBar } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
     MantineReactTable,
@@ -22,6 +23,7 @@ import {
     useState,
     type UIEvent,
 } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     createMetricPreviewUnsavedChartVersion,
@@ -38,11 +40,21 @@ const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
         <Button
             size="xs"
             compact
-            color="indigo"
-            variant="subtle"
+            color="gray.6"
+            variant="default"
             disabled={!hasChartsUsage}
             onClick={() =>
                 hasChartsUsage && dispatch(setActiveMetric(row.original))
+            }
+            leftIcon={
+                <MantineIcon
+                    display={hasChartsUsage ? 'block' : 'none'}
+                    icon={IconChartBar}
+                    color="gray.6"
+                    size={12}
+                    strokeWidth={1.2}
+                    fill="gray.2"
+                />
             }
             sx={{
                 '&[data-disabled]': {
@@ -50,8 +62,13 @@ const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
                     fontWeight: 400,
                 },
             }}
+            styles={{
+                leftIcon: {
+                    marginRight: 4,
+                },
+            }}
         >
-            {hasChartsUsage ? `${row.original.chartUsage} uses` : 'No usage'}
+            {hasChartsUsage ? `${row.original.chartUsage}` : 'No usage'}
         </Button>
     );
 };
@@ -69,6 +86,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'description',
         header: 'Description',
         enableSorting: false,
+        size: 400,
         Cell: ({ row }) => (
             <HoverCard withinPortal shadow="lg" position="right">
                 <HoverCard.Target>
@@ -89,12 +107,14 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'directory',
         header: 'Table',
         enableSorting: false,
+        size: 150,
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
     {
         accessorKey: 'chartUsage',
         header: 'Popularity',
         enableSorting: true,
+        size: 100,
         Cell: ({ row }) => <MetricUsageButton row={row} />,
     },
 ];
@@ -245,6 +265,11 @@ export const MetricsTable = () => {
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
+                // Each head row has a divider when resizing columns is enabled
+                'th > div > div:last-child': {
+                    width: '0.5px',
+                    padding: '0px',
+                },
             },
         },
         mantineSearchTextInputProps: {
@@ -266,7 +291,7 @@ export const MetricsTable = () => {
         state: {
             sorting,
             showProgressBars: isFetching,
-            density: 'xs',
+            density: 'md',
         },
         initialState: {
             showGlobalFilter: true, // Show search input by default
