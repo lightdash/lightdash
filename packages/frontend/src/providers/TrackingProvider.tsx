@@ -58,7 +58,10 @@ type GenericEvent = {
         | EventName.DATE_ZOOM_CLICKED
         | EventName.COMMENTS_CLICKED
         | EventName.NOTIFICATIONS_COMMENTS_ITEM_CLICKED
-        | EventName.DASHBOARD_AUTO_REFRESH_UPDATED;
+        | EventName.DASHBOARD_AUTO_REFRESH_UPDATED
+        | EventName.METRICS_CATALOG_CHART_USAGE_CLICKED
+        | EventName.METRICS_CATALOG_EXPLORE_CLICKED
+        | EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED;
     properties?: {};
 };
 
@@ -170,6 +173,32 @@ export type DashboardAutoRefreshUpdateEvent = {
     };
 };
 
+type MetricsCatalogChartUsageClickedEvent = {
+    name: EventName.METRICS_CATALOG_CHART_USAGE_CLICKED;
+    properties: {
+        metricName: string;
+        chartCount: number;
+        tableName: string;
+    };
+};
+
+type MetricsCatalogExploreClickedEvent = {
+    name: EventName.METRICS_CATALOG_EXPLORE_CLICKED;
+    properties: {
+        metricName: string;
+        tableName: string;
+    };
+};
+
+type MetricsCatalogChartUsageChartClickedEvent = {
+    name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED;
+    properties: {
+        metricName: string;
+        tableName: string;
+        chartId: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -182,7 +211,10 @@ export type EventData =
     | CrossFilterDashboardAppliedEvent
     | ViewUnderlyingDataClickedEvent
     | DrillByClickedEvent
-    | DashboardAutoRefreshUpdateEvent;
+    | DashboardAutoRefreshUpdateEvent
+    | MetricsCatalogChartUsageClickedEvent
+    | MetricsCatalogExploreClickedEvent
+    | MetricsCatalogChartUsageChartClickedEvent;
 
 type IdentifyData = {
     id: string;
