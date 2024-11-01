@@ -106,6 +106,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'directory',
         header: 'Table',
         enableSorting: false,
+        size: 150,
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
     {
