@@ -4,7 +4,7 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { Button, Group, Tabs } from '@mantine/core';
+import { ActionIcon, Group, Tabs } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
@@ -272,23 +272,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     {provided.placeholder}
                                     {isEditMode && (
                                         <Group>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                leftIcon={
-                                                    <MantineIcon
-                                                        icon={IconPlus}
-                                                    />
-                                                }
+                                            <ActionIcon
+                                                size="xs"
+                                                variant="light"
+                                                color={'blue.6'}
                                                 onClick={() =>
                                                     setAddingTab(true)
                                                 }
-                                                style={{
-                                                    borderWidth: 0,
-                                                }}
                                             >
-                                                Add
-                                            </Button>
+                                                <MantineIcon icon={IconPlus} />
+                                            </ActionIcon>
                                         </Group>
                                     )}
                                 </Tabs.List>

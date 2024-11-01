@@ -1,6 +1,6 @@
 import { Draggable } from '@hello-pangea/dnd';
 import type { DashboardTab } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Tabs } from '@mantine/core';
+import { ActionIcon, Box, Menu, Tabs, Title } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import {
     IconDots,
@@ -47,26 +47,11 @@ const DraggableTab: FC<DraggableTabProps> = ({
                     <Tabs.Tab
                         key={idx}
                         value={tab.uuid}
-                        mx="md"
-                        style={{
-                            marginLeft: 0,
-                            marginRight: 0,
-                            backgroundColor: isActive
-                                ? 'white'
-                                : 'var(--mantine-color-gray-0)',
-                        }}
-                    >
-                        <Group
-                            pt={isEditMode ? '1px' : 0} // Prevents line cutting through bottom of tab
-                            px={16}
-                        >
-                            {isEditMode ? (
-                                <Box
-                                    pos="absolute"
-                                    left={0}
-                                    p={4}
-                                    {...provided.dragHandleProps}
-                                >
+                        mr="xs"
+                        bg={isActive ? 'white' : 'var(--mantine-color-gray-0)'}
+                        icon={
+                            isEditMode ? (
+                                <Box {...provided.dragHandleProps} w={'sm'}>
                                     <MantineIcon
                                         display={isHovered ? 'block' : 'none'}
                                         size="sm"
@@ -74,9 +59,10 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                         icon={IconGripVertical}
                                     />
                                 </Box>
-                            ) : null}
-                            {tab.name}
-                            {isEditMode ? (
+                            ) : null
+                        }
+                        rightSection={
+                            isEditMode ? (
                                 <Menu
                                     position="bottom"
                                     withArrow
@@ -86,7 +72,12 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 >
                                     <Menu.Target>
                                         <ActionIcon variant="subtle" size="xs">
-                                            <MantineIcon icon={IconDots} />
+                                            <MantineIcon
+                                                icon={IconDots}
+                                                display={
+                                                    isHovered ? 'block' : 'none'
+                                                }
+                                            />
                                         </ActionIcon>
                                     </Menu.Target>
                                     <Menu.Dropdown>
@@ -123,8 +114,12 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                         )}
                                     </Menu.Dropdown>
                                 </Menu>
-                            ) : null}
-                        </Group>
+                            ) : null
+                        }
+                    >
+                        <Title order={6} fw={500} color="gray.7">
+                            {tab.name}
+                        </Title>
                     </Tabs.Tab>
                 </div>
             )}
