@@ -290,6 +290,47 @@ export class OrganizationMemberProfileModel {
         ).insert<DbOrganizationMembershipIn>(membershipIn);
     };
 
+    async createOrganizationMembershipByUuid({
+        organizationUuid,
+        userUuid,
+        role,
+    }: {
+        organizationUuid: string;
+        userUuid: string;
+        role: OrganizationMemberRole;
+    }): Promise<void> {
+        // Look up user_id from user_uuid
+        const user = await this.database
+            .select('user_id')
+            .from(UserTableName)
+            .where('user_uuid', userUuid)
+            .first();
+
+        if (!user) {
+            throw new NotFoundError(`User with UUID ${userUuid} not found.`);
+        }
+
+        // Look up organization_id from organization_uuid
+        const organization = await this.database
+            .select('organization_id')
+            .from(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .first();
+
+        if (!organization) {
+            throw new NotFoundError(
+                `Organization with UUID ${organizationUuid} not found.`,
+            );
+        }
+
+        // Insert new organization membership
+        await this.createOrganizationMembership({
+            user_id: user.user_id,
+            organization_id: organization.organization_id,
+            role,
+        });
+    }
+
     async getOrganizationMemberByUuid(
         organizationUuid: string,
         userUuid: string,
