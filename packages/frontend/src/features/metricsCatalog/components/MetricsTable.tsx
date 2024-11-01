@@ -245,6 +245,11 @@ export const MetricsTable = () => {
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
+                // Each head row has a divider when resizing columns is enabled
+                'th > div > div:last-child': {
+                    width: '0.5px',
+                    padding: '0px',
+                },
             },
         },
         mantineSearchTextInputProps: {
