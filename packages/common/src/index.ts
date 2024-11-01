@@ -1085,7 +1085,7 @@ function formatRawValue(
         (field.type === DimensionType.DATE ||
             field.type === DimensionType.TIMESTAMP);
 
-    if (isTimestamp) {
+    if (isTimestamp && value !== null) {
         // We want to return the datetime in UTC to avoid timezone issues in the frontend like in chart tooltips
         return dayjs(value).utc(true).format();
     }
