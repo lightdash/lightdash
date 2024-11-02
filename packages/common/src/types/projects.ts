@@ -329,6 +329,7 @@ export type Project = {
     dbtVersion: SupportedDbtVersions;
     semanticLayerConnection?: SemanticLayerConnection;
     schedulerTimezone: string;
+    createdByUserUuid: string | null;
 };
 
 export type ProjectSummary = Pick<

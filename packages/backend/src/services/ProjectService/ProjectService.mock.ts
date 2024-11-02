@@ -243,6 +243,7 @@ export const projectWithSensitiveFields: Project = {
         environment_id: 'environment_id',
     },
     schedulerTimezone: 'UTC',
+    createdByUserUuid: user.userUuid,
 };
 
 export const projectSummary: ProjectSummary = {
@@ -257,6 +258,7 @@ export const defaultProject: OrganizationProject = {
     type: ProjectType.DEFAULT,
     warehouseType: WarehouseTypes.POSTGRES,
     requireUserCredentials: false,
+    createdByUserUuid: user.userUuid,
 };
 
 export const spacesWithSavedCharts: Space[] = [

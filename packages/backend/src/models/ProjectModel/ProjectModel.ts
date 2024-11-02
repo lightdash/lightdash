@@ -244,6 +244,7 @@ export class ProjectModel {
                 'projects.project_uuid',
                 'projects.name',
                 'projects.project_type',
+                `projects.created_by_user_uuid`,
                 `${WarehouseCredentialTableName}.warehouse_type`,
                 `${WarehouseCredentialTableName}.encrypted_credentials`,
                 this.database.raw(
@@ -277,6 +278,7 @@ export class ProjectModel {
                 name,
                 project_uuid,
                 project_type,
+                created_by_user_uuid,
                 warehouse_type,
                 encrypted_credentials,
             }) => {
@@ -288,6 +290,7 @@ export class ProjectModel {
                         name,
                         projectUuid: project_uuid,
                         type: project_type,
+                        createdByUserUuid: created_by_user_uuid,
                         warehouseType: warehouse_type as WarehouseTypes,
                         requireUserCredentials:
                             !!warehouseCredentials.requireUserCredentials,
@@ -473,6 +476,7 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   semantic_layer_connection: Buffer | null;
                   scheduler_timezone: string;
+                  created_by_user_uuid: string | null;
               }
             | {
                   name: string;
@@ -486,6 +490,7 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   semantic_layer_connection: Buffer | null;
                   scheduler_timezone: string;
+                  created_by_user_uuid: string | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -540,6 +545,9 @@ export class ProjectModel {
                         this.database
                             .ref('scheduler_timezone')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('created_by_user_uuid')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -593,6 +601,7 @@ export class ProjectModel {
                     upstreamProjectUuid: project.copied_from_project_uuid,
                     semanticLayerConnection,
                     schedulerTimezone: project.scheduler_timezone,
+                    createdByUserUuid: project.created_by_user_uuid,
                 };
                 if (!project.warehouse_type) {
                     return result;
@@ -722,6 +731,7 @@ export class ProjectModel {
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
             semanticLayerConnection: nonSensitiveSemanticLayerCredentials,
             schedulerTimezone: project.schedulerTimezone,
+            createdByUserUuid: project.createdByUserUuid,
         };
     }
 

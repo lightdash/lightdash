@@ -929,13 +929,19 @@ export class ProjectService extends BaseService {
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
-        const { organizationUuid, type } =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const project = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
                 'delete',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    type: project.type,
+                    projectUui: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    createdByUserUuid: project.createdByUserUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -948,7 +954,7 @@ export class ProjectService extends BaseService {
             userId: user.userUuid,
             properties: {
                 projectId: projectUuid,
-                isPreview: type === ProjectType.PREVIEW,
+                isPreview: project.type === ProjectType.PREVIEW,
             },
         });
     }
@@ -4016,6 +4022,7 @@ export class ProjectService extends BaseService {
             dbtConnection: project.dbtConnection,
             upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
             dbtVersion: project.dbtVersion,
+            createdByUserUuid: user.userUuid,
         };
 
         const previewProject = await this.createWithoutCompile(

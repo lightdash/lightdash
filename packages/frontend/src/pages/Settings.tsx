@@ -23,7 +23,6 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Redirect, Route, Switch } from 'react-router-dom';
-import { Can } from '../components/common/Authorization';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
@@ -126,6 +125,7 @@ const Settings: FC = () => {
         health.auth.oidc.enabled;
 
     const isGroupManagementEnabled = health.hasGroups;
+
     return (
         <Page
             withFullHeight
@@ -189,124 +189,99 @@ const Settings: FC = () => {
                                 />
                             </Box>
 
-                            <Can
-                                I="create"
-                                this={subject('Project', {
-                                    organizationUuid:
-                                        organization.organizationUuid,
-                                })}
-                            >
-                                <Box>
-                                    <Title order={6} fw={600} mb="xs">
-                                        Organization settings
-                                    </Title>
+                            <Box>
+                                <Title order={6} fw={600} mb="xs">
+                                    Organization settings
+                                </Title>
 
-                                    {user.ability.can(
-                                        'manage',
-                                        'Organization',
-                                    ) && (
-                                        <RouterNavLink
-                                            label="General"
-                                            to="/generalSettings/organization"
-                                            exact
-                                            icon={
-                                                <MantineIcon
-                                                    icon={
-                                                        IconBuildingSkyscraper
-                                                    }
-                                                />
-                                            }
-                                        />
-                                    )}
-
-                                    {user.ability.can(
-                                        'update',
-                                        'OrganizationMemberProfile',
-                                    ) && (
-                                        <RouterNavLink
-                                            label={
-                                                isGroupManagementEnabled
-                                                    ? 'Users & groups'
-                                                    : 'User management'
-                                            }
-                                            to="/generalSettings/userManagement"
-                                            exact
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconUserPlus}
-                                                />
-                                            }
-                                        />
-                                    )}
-                                    {user.ability.can(
-                                        'manage',
-                                        subject('Organization', {
-                                            organizationUuid:
-                                                organization.organizationUuid,
-                                        }),
-                                    ) && (
-                                        <RouterNavLink
-                                            label={
-                                                isGroupManagementEnabled
-                                                    ? 'User & group attributes'
-                                                    : 'User attributes'
-                                            }
-                                            to="/generalSettings/userAttributes"
-                                            exact
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconUserShield}
-                                                />
-                                            }
-                                        />
-                                    )}
-
-                                    {user.ability.can(
-                                        'update',
-                                        'Organization',
-                                    ) && (
-                                        <RouterNavLink
-                                            label="Appearance"
-                                            exact
-                                            to="/generalSettings/appearance"
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconPalette}
-                                                />
-                                            }
-                                        />
-                                    )}
-
-                                    {user.ability.can(
-                                        'manage',
-                                        'Organization',
-                                    ) && (
-                                        <RouterNavLink
-                                            label="Integrations"
-                                            exact
-                                            to="/generalSettings/integrations"
-                                            icon={
-                                                <MantineIcon icon={IconPlug} />
-                                            }
-                                        />
-                                    )}
-
-                                    {organization &&
-                                        !organization.needsProject &&
-                                        user.ability.can('view', 'Project') && (
-                                            <RouterNavLink
-                                                label="All projects"
-                                                to="/generalSettings/projectManagement"
-                                                exact
-                                                icon={
-                                                    <MantineIcon
-                                                        icon={IconDatabase}
-                                                    />
-                                                }
+                                {user.ability.can('manage', 'Organization') && (
+                                    <RouterNavLink
+                                        label="General"
+                                        to="/generalSettings/organization"
+                                        exact
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconBuildingSkyscraper}
                                             />
-                                        )}
-                                </Box>
-                            </Can>
+                                        }
+                                    />
+                                )}
+
+                                {user.ability.can(
+                                    'update',
+                                    'OrganizationMemberProfile',
+                                ) && (
+                                    <RouterNavLink
+                                        label={
+                                            isGroupManagementEnabled
+                                                ? 'Users & groups'
+                                                : 'User management'
+                                        }
+                                        to="/generalSettings/userManagement"
+                                        exact
+                                        icon={
+                                            <MantineIcon icon={IconUserPlus} />
+                                        }
+                                    />
+                                )}
+                                {user.ability.can(
+                                    'manage',
+                                    subject('Organization', {
+                                        organizationUuid:
+                                            organization.organizationUuid,
+                                    }),
+                                ) && (
+                                    <RouterNavLink
+                                        label={
+                                            isGroupManagementEnabled
+                                                ? 'User & group attributes'
+                                                : 'User attributes'
+                                        }
+                                        to="/generalSettings/userAttributes"
+                                        exact
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconUserShield}
+                                            />
+                                        }
+                                    />
+                                )}
+
+                                {user.ability.can('update', 'Organization') && (
+                                    <RouterNavLink
+                                        label="Appearance"
+                                        exact
+                                        to="/generalSettings/appearance"
+                                        icon={
+                                            <MantineIcon icon={IconPalette} />
+                                        }
+                                    />
+                                )}
+
+                                {user.ability.can('manage', 'Organization') && (
+                                    <RouterNavLink
+                                        label="Integrations"
+                                        exact
+                                        to="/generalSettings/integrations"
+                                        icon={<MantineIcon icon={IconPlug} />}
+                                    />
+                                )}
+
+                                {organization &&
+                                    !organization.needsProject &&
+                                    user.ability.can('view', 'Project') && (
+                                        <RouterNavLink
+                                            label="All projects"
+                                            to="/generalSettings/projectManagement"
+                                            exact
+                                            icon={
+                                                <MantineIcon
+                                                    icon={IconDatabase}
+                                                />
+                                            }
+                                        />
+                                    )}
+                            </Box>
 
                             {organization &&
                             !organization.needsProject &&
