@@ -1,7 +1,7 @@
 import {
+    indexCatalogJob,
     SchedulerJobStatus,
     semanticLayerQueryJob,
-    setCatalogChartUsagesJob,
     sqlRunnerJob,
     sqlRunnerPivotQueryJob,
 } from '@lightdash/common';
@@ -500,21 +500,34 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            [setCatalogChartUsagesJob]: async (
-                payload: any,
-                helpers: JobHelpers,
-            ) => {
-                await SchedulerClient.processJob(
-                    setCatalogChartUsagesJob,
-                    helpers.job.id,
-                    helpers.job.run_at,
-                    payload,
-                    async () => {
-                        await this.setCatalogChartUsages(
-                            helpers.job.id,
-                            helpers.job.run_at,
-                            payload,
-                        );
+            [indexCatalogJob]: async (payload: any, helpers: JobHelpers) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        indexCatalogJob,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.indexCatalog(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: indexCatalogJob,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.userUuid,
+                                error: e.message,
+                            },
+                        });
                     },
                 );
             },

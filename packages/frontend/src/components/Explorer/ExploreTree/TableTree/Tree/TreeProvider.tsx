@@ -37,7 +37,7 @@ const isBaseDimensionWithIntervalDefined = (item: Item): boolean => {
     }
 };
 
-const MAX_GROUP_DEPTH = 2;
+const MAX_GROUP_DEPTH = 3;
 
 const addNodeToGroup = (
     node: NodeMap,

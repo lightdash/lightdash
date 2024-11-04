@@ -1,3 +1,31 @@
+## [0.1340.2](https://github.com/lightdash/lightdash/compare/0.1340.1...0.1340.2) (2024-11-04)
+
+
+### Bug Fixes
+
+* make index catalog its own job ([#12236](https://github.com/lightdash/lightdash/issues/12236)) ([0e7ef5f](https://github.com/lightdash/lightdash/commit/0e7ef5f79d4b380db40577e941ee1e0d4731d1d9))
+
+## [0.1340.1](https://github.com/lightdash/lightdash/compare/0.1340.0...0.1340.1) (2024-11-04)
+
+
+### Bug Fixes
+
+* allow multiple nested groups ([#12233](https://github.com/lightdash/lightdash/issues/12233)) ([eb295d7](https://github.com/lightdash/lightdash/commit/eb295d783acbf949917ce4d7a4e2b5fbe0492873))
+
+# [0.1340.0](https://github.com/lightdash/lightdash/compare/0.1339.0...0.1340.0) (2024-11-04)
+
+
+### Features
+
+* disable 'Add' button until a chart is selected ([#12131](https://github.com/lightdash/lightdash/issues/12131)) ([7e15b25](https://github.com/lightdash/lightdash/commit/7e15b2556cd3bbee066dcc77be7c567cd431b778))
+
+# [0.1339.0](https://github.com/lightdash/lightdash/compare/0.1338.1...0.1339.0) (2024-11-04)
+
+
+### Features
+
+* updated dashboard tab appearance ([#11984](https://github.com/lightdash/lightdash/issues/11984)) ([68c8d82](https://github.com/lightdash/lightdash/commit/68c8d8222961168ef78e76abf699adae5f76877f))
+
 ## [0.1338.1](https://github.com/lightdash/lightdash/compare/0.1338.0...0.1338.1) (2024-11-01)
 
 
