@@ -504,17 +504,33 @@ export class SchedulerWorker extends SchedulerTask {
                 payload: any,
                 helpers: JobHelpers,
             ) => {
-                await SchedulerClient.processJob(
-                    setCatalogChartUsagesJob,
-                    helpers.job.id,
-                    helpers.job.run_at,
-                    payload,
-                    async () => {
-                        await this.setCatalogChartUsages(
-                            helpers.job.id,
-                            helpers.job.run_at,
-                            payload,
-                        );
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        setCatalogChartUsagesJob,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.setCatalogChartUsages(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: setCatalogChartUsagesJob,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                createdByUserUuid: payload.userUuid,
+                                error: e.message,
+                            },
+                        });
                     },
                 );
             },
