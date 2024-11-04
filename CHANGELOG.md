@@ -1,3 +1,10 @@
+## [0.1340.1](https://github.com/lightdash/lightdash/compare/0.1340.0...0.1340.1) (2024-11-04)
+
+
+### Bug Fixes
+
+* allow multiple nested groups ([#12233](https://github.com/lightdash/lightdash/issues/12233)) ([eb295d7](https://github.com/lightdash/lightdash/commit/eb295d783acbf949917ce4d7a4e2b5fbe0492873))
+
 # [0.1340.0](https://github.com/lightdash/lightdash/compare/0.1339.0...0.1340.0) (2024-11-04)
 
 
