@@ -3860,6 +3860,10 @@
                     "warehouseType": {
                         "$ref": "#/components/schemas/WarehouseTypes"
                     },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "type": {
                         "$ref": "#/components/schemas/ProjectType"
                     },
@@ -3875,6 +3879,7 @@
                 "required": [
                     "requireUserCredentials",
                     "warehouseType",
+                    "createdByUserUuid",
                     "type",
                     "name",
                     "projectUuid"
@@ -5444,6 +5449,10 @@
             },
             "Project": {
                 "properties": {
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "schedulerTimezone": {
                         "type": "string"
                     },
@@ -5479,6 +5488,7 @@
                     }
                 },
                 "required": [
+                    "createdByUserUuid",
                     "schedulerTimezone",
                     "dbtVersion",
                     "dbtConnection",
@@ -10774,7 +10784,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1340.0",
+        "version": "0.1340.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
