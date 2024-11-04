@@ -1,3 +1,10 @@
+# [0.1340.0](https://github.com/lightdash/lightdash/compare/0.1339.0...0.1340.0) (2024-11-04)
+
+
+### Features
+
+* disable 'Add' button until a chart is selected ([#12131](https://github.com/lightdash/lightdash/issues/12131)) ([7e15b25](https://github.com/lightdash/lightdash/commit/7e15b2556cd3bbee066dcc77be7c567cd431b778))
+
 # [0.1339.0](https://github.com/lightdash/lightdash/compare/0.1338.1...0.1339.0) (2024-11-04)
 
 
