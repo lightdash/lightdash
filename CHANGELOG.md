@@ -1,3 +1,10 @@
+## [0.1340.3](https://github.com/lightdash/lightdash/compare/0.1340.2...0.1340.3) (2024-11-04)
+
+
+### Bug Fixes
+
+* cli schema validation failure and e2e ([#12241](https://github.com/lightdash/lightdash/issues/12241)) ([b3b23be](https://github.com/lightdash/lightdash/commit/b3b23be146342cbf3f11f988dc5830dee5ea0e50))
+
 ## [0.1340.2](https://github.com/lightdash/lightdash/compare/0.1340.1...0.1340.2) (2024-11-04)
 
 
