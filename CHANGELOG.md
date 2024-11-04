@@ -1,3 +1,10 @@
+## [0.1340.2](https://github.com/lightdash/lightdash/compare/0.1340.1...0.1340.2) (2024-11-04)
+
+
+### Bug Fixes
+
+* make index catalog its own job ([#12236](https://github.com/lightdash/lightdash/issues/12236)) ([0e7ef5f](https://github.com/lightdash/lightdash/commit/0e7ef5f79d4b380db40577e941ee1e0d4731d1d9))
+
 ## [0.1340.1](https://github.com/lightdash/lightdash/compare/0.1340.0...0.1340.1) (2024-11-04)
 
 
