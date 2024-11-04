@@ -15,6 +15,7 @@ import {
     getRequestMethod,
     getSchedulerUuid,
     GsheetsNotificationPayload,
+    indexCatalogJob,
     isChartValidationError,
     isCreateScheduler,
     isCreateSchedulerSlackTarget,
@@ -40,7 +41,6 @@ import {
     semanticLayerQueryJob,
     SemanticLayerQueryPayload,
     SessionUser,
-    setCatalogChartUsagesJob,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
     sqlRunnerJob,
@@ -52,7 +52,7 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
-    type SchedulersetCatalogChartUsagesPayload,
+    type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -1970,14 +1970,14 @@ export default class SchedulerTask {
         }
     }
 
-    protected async setCatalogChartUsages(
+    protected async indexCatalog(
         jobId: string,
         scheduledTime: Date,
-        payload: SchedulersetCatalogChartUsagesPayload,
+        payload: SchedulerIndexCatalogJobPayload,
     ) {
         await this.logWrapper(
             {
-                task: setCatalogChartUsagesJob,
+                task: indexCatalogJob,
                 jobId,
                 scheduledTime,
                 details: {
@@ -1985,11 +1985,20 @@ export default class SchedulerTask {
                     projectUuid: payload.projectUuid,
                 },
             },
-            async () =>
-                this.catalogService.setChartUsages(
+            async () => {
+                const { catalogFieldMap } =
+                    await this.projectService.indexCatalog(
+                        payload.projectUuid,
+                        payload.explores,
+                    );
+
+                await this.catalogService.setChartUsages(
                     payload.projectUuid,
-                    payload.catalogFieldMap,
-                ),
+                    catalogFieldMap,
+                );
+
+                return {}; // Don't pollute with more details
+            },
         );
     }
 }

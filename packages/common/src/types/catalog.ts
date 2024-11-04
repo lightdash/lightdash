@@ -1,5 +1,10 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { type CompiledExploreJoin, type InlineError } from './explore';
+import {
+    type CompiledExploreJoin,
+    type Explore,
+    type ExploreError,
+    type InlineError,
+} from './explore';
 import {
     DimensionType,
     MetricType,
@@ -141,9 +146,9 @@ export type CatalogFieldMap = {
     };
 };
 
-export type SchedulersetCatalogChartUsagesPayload = {
+export type SchedulerIndexCatalogJobPayload = {
     projectUuid: string;
-    catalogFieldMap: CatalogFieldMap;
+    explores: (Explore | ExploreError)[];
     userUuid: string;
 };
 
@@ -156,4 +161,4 @@ export type ChartUsageIn = CatalogFieldWhere & {
     chartUsage: number;
 };
 
-export const setCatalogChartUsagesJob = 'setCatalogChartUsages';
+export const indexCatalogJob = 'indexCatalog';

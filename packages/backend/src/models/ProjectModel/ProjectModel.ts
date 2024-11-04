@@ -1033,8 +1033,6 @@ export class ProjectModel {
         explores: (Explore | ExploreError)[],
     ): Promise<{
         cachedExplores: DbCachedExplores;
-        catalogInserts: DbCatalogIn[];
-        catalogFieldMap: CatalogFieldMap;
     }> {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
@@ -1058,9 +1056,7 @@ export class ProjectModel {
                 );
 
                 // cache explores individually
-                const cachedExplore = await this.database(
-                    CachedExploreTableName,
-                )
+                await this.database(CachedExploreTableName)
                     .insert(
                         uniqueExplores.map((explore) => ({
                             project_uuid: projectUuid,
@@ -1072,18 +1068,6 @@ export class ProjectModel {
                     .onConflict(['project_uuid', 'name'])
                     .merge()
                     .returning(['name', 'cached_explore_uuid']);
-
-                const exploresWithCachedExploreUuid =
-                    ProjectModel.getExploresWithCacheUuids(
-                        explores,
-                        cachedExplore,
-                    );
-
-                const { catalogInserts, catalogFieldMap } =
-                    await this.indexCatalog(
-                        projectUuid,
-                        exploresWithCachedExploreUuid,
-                    );
 
                 // cache explores together
                 const [cachedExplores] = await this.database(
@@ -1099,8 +1083,6 @@ export class ProjectModel {
 
                 return {
                     cachedExplores,
-                    catalogInserts,
-                    catalogFieldMap,
                 };
             },
         );
@@ -2364,5 +2346,16 @@ export class ProjectModel {
             .returning('*');
 
         return updatedProject;
+    }
+
+    async getCachedExploresWithUuid(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ) {
+        const cachedExplores = await this.database(CachedExploreTableName)
+            .select('name', 'cached_explore_uuid')
+            .where('project_uuid', projectUuid);
+
+        return ProjectModel.getExploresWithCacheUuids(explores, cachedExplores);
     }
 }

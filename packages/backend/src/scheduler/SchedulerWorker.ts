@@ -1,7 +1,7 @@
 import {
+    indexCatalogJob,
     SchedulerJobStatus,
     semanticLayerQueryJob,
-    setCatalogChartUsagesJob,
     sqlRunnerJob,
     sqlRunnerPivotQueryJob,
 } from '@lightdash/common';
@@ -500,18 +500,15 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            [setCatalogChartUsagesJob]: async (
-                payload: any,
-                helpers: JobHelpers,
-            ) => {
+            [indexCatalogJob]: async (payload: any, helpers: JobHelpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
-                        setCatalogChartUsagesJob,
+                        indexCatalogJob,
                         helpers.job.id,
                         helpers.job.run_at,
                         payload,
                         async () => {
-                            await this.setCatalogChartUsages(
+                            await this.indexCatalog(
                                 helpers.job.id,
                                 helpers.job.run_at,
                                 payload,
@@ -522,7 +519,7 @@ export class SchedulerWorker extends SchedulerTask {
                     this.lightdashConfig.scheduler.jobTimeout,
                     async (job, e) => {
                         await this.schedulerService.logSchedulerJob({
-                            task: setCatalogChartUsagesJob,
+                            task: indexCatalogJob,
                             jobId: job.id,
                             scheduledTime: job.run_at,
                             status: SchedulerJobStatus.ERROR,
