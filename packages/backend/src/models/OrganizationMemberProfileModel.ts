@@ -24,6 +24,7 @@ import {
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
+import { UserModel } from './UserModel';
 
 type DbOrganizationMemberProfile = {
     user_uuid: string;
@@ -81,14 +82,11 @@ export class OrganizationMemberProfileModel {
 
     private static parseRow(
         member: DbOrganizationMemberProfile,
+        hasAuthentication: boolean = false,
     ): OrganizationMemberProfile {
+        const isPending = !hasAuthentication;
         const isInviteExpired =
-            !member.is_active &&
-            !!member.expires_at &&
-            member.expires_at < new Date();
-
-        const isPending =
-            !member.is_active && !isInviteExpired && !!member.expires_at;
+            !isPending && !!member.expires_at && member.expires_at < new Date();
 
         return {
             userUuid: member.user_uuid,
@@ -115,7 +113,18 @@ export class OrganizationMemberProfileModel {
             )
             .select<DbOrganizationMemberProfile[]>(SelectColumns);
 
-        return member && OrganizationMemberProfileModel.parseRow(member);
+        const usersHaveAuthenticationRows =
+            await UserModel.findIfUsersHaveAuthentication(this.database, {
+                userUuids: [userUuid],
+            });
+
+        return (
+            member &&
+            OrganizationMemberProfileModel.parseRow(
+                member,
+                usersHaveAuthenticationRows[0]?.has_authentication,
+            )
+        );
     }
 
     async getOrganizationMembers(
@@ -148,9 +157,21 @@ export class OrganizationMemberProfileModel {
             query,
             paginateArgs,
         );
+        const usersHaveAuthenticationRows =
+            await UserModel.findIfUsersHaveAuthentication(this.database, {
+                userUuids: data.map((m) => m.user_uuid),
+            });
+
         return {
             pagination,
-            data: data.map(OrganizationMemberProfileModel.parseRow),
+            data: data.map((m) =>
+                OrganizationMemberProfileModel.parseRow(
+                    m,
+                    usersHaveAuthenticationRows.find(
+                        (row) => row.user_uuid === m.user_uuid,
+                    )?.has_authentication,
+                ),
+            ),
         };
     }
 
@@ -260,10 +281,20 @@ export class OrganizationMemberProfileModel {
                       })),
         }));
 
+        const usersHaveAuthenticationRows =
+            await UserModel.findIfUsersHaveAuthentication(this.database, {
+                userUuids: updatedMembers.map((m) => m.user_uuid),
+            });
+
         return {
             pagination,
             data: updatedMembers.map((m) => ({
-                ...OrganizationMemberProfileModel.parseRow(m),
+                ...OrganizationMemberProfileModel.parseRow(
+                    m,
+                    usersHaveAuthenticationRows.find(
+                        (row) => row.user_uuid === m.user_uuid,
+                    )?.has_authentication,
+                ),
                 groups: m.groups,
             })),
         };
@@ -279,7 +310,19 @@ export class OrganizationMemberProfileModel {
             )
             .andWhere('role', 'admin')
             .select<DbOrganizationMemberProfile[]>(SelectColumns);
-        return members.map(OrganizationMemberProfileModel.parseRow);
+        const usersHaveAuthenticationRows =
+            await UserModel.findIfUsersHaveAuthentication(this.database, {
+                userUuids: members.map((m) => m.user_uuid),
+            });
+
+        return members.map((m) =>
+            OrganizationMemberProfileModel.parseRow(
+                m,
+                usersHaveAuthenticationRows.find(
+                    (row) => row.user_uuid === m.user_uuid,
+                )?.has_authentication,
+            ),
+        );
     }
 
     createOrganizationMembership = async (

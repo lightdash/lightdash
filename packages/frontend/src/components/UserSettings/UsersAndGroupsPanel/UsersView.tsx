@@ -62,28 +62,27 @@ const UserNameDisplay: FC<{
 }> = ({ user, showInviteLink, hasEmail, onGetLink }) => {
     return (
         <Flex justify="space-between" align="center">
-            {user.isActive ? (
-                <Stack spacing="xxs">
-                    <Title order={6}>
-                        {user.firstName} {user.lastName}
+            {!user.isActive ? (
+                <Stack spacing="xxs" align="flex-start">
+                    <Title order={6} color="gray.6">
+                        {user.firstName
+                            ? `${user.firstName} ${user.lastName}`
+                            : user.email}
                     </Title>
-
-                    {user.email && (
-                        <Badge
-                            variant="filled"
-                            color="gray.2"
-                            radius="xs"
-                            sx={{ textTransform: 'none' }}
-                            px="xxs"
-                        >
-                            <Text fz="xs" fw={400} color="gray.8">
-                                {user.email}
-                            </Text>
-                        </Badge>
-                    )}
+                    <Badge
+                        variant="filled"
+                        color="red.4"
+                        radius="xs"
+                        sx={{ textTransform: 'none' }}
+                        px="xxs"
+                    >
+                        <Text fz="xs" fw={400} color="gray.8">
+                            Inactive
+                        </Text>
+                    </Badge>
                 </Stack>
-            ) : user.isInviteExpired || user.isPending ? (
-                <Stack spacing="xxs">
+            ) : user.isPending ? (
+                <Stack spacing="xxs" align="flex-start">
                     {user.email && <Title order={6}>{user.email}</Title>}
                     <Group spacing="xs">
                         <Badge
@@ -112,21 +111,24 @@ const UserNameDisplay: FC<{
                     </Group>
                 </Stack>
             ) : (
-                <Stack spacing="xxs">
-                    <Title order={6} color="gray.6">
+                <Stack spacing="xxs" align="flex-start">
+                    <Title order={6}>
                         {user.firstName} {user.lastName}
                     </Title>
-                    <Badge
-                        variant="filled"
-                        color="red.4"
-                        radius="xs"
-                        sx={{ textTransform: 'none' }}
-                        px="xxs"
-                    >
-                        <Text fz="xs" fw={400} color="gray.8">
-                            Inactive
-                        </Text>
-                    </Badge>
+
+                    {user.email && (
+                        <Badge
+                            variant="filled"
+                            color="gray.2"
+                            radius="xs"
+                            sx={{ textTransform: 'none' }}
+                            px="xxs"
+                        >
+                            <Text fz="xs" fw={400} color="gray.8">
+                                {user.email}
+                            </Text>
+                        </Badge>
+                    )}
                 </Stack>
             )}
         </Flex>
