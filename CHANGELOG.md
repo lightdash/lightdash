@@ -1,3 +1,10 @@
+# [0.1339.0](https://github.com/lightdash/lightdash/compare/0.1338.1...0.1339.0) (2024-11-04)
+
+
+### Features
+
+* updated dashboard tab appearance ([#11984](https://github.com/lightdash/lightdash/issues/11984)) ([68c8d82](https://github.com/lightdash/lightdash/commit/68c8d8222961168ef78e76abf699adae5f76877f))
+
 ## [0.1338.1](https://github.com/lightdash/lightdash/compare/0.1338.0...0.1338.1) (2024-11-01)
 
 
