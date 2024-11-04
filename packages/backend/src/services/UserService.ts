@@ -366,7 +366,7 @@ export class UserService extends BaseService {
                 throw new ParameterError(
                     'Email is already used by a user in another organization',
                 );
-            } else if (existingUserWithEmail.hasAuthentication) {
+            } else if (!existingUserWithEmail.isPending) {
                 throw new ParameterError(
                     'Email is already used by a user in your organization',
                 );

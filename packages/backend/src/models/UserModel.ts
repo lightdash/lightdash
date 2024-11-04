@@ -85,7 +85,7 @@ export const mapDbUserDetailsToLightdashUser = (
     isSetupComplete: user.is_setup_complete,
     role: user.role,
     isActive: user.is_active,
-    hasAuthentication,
+    isPending: !hasAuthentication,
 });
 
 const userDetailsQueryBuilder = (
