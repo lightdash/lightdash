@@ -138,18 +138,6 @@ export class UserModel {
             .merge();
     }
 
-    /**
-     *  select
-     *  "users"."user_uuid",
-     *  CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication
-     *  from "users"
-     *  left join "password_logins" on "users"."user_id" = "password_logins"."user_id"
-     *  left join "openid_identities" on "users"."user_id" = "openid_identities"."user_id"
-     *  where "users"."user_uuid" in ($1)
-     *  group by "users"."user_uuid"
-     *  - column "password_logins.user_id" must appear in the GROUP BY clause or be used in an aggregate function
-     */
-
     static findIfUsersHaveAuthentication(
         trx: Knex,
         filters: { userUuids: string[] },
