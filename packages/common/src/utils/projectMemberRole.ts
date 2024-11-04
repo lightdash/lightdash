@@ -118,11 +118,11 @@ export const convertProjectRoleToOrganizationRole = (
         case ProjectMemberRole.VIEWER:
             return OrganizationMemberRole.VIEWER;
         case ProjectMemberRole.INTERACTIVE_VIEWER:
-            return OrganizationMemberRole.VIEWER;
+            return OrganizationMemberRole.INTERACTIVE_VIEWER;
         case ProjectMemberRole.EDITOR:
             return OrganizationMemberRole.EDITOR;
         case ProjectMemberRole.DEVELOPER:
-            return OrganizationMemberRole.EDITOR;
+            return OrganizationMemberRole.DEVELOPER;
         case ProjectMemberRole.ADMIN:
             return OrganizationMemberRole.ADMIN;
         default:
