@@ -311,7 +311,13 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isInitialLoading}>
+                        <Button
+                            type="submit"
+                            disabled={
+                                isInitialLoading ||
+                                form.values.savedChartsUuids.length === 0
+                            }
+                        >
                             Add
                         </Button>
                     </Group>
