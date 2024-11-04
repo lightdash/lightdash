@@ -731,7 +731,7 @@ export class ProjectModel {
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
             semanticLayerConnection: nonSensitiveSemanticLayerCredentials,
             schedulerTimezone: project.schedulerTimezone,
-            createdByUserUuid: project.createdByUserUuid,
+            createdByUserUuid: project.createdByUserUuid ?? null,
         };
     }
 
