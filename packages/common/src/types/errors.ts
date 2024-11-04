@@ -35,6 +35,20 @@ export class ForbiddenError extends LightdashError {
     }
 }
 
+export class DeactivatedAccountError extends LightdashError {
+    constructor(
+        message = 'Your account has been deactivated. Please contact your organization administrator.',
+        data: { [key: string]: any } = {},
+    ) {
+        super({
+            message,
+            name: 'DeactivatedAccountError',
+            statusCode: 403,
+            data,
+        });
+    }
+}
+
 export class AuthorizationError extends LightdashError {
     constructor(
         message = "You don't have authorization to perform this action",

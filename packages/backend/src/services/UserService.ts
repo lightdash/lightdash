@@ -8,6 +8,7 @@ import {
     CreateInviteLink,
     CreatePasswordResetLink,
     CreateUserArgs,
+    DeactivatedAccountError,
     DeleteOpenIdentity,
     EmailStatusExpiring,
     ExpiredError,
@@ -545,6 +546,10 @@ export class UserService extends BaseService {
         );
         // Identity already exists. Update the identity attributes and login the user
         if (openIdSession) {
+            if (!openIdSession.isActive) {
+                throw new DeactivatedAccountError();
+            }
+
             const organization = this.loginToOrganization(
                 openIdSession?.userUuid,
                 openIdUser.openId.issuerType,
@@ -952,6 +957,9 @@ export class UserService extends BaseService {
                 email,
                 password,
             );
+            if (!user.isActive) {
+                throw new DeactivatedAccountError();
+            }
             const userOrganization = this.loginToOrganization(
                 user.userUuid,
                 LocalIssuerTypes.EMAIL,
@@ -1162,6 +1170,9 @@ export class UserService extends BaseService {
             throw new AuthorizationError();
         }
         const { user, personalAccessToken } = results;
+        if (!user.isActive) {
+            throw new DeactivatedAccountError();
+        }
         const organization = this.loginToOrganization(
             user.userUuid,
             LocalIssuerTypes.API_TOKEN,
