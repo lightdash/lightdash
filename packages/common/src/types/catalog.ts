@@ -52,6 +52,7 @@ export type CatalogField = Pick<
         tableGroupLabel?: string;
         tags?: string[]; // Tags from table, for filtering
         chartUsage: number | undefined;
+        metricTags?: { label: string; color: string }[]; // Tags from metric, for filtering
     };
 
 export type CatalogTable = Pick<

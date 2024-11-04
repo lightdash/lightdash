@@ -516,7 +516,16 @@ export class CatalogService<
 
         return {
             pagination,
-            data: paginatedCatalogMetrics,
+            data: paginatedCatalogMetrics.map((metric) => ({
+                ...metric,
+                metricTags: [
+                    { label: 'finance', color: 'blue' },
+                    { label: 'revenue', color: 'green' },
+                    { label: 'customers', color: 'grape' },
+                    { label: 'marketing', color: 'orange' },
+                    { label: 'sales', color: 'red' },
+                ],
+            })),
         };
     }
 

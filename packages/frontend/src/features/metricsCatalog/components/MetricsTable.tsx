@@ -1,6 +1,16 @@
 import { type CatalogField, type CatalogItem } from '@lightdash/common';
-import { Box, Button, Highlight, HoverCard, Text } from '@mantine/core';
-import { IconChartBar } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Button,
+    Group,
+    Highlight,
+    HoverCard,
+    Popover,
+    Stack,
+    Text,
+    TextInput,
+} from '@mantine/core';
+import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
     MantineReactTable,
@@ -85,6 +95,102 @@ const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
     );
 };
 
+const TagManagement = ({ row }: { row: MRT_Row<CatalogField> }) => {
+    const [opened, setOpened] = useState(false);
+    const [search, setSearch] = useState('');
+
+    // Get unique existing tags across all metrics
+    const existingTags = useMemo(() => {
+        // This should come from your global state or API
+        return [
+            { label: 'finance', color: 'blue' },
+            { label: 'revenue', color: 'green' },
+            { label: 'core-metric', color: 'red' },
+            { label: 'customers', color: 'grape' },
+        ]; // example
+    }, []);
+
+    const handleAddTag = (tag: string) => {
+        // Implement your tag adding logic here
+        console.log('Adding tag:', tag);
+        setSearch('');
+        setOpened(false);
+    };
+
+    return (
+        <Popover
+            opened={opened}
+            onChange={setOpened}
+            position="bottom"
+            width={300}
+            withArrow
+            shadow="md"
+            withinPortal
+        >
+            <Popover.Target>
+                <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    onClick={() => setOpened(true)}
+                >
+                    <MantineIcon color="gray.6" icon={IconPlus} />
+                </ActionIcon>
+            </Popover.Target>
+            <Popover.Dropdown p="xs">
+                <TextInput
+                    placeholder="Search for a tag..."
+                    value={search}
+                    onChange={(e) => setSearch(e.currentTarget.value)}
+                    size="xs"
+                    mb="xs"
+                    radius="md"
+                    styles={(theme) => ({
+                        input: {
+                            boxShadow: theme.shadows.xs,
+                        },
+                    })}
+                />
+                <Text size="xs" fw={500} color="dimmed" mb="xs">
+                    Select a tag or create one
+                </Text>
+                <Stack spacing="xs" align="flex-start">
+                    {existingTags
+                        .filter((tag) =>
+                            tag.label
+                                .toLowerCase()
+                                .includes(search.toLowerCase()),
+                        )
+                        .map((tag) => (
+                            <Button
+                                key={tag.label}
+                                variant="light"
+                                color={tag.color}
+                                size="xs"
+                                compact
+                                onClick={() => handleAddTag(tag.label)}
+                            >
+                                <Group spacing="xs">{tag.label}</Group>
+                            </Button>
+                        ))}
+                    {search &&
+                        !existingTags.some((tag) => tag.label === search) && (
+                            <Button
+                                variant="light"
+                                color="blue"
+                                size="xs"
+                                fullWidth
+                                onClick={() => handleAddTag(search)}
+                            >
+                                Create "{search}"
+                            </Button>
+                        )}
+                </Stack>
+            </Popover.Dropdown>
+        </Popover>
+    );
+};
+
 const columns: MRT_ColumnDef<CatalogField>[] = [
     {
         accessorKey: 'name',
@@ -134,6 +240,77 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         enableSorting: false,
         size: 150,
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
+    },
+    {
+        accessorKey: 'metricTags',
+        header: 'Tags',
+        enableSorting: false,
+        size: 150,
+        minSize: 150,
+        Cell: ({ row }) => {
+            const tags = row.original.metricTags ?? [];
+            const visibleTags = tags.slice(0, 2);
+            const remainingCount = Math.max(0, tags.length - 2);
+
+            return (
+                <Group spacing="two" noWrap position="apart">
+                    {visibleTags.map((tag) => (
+                        <Button
+                            key={tag.label}
+                            size="xs"
+                            compact
+                            variant="light"
+                            color={tag.color}
+                            sx={{ cursor: 'default' }}
+                        >
+                            {tag.label}
+                        </Button>
+                    ))}
+                    {remainingCount > 0 && (
+                        <HoverCard
+                            width="auto"
+                            shadow="md"
+                            withinPortal
+                            styles={{
+                                dropdown: {
+                                    padding: '4px',
+                                    transform: 'translateY(-2px)',
+                                    background: 'white',
+                                    border: '1px solid #eee',
+                                },
+                            }}
+                        >
+                            <HoverCard.Target>
+                                <Text
+                                    size="xs"
+                                    fw={500}
+                                    color="dimmed"
+                                    sx={{ whiteSpace: 'nowrap' }}
+                                >
+                                    +{remainingCount}
+                                </Text>
+                            </HoverCard.Target>
+                            <HoverCard.Dropdown>
+                                <Group spacing="xs">
+                                    {tags.slice(2).map((tag) => (
+                                        <Button
+                                            key={tag.label}
+                                            size="xs"
+                                            compact
+                                            variant="light"
+                                            color={tag.color}
+                                        >
+                                            {tag.label}
+                                        </Button>
+                                    ))}
+                                </Group>
+                            </HoverCard.Dropdown>
+                        </HoverCard>
+                    )}
+                    <TagManagement row={row} />
+                </Group>
+            );
+        },
     },
     {
         accessorKey: 'chartUsage',
@@ -339,11 +516,7 @@ export const MetricsTable = () => {
                 header: '',
             },
         },
-        renderRowActions: ({ row }) => (
-            <Box>
-                <UseMetricButton row={row} />
-            </Box>
-        ),
+        renderRowActions: ({ row }) => <UseMetricButton row={row} />,
         enableFilterMatchHighlighting: true,
     });
 
