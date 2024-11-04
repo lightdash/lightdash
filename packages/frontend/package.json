@@ -96,6 +96,7 @@
         "sql-formatter": "^15.4.2",
         "styled-components": "^5.3.3",
         "tippy.js": "^6.3.7",
+        "unique-names-generator": "^4.7.1",
         "use-context-selector": "^1.4.1",
         "use-local-storage-state": "17",
         "uuid": "^8.3.2",
