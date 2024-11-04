@@ -4022,7 +4022,6 @@ export class ProjectService extends BaseService {
             dbtConnection: project.dbtConnection,
             upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
             dbtVersion: project.dbtVersion,
-            createdByUserUuid: user.userUuid,
         };
 
         const previewProject = await this.createWithoutCompile(

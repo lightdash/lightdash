@@ -855,7 +855,10 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
 
 export type CreateProject = Omit<
     Project,
-    'projectUuid' | 'organizationUuid' | 'schedulerTimezone'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'schedulerTimezone'
+    | 'createdByUserUuid'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
