@@ -1,3 +1,10 @@
+## [0.1340.4](https://github.com/lightdash/lightdash/compare/0.1340.3...0.1340.4) (2024-11-04)
+
+
+### Bug Fixes
+
+* export to CSV failing for some dashboards ([#12239](https://github.com/lightdash/lightdash/issues/12239)) ([6760994](https://github.com/lightdash/lightdash/commit/6760994160a49ae4be62cc8d98afb31aaa07819f))
+
 ## [0.1340.3](https://github.com/lightdash/lightdash/compare/0.1340.2...0.1340.3) (2024-11-04)
 
 
