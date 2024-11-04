@@ -78,7 +78,7 @@
                             },
                             "group_details": {
                                 "type": "object",
-                                "description": "Set up group_details so you can group your dimensions and metrics in the sidebar using the groups parameter. You can create nested groups up to 2 levels",
+                                "description": "Set up group_details so you can group your dimensions and metrics in the sidebar using the groups parameter. You can create nested groups up to 3 levels",
                                 "patternProperties": {
                                     "^[a-zA-Z0-9_]+$": {
                                         "type": "object",
@@ -154,7 +154,7 @@
                                             },
                                             "groups": {
                                                 "type": "array",
-                                                "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
+                                                "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
                                                 "items": {
                                                     "type": "string",
                                                     "minLength": 1
@@ -276,7 +276,7 @@
                                                         },
                                                         "groups": {
                                                             "type": "array",
-                                                            "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
+                                                            "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
                                                             "items": {
                                                                 "type": "string",
                                                                 "minLength": 1
@@ -375,7 +375,7 @@
                                                 },
                                                 "groups": {
                                                     "type": "array",
-                                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 2 levels",
+                                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
                                                     "items": {
                                                         "type": "string",
                                                         "minLength": 1

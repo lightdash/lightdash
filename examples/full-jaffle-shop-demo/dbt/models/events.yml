@@ -6,6 +6,10 @@ models:
         events:
           label: Events
           description: Events that happened in the Jaffle Shop
+        nested_group: 
+          label: nested group
+        another_nested_group: 
+          label: another nested group
     columns:
       - name: timestamp_tz
         description: ""
@@ -68,7 +72,7 @@ models:
         meta:
           dimension:
             type: number
-            groups: ['events']
+            groups: ['events', 'nested_group', 'another_nested_group']
           additional_dimensions: 
             event_tier: 
               type: string
