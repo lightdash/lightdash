@@ -10,11 +10,14 @@ import {
 import { IconDeviceAnalytics } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricChartAnalytics } from '../hooks/useMetricChartAnalytics';
 type Props = ModalProps;
 
 export const MetricChartsUsageModal: FC<Props> = ({ opened, onClose }) => {
+    const { track } = useTracking();
     const activeMetric = useAppSelector(
         (state) => state.metricsCatalog.activeMetric,
     );
@@ -64,6 +67,17 @@ export const MetricChartsUsageModal: FC<Props> = ({ opened, onClose }) => {
                                 <Anchor
                                     href={`/projects/${projectUuid}/saved/${chart.uuid}`}
                                     target="_blank"
+                                    onClick={() => {
+                                        track({
+                                            name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED,
+                                            properties: {
+                                                metricName: activeMetric?.name,
+                                                tableName:
+                                                    activeMetric?.tableName,
+                                                chartId: chart.uuid,
+                                            },
+                                        });
+                                    }}
                                 >
                                     {chart.name}
                                 </Anchor>

@@ -10,6 +10,7 @@ import {
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -17,7 +18,6 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { projectWithSensitiveFields } from '../ProjectService/ProjectService.mock';
 import { DashboardService } from './DashboardService';
 import {
     chart,
@@ -85,6 +85,7 @@ describe('DashboardService', () => {
         projectModel: {} as ProjectModel,
         slackClient: {} as SlackClient,
         schedulerClient: {} as SchedulerClient,
+        catalogModel: {} as CatalogModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

@@ -187,11 +187,13 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
+
         can('manage', 'CompileProject', {
             projectUuid: member.projectUuid,
         });
+
         can('create', 'Project', {
-            projectUuid: member.projectUuid,
+            upstreamProjectUuid: member.projectUuid,
             type: ProjectType.PREVIEW,
         });
     },

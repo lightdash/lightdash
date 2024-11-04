@@ -21,7 +21,7 @@ import {
     UserAttributeValueMap,
     type ApiSort,
     type CatalogFieldMap,
-    type ChartUsageUpdate,
+    type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
@@ -520,7 +520,7 @@ export class CatalogService<
         };
     }
 
-    async updateChartUsages(
+    async setChartUsages(
         projectUuid: string,
         catalogFieldMap: CatalogFieldMap,
     ) {
@@ -531,7 +531,7 @@ export class CatalogService<
             );
 
         const chartUsageUpdates = Object.entries(chartUsagesByFieldId).reduce<
-            ChartUsageUpdate[]
+            ChartUsageIn[]
         >((acc, [fieldId, chartSummaries]) => {
             const { fieldName, cachedExploreUuid } = catalogFieldMap[fieldId];
 
@@ -544,10 +544,7 @@ export class CatalogService<
             return acc;
         }, []);
 
-        await this.catalogModel.updateChartUsages(
-            projectUuid,
-            chartUsageUpdates,
-        );
+        await this.catalogModel.setChartUsages(projectUuid, chartUsageUpdates);
 
         return {
             chartUsageUpdates,

@@ -19,7 +19,10 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useScheduler, useSendNowScheduler } from '../hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
-import { getSchedulerUuidFromUrlParams } from '../utils';
+import {
+    getSchedulerUuidFromUrlParams,
+    getThresholdUuidFromUrlParams,
+} from '../utils';
 import SchedulerForm from './SchedulerForm';
 import SchedulersModalFooter from './SchedulerModalFooter';
 import SchedulersList from './SchedulersList';
@@ -291,6 +294,21 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                 pathname,
                 search: newParams.toString(),
             });
+        } else {
+            const thresholdUuidFromUrlParams =
+                getThresholdUuidFromUrlParams(search);
+            if (thresholdUuidFromUrlParams) {
+                setState(States.EDIT);
+                setSchedulerUuid(thresholdUuidFromUrlParams);
+
+                // remove from url param after modal is open
+                const newParams = new URLSearchParams(search);
+                newParams.delete('threshold_uuid');
+                history.replace({
+                    pathname,
+                    search: newParams.toString(),
+                });
+            }
         }
     }, [history, pathname, search]);
 

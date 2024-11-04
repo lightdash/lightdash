@@ -1,3 +1,45 @@
+## [0.1338.1](https://github.com/lightdash/lightdash/compare/0.1338.0...0.1338.1) (2024-11-01)
+
+
+### Bug Fixes
+
+* open threshold edit modal on click of link ([#12119](https://github.com/lightdash/lightdash/issues/12119)) ([7b70a0c](https://github.com/lightdash/lightdash/commit/7b70a0c95a99657fee58a3761a8c0b1067d9d11c))
+
+# [0.1338.0](https://github.com/lightdash/lightdash/compare/0.1337.0...0.1338.0) (2024-11-01)
+
+
+### Features
+
+* **global-search:** get all users in created by ([#12125](https://github.com/lightdash/lightdash/issues/12125)) ([80c4c3d](https://github.com/lightdash/lightdash/commit/80c4c3dde43b02c28dbd3b4b6f945d1a7c741063))
+
+# [0.1337.0](https://github.com/lightdash/lightdash/compare/0.1336.0...0.1337.0) (2024-11-01)
+
+
+### Features
+
+* project list pin new preview menu item and add label ([#12210](https://github.com/lightdash/lightdash/issues/12210)) ([2b4d706](https://github.com/lightdash/lightdash/commit/2b4d706c32b1b46f2041fede653bce3f09051b57))
+
+# [0.1336.0](https://github.com/lightdash/lightdash/compare/0.1335.0...0.1336.0) (2024-10-31)
+
+
+### Features
+
+* project list no previews for members and below ([#12158](https://github.com/lightdash/lightdash/issues/12158)) ([a8c14d3](https://github.com/lightdash/lightdash/commit/a8c14d35e6dbe4da4ac764e8f9ee2d05df13f874))
+
+# [0.1335.0](https://github.com/lightdash/lightdash/compare/0.1334.1...0.1335.0) (2024-10-31)
+
+
+### Features
+
+* update chart usage counter ([#12200](https://github.com/lightdash/lightdash/issues/12200)) ([73c2877](https://github.com/lightdash/lightdash/commit/73c2877ec465b63d99f148aa34b750f00402c74f))
+
+## [0.1334.1](https://github.com/lightdash/lightdash/compare/0.1334.0...0.1334.1) (2024-10-31)
+
+
+### Bug Fixes
+
+* allow stacking in ungrouped bar charts ([#12193](https://github.com/lightdash/lightdash/issues/12193)) ([511b6ca](https://github.com/lightdash/lightdash/commit/511b6cae9bf786617d78d5806f7fb3010b6e4cc7))
+
 # [0.1334.0](https://github.com/lightdash/lightdash/compare/0.1333.0...0.1334.0) (2024-10-31)
 
 

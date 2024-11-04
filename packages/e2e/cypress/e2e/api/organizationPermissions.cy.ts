@@ -29,6 +29,7 @@ describe('Lightdash API organization permission tests', () => {
             );
         });
     });
+
     it('Should get forbidden error (403) from GET project endpoints from another organization', () => {
         const projectUuid = SEED_PROJECT.project_uuid; // Same project_uuid that belongs to another organization
         const endpoints = [
@@ -50,6 +51,22 @@ describe('Lightdash API organization permission tests', () => {
             }).then((resp) => {
                 expect(resp.status).to.eq(403);
             });
+        });
+    });
+
+    it('Should get a forbidden error (403) from PATCH project', () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const endpoint = `${apiUrl}/projects/${projectUuid}`;
+
+        cy.request({
+            url: endpoint,
+            headers: { 'Content-type': 'application/json' },
+            method: 'PATCH',
+            body: {},
+            failOnStatusCode: false,
+        }).then((resp) => {
+            expect(resp.status).to.eq(403);
         });
     });
 
@@ -98,21 +115,6 @@ describe('Lightdash API organization permission tests', () => {
         });
     });
 
-    it('Should get forbidden error (403) from PATCH project', () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-
-        const endpoint = `${apiUrl}/projects/${projectUuid}`;
-
-        cy.request({
-            url: endpoint,
-            headers: { 'Content-type': 'application/json' },
-            method: 'PATCH',
-            body: {},
-            failOnStatusCode: false,
-        }).then((resp) => {
-            expect(resp.status).to.eq(403);
-        });
-    });
     it('Should get forbidden error (403) from GET savedChart endpoints from another organization', () => {
         cy.login(); // Make request as first user to get the chartUuid
 
@@ -176,6 +178,7 @@ describe('Lightdash API organization permission tests', () => {
             },
         );
     });
+
     it('Should get forbidden error (403) from PATCH dashboard', () => {
         cy.login(); // Make request as first user to get the chartUuid
 
@@ -210,137 +213,169 @@ describe('Lightdash API organization permission tests', () => {
     });
 });
 
-describe('Lightdash API tests for viewer org user', () => {
-    let email;
+describe('Lightdash API tests for organization on different roles', () => {
+    [
+        'admin',
+        'developer',
+        'editor',
+        'interactive_viewer',
+        'viewer',
+        'member',
+    ].forEach((role) => {
+        describe(`org user with '${role}' role`, () => {
+            let email;
 
-    before(() => {
-        cy.loginWithPermissions('viewer', []).then((e) => {
-            email = e;
-        });
-    });
-    beforeEach(() => {
-        cy.loginWithEmail(email);
-    });
-    it('Should identify user', () => {
-        cy.request(`${apiUrl}/user`).then((resp) => {
-            expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.property('email', email);
-            expect(resp.body.results).to.have.property('role', 'viewer');
-        });
-    });
-
-    it('Should get success response (200) from GET public endpoints', () => {
-        const endpoints = ['/livez', '/health', '/flash'];
-        endpoints.forEach((endpoint) => {
-            cy.request(`${apiUrl}${endpoint}`).then((resp) => {
-                expect(resp.status).to.eq(200);
-                expect(resp.body).to.have.property('status', 'ok');
+            before(() => {
+                cy.loginWithPermissions(role, []).then((e) => {
+                    email = e;
+                });
             });
-        });
-    });
 
-    it('Should get success response (200) from GET org', () => {
-        const endpoint = `${apiUrl}/org/`;
+            beforeEach(() => {
+                cy.loginWithEmail(email);
+            });
 
-        cy.request({
-            url: endpoint,
-            headers: { 'Content-type': 'application/json' },
-            method: 'GET',
-        }).then((resp) => {
-            expect(resp.status).to.eq(200);
-        });
-    });
+            it('Should identify user', () => {
+                cy.request(`${apiUrl}/user`).then((resp) => {
+                    expect(resp.status).to.eq(200);
+                    expect(resp.body.results).to.have.property('email', email);
+                    expect(resp.body.results).to.have.property('role', role);
+                });
+            });
 
-    it('Should get a forbidden (403) from POST project', () => {
-        const endpoint = `${apiUrl}/org/projects/`;
+            it('Should get success response (200) from GET public endpoints', () => {
+                const endpoints = ['/livez', '/health', '/flash'];
+                endpoints.forEach((endpoint) => {
+                    cy.request(`${apiUrl}${endpoint}`).then((resp) => {
+                        expect(resp.status).to.eq(200);
+                        expect(resp.body).to.have.property('status', 'ok');
+                    });
+                });
+            });
 
-        cy.request({
-            url: endpoint,
-            headers: { 'Content-type': 'application/json' },
-            method: 'POST',
-            body: {},
-            failOnStatusCode: false,
-        }).then((resp) => {
-            expect(resp.status).to.eq(403);
-        });
-    });
+            it('Should get success response (200) from GET org', () => {
+                const endpoint = `${apiUrl}/org/`;
 
-    it('Should get success response (200) from GET userRouter endpoints', () => {
-        const endpoints = [`/user`, `/user/identities`];
-        endpoints.forEach((endpoint) => {
-            cy.request(`${apiUrl}${endpoint}`).then((resp) => {
-                expect(resp.status).to.eq(200);
-                expect(resp.body).to.have.property('status', 'ok');
+                cy.request({
+                    url: endpoint,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'GET',
+                }).then((resp) => {
+                    expect(resp.status).to.eq(200);
+                });
+            });
+
+            it('Should get success response (200) from GET userRouter endpoints', () => {
+                const endpoints = [`/user`, `/user/identities`];
+                endpoints.forEach((endpoint) => {
+                    cy.request(`${apiUrl}${endpoint}`).then((resp) => {
+                        expect(resp.status).to.eq(200);
+                        expect(resp.body).to.have.property('status', 'ok');
+                    });
+                });
             });
         });
     });
 });
 
-describe('Lightdash API tests for interactive_viewer org user', () => {
-    let email;
+describe('lightdash API tests for project creation permissions', () => {
+    [
+        {
+            role: 'admin',
+            canCreateProject: true,
+            canCreatePreview: true,
+        },
+        {
+            role: 'developer',
+            canCreateProject: false,
+            canCreatePreview: true,
+        },
+        {
+            role: 'editor',
+            canCreateProject: false,
+            canCreatePreview: false,
+        },
+        {
+            role: 'interactive_viewer',
+            canCreateProject: false,
+            canCreatePreview: false,
+        },
+        {
+            role: 'viewer',
+            canCreateProject: false,
+            canCreatePreview: false,
+        },
+        {
+            role: 'member',
+            canCreateProject: false,
+            canCreatePreview: false,
+        },
+    ].forEach(({ role, canCreatePreview, canCreateProject }) => {
+        describe(`org user with '${role}' role`, () => {
+            let email;
 
-    before(() => {
-        cy.loginWithPermissions('interactive_viewer', []).then((e) => {
-            email = e;
-        });
-    });
-    beforeEach(() => {
-        cy.loginWithEmail(email);
-    });
-    it('Should identify user', () => {
-        cy.request(`${apiUrl}/user`).then((resp) => {
-            expect(resp.status).to.eq(200);
-            expect(resp.body.results).to.have.property('email', email);
-            expect(resp.body.results).to.have.property(
-                'role',
-                'interactive_viewer',
-            );
-        });
-    });
-
-    it('Should get success response (200) from GET public endpoints', () => {
-        const endpoints = ['/livez', '/health', '/flash'];
-        endpoints.forEach((endpoint) => {
-            cy.request(`${apiUrl}${endpoint}`).then((resp) => {
-                expect(resp.status).to.eq(200);
-                expect(resp.body).to.have.property('status', 'ok');
+            before(() => {
+                cy.loginWithPermissions(role, []).then((e) => {
+                    email = e;
+                });
             });
-        });
-    });
 
-    it('Should get success response (200) from GET org', () => {
-        const endpoint = `${apiUrl}/org/`;
-
-        cy.request({
-            url: endpoint,
-            headers: { 'Content-type': 'application/json' },
-            method: 'GET',
-        }).then((resp) => {
-            expect(resp.status).to.eq(200);
-        });
-    });
-
-    it('Should get a forbidden error (403) from POST project', () => {
-        const endpoint = `${apiUrl}/org/projects/`;
-
-        cy.request({
-            url: endpoint,
-            headers: { 'Content-type': 'application/json' },
-            method: 'POST',
-            body: {},
-            failOnStatusCode: false,
-        }).then((resp) => {
-            expect(resp.status).to.eq(403);
-        });
-    });
-
-    it('Should get success response (200) from GET userRouter endpoints', () => {
-        const endpoints = [`/user`, `/user/identities`];
-        endpoints.forEach((endpoint) => {
-            cy.request(`${apiUrl}${endpoint}`).then((resp) => {
-                expect(resp.status).to.eq(200);
-                expect(resp.body).to.have.property('status', 'ok');
+            beforeEach(() => {
+                cy.loginWithEmail(email);
             });
+
+            it('should get a parameter error when sending POST to project with DEFAULT and an UPSTREAM', () => {
+                const endpoint = `${apiUrl}/org/projects/`;
+
+                cy.request({
+                    url: endpoint,
+                    headers: { 'Content-type': 'application/json' },
+                    method: 'POST',
+                    body: {
+                        type: 'DEFAULT',
+                        upstreamProjectUuid: 'uuid',
+                    },
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    expect(resp.status).to.eq(400);
+                });
+            });
+
+            if (!canCreateProject) {
+                it('Should get a forbidden error (403) from POST project', () => {
+                    const endpoint = `${apiUrl}/org/projects/`;
+
+                    cy.request({
+                        url: endpoint,
+                        headers: { 'Content-type': 'application/json' },
+                        method: 'POST',
+                        body: {
+                            type: 'DEFAULT',
+                        },
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        expect(resp.status).to.eq(403);
+                    });
+                });
+            }
+
+            if (!canCreatePreview) {
+                it('Should get a forbidden error (403) from POST preview project', () => {
+                    const endpoint = `${apiUrl}/org/projects/`;
+
+                    cy.request({
+                        url: endpoint,
+                        headers: { 'Content-type': 'application/json' },
+                        method: 'POST',
+                        body: {
+                            type: 'PREVIEW',
+                        },
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        expect(resp.status).to.eq(403);
+                    });
+                });
+            }
         });
     });
 });

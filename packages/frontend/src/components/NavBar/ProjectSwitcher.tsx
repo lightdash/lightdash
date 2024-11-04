@@ -1,7 +1,12 @@
 import { subject } from '@casl/ability';
-import { ProjectType, type OrganizationProject } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ProjectType,
+    type OrganizationProject,
+} from '@lightdash/common';
 import {
     Badge,
+    Box,
     Button,
     Group,
     MantineProvider,
@@ -11,7 +16,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconArrowRight } from '@tabler/icons-react';
+import { IconArrowRight, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory, useRouteMatch } from 'react-router-dom';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -23,7 +28,7 @@ import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useCreatePreviewMutation } from '../../hooks/useProjectPreview';
 import { useProjects } from '../../hooks/useProjects';
 import { useApp } from '../../providers/AppProvider';
-import { Can } from '../common/Authorization';
+import MantineIcon from '../common/MantineIcon';
 
 const MENU_TEXT_PROPS = {
     c: 'gray.2',
@@ -168,6 +173,8 @@ const ProjectSwitcher = () => {
     const { showToastSuccess } = useToaster();
     const history = useHistory();
 
+    const { user } = useApp();
+
     const { isInitialLoading: isLoadingProjects, data: projects } =
         useProjects();
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
@@ -240,13 +247,49 @@ const ProjectSwitcher = () => {
         return projects.find((p) => p.projectUuid === activeProjectUuid);
     }, [activeProjectUuid, projects]);
 
+    // user has permission to create preview project on an organization level
+    const orgRoleCanCreatePreviews = useMemo(() => {
+        return user.data?.ability.can(
+            'create',
+            subject('Project', {
+                organizationUuid: user.data.organizationUuid,
+                type: ProjectType.PREVIEW,
+            }),
+        );
+    }, [user.data]);
+
     const inactiveProjects = useMemo(() => {
         if (!activeProjectUuid || !projects) return [];
-        return projects.filter((p) => p.projectUuid !== activeProjectUuid);
-    }, [activeProjectUuid, projects]);
+        return projects
+            .filter((p) => p.projectUuid !== activeProjectUuid)
+            .filter((project) => {
+                switch (project.type) {
+                    case ProjectType.DEFAULT:
+                        return true;
+                    case ProjectType.PREVIEW:
+                        // check if user has permission to create preview project on an organization level (developer, admin)
+                        // or check if user has permission to create preview project on a project level
+                        // - they should have permission (developer, admin) to the upstream project
+                        return (
+                            orgRoleCanCreatePreviews ||
+                            user.data?.ability.can(
+                                'create',
+                                subject('Project', {
+                                    upstreamProjectUuid: project.projectUuid,
+                                    type: ProjectType.PREVIEW,
+                                }),
+                            )
+                        );
+                    default:
+                        return assertUnreachable(
+                            project.type,
+                            `Unknown project type: ${project.type}`,
+                        );
+                }
+            });
+    }, [activeProjectUuid, projects, orgRoleCanCreatePreviews, user.data]);
 
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
-    const { user } = useApp();
 
     if (
         isLoadingProjects ||
@@ -295,6 +338,18 @@ const ProjectSwitcher = () => {
                 </Menu.Target>
 
                 <Menu.Dropdown maw={400}>
+                    <Box
+                        pos="sticky"
+                        top={0}
+                        bg="gray.9"
+                        sx={(theme) => ({
+                            boxShadow: `0 -4px ${theme.colors.gray[9]}`,
+                        })}
+                    >
+                        <Menu.Label py={0}>All Projects</Menu.Label>
+                        <Menu.Divider />
+                    </Box>
+
                     {inactiveProjects.map((item) => (
                         <InactiveProjectItem
                             key={item.projectUuid}
@@ -303,13 +358,24 @@ const ProjectSwitcher = () => {
                         />
                     ))}
 
-                    {activeProject && (
-                        <Can
-                            I="create"
-                            this={subject('Project', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid: activeProject.projectUuid,
+                    {activeProject &&
+                    activeProject.type === ProjectType.DEFAULT &&
+                    (orgRoleCanCreatePreviews ||
+                        user.data?.ability.can(
+                            'create',
+                            // user has permission to create preview from the upstream project (developer, admin)
+                            subject('Project', {
+                                upstreamProjectUuid: activeProject.projectUuid,
                                 type: ProjectType.PREVIEW,
+                            }),
+                        )) ? (
+                        <Box
+                            pos="sticky"
+                            bottom={0}
+                            bg="gray.9"
+                            sx={(theme) => ({
+                                // fixes scroll overlap
+                                boxShadow: `0 4px ${theme.colors.gray[9]}`,
                             })}
                         >
                             <Menu.Divider />
@@ -319,13 +385,12 @@ const ProjectSwitcher = () => {
                                     setIsCreatePreview(!isCreatePreviewOpen);
                                     e.stopPropagation();
                                 }}
+                                icon={<MantineIcon icon={IconPlus} size="md" />}
                             >
-                                <Text {...MENU_TEXT_PROPS}>
-                                    + Create preview
-                                </Text>
+                                <Text {...MENU_TEXT_PROPS}>Create Preview</Text>
                             </Menu.Item>
-                        </Can>
-                    )}
+                        </Box>
+                    ) : null}
                 </Menu.Dropdown>
             </Menu>
 

@@ -1,9 +1,6 @@
-import {
-    friendlyName,
-    type CatalogField,
-    type CatalogItem,
-} from '@lightdash/common';
-import { Box, Button, HoverCard, Text } from '@mantine/core';
+import { type CatalogField, type CatalogItem } from '@lightdash/common';
+import { Box, Button, Highlight, HoverCard, Text } from '@mantine/core';
+import { IconChartBar } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
     MantineReactTable,
@@ -22,12 +19,14 @@ import {
     useState,
     type UIEvent,
 } from 'react';
-import { useHistory } from 'react-router-dom';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     createMetricPreviewUnsavedChartVersion,
     getExplorerUrlFromCreateSavedChartVersion,
 } from '../../../hooks/useExplorerRoute';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { setActiveMetric } from '../store/metricsCatalogSlice';
@@ -35,15 +34,39 @@ import { setActiveMetric } from '../store/metricsCatalogSlice';
 const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
     const hasChartsUsage = row.original.chartUsage ?? 0 > 0;
     const dispatch = useAppDispatch();
+    const { track } = useTracking();
+
+    const handleChartUsageClick = () => {
+        if (hasChartsUsage) {
+            track({
+                name: EventName.METRICS_CATALOG_CHART_USAGE_CLICKED,
+                properties: {
+                    metricName: row.original.name,
+                    chartCount: row.original.chartUsage ?? 0,
+                    tableName: row.original.tableName,
+                },
+            });
+            dispatch(setActiveMetric(row.original));
+        }
+    };
+
     return (
         <Button
             size="xs"
             compact
-            color="indigo"
-            variant="subtle"
+            color="gray.6"
+            variant="default"
             disabled={!hasChartsUsage}
-            onClick={() =>
-                hasChartsUsage && dispatch(setActiveMetric(row.original))
+            onClick={handleChartUsageClick}
+            leftIcon={
+                <MantineIcon
+                    display={hasChartsUsage ? 'block' : 'none'}
+                    icon={IconChartBar}
+                    color="gray.6"
+                    size={12}
+                    strokeWidth={1.2}
+                    fill="gray.2"
+                />
             }
             sx={{
                 '&[data-disabled]': {
@@ -51,8 +74,13 @@ const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
                     fontWeight: 400,
                 },
             }}
+            styles={{
+                leftIcon: {
+                    marginRight: 4,
+                },
+            }}
         >
-            {hasChartsUsage ? `${row.original.chartUsage} uses` : 'No usage'}
+            {hasChartsUsage ? `${row.original.chartUsage}` : 'No usage'}
         </Button>
     );
 };
@@ -62,18 +90,32 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'name',
         header: 'Metric Name',
         enableSorting: true,
-        Cell: ({ row }) => (
-            <Text fw={500}>{friendlyName(row.original.label)}</Text>
+        Cell: ({ row, table }) => (
+            <Highlight highlight={table.getState().globalFilter || ''}>
+                {row.original.label}
+            </Highlight>
         ),
     },
     {
         accessorKey: 'description',
         header: 'Description',
         enableSorting: false,
-        Cell: ({ row }) => (
-            <HoverCard withinPortal>
+        size: 400,
+        Cell: ({ table, row }) => (
+            <HoverCard
+                withinPortal
+                shadow="lg"
+                position="right"
+                disabled={!row.original.description}
+            >
                 <HoverCard.Target>
-                    <Text lineClamp={2}>{row.original.description}</Text>
+                    <Text lineClamp={2}>
+                        <Highlight
+                            highlight={table.getState().globalFilter || ''}
+                        >
+                            {row.original.description ?? ''}
+                        </Highlight>
+                    </Text>
                 </HoverCard.Target>
                 <HoverCard.Dropdown>
                     <MarkdownPreview
@@ -88,56 +130,72 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
     },
     {
         accessorKey: 'directory',
-        header: 'Directory',
+        header: 'Table',
         enableSorting: false,
+        size: 150,
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
     {
         accessorKey: 'chartUsage',
         header: 'Popularity',
         enableSorting: true,
+        size: 100,
         Cell: ({ row }) => <MetricUsageButton row={row} />,
     },
 ];
 
 const UseMetricButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
-    const [currentTableName, setCurrentTableName] = useState<string>();
-    const { data: explore, isFetching } = useExplore(currentTableName);
-    const [isNavigating, setIsNavigating] = useState(false);
-    const history = useHistory();
+    const [isGeneratingPreviewUrl, setIsGeneratingPreviewUrl] = useState(false);
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const [currentTableName, setCurrentTableName] = useState<string>();
+    const { track } = useTracking();
+    const { isFetching } = useExplore(currentTableName, {
+        onSuccess(explore) {
+            if (!!currentTableName && explore && projectUuid) {
+                setIsGeneratingPreviewUrl(true);
+                const unsavedChartVersion =
+                    createMetricPreviewUnsavedChartVersion(
+                        row.original,
+                        explore,
+                    );
 
-    useEffect(() => {
-        if (!!currentTableName && explore && projectUuid) {
-            setIsNavigating(true);
-            const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
-                row.original,
-                explore,
-            );
+                const { pathname, search } =
+                    getExplorerUrlFromCreateSavedChartVersion(
+                        projectUuid,
+                        unsavedChartVersion,
+                    );
+                const url = new URL(pathname, window.location.origin);
+                url.search = new URLSearchParams(search).toString();
 
-            history.push(
-                getExplorerUrlFromCreateSavedChartVersion(
-                    projectUuid,
-                    unsavedChartVersion,
-                ),
-            );
-        }
-    }, [currentTableName, explore, projectUuid, row.original, history]);
+                window.open(url.href, '_blank');
+                setIsGeneratingPreviewUrl(false);
+                setCurrentTableName(undefined);
+            }
+        },
+    });
+
+    const handleExploreClick = () => {
+        track({
+            name: EventName.METRICS_CATALOG_EXPLORE_CLICKED,
+            properties: {
+                metricName: row.original.name,
+                tableName: row.original.tableName,
+            },
+        });
+        setCurrentTableName(row.original.tableName);
+    };
 
     return (
         <Button
-            color="blue"
             size="xs"
             compact
             variant="subtle"
-            onClick={() => {
-                setCurrentTableName(row.original.tableName);
-            }}
-            loading={isFetching || isNavigating}
+            onClick={handleExploreClick}
+            loading={isFetching || isGeneratingPreviewUrl}
         >
-            Use Metric
+            Explore
         </Button>
     );
 };
@@ -207,7 +265,7 @@ export const MetricsTable = () => {
         columns,
         data: flatData,
         enableColumnResizing: true,
-        enableRowNumbers: true,
+        enableRowNumbers: false,
         enableRowActions: true,
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
@@ -218,7 +276,7 @@ export const MetricsTable = () => {
         enableColumnActions: false,
         enableColumnFilters: false,
         enableHiding: false,
-        enableGlobalFilterModes: true,
+        enableGlobalFilterModes: false,
         onGlobalFilterChange: (s: string) => {
             setSearch(s);
         },
@@ -226,6 +284,9 @@ export const MetricsTable = () => {
         manualSorting: true,
         onSortingChange: setSorting,
         enableTopToolbar: true,
+        mantinePaperProps: {
+            shadow: undefined,
+        },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: { maxHeight: '600px', minHeight: '600px' },
@@ -236,6 +297,22 @@ export const MetricsTable = () => {
             highlightOnHover: true,
             withColumnBorders: true,
         },
+        mantineTableHeadRowProps: {
+            sx: {
+                boxShadow: 'none',
+                // Each head row has a divider when resizing columns is enabled
+                'th > div > div:last-child': {
+                    width: '0.5px',
+                    padding: '0px',
+                },
+            },
+        },
+        mantineSearchTextInputProps: {
+            placeholder: 'Search by metric name or description',
+            sx: { minWidth: '300px' },
+            variant: 'default',
+        },
+        positionGlobalFilter: 'left',
         enableBottomToolbar: true,
         renderBottomToolbarCustomActions: () => (
             <Text>
@@ -249,7 +326,11 @@ export const MetricsTable = () => {
         state: {
             sorting,
             showProgressBars: isFetching,
-            density: 'xs',
+            density: 'md',
+            globalFilter: search ?? '',
+        },
+        initialState: {
+            showGlobalFilter: true, // Show search input by default
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 40 },
@@ -263,6 +344,7 @@ export const MetricsTable = () => {
                 <UseMetricButton row={row} />
             </Box>
         ),
+        enableFilterMatchHighlighting: true,
     });
 
     return <MantineReactTable table={table} />;
