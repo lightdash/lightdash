@@ -8,6 +8,7 @@ import {
     getSchedulerUuid,
     GsheetsNotificationPayload,
     hasSchedulerUuid,
+    indexCatalogJob,
     isCreateSchedulerSlackTarget,
     NotificationPayloadBase,
     ScheduledDeliveryPayload,
@@ -18,7 +19,6 @@ import {
     SchedulerJobStatus,
     semanticLayerQueryJob,
     SemanticLayerQueryPayload,
-    setCatalogChartUsagesJob,
     SlackNotificationPayload,
     sqlRunnerJob,
     SqlRunnerPayload,
@@ -26,7 +26,7 @@ import {
     SqlRunnerPivotQueryPayload,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
-    type SchedulersetCatalogChartUsagesPayload,
+    type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -712,20 +712,18 @@ export class SchedulerClient {
         return { jobId };
     }
 
-    // Updates catalog with chart usages after the catalog is indexed - for example, metric_1 is used by 2 charts, so its chart_usage will be 2
-    async setCatalogChartUsages(
-        payload: SchedulersetCatalogChartUsagesPayload,
-    ) {
+    // Indexes catalog and calculates chart usages - for example, metric_1 is used by 2 charts, so its chart_usage will be 2
+    async indexCatalog(payload: SchedulerIndexCatalogJobPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
             graphileClient,
-            setCatalogChartUsagesJob,
+            indexCatalogJob,
             payload,
             now,
         );
         await this.schedulerModel.logSchedulerJob({
-            task: setCatalogChartUsagesJob,
+            task: indexCatalogJob,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,

@@ -629,15 +629,14 @@ export class ProjectService extends BaseService {
                     );
                 }
 
-                const { catalogFieldMap } =
-                    await this.projectModel.saveExploresToCache(
-                        projectUuid,
-                        explores,
-                    );
-
-                await this.schedulerClient.setCatalogChartUsages({
+                await this.projectModel.saveExploresToCache(
                     projectUuid,
-                    catalogFieldMap,
+                    explores,
+                );
+
+                await this.schedulerClient.indexCatalog({
+                    projectUuid,
+                    explores,
                     userUuid: user.userUuid,
                 });
 
@@ -704,14 +703,11 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { catalogFieldMap } = await this.projectModel.saveExploresToCache(
+        await this.projectModel.saveExploresToCache(projectUuid, explores);
+
+        await this.schedulerClient.indexCatalog({
             projectUuid,
             explores,
-        );
-
-        await this.schedulerClient.setCatalogChartUsages({
-            projectUuid,
-            catalogFieldMap,
             userUuid: user.userUuid,
         });
 
@@ -859,15 +855,14 @@ export class ProjectService extends BaseService {
                         }
                     },
                 );
-                const { catalogFieldMap } =
-                    await this.projectModel.saveExploresToCache(
-                        projectUuid,
-                        explores,
-                    );
-
-                await this.schedulerClient.setCatalogChartUsages({
+                await this.projectModel.saveExploresToCache(
                     projectUuid,
-                    catalogFieldMap,
+                    explores,
+                );
+
+                await this.schedulerClient.indexCatalog({
+                    projectUuid,
+                    explores,
                     userUuid: user.userUuid,
                 });
             }
@@ -2837,15 +2832,14 @@ export class ProjectService extends BaseService {
                     async () =>
                         this.refreshAllTables(user, projectUuid, requestMethod),
                 );
-                const { catalogFieldMap } =
-                    await this.projectModel.saveExploresToCache(
-                        projectUuid,
-                        explores,
-                    );
-
-                await this.schedulerClient.setCatalogChartUsages({
+                await this.projectModel.saveExploresToCache(
                     projectUuid,
-                    catalogFieldMap,
+                    explores,
+                );
+
+                await this.schedulerClient.indexCatalog({
+                    projectUuid,
+                    explores,
                     userUuid: user.userUuid,
                 });
 
@@ -4770,5 +4764,21 @@ export class ProjectService extends BaseService {
         });
 
         return updatedProject;
+    }
+
+    async indexCatalog(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ) {
+        const exploresWithCachedExploreUuid =
+            await this.projectModel.getCachedExploresWithUuid(
+                projectUuid,
+                explores,
+            );
+
+        return this.projectModel.indexCatalog(
+            projectUuid,
+            exploresWithCachedExploreUuid,
+        );
     }
 }
