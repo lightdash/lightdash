@@ -296,7 +296,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
                     {tags.map((tag) => (
                         <Badge
                             key={tag.label}
-                            size="xs"
+                            size="sm"
                             variant="light"
                             radius="sm"
                             styles={(theme) => ({
