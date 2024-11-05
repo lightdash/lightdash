@@ -404,6 +404,12 @@ export class CatalogModel {
         });
     }
 
+    async getCatalogItem(catalogSearchUuid: string) {
+        return this.database(CatalogTableName)
+            .where(`${CatalogTableName}.catalog_search_uuid`, catalogSearchUuid)
+            .first();
+    }
+
     async tagCatalogItem(
         user: SessionUser,
         catalogSearchUuid: string,

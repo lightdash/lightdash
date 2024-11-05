@@ -576,6 +576,20 @@ export class CatalogService<
             throw new NotFoundError('Tag not found');
         }
 
+        const catalogSearch = await this.catalogModel.getCatalogItem(
+            catalogSearchUuid,
+        );
+
+        if (!catalogSearch) {
+            throw new NotFoundError('Catalog search not found');
+        }
+
+        if (catalogSearch.project_uuid !== tag.projectUuid) {
+            throw new ForbiddenError(
+                'Catalog search and tag are not in the same project',
+            );
+        }
+
         const { organizationUuid: tagOrganizationUuid } =
             await this.projectModel.getSummary(tag.projectUuid);
 
