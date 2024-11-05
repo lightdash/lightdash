@@ -1,3 +1,10 @@
+## [0.1340.6](https://github.com/lightdash/lightdash/compare/0.1340.5...0.1340.6) (2024-11-05)
+
+
+### Bug Fixes
+
+* view underlying data with a null date ([#12219](https://github.com/lightdash/lightdash/issues/12219)) ([a3114e8](https://github.com/lightdash/lightdash/commit/a3114e834751a92c681037391aa7a1a659d22ab1))
+
 ## [0.1340.5](https://github.com/lightdash/lightdash/compare/0.1340.4...0.1340.5) (2024-11-05)
 
 
