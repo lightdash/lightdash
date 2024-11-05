@@ -1,3 +1,10 @@
+# [0.1341.0](https://github.com/lightdash/lightdash/compare/0.1340.7...0.1341.0) (2024-11-05)
+
+
+### Features
+
+* change user 'isActive' definition ([#12235](https://github.com/lightdash/lightdash/issues/12235)) ([73f97a7](https://github.com/lightdash/lightdash/commit/73f97a748c17a51228bf6559ca6c8f035ecaa5d4))
+
 ## [0.1340.7](https://github.com/lightdash/lightdash/compare/0.1340.6...0.1340.7) (2024-11-05)
 
 
