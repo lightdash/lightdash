@@ -71,6 +71,7 @@ export type DbUserDetails = {
 
 export const mapDbUserDetailsToLightdashUser = (
     user: DbUserDetails,
+    hasAuthentication: boolean,
 ): LightdashUser => ({
     userUuid: user.user_uuid,
     email: user.email,
@@ -84,6 +85,7 @@ export const mapDbUserDetailsToLightdashUser = (
     isSetupComplete: user.is_setup_complete,
     role: user.role,
     isActive: user.is_active,
+    isPending: !hasAuthentication,
 });
 
 const userDetailsQueryBuilder = (
@@ -134,6 +136,42 @@ export class UserModel {
             .insert<DbPasswordLoginIn>(passwordLoginIn)
             .onConflict('user_id')
             .merge();
+    }
+
+    static findIfUsersHaveAuthentication(
+        trx: Knex,
+        filters: { userUuids: string[] },
+    ) {
+        return trx(UserTableName)
+            .leftJoin(
+                PasswordLoginTableName,
+                `${UserTableName}.user_id`,
+                `${PasswordLoginTableName}.user_id`,
+            )
+            .leftJoin(
+                OpenIdIdentitiesTableName,
+                `${UserTableName}.user_id`,
+                `${OpenIdIdentitiesTableName}.user_id`,
+            )
+            .select<{ user_uuid: string; has_authentication: false }[]>(
+                `${UserTableName}.user_uuid`,
+                trx.raw(
+                    `CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`,
+                ),
+            )
+            .distinctOn(`user_uuid`)
+            .whereIn(`${UserTableName}.user_uuid`, filters.userUuids);
+    }
+
+    private async hasAuthentication(userUuid: string): Promise<boolean> {
+        const [usersHaveAuthenticationRows] =
+            await UserModel.findIfUsersHaveAuthentication(this.database, {
+                userUuids: [userUuid],
+            });
+        if (usersHaveAuthenticationRows === undefined) {
+            throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
+        }
+        return usersHaveAuthenticationRows.has_authentication;
     }
 
     private async createUserTransaction(
@@ -246,7 +284,11 @@ export class UserModel {
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
-        return mapDbUserDetailsToLightdashUser(user);
+
+        return mapDbUserDetailsToLightdashUser(
+            user,
+            await this.hasAuthentication(userUuid),
+        );
     }
 
     async getUserDetailsById(userId: number): Promise<LightdashUser> {
@@ -256,7 +298,10 @@ export class UserModel {
         if (user === undefined) {
             throw new NotFoundError('Cannot find user');
         }
-        return mapDbUserDetailsToLightdashUser(user);
+        return mapDbUserDetailsToLightdashUser(
+            user,
+            await this.hasAuthentication(user.user_uuid),
+        );
     }
 
     async getUserByPrimaryEmailAndPassword(
@@ -285,7 +330,10 @@ export class UserModel {
                 `No User found with email ${email} and password`,
             );
         }
-        return mapDbUserDetailsToLightdashUser(user);
+        return mapDbUserDetailsToLightdashUser(
+            user,
+            await this.hasAuthentication(user.user_uuid),
+        );
     }
 
     async hasPassword(userUuid: string): Promise<boolean> {
@@ -326,7 +374,10 @@ export class UserModel {
         if (!match) {
             throw new NotFoundError('Password not recognized.');
         }
-        return mapDbUserDetailsToLightdashUser(user);
+        return mapDbUserDetailsToLightdashUser(
+            user,
+            await this.hasAuthentication(user.user_uuid),
+        );
     }
 
     async updateUser(
@@ -452,7 +503,10 @@ export class UserModel {
         if (user === undefined) {
             return user;
         }
-        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const lightdashUser = mapDbUserDetailsToLightdashUser(
+            user,
+            await this.hasAuthentication(user.user_uuid),
+        );
         const projectRoles = await this.getUserProjectRoles(
             user.user_id,
             user.user_uuid,
@@ -504,7 +558,7 @@ export class UserModel {
         const user = await this.database.transaction(async (trx) => {
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
-                isActive: false,
+                isActive: true,
             });
             await trx(OrganizationMembershipsTableName).insert({
                 organization_id: org.organization_id,
@@ -536,7 +590,6 @@ export class UserModel {
                     last_name: isOpenIdUser(activateUser)
                         ? activateUser.openId.lastName
                         : activateUser.lastName,
-                    is_active: true,
                     updated_at: new Date(),
                 })
                 .returning('*');
@@ -610,7 +663,10 @@ export class UserModel {
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
-        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const lightdashUser = mapDbUserDetailsToLightdashUser(
+            user,
+            await this.hasAuthentication(user.user_uuid),
+        );
         const projectRoles = await this.getUserProjectRoles(
             user.user_id,
             user.user_uuid,
@@ -646,7 +702,10 @@ export class UserModel {
                 `Cannot find user with uuid ${userUuid} and org ${organizationUuid}`,
             );
         }
-        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const lightdashUser = mapDbUserDetailsToLightdashUser(
+            user,
+            await this.hasAuthentication(user.user_uuid),
+        );
         const projectRoles = await this.getUserProjectRoles(
             user.user_id,
             user.user_uuid,
@@ -678,7 +737,10 @@ export class UserModel {
         if (user === undefined) {
             return undefined;
         }
-        const lightdashUser = mapDbUserDetailsToLightdashUser(user);
+        const lightdashUser = mapDbUserDetailsToLightdashUser(
+            user,
+            await this.hasAuthentication(user.user_uuid),
+        );
         const projectRoles = await this.getUserProjectRoles(
             user.user_id,
             user.user_uuid,
@@ -712,7 +774,12 @@ export class UserModel {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('email', email)
             .select('*', 'organizations.created_at as organization_created_at');
-        return user ? mapDbUserDetailsToLightdashUser(user) : undefined;
+        return user
+            ? mapDbUserDetailsToLightdashUser(
+                  user,
+                  await this.hasAuthentication(user.user_uuid),
+              )
+            : undefined;
     }
 
     async upsertPassword(userUuid: string, password: string): Promise<void> {
@@ -753,7 +820,10 @@ export class UserModel {
         if (row === undefined) {
             return undefined;
         }
-        const lightdashUser = mapDbUserDetailsToLightdashUser(row);
+        const lightdashUser = mapDbUserDetailsToLightdashUser(
+            row,
+            await this.hasAuthentication(row.user_uuid),
+        );
         const projectRoles = await this.getUserProjectRoles(
             row.user_id,
             row.user_uuid,
@@ -769,7 +839,10 @@ export class UserModel {
         ]);
         return {
             user: {
-                ...mapDbUserDetailsToLightdashUser(row),
+                ...mapDbUserDetailsToLightdashUser(
+                    row,
+                    await this.hasAuthentication(row.user_uuid),
+                ),
                 abilityRules: abilityBuilder.rules,
                 ability: abilityBuilder.build(),
                 userId: row.user_id,

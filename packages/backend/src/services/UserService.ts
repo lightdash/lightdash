@@ -366,7 +366,7 @@ export class UserService extends BaseService {
                 throw new ParameterError(
                     'Email is already used by a user in another organization',
                 );
-            } else if (existingUserWithEmail.isActive) {
+            } else if (!existingUserWithEmail.isPending) {
                 throw new ParameterError(
                     'Email is already used by a user in your organization',
                 );
@@ -1014,7 +1014,13 @@ export class UserService extends BaseService {
         const updatedUser = await this.userModel.updateUser(
             user.userUuid,
             user.email,
-            data,
+            {
+                firstName: data.firstName,
+                lastName: data.lastName,
+                email: data.email,
+                isMarketingOptedIn: data.isMarketingOptedIn,
+                isTrackingAnonymized: data.isTrackingAnonymized,
+            },
         );
         this.identifyUser(updatedUser);
         this.analytics.track({

@@ -430,7 +430,9 @@ export const TagInput = forwardRef<HTMLInputElement, TagInputProps>(
         const handlePaste = (e: React.ClipboardEvent): void => {
             e.preventDefault();
             const data = getClipboardData(e);
-            const tags = splitTags(splitChars, data);
+            // When pasting from excel/gsheets, we want to convert \n (columns) and \t (rows) to commas
+            const parsedData = data.replace(/\n/g, ',').replace(/\t/g, ',');
+            const tags = splitTags(splitChars, parsedData);
             handleAddTags(tags);
         };
 

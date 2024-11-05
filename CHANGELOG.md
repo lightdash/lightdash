@@ -1,3 +1,47 @@
+# [0.1341.0](https://github.com/lightdash/lightdash/compare/0.1340.7...0.1341.0) (2024-11-05)
+
+
+### Features
+
+* change user 'isActive' definition ([#12235](https://github.com/lightdash/lightdash/issues/12235)) ([73f97a7](https://github.com/lightdash/lightdash/commit/73f97a748c17a51228bf6559ca6c8f035ecaa5d4))
+
+## [0.1340.7](https://github.com/lightdash/lightdash/compare/0.1340.6...0.1340.7) (2024-11-05)
+
+
+### Bug Fixes
+
+* comments feature enable by default for self-host ([#12238](https://github.com/lightdash/lightdash/issues/12238)) ([10b3773](https://github.com/lightdash/lightdash/commit/10b3773d288a3f1b6c5d3126c018c80e8e5b4d0a))
+* fix edge case on space access for member users with group access ([#12205](https://github.com/lightdash/lightdash/issues/12205)) ([daff34e](https://github.com/lightdash/lightdash/commit/daff34e7b9fd1071387015a356a7164f8a7ae84b))
+
+## [0.1340.6](https://github.com/lightdash/lightdash/compare/0.1340.5...0.1340.6) (2024-11-05)
+
+
+### Bug Fixes
+
+* view underlying data with a null date ([#12219](https://github.com/lightdash/lightdash/issues/12219)) ([a3114e8](https://github.com/lightdash/lightdash/commit/a3114e834751a92c681037391aa7a1a659d22ab1))
+
+## [0.1340.5](https://github.com/lightdash/lightdash/compare/0.1340.4...0.1340.5) (2024-11-05)
+
+
+### Bug Fixes
+
+* fix paste numbers from excel ([#12230](https://github.com/lightdash/lightdash/issues/12230)) ([bbb2ffd](https://github.com/lightdash/lightdash/commit/bbb2ffd43710d3cec51cfd4979bc7a8acc450211))
+* upgrade @easyops-cn/docusaurus-search-local from 0.44.5 to 0.45.0 ([#12228](https://github.com/lightdash/lightdash/issues/12228)) ([b13d73e](https://github.com/lightdash/lightdash/commit/b13d73e2ba1625ec6daa983f7f51905be9ff5855))
+
+## [0.1340.4](https://github.com/lightdash/lightdash/compare/0.1340.3...0.1340.4) (2024-11-04)
+
+
+### Bug Fixes
+
+* export to CSV failing for some dashboards ([#12239](https://github.com/lightdash/lightdash/issues/12239)) ([6760994](https://github.com/lightdash/lightdash/commit/6760994160a49ae4be62cc8d98afb31aaa07819f))
+
+## [0.1340.3](https://github.com/lightdash/lightdash/compare/0.1340.2...0.1340.3) (2024-11-04)
+
+
+### Bug Fixes
+
+* cli schema validation failure and e2e ([#12241](https://github.com/lightdash/lightdash/issues/12241)) ([b3b23be](https://github.com/lightdash/lightdash/commit/b3b23be146342cbf3f11f988dc5830dee5ea0e50))
+
 ## [0.1340.2](https://github.com/lightdash/lightdash/compare/0.1340.1...0.1340.2) (2024-11-04)
 
 

@@ -479,7 +479,7 @@ describe('UserService', () => {
             (userModel.findUserByEmail as jest.Mock).mockImplementationOnce(
                 async () => ({
                     ...userWithoutOrg,
-                    isActive: false,
+                    isPending: true,
                     organizationUuid: sessionUser.organizationUuid,
                 }),
             );

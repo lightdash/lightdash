@@ -8257,6 +8257,7 @@ const models: TsoaRoute.Models = {
             isSetupComplete: { dataType: 'boolean', required: true },
             role: { ref: 'OrganizationMemberRole' },
             isActive: { dataType: 'boolean', required: true },
+            isPending: { dataType: 'boolean' },
         },
         additionalProperties: true,
     },
@@ -12416,6 +12417,11 @@ export function RegisterRoutes(app: express.Router) {
                 searchQuery: {
                     in: 'query',
                     name: 'searchQuery',
+                    dataType: 'string',
+                },
+                projectUuid: {
+                    in: 'query',
+                    name: 'projectUuid',
                     dataType: 'string',
                 },
             };

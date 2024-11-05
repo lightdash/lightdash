@@ -31,7 +31,7 @@ export type OrganizationMemberProfile = {
      */
     role: OrganizationMemberRole;
     /**
-     * Whether the user has accepted their invite to the organization
+     * Whether the user can login
      */
     isActive: boolean;
     /**
@@ -39,7 +39,7 @@ export type OrganizationMemberProfile = {
      */
     isInviteExpired?: boolean;
     /**
-     * Whether the user has a pending invite to the organization
+     * Whether the user doesn't have an authentication method (password or openId)
      */
     isPending?: boolean;
 };

@@ -1196,7 +1196,8 @@ export class CsvService extends BaseService {
             options,
             overrideDashboardFilters: dashboardFilters,
             dateZoomGranularity,
-        });
+        }).then((urls) => urls.filter((url) => url.path !== '#no-results'));
+
         const zipFile = await writeZipFile(csvFiles);
 
         this.analytics.track({
