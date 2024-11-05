@@ -938,7 +938,7 @@ export class ProjectService extends BaseService {
                 'delete',
                 subject('Project', {
                     type: project.type,
-                    projectUui: project.projectUuid,
+                    projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                     createdByUserUuid: project.createdByUserUuid,
                 }),
