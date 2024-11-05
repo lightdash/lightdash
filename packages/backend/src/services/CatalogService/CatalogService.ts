@@ -514,12 +514,20 @@ export class CatalogService<
             (item): item is CatalogField => item.type === CatalogType.Field, // This is for type narrowing the values returned from `searchCatalog`
         );
 
+        // const allMetricTags = [
+        //     { label: 'finance', color: 'blue' },
+        //     { label: 'revenue', color: 'green' },
+        //     { label: 'customers', color: 'grape' },
+        //     { label: 'marketing', color: 'orange' },
+        //     { label: 'sales', color: 'red' },
+        // ];
+
         const allMetricTags = [
-            { label: 'finance', color: 'blue' },
-            { label: 'revenue', color: 'green' },
-            { label: 'customers', color: 'grape' },
-            { label: 'marketing', color: 'orange' },
-            { label: 'sales', color: 'red' },
+            { label: 'finance', color: '#339AF0' }, // blue
+            { label: 'revenue', color: '#40C057' }, // green
+            { label: 'customers', color: '#BE4BDB' }, // grape
+            { label: 'marketing', color: '#FF922B' }, // orange
+            { label: 'sales', color: '#FA5252' }, // red
         ];
 
         return {

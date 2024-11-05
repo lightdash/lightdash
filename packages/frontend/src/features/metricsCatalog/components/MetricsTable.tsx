@@ -1,5 +1,10 @@
-import { type CatalogField, type CatalogItem } from '@lightdash/common';
 import {
+    capitalize,
+    type CatalogField,
+    type CatalogItem,
+} from '@lightdash/common';
+import {
+    Badge,
     Button,
     Group,
     Highlight,
@@ -289,16 +294,36 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
             return (
                 <Group spacing="two" ref={ref} pos="relative" w="100%" h="100%">
                     {tags.map((tag) => (
-                        <Button
+                        <Badge
                             key={tag.label}
                             size="xs"
-                            compact
                             variant="light"
-                            color={tag.color}
-                            sx={{ cursor: 'default' }}
+                            radius="sm"
+                            styles={(theme) => ({
+                                root: {
+                                    textTransform: 'none',
+                                    fontWeight: 400,
+                                    border: `1px solid ${theme.fn.lighten(
+                                        tag.color,
+                                        0.5,
+                                    )}`,
+                                    backgroundColor: theme.fn.lighten(
+                                        tag.color,
+                                        0.9,
+                                    ),
+                                    color: theme.fn.darken(tag.color, 0.2),
+                                    cursor: 'pointer',
+                                    '&:hover': {
+                                        backgroundColor: theme.fn.lighten(
+                                            tag.color,
+                                            0.8,
+                                        ),
+                                    },
+                                },
+                            })}
                         >
-                            {tag.label}
-                        </Button>
+                            {capitalize(tag.label)}
+                        </Badge>
                     ))}
 
                     <TagManagement
