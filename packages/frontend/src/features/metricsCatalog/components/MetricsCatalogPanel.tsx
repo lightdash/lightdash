@@ -4,7 +4,7 @@ import { useMount } from 'react-use';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setActiveMetric, setProjectUuid } from '../store/metricsCatalogSlice';
-import { MetricChartsUsageModal } from './MetricChartsUsageModal';
+import { MetricChartUsageModal } from './MetricChartUsageModal';
 import { MetricsTable } from './MetricsTable';
 
 export const MetricsCatalogPanel = () => {
@@ -32,7 +32,7 @@ export const MetricsCatalogPanel = () => {
                 <RefreshDbtButton />
             </Group>
             <MetricsTable />
-            <MetricChartsUsageModal
+            <MetricChartUsageModal
                 opened={isMetricUsageModalOpen}
                 onClose={onCloseMetricUsageModal}
             />

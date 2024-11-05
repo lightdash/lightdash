@@ -56,6 +56,9 @@ export const projectMemberAbilities: Record<
         can('view', 'DashboardComments', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'Tags', {
+            projectUuid: member.projectUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
@@ -151,6 +154,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'SemanticViewer', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'Tags', {
             projectUuid: member.projectUuid,
         });
     },

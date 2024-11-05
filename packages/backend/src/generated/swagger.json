@@ -84,6 +84,22 @@
                 "enum": ["field"],
                 "type": "string"
             },
+            "Pick_Tag.name-or-color-or-tagUuid_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "tagUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "color", "tagUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "CatalogField": {
                 "allOf": [
                     {
@@ -97,6 +113,12 @@
                             "chartUsage": {
                                 "type": "number",
                                 "format": "double"
+                            },
+                            "catalogTags": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Pick_Tag.name-or-color-or-tagUuid_"
+                                },
+                                "type": "array"
                             },
                             "tags": {
                                 "items": {
@@ -115,9 +137,17 @@
                             },
                             "type": {
                                 "$ref": "#/components/schemas/CatalogType.Field"
+                            },
+                            "catalogSearchUuid": {
+                                "type": "string"
                             }
                         },
-                        "required": ["tableName", "type"],
+                        "required": [
+                            "catalogTags",
+                            "tableName",
+                            "type",
+                            "catalogSearchUuid"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -223,6 +253,12 @@
                                 },
                                 "type": "array"
                             },
+                            "catalogTags": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Pick_Tag.name-or-color-or-tagUuid_"
+                                },
+                                "type": "array"
+                            },
                             "tags": {
                                 "items": {
                                     "type": "string"
@@ -240,9 +276,16 @@
                                     "$ref": "#/components/schemas/InlineError"
                                 },
                                 "type": "array"
+                            },
+                            "catalogSearchUuid": {
+                                "type": "string"
                             }
                         },
-                        "required": ["type"],
+                        "required": [
+                            "catalogTags",
+                            "type",
+                            "catalogSearchUuid"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -454,6 +497,18 @@
             "ApiSortDirection": {
                 "type": "string",
                 "enum": ["asc", "desc"]
+            },
+            "ApiSuccessEmpty": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
             },
             "ApiCreateComment": {
                 "properties": {
@@ -2832,18 +2887,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiSuccessEmpty": {
-                "properties": {
-                    "results": {},
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
                 "type": "object"
             },
             "ExploreType": {
@@ -6687,6 +6730,89 @@
                 "required": ["schedulerTimezone"],
                 "type": "object"
             },
+            "Pick_Tag.name-or-color_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "color"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid", "firstName", "lastName"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Tag": {
+                "properties": {
+                    "createdBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_LightdashUser.userUuid-or-firstName-or-lastName_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "tagUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdBy",
+                    "createdAt",
+                    "color",
+                    "name",
+                    "projectUuid",
+                    "tagUuid"
+                ],
+                "type": "object"
+            },
+            "ApiGetTagsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/Tag"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "CacheMetadata": {
                 "properties": {
                     "cacheHit": {
@@ -6734,22 +6860,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
-                "properties": {
-                    "userUuid": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["userUuid", "firstName", "lastName"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_": {
                 "properties": {
@@ -10789,7 +10899,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1341.0",
+        "version": "0.1342.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -11143,6 +11253,115 @@
                         "required": false,
                         "schema": {
                             "$ref": "#/components/schemas/ApiSortDirection"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/{catalogSearchUuid}/tags": {
+            "post": {
+                "operationId": "tagCatalogItem",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "catalogSearchUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "tagUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["tagUuid"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/{catalogSearchUuid}/tags/{tagUuid}": {
+            "delete": {
+                "operationId": "untagCatalogItem",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {},
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "catalogSearchUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "tagUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
@@ -14617,6 +14836,132 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/tags": {
+            "post": {
+                "operationId": "createTag",
+                "responses": {
+                    "201": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Pick_Tag.name-or-color_"
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "operationId": "getTags",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetTagsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/tags/{tagUuid}": {
+            "delete": {
+                "operationId": "deleteTag",
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "tagUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {

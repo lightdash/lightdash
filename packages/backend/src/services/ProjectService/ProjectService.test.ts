@@ -21,6 +21,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
+import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
@@ -122,6 +123,7 @@ describe('ProjectService', () => {
         downloadFileModel: {} as unknown as DownloadFileModel,
         s3Client: {} as S3Client,
         groupsModel: {} as GroupsModel,
+        tagsModel: {} as TagsModel,
     });
     afterEach(() => {
         jest.clearAllMocks();

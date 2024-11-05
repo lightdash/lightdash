@@ -1,3 +1,10 @@
+# [0.1342.0](https://github.com/lightdash/lightdash/compare/0.1341.0...0.1342.0) (2024-11-05)
+
+
+### Features
+
+* add metric tags ([#12252](https://github.com/lightdash/lightdash/issues/12252)) ([7722d3e](https://github.com/lightdash/lightdash/commit/7722d3ea95254c5e0822c1103a7dbc395a30da22))
+
 # [0.1341.0](https://github.com/lightdash/lightdash/compare/0.1340.7...0.1341.0) (2024-11-05)
 
 

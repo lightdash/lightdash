@@ -7,13 +7,17 @@ import {
     ApiMetricsCatalog,
     getItemId,
     type ApiSort,
+    type ApiSuccessEmpty,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
+    Body,
+    Delete,
     Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Query,
     Request,
     Response,
@@ -204,6 +208,51 @@ export class CatalogController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{catalogSearchUuid}/tags')
+    @OperationId('tagCatalogItem')
+    async tagCatalogItem(
+        @Path() catalogSearchUuid: string,
+        @Body()
+        body: {
+            tagUuid: string;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getCatalogService()
+            .tagCatalogItem(req.user!, catalogSearchUuid, body.tagUuid);
+
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('{catalogSearchUuid}/tags/{tagUuid}')
+    @OperationId('untagCatalogItem')
+    async untagCatalogItem(
+        @Path() catalogSearchUuid: string,
+        @Path() tagUuid: string,
+        @Request() req: express.Request,
+    ) {
+        await this.services
+            .getCatalogService()
+            .untagCatalogItem(req.user!, catalogSearchUuid, tagUuid);
+
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 }
