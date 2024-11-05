@@ -4,6 +4,7 @@ import {
     type CatalogItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { TagsTableName } from './tags';
 
 export type DbCatalog = {
     cached_explore_uuid: string;
@@ -55,6 +56,7 @@ export function getDbCatalogColumnFromCatalogProperty(
             return 'chart_usage';
         case 'requiredAttributes':
             return 'required_attributes';
+        case 'catalogTags': // TODO: implement search by catalog tags
         case 'label':
         case 'tags':
             throw new Error(
@@ -69,3 +71,22 @@ export function getDbCatalogColumnFromCatalogProperty(
 }
 
 export const CatalogTableName = 'catalog_search';
+
+export type DbCatalogTag = {
+    catalog_search_uuid: string;
+    tag_uuid: string;
+    created_at: Date;
+    created_by_user_uuid: string | null;
+};
+
+export type DbCatalogTagIn = Pick<
+    DbCatalogTag,
+    'catalog_search_uuid' | 'tag_uuid' | 'created_by_user_uuid'
+>;
+
+export type CatalogTagsTable = Knex.CompositeTableType<
+    DbCatalogTag,
+    DbCatalogTagIn
+>;
+
+export const CatalogTagsTableName = 'catalog_search_tags';

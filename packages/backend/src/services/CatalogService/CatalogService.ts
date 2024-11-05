@@ -21,6 +21,7 @@ import {
     UserAttributeValueMap,
     type ApiSort,
     type CatalogFieldMap,
+    type CatalogItem,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -195,7 +196,7 @@ export class CatalogService<
         filter?: CatalogFilter,
         paginateArgs?: KnexPaginateArgs,
         sortArgs?: ApiSort,
-    ): Promise<KnexPaginatedData<(CatalogTable | CatalogField)[]>> {
+    ): Promise<KnexPaginatedData<CatalogItem[]>> {
         const tablesConfiguration =
             await this.projectModel.getTablesConfiguration(projectUuid);
 

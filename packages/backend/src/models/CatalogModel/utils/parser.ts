@@ -7,6 +7,7 @@ import {
     CompiledTable,
     Explore,
     getBasicType,
+    type Tag,
 } from '@lightdash/common';
 import { DbCatalog } from '../../../database/entities/catalog';
 
@@ -15,10 +16,12 @@ const parseFieldFromMetricOrDimension = (
     field: CompiledMetric | CompiledDimension,
     {
         tags,
+        catalogTags,
         requiredAttributes,
         chartUsage,
     }: {
         tags: string[];
+        catalogTags: Pick<Tag, 'tagUuid' | 'name'>[];
         requiredAttributes: Record<string, string | string[]> | undefined;
         chartUsage: number | undefined;
     },
@@ -34,6 +37,7 @@ const parseFieldFromMetricOrDimension = (
     type: CatalogType.Field,
     requiredAttributes,
     tags,
+    catalogTags,
     chartUsage,
 });
 
@@ -47,6 +51,7 @@ export const parseFieldsFromCompiledTable = (
     return tableFields.map((field) =>
         parseFieldFromMetricOrDimension(table, field, {
             tags: [],
+            catalogTags: [],
             requiredAttributes:
                 field.requiredAttributes ?? table.requiredAttributes,
             chartUsage: undefined,
@@ -55,7 +60,10 @@ export const parseFieldsFromCompiledTable = (
 };
 
 export const parseCatalog = (
-    dbCatalog: DbCatalog & { explore: Explore },
+    dbCatalog: DbCatalog & {
+        explore: Explore;
+        catalog_tags: Pick<Tag, 'tagUuid' | 'name'>[];
+    },
 ): CatalogTable | CatalogField => {
     const baseTable = dbCatalog.explore.tables[dbCatalog.explore.baseTable];
 
@@ -68,6 +76,7 @@ export const parseCatalog = (
             type: CatalogType.Table,
             requiredAttributes: dbCatalog.required_attributes ?? undefined,
             tags: dbCatalog.explore.tags,
+            catalogTags: dbCatalog.catalog_tags,
             chartUsage: dbCatalog.chart_usage ?? undefined,
         };
     }
@@ -89,6 +98,7 @@ export const parseCatalog = (
     }
     return parseFieldFromMetricOrDimension(baseTable, findField, {
         tags: dbCatalog.explore.tags,
+        catalogTags: dbCatalog.catalog_tags,
         requiredAttributes: dbCatalog.required_attributes ?? undefined,
         chartUsage: dbCatalog.chart_usage ?? 0,
     });

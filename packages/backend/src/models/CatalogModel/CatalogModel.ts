@@ -1,7 +1,5 @@
 import {
-    CatalogField,
     CatalogFilter,
-    CatalogTable,
     CatalogType,
     Explore,
     FieldType,
@@ -14,16 +12,20 @@ import {
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
+    type SessionUser,
     type TablesConfiguration,
+    type Tag,
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     CatalogTableName,
+    CatalogTagsTableName,
     getDbCatalogColumnFromCatalogProperty,
     type DbCatalog,
 } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
+import { TagsTableName } from '../../database/entities/tags';
 import KnexPaginate from '../../database/pagination';
 import { wrapSentryTransaction } from '../../utils';
 import {
@@ -73,7 +75,7 @@ export class CatalogModel {
         userAttributes: UserAttributeValueMap;
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
-    }): Promise<KnexPaginatedData<(CatalogTable | CatalogField)[]>> {
+    }): Promise<KnexPaginatedData<CatalogItem[]>> {
         const searchRankRawSql = searchQuery
             ? searchRankFunction({
                   database: this.database,
@@ -95,11 +97,35 @@ export class CatalogModel {
                 `${CachedExploreTableName}.explore`,
                 `required_attributes`,
                 `chart_usage`,
+                // Add tags as an aggregated JSON array
+                {
+                    catalog_tags: this.database.raw(`
+                        COALESCE(
+                            JSON_AGG(
+                                DISTINCT JSONB_BUILD_OBJECT(
+                                    'tagUuid', ${TagsTableName}.tag_uuid,
+                                    'name', ${TagsTableName}.name
+                                )
+                            ) FILTER (WHERE ${TagsTableName}.tag_uuid IS NOT NULL),
+                            '[]'
+                        )
+                    `),
+                },
             )
             .leftJoin(
                 CachedExploreTableName,
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
+            )
+            .leftJoin(
+                CatalogTagsTableName,
+                `${CatalogTableName}.catalog_search_uuid`,
+                `${CatalogTagsTableName}.catalog_search_uuid`,
+            )
+            .leftJoin(
+                TagsTableName,
+                `${CatalogTagsTableName}.tag_uuid`,
+                `${TagsTableName}.tag_uuid`,
             )
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
             // tables configuration filtering
@@ -216,6 +242,15 @@ export class CatalogModel {
             );
         }
 
+        catalogItemsQuery = catalogItemsQuery.groupBy(
+            `${CatalogTableName}.name`,
+            `${CatalogTableName}.description`,
+            `${CatalogTableName}.type`,
+            `${CachedExploreTableName}.explore`,
+            `${CatalogTableName}.required_attributes`,
+            `${CatalogTableName}.chart_usage`,
+        );
+
         catalogItemsQuery = catalogItemsQuery
             .orderBy('search_rank', 'desc')
             .limit(limit ?? 50);
@@ -231,7 +266,12 @@ export class CatalogModel {
         }
 
         const paginatedCatalogItems = await KnexPaginate.paginate(
-            catalogItemsQuery.select<(DbCatalog & { explore: Explore })[]>(),
+            catalogItemsQuery.select<
+                (DbCatalog & {
+                    explore: Explore;
+                    catalog_tags: Pick<Tag, 'tagUuid' | 'name'>[];
+                })[]
+            >(),
             paginateArgs,
         );
 
@@ -357,5 +397,26 @@ export class CatalogModel {
                 {},
             );
         });
+    }
+
+    async tagCatalogItem(
+        user: SessionUser,
+        catalogSearchUuid: string,
+        tagUuid: string,
+    ) {
+        await this.database(CatalogTagsTableName).insert({
+            catalog_search_uuid: catalogSearchUuid,
+            tag_uuid: tagUuid,
+            created_by_user_uuid: user.userUuid,
+        });
+    }
+
+    async untagCatalogItem(catalogSearchUuid: string, tagUuid: string) {
+        await this.database(CatalogTagsTableName)
+            .where({
+                catalog_search_uuid: catalogSearchUuid,
+                tag_uuid: tagUuid,
+            })
+            .delete();
     }
 }

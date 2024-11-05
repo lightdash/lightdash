@@ -84,6 +84,19 @@
                 "enum": ["field"],
                 "type": "string"
             },
+            "Pick_Tag.name-or-tagUuid_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "tagUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "tagUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "CatalogField": {
                 "allOf": [
                     {
@@ -97,6 +110,12 @@
                             "chartUsage": {
                                 "type": "number",
                                 "format": "double"
+                            },
+                            "catalogTags": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Pick_Tag.name-or-tagUuid_"
+                                },
+                                "type": "array"
                             },
                             "tags": {
                                 "items": {
@@ -220,6 +239,12 @@
                             "joinedTables": {
                                 "items": {
                                     "$ref": "#/components/schemas/CompiledExploreJoin"
+                                },
+                                "type": "array"
+                            },
+                            "catalogTags": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Pick_Tag.name-or-tagUuid_"
                                 },
                                 "type": "array"
                             },

@@ -139,6 +139,18 @@ const models: TsoaRoute.Models = {
         enums: ['field'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Tag.name-or-tagUuid_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                tagUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CatalogField: {
         dataType: 'refAlias',
         type: {
@@ -158,6 +170,13 @@ const models: TsoaRoute.Models = {
                                 { dataType: 'undefined' },
                             ],
                             required: true,
+                        },
+                        catalogTags: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'Pick_Tag.name-or-tagUuid_',
+                            },
                         },
                         tags: {
                             dataType: 'array',
@@ -286,6 +305,13 @@ const models: TsoaRoute.Models = {
                             array: {
                                 dataType: 'refAlias',
                                 ref: 'CompiledExploreJoin',
+                            },
+                        },
+                        catalogTags: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'Pick_Tag.name-or-tagUuid_',
                             },
                         },
                         tags: {
