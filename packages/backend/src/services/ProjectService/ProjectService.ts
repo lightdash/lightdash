@@ -323,6 +323,19 @@ export class ProjectService extends BaseService {
                     const upstreamProject = await this.projectModel.get(
                         data.upstreamProjectUuid,
                     );
+                    if (
+                        user.ability.cannot(
+                            'view',
+                            subject('Project', {
+                                organizationUuid: user.organizationUuid,
+                                projectUuid: data.upstreamProjectUuid,
+                            }),
+                        )
+                    ) {
+                        throw new ForbiddenError(
+                            'Cannot access upstream project',
+                        );
+                    }
                     if (upstreamProject.type === ProjectType.PREVIEW) {
                         throw new ForbiddenError(
                             'Cannot create a preview project from a preview project',
@@ -523,17 +536,8 @@ export class ProjectService extends BaseService {
 
         let hasContentCopy = false;
 
-        if (data.type === ProjectType.PREVIEW) {
-            if (!data.upstreamProjectUuid) {
-                throw new ParameterError(
-                    'upstreamProjectUuid must be provided for preview projects',
-                );
-            }
-
+        if (data.type === ProjectType.PREVIEW && data.upstreamProjectUuid) {
             try {
-                const projectSummary = await this.projectModel.getSummary(
-                    data.upstreamProjectUuid,
-                );
                 await this.copyUserAccessOnPreview(
                     data.upstreamProjectUuid,
                     projectUuid,
