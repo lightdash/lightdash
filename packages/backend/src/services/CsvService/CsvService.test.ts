@@ -17,6 +17,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
+import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -56,6 +57,7 @@ describe('Csv service', () => {
             downloadFileModel: {} as DownloadFileModel,
             s3Client: {} as S3Client,
             groupsModel: {} as GroupsModel,
+            tagsModel: {} as TagsModel,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,

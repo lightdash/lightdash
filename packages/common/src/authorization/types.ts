@@ -46,6 +46,7 @@ type Subject =
     | 'CompileProject'
     | 'SemanticViewer'
     | 'VirtualView'
+    | 'Tags'
     | 'all';
 
 type PossibleAbilities = [

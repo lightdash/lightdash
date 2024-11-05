@@ -10,3 +10,8 @@ export type Tag = {
         'userUuid' | 'firstName' | 'lastName'
     > | null;
 };
+
+export type ApiGetTagsResponse = {
+    status: 'ok';
+    results: Tag[];
+};

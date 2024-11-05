@@ -14,6 +14,7 @@ import {
     hasIntersection,
     InlineErrorType,
     isExploreError,
+    NotFoundError,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -33,6 +34,7 @@ import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/pa
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
@@ -50,6 +52,7 @@ export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     catalogModel: T;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
+    tagsModel: TagsModel;
 };
 
 export class CatalogService<
@@ -69,6 +72,8 @@ export class CatalogService<
 
     spaceModel: SpaceModel;
 
+    tagsModel: TagsModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -77,6 +82,7 @@ export class CatalogService<
         catalogModel,
         savedChartModel,
         spaceModel,
+        tagsModel,
     }: CatalogArguments<T>) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -86,6 +92,7 @@ export class CatalogService<
         this.catalogModel = catalogModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
+        this.tagsModel = tagsModel;
     }
 
     private static async getCatalogFields(
@@ -550,5 +557,67 @@ export class CatalogService<
         return {
             chartUsageUpdates,
         };
+    }
+
+    async tagCatalogItem(
+        user: SessionUser,
+        catalogSearchUuid: string,
+        tagUuid: string,
+    ) {
+        const tag = await this.tagsModel.get(tagUuid);
+
+        if (!tag) {
+            throw new NotFoundError('Tag not found');
+        }
+
+        const { organizationUuid: tagOrganizationUuid } =
+            await this.projectModel.getSummary(tag.projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Tags', {
+                    projectUuid: tag.projectUuid,
+                    organizationUuid: tagOrganizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.catalogModel.tagCatalogItem(
+            user,
+            catalogSearchUuid,
+            tagUuid,
+        );
+    }
+
+    async untagCatalogItem(
+        user: SessionUser,
+        catalogSearchUuid: string,
+        tagUuid: string,
+    ) {
+        const tag = await this.tagsModel.get(tagUuid);
+
+        if (!tag) {
+            throw new NotFoundError('Tag not found');
+        }
+
+        const { organizationUuid: tagOrganizationUuid } =
+            await this.projectModel.getSummary(tag.projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Tags', {
+                    projectUuid: tag.projectUuid,
+                    organizationUuid: tagOrganizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.catalogModel.untagCatalogItem(catalogSearchUuid, tagUuid);
     }
 }

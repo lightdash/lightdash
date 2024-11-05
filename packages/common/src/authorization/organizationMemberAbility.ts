@@ -73,6 +73,9 @@ export const organizationMemberAbilities: Record<
         can('view', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'Tags', {
+            projectUuid: member.organizationUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         organizationMemberAbilities.viewer(member, { can });
@@ -172,6 +175,9 @@ export const organizationMemberAbilities: Record<
         });
         can('manage', 'SemanticViewer', {
             organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'Tags', {
+            projectUuid: member.organizationUuid,
         });
     },
     developer(member, { can }) {

@@ -34,6 +34,7 @@ import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SpaceModel } from './SpaceModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
+import { TagsModel } from './TagsModel';
 import { UserAttributesModel } from './UserAttributesModel';
 import { UserModel } from './UserModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -84,7 +85,7 @@ export type ModelManifest = {
     savedSqlModel: SavedSqlModel;
     SavedSemanticViewerChartModel: SavedSemanticViewerChartModel;
     contentModel: ContentModel;
-
+    tagsModel: TagsModel;
     /** An implementation signature for these models are not available at this stage */
     aiModel: unknown;
     embedModel: unknown;
@@ -502,6 +503,13 @@ export class ModelRepository
 
     public getDashboardSummaryModel<ModelImplT>(): ModelImplT {
         return this.getModel('dashboardSummaryModel');
+    }
+
+    public getTagsModel(): TagsModel {
+        return this.getModel(
+            'tagsModel',
+            () => new TagsModel({ database: this.database }),
+        );
     }
 
     /**

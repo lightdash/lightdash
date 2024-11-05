@@ -21,6 +21,7 @@ import {
     UserWarehouseCredentials,
     type ApiCreateDashboardResponse,
     type ApiGetDashboardsResponse,
+    type ApiGetTagsResponse,
     type ApiUpdateDashboardsResponse,
     type CreateDashboard,
     type DuplicateDashboardParams,
@@ -706,6 +707,83 @@ export class ProjectController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Success')
+    @Post('{projectUuid}/tags')
+    @OperationId('createTag')
+    async createTag(
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            name: string;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getProjectService()
+            .createTag(req.user!, projectUuid, body.name);
+
+        this.setStatus(201);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('204', 'Deleted')
+    @Delete('{projectUuid}/tags/{tagUuid}')
+    @OperationId('deleteTag')
+    async deleteTag(
+        @Path() projectUuid: string,
+        @Path() tagUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getProjectService()
+            .deleteTag(req.user!, projectUuid, tagUuid);
+
+        this.setStatus(204);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/tags')
+    @OperationId('getTags')
+    async getTags(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetTagsResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getProjectService()
+            .getTags(req.user!, projectUuid);
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 }

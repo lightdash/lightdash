@@ -44,7 +44,6 @@ import {
     findFieldByIdInExplore,
     ForbiddenError,
     formatRows,
-    friendlyName,
     getAggregatedField,
     getDashboardFilterRulesForTables,
     getDateDimension,
@@ -143,6 +142,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
+import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
@@ -196,6 +196,7 @@ type ProjectServiceArguments = {
     downloadFileModel: DownloadFileModel;
     s3Client: S3Client;
     groupsModel: GroupsModel;
+    tagsModel: TagsModel;
 };
 
 export class ProjectService extends BaseService {
@@ -241,6 +242,8 @@ export class ProjectService extends BaseService {
 
     groupsModel: GroupsModel;
 
+    tagsModel: TagsModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -262,6 +265,7 @@ export class ProjectService extends BaseService {
         downloadFileModel,
         s3Client,
         groupsModel,
+        tagsModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -285,6 +289,7 @@ export class ProjectService extends BaseService {
         this.downloadFileModel = downloadFileModel;
         this.s3Client = s3Client;
         this.groupsModel = groupsModel;
+        this.tagsModel = tagsModel;
     }
 
     private async validateProjectCreationPermissions(
@@ -4780,5 +4785,72 @@ export class ProjectService extends BaseService {
             projectUuid,
             exploresWithCachedExploreUuid,
         );
+    }
+
+    async createTag(user: SessionUser, projectUuid: string, name: string) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('Tags', {
+                    projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.tagsModel.create({
+            project_uuid: projectUuid,
+            name,
+            created_by_user_uuid: user.userUuid,
+        });
+    }
+
+    async deleteTag(user: SessionUser, projectUuid: string, tagUuid: string) {
+        const tag = await this.tagsModel.get(tagUuid);
+
+        if (!tag) {
+            throw new NotFoundError('Tag not found');
+        }
+
+        const { organizationUuid } = await this.projectModel.getSummary(
+            tag.projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'delete',
+                subject('Tags', {
+                    projectUuid: tag.projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.tagsModel.delete(tagUuid);
+    }
+
+    async getTags(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Tags', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.tagsModel.list(projectUuid);
     }
 }
