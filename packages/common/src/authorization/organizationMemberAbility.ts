@@ -177,7 +177,7 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Tags', {
-            projectUuid: member.organizationUuid,
+            organizationUuid: member.organizationUuid,
         });
     },
     developer(member, { can }) {
