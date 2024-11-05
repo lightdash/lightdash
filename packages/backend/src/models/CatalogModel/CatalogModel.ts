@@ -88,6 +88,7 @@ export class CatalogModel {
 
         let catalogItemsQuery = this.database(CatalogTableName)
             .column(
+                `${CatalogTableName}.catalog_search_uuid`,
                 `${CatalogTableName}.name`,
                 'description',
                 'type',
@@ -104,7 +105,8 @@ export class CatalogModel {
                             JSON_AGG(
                                 DISTINCT JSONB_BUILD_OBJECT(
                                     'tagUuid', ${TagsTableName}.tag_uuid,
-                                    'name', ${TagsTableName}.name
+                                    'name', ${TagsTableName}.name,
+                                    'color', ${TagsTableName}.color
                                 )
                             ) FILTER (WHERE ${TagsTableName}.tag_uuid IS NOT NULL),
                             '[]'
@@ -243,6 +245,7 @@ export class CatalogModel {
         }
 
         catalogItemsQuery = catalogItemsQuery.groupBy(
+            `${CatalogTableName}.catalog_search_uuid`,
             `${CatalogTableName}.name`,
             `${CatalogTableName}.description`,
             `${CatalogTableName}.type`,
@@ -269,7 +272,7 @@ export class CatalogModel {
             catalogItemsQuery.select<
                 (DbCatalog & {
                     explore: Explore;
-                    catalog_tags: Pick<Tag, 'tagUuid' | 'name'>[];
+                    catalog_tags: Pick<Tag, 'tagUuid' | 'name' | 'color'>[];
                 })[]
             >(),
             paginateArgs,

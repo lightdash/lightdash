@@ -29,6 +29,7 @@ export async function up(knex: Knex): Promise<void> {
                 .inTable(PROJECTS_TABLE)
                 .onDelete('CASCADE');
             table.text('name').notNullable();
+            table.text('color').notNullable();
             table
                 .timestamp('created_at', { useTz: false })
                 .notNullable()
@@ -77,8 +78,8 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await knex.schema.dropTableIfExists(TAGS_TABLE);
     await knex.schema.dropTableIfExists(CATALOG_SEARCH_TAGS_TABLE);
+    await knex.schema.dropTableIfExists(TAGS_TABLE);
 
     await knex.schema.alterTable(CATALOG_SEARCH_TABLE, (table) => {
         table.dropColumn('catalog_search_uuid');

@@ -4,6 +4,7 @@ export type Tag = {
     tagUuid: string;
     projectUuid: string;
     name: string;
+    color: string;
     createdAt: Date;
     createdBy: Pick<
         LightdashUser,

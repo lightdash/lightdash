@@ -166,6 +166,9 @@ export class CatalogService<
                         type: CatalogType.Table,
                         joinedTables: explore.joinedTables,
                         chartUsage: undefined,
+                        // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
+                        catalogSearchUuid: '',
+                        catalogTags: [],
                     },
                 ];
             }
@@ -188,6 +191,9 @@ export class CatalogService<
                         joinedTables: explore.joinedTables,
                         tags: explore.tags,
                         chartUsage: undefined,
+                        // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
+                        catalogSearchUuid: '',
+                        catalogTags: [],
                     },
                 ];
             }

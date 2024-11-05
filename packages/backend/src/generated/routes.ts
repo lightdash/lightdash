@@ -139,12 +139,13 @@ const models: TsoaRoute.Models = {
         enums: ['field'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Tag.name-or-tagUuid_': {
+    'Pick_Tag.name-or-color-or-tagUuid_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
+                color: { dataType: 'string', required: true },
                 tagUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -175,7 +176,7 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'Pick_Tag.name-or-tagUuid_',
+                                ref: 'Pick_Tag.name-or-color-or-tagUuid_',
                             },
                         },
                         tags: {
@@ -186,6 +187,10 @@ const models: TsoaRoute.Models = {
                         tableName: { dataType: 'string', required: true },
                         basicType: { dataType: 'string' },
                         type: { ref: 'CatalogType.Field', required: true },
+                        catalogSearchUuid: {
+                            dataType: 'string',
+                            required: true,
+                        },
                     },
                 },
             ],
@@ -311,8 +316,9 @@ const models: TsoaRoute.Models = {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
-                                ref: 'Pick_Tag.name-or-tagUuid_',
+                                ref: 'Pick_Tag.name-or-color-or-tagUuid_',
                             },
+                            required: true,
                         },
                         tags: {
                             dataType: 'array',
@@ -323,6 +329,10 @@ const models: TsoaRoute.Models = {
                         errors: {
                             dataType: 'array',
                             array: { dataType: 'refAlias', ref: 'InlineError' },
+                        },
+                        catalogSearchUuid: {
+                            dataType: 'string',
+                            required: true,
                         },
                     },
                 },
@@ -6065,6 +6075,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_Tag.name-or-color_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                color: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_LightdashUser.userUuid-or-firstName-or-lastName_': {
         dataType: 'refAlias',
         type: {
@@ -6094,6 +6116,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 createdAt: { dataType: 'datetime', required: true },
+                color: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
                 tagUuid: { dataType: 'string', required: true },
@@ -10259,10 +10282,10 @@ export function RegisterRoutes(app: express.Router) {
         '/api/v1/projects/:projectUuid/dataCatalog/:catalogSearchUuid/tags/:tagUuid',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
         ...fetchMiddlewares<RequestHandler>(
-            CatalogController.prototype.deleteTag,
+            CatalogController.prototype.untagCatalogItem,
         ),
 
-        async function CatalogController_deleteTag(
+        async function CatalogController_untagCatalogItem(
             request: any,
             response: any,
             next: any,
@@ -10306,11 +10329,11 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.deleteTag.apply(
+                const promise = controller.untagCatalogItem.apply(
                     controller,
                     validatedArgs as any,
                 );
-                promiseHandler(controller, promise, response, 204, next);
+                promiseHandler(controller, promise, response, 200, next);
             } catch (err) {
                 return next(err);
             }
@@ -14651,10 +14674,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        name: { dataType: 'string', required: true },
-                    },
+                    ref: 'Pick_Tag.name-or-color_',
                 },
                 req: {
                     in: 'request',

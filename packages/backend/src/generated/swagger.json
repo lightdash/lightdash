@@ -84,16 +84,19 @@
                 "enum": ["field"],
                 "type": "string"
             },
-            "Pick_Tag.name-or-tagUuid_": {
+            "Pick_Tag.name-or-color-or-tagUuid_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "color": {
                         "type": "string"
                     },
                     "tagUuid": {
                         "type": "string"
                     }
                 },
-                "required": ["name", "tagUuid"],
+                "required": ["name", "color", "tagUuid"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -113,7 +116,7 @@
                             },
                             "catalogTags": {
                                 "items": {
-                                    "$ref": "#/components/schemas/Pick_Tag.name-or-tagUuid_"
+                                    "$ref": "#/components/schemas/Pick_Tag.name-or-color-or-tagUuid_"
                                 },
                                 "type": "array"
                             },
@@ -134,9 +137,12 @@
                             },
                             "type": {
                                 "$ref": "#/components/schemas/CatalogType.Field"
+                            },
+                            "catalogSearchUuid": {
+                                "type": "string"
                             }
                         },
-                        "required": ["tableName", "type"],
+                        "required": ["tableName", "type", "catalogSearchUuid"],
                         "type": "object"
                     }
                 ]
@@ -244,7 +250,7 @@
                             },
                             "catalogTags": {
                                 "items": {
-                                    "$ref": "#/components/schemas/Pick_Tag.name-or-tagUuid_"
+                                    "$ref": "#/components/schemas/Pick_Tag.name-or-color-or-tagUuid_"
                                 },
                                 "type": "array"
                             },
@@ -265,9 +271,16 @@
                                     "$ref": "#/components/schemas/InlineError"
                                 },
                                 "type": "array"
+                            },
+                            "catalogSearchUuid": {
+                                "type": "string"
                             }
                         },
-                        "required": ["type"],
+                        "required": [
+                            "catalogTags",
+                            "type",
+                            "catalogSearchUuid"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -6702,6 +6715,19 @@
                 "required": ["schedulerTimezone"],
                 "type": "object"
             },
+            "Pick_Tag.name-or-color_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "color"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -6732,6 +6758,9 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "color": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -6745,6 +6774,7 @@
                 "required": [
                     "createdBy",
                     "createdAt",
+                    "color",
                     "name",
                     "projectUuid",
                     "tagUuid"
@@ -10849,7 +10879,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1340.2",
+        "version": "0.1340.7",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -11265,14 +11295,21 @@
         },
         "/api/v1/projects/{projectUuid}/dataCatalog/{catalogSearchUuid}/tags/{tagUuid}": {
             "delete": {
-                "operationId": "deleteTag",
+                "operationId": "untagCatalogItem",
                 "responses": {
-                    "204": {
-                        "description": "Deleted",
+                    "200": {
+                        "description": "Success",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                    "properties": {
+                                        "results": {},
+                                        "status": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
                                 }
                             }
                         }
@@ -14823,13 +14860,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["name"],
-                                "type": "object"
+                                "$ref": "#/components/schemas/Pick_Tag.name-or-color_"
                             }
                         }
                     }
@@ -14878,14 +14909,7 @@
                 "operationId": "deleteTag",
                 "responses": {
                     "204": {
-                        "description": "Deleted",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
+                        "description": "Deleted"
                     },
                     "default": {
                         "description": "Error",

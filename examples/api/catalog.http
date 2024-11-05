@@ -44,3 +44,18 @@ GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/d
 
 ### Get analytics field (payment_method)
 GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/payments/analytics/payment_method
+
+### Add tag to project
+POST http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/tags
+
+### Remove tag from project
+DELETE http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/tags/TAG_UUID
+
+### Get all tags for project
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/tags
+
+### Tag field
+POST http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/CATALOG_SEARCH_UUID/tags
+
+### Untag field
+DELETE http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/CATALOG_SEARCH_UUID/tags/TAG_UUID

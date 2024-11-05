@@ -74,7 +74,7 @@ export const organizationMemberAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('view', 'Tags', {
-            projectUuid: member.organizationUuid,
+            organizationUuid: member.organizationUuid,
         });
     },
     interactive_viewer(member, { can }) {

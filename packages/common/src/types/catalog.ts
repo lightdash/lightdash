@@ -47,12 +47,13 @@ export type CatalogField = Pick<
     'name' | 'label' | 'fieldType' | 'tableLabel' | 'description'
 > &
     Pick<Dimension, 'requiredAttributes'> & {
+        catalogSearchUuid: string;
         type: CatalogType.Field;
         basicType?: string; // string, number, timestamp... used in metadata
         tableName: string;
         tableGroupLabel?: string;
         tags?: string[]; // Tags from table, for filtering
-        catalogTags?: Pick<Tag, 'name' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
+        catalogTags: Pick<Tag, 'name' | 'color' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
         chartUsage: number | undefined;
     };
 
@@ -60,11 +61,12 @@ export type CatalogTable = Pick<
     TableBase,
     'name' | 'label' | 'groupLabel' | 'description' | 'requiredAttributes'
 > & {
+    catalogSearchUuid: string;
     errors?: InlineError[]; // For explore errors
     type: CatalogType.Table;
     groupLabel?: string;
     tags?: string[];
-    catalogTags?: Pick<Tag, 'name' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
+    catalogTags: Pick<Tag, 'name' | 'color' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
     joinedTables?: CompiledExploreJoin[]; // Matched type in explore
     chartUsage: number | undefined;
 };

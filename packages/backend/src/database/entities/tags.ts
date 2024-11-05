@@ -6,13 +6,14 @@ export type DbTag = {
     tag_uuid: string;
     project_uuid: string;
     name: string;
+    color: string;
     created_by_user_uuid: string | null;
     created_at: Date;
 };
 
 export type DbTagIn = Pick<
     DbTag,
-    'project_uuid' | 'name' | 'created_by_user_uuid'
+    'project_uuid' | 'name' | 'color' | 'created_by_user_uuid'
 >;
 
 export type TagsTable = Knex.CompositeTableType<DbTag, DbTagIn>;
@@ -23,6 +24,7 @@ export const convertTagRow = (tag: DbTag & DbUser): Tag => ({
     tagUuid: tag.tag_uuid,
     projectUuid: tag.project_uuid,
     name: tag.name,
+    color: tag.color,
     createdAt: tag.created_at,
     createdBy: {
         userUuid: tag.user_uuid,

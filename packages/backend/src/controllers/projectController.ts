@@ -26,6 +26,7 @@ import {
     type CreateDashboard,
     type DuplicateDashboardParams,
     type SemanticLayerConnectionUpdate,
+    type Tag,
     type UpdateMultipleDashboards,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
@@ -720,15 +721,13 @@ export class ProjectController extends BaseController {
     @OperationId('createTag')
     async createTag(
         @Path() projectUuid: string,
-        @Body()
-        body: {
-            name: string;
-        },
+        @Body() body: Pick<Tag, 'name' | 'color'>,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        await this.services
-            .getProjectService()
-            .createTag(req.user!, projectUuid, body.name);
+        await this.services.getProjectService().createTag(req.user!, {
+            ...body,
+            projectUuid,
+        });
 
         this.setStatus(201);
 
@@ -750,17 +749,12 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Path() tagUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccessEmpty> {
+    ) {
         await this.services
             .getProjectService()
             .deleteTag(req.user!, projectUuid, tagUuid);
 
         this.setStatus(204);
-
-        return {
-            status: 'ok',
-            results: undefined,
-        };
     }
 
     @Middlewares([

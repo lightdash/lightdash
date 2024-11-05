@@ -16,7 +16,6 @@ import {
     Get,
     Middlewares,
     OperationId,
-    Patch,
     Path,
     Post,
     Query,
@@ -237,19 +236,19 @@ export class CatalogController extends BaseController {
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('204', 'Deleted')
+    @SuccessResponse('200', 'Success')
     @Delete('{catalogSearchUuid}/tags/{tagUuid}')
-    @OperationId('deleteTag')
-    async deleteTag(
+    @OperationId('untagCatalogItem')
+    async untagCatalogItem(
         @Path() catalogSearchUuid: string,
         @Path() tagUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiSuccessEmpty> {
+    ) {
         await this.services
             .getCatalogService()
             .untagCatalogItem(req.user!, catalogSearchUuid, tagUuid);
 
-        this.setStatus(204);
+        this.setStatus(200);
 
         return {
             status: 'ok',

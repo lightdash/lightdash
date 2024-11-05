@@ -15,13 +15,15 @@ const parseFieldFromMetricOrDimension = (
     table: CompiledTable,
     field: CompiledMetric | CompiledDimension,
     {
+        catalogSearchUuid,
         tags,
         catalogTags,
         requiredAttributes,
         chartUsage,
     }: {
+        catalogSearchUuid: string;
         tags: string[];
-        catalogTags: Pick<Tag, 'tagUuid' | 'name'>[];
+        catalogTags: Pick<Tag, 'tagUuid' | 'color' | 'name'>[];
         requiredAttributes: Record<string, string | string[]> | undefined;
         chartUsage: number | undefined;
     },
@@ -39,6 +41,7 @@ const parseFieldFromMetricOrDimension = (
     tags,
     catalogTags,
     chartUsage,
+    catalogSearchUuid,
 });
 
 export const parseFieldsFromCompiledTable = (
@@ -54,7 +57,9 @@ export const parseFieldsFromCompiledTable = (
             catalogTags: [],
             requiredAttributes:
                 field.requiredAttributes ?? table.requiredAttributes,
+            // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
             chartUsage: undefined,
+            catalogSearchUuid: '',
         }),
     );
 };
@@ -62,13 +67,14 @@ export const parseFieldsFromCompiledTable = (
 export const parseCatalog = (
     dbCatalog: DbCatalog & {
         explore: Explore;
-        catalog_tags: Pick<Tag, 'tagUuid' | 'name'>[];
+        catalog_tags: Pick<Tag, 'tagUuid' | 'name' | 'color'>[];
     },
 ): CatalogTable | CatalogField => {
     const baseTable = dbCatalog.explore.tables[dbCatalog.explore.baseTable];
 
     if (dbCatalog.type === CatalogType.Table) {
         return {
+            catalogSearchUuid: dbCatalog.catalog_search_uuid,
             name: dbCatalog.name,
             label: dbCatalog.explore.label,
             groupLabel: dbCatalog.explore.groupLabel,
@@ -97,6 +103,7 @@ export const parseCatalog = (
         );
     }
     return parseFieldFromMetricOrDimension(baseTable, findField, {
+        catalogSearchUuid: dbCatalog.catalog_search_uuid,
         tags: dbCatalog.explore.tags,
         catalogTags: dbCatalog.catalog_tags,
         requiredAttributes: dbCatalog.required_attributes ?? undefined,

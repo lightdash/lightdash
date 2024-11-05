@@ -113,6 +113,7 @@ import {
     WarehouseTypes,
     type ApiCreateProjectResults,
     type SemanticLayerConnectionUpdate,
+    type Tag,
 } from '@lightdash/common';
 import { SshTunnel } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -4787,7 +4788,14 @@ export class ProjectService extends BaseService {
         );
     }
 
-    async createTag(user: SessionUser, projectUuid: string, name: string) {
+    async createTag(
+        user: SessionUser,
+        {
+            projectUuid,
+            name,
+            color,
+        }: Pick<Tag, 'projectUuid' | 'name' | 'color'>,
+    ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -4807,6 +4815,7 @@ export class ProjectService extends BaseService {
         await this.tagsModel.create({
             project_uuid: projectUuid,
             name,
+            color,
             created_by_user_uuid: user.userUuid,
         });
     }

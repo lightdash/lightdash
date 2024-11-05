@@ -7,6 +7,7 @@ import { Knex } from 'knex';
 import { TagsTableName } from './tags';
 
 export type DbCatalog = {
+    catalog_search_uuid: string;
     cached_explore_uuid: string;
     project_uuid: string;
     name: string;
@@ -56,6 +57,8 @@ export function getDbCatalogColumnFromCatalogProperty(
             return 'chart_usage';
         case 'requiredAttributes':
             return 'required_attributes';
+        case 'catalogSearchUuid':
+            return 'catalog_search_uuid';
         case 'catalogTags': // TODO: implement search by catalog tags
         case 'label':
         case 'tags':
