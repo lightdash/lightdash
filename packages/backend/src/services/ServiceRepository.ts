@@ -439,6 +439,7 @@ export class ServiceRepository
                     downloadFileModel: this.models.getDownloadFileModel(),
                     s3Client: this.clients.getS3Client(),
                     groupsModel: this.models.getGroupsModel(),
+                    tagsModel: this.models.getTagsModel(),
                 }),
         );
     }
@@ -630,6 +631,7 @@ export class ServiceRepository
                     catalogModel: this.models.getCatalogModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
+                    tagsModel: this.models.getTagsModel(),
                 }),
         );
     }

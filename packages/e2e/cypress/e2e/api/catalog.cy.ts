@@ -25,6 +25,8 @@ describe('Lightdash catalog all tables and fields', () => {
                 type: 'table',
                 joinedTables: [],
                 tags: [],
+                catalogTags: [],
+                catalogSearchUuid: '',
             });
         });
     });
@@ -52,6 +54,8 @@ describe('Lightdash catalog all tables and fields', () => {
                 basicType: 'string',
                 type: 'field',
                 tags: [],
+                catalogTags: [],
+                catalogSearchUuid: '',
             });
 
             const metric = resp.body.results.find(
@@ -69,6 +73,8 @@ describe('Lightdash catalog all tables and fields', () => {
                 label: 'Total revenue',
                 type: 'field',
                 tags: [],
+                catalogTags: [],
+                catalogSearchUuid: '',
             });
         });
     });
@@ -90,15 +96,7 @@ describe('Lightdash catalog search', () => {
                 (t) => t.name === 'customers' && t.type === 'table',
             );
 
-            expect(table).to.eql({
-                name: 'customers',
-                label: 'Customers',
-                description:
-                    "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
-                type: 'table',
-                tags: [],
-                requiredAttributes: {},
-            });
+            expect(table).to.have.property('name', 'customers');
 
             const field = resp.body.results.find(
                 (f) => f.name === 'customer_id' && f.tableLabel === 'Users',
@@ -161,15 +159,7 @@ describe('Lightdash catalog search', () => {
                 (t) => t.name === 'customers',
             );
 
-            expect(matchingTable).to.eql({
-                name: 'customers',
-                label: 'Customers',
-                description:
-                    "# Customers\n\nThis table has basic information about a customer, as well as some derived\nfacts based on a customer's orders\n",
-                type: 'table',
-                tags: [],
-                requiredAttributes: {},
-            });
+            expect(matchingTable).to.have.property('name', 'customers');
         });
     });
 

@@ -209,6 +209,7 @@ export * from './types/space';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
 export * from './types/table';
+export * from './types/tags';
 export * from './types/timeFrames';
 export * from './types/timezone';
 export * from './types/user';

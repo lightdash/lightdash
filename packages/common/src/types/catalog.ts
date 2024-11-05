@@ -17,6 +17,7 @@ import {
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartSummary } from './savedCharts';
 import { type TableBase } from './table';
+import type { Tag } from './tags';
 
 export enum CatalogType {
     Table = 'table',
@@ -46,11 +47,13 @@ export type CatalogField = Pick<
     'name' | 'label' | 'fieldType' | 'tableLabel' | 'description'
 > &
     Pick<Dimension, 'requiredAttributes'> & {
+        catalogSearchUuid: string;
         type: CatalogType.Field;
         basicType?: string; // string, number, timestamp... used in metadata
         tableName: string;
         tableGroupLabel?: string;
         tags?: string[]; // Tags from table, for filtering
+        catalogTags: Pick<Tag, 'name' | 'color' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
         chartUsage: number | undefined;
     };
 
@@ -58,15 +61,18 @@ export type CatalogTable = Pick<
     TableBase,
     'name' | 'label' | 'groupLabel' | 'description' | 'requiredAttributes'
 > & {
+    catalogSearchUuid: string;
     errors?: InlineError[]; // For explore errors
     type: CatalogType.Table;
     groupLabel?: string;
     tags?: string[];
+    catalogTags: Pick<Tag, 'name' | 'color' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
     joinedTables?: CompiledExploreJoin[]; // Matched type in explore
     chartUsage: number | undefined;
 };
 
 export type CatalogItem = CatalogField | CatalogTable;
+
 export type ApiCatalogResults = CatalogItem[];
 
 export type ApiMetricsCatalogResults = CatalogField[];
