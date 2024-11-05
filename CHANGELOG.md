@@ -1,3 +1,10 @@
+# [0.1343.0](https://github.com/lightdash/lightdash/compare/0.1342.1...0.1343.0) (2024-11-05)
+
+
+### Features
+
+* developers should be able to delete previews ([#12229](https://github.com/lightdash/lightdash/issues/12229)) ([ae74d9c](https://github.com/lightdash/lightdash/commit/ae74d9cfdf7b9bf41b124ffd15c6cc6a231c4d11))
+
 ## [0.1342.1](https://github.com/lightdash/lightdash/compare/0.1342.0...0.1342.1) (2024-11-05)
 
 
