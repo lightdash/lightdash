@@ -77,15 +77,13 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                     group: userCannotCreatePreview
                         ? 'Requires Developer Access'
                         : undefined,
-                    disabled:
-                        project.projectUuid === activeProjectUuid ||
-                        userCannotCreatePreview,
+                    disabled: userCannotCreatePreview,
                 };
             })
             .sort((a, b) =>
                 a.disabled === b.disabled ? 0 : a.disabled ? 1 : -1,
             );
-    }, [activeProjectUuid, isLoadingProjects, projects, user.data]);
+    }, [isLoadingProjects, projects, user.data]);
 
     const selectedProject = useMemo(() => {
         if (selectedProjectUuid && projects) {
