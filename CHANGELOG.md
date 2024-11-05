@@ -1,3 +1,11 @@
+## [0.1340.7](https://github.com/lightdash/lightdash/compare/0.1340.6...0.1340.7) (2024-11-05)
+
+
+### Bug Fixes
+
+* comments feature enable by default for self-host ([#12238](https://github.com/lightdash/lightdash/issues/12238)) ([10b3773](https://github.com/lightdash/lightdash/commit/10b3773d288a3f1b6c5d3126c018c80e8e5b4d0a))
+* fix edge case on space access for member users with group access ([#12205](https://github.com/lightdash/lightdash/issues/12205)) ([daff34e](https://github.com/lightdash/lightdash/commit/daff34e7b9fd1071387015a356a7164f8a7ae84b))
+
 ## [0.1340.6](https://github.com/lightdash/lightdash/compare/0.1340.5...0.1340.6) (2024-11-05)
 
 
