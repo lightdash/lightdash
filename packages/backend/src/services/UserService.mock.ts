@@ -89,7 +89,7 @@ export const newUser: SessionUser = {
     userId: 0,
     role: inviteUser.role,
     ability: new Ability([]),
-    isActive: false,
+    isActive: true,
     abilityRules: [],
 };
 
@@ -106,5 +106,5 @@ export const userWithoutOrg: LightdashUser = {
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
     isSetupComplete: false,
-    isActive: false,
+    isActive: true,
 };
