@@ -1,6 +1,5 @@
 import { type CatalogField, type CatalogItem } from '@lightdash/common';
 import {
-    ActionIcon,
     Button,
     Group,
     Highlight,
@@ -10,6 +9,7 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import {
@@ -21,6 +21,7 @@ import {
     type MRT_Virtualizer,
 } from 'mantine-react-table';
 import {
+    memo,
     useCallback,
     useDeferredValue,
     useEffect,
@@ -95,109 +96,141 @@ const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
     );
 };
 
-const TagManagement = ({ row }: { row: MRT_Row<CatalogField> }) => {
-    const [opened, setOpened] = useState(false);
-    const [search, setSearch] = useState('');
+const TagManagement = memo(
+    ({ hovered, leftAligned }: { hovered: boolean; leftAligned?: boolean }) => {
+        const [opened, setOpened] = useState(false);
+        const [search, setSearch] = useState('');
 
-    // Get unique existing tags across all metrics
-    const existingTags = useMemo(() => {
-        // This should come from your global state or API
-        return [
-            { label: 'finance', color: 'blue' },
-            { label: 'revenue', color: 'green' },
-            { label: 'core-metric', color: 'red' },
-            { label: 'customers', color: 'grape' },
-        ]; // example
-    }, []);
+        // Get unique existing tags across all metrics
+        const existingTags = useMemo(() => {
+            // This should come from your global state or API
+            return [
+                { label: 'finance', color: 'blue' },
+                { label: 'revenue', color: 'green' },
+                { label: 'core-metric', color: 'red' },
+                { label: 'customers', color: 'grape' },
+            ]; // example
+        }, []);
 
-    const handleAddTag = (tag: string) => {
-        // Implement your tag adding logic here
-        console.log('Adding tag:', tag);
-        setSearch('');
-        setOpened(false);
-    };
+        const handleAddTag = (tag: string) => {
+            // Implement your tag adding logic here
+            console.log('Adding tag:', tag);
+            setSearch('');
+            setOpened(false);
+        };
 
-    return (
-        <Popover
-            opened={opened}
-            onChange={setOpened}
-            position="bottom"
-            width={300}
-            withArrow
-            shadow="md"
-            withinPortal
-        >
-            <Popover.Target>
-                <ActionIcon
-                    size="xs"
-                    variant="subtle"
-                    color="gray"
-                    onClick={() => setOpened(true)}
-                >
-                    <MantineIcon color="gray.6" icon={IconPlus} />
-                </ActionIcon>
-            </Popover.Target>
-            <Popover.Dropdown p="xs">
-                <TextInput
-                    placeholder="Search for a tag..."
-                    value={search}
-                    onChange={(e) => setSearch(e.currentTarget.value)}
-                    size="xs"
-                    mb="xs"
-                    radius="md"
-                    styles={(theme) => ({
-                        input: {
-                            boxShadow: theme.shadows.xs,
-                        },
-                    })}
-                />
-                <Text size="xs" fw={500} color="dimmed" mb="xs">
-                    Select a tag or create one
-                </Text>
-                <Stack spacing="xs" align="flex-start">
-                    {existingTags
-                        .filter((tag) =>
-                            tag.label
-                                .toLowerCase()
-                                .includes(search.toLowerCase()),
-                        )
-                        .map((tag) => (
-                            <Button
-                                key={tag.label}
-                                variant="light"
-                                color={tag.color}
-                                size="xs"
-                                compact
-                                onClick={() => handleAddTag(tag.label)}
-                            >
-                                <Group spacing="xs">{tag.label}</Group>
-                            </Button>
-                        ))}
-                    {search &&
-                        !existingTags.some((tag) => tag.label === search) && (
-                            <Button
-                                variant="light"
-                                color="blue"
-                                size="xs"
-                                fullWidth
-                                onClick={() => handleAddTag(search)}
-                            >
-                                Create "{search}"
-                            </Button>
-                        )}
-                </Stack>
-            </Popover.Dropdown>
-        </Popover>
-    );
-};
+        return (
+            <Popover
+                opened={opened}
+                onChange={setOpened}
+                position="bottom"
+                width={300}
+                withArrow
+                shadow="md"
+                withinPortal
+            >
+                <Popover.Target>
+                    <Button
+                        variant="default"
+                        size="xs"
+                        compact
+                        pos="absolute"
+                        leftIcon={
+                            <MantineIcon
+                                color="gray.6"
+                                size={8}
+                                icon={IconPlus}
+                            />
+                        }
+                        styles={(theme) => ({
+                            leftIcon: {
+                                marginRight: 4,
+                            },
+                            root: {
+                                border: `dashed 1px ${theme.colors.gray[4]}`,
+                                visibility:
+                                    hovered || opened ? 'visible' : 'hidden',
+                                fontSize: '10px',
+                                ...(leftAligned
+                                    ? {
+                                          left: 0,
+                                          right: 'auto',
+                                          top: '50%',
+                                          transform: 'translateY(-50%)',
+                                          bottom: 'auto',
+                                      }
+                                    : {
+                                          right: 0,
+                                          left: 'auto',
+                                          bottom: 0,
+                                      }),
+                            },
+                        })}
+                        onClick={() => setOpened((prev) => !prev)}
+                    >
+                        Add
+                    </Button>
+                </Popover.Target>
+                <Popover.Dropdown p="xs">
+                    <TextInput
+                        placeholder="Search"
+                        value={search}
+                        onChange={(e) => setSearch(e.currentTarget.value)}
+                        size="xs"
+                        mb="xs"
+                        radius="md"
+                    />
+                    <Text size="xs" fw={500} color="dimmed" mb="xs">
+                        Select a tag or create a new one
+                    </Text>
+                    <Stack spacing="xs" align="flex-start">
+                        {existingTags
+                            .filter((tag) =>
+                                tag.label
+                                    .toLowerCase()
+                                    .includes(search.toLowerCase()),
+                            )
+                            .map((tag) => (
+                                <Button
+                                    key={tag.label}
+                                    variant="light"
+                                    color={tag.color}
+                                    size="xs"
+                                    compact
+                                    onClick={() => handleAddTag(tag.label)}
+                                >
+                                    <Group spacing="xs">{tag.label}</Group>
+                                </Button>
+                            ))}
+                        {search &&
+                            !existingTags.some(
+                                (tag) => tag.label === search,
+                            ) && (
+                                <Button
+                                    variant="light"
+                                    color="blue"
+                                    size="xs"
+                                    fullWidth
+                                    onClick={() => handleAddTag(search)}
+                                >
+                                    Create "{search}"
+                                </Button>
+                            )}
+                    </Stack>
+                </Popover.Dropdown>
+            </Popover>
+        );
+    },
+);
 
 const columns: MRT_ColumnDef<CatalogField>[] = [
     {
         accessorKey: 'name',
         header: 'Metric Name',
         enableSorting: true,
+
         Cell: ({ row, table }) => (
-            <Highlight highlight={table.getState().globalFilter || ''}>
+            <Highlight highlight={table.getState().globalFilter || ''} fw={500}>
                 {row.original.label}
             </Highlight>
         ),
@@ -206,7 +239,8 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'description',
         header: 'Description',
         enableSorting: false,
-        size: 400,
+        size: 350,
+
         Cell: ({ table, row }) => (
             <HoverCard
                 withinPortal
@@ -238,7 +272,8 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'directory',
         header: 'Table',
         enableSorting: false,
-        size: 150,
+        size: 120,
+
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
     {
@@ -246,15 +281,14 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Tags',
         enableSorting: false,
         size: 150,
-        minSize: 150,
+        minSize: 180,
         Cell: ({ row }) => {
-            const tags = row.original.metricTags ?? [];
-            const visibleTags = tags.slice(0, 2);
-            const remainingCount = Math.max(0, tags.length - 2);
+            const { hovered, ref } = useHover();
+            const tags = useMemo(() => row.original.metricTags ?? [], [row]);
 
             return (
-                <Group spacing="two" noWrap position="apart">
-                    {visibleTags.map((tag) => (
+                <Group spacing="two" ref={ref} pos="relative" w="100%" h="100%">
+                    {tags.map((tag) => (
                         <Button
                             key={tag.label}
                             size="xs"
@@ -266,48 +300,11 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
                             {tag.label}
                         </Button>
                     ))}
-                    {remainingCount > 0 && (
-                        <HoverCard
-                            width="auto"
-                            shadow="md"
-                            withinPortal
-                            styles={{
-                                dropdown: {
-                                    padding: '4px',
-                                    transform: 'translateY(-2px)',
-                                    background: 'white',
-                                    border: '1px solid #eee',
-                                },
-                            }}
-                        >
-                            <HoverCard.Target>
-                                <Text
-                                    size="xs"
-                                    fw={500}
-                                    color="dimmed"
-                                    sx={{ whiteSpace: 'nowrap' }}
-                                >
-                                    +{remainingCount}
-                                </Text>
-                            </HoverCard.Target>
-                            <HoverCard.Dropdown>
-                                <Group spacing="xs">
-                                    {tags.slice(2).map((tag) => (
-                                        <Button
-                                            key={tag.label}
-                                            size="xs"
-                                            compact
-                                            variant="light"
-                                            color={tag.color}
-                                        >
-                                            {tag.label}
-                                        </Button>
-                                    ))}
-                                </Group>
-                            </HoverCard.Dropdown>
-                        </HoverCard>
-                    )}
-                    <TagManagement row={row} />
+
+                    <TagManagement
+                        hovered={hovered}
+                        leftAligned={tags.length === 0}
+                    />
                 </Group>
             );
         },
@@ -317,6 +314,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Popularity',
         enableSorting: true,
         size: 100,
+
         Cell: ({ row }) => <MetricUsageButton row={row} />,
     },
 ];
@@ -503,7 +501,7 @@ export const MetricsTable = () => {
         state: {
             sorting,
             showProgressBars: isFetching,
-            density: 'md',
+            density: undefined,
             globalFilter: search ?? '',
         },
         initialState: {

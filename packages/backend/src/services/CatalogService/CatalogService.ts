@@ -514,17 +514,24 @@ export class CatalogService<
             (item): item is CatalogField => item.type === CatalogType.Field, // This is for type narrowing the values returned from `searchCatalog`
         );
 
+        const allMetricTags = [
+            { label: 'finance', color: 'blue' },
+            { label: 'revenue', color: 'green' },
+            { label: 'customers', color: 'grape' },
+            { label: 'marketing', color: 'orange' },
+            { label: 'sales', color: 'red' },
+        ];
+
         return {
             pagination,
             data: paginatedCatalogMetrics.map((metric) => ({
                 ...metric,
-                metricTags: [
-                    { label: 'finance', color: 'blue' },
-                    { label: 'revenue', color: 'green' },
-                    { label: 'customers', color: 'grape' },
-                    { label: 'marketing', color: 'orange' },
-                    { label: 'sales', color: 'red' },
-                ],
+                metricTags: allMetricTags
+                    .sort(() => 0.5 - Math.random())
+                    .slice(
+                        0,
+                        Math.floor(Math.random() * (allMetricTags.length + 1)),
+                    ),
             })),
         };
     }
