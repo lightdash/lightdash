@@ -89,7 +89,6 @@ id,user_id,order_date,status
 88,91,2018-03-27,shipped
 89,21,2018-03-28,placed
 90,66,2018-03-30,shipped
-100,85,null,placed
 91,47,2018-03-31,placed
 92,84,2018-04-02,placed
 93,66,2018-04-03,placed
