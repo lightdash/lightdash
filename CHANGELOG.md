@@ -1,3 +1,11 @@
+## [0.1340.5](https://github.com/lightdash/lightdash/compare/0.1340.4...0.1340.5) (2024-11-05)
+
+
+### Bug Fixes
+
+* fix paste numbers from excel ([#12230](https://github.com/lightdash/lightdash/issues/12230)) ([bbb2ffd](https://github.com/lightdash/lightdash/commit/bbb2ffd43710d3cec51cfd4979bc7a8acc450211))
+* upgrade @easyops-cn/docusaurus-search-local from 0.44.5 to 0.45.0 ([#12228](https://github.com/lightdash/lightdash/issues/12228)) ([b13d73e](https://github.com/lightdash/lightdash/commit/b13d73e2ba1625ec6daa983f7f51905be9ff5855))
+
 ## [0.1340.4](https://github.com/lightdash/lightdash/compare/0.1340.3...0.1340.4) (2024-11-04)
 
 
