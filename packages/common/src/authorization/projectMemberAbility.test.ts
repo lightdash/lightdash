@@ -1364,24 +1364,29 @@ describe('Project member permissions', () => {
         {
             membership: PROJECT_ADMIN,
             canCreatePreview: true,
+            canDeleteTheirOwnPreview: true,
         },
         {
             membership: PROJECT_DEVELOPER,
             canCreatePreview: true,
+            canDeleteTheirOwnPreview: true,
         },
         {
             membership: PROJECT_EDITOR,
             canCreatePreview: false,
+            canDeleteTheirOwnPreview: false,
         },
         {
             membership: PROJECT_INTERACTIVE_VIEWER,
             canCreatePreview: false,
+            canDeleteTheirOwnPreview: false,
         },
         {
             membership: PROJECT_VIEWER,
             canCreatePreview: false,
+            canDeleteTheirOwnPreview: false,
         },
-    ].forEach(({ membership, canCreatePreview }) => {
+    ].forEach(({ membership, canCreatePreview, canDeleteTheirOwnPreview }) => {
         describe('test project preview permissions', () => {
             const ability = defineAbilityForProjectMember(membership);
 
@@ -1404,6 +1409,30 @@ describe('Project member permissions', () => {
                         subject('Project', {
                             upstreamProjectUuid: projectUuid,
                             type: ProjectType.DEFAULT,
+                        }),
+                    ),
+                ).toEqual(false);
+            });
+
+            it('checks if user can delete their own PREVIEW projects', () => {
+                expect(
+                    ability.can(
+                        'delete',
+                        subject('Project', {
+                            createdByUserUuid: membership.userUuid,
+                            type: ProjectType.PREVIEW,
+                        }),
+                    ),
+                ).toEqual(canDeleteTheirOwnPreview);
+            });
+
+            it('checks that users cannot delete other users PREVIEW projects', () => {
+                expect(
+                    ability.can(
+                        'delete',
+                        subject('Project', {
+                            createdByUserUuid: '1234',
+                            type: ProjectType.PREVIEW,
                         }),
                     ),
                 ).toEqual(false);

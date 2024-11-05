@@ -24,7 +24,7 @@ type ProjectListItemProps = {
 
 const ProjectListItem: FC<ProjectListItemProps> = ({
     isCurrentProject,
-    project: { projectUuid, name, type },
+    project,
     onDelete,
 }) => {
     const { user } = useApp();
@@ -35,14 +35,16 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
     return (
         <tr>
             <Text component="td" fw={500}>
-                {name}
+                {project.name}
             </Text>
             <td>
                 <Group spacing="xs">
                     {isCurrentProject && (
                         <Badge variant="filled">Current Project</Badge>
                     )}
-                    {type === ProjectType.PREVIEW && <Badge>Preview</Badge>}
+                    {project.type === ProjectType.PREVIEW && (
+                        <Badge>Preview</Badge>
+                    )}
                 </Group>
             </td>
             <td width="1%">
@@ -51,18 +53,20 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
                         I="update"
                         this={subject('Project', {
                             organizationUuid: user.data?.organizationUuid,
-                            projectUuid,
+                            projectUuid: project.projectUuid,
                         })}
                     >
                         <Button
                             component={Link}
                             size="xs"
-                            to={`/generalSettings/projectManagement/${projectUuid}`}
+                            to={`/generalSettings/projectManagement/${project.projectUuid}`}
                             leftIcon={<MantineIcon icon={IconSettings} />}
                             variant="outline"
                             onClick={() => {
                                 if (!isCurrentProject) {
-                                    updateActiveProjectMutation(projectUuid);
+                                    updateActiveProjectMutation(
+                                        project.projectUuid,
+                                    );
                                 }
                             }}
                         >
@@ -73,8 +77,10 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
                     <Can
                         I="delete"
                         this={subject('Project', {
+                            type: project.type,
+                            projectUuid: project.projectUuid,
                             organizationUuid: user.data?.organizationUuid,
-                            projectUuid,
+                            createdByUserUuid: project.createdByUserUuid,
                         })}
                     >
                         <Button
@@ -83,7 +89,7 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
                             variant="outline"
                             color="red"
                             onClick={() => {
-                                onDelete(projectUuid);
+                                onDelete(project.projectUuid);
                             }}
                         >
                             <MantineIcon icon={IconTrash} />
@@ -97,6 +103,8 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
 
 const ProjectManagementPanel: FC = () => {
     const { classes } = useTableStyles();
+
+    const { user } = useApp();
 
     const { data: projects = [], isInitialLoading: isLoadingProjects } =
         useProjects();
@@ -120,7 +128,12 @@ const ProjectManagementPanel: FC = () => {
             <Group position="apart">
                 <Title order={5}>Project management settings</Title>
 
-                <Can I="create" a="Project">
+                <Can
+                    I="create"
+                    this={subject('Project', {
+                        organizationUuid: user.data?.organizationUuid,
+                    })}
+                >
                     <Button component={Link} to="/createProject">
                         Create new
                     </Button>

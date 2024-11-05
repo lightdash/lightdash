@@ -142,7 +142,12 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["tableName", "type", "catalogSearchUuid"],
+                        "required": [
+                            "catalogTags",
+                            "tableName",
+                            "type",
+                            "catalogSearchUuid"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -3898,6 +3903,10 @@
                     "warehouseType": {
                         "$ref": "#/components/schemas/WarehouseTypes"
                     },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "type": {
                         "$ref": "#/components/schemas/ProjectType"
                     },
@@ -3913,6 +3922,7 @@
                 "required": [
                     "requireUserCredentials",
                     "warehouseType",
+                    "createdByUserUuid",
                     "type",
                     "name",
                     "projectUuid"
@@ -3953,7 +3963,7 @@
                 "properties": {
                     "isPending": {
                         "type": "boolean",
-                        "description": "Whether the user has a pending invite to the organization"
+                        "description": "Whether the user doesn't have an authentication method (password or openId)"
                     },
                     "isInviteExpired": {
                         "type": "boolean",
@@ -3961,7 +3971,7 @@
                     },
                     "isActive": {
                         "type": "boolean",
-                        "description": "Whether the user has accepted their invite to the organization"
+                        "description": "Whether the user can login"
                     },
                     "role": {
                         "$ref": "#/components/schemas/OrganizationMemberRole",
@@ -5482,6 +5492,10 @@
             },
             "Project": {
                 "properties": {
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "schedulerTimezone": {
                         "type": "string"
                     },
@@ -5517,6 +5531,7 @@
                     }
                 },
                 "required": [
+                    "createdByUserUuid",
                     "schedulerTimezone",
                     "dbtVersion",
                     "dbtConnection",
@@ -9146,7 +9161,12 @@
                         "$ref": "#/components/schemas/OrganizationMemberRole"
                     },
                     "isActive": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "description": "Whether the user can login"
+                    },
+                    "isPending": {
+                        "type": "boolean",
+                        "description": "Whether the user doesn't have an authentication method (password or openId)"
                     }
                 },
                 "required": [
@@ -10879,7 +10899,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1340.7",
+        "version": "0.1342.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

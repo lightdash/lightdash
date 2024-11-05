@@ -198,6 +198,11 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
 
+        can('delete', 'Project', {
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
+        });
+
         can('create', 'Project', {
             upstreamProjectUuid: member.projectUuid,
             type: ProjectType.PREVIEW,
@@ -205,15 +210,23 @@ export const projectMemberAbilities: Record<
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
+
+        can('delete', 'Project', {
+            projectUuid: member.projectUuid,
+        });
+
         can('manage', 'Project', {
             projectUuid: member.projectUuid,
         });
+
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
         });
+
         can('manage', 'Dashboard', {
             projectUuid: member.projectUuid,
         });
+
         can('manage', 'SavedChart', {
             projectUuid: member.projectUuid,
         });

@@ -178,6 +178,7 @@ const models: TsoaRoute.Models = {
                                 dataType: 'refAlias',
                                 ref: 'Pick_Tag.name-or-color-or-tagUuid_',
                             },
+                            required: true,
                         },
                         tags: {
                             dataType: 'array',
@@ -3591,6 +3592,14 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 requireUserCredentials: { dataType: 'boolean', required: true },
                 warehouseType: { ref: 'WarehouseTypes', required: true },
+                createdByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 type: { ref: 'ProjectType', required: true },
                 name: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
@@ -4969,6 +4978,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                createdByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 schedulerTimezone: { dataType: 'string', required: true },
                 semanticLayerConnection: { ref: 'SemanticLayerConnection' },
                 dbtVersion: { ref: 'SupportedDbtVersions', required: true },
@@ -8330,6 +8347,7 @@ const models: TsoaRoute.Models = {
             isSetupComplete: { dataType: 'boolean', required: true },
             role: { ref: 'OrganizationMemberRole' },
             isActive: { dataType: 'boolean', required: true },
+            isPending: { dataType: 'boolean' },
         },
         additionalProperties: true,
     },
