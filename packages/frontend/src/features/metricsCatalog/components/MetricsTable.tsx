@@ -326,10 +326,7 @@ const columns: MRT_ColumnDef<CatalogField>[] = [
                         </Badge>
                     ))}
 
-                    <TagManagement
-                        hovered={hovered}
-                        leftAligned={tags.length === 0}
-                    />
+                    <TagManagement hovered={hovered} />
                 </Group>
             );
         },
