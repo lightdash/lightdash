@@ -252,6 +252,8 @@ export class CatalogModel {
             `${CachedExploreTableName}.explore`,
             `${CatalogTableName}.required_attributes`,
             `${CatalogTableName}.chart_usage`,
+            `${CatalogTableName}.search_vector`,
+            'search_rank',
         );
 
         catalogItemsQuery = catalogItemsQuery
