@@ -16,7 +16,7 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricChartAnalytics } from '../hooks/useMetricChartAnalytics';
 type Props = ModalProps;
 
-export const MetricChartsUsageModal: FC<Props> = ({ opened, onClose }) => {
+export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
     const { track } = useTracking();
     const activeMetric = useAppSelector(
         (state) => state.metricsCatalog.activeMetric,
