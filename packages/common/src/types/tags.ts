@@ -16,3 +16,8 @@ export type ApiGetTagsResponse = {
     status: 'ok';
     results: Tag[];
 };
+
+export type ApiCreateTagResponse = {
+    status: 'ok';
+    results: { tagUuid: string };
+};

@@ -135,6 +135,7 @@ import {
     type ApiSqlRunnerJobStatusResponse,
     type ApiUpdateSqlChart,
 } from './types/sqlRunner';
+import { type ApiCreateTagResponse } from './types/tags';
 import { TimeFrames } from './types/timeFrames';
 import { type ApiWarehouseTableFields } from './types/warehouse';
 import { convertAdditionalMetric } from './utils/additionalMetrics';
@@ -691,7 +692,8 @@ type ApiResults =
     | ApiCreateVirtualView['results']
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']
-    | ApiGroupListResponse['results'];
+    | ApiGroupListResponse['results']
+    | ApiCreateTagResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
