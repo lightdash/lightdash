@@ -1,3 +1,10 @@
+## [0.1342.1](https://github.com/lightdash/lightdash/compare/0.1342.0...0.1342.1) (2024-11-05)
+
+
+### Bug Fixes
+
+* create preview permission ([#12255](https://github.com/lightdash/lightdash/issues/12255)) ([d57c000](https://github.com/lightdash/lightdash/commit/d57c0006d491dc8c75464b8a2732b471c42a0094))
+
 # [0.1342.0](https://github.com/lightdash/lightdash/compare/0.1341.0...0.1342.0) (2024-11-05)
 
 
