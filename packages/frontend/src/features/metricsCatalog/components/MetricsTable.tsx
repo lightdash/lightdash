@@ -146,7 +146,7 @@ export const MetricsTable = () => {
         state: {
             sorting,
             showProgressBars: isFetching,
-            density: 'md',
+            density: undefined,
             globalFilter: search ?? '',
         },
         initialState: {
