@@ -1,12 +1,8 @@
-import { type CatalogField, type CatalogItem } from '@lightdash/common';
-import { Box, Button, Highlight, HoverCard, Text } from '@mantine/core';
-import { IconChartBar } from '@tabler/icons-react';
-import MarkdownPreview from '@uiw/react-markdown-preview';
+import { type CatalogItem } from '@lightdash/common';
+import { Box, Text } from '@mantine/core';
 import {
     MantineReactTable,
     useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_Row,
     type MRT_SortingState,
     type MRT_Virtualizer,
 } from 'mantine-react-table';
@@ -19,126 +15,10 @@ import {
     useState,
     type UIEvent,
 } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { useTracking } from '../../../providers/TrackingProvider';
-import { EventName } from '../../../types/Events';
-import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
-import { setActiveMetric } from '../store/metricsCatalogSlice';
 import { ExploreMetricButton } from './ExploreMetricButton';
-
-const MetricUsageButton = ({ row }: { row: MRT_Row<CatalogField> }) => {
-    const hasChartsUsage = row.original.chartUsage ?? 0 > 0;
-    const dispatch = useAppDispatch();
-    const { track } = useTracking();
-
-    const handleChartUsageClick = () => {
-        if (hasChartsUsage) {
-            track({
-                name: EventName.METRICS_CATALOG_CHART_USAGE_CLICKED,
-                properties: {
-                    metricName: row.original.name,
-                    chartCount: row.original.chartUsage ?? 0,
-                    tableName: row.original.tableName,
-                },
-            });
-            dispatch(setActiveMetric(row.original));
-        }
-    };
-
-    return (
-        <Button
-            size="xs"
-            compact
-            color="gray.6"
-            variant="default"
-            disabled={!hasChartsUsage}
-            onClick={handleChartUsageClick}
-            leftIcon={
-                <MantineIcon
-                    display={hasChartsUsage ? 'block' : 'none'}
-                    icon={IconChartBar}
-                    color="gray.6"
-                    size={12}
-                    strokeWidth={1.2}
-                    fill="gray.2"
-                />
-            }
-            sx={{
-                '&[data-disabled]': {
-                    backgroundColor: 'transparent',
-                    fontWeight: 400,
-                },
-            }}
-            styles={{
-                leftIcon: {
-                    marginRight: 4,
-                },
-            }}
-        >
-            {hasChartsUsage ? `${row.original.chartUsage}` : 'No usage'}
-        </Button>
-    );
-};
-
-const columns: MRT_ColumnDef<CatalogField>[] = [
-    {
-        accessorKey: 'name',
-        header: 'Metric Name',
-        enableSorting: true,
-        Cell: ({ row, table }) => (
-            <Highlight highlight={table.getState().globalFilter || ''}>
-                {row.original.label}
-            </Highlight>
-        ),
-    },
-    {
-        accessorKey: 'description',
-        header: 'Description',
-        enableSorting: false,
-        size: 400,
-        Cell: ({ table, row }) => (
-            <HoverCard
-                withinPortal
-                shadow="lg"
-                position="right"
-                disabled={!row.original.description}
-            >
-                <HoverCard.Target>
-                    <Text lineClamp={2}>
-                        <Highlight
-                            highlight={table.getState().globalFilter || ''}
-                        >
-                            {row.original.description ?? ''}
-                        </Highlight>
-                    </Text>
-                </HoverCard.Target>
-                <HoverCard.Dropdown>
-                    <MarkdownPreview
-                        source={row.original.description}
-                        style={{
-                            fontSize: '12px',
-                        }}
-                    />
-                </HoverCard.Dropdown>
-            </HoverCard>
-        ),
-    },
-    {
-        accessorKey: 'directory',
-        header: 'Table',
-        enableSorting: false,
-        size: 150,
-        Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
-    },
-    {
-        accessorKey: 'chartUsage',
-        header: 'Popularity',
-        enableSorting: true,
-        size: 100,
-        Cell: ({ row }) => <MetricUsageButton row={row} />,
-    },
-];
+import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 
 export const MetricsTable = () => {
     const projectUuid = useAppSelector(
@@ -202,7 +82,7 @@ export const MetricsTable = () => {
     }, [fetchMoreOnBottomReached]);
 
     const table = useMantineReactTable({
-        columns,
+        columns: MetricsCatalogColumns,
         data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: false,
