@@ -80,6 +80,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         {
             searchInput: debouncedSearchQuery,
             pageSize: DEFAULT_PAGE_SIZE,
+            projectUuid,
+            includeGroups: 10,
         },
         { keepPreviousData: true },
     );

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AllowedEmailDomains,
+    convertProjectRoleToOrganizationRole,
     CreateGroup,
     CreateOrganization,
     ForbiddenError,
@@ -15,6 +16,7 @@ import {
     Organization,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
+    OrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
@@ -203,6 +205,7 @@ export class OrganizationService extends BaseService {
         includeGroups?: number,
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
+        projectUuid?: string,
     ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
 
@@ -218,7 +221,7 @@ export class OrganizationService extends BaseService {
             throw new NotExistsError('Organization not found');
         }
 
-        const { pagination, data: members } = includeGroups
+        const { pagination, data: organizationMembers } = includeGroups
             ? await this.organizationMemberProfileModel.getOrganizationMembersAndGroups(
                   organizationUuid,
                   includeGroups,
@@ -231,13 +234,43 @@ export class OrganizationService extends BaseService {
                   searchQuery,
               );
 
-        return {
-            data: members.filter((member) =>
-                user.ability.can(
-                    'view',
-                    subject('OrganizationMemberProfile', member),
-                ),
+        let members = organizationMembers.filter((member) =>
+            user.ability.can(
+                'view',
+                subject('OrganizationMemberProfile', member),
             ),
+        );
+
+        // If projectUuid is set, then we can check what's the user role in that project
+        // At this point we only care about groups, because a user can be a member in the org,
+        // and still have a group that allows them access to the project
+        // In this case, we'll return the group's role instead of the member's role
+        // So we can properly list them on `space access` form.
+        if (projectUuid && includeGroups) {
+            // If includeGroups > 0, then members is an array of OrganizationMemberProfileWithGroups
+            // even though the type is not inferred correctly from `getOrganizationMembersAndGroups`
+            const projectGroupAccesses =
+                await this.projectModel.getProjectGroupAccesses(projectUuid);
+            members = members.map((member) => {
+                const memberWithGroup =
+                    member as OrganizationMemberProfileWithGroups;
+                const groups = memberWithGroup.groups.map(
+                    (group) => group.uuid,
+                );
+                const groupAccess = projectGroupAccesses.find((access) =>
+                    groups.includes(access.groupUuid),
+                );
+                return {
+                    ...member,
+                    role: groupAccess?.role
+                        ? convertProjectRoleToOrganizationRole(groupAccess.role)
+                        : member.role,
+                };
+            });
+        }
+
+        return {
+            data: members,
             pagination,
         };
     }
