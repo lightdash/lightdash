@@ -162,14 +162,19 @@ export class OrganizationMemberProfileModel {
                 userUuids: data.map((m) => m.user_uuid),
             });
 
+        const usersHaveAuthenticationMap = new Map(
+            usersHaveAuthenticationRows.map((row) => [
+                row.user_uuid,
+                row.has_authentication,
+            ]),
+        );
+
         return {
             pagination,
             data: data.map((m) =>
                 OrganizationMemberProfileModel.parseRow(
                     m,
-                    usersHaveAuthenticationRows.find(
-                        (row) => row.user_uuid === m.user_uuid,
-                    )?.has_authentication,
+                    usersHaveAuthenticationMap.get(m.user_uuid) || false,
                 ),
             ),
         };
@@ -285,15 +290,19 @@ export class OrganizationMemberProfileModel {
             await UserModel.findIfUsersHaveAuthentication(this.database, {
                 userUuids: updatedMembers.map((m) => m.user_uuid),
             });
+        const usersHaveAuthenticationMap = new Map(
+            usersHaveAuthenticationRows.map((row) => [
+                row.user_uuid,
+                row.has_authentication,
+            ]),
+        );
 
         return {
             pagination,
             data: updatedMembers.map((m) => ({
                 ...OrganizationMemberProfileModel.parseRow(
                     m,
-                    usersHaveAuthenticationRows.find(
-                        (row) => row.user_uuid === m.user_uuid,
-                    )?.has_authentication,
+                    usersHaveAuthenticationMap.get(m.user_uuid) || false,
                 ),
                 groups: m.groups,
             })),
@@ -314,13 +323,17 @@ export class OrganizationMemberProfileModel {
             await UserModel.findIfUsersHaveAuthentication(this.database, {
                 userUuids: members.map((m) => m.user_uuid),
             });
+        const usersHaveAuthenticationMap = new Map(
+            usersHaveAuthenticationRows.map((row) => [
+                row.user_uuid,
+                row.has_authentication,
+            ]),
+        );
 
         return members.map((m) =>
             OrganizationMemberProfileModel.parseRow(
                 m,
-                usersHaveAuthenticationRows.find(
-                    (row) => row.user_uuid === m.user_uuid,
-                )?.has_authentication,
+                usersHaveAuthenticationMap.get(m.user_uuid) || false,
             ),
         );
     }
