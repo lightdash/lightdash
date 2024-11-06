@@ -118,3 +118,37 @@ export const useUntagCatalogItem = () => {
         },
     });
 };
+
+const updateTag = async (
+    projectUuid: string,
+    tagUuid: string,
+    data: Pick<Tag, 'name' | 'color'>,
+) => {
+    return lightdashApi<ApiSuccessEmpty['results']>({
+        url: `/projects/${projectUuid}/tags/${tagUuid}`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+};
+
+/**
+ * Update a tag's name or color in a project
+ */
+export const useUpdateTag = () => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        ApiSuccessEmpty['results'],
+        ApiError,
+        {
+            projectUuid: string;
+            tagUuid: string;
+            data: Pick<Tag, 'name' | 'color'>;
+        }
+    >({
+        mutationFn: ({ projectUuid, tagUuid, data }) =>
+            updateTag(projectUuid, tagUuid, data),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['metrics-catalog']);
+        },
+    });
+};
