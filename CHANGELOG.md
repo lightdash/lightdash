@@ -1,3 +1,10 @@
+# [0.1350.0](https://github.com/lightdash/lightdash/compare/0.1349.0...0.1350.0) (2024-11-06)
+
+
+### Features
+
+* enable editing a tag/category's label or color ([#12276](https://github.com/lightdash/lightdash/issues/12276)) ([a07975c](https://github.com/lightdash/lightdash/commit/a07975c3f55600993aad8aa40ef7947d047ad0e4))
+
 # [0.1349.0](https://github.com/lightdash/lightdash/compare/0.1348.1...0.1349.0) (2024-11-06)
 
 
