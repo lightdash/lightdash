@@ -118,3 +118,65 @@ export const useUntagCatalogItem = () => {
         },
     });
 };
+
+const updateTag = async (
+    projectUuid: string,
+    tagUuid: string,
+    data: Pick<Tag, 'name' | 'color'>,
+) => {
+    return lightdashApi<ApiSuccessEmpty['results']>({
+        url: `/projects/${projectUuid}/tags/${tagUuid}`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+};
+
+/**
+ * Update a tag's name or color in a project
+ */
+export const useUpdateTag = () => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        ApiSuccessEmpty['results'],
+        ApiError,
+        {
+            projectUuid: string;
+            tagUuid: string;
+            data: Pick<Tag, 'name' | 'color'>;
+        }
+    >({
+        mutationFn: ({ projectUuid, tagUuid, data }) =>
+            updateTag(projectUuid, tagUuid, data),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['metrics-catalog']);
+        },
+    });
+};
+
+const deleteTag = async (projectUuid: string, tagUuid: string) => {
+    return lightdashApi<ApiSuccessEmpty>({
+        url: `/projects/${projectUuid}/tags/${tagUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+};
+
+/**
+ * Delete a tag from a project
+ */
+export const useDeleteTag = () => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { projectUuid: string; tagUuid: string }
+    >({
+        mutationFn: ({ projectUuid, tagUuid }) =>
+            deleteTag(projectUuid, tagUuid),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['metrics-catalog']);
+            await queryClient.invalidateQueries(['project-tags']);
+        },
+        // TODO: show error toast on error
+    });
+};
