@@ -278,6 +278,7 @@ export const applyDimensionOverrides = (
         if (override) {
             return {
                 ...override,
+                disabled: dimension.disabled,
                 tileTargets: dimension.tileTargets,
             };
         }
