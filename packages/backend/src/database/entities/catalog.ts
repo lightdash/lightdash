@@ -91,11 +91,6 @@ export type CatalogTagsTable = Knex.CompositeTableType<
     DbCatalogTagIn
 >;
 
-export type DbCatalogTagsMigrateIn = {
-    catalog_search_uuid: string;
-    tag_uuid: string;
-    created_by_user_uuid: string | null;
-    created_at: Date;
-};
+export type DbCatalogTagsMigrateIn = DbCatalogTag
 
 export const CatalogTagsTableName = 'catalog_search_tags';
