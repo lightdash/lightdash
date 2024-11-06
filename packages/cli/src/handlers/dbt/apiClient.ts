@@ -44,7 +44,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         ...proxyAuthorizationHeader,
     };
     const fullUrl = new URL(url, config.context.serverUrl).href;
-    GlobalState.debug(`> Making HTTP query to: ${fullUrl}`);
+    GlobalState.debug(`> Making HTTP ${method} request to: ${fullUrl}`);
 
     return fetch(fullUrl, { method, headers, body })
         .then((r) => {
