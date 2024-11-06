@@ -4,6 +4,7 @@ import { useHover } from '@mantine/hooks';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
+import { CatalogTag } from './CatalogTag';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogTagForm } from './MetricsCatalogTagForm';
 
@@ -69,8 +70,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
 
             return (
                 <Group spacing="two" ref={ref} pos="relative" w="100%" h="100%">
-                    {/* TODO: Add tags here  */}
+                    {tags.map((tag) => (
+                        <CatalogTag key={tag.tagUuid} tag={tag} />
+                    ))}
                     <MetricsCatalogTagForm
+                        catalogSearchUuid={row.original.catalogSearchUuid}
                         metricTags={tags}
                         hovered={hovered}
                     />

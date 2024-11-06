@@ -2,6 +2,7 @@ import {
     type ApiCreateTagResponse,
     type ApiError,
     type ApiGetTagsResponse,
+    type ApiSuccessEmpty,
     type Tag,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -51,5 +52,69 @@ export const useProjectTags = (projectUuid: string | undefined) => {
         queryKey: ['project-tags', projectUuid],
         queryFn: () => getTags(projectUuid!),
         enabled: !!projectUuid,
+    });
+};
+
+type TagCatalogItemParams = {
+    projectUuid: string;
+    catalogSearchUuid: string;
+    tagUuid: string;
+};
+
+const tagCatalogItem = async ({
+    projectUuid,
+    catalogSearchUuid,
+    tagUuid,
+}: TagCatalogItemParams) => {
+    return lightdashApi<ApiSuccessEmpty['results']>({
+        url: `/projects/${projectUuid}/dataCatalog/${catalogSearchUuid}/tags`,
+        method: 'POST',
+        body: JSON.stringify({ tagUuid }),
+    });
+};
+
+/**
+ * Tag a catalog item
+ */
+export const useTagCatalogItem = () => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        ApiSuccessEmpty['results'],
+        ApiError,
+        TagCatalogItemParams
+    >({
+        mutationFn: tagCatalogItem,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['metrics-catalog']);
+        },
+    });
+};
+
+const untagCatalogItem = async ({
+    projectUuid,
+    catalogSearchUuid,
+    tagUuid,
+}: TagCatalogItemParams) => {
+    return lightdashApi<ApiSuccessEmpty['results']>({
+        url: `/projects/${projectUuid}/dataCatalog/${catalogSearchUuid}/tags/${tagUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+};
+
+/**
+ * Untag a catalog item
+ */
+export const useUntagCatalogItem = () => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        ApiSuccessEmpty['results'],
+        ApiError,
+        TagCatalogItemParams
+    >({
+        mutationFn: untagCatalogItem,
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['metrics-catalog']);
+        },
     });
 };

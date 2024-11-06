@@ -1,31 +1,36 @@
 import { type CatalogField } from '@lightdash/common';
 import {
-    ActionIcon,
+    Box,
     Button,
     Group,
     Popover,
     Stack,
     Text,
-    TextInput,
     Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconPlus, IconRefresh, IconTrash } from '@tabler/icons-react';
-import { memo, useEffect, useState, type FC } from 'react';
+import { IconPlus, IconRefresh } from '@tabler/icons-react';
+import { memo, useCallback, useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { useCreateTag, useProjectTags } from '../hooks/useCatalogTags';
+import {
+    useCreateTag,
+    useProjectTags,
+    useTagCatalogItem,
+    useUntagCatalogItem,
+} from '../hooks/useCatalogTags';
 import { getRandomColor } from '../utils/getRandomTagColor';
 import { CatalogTag } from './CatalogTag';
 
 type Props = {
+    catalogSearchUuid: string;
     metricTags: CatalogField['catalogTags'];
     hovered: boolean;
-    leftAligned?: boolean;
 };
 
 export const MetricsCatalogTagForm: FC<Props> = memo(
-    ({ metricTags, hovered, leftAligned }) => {
+    ({ catalogSearchUuid, metricTags, hovered }) => {
         const { colors } = useMantineTheme();
         const projectUuid = useAppSelector(
             (state) => state.metricsCatalog.projectUuid,
@@ -36,46 +41,83 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
 
         const { data: tags } = useProjectTags(projectUuid);
         const createTagMutation = useCreateTag();
+        const tagCatalogItemMutation = useTagCatalogItem();
+        const untagCatalogItemMutation = useUntagCatalogItem();
 
-        useEffect(
-            function generateNewColorOnPopoverOpen() {
-                if (opened) {
-                    setTagColor(getRandomColor(colors));
-                } else {
-                    setSearch('');
-                    setTagColor(undefined);
+        // Generate new color when popover opens
+        useEffect(() => {
+            if (opened) {
+                setTagColor(getRandomColor(colors));
+            } else {
+                // setSearch('');
+                setTagColor(undefined);
+            }
+        }, [opened, colors]);
+
+        const handleAddTag = useCallback(
+            async (tagName: string) => {
+                if (!projectUuid) return;
+
+                try {
+                    const existingTag = tags?.find(
+                        (tag) => tag.name === tagName,
+                    );
+
+                    if (existingTag) {
+                        await tagCatalogItemMutation.mutateAsync({
+                            projectUuid,
+                            catalogSearchUuid,
+                            tagUuid: existingTag.tagUuid,
+                        });
+                        setSearch('');
+                    } else {
+                        if (!tagColor) return;
+
+                        const newTag = await createTagMutation.mutateAsync({
+                            projectUuid,
+                            data: {
+                                name: tagName,
+                                color: tagColor,
+                            },
+                        });
+
+                        await tagCatalogItemMutation.mutateAsync({
+                            projectUuid,
+                            catalogSearchUuid,
+                            tagUuid: newTag.tagUuid,
+                        });
+                        // Reset search and color after creating a new tag
+                        setSearch('');
+                        setTagColor(getRandomColor(colors));
+                    }
+                } catch (error) {
+                    // TODO: Add toast on error
+                    console.error('Error adding tag:', error);
                 }
             },
-            [opened, colors],
+            [
+                projectUuid,
+                catalogSearchUuid,
+                createTagMutation,
+                tagCatalogItemMutation,
+                tags,
+                tagColor,
+                colors,
+            ],
         );
 
-        const handleAddTag = async (tagName: string) => {
-            if (!projectUuid) return;
+        const handleUntag = useCallback(
+            async (tagUuid: string) => {
+                if (!projectUuid) return;
 
-            try {
-                const existingTag = tags?.find((tag) => tag.name === tagName);
-
-                if (existingTag) {
-                    // TODO: implement tag update
-                } else {
-                    await createTagMutation.mutateAsync({
-                        projectUuid,
-                        data: {
-                            name: tagName,
-                            color: tagColor ?? getRandomColor(colors),
-                        },
-                    });
-
-                    // TODO: After creating tag, tag field with the uuid from the previous mutation
-                    setOpened(false);
-                }
-                setSearch('');
-                setTagColor(undefined);
-            } catch (error) {
-                // TODO: show toast error
-                console.error('Error adding tag:', error);
-            }
-        };
+                await untagCatalogItemMutation.mutateAsync({
+                    projectUuid,
+                    catalogSearchUuid,
+                    tagUuid,
+                });
+            },
+            [projectUuid, catalogSearchUuid, untagCatalogItemMutation],
+        );
 
         return (
             <Popover
@@ -100,6 +142,10 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                                 icon={IconPlus}
                             />
                         }
+                        fz={10}
+                        right={0}
+                        bottom={0}
+                        left="auto"
                         styles={(theme) => ({
                             leftIcon: {
                                 marginRight: 4,
@@ -108,20 +154,6 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                                 border: `dashed 1px ${theme.colors.gray[4]}`,
                                 visibility:
                                     hovered || opened ? 'visible' : 'hidden',
-                                fontSize: '10px',
-                                ...(leftAligned
-                                    ? {
-                                          left: 0,
-                                          right: 'auto',
-                                          top: '50%',
-                                          transform: 'translateY(-50%)',
-                                          bottom: 'auto',
-                                      }
-                                    : {
-                                          right: 0,
-                                          left: 'auto',
-                                          bottom: 0,
-                                      }),
                             },
                         })}
                         onClick={() => setOpened((prev) => !prev)}
@@ -130,14 +162,44 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                     </Button>
                 </Popover.Target>
                 <Popover.Dropdown p="xs">
-                    <TextInput
-                        radius="md"
-                        size="xs"
+                    <TagInput
+                        value={metricTags.map((tag) => tag.name)}
                         placeholder="Search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        size="xs"
+                        mb="xs"
+                        radius="md"
+                        onSearchChange={(value) => {
+                            setSearch(value);
+                        }}
+                        searchValue={search}
+                        addOnBlur={false}
+                        onBlur={(e) => {
+                            e.stopPropagation();
+                        }}
+                        valueComponent={({ value, onRemove }) => (
+                            <Box mx={2}>
+                                <CatalogTag
+                                    tag={{
+                                        name: value,
+                                        color:
+                                            metricTags.find(
+                                                (tag) => tag.name === value,
+                                            )?.color ?? getRandomColor(colors),
+                                    }}
+                                    onRemove={() => {
+                                        onRemove(value);
+                                        const tagUuid = metricTags.find(
+                                            (tag) => tag.name === value,
+                                        )?.tagUuid;
+                                        if (tagUuid) {
+                                            void handleUntag(tagUuid);
+                                        }
+                                    }}
+                                />
+                            </Box>
+                        )}
                     />
-                    <Text size="xs" fw={500} color="dimmed">
+                    <Text size="xs" fw={500} color="dimmed" mb="xs">
                         Select a tag or create a new one
                     </Text>
                     <Stack spacing="xs" align="flex-start">
@@ -171,23 +233,11 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                                     >
                                         <CatalogTag
                                             tag={tag}
-                                            // TODO: implement tag click (tagging field)
+                                            onTagClick={() =>
+                                                handleAddTag(tag.name)
+                                            }
                                         />
-                                        {/* Only show on hover */}
-                                        <ActionIcon
-                                            size="xs"
-                                            variant="subtle"
-                                            onClick={() => {
-                                                // TODO: implement tag deletion
-                                                return;
-                                            }}
-                                        >
-                                            <MantineIcon
-                                                icon={IconTrash}
-                                                color="gray.6"
-                                                size={14}
-                                            />
-                                        </ActionIcon>
+                                        {/* TODO: Implement tag deletion from project */}
                                     </Group>
                                 ))}
                         </Stack>
