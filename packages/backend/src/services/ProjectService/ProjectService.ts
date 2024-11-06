@@ -4807,7 +4807,7 @@ export class ProjectService extends BaseService {
             name,
             color,
         }: Pick<Tag, 'projectUuid' | 'name' | 'color'>,
-    ) {
+    ): Promise<Pick<Tag, 'tagUuid'>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -4824,12 +4824,14 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        await this.tagsModel.create({
+        const createdTagUuid = await this.tagsModel.create({
             project_uuid: projectUuid,
             name,
             color,
             created_by_user_uuid: user.userUuid,
         });
+
+        return { tagUuid: createdTagUuid.tag_uuid };
     }
 
     async deleteTag(user: SessionUser, projectUuid: string, tagUuid: string) {

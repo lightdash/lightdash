@@ -50,6 +50,7 @@ import {
 import { type SearchResults } from './types/search';
 import { type ShareUrl } from './types/share';
 import { type SlackSettings } from './types/slackSettings';
+import { type ApiCreateTagResponse } from './types/tags';
 
 import {
     type ApiCreateComment,
@@ -691,7 +692,8 @@ type ApiResults =
     | ApiCreateVirtualView['results']
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']
-    | ApiGroupListResponse['results'];
+    | ApiGroupListResponse['results']
+    | ApiCreateTagResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
