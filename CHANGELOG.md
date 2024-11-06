@@ -1,3 +1,11 @@
+# [0.1349.0](https://github.com/lightdash/lightdash/compare/0.1348.1...0.1349.0) (2024-11-06)
+
+
+### Features
+
+* project list in create preview modal ([#12243](https://github.com/lightdash/lightdash/issues/12243)) ([d2e904c](https://github.com/lightdash/lightdash/commit/d2e904ca36d6948d36f4b633c90bf8b426fbec84))
+* project list UX and bulk actions ([#12270](https://github.com/lightdash/lightdash/issues/12270)) ([5bb7c02](https://github.com/lightdash/lightdash/commit/5bb7c02feb0b542675fbf968cec079066de27cb1))
+
 ## [0.1348.1](https://github.com/lightdash/lightdash/compare/0.1348.0...0.1348.1) (2024-11-06)
 
 
