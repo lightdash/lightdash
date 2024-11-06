@@ -1,3 +1,10 @@
+# [0.1346.0](https://github.com/lightdash/lightdash/compare/0.1345.0...0.1346.0) (2024-11-06)
+
+
+### Features
+
+* add tag update endpoint ([#12273](https://github.com/lightdash/lightdash/issues/12273)) ([6d7ae3d](https://github.com/lightdash/lightdash/commit/6d7ae3dc3fdff36bcc2b183f81c486cbeb48801b))
+
 # [0.1345.0](https://github.com/lightdash/lightdash/compare/0.1344.0...0.1345.0) (2024-11-06)
 
 
