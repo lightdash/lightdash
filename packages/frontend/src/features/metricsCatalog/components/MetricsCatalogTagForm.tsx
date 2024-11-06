@@ -47,6 +47,9 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
         const projectUuid = useAppSelector(
             (state) => state.metricsCatalog.projectUuid,
         );
+        const organizationUuid = useAppSelector(
+            (state) => state.metricsCatalog.organizationUuid,
+        );
         const [opened, setOpened] = useState(false);
         const [search, setSearch] = useState('');
         const [tagColor, setTagColor] = useState<string>();
@@ -106,6 +109,8 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                     track({
                         name: EventName.METRICS_CATALOG_TAG_ADDED,
                         properties: {
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
                             tagName,
                             isNewTag: !existingTag,
                         },
@@ -117,13 +122,14 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
             },
             [
                 projectUuid,
-                catalogSearchUuid,
-                createTagMutation,
-                tagCatalogItemMutation,
                 tags,
-                tagColor,
-                colors,
                 track,
+                organizationUuid,
+                tagCatalogItemMutation,
+                catalogSearchUuid,
+                tagColor,
+                createTagMutation,
+                colors,
             ],
         );
 
