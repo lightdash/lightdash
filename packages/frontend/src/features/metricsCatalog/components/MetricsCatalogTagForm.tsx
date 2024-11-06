@@ -37,6 +37,7 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
         );
         const [opened, setOpened] = useState(false);
         const [search, setSearch] = useState('');
+        console.log('search', search);
         const [tagColor, setTagColor] = useState<string>();
 
         const { data: tags } = useProjectTags(projectUuid);
@@ -49,7 +50,7 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
             if (opened) {
                 setTagColor(getRandomColor(colors));
             } else {
-                setSearch('');
+                // setSearch('');
                 setTagColor(undefined);
             }
         }, [opened, colors]);
@@ -86,10 +87,10 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                             catalogSearchUuid,
                             tagUuid: newTag.tagUuid,
                         });
+                        // Reset search and color after creating a new tag
                         setSearch('');
-                        setOpened(false);
+                        setTagColor(getRandomColor(colors));
                     }
-                    setTagColor(undefined);
                 } catch (error) {
                     // TODO: Add toast on error
                     console.error('Error adding tag:', error);
@@ -102,6 +103,7 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                 tagCatalogItemMutation,
                 tags,
                 tagColor,
+                colors,
             ],
         );
 
@@ -167,7 +169,10 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                         size="xs"
                         mb="xs"
                         radius="md"
-                        onSearchChange={(value) => setSearch(value)}
+                        onSearchChange={(value) => {
+                            setSearch(value);
+                        }}
+                        searchValue={search}
                         addOnBlur={false}
                         onBlur={(e) => {
                             e.stopPropagation();
