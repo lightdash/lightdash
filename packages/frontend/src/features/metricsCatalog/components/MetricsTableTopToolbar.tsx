@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { useListState } from '@mantine/hooks';
 import { IconSearch, IconTag, IconX } from '@tabler/icons-react';
-import { memo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useProjectTags } from '../hooks/useCatalogTags';
@@ -38,6 +38,15 @@ const TagsFilter = () => {
 
     const hasSelectedTags = selectedTags.length > 0;
 
+    const tagNames = useMemo(
+        () =>
+            tags
+                ?.filter((tag) => selectedTags.includes(tag.tagUuid))
+                .map((tag) => tag.name)
+                .join(', '),
+        [tags, selectedTags],
+    );
+
     return (
         <Group spacing="two">
             <Popover
@@ -49,22 +58,25 @@ const TagsFilter = () => {
                     <Button
                         size="xs"
                         color="gray.5"
-                        c="gray.6"
+                        c={hasSelectedTags ? 'gray.8' : 'gray.6'}
                         variant="default"
                         radius="md"
                         leftIcon={<MantineIcon icon={IconTag} color="gray.6" />}
                         loading={isLoading}
                         sx={(theme) => ({
-                            border: `1px dashed ${theme.colors.gray[4]}`,
+                            border: hasSelectedTags
+                                ? `1px solid ${theme.colors.indigo[4]}`
+                                : `1px dashed ${theme.colors.gray[4]}`,
                             backgroundColor: theme.fn.lighten(
-                                theme.colors.gray[0],
+                                hasSelectedTags
+                                    ? theme.colors.indigo[0]
+                                    : theme.colors.gray[0],
                                 0.3,
                             ),
+                            fontWeight: hasSelectedTags ? 400 : 500,
                         })}
                     >
-                        {hasSelectedTags
-                            ? `${selectedTags.length} tags`
-                            : 'All tags'}
+                        {hasSelectedTags ? tagNames : 'All tags'}
                     </Button>
                 </Popover.Target>
                 <Popover.Dropdown>
