@@ -244,6 +244,7 @@ export class ProjectModel {
                 'projects.project_uuid',
                 'projects.name',
                 'projects.project_type',
+                `projects.copied_from_project_uuid`,
                 `projects.created_by_user_uuid`,
                 `${WarehouseCredentialTableName}.warehouse_type`,
                 `${WarehouseCredentialTableName}.encrypted_credentials`,
@@ -279,6 +280,7 @@ export class ProjectModel {
                 project_uuid,
                 project_type,
                 created_by_user_uuid,
+                copied_from_project_uuid,
                 warehouse_type,
                 encrypted_credentials,
             }) => {
@@ -291,6 +293,7 @@ export class ProjectModel {
                         projectUuid: project_uuid,
                         type: project_type,
                         createdByUserUuid: created_by_user_uuid,
+                        upstreamProjectUuid: copied_from_project_uuid,
                         warehouseType: warehouse_type as WarehouseTypes,
                         requireUserCredentials:
                             !!warehouseCredentials.requireUserCredentials,
