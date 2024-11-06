@@ -4832,6 +4832,16 @@ export class ProjectService extends BaseService {
             created_by_user_uuid: user.userUuid,
         });
 
+        this.analytics.track({
+            event: 'category.created',
+            userId: user.userUuid,
+            properties: {
+                name,
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+            },
+        });
+
         return { tagUuid: createdTagUuid.tag_uuid };
     }
 
