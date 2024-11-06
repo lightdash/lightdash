@@ -1,3 +1,10 @@
+## [0.1348.1](https://github.com/lightdash/lightdash/compare/0.1348.0...0.1348.1) (2024-11-06)
+
+
+### Bug Fixes
+
+* time-based filters in scheduled deliveries  ([#12272](https://github.com/lightdash/lightdash/issues/12272)) ([d370bcd](https://github.com/lightdash/lightdash/commit/d370bcd92646318be8714b02989efdaa98597797))
+
 # [0.1348.0](https://github.com/lightdash/lightdash/compare/0.1347.0...0.1348.0) (2024-11-06)
 
 
