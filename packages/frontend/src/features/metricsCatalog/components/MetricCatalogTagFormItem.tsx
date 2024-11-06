@@ -1,3 +1,4 @@
+import { type CatalogItem } from '@lightdash/common';
 import {
     ActionIcon,
     Button,
@@ -11,16 +12,12 @@ import { IconDots, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { useUpdateTag } from '../hooks/useCatalogTags';
+import { useDeleteTag, useUpdateTag } from '../hooks/useCatalogTags';
 import { getRandomColor } from '../utils/getRandomTagColor';
 import { CatalogTag } from './CatalogTag';
 
 type Props = {
-    tag: {
-        name: string;
-        color: string;
-        tagUuid?: string;
-    };
+    tag: CatalogItem['catalogTags'][number];
     onTagClick?: () => void;
 };
 
@@ -28,15 +25,16 @@ export const MetricCatalogTagFormItem: FC<Props> = ({ tag, onTagClick }) => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
-    const { mutate: updateTag } = useUpdateTag();
+    const { mutateAsync: updateTag } = useUpdateTag();
+    const { mutateAsync: deleteTag } = useDeleteTag();
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(tag.name);
     const [editColor, setEditColor] = useState(tag.color);
     const { colors } = useMantineTheme();
 
-    const handleSave = useCallback(() => {
+    const handleSave = useCallback(async () => {
         if (tag.tagUuid && projectUuid) {
-            updateTag({
+            await updateTag({
                 projectUuid,
                 tagUuid: tag.tagUuid,
                 data: { name: editName, color: editColor },
@@ -45,11 +43,17 @@ export const MetricCatalogTagFormItem: FC<Props> = ({ tag, onTagClick }) => {
         setIsEditing(false);
     }, [editColor, editName, projectUuid, tag.tagUuid, updateTag]);
 
+    const onDelete = useCallback(async () => {
+        if (tag.tagUuid && projectUuid) {
+            await deleteTag({ projectUuid, tagUuid: tag.tagUuid });
+        }
+    }, [deleteTag, projectUuid, tag.tagUuid]);
+
     if (isEditing) {
         return (
             <Stack spacing="xs" w="100%">
-                <Group spacing={4} position="apart">
-                    <Group spacing={2}>
+                <Group position="apart" noWrap>
+                    <Group noWrap spacing="xs">
                         <HoverCard>
                             <HoverCard.Target>
                                 <ActionIcon
@@ -92,20 +96,18 @@ export const MetricCatalogTagFormItem: FC<Props> = ({ tag, onTagClick }) => {
                             onChange={(e) => setEditName(e.target.value)}
                         />
                     </Group>
-                    <Group spacing={4}>
+                    <Group spacing={4} noWrap>
                         <ActionIcon
                             size="xs"
                             variant="subtle"
-                            color="red"
-                            // TODO: Implement tag delete mutation
-                            // onClick={onDelete}
+                            color="gray.6"
+                            onClick={onDelete}
                         >
                             <MantineIcon icon={IconTrash} size={14} />
                         </ActionIcon>
 
                         <Button
-                            color="gray.7"
-                            variant="light"
+                            color="gray.9"
                             size="xs"
                             compact
                             onClick={handleSave}

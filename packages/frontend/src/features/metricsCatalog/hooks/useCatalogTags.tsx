@@ -152,3 +152,33 @@ export const useUpdateTag = () => {
         },
     });
 };
+
+const deleteTag = async (projectUuid: string, tagUuid: string) => {
+    return lightdashApi<ApiSuccessEmpty>({
+        url: `/projects/${projectUuid}/tags/${tagUuid}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+};
+
+/**
+ * Delete a tag from a project
+ */
+export const useDeleteTag = () => {
+    const queryClient = useQueryClient();
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { projectUuid: string; tagUuid: string }
+    >({
+        mutationFn: ({ projectUuid, tagUuid }) =>
+            deleteTag(projectUuid, tagUuid),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['metrics-catalog']);
+            await queryClient.invalidateQueries(['project-tags']);
+        },
+        onError: (error) => {
+            console.error('Failed to delete tag:', error);
+        },
+    });
+};
