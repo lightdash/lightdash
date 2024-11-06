@@ -11289,6 +11289,17 @@
                         "schema": {
                             "$ref": "#/components/schemas/ApiSortDirection"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "catalogTags",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
                     }
                 ]
             }

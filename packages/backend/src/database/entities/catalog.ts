@@ -4,7 +4,6 @@ import {
     type CatalogItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { TagsTableName } from './tags';
 
 export type DbCatalog = {
     catalog_search_uuid: string;

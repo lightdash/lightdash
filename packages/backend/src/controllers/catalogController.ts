@@ -48,13 +48,13 @@ export class CatalogController extends BaseController {
     async getCatalog(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Query() search?: ApiCatalogSearch['search'],
+        @Query() search?: ApiCatalogSearch['searchQuery'],
         @Query() type?: ApiCatalogSearch['type'],
         @Query() filter?: ApiCatalogSearch['filter'],
     ): Promise<{ status: 'ok'; results: ApiCatalogResults }> {
         this.setStatus(200);
         const query: ApiCatalogSearch = {
-            search,
+            searchQuery: search,
             type,
             filter,
         };
@@ -170,11 +170,12 @@ export class CatalogController extends BaseController {
     async getMetricsCatalog(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Query() search?: ApiCatalogSearch['search'],
+        @Query() search?: ApiCatalogSearch['searchQuery'],
         @Query() page?: number,
         @Query() pageSize?: number,
         @Query() sort?: ApiSort['sort'],
         @Query() order?: ApiSort['order'],
+        @Query() catalogTags?: ApiCatalogSearch['catalogTags'],
     ): Promise<ApiMetricsCatalog> {
         this.setStatus(200);
 
@@ -200,7 +201,8 @@ export class CatalogController extends BaseController {
                 projectUuid,
                 paginateArgs,
                 {
-                    search,
+                    searchQuery: search,
+                    catalogTags,
                 },
                 sortArgs,
             );

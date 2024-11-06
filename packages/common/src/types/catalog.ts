@@ -37,9 +37,10 @@ export type CatalogSelection = {
 };
 
 export type ApiCatalogSearch = {
-    search?: string;
+    searchQuery?: string;
     type?: CatalogType;
     filter?: CatalogFilter;
+    catalogTags?: string[];
 };
 
 export type CatalogField = Pick<
