@@ -21,7 +21,7 @@ type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     currentProjectUuid: string | null;
 };
 
-const CONFIRMATION_TEXT = 'I want to delete all selected projects';
+const CONFIRMATION_TEXT = 'delete';
 
 export const ProjectDeleteInBulkModal: FC<Props> = ({
     projects,
@@ -125,7 +125,7 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
             title={
                 <Group spacing="xs">
                     <MantineIcon size="lg" icon={IconAlertCircle} color="red" />
-                    <Title order={4}>Delete Projects in bulk</Title>
+                    <Title order={4}>Delete projects in bulk</Title>
                 </Group>
             }
             onClose={handleOnClose}
@@ -145,12 +145,12 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
                         <Text span fw={500}>
                             "{CONFIRMATION_TEXT}"
                         </Text>{' '}
-                        to confirm.
+                        to confirm. This action is not reversible.
                     </Text>
                 </Stack>
 
                 <TextInput
-                    label="Confirmation text"
+                    placeholder={CONFIRMATION_TEXT}
                     value={confirmationText}
                     onChange={(e) => setConfirmationText(e.target.value)}
                 />
