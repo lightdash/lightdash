@@ -29,7 +29,6 @@ const getMetricsCatalog = async ({
     UseMetricsCatalogOptions,
     'search' | 'catalogTags' | 'sortBy' | 'sortDirection'
 >) => {
-    console.log('catalogTags', catalogTags);
     const urlParams = new URLSearchParams({
         ...(paginateArgs
             ? {
