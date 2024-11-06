@@ -14975,7 +14975,14 @@
                 "operationId": "deleteTag",
                 "responses": {
                     "204": {
-                        "description": "Deleted"
+                        "description": "Deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
                     },
                     "default": {
                         "description": "Error",

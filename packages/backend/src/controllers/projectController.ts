@@ -749,10 +749,18 @@ export class ProjectController extends BaseController {
     @SuccessResponse('204', 'Deleted')
     @Delete('{projectUuid}/tags/{tagUuid}')
     @OperationId('deleteTag')
-    async deleteTag(@Path() tagUuid: string, @Request() req: express.Request) {
+    async deleteTag(
+        @Path() tagUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
         await this.services.getProjectService().deleteTag(req.user!, tagUuid);
 
-        this.setStatus(204);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
     }
 
     @Middlewares([
