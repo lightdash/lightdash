@@ -1,3 +1,10 @@
+# [0.1347.0](https://github.com/lightdash/lightdash/compare/0.1346.0...0.1347.0) (2024-11-06)
+
+
+### Features
+
+* allow to filter by catalog tags ([#12265](https://github.com/lightdash/lightdash/issues/12265)) ([1df5b8f](https://github.com/lightdash/lightdash/commit/1df5b8f4b5eda2cb61843bf07bd05a8d4b4afdcd))
+
 # [0.1346.0](https://github.com/lightdash/lightdash/compare/0.1345.0...0.1346.0) (2024-11-06)
 
 
