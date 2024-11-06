@@ -1,3 +1,10 @@
+# [0.1348.0](https://github.com/lightdash/lightdash/compare/0.1347.0...0.1348.0) (2024-11-06)
+
+
+### Features
+
+* block deactivated users from accessing Lightdash ([#12242](https://github.com/lightdash/lightdash/issues/12242)) ([670c171](https://github.com/lightdash/lightdash/commit/670c171d344990f4070de76147414f68b83bf251))
+
 # [0.1347.0](https://github.com/lightdash/lightdash/compare/0.1346.0...0.1347.0) (2024-11-06)
 
 
