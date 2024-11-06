@@ -3,7 +3,6 @@ import { Knex } from 'knex';
 import {
     convertTagRow,
     TagsTableName,
-    type DbTag,
     type DbTagIn,
 } from '../database/entities/tags';
 import { UserTableName } from '../database/entities/users';
@@ -16,7 +15,7 @@ export class TagsModel {
     }
 
     async create(tagIn: DbTagIn) {
-        return this.database(TagsTableName).insert(tagIn);
+        return this.database(TagsTableName).insert(tagIn).returning('tag_uuid');
     }
 
     async delete(tagUuid: string) {

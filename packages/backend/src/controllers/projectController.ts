@@ -2,6 +2,7 @@ import {
     ApiCalculateTotalResponse,
     ApiChartListResponse,
     ApiChartSummaryListResponse,
+    ApiCreateTagResponse,
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
@@ -723,17 +724,19 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: Pick<Tag, 'name' | 'color'>,
         @Request() req: express.Request,
-    ): Promise<ApiSuccessEmpty> {
-        await this.services.getProjectService().createTag(req.user!, {
-            ...body,
-            projectUuid,
-        });
+    ): Promise<ApiCreateTagResponse> {
+        const { tagUuid } = await this.services
+            .getProjectService()
+            .createTag(req.user!, {
+                ...body,
+                projectUuid,
+            });
 
         this.setStatus(201);
 
         return {
             status: 'ok',
-            results: undefined,
+            results: { tagUuid },
         };
     }
 
