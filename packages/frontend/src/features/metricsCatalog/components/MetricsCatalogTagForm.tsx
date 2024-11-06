@@ -37,7 +37,6 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
         );
         const [opened, setOpened] = useState(false);
         const [search, setSearch] = useState('');
-        console.log('search', search);
         const [tagColor, setTagColor] = useState<string>();
 
         const { data: tags } = useProjectTags(projectUuid);
