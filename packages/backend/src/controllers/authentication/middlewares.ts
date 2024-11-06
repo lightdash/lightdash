@@ -1,6 +1,10 @@
 /// <reference path="../../@types/passport-openidconnect.d.ts" />
 /// <reference path="../../@types/express-session.d.ts" />
-import { AuthorizationError, LightdashMode } from '@lightdash/common';
+import {
+    AuthorizationError,
+    DeactivatedAccountError,
+    LightdashMode,
+} from '@lightdash/common';
 import { Request, RequestHandler } from 'express';
 import passport from 'passport';
 import { URL } from 'url';
@@ -8,7 +12,18 @@ import { lightdashConfig } from '../../config/lightdashConfig';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.user?.userUuid) {
-        next();
+        if (req.user.isActive) {
+            next();
+        } else {
+            // Destroy session if user is deactivated and return error
+            req.session.destroy((err) => {
+                if (err) {
+                    next(err);
+                } else {
+                    next(new DeactivatedAccountError());
+                }
+            });
+        }
     } else {
         next(new AuthorizationError(`Failed to authorize user`));
     }

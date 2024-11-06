@@ -18,7 +18,16 @@ const defaultHeaders = {
 };
 
 const handleError = (err: any): ApiError => {
-    if (err.error?.statusCode && err.error?.name) return err;
+    if (err.error?.statusCode && err.error?.name) {
+        if (
+            err.error?.name === 'DeactivatedAccountError' &&
+            window.location.pathname !== '/login'
+        ) {
+            // redirect to login page when account is deactivated
+            window.location.href = '/login';
+        }
+        return err;
+    }
     return {
         status: 'error',
         error: {

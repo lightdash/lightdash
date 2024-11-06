@@ -140,7 +140,15 @@ export class SchedulerModel {
     }
 
     async getAllSchedulers(): Promise<SchedulerAndTargets[]> {
-        const schedulers = this.database(SchedulerTableName).select();
+        const schedulers = this.database(SchedulerTableName)
+            .select()
+            .join(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${SchedulerTableName}.created_by`,
+            )
+            .where(`${SchedulerTableName}.enabled`, true)
+            .where(`${UserTableName}.is_active`, true);
         return this.getSchedulersWithTargets(await schedulers);
     }
 
