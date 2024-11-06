@@ -9,11 +9,13 @@ type MetricsCatalogState = {
     };
     activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
+    tagFilters: CatalogField['catalogTags'][number]['tagUuid'][];
 };
 
 const initialState: MetricsCatalogState = {
     activeMetric: undefined,
     projectUuid: undefined,
+    tagFilters: [],
     modals: {
         chartUsageModal: {
             isOpen: false,
@@ -35,7 +37,23 @@ export const metricsCatalogSlice = createSlice({
             state.activeMetric = action.payload;
             state.modals.chartUsageModal.isOpen = !!action.payload;
         },
+        setTagFilters: (
+            state,
+            action: PayloadAction<
+                CatalogField['catalogTags'][number]['tagUuid'][]
+            >,
+        ) => {
+            state.tagFilters = action.payload;
+        },
+        clearTagFilters: (state) => {
+            state.tagFilters = [];
+        },
     },
 });
 
-export const { setActiveMetric, setProjectUuid } = metricsCatalogSlice.actions;
+export const {
+    setActiveMetric,
+    setProjectUuid,
+    setTagFilters,
+    clearTagFilters,
+} = metricsCatalogSlice.actions;

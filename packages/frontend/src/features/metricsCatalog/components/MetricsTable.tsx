@@ -19,11 +19,16 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { ExploreMetricButton } from './ExploreMetricButton';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
+import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 
 export const MetricsTable = () => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const tagFilters = useAppSelector(
+        (state) => state.metricsCatalog.tagFilters,
+    );
+
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
@@ -45,6 +50,7 @@ export const MetricsTable = () => {
         projectUuid,
         pageSize: 20,
         search: deferredSearch,
+        catalogTags: tagFilters,
         // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
         ...(sorting.length > 0 && {
             sortBy: sorting[0].id as keyof CatalogItem,
@@ -127,11 +133,15 @@ export const MetricsTable = () => {
                 },
             },
         },
-        mantineSearchTextInputProps: {
-            placeholder: 'Search by metric name or description',
-            sx: { minWidth: '300px' },
-            variant: 'default',
+        mantineTopToolbarProps: {
+            sx: {
+                display: 'flex',
+                justifyContent: 'flex-start',
+            },
         },
+        renderTopToolbar: () => (
+            <MetricsTableTopToolbar search={search} setSearch={setSearch} />
+        ),
         positionGlobalFilter: 'left',
         enableBottomToolbar: true,
         renderBottomToolbarCustomActions: () => (
