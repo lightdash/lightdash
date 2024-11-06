@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     CatalogType,
     type CatalogItem,
+    type FieldType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -90,5 +91,12 @@ export type CatalogTagsTable = Knex.CompositeTableType<
     DbCatalogTag,
     DbCatalogTagIn
 >;
+
+export type DbCatalogTagsMigrateIn = {
+    catalog_search_uuid: string;
+    tag_uuid: string;
+    created_by_user_uuid: string | null;
+    created_at: Date;
+};
 
 export const CatalogTagsTableName = 'catalog_search_tags';
