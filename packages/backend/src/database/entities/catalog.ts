@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     CatalogType,
     type CatalogItem,
-    type FieldType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
