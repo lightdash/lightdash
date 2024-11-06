@@ -1,3 +1,10 @@
+# [0.1344.0](https://github.com/lightdash/lightdash/compare/0.1343.0...0.1344.0) (2024-11-06)
+
+
+### Features
+
+* allow creating tag for project and get tags ([#12266](https://github.com/lightdash/lightdash/issues/12266)) ([8bc8434](https://github.com/lightdash/lightdash/commit/8bc8434ef360d38d8536aa6901b29e6666b44e84))
+
 # [0.1343.0](https://github.com/lightdash/lightdash/compare/0.1342.1...0.1343.0) (2024-11-05)
 
 
