@@ -512,7 +512,14 @@ export class CatalogModel {
     }
 
     async getCatalogItemsAndTags(projectUuid: string) {
-        const itemsWithTags = await this.database(CatalogTableName)
+        const itemsWithTags: (DbCatalog & {
+            explore_base_table: string;
+            catalog_tag_uuids: {
+                tagUuid: string;
+                createdByUserUuid: string | null;
+                createdAt: Date;
+            }[];
+        })[] = await this.database(CatalogTableName)
             .column(
                 `${CatalogTableName}.catalog_search_uuid`,
                 `${CatalogTableName}.cached_explore_uuid`,

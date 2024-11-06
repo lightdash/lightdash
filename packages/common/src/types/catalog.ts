@@ -159,7 +159,7 @@ export type CatalogItemWithTagUuids = {
     projectUuid: string;
     name: string;
     type: CatalogType;
-    fieldType: FieldType;
+    fieldType?: string; // This comes from db, so it is string, this type is mostly used to compare when migrating tags
     exploreBaseTable: string;
     catalogTags: {
         tagUuid: string;
