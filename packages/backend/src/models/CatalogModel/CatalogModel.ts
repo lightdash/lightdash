@@ -6,6 +6,7 @@ import {
     NotFoundError,
     TableSelectionType,
     UnexpectedServerError,
+    type ApiCatalogSearch,
     type ApiSort,
     type CatalogFieldWhere,
     type CatalogItem,
@@ -47,11 +48,9 @@ export class CatalogModel {
 
     // Index catalog happens inside projectModel, inside `saveExploresToCache`
     async search({
-        searchQuery,
         projectUuid,
         exploreName,
-        type,
-        filter,
+        catalogSearch: { catalogTags, filter, searchQuery, type },
         limit = 50,
         excludeUnmatched = true,
         searchRankFunction = getFullTextSearchRankCalcSql,
@@ -60,11 +59,9 @@ export class CatalogModel {
         paginateArgs,
         sortArgs,
     }: {
-        searchQuery?: string;
         projectUuid: string;
         exploreName?: string;
-        filter?: CatalogFilter;
-        type?: CatalogType;
+        catalogSearch: ApiCatalogSearch;
         limit?: number;
         excludeUnmatched?: boolean;
         searchRankFunction?: (args: {
@@ -222,6 +219,7 @@ export class CatalogModel {
                 type,
             );
         }
+
         if (filter) {
             if (filter === CatalogFilter.Dimensions) {
                 catalogItemsQuery = catalogItemsQuery.andWhere(
@@ -235,6 +233,14 @@ export class CatalogModel {
                     FieldType.METRIC,
                 );
             }
+        }
+
+        if (catalogTags) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                `${CatalogTagsTableName}.tag_uuid`,
+                'in',
+                catalogTags,
+            );
         }
 
         if (excludeUnmatched && searchQuery) {

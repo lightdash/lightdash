@@ -204,9 +204,7 @@ export class CatalogService<
     private async searchCatalog(
         projectUuid: string,
         userAttributes: UserAttributeValueMap,
-        query?: string,
-        type?: CatalogType,
-        filter?: CatalogFilter,
+        catalogSearch: ApiCatalogSearch,
         paginateArgs?: KnexPaginateArgs,
         sortArgs?: ApiSort,
     ): Promise<KnexPaginatedData<CatalogItem[]>> {
@@ -218,7 +216,7 @@ export class CatalogService<
             {
                 projectUuid,
                 userAttributesSize: Object.keys(userAttributes).length,
-                query,
+                searchQuery: catalogSearch.searchQuery,
             },
             async () =>
                 wrapSentryTransaction(
@@ -227,9 +225,7 @@ export class CatalogService<
                     async () =>
                         this.catalogModel.search({
                             projectUuid,
-                            searchQuery: query,
-                            filter,
-                            type,
+                            catalogSearch,
                             paginateArgs,
                             tablesConfiguration,
                             userAttributes,
@@ -242,7 +238,7 @@ export class CatalogService<
     async getCatalog(
         user: SessionUser,
         projectUuid: string,
-        { search, type, filter }: ApiCatalogSearch,
+        catalogSearch: ApiCatalogSearch,
     ): Promise<KnexPaginatedData<(CatalogField | CatalogTable)[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -302,18 +298,16 @@ export class CatalogService<
             [],
         );
 
-        if (search) {
+        if (catalogSearch.searchQuery) {
             // On search we don't show explore errors, because they are not indexed
             return this.searchCatalog(
                 projectUuid,
                 userAttributes,
-                search,
-                type,
-                filter,
+                catalogSearch,
             );
         }
 
-        if (type === CatalogType.Field) {
+        if (catalogSearch.type === CatalogType.Field) {
             return {
                 data: await CatalogService.getCatalogFields(
                     filteredExplores,
@@ -490,7 +484,7 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
-        { search }: ApiCatalogSearch = {},
+        { searchQuery, catalogTags }: ApiCatalogSearch = {},
         sortArgs?: ApiSort,
     ): Promise<KnexPaginatedData<CatalogField[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -515,9 +509,12 @@ export class CatalogService<
         const paginatedCatalog = await this.searchCatalog(
             projectUuid,
             userAttributes,
-            search,
-            CatalogType.Field,
-            CatalogFilter.Metrics,
+            {
+                searchQuery,
+                type: CatalogType.Field,
+                filter: CatalogFilter.Metrics,
+                catalogTags,
+            },
             paginateArgs,
             sortArgs,
         );
