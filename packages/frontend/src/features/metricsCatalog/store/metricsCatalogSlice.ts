@@ -9,12 +9,14 @@ type MetricsCatalogState = {
     };
     activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
+    organizationUuid: string | undefined;
     tagFilters: CatalogField['catalogTags'][number]['tagUuid'][];
 };
 
 const initialState: MetricsCatalogState = {
     activeMetric: undefined,
     projectUuid: undefined,
+    organizationUuid: undefined,
     tagFilters: [],
     modals: {
         chartUsageModal: {
@@ -29,6 +31,9 @@ export const metricsCatalogSlice = createSlice({
     reducers: {
         setProjectUuid: (state, action: PayloadAction<string>) => {
             state.projectUuid = action.payload;
+        },
+        setOrganizationUuid: (state, action: PayloadAction<string>) => {
+            state.organizationUuid = action.payload;
         },
         setActiveMetric: (
             state,
@@ -56,4 +61,5 @@ export const {
     setProjectUuid,
     setTagFilters,
     clearTagFilters,
+    setOrganizationUuid,
 } = metricsCatalogSlice.actions;

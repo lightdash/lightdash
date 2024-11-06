@@ -20,6 +20,9 @@ export const ExploreMetricButton = ({ row }: Props) => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
+    );
     const [currentTableName, setCurrentTableName] = useState<string>();
     const { track } = useTracking();
     const { isFetching } = useExplore(currentTableName, {
@@ -51,6 +54,8 @@ export const ExploreMetricButton = ({ row }: Props) => {
         track({
             name: EventName.METRICS_CATALOG_EXPLORE_CLICKED,
             properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
                 metricName: row.original.name,
                 tableName: row.original.tableName,
             },

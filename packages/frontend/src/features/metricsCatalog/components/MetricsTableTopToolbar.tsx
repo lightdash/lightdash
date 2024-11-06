@@ -12,8 +12,10 @@ import {
 } from '@mantine/core';
 import { useListState } from '@mantine/hooks';
 import { IconSearch, IconTag, IconX } from '@tabler/icons-react';
-import { memo, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useProjectTags } from '../hooks/useCatalogTags';
 import { clearTagFilters, setTagFilters } from '../store/metricsCatalogSlice';
@@ -25,6 +27,7 @@ type Props = {
 };
 
 const TagsFilter = () => {
+    const { track } = useTracking();
     const dispatch = useAppDispatch();
     // Tracks selected tags while the popover is open - when the user closes the popover, the selected tags are set in the redux store,
     // which triggers a new search
@@ -33,6 +36,9 @@ const TagsFilter = () => {
     >([]);
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
+    );
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
     );
     const { data: tags, isLoading } = useProjectTags(projectUuid);
 
@@ -47,11 +53,26 @@ const TagsFilter = () => {
         [tags, selectedTags],
     );
 
+    const handlePopoverClose = useCallback(() => {
+        dispatch(setTagFilters(selectedTags));
+
+        // Track when tags are applied as filters
+        if (selectedTags.length > 0 && tags) {
+            track({
+                name: EventName.METRICS_CATALOG_TAG_FILTER_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                },
+            });
+        }
+    }, [dispatch, selectedTags, tags, track, projectUuid, organizationUuid]);
+
     return (
         <Group spacing="two">
             <Popover
                 width={300}
-                onClose={() => dispatch(setTagFilters(selectedTags))}
+                onClose={handlePopoverClose}
                 position="bottom-start"
             >
                 <Popover.Target>

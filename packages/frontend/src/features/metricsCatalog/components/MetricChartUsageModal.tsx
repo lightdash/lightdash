@@ -24,6 +24,9 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
+    );
 
     const { data: analytics, isLoading } = useMetricChartAnalytics({
         projectUuid,
@@ -71,6 +74,9 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
                                         track({
                                             name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED,
                                             properties: {
+                                                organizationId:
+                                                    organizationUuid,
+                                                projectId: projectUuid,
                                                 metricName: activeMetric?.name,
                                                 tableName:
                                                     activeMetric?.tableName,

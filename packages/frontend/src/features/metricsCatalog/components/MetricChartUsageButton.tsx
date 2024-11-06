@@ -5,7 +5,7 @@ import { type MRT_Row } from 'mantine-react-table';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
-import { useAppDispatch } from '../../sqlRunner/store/hooks';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setActiveMetric } from '../store/metricsCatalogSlice';
 
 export const MetricChartUsageButton = ({
@@ -14,6 +14,12 @@ export const MetricChartUsageButton = ({
     row: MRT_Row<CatalogField>;
 }) => {
     const hasChartsUsage = row.original.chartUsage ?? 0 > 0;
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
+    );
+    const projectUuid = useAppSelector(
+        (state) => state.metricsCatalog.projectUuid,
+    );
     const dispatch = useAppDispatch();
     const { track } = useTracking();
 
@@ -25,6 +31,8 @@ export const MetricChartUsageButton = ({
                     metricName: row.original.name,
                     chartCount: row.original.chartUsage ?? 0,
                     tableName: row.original.tableName,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
                 },
             });
             dispatch(setActiveMetric(row.original));

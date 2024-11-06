@@ -113,8 +113,12 @@ export enum EventName {
     COMMENTS_CLICKED = 'comments.clicked',
     NOTIFICATIONS_COMMENTS_ITEM_CLICKED = 'notifications_comments_item.clicked',
     DASHBOARD_AUTO_REFRESH_UPDATED = 'dashboard_auto_refresh.updated',
+
+    // Metrics Catalog
     METRICS_CATALOG_CHART_USAGE_CLICKED = 'metrics_catalog_chart_usage.clicked',
     METRICS_CATALOG_CHART_USAGE_CHART_CLICKED = 'metrics_catalog_chart_usage_chart.clicked',
     METRICS_CATALOG_EXPLORE_CLICKED = 'metrics_catalog_explore.clicked',
+    // TODO: Rename from tag to category
     METRICS_CATALOG_TAG_ADDED = 'metrics_catalog_category_added',
+    METRICS_CATALOG_TAG_FILTER_APPLIED = 'metrics_catalog_category_filter_applied',
 }
