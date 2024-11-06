@@ -1,3 +1,10 @@
+# [0.1345.0](https://github.com/lightdash/lightdash/compare/0.1344.0...0.1345.0) (2024-11-06)
+
+
+### Features
+
+* Show HTTP method in `lightdashApi` ([#12264](https://github.com/lightdash/lightdash/issues/12264)) ([65ba5da](https://github.com/lightdash/lightdash/commit/65ba5da32b0be9978e67fb3a3bd64de665ecf080))
+
 # [0.1344.0](https://github.com/lightdash/lightdash/compare/0.1343.0...0.1344.0) (2024-11-06)
 
 
