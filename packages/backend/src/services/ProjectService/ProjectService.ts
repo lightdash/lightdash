@@ -130,6 +130,7 @@ import { S3Client } from '../../clients/Aws/s3';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
+import type { DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -4834,7 +4835,7 @@ export class ProjectService extends BaseService {
         return { tagUuid: createdTagUuid.tag_uuid };
     }
 
-    async deleteTag(user: SessionUser, projectUuid: string, tagUuid: string) {
+    async deleteTag(user: SessionUser, tagUuid: string) {
         const tag = await this.tagsModel.get(tagUuid);
 
         if (!tag) {
@@ -4858,6 +4859,36 @@ export class ProjectService extends BaseService {
         }
 
         await this.tagsModel.delete(tagUuid);
+    }
+
+    async updateTag(
+        user: SessionUser,
+        tagUuid: string,
+        tagUpdate: DbTagUpdate,
+    ) {
+        const tag = await this.tagsModel.get(tagUuid);
+
+        if (!tag) {
+            throw new NotFoundError('Tag not found');
+        }
+
+        const { organizationUuid } = await this.projectModel.getSummary(
+            tag.projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Tags', {
+                    projectUuid: tag.projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.tagsModel.update(tagUuid, tagUpdate);
     }
 
     async getTags(user: SessionUser, projectUuid: string) {

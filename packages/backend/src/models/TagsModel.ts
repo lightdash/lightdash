@@ -4,6 +4,7 @@ import {
     convertTagRow,
     TagsTableName,
     type DbTagIn,
+    type DbTagUpdate,
 } from '../database/entities/tags';
 import { UserTableName } from '../database/entities/users';
 
@@ -18,11 +19,18 @@ export class TagsModel {
         const [result] = await this.database(TagsTableName)
             .insert(tagIn)
             .returning('tag_uuid');
+
         return result;
     }
 
     async delete(tagUuid: string) {
         return this.database(TagsTableName).where('tag_uuid', tagUuid).delete();
+    }
+
+    async update(tagUuid: string, tagUpdate: DbTagUpdate) {
+        await this.database(TagsTableName)
+            .where('tag_uuid', tagUuid)
+            .update(tagUpdate);
     }
 
     async get(tagUuid: string): Promise<Tag | undefined> {
