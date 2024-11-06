@@ -214,7 +214,7 @@ export class GoogleDriveClient {
 
     static formatCell(
         value: any,
-        item: Field | TableCalculation | CustomDimension | Metric,
+        item?: Field | TableCalculation | CustomDimension | Metric,
     ) {
         // We don't want to use formatItemValue directly because the format for some types on Gsheets
         // is different to what we use to present the data in the UI (eg: timestamps, currencies)
