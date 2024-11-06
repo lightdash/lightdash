@@ -10,7 +10,7 @@ import { lightdashApi } from '../../../api';
 type UseMetricsCatalogOptions = {
     projectUuid?: string;
     search?: string;
-    // TODO: update with the expected sort options that the backend can handle; also, update to a different type when multiple sorting is enabled
+    catalogTags?: string[];
     sortBy?: ApiSort['sort'] | 'name' | 'chartUsage';
     sortDirection?: ApiSort['order'];
 };
@@ -18,13 +18,18 @@ type UseMetricsCatalogOptions = {
 const getMetricsCatalog = async ({
     projectUuid,
     search,
+    catalogTags,
     paginateArgs,
     sortBy,
     sortDirection,
 }: {
     projectUuid: string;
     paginateArgs?: KnexPaginateArgs;
-} & Pick<UseMetricsCatalogOptions, 'search' | 'sortBy' | 'sortDirection'>) => {
+} & Pick<
+    UseMetricsCatalogOptions,
+    'search' | 'catalogTags' | 'sortBy' | 'sortDirection'
+>) => {
+    console.log('catalogTags', catalogTags);
     const urlParams = new URLSearchParams({
         ...(paginateArgs
             ? {
@@ -35,11 +40,15 @@ const getMetricsCatalog = async ({
         ...(search ? { search } : {}),
         ...(sortBy ? { sort: sortBy } : {}),
         ...(sortDirection ? { order: sortDirection } : {}),
-    }).toString();
+    });
+
+    if (catalogTags && catalogTags.length > 0) {
+        catalogTags.forEach((tag) => urlParams.append('catalogTags', tag));
+    }
 
     return lightdashApi<ApiMetricsCatalog['results']>({
         url: `/projects/${projectUuid}/dataCatalog/metrics${
-            urlParams ? `?${urlParams}` : ''
+            urlParams.toString() ? `?${urlParams.toString()}` : ''
         }`,
         method: 'GET',
         body: undefined,
@@ -51,6 +60,7 @@ export const useMetricsCatalog = ({
     search,
     sortBy,
     sortDirection,
+    catalogTags,
     pageSize,
 }: UseMetricsCatalogOptions & Pick<KnexPaginateArgs, 'pageSize'>) => {
     return useInfiniteQuery<ApiMetricsCatalog['results'], ApiError>({
@@ -61,6 +71,7 @@ export const useMetricsCatalog = ({
             search,
             sortBy,
             sortDirection,
+            catalogTags,
         ],
         queryFn: ({ pageParam }) =>
             getMetricsCatalog({
@@ -68,6 +79,7 @@ export const useMetricsCatalog = ({
                 search,
                 sortBy,
                 sortDirection,
+                catalogTags,
                 paginateArgs: {
                     page: pageParam ?? 1,
                     pageSize,
