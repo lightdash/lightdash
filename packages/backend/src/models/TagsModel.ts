@@ -15,7 +15,10 @@ export class TagsModel {
     }
 
     async create(tagIn: DbTagIn) {
-        return this.database(TagsTableName).insert(tagIn).returning('tag_uuid');
+        const [result] = await this.database(TagsTableName)
+            .insert(tagIn)
+            .returning('tag_uuid');
+        return result;
     }
 
     async delete(tagUuid: string) {

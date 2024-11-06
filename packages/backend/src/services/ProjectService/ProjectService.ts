@@ -4824,14 +4824,14 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const [tag] = await this.tagsModel.create({
+        const createdTagUuid = await this.tagsModel.create({
             project_uuid: projectUuid,
             name,
             color,
             created_by_user_uuid: user.userUuid,
         });
 
-        return { tagUuid: tag.tag_uuid };
+        return { tagUuid: createdTagUuid.tag_uuid };
     }
 
     async deleteTag(user: SessionUser, projectUuid: string, tagUuid: string) {
