@@ -177,8 +177,6 @@ export const useDeleteTag = () => {
             await queryClient.invalidateQueries(['metrics-catalog']);
             await queryClient.invalidateQueries(['project-tags']);
         },
-        onError: (error) => {
-            console.error('Failed to delete tag:', error);
-        },
+        // TODO: show error toast on error
     });
 };
