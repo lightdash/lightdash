@@ -6763,6 +6763,21 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Partial_Pick_DbTag.name-or-color__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "DbTagUpdate": {
+                "$ref": "#/components/schemas/Partial_Pick_DbTag.name-or-color__"
+            },
             "Pick_LightdashUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -10919,7 +10934,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1343.0",
+        "version": "0.1344.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -14967,12 +14982,41 @@
                 "parameters": [
                     {
                         "in": "path",
-                        "name": "projectUuid",
+                        "name": "tagUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
                         }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateTag",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
                     },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
                     {
                         "in": "path",
                         "name": "tagUuid",
@@ -14981,7 +15025,17 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DbTagUpdate"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/explores/{exploreId}/runUnderlyingDataQuery": {

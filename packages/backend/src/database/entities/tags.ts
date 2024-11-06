@@ -16,7 +16,9 @@ export type DbTagIn = Pick<
     'project_uuid' | 'name' | 'color' | 'created_by_user_uuid'
 >;
 
-export type TagsTable = Knex.CompositeTableType<DbTag, DbTagIn>;
+export type DbTagUpdate = Partial<Pick<DbTag, 'name' | 'color'>>;
+
+export type TagsTable = Knex.CompositeTableType<DbTag, DbTagIn, DbTagUpdate>;
 
 export const TagsTableName = 'tags';
 

@@ -49,6 +49,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import type { DbTagUpdate } from '../database/entities/tags';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -748,16 +749,35 @@ export class ProjectController extends BaseController {
     @SuccessResponse('204', 'Deleted')
     @Delete('{projectUuid}/tags/{tagUuid}')
     @OperationId('deleteTag')
-    async deleteTag(
-        @Path() projectUuid: string,
-        @Path() tagUuid: string,
-        @Request() req: express.Request,
-    ) {
-        await this.services
-            .getProjectService()
-            .deleteTag(req.user!, projectUuid, tagUuid);
+    async deleteTag(@Path() tagUuid: string, @Request() req: express.Request) {
+        await this.services.getProjectService().deleteTag(req.user!, tagUuid);
 
         this.setStatus(204);
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/tags/{tagUuid}')
+    @OperationId('updateTag')
+    async updateTag(
+        @Path() tagUuid: string,
+        @Body() body: DbTagUpdate,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getProjectService()
+            .updateTag(req.user!, tagUuid, body);
+
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
     }
 
     @Middlewares([
