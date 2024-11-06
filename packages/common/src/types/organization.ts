@@ -53,6 +53,7 @@ export type OrganizationProject = {
     name: string;
     type: ProjectType;
     createdByUserUuid: string | null;
+    upstreamProjectUuid: string | null;
     warehouseType: WarehouseTypes;
     requireUserCredentials: boolean;
 };

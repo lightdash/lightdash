@@ -256,9 +256,10 @@ export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',
     name: 'name',
     type: ProjectType.DEFAULT,
+    createdByUserUuid: user.userUuid,
+    upstreamProjectUuid: null,
     warehouseType: WarehouseTypes.POSTGRES,
     requireUserCredentials: false,
-    createdByUserUuid: user.userUuid,
 };
 
 export const spacesWithSavedCharts: Space[] = [
