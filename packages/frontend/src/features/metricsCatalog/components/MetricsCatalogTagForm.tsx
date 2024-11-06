@@ -10,7 +10,14 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconPlus, IconRefresh } from '@tabler/icons-react';
-import { memo, useCallback, useEffect, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
@@ -22,6 +29,7 @@ import {
 } from '../hooks/useCatalogTags';
 import { getRandomColor } from '../utils/getRandomTagColor';
 import { CatalogTag } from './CatalogTag';
+import { MetricCatalogTagFormItem } from './MetricCatalogTagFormItem';
 
 type Props = {
     catalogSearchUuid: string;
@@ -119,6 +127,29 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
             [projectUuid, catalogSearchUuid, untagCatalogItemMutation],
         );
 
+        const filteredExistingTags = useMemo(
+            () =>
+                metricTags.filter((tag) =>
+                    tag.name.toLowerCase().includes(search.toLowerCase()),
+                ),
+            [metricTags, search],
+        );
+
+        const filteredAvailableTags = useMemo(
+            () =>
+                tags
+                    ?.filter((tag) =>
+                        tag.name.toLowerCase().includes(search.toLowerCase()),
+                    )
+                    .filter(
+                        (tag) =>
+                            !metricTags.some(
+                                (mt) => mt.tagUuid === tag.tagUuid,
+                            ),
+                    ),
+            [tags, search, metricTags],
+        );
+
         return (
             <Popover
                 opened={opened}
@@ -213,33 +244,19 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                                 overflow: 'auto',
                             }}
                         >
-                            {tags
-                                ?.filter((tag) =>
-                                    tag.name
-                                        .toLowerCase()
-                                        .includes(search.toLowerCase()),
-                                )
-                                .filter(
-                                    (tag) =>
-                                        !metricTags.some(
-                                            (mt) => mt.tagUuid === tag.tagUuid,
-                                        ),
-                                )
-                                .map((tag) => (
-                                    <Group
-                                        key={tag.tagUuid}
-                                        spacing={4}
-                                        position="apart"
-                                    >
-                                        <CatalogTag
-                                            tag={tag}
-                                            onTagClick={() =>
-                                                handleAddTag(tag.name)
-                                            }
-                                        />
-                                        {/* TODO: Implement tag deletion from project */}
-                                    </Group>
-                                ))}
+                            {filteredExistingTags.map((tag) => (
+                                <MetricCatalogTagFormItem
+                                    key={tag.tagUuid}
+                                    tag={tag}
+                                />
+                            ))}
+                            {filteredAvailableTags?.map((tag) => (
+                                <MetricCatalogTagFormItem
+                                    key={tag.tagUuid}
+                                    tag={tag}
+                                    onTagClick={() => handleAddTag(tag.name)}
+                                />
+                            ))}
                         </Stack>
                         {search && !tags?.some((tag) => tag.name === search) && (
                             <Button
