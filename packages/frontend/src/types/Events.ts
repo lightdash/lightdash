@@ -116,4 +116,5 @@ export enum EventName {
     METRICS_CATALOG_CHART_USAGE_CLICKED = 'metrics_catalog_chart_usage.clicked',
     METRICS_CATALOG_CHART_USAGE_CHART_CLICKED = 'metrics_catalog_chart_usage_chart.clicked',
     METRICS_CATALOG_EXPLORE_CLICKED = 'metrics_catalog_explore.clicked',
+    METRICS_CATALOG_TAG_ADDED = 'metrics_catalog_category_added',
 }

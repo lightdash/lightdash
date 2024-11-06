@@ -61,7 +61,8 @@ type GenericEvent = {
         | EventName.DASHBOARD_AUTO_REFRESH_UPDATED
         | EventName.METRICS_CATALOG_CHART_USAGE_CLICKED
         | EventName.METRICS_CATALOG_EXPLORE_CLICKED
-        | EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED;
+        | EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED
+        | EventName.METRICS_CATALOG_TAG_ADDED;
     properties?: {};
 };
 
@@ -199,6 +200,15 @@ type MetricsCatalogChartUsageChartClickedEvent = {
     };
 };
 
+type MetricsCatalogTagAddedEvent = {
+    name: EventName.METRICS_CATALOG_TAG_ADDED;
+    properties: {
+        metricName: string;
+        tagName: string;
+        isNewTag: boolean;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -214,7 +224,8 @@ export type EventData =
     | DashboardAutoRefreshUpdateEvent
     | MetricsCatalogChartUsageClickedEvent
     | MetricsCatalogExploreClickedEvent
-    | MetricsCatalogChartUsageChartClickedEvent;
+    | MetricsCatalogChartUsageChartClickedEvent
+    | MetricsCatalogTagAddedEvent;
 
 type IdentifyData = {
     id: string;
