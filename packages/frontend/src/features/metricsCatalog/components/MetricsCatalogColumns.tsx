@@ -1,8 +1,11 @@
 import { type CatalogField } from '@lightdash/common';
-import { Highlight, HoverCard, Text } from '@mantine/core';
+import { Group, Highlight, HoverCard, Text } from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
+import { useMemo } from 'react';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
+import { MetricsCatalogTagForm } from './MetricsCatalogTagForm';
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
@@ -53,6 +56,27 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         enableSorting: false,
         size: 150,
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
+    },
+    {
+        accessorKey: 'catalogTags',
+        header: 'Tags',
+        enableSorting: false,
+        size: 150,
+        minSize: 180,
+        Cell: ({ row }) => {
+            const { hovered, ref } = useHover();
+            const tags = useMemo(() => row.original.catalogTags ?? [], [row]);
+
+            return (
+                <Group spacing="two" ref={ref} pos="relative" w="100%" h="100%">
+                    {/* TODO: Add tags here  */}
+                    <MetricsCatalogTagForm
+                        metricTags={tags}
+                        hovered={hovered}
+                    />
+                </Group>
+            );
+        },
     },
     {
         accessorKey: 'chartUsage',
