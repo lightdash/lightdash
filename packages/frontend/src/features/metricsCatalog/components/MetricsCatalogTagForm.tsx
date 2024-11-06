@@ -10,6 +10,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconPlus, IconRefresh } from '@tabler/icons-react';
+import { differenceBy, filter, includes } from 'lodash';
 import {
     memo,
     useCallback,
@@ -127,26 +128,24 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
             [projectUuid, catalogSearchUuid, untagCatalogItemMutation],
         );
 
+        // Filter existing tags that are already applied to this metric
+        // Returns tags whose names match the search term (case insensitive)
         const filteredExistingTags = useMemo(
             () =>
-                metricTags.filter((tag) =>
-                    tag.name.toLowerCase().includes(search.toLowerCase()),
+                filter(metricTags, (tag) =>
+                    includes(tag.name.toLowerCase(), search.toLowerCase()),
                 ),
             [metricTags, search],
         );
 
+        // Filter available tags that can be applied to this metric
+        // 1. Get tags that aren't already applied (using differenceBy)
+        // 2. Filter remaining tags to match search term (case insensitive)
         const filteredAvailableTags = useMemo(
             () =>
-                tags
-                    ?.filter((tag) =>
-                        tag.name.toLowerCase().includes(search.toLowerCase()),
-                    )
-                    .filter(
-                        (tag) =>
-                            !metricTags.some(
-                                (mt) => mt.tagUuid === tag.tagUuid,
-                            ),
-                    ),
+                filter(differenceBy(tags, metricTags, 'tagUuid'), (tag) =>
+                    includes(tag.name.toLowerCase(), search.toLowerCase()),
+                ),
             [tags, search, metricTags],
         );
 
