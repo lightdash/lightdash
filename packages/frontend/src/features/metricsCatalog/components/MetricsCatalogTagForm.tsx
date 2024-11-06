@@ -27,11 +27,10 @@ type Props = {
     catalogSearchUuid: string;
     metricTags: CatalogField['catalogTags'];
     hovered: boolean;
-    leftAligned?: boolean;
 };
 
 export const MetricsCatalogTagForm: FC<Props> = memo(
-    ({ catalogSearchUuid, metricTags, hovered, leftAligned }) => {
+    ({ catalogSearchUuid, metricTags, hovered }) => {
         const { colors } = useMantineTheme();
         const projectUuid = useAppSelector(
             (state) => state.metricsCatalog.projectUuid,
@@ -142,6 +141,10 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                                 icon={IconPlus}
                             />
                         }
+                        fz={10}
+                        right={0}
+                        bottom={0}
+                        left="auto"
                         styles={(theme) => ({
                             leftIcon: {
                                 marginRight: 4,
@@ -150,20 +153,6 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                                 border: `dashed 1px ${theme.colors.gray[4]}`,
                                 visibility:
                                     hovered || opened ? 'visible' : 'hidden',
-                                fontSize: '10px',
-                                ...(leftAligned
-                                    ? {
-                                          left: 0,
-                                          right: 'auto',
-                                          top: '50%',
-                                          transform: 'translateY(-50%)',
-                                          bottom: 'auto',
-                                      }
-                                    : {
-                                          right: 0,
-                                          left: 'auto',
-                                          bottom: 0,
-                                      }),
                             },
                         })}
                         onClick={() => setOpened((prev) => !prev)}
