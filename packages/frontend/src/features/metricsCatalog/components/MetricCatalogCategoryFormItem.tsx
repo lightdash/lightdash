@@ -125,11 +125,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
 
     return (
         <Group spacing={4} position="apart" w="100%">
-            <CatalogCategory
-                category={category}
-                onClick={onClick}
-                onRemove={onDelete}
-            />
+            <CatalogCategory category={category} onClick={onClick} />
             <ActionIcon
                 size="xs"
                 variant="subtle"
