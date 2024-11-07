@@ -498,9 +498,11 @@ export class ProjectService extends BaseService {
         explores: (Explore | ExploreError)[],
     ) {
         // We delete the explores when saving to cache which cascades to the catalog
-        // So we need to get the current catalog before deleting the explores (to do a best effort re-tag)
+        // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag)
         const prevCatalogItemsWithTags =
-            await this.catalogModel.getCatalogItemsWithTags(projectUuid);
+            await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
+                onlyTagged: true, // We only need the tagged catalog items
+            });
 
         await this.projectModel.saveExploresToCache(projectUuid, explores);
 

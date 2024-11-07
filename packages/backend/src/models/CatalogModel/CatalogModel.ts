@@ -511,15 +511,13 @@ export class CatalogModel {
             .delete();
     }
 
-    async getCatalogItemsWithTags(projectUuid: string) {
-        const itemsWithTags: (DbCatalog & {
-            explore_base_table: string;
-            catalog_tag_uuids: {
-                tagUuid: string;
-                createdByUserUuid: string | null;
-                createdAt: Date;
-            }[];
-        })[] = await this.database(CatalogTableName)
+    async getCatalogItemsWithTags(
+        projectUuid: string,
+        opts?: { onlyTagged?: boolean },
+    ) {
+        const { onlyTagged = false } = opts ?? {};
+
+        let query = this.database(CatalogTableName)
             .column(
                 `${CatalogTableName}.catalog_search_uuid`,
                 `${CatalogTableName}.cached_explore_uuid`,
@@ -546,15 +544,26 @@ export class CatalogModel {
                 },
             )
             .leftJoin(
-                CatalogTagsTableName,
-                `${CatalogTableName}.catalog_search_uuid`,
-                `${CatalogTagsTableName}.catalog_search_uuid`,
-            )
-            .leftJoin(
                 CachedExploreTableName,
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
-            )
+            );
+
+        if (onlyTagged) {
+            query = query.innerJoin(
+                CatalogTagsTableName,
+                `${CatalogTableName}.catalog_search_uuid`,
+                `${CatalogTagsTableName}.catalog_search_uuid`,
+            );
+        } else {
+            query = query.leftJoin(
+                CatalogTagsTableName,
+                `${CatalogTableName}.catalog_search_uuid`,
+                `${CatalogTagsTableName}.catalog_search_uuid`,
+            );
+        }
+
+        query = query
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
             .groupBy(
                 `${CatalogTableName}.catalog_search_uuid`,
@@ -565,6 +574,15 @@ export class CatalogModel {
                 `${CatalogTableName}.field_type`,
                 `explore_base_table`,
             );
+
+        const itemsWithTags: (DbCatalog & {
+            explore_base_table: string;
+            catalog_tag_uuids: {
+                tagUuid: string;
+                createdByUserUuid: string | null;
+                createdAt: Date;
+            }[];
+        })[] = await query;
 
         return itemsWithTags.map<CatalogItemWithTagUuids>((i) => ({
             catalogSearchUuid: i.catalog_search_uuid,

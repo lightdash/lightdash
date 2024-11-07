@@ -272,6 +272,7 @@ export class CatalogService<
         projectUuid: string,
         prevCatalogItemsWithTags: CatalogItemWithTagUuids[],
     ) {
+        // Get all catalog items so we can match them with the previous catalog items
         const currentCatalogItems =
             await this.catalogModel.getCatalogItemsWithTags(projectUuid);
 
@@ -285,7 +286,7 @@ export class CatalogService<
                     type: currentType,
                     catalogSearchUuid: currentCatalogSearchUuid,
                 }) => {
-                    // Just a safeguard, this should never happen since the getCatalogItemsWithTags query is scoped to the project
+                    // Just a safeguard, this should never happen since the getTaggedCatalogItems query is scoped to the project
                     if (projectUuid !== currentProjectUuid) {
                         return [];
                     }
@@ -305,10 +306,7 @@ export class CatalogService<
                             prevProjectUuid === currentProjectUuid,
                     );
 
-                    if (
-                        prevCatalogItem &&
-                        prevCatalogItem.catalogTags.length > 0
-                    ) {
+                    if (prevCatalogItem) {
                         // Pass the current catalog item uuid with the old tags
                         return prevCatalogItem.catalogTags.map(
                             ({
