@@ -10,7 +10,7 @@ import { lightdashApi } from '../../../api';
 type UseMetricsCatalogOptions = {
     projectUuid?: string;
     search?: string;
-    catalogTags?: string[];
+    categories?: string[];
     sortBy?: ApiSort['sort'] | 'name' | 'chartUsage';
     sortDirection?: ApiSort['order'];
 };
@@ -18,7 +18,7 @@ type UseMetricsCatalogOptions = {
 const getMetricsCatalog = async ({
     projectUuid,
     search,
-    catalogTags,
+    categories,
     paginateArgs,
     sortBy,
     sortDirection,
@@ -27,7 +27,7 @@ const getMetricsCatalog = async ({
     paginateArgs?: KnexPaginateArgs;
 } & Pick<
     UseMetricsCatalogOptions,
-    'search' | 'catalogTags' | 'sortBy' | 'sortDirection'
+    'search' | 'categories' | 'sortBy' | 'sortDirection'
 >) => {
     const urlParams = new URLSearchParams({
         ...(paginateArgs
@@ -41,8 +41,10 @@ const getMetricsCatalog = async ({
         ...(sortDirection ? { order: sortDirection } : {}),
     });
 
-    if (catalogTags && catalogTags.length > 0) {
-        catalogTags.forEach((tag) => urlParams.append('catalogTags', tag));
+    if (categories && categories.length > 0) {
+        categories.forEach((category) =>
+            urlParams.append('categories', category),
+        );
     }
 
     return lightdashApi<ApiMetricsCatalog['results']>({
@@ -59,7 +61,7 @@ export const useMetricsCatalog = ({
     search,
     sortBy,
     sortDirection,
-    catalogTags,
+    categories,
     pageSize,
 }: UseMetricsCatalogOptions & Pick<KnexPaginateArgs, 'pageSize'>) => {
     return useInfiniteQuery<ApiMetricsCatalog['results'], ApiError>({
@@ -70,7 +72,7 @@ export const useMetricsCatalog = ({
             search,
             sortBy,
             sortDirection,
-            catalogTags,
+            categories,
         ],
         queryFn: ({ pageParam }) =>
             getMetricsCatalog({
@@ -78,7 +80,7 @@ export const useMetricsCatalog = ({
                 search,
                 sortBy,
                 sortDirection,
-                catalogTags,
+                categories,
                 paginateArgs: {
                     page: pageParam ?? 1,
                     pageSize,

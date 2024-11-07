@@ -25,23 +25,22 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import {
-    useCreateTag,
-    useProjectTags,
-    useTagCatalogItem,
-    useUntagCatalogItem,
-} from '../hooks/useCatalogTags';
+    useAddCategoryToCatalogItem,
+    useRemoveCategoryFromCatalogItem,
+} from '../hooks/useCatalogCategories';
+import { useCreateTag, useProjectTags } from '../hooks/useProjectTags';
 import { getRandomColor } from '../utils/getRandomTagColor';
-import { CatalogTag } from './CatalogTag';
-import { MetricCatalogTagFormItem } from './MetricCatalogTagFormItem';
+import { CatalogCategory } from './CatalogCategory';
+import { MetricCatalogCategoryFormItem } from './MetricCatalogCategoryFormItem';
 
 type Props = {
     catalogSearchUuid: string;
-    metricTags: CatalogField['catalogTags'];
+    metricCategories: CatalogField['categories'];
     hovered: boolean;
 };
 
-export const MetricsCatalogTagForm: FC<Props> = memo(
-    ({ catalogSearchUuid, metricTags, hovered }) => {
+export const MetricsCatalogCategoryForm: FC<Props> = memo(
+    ({ catalogSearchUuid, metricCategories, hovered }) => {
         const { track } = useTracking();
         const { colors } = useMantineTheme();
         const projectUuid = useAppSelector(
@@ -56,8 +55,8 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
 
         const { data: tags } = useProjectTags(projectUuid);
         const createTagMutation = useCreateTag();
-        const tagCatalogItemMutation = useTagCatalogItem();
-        const untagCatalogItemMutation = useUntagCatalogItem();
+        const tagCatalogItemMutation = useAddCategoryToCatalogItem();
+        const untagCatalogItemMutation = useRemoveCategoryFromCatalogItem();
 
         // Generate new color when popover opens
         useEffect(() => {
@@ -107,7 +106,7 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                     }
 
                     track({
-                        name: EventName.METRICS_CATALOG_TAG_CLICKED,
+                        name: EventName.METRICS_CATALOG_CATEGORY_CLICKED,
                         properties: {
                             organizationId: organizationUuid,
                             projectId: projectUuid,
@@ -148,23 +147,28 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
 
         // Filter existing tags that are already applied to this metric
         // Returns tags whose names match the search term (case insensitive)
-        const filteredExistingTags = useMemo(
+        const filteredExistingCategories = useMemo(
             () =>
-                filter(metricTags, (tag) =>
-                    includes(tag.name.toLowerCase(), search.toLowerCase()),
+                filter(metricCategories, (category) =>
+                    includes(category.name.toLowerCase(), search.toLowerCase()),
                 ),
-            [metricTags, search],
+            [metricCategories, search],
         );
 
         // Filter available tags that can be applied to this metric
         // 1. Get tags that aren't already applied (using differenceBy)
         // 2. Filter remaining tags to match search term (case insensitive)
-        const filteredAvailableTags = useMemo(
+        const filteredAvailableCategories = useMemo(
             () =>
-                filter(differenceBy(tags, metricTags, 'tagUuid'), (tag) =>
-                    includes(tag.name.toLowerCase(), search.toLowerCase()),
+                filter(
+                    differenceBy(tags, metricCategories, 'tagUuid'),
+                    (category) =>
+                        includes(
+                            category.name.toLowerCase(),
+                            search.toLowerCase(),
+                        ),
                 ),
-            [tags, search, metricTags],
+            [tags, search, metricCategories],
         );
 
         return (
@@ -211,7 +215,9 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                 </Popover.Target>
                 <Popover.Dropdown p="xs">
                     <TagInput
-                        value={metricTags.map((tag) => tag.name)}
+                        value={metricCategories.map(
+                            (category) => category.name,
+                        )}
                         placeholder="Search"
                         size="xs"
                         mb="xs"
@@ -226,18 +232,20 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                         }}
                         valueComponent={({ value, onRemove }) => (
                             <Box mx={2}>
-                                <CatalogTag
-                                    tag={{
+                                <CatalogCategory
+                                    category={{
                                         name: value,
                                         color:
-                                            metricTags.find(
-                                                (tag) => tag.name === value,
+                                            metricCategories.find(
+                                                (category) =>
+                                                    category.name === value,
                                             )?.color ?? getRandomColor(colors),
                                     }}
                                     onRemove={() => {
                                         onRemove(value);
-                                        const tagUuid = metricTags.find(
-                                            (tag) => tag.name === value,
+                                        const tagUuid = metricCategories.find(
+                                            (category) =>
+                                                category.name === value,
                                         )?.tagUuid;
                                         if (tagUuid) {
                                             void handleUntag(tagUuid);
@@ -261,17 +269,19 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                                 overflow: 'auto',
                             }}
                         >
-                            {filteredExistingTags.map((tag) => (
-                                <MetricCatalogTagFormItem
-                                    key={tag.tagUuid}
-                                    tag={tag}
+                            {filteredExistingCategories.map((category) => (
+                                <MetricCatalogCategoryFormItem
+                                    key={category.tagUuid}
+                                    category={category}
                                 />
                             ))}
-                            {filteredAvailableTags?.map((tag) => (
-                                <MetricCatalogTagFormItem
-                                    key={tag.tagUuid}
-                                    tag={tag}
-                                    onTagClick={() => handleAddTag(tag.name)}
+                            {filteredAvailableCategories?.map((category) => (
+                                <MetricCatalogCategoryFormItem
+                                    key={category.tagUuid}
+                                    category={category}
+                                    onTagClick={() =>
+                                        handleAddTag(category.name)
+                                    }
                                 />
                             ))}
                         </Stack>
@@ -307,8 +317,8 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                                 <Group spacing={4}>
                                     <Text>Create</Text>
                                     {tagColor && (
-                                        <CatalogTag
-                                            tag={{
+                                        <CatalogCategory
+                                            category={{
                                                 name: search,
                                                 color: tagColor,
                                             }}

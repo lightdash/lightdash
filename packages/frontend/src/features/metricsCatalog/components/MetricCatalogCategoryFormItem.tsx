@@ -12,42 +12,45 @@ import { IconDots, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { useDeleteTag, useUpdateTag } from '../hooks/useCatalogTags';
+import { useDeleteTag, useUpdateTag } from '../hooks/useProjectTags';
 import { getRandomColor } from '../utils/getRandomTagColor';
-import { CatalogTag } from './CatalogTag';
+import { CatalogCategory } from './CatalogCategory';
 
 type Props = {
-    tag: CatalogItem['catalogTags'][number];
+    category: CatalogItem['categories'][number];
     onTagClick?: () => void;
 };
 
-export const MetricCatalogTagFormItem: FC<Props> = ({ tag, onTagClick }) => {
+export const MetricCatalogCategoryFormItem: FC<Props> = ({
+    category,
+    onTagClick,
+}) => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
     const { mutateAsync: updateTag } = useUpdateTag();
     const { mutateAsync: deleteTag } = useDeleteTag();
     const [isEditing, setIsEditing] = useState(false);
-    const [editName, setEditName] = useState(tag.name);
-    const [editColor, setEditColor] = useState(tag.color);
+    const [editName, setEditName] = useState(category.name);
+    const [editColor, setEditColor] = useState(category.color);
     const { colors } = useMantineTheme();
 
     const handleSave = useCallback(async () => {
-        if (tag.tagUuid && projectUuid) {
+        if (category.tagUuid && projectUuid) {
             await updateTag({
                 projectUuid,
-                tagUuid: tag.tagUuid,
+                tagUuid: category.tagUuid,
                 data: { name: editName, color: editColor },
             });
         }
         setIsEditing(false);
-    }, [editColor, editName, projectUuid, tag.tagUuid, updateTag]);
+    }, [editColor, editName, projectUuid, category.tagUuid, updateTag]);
 
     const onDelete = useCallback(async () => {
-        if (tag.tagUuid && projectUuid) {
-            await deleteTag({ projectUuid, tagUuid: tag.tagUuid });
+        if (category.tagUuid && projectUuid) {
+            await deleteTag({ projectUuid, tagUuid: category.tagUuid });
         }
-    }, [deleteTag, projectUuid, tag.tagUuid]);
+    }, [deleteTag, projectUuid, category.tagUuid]);
 
     if (isEditing) {
         return (
@@ -80,8 +83,8 @@ export const MetricCatalogTagFormItem: FC<Props> = ({ tag, onTagClick }) => {
                                 </ActionIcon>
                             </HoverCard.Target>
                             <HoverCard.Dropdown>
-                                <CatalogTag
-                                    tag={{
+                                <CatalogCategory
+                                    category={{
                                         color: editColor,
                                         name: editName,
                                     }}
@@ -122,7 +125,11 @@ export const MetricCatalogTagFormItem: FC<Props> = ({ tag, onTagClick }) => {
 
     return (
         <Group spacing={4} position="apart" w="100%">
-            <CatalogTag tag={tag} onTagClick={onTagClick} />
+            <CatalogCategory
+                category={category}
+                onTagClick={onTagClick}
+                onRemove={onDelete}
+            />
             <ActionIcon
                 size="xs"
                 variant="subtle"
