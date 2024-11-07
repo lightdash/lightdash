@@ -1,3 +1,10 @@
+## [0.1352.1](https://github.com/lightdash/lightdash/compare/0.1352.0...0.1352.1) (2024-11-07)
+
+
+### Bug Fixes
+
+* make search query default '' ([#12303](https://github.com/lightdash/lightdash/issues/12303)) ([a142211](https://github.com/lightdash/lightdash/commit/a1422116da40f2d0bedc906b4e1de08338a6a9f8))
+
 # [0.1352.0](https://github.com/lightdash/lightdash/compare/0.1351.1...0.1352.0) (2024-11-07)
 
 
