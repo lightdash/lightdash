@@ -151,6 +151,8 @@ With Lightdash, we offer a free self-hosted service (it's all just open source!)
 Have a question about a feature? Or maybe fancy some light reading? Head on over to
 our [Lightdash documentation](https://docs.lightdash.com/) to check out our tutorials, reference docs, FAQs and more.
 
+You can also [Ask Lightdash Guru](https://gurubase.io/g/lightdash), it is a Lightdash-focused AI to answer your questions.
+
 ## Reporting bugs and feature requests
 
 Want to report a bug or request a feature? Open an [issue](https://github.com/lightdash/lightdash/issues/new/choose).
