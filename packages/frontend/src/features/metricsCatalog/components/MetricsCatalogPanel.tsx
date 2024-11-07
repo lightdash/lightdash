@@ -59,8 +59,6 @@ export const MetricsCatalogPanel = () => {
                     }),
                 );
 
-                console.log({ canManageTags });
-
                 dispatch(setAbility({ canManageTags }));
             }
         },
