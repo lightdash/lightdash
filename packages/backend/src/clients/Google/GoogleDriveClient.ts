@@ -1,7 +1,15 @@
 import {
+    CustomDimension,
+    DimensionType,
+    Field,
+    formatDate,
     getItemLabel,
     getItemLabelWithoutTableName,
+    isDimension,
+    isField,
     ItemsMap,
+    Metric,
+    TableCalculation,
 } from '@lightdash/common';
 import { google, sheets_v4 } from 'googleapis';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -204,7 +212,12 @@ export class GoogleDriveClient {
         }
     }
 
-    static formatCell(value: any) {
+    static formatCell(
+        value: any,
+        item?: Field | TableCalculation | CustomDimension | Metric,
+    ) {
+        // We don't want to use formatItemValue directly because the format for some types on Gsheets
+        // is different to what we use to present the data in the UI (eg: timestamps, currencies)
         if (Array.isArray(value)) {
             return value.join(',');
         }
@@ -213,6 +226,13 @@ export class GoogleDriveClient {
         }
         if (value instanceof Set) {
             return [...value].join(',');
+        }
+
+        if (isField(item) && item.type === DimensionType.DATE) {
+            const timeInterval = isDimension(item)
+                ? item.timeInterval
+                : undefined;
+            return formatDate(value, timeInterval);
         }
         // Return the string representation of the Object Wrappers for Primitive Types
         if (
@@ -223,6 +243,7 @@ export class GoogleDriveClient {
         ) {
             return value.valueOf();
         }
+
         if (value && typeof value === 'object' && !(value instanceof Date)) {
             return JSON.stringify(value);
         }
@@ -278,9 +299,10 @@ export class GoogleDriveClient {
 
         const values = csvContent.map((row) =>
             sortedFieldIds.map((fieldId) => {
+                const item = itemMap[fieldId];
                 // Google sheet doesn't like arrays as values, so we need to convert them to strings
                 const value = row[fieldId];
-                return GoogleDriveClient.formatCell(value);
+                return GoogleDriveClient.formatCell(value, item);
             }),
         );
 
