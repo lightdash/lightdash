@@ -85,6 +85,7 @@ export const useUpdateTag = () => {
             updateTag(projectUuid, tagUuid, data),
         onSuccess: async () => {
             await queryClient.invalidateQueries(['metrics-catalog']);
+            await queryClient.invalidateQueries(['project-tags']);
         },
     });
 };
