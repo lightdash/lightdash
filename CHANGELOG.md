@@ -1,3 +1,10 @@
+## [0.1352.3](https://github.com/lightdash/lightdash/compare/0.1352.2...0.1352.3) (2024-11-07)
+
+
+### Bug Fixes
+
+* show all content for pinned columns ([#12302](https://github.com/lightdash/lightdash/issues/12302)) ([3668289](https://github.com/lightdash/lightdash/commit/3668289ac29bf0199b9ae2af81a4612262c300f9))
+
 ## [0.1352.2](https://github.com/lightdash/lightdash/compare/0.1352.1...0.1352.2) (2024-11-07)
 
 
