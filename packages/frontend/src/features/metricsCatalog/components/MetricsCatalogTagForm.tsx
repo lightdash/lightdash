@@ -21,6 +21,8 @@ import {
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     useCreateTag,
@@ -40,9 +42,13 @@ type Props = {
 
 export const MetricsCatalogTagForm: FC<Props> = memo(
     ({ catalogSearchUuid, metricTags, hovered }) => {
+        const { track } = useTracking();
         const { colors } = useMantineTheme();
         const projectUuid = useAppSelector(
             (state) => state.metricsCatalog.projectUuid,
+        );
+        const organizationUuid = useAppSelector(
+            (state) => state.metricsCatalog.organizationUuid,
         );
         const [opened, setOpened] = useState(false);
         const [search, setSearch] = useState('');
@@ -99,6 +105,16 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                         setSearch('');
                         setTagColor(getRandomColor(colors));
                     }
+
+                    track({
+                        name: EventName.METRICS_CATALOG_TAG_CLICKED,
+                        properties: {
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
+                            tagName,
+                            isNewTag: !existingTag,
+                        },
+                    });
                 } catch (error) {
                     // TODO: Add toast on error
                     console.error('Error adding tag:', error);
@@ -106,11 +122,13 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
             },
             [
                 projectUuid,
-                catalogSearchUuid,
-                createTagMutation,
-                tagCatalogItemMutation,
                 tags,
+                track,
+                organizationUuid,
+                tagCatalogItemMutation,
+                catalogSearchUuid,
                 tagColor,
+                createTagMutation,
                 colors,
             ],
         );

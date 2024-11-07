@@ -1107,6 +1107,16 @@ export type WriteBackEvent = BaseTrack & {
     };
 };
 
+type CreateTagEvent = BaseTrack & {
+    event: 'category.created';
+    userId: string;
+    properties: {
+        name: string;
+        projectId: string;
+        organizationId: string;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1183,7 +1193,8 @@ type TypedEvent =
     | VirtualViewEvent
     | GithubInstallEvent
     | WriteBackEvent
-    | SchedulerTimezoneUpdateEvent;
+    | SchedulerTimezoneUpdateEvent
+    | CreateTagEvent;
 
 type WrapTypedEvent = SemanticLayerView;
 

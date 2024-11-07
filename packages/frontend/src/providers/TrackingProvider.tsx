@@ -61,7 +61,9 @@ type GenericEvent = {
         | EventName.DASHBOARD_AUTO_REFRESH_UPDATED
         | EventName.METRICS_CATALOG_CHART_USAGE_CLICKED
         | EventName.METRICS_CATALOG_EXPLORE_CLICKED
-        | EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED;
+        | EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED
+        | EventName.METRICS_CATALOG_TAG_CLICKED
+        | EventName.METRICS_CATALOG_TAG_FILTER_APPLIED;
     properties?: {};
 };
 
@@ -176,6 +178,8 @@ export type DashboardAutoRefreshUpdateEvent = {
 type MetricsCatalogChartUsageClickedEvent = {
     name: EventName.METRICS_CATALOG_CHART_USAGE_CLICKED;
     properties: {
+        organizationId: string;
+        projectId: string;
         metricName: string;
         chartCount: number;
         tableName: string;
@@ -185,6 +189,8 @@ type MetricsCatalogChartUsageClickedEvent = {
 type MetricsCatalogExploreClickedEvent = {
     name: EventName.METRICS_CATALOG_EXPLORE_CLICKED;
     properties: {
+        organizationId: string;
+        projectId: string;
         metricName: string;
         tableName: string;
     };
@@ -193,9 +199,29 @@ type MetricsCatalogExploreClickedEvent = {
 type MetricsCatalogChartUsageChartClickedEvent = {
     name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED;
     properties: {
+        organizationId: string;
+        projectId: string;
         metricName: string;
         tableName: string;
         chartId: string;
+    };
+};
+
+type MetricsCatalogTagClickedEvent = {
+    name: EventName.METRICS_CATALOG_TAG_CLICKED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        tagName: string;
+        isNewTag: boolean;
+    };
+};
+
+type MetricsCatalogTagFilterAppliedEvent = {
+    name: EventName.METRICS_CATALOG_TAG_FILTER_APPLIED;
+    properties: {
+        organizationId: string;
+        projectId: string;
     };
 };
 
@@ -214,7 +240,9 @@ export type EventData =
     | DashboardAutoRefreshUpdateEvent
     | MetricsCatalogChartUsageClickedEvent
     | MetricsCatalogExploreClickedEvent
-    | MetricsCatalogChartUsageChartClickedEvent;
+    | MetricsCatalogChartUsageChartClickedEvent
+    | MetricsCatalogTagClickedEvent
+    | MetricsCatalogTagFilterAppliedEvent;
 
 type IdentifyData = {
     id: string;
