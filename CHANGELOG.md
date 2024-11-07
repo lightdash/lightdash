@@ -1,3 +1,10 @@
+## [0.1352.4](https://github.com/lightdash/lightdash/compare/0.1352.3...0.1352.4) (2024-11-07)
+
+
+### Bug Fixes
+
+* hide add tag button if no permissions to manage ([#12310](https://github.com/lightdash/lightdash/issues/12310)) ([5951beb](https://github.com/lightdash/lightdash/commit/5951beb0f2c3143dacf051e176e743316a4d1fc7))
+
 ## [0.1352.3](https://github.com/lightdash/lightdash/compare/0.1352.2...0.1352.3) (2024-11-07)
 
 
