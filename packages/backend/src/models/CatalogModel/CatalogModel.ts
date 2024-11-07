@@ -126,7 +126,7 @@ export class CatalogModel {
     async search({
         projectUuid,
         exploreName,
-        catalogSearch: { catalogTags, filter, searchQuery, type },
+        catalogSearch: { catalogTags, filter, searchQuery = '', type },
         limit = 50,
         excludeUnmatched = true,
         searchRankFunction = getFullTextSearchRankCalcSql,
@@ -149,15 +149,13 @@ export class CatalogModel {
         paginateArgs?: KnexPaginateArgs;
         sortArgs?: ApiSort;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
-        const searchRankRawSql = searchQuery
-            ? searchRankFunction({
-                  database: this.database,
-                  variables: {
-                      searchVectorColumn: `${CatalogTableName}.search_vector`,
-                      searchQuery,
-                  },
-              })
-            : undefined;
+        const searchRankRawSql = searchRankFunction({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${CatalogTableName}.search_vector`,
+                searchQuery,
+            },
+        });
 
         let catalogItemsQuery = this.database(CatalogTableName)
             .column(
@@ -170,7 +168,7 @@ export class CatalogModel {
                 `chart_usage`,
                 // Add tags as an aggregated JSON array
                 {
-                    search_rank: searchRankRawSql ?? 0,
+                    search_rank: searchRankRawSql,
                     catalog_tags: this.database.raw(`
                         COALESCE(
                             JSON_AGG(
