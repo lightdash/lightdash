@@ -17,56 +17,71 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
-import { useProjectTags } from '../hooks/useCatalogTags';
-import { clearTagFilters, setTagFilters } from '../store/metricsCatalogSlice';
-import { CatalogTag } from './CatalogTag';
+import { useProjectTags } from '../hooks/useProjectTags';
+import {
+    clearCategoryFilters,
+    setCategoryFilters,
+} from '../store/metricsCatalogSlice';
+import { CatalogCategory } from './CatalogCategory';
 
 type Props = {
     search: string | undefined;
     setSearch: (search: string) => void;
 };
 
-const TagsFilter = () => {
+const CategoriesFilter = () => {
     const { track } = useTracking();
     const dispatch = useAppDispatch();
-    // Tracks selected tags while the popover is open - when the user closes the popover, the selected tags are set in the redux store,
+    // Tracks selected categories while the popover is open - when the user closes the popover, the selected categories are set in the redux store,
     // which triggers a new search
-    const [selectedTags, selectedTagsHandlers] = useListState<
-        CatalogField['catalogTags'][number]['tagUuid']
+    const [selectedCategories, selectedCategoriesHandlers] = useListState<
+        CatalogField['categories'][number]['tagUuid']
     >([]);
+
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
-    const { data: tags, isLoading } = useProjectTags(projectUuid);
 
-    const hasSelectedTags = selectedTags.length > 0;
+    // Categories are just tags
+    const { data: categories, isLoading } = useProjectTags(projectUuid);
 
-    const tagNames = useMemo(
+    const hasSelectedCategories = selectedCategories.length > 0;
+
+    const categoryNames = useMemo(
         () =>
-            tags
-                ?.filter((tag) => selectedTags.includes(tag.tagUuid))
-                .map((tag) => tag.name)
+            categories
+                ?.filter((category) =>
+                    selectedCategories.includes(category.tagUuid),
+                )
+                .map((category) => category.name)
                 .join(', '),
-        [tags, selectedTags],
+        [categories, selectedCategories],
     );
 
     const handlePopoverClose = useCallback(() => {
-        dispatch(setTagFilters(selectedTags));
+        dispatch(setCategoryFilters(selectedCategories));
 
-        // Track when tags are applied as filters
-        if (selectedTags.length > 0 && tags) {
+        // Track when categories are applied as filters
+        if (selectedCategories.length > 0 && categories) {
             track({
-                name: EventName.METRICS_CATALOG_TAG_FILTER_APPLIED,
+                name: EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED,
                 properties: {
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                 },
             });
         }
-    }, [dispatch, selectedTags, tags, track, projectUuid, organizationUuid]);
+    }, [
+        dispatch,
+        selectedCategories,
+        categories,
+        track,
+        projectUuid,
+        organizationUuid,
+    ]);
 
     return (
         <Group spacing="two">
@@ -79,45 +94,53 @@ const TagsFilter = () => {
                     <Button
                         size="xs"
                         color="gray.5"
-                        c={hasSelectedTags ? 'gray.8' : 'gray.6'}
+                        c={hasSelectedCategories ? 'gray.8' : 'gray.6'}
                         variant="default"
                         radius="md"
                         leftIcon={<MantineIcon icon={IconTag} color="gray.6" />}
                         loading={isLoading}
                         sx={(theme) => ({
-                            border: hasSelectedTags
+                            border: hasSelectedCategories
                                 ? `1px solid ${theme.colors.indigo[4]}`
                                 : `1px dashed ${theme.colors.gray[4]}`,
                             backgroundColor: theme.fn.lighten(
-                                hasSelectedTags
+                                hasSelectedCategories
                                     ? theme.colors.indigo[0]
                                     : theme.colors.gray[0],
                                 0.3,
                             ),
-                            fontWeight: hasSelectedTags ? 400 : 500,
+                            fontWeight: hasSelectedCategories ? 400 : 500,
                         })}
                     >
-                        {hasSelectedTags ? tagNames : 'All tags'}
+                        {hasSelectedCategories
+                            ? categoryNames
+                            : 'All categories'}
                     </Button>
                 </Popover.Target>
                 <Popover.Dropdown>
                     <Stack spacing="sm">
                         <Group position="apart">
-                            <Text weight={500}>Filter by tags</Text>
+                            <Text weight={500}>Filter by categories</Text>
                         </Group>
-                        {tags?.map((tag) => (
+                        {categories?.map((category) => (
                             <Checkbox
-                                key={tag.tagUuid}
-                                label={<CatalogTag tag={tag} />}
-                                checked={selectedTags.includes(tag.tagUuid)}
+                                key={category.tagUuid}
+                                label={<CatalogCategory category={category} />}
+                                checked={selectedCategories.includes(
+                                    category.tagUuid,
+                                )}
                                 onChange={() => {
-                                    if (selectedTags.includes(tag.tagUuid)) {
-                                        selectedTagsHandlers.filter(
-                                            (t) => t !== tag.tagUuid,
+                                    if (
+                                        selectedCategories.includes(
+                                            category.tagUuid,
+                                        )
+                                    ) {
+                                        selectedCategoriesHandlers.filter(
+                                            (c) => c !== category.tagUuid,
                                         );
                                     } else {
-                                        selectedTagsHandlers.append(
-                                            tag.tagUuid,
+                                        selectedCategoriesHandlers.append(
+                                            category.tagUuid,
                                         );
                                     }
                                 }}
@@ -126,14 +149,14 @@ const TagsFilter = () => {
                     </Stack>
                 </Popover.Dropdown>
             </Popover>
-            {hasSelectedTags && (
-                <Tooltip variant="xs" label="Clear all tags">
+            {hasSelectedCategories && (
+                <Tooltip variant="xs" label="Clear all categories">
                     <ActionIcon
                         size="xs"
                         color="gray.5"
                         onClick={() => {
-                            selectedTagsHandlers.setState([]);
-                            dispatch(clearTagFilters());
+                            selectedCategoriesHandlers.setState([]);
+                            dispatch(clearCategoryFilters());
                         }}
                     >
                         <MantineIcon icon={IconX} />
@@ -159,8 +182,8 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                 icon={<MantineIcon icon={IconSearch} />}
                 onChange={(e) => setSearch(e.target.value)}
             />
-            {/* Tags filter */}
-            <TagsFilter />
+            {/* Categories filter */}
+            <CategoriesFilter />
         </Group>
     ),
 );

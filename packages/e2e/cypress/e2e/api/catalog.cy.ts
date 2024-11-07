@@ -25,7 +25,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 type: 'table',
                 joinedTables: [],
                 tags: [],
-                catalogTags: [],
+                categories: [],
                 catalogSearchUuid: '',
             });
         });
@@ -54,7 +54,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 basicType: 'string',
                 type: 'field',
                 tags: [],
-                catalogTags: [],
+                categories: [],
                 catalogSearchUuid: '',
             });
 
@@ -73,7 +73,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 label: 'Total revenue',
                 type: 'field',
                 tags: [],
-                catalogTags: [],
+                categories: [],
                 catalogSearchUuid: '',
             });
         });

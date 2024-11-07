@@ -5,9 +5,9 @@ import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { CatalogTag } from './CatalogTag';
+import { CatalogCategory } from './CatalogCategory';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
-import { MetricsCatalogTagForm } from './MetricsCatalogTagForm';
+import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
@@ -60,8 +60,8 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
     {
-        accessorKey: 'catalogTags',
-        header: 'Tags',
+        accessorKey: 'categories',
+        header: 'Category',
         enableSorting: false,
         size: 150,
         minSize: 180,
@@ -71,17 +71,23 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             const { hovered, ref } = useHover();
-            const tags = useMemo(() => row.original.catalogTags ?? [], [row]);
+            const categories = useMemo(
+                () => row.original.categories ?? [],
+                [row],
+            );
 
             return (
                 <Group spacing="two" ref={ref} pos="relative" w="100%" h="100%">
-                    {tags.map((tag) => (
-                        <CatalogTag key={tag.tagUuid} tag={tag} />
+                    {categories.map((category) => (
+                        <CatalogCategory
+                            key={category.tagUuid}
+                            category={category}
+                        />
                     ))}
                     {canManageTags && (
-                        <MetricsCatalogTagForm
+                        <MetricsCatalogCategoryForm
                             catalogSearchUuid={row.original.catalogSearchUuid}
-                            metricTags={tags}
+                            metricCategories={categories}
                             hovered={hovered}
                         />
                     )}

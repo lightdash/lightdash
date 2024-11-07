@@ -25,8 +25,8 @@ export const MetricsTable = () => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
-    const tagFilters = useAppSelector(
-        (state) => state.metricsCatalog.tagFilters,
+    const categoryFilters = useAppSelector(
+        (state) => state.metricsCatalog.categoryFilters,
     );
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -50,7 +50,7 @@ export const MetricsTable = () => {
         projectUuid,
         pageSize: 20,
         search: deferredSearch,
-        catalogTags: tagFilters,
+        categories: categoryFilters,
         // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
         ...(sorting.length > 0 && {
             sortBy: sorting[0].id as keyof CatalogItem,

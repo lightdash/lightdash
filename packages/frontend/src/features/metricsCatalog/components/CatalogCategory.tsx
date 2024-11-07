@@ -5,36 +5,39 @@ import type { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
-    tag: Pick<CatalogItem['catalogTags'][number], 'name' | 'color'>;
-    onTagClick?: () => void;
+    category: Pick<CatalogItem['categories'][number], 'name' | 'color'>;
+    onClick?: () => void;
     onRemove?: () => void;
 };
 
-export const CatalogTag: FC<Props> = ({ tag, onTagClick, onRemove }) => {
+export const CatalogCategory: FC<Props> = ({ category, onClick, onRemove }) => {
     return (
         <Badge
-            key={tag.name}
+            key={category.name}
             size="sm"
             radius="sm"
             variant="light"
-            onClick={onTagClick}
+            onClick={onClick}
             styles={(theme) => ({
                 root: {
                     textTransform: 'none',
                     fontWeight: 400,
-                    border: `1px solid ${theme.fn.lighten(tag.color, 0.5)}`,
-                    backgroundColor: theme.fn.lighten(tag.color, 0.9),
-                    color: theme.fn.darken(tag.color, 0.2),
+                    border: `1px solid ${theme.fn.lighten(
+                        category.color,
+                        0.5,
+                    )}`,
+                    backgroundColor: theme.fn.lighten(category.color, 0.9),
+                    color: theme.fn.darken(category.color, 0.2),
                     cursor: 'pointer',
                     paddingRight: onRemove ? 2 : 8,
                     '&:hover': {
-                        backgroundColor: theme.fn.lighten(tag.color, 0.8),
+                        backgroundColor: theme.fn.lighten(category.color, 0.8),
                     },
                 },
             })}
         >
             <Group spacing={1}>
-                {tag.name}
+                {category.name}
                 {onRemove && (
                     <ActionIcon
                         variant="transparent"

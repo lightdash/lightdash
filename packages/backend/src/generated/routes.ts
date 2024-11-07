@@ -172,7 +172,7 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
-                        catalogTags: {
+                        categories: {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
@@ -313,7 +313,7 @@ const models: TsoaRoute.Models = {
                                 ref: 'CompiledExploreJoin',
                             },
                         },
-                        catalogTags: {
+                        categories: {
                             dataType: 'array',
                             array: {
                                 dataType: 'refAlias',
@@ -3592,6 +3592,14 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 requireUserCredentials: { dataType: 'boolean', required: true },
                 warehouseType: { ref: 'WarehouseTypes', required: true },
+                upstreamProjectUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 createdByUserUuid: {
                     dataType: 'union',
                     subSchemas: [
@@ -10235,9 +10243,9 @@ export function RegisterRoutes(app: express.Router) {
                 pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
                 sort: { in: 'query', name: 'sort', dataType: 'string' },
                 order: { in: 'query', name: 'order', ref: 'ApiSortDirection' },
-                catalogTags: {
+                categories: {
                     in: 'query',
-                    name: 'catalogTags',
+                    name: 'categories',
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
@@ -10273,13 +10281,13 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/projects/:projectUuid/dataCatalog/:catalogSearchUuid/tags',
+        '/api/v1/projects/:projectUuid/dataCatalog/:catalogSearchUuid/categories',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
         ...fetchMiddlewares<RequestHandler>(
-            CatalogController.prototype.tagCatalogItem,
+            CatalogController.prototype.addCategoryToCatalogItem,
         ),
 
-        async function CatalogController_tagCatalogItem(
+        async function CatalogController_addCategoryToCatalogItem(
             request: any,
             response: any,
             next: any,
@@ -10326,7 +10334,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.tagCatalogItem.apply(
+                const promise = controller.addCategoryToCatalogItem.apply(
                     controller,
                     validatedArgs as any,
                 );
@@ -10338,13 +10346,13 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.delete(
-        '/api/v1/projects/:projectUuid/dataCatalog/:catalogSearchUuid/tags/:tagUuid',
+        '/api/v1/projects/:projectUuid/dataCatalog/:catalogSearchUuid/categories/:tagUuid',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
         ...fetchMiddlewares<RequestHandler>(
-            CatalogController.prototype.untagCatalogItem,
+            CatalogController.prototype.removeCategoryFromCatalogItem,
         ),
 
-        async function CatalogController_untagCatalogItem(
+        async function CatalogController_removeCategoryFromCatalogItem(
             request: any,
             response: any,
             next: any,
@@ -10388,7 +10396,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.untagCatalogItem.apply(
+                const promise = controller.removeCategoryFromCatalogItem.apply(
                     controller,
                     validatedArgs as any,
                 );

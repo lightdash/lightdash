@@ -58,7 +58,7 @@ export function getDbCatalogColumnFromCatalogProperty(
             return 'required_attributes';
         case 'catalogSearchUuid':
             return 'catalog_search_uuid';
-        case 'catalogTags': // TODO: implement search by catalog tags
+        case 'categories':
         case 'label':
         case 'tags':
             throw new Error(

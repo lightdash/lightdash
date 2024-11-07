@@ -13,14 +13,14 @@ type MetricsCatalogState = {
     activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
     organizationUuid: string | undefined;
-    tagFilters: CatalogField['catalogTags'][number]['tagUuid'][];
+    categoryFilters: CatalogField['categories'][number]['tagUuid'][];
 };
 
 const initialState: MetricsCatalogState = {
     activeMetric: undefined,
     projectUuid: undefined,
     organizationUuid: undefined,
-    tagFilters: [],
+    categoryFilters: [],
     abilities: {
         canManageTags: false,
     },
@@ -48,16 +48,16 @@ export const metricsCatalogSlice = createSlice({
             state.activeMetric = action.payload;
             state.modals.chartUsageModal.isOpen = !!action.payload;
         },
-        setTagFilters: (
+        setCategoryFilters: (
             state,
             action: PayloadAction<
-                CatalogField['catalogTags'][number]['tagUuid'][]
+                CatalogField['categories'][number]['tagUuid'][]
             >,
         ) => {
-            state.tagFilters = action.payload;
+            state.categoryFilters = action.payload;
         },
-        clearTagFilters: (state) => {
-            state.tagFilters = [];
+        clearCategoryFilters: (state) => {
+            state.categoryFilters = [];
         },
         setAbility: (
             state,
@@ -71,8 +71,8 @@ export const metricsCatalogSlice = createSlice({
 export const {
     setActiveMetric,
     setProjectUuid,
-    setTagFilters,
-    clearTagFilters,
+    setCategoryFilters,
+    clearCategoryFilters,
     setOrganizationUuid,
     setAbility,
 } = metricsCatalogSlice.actions;
