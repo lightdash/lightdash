@@ -465,7 +465,11 @@ export class ModelRepository
     public getCatalogModel(): CatalogModel {
         return this.getModel(
             'catalogModel',
-            () => new CatalogModel({ database: this.database }),
+            () =>
+                new CatalogModel({
+                    database: this.database,
+                    lightdashConfig: this.lightdashConfig,
+                }),
         );
     }
 
