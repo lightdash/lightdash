@@ -8,8 +8,10 @@ import {
     UnexpectedServerError,
     type ApiCatalogSearch,
     type ApiSort,
+    type CatalogFieldMap,
     type CatalogFieldWhere,
     type CatalogItem,
+    type CatalogItemWithTagUuids,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -24,15 +26,19 @@ import {
     CatalogTagsTableName,
     getDbCatalogColumnFromCatalogProperty,
     type DbCatalog,
+    type DbCatalogIn,
+    type DbCatalogTagsMigrateIn,
 } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
 import { TagsTableName } from '../../database/entities/tags';
 import KnexPaginate from '../../database/pagination';
+import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import {
     getFullTextSearchQuery,
     getFullTextSearchRankCalcSql,
 } from '../SearchModel/utils/search';
+import { convertExploresToCatalog } from './utils';
 import { parseCatalog } from './utils/parser';
 
 type SearchModelArguments = {
@@ -46,7 +52,77 @@ export class CatalogModel {
         this.database = args.database;
     }
 
-    // Index catalog happens inside projectModel, inside `saveExploresToCache`
+    async indexCatalog(
+        projectUuid: string,
+        cachedExplores: (Explore & { cachedExploreUuid: string })[],
+    ): Promise<{
+        catalogInserts: DbCatalogIn[];
+        catalogFieldMap: CatalogFieldMap;
+    }> {
+        if (cachedExplores.length === 0) {
+            return {
+                catalogInserts: [],
+                catalogFieldMap: {},
+            };
+        }
+
+        try {
+            const wrapped = await wrapSentryTransaction(
+                'indexCatalog',
+                { projectUuid, cachedExploresSize: cachedExplores.length },
+                async () => {
+                    const { catalogInserts, catalogFieldMap } =
+                        await wrapSentryTransaction(
+                            'indexCatalog.convertExploresToCatalog',
+                            {
+                                projectUuid,
+                                cachedExploresLength: cachedExplores.length,
+                            },
+                            async () =>
+                                convertExploresToCatalog(
+                                    projectUuid,
+                                    cachedExplores,
+                                ),
+                        );
+
+                    const transactionInserts = await wrapSentryTransaction(
+                        'indexCatalog.insert',
+                        { projectUuid, catalogSize: catalogInserts.length },
+                        () =>
+                            this.database.transaction(async (trx) => {
+                                await trx(CatalogTableName)
+                                    .where('project_uuid', projectUuid)
+                                    .delete();
+
+                                const inserts = await this.database
+                                    .batchInsert(
+                                        CatalogTableName,
+                                        catalogInserts,
+                                    )
+                                    .returning('*')
+                                    .transacting(trx);
+
+                                return inserts;
+                            }),
+                    );
+
+                    return {
+                        catalogInserts: transactionInserts,
+                        catalogFieldMap,
+                    };
+                },
+            );
+
+            return wrapped;
+        } catch (e) {
+            Logger.error(`Failed to index catalog ${projectUuid}, ${e}`);
+            return {
+                catalogInserts: [],
+                catalogFieldMap: {},
+            };
+        }
+    }
+
     async search({
         projectUuid,
         exploreName,
@@ -89,14 +165,12 @@ export class CatalogModel {
                 `${CatalogTableName}.name`,
                 'description',
                 'type',
-                {
-                    search_rank: searchRankRawSql ?? 0,
-                },
                 `${CachedExploreTableName}.explore`,
                 `required_attributes`,
                 `chart_usage`,
                 // Add tags as an aggregated JSON array
                 {
+                    search_rank: searchRankRawSql ?? 0,
                     catalog_tags: this.database.raw(`
                         COALESCE(
                             JSON_AGG(
@@ -435,5 +509,99 @@ export class CatalogModel {
                 tag_uuid: tagUuid,
             })
             .delete();
+    }
+
+    async getCatalogItemsWithTags(
+        projectUuid: string,
+        opts?: { onlyTagged?: boolean },
+    ) {
+        const { onlyTagged = false } = opts ?? {};
+
+        let query = this.database(CatalogTableName)
+            .column(
+                `${CatalogTableName}.catalog_search_uuid`,
+                `${CatalogTableName}.cached_explore_uuid`,
+                `${CatalogTableName}.project_uuid`,
+                `${CatalogTableName}.name`,
+                `${CatalogTableName}.type`,
+                `${CatalogTableName}.field_type`,
+                {
+                    explore_base_table: this.database.raw(
+                        `${CachedExploreTableName}.explore->>'baseTable'`,
+                    ),
+                    catalog_tag_uuids: this.database.raw(`
+                    COALESCE(
+                        JSON_AGG(
+                            DISTINCT JSONB_BUILD_OBJECT(
+                                'tagUuid', ${CatalogTagsTableName}.tag_uuid,
+                                'createdByUserUuid', ${CatalogTagsTableName}.created_by_user_uuid,
+                                'createdAt', ${CatalogTagsTableName}.created_at
+                            )
+                        ) FILTER (WHERE ${CatalogTagsTableName}.tag_uuid IS NOT NULL),
+                        '[]'
+                    )
+                `),
+                },
+            )
+            .leftJoin(
+                CachedExploreTableName,
+                `${CatalogTableName}.cached_explore_uuid`,
+                `${CachedExploreTableName}.cached_explore_uuid`,
+            );
+
+        if (onlyTagged) {
+            query = query.innerJoin(
+                CatalogTagsTableName,
+                `${CatalogTableName}.catalog_search_uuid`,
+                `${CatalogTagsTableName}.catalog_search_uuid`,
+            );
+        } else {
+            query = query.leftJoin(
+                CatalogTagsTableName,
+                `${CatalogTableName}.catalog_search_uuid`,
+                `${CatalogTagsTableName}.catalog_search_uuid`,
+            );
+        }
+
+        query = query
+            .where(`${CatalogTableName}.project_uuid`, projectUuid)
+            .groupBy(
+                `${CatalogTableName}.catalog_search_uuid`,
+                `${CatalogTableName}.cached_explore_uuid`,
+                `${CatalogTableName}.project_uuid`,
+                `${CatalogTableName}.name`,
+                `${CatalogTableName}.type`,
+                `${CatalogTableName}.field_type`,
+                `explore_base_table`,
+            );
+
+        const itemsWithTags: (DbCatalog & {
+            explore_base_table: string;
+            catalog_tag_uuids: {
+                tagUuid: string;
+                createdByUserUuid: string | null;
+                createdAt: Date;
+            }[];
+        })[] = await query;
+
+        return itemsWithTags.map<CatalogItemWithTagUuids>((i) => ({
+            catalogSearchUuid: i.catalog_search_uuid,
+            cachedExploreUuid: i.cached_explore_uuid,
+            projectUuid: i.project_uuid,
+            name: i.name,
+            type: i.type,
+            fieldType: i.field_type,
+            exploreBaseTable: i.explore_base_table,
+            catalogTags: i.catalog_tag_uuids,
+        }));
+    }
+
+    async migrateCatalogItemTags(
+        catalogTagsMigrateIn: DbCatalogTagsMigrateIn[],
+    ) {
+        return this.database.batchInsert(
+            CatalogTagsTableName,
+            catalogTagsMigrateIn,
+        );
     }
 }

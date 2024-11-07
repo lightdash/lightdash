@@ -6,6 +6,7 @@ import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
@@ -58,6 +59,7 @@ describe('Csv service', () => {
             s3Client: {} as S3Client,
             groupsModel: {} as GroupsModel,
             tagsModel: {} as TagsModel,
+            catalogModel: {} as CatalogModel,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,

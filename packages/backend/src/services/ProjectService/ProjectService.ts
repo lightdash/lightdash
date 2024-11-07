@@ -10,7 +10,6 @@ import {
     assertUnreachable,
     CacheMetadata,
     CalculateTotalFromQuery,
-    CatalogType,
     ChartSummary,
     CompiledDimension,
     convertCustomMetricToDbt,
@@ -86,7 +85,6 @@ import {
     RequestMethod,
     ResultRow,
     SavedChartsInfoForDashboardAvailableFilters,
-    SemanticLayerConnection,
     SessionUser,
     snakeCaseName,
     SortByDirection,
@@ -134,6 +132,7 @@ import type { DbTagUpdate } from '../../database/entities/tags';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
@@ -199,6 +198,7 @@ type ProjectServiceArguments = {
     s3Client: S3Client;
     groupsModel: GroupsModel;
     tagsModel: TagsModel;
+    catalogModel: CatalogModel;
 };
 
 export class ProjectService extends BaseService {
@@ -246,6 +246,8 @@ export class ProjectService extends BaseService {
 
     tagsModel: TagsModel;
 
+    catalogModel: CatalogModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -268,6 +270,7 @@ export class ProjectService extends BaseService {
         s3Client,
         groupsModel,
         tagsModel,
+        catalogModel,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -292,6 +295,7 @@ export class ProjectService extends BaseService {
         this.s3Client = s3Client;
         this.groupsModel = groupsModel;
         this.tagsModel = tagsModel;
+        this.catalogModel = catalogModel;
     }
 
     private async validateProjectCreationPermissions(
@@ -488,6 +492,28 @@ export class ProjectService extends BaseService {
         return { warehouseClient: client, sshTunnel };
     }
 
+    private async saveExploresToCacheAndIndexCatalog(
+        userUuid: string,
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ) {
+        // We delete the explores when saving to cache which cascades to the catalog
+        // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag)
+        const prevCatalogItemsWithTags =
+            await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
+                onlyTagged: true, // We only need the tagged catalog items
+            });
+
+        await this.projectModel.saveExploresToCache(projectUuid, explores);
+
+        await this.schedulerClient.indexCatalog({
+            projectUuid,
+            explores,
+            userUuid,
+            prevCatalogItemsWithTags,
+        });
+    }
+
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
         const project = await this.projectModel.get(projectUuid);
         if (
@@ -642,16 +668,11 @@ export class ProjectService extends BaseService {
                     );
                 }
 
-                await this.projectModel.saveExploresToCache(
+                await this.saveExploresToCacheAndIndexCatalog(
+                    user.userUuid,
                     projectUuid,
                     explores,
                 );
-
-                await this.schedulerClient.indexCatalog({
-                    projectUuid,
-                    explores,
-                    userUuid: user.userUuid,
-                });
 
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
@@ -716,13 +737,11 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        await this.projectModel.saveExploresToCache(projectUuid, explores);
-
-        await this.schedulerClient.indexCatalog({
+        await this.saveExploresToCacheAndIndexCatalog(
+            user.userUuid,
             projectUuid,
             explores,
-            userUuid: user.userUuid,
-        });
+        );
 
         await this.schedulerClient.generateValidation({
             userUuid: user.userUuid,
@@ -868,16 +887,12 @@ export class ProjectService extends BaseService {
                         }
                     },
                 );
-                await this.projectModel.saveExploresToCache(
+
+                await this.saveExploresToCacheAndIndexCatalog(
+                    user.userUuid,
                     projectUuid,
                     explores,
                 );
-
-                await this.schedulerClient.indexCatalog({
-                    projectUuid,
-                    explores,
-                    userUuid: user.userUuid,
-                });
             }
 
             await this.jobModel.update(job.jobUuid, {
@@ -2851,16 +2866,12 @@ export class ProjectService extends BaseService {
                     async () =>
                         this.refreshAllTables(user, projectUuid, requestMethod),
                 );
-                await this.projectModel.saveExploresToCache(
+
+                await this.saveExploresToCacheAndIndexCatalog(
+                    user.userUuid,
                     projectUuid,
                     explores,
                 );
-
-                await this.schedulerClient.indexCatalog({
-                    projectUuid,
-                    explores,
-                    userUuid: user.userUuid,
-                });
 
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
@@ -4783,22 +4794,6 @@ export class ProjectService extends BaseService {
         });
 
         return updatedProject;
-    }
-
-    async indexCatalog(
-        projectUuid: string,
-        explores: (Explore | ExploreError)[],
-    ) {
-        const exploresWithCachedExploreUuid =
-            await this.projectModel.getCachedExploresWithUuid(
-                projectUuid,
-                explores,
-            );
-
-        return this.projectModel.indexCatalog(
-            projectUuid,
-            exploresWithCachedExploreUuid,
-        );
     }
 
     async createTag(

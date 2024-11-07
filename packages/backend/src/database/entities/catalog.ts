@@ -91,4 +91,6 @@ export type CatalogTagsTable = Knex.CompositeTableType<
     DbCatalogTagIn
 >;
 
+export type DbCatalogTagsMigrateIn = DbCatalogTag;
+
 export const CatalogTagsTableName = 'catalog_search_tags';

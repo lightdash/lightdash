@@ -153,10 +153,26 @@ export type CatalogFieldMap = {
     };
 };
 
+export type CatalogItemWithTagUuids = {
+    catalogSearchUuid: string;
+    cachedExploreUuid: string;
+    projectUuid: string;
+    name: string;
+    type: CatalogType;
+    fieldType?: string; // This comes from db, so it is string, this type is mostly used to compare when migrating tags
+    exploreBaseTable: string;
+    catalogTags: {
+        tagUuid: string;
+        createdByUserUuid: string | null;
+        createdAt: Date;
+    }[];
+};
+
 export type SchedulerIndexCatalogJobPayload = {
     projectUuid: string;
     explores: (Explore | ExploreError)[];
     userUuid: string;
+    prevCatalogItemsWithTags: CatalogItemWithTagUuids[];
 };
 
 export type CatalogFieldWhere = {

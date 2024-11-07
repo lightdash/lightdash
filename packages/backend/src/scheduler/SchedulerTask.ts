@@ -1987,10 +1987,15 @@ export default class SchedulerTask {
             },
             async () => {
                 const { catalogFieldMap } =
-                    await this.projectService.indexCatalog(
+                    await this.catalogService.indexCatalog(
                         payload.projectUuid,
                         payload.explores,
                     );
+
+                await this.catalogService.migrateCatalogItemTags(
+                    payload.projectUuid,
+                    payload.prevCatalogItemsWithTags,
+                );
 
                 await this.catalogService.setChartUsages(
                     payload.projectUuid,

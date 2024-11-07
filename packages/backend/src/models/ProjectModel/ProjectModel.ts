@@ -35,7 +35,6 @@ import {
     WarehouseClient,
     WarehouseCredentials,
     WarehouseTypes,
-    type CatalogFieldMap,
     type CubeSemanticLayerConnection,
     type DbtSemanticLayerConnection,
     type SemanticLayerConnection,
@@ -51,7 +50,6 @@ import uniqWith from 'lodash/uniqWith';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
-import { CatalogTableName, DbCatalogIn } from '../../database/entities/catalog';
 import {
     DashboardTabsTableName,
     DashboardViewsTableName,
@@ -91,7 +89,6 @@ import { WarehouseCredentialTableName } from '../../database/entities/warehouseC
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { convertExploresToCatalog } from '../CatalogModel/utils';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
@@ -942,77 +939,6 @@ export class ProjectModel {
                     : undefined;
             },
         );
-    }
-
-    async indexCatalog(
-        projectUuid: string,
-        cachedExplores: (Explore & { cachedExploreUuid: string })[],
-    ): Promise<{
-        catalogInserts: DbCatalogIn[];
-        catalogFieldMap: CatalogFieldMap;
-    }> {
-        if (cachedExplores.length === 0) {
-            return {
-                catalogInserts: [],
-                catalogFieldMap: {},
-            };
-        }
-
-        try {
-            const wrapped = await wrapSentryTransaction(
-                'indexCatalog',
-                { projectUuid, cachedExploresSize: cachedExplores.length },
-                async () => {
-                    const { catalogInserts, catalogFieldMap } =
-                        await wrapSentryTransaction(
-                            'indexCatalog.convertExploresToCatalog',
-                            {
-                                projectUuid,
-                                cachedExploresLength: cachedExplores.length,
-                            },
-                            async () =>
-                                convertExploresToCatalog(
-                                    projectUuid,
-                                    cachedExplores,
-                                ),
-                        );
-
-                    const transactionInserts = await wrapSentryTransaction(
-                        'indexCatalog.insert',
-                        { projectUuid, catalogSize: catalogInserts.length },
-                        () =>
-                            this.database.transaction(async (trx) => {
-                                await trx(CatalogTableName)
-                                    .where('project_uuid', projectUuid)
-                                    .delete();
-
-                                const inserts = await this.database
-                                    .batchInsert(
-                                        CatalogTableName,
-                                        catalogInserts,
-                                    )
-                                    .returning('*')
-                                    .transacting(trx);
-
-                                return inserts;
-                            }),
-                    );
-
-                    return {
-                        catalogInserts: transactionInserts,
-                        catalogFieldMap,
-                    };
-                },
-            );
-
-            return wrapped;
-        } catch (e) {
-            Logger.error(`Failed to index catalog ${projectUuid}, ${e}`);
-            return {
-                catalogInserts: [],
-                catalogFieldMap: {},
-            };
-        }
     }
 
     static getExploresWithCacheUuids(

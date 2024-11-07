@@ -440,6 +440,7 @@ export class ServiceRepository
                     s3Client: this.clients.getS3Client(),
                     groupsModel: this.models.getGroupsModel(),
                     tagsModel: this.models.getTagsModel(),
+                    catalogModel: this.models.getCatalogModel(),
                 }),
         );
     }

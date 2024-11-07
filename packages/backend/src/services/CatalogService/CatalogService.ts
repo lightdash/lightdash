@@ -23,12 +23,14 @@ import {
     type ApiSort,
     type CatalogFieldMap,
     type CatalogItem,
+    type CatalogItemWithTagUuids,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import type { DbCatalogTagsMigrateIn } from '../../database/entities/catalog';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -233,6 +235,98 @@ export class CatalogService<
                         }),
                 ),
         );
+    }
+
+    async indexCatalog(
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ) {
+        const exploresWithCachedExploreUuid =
+            await this.projectModel.getCachedExploresWithUuid(
+                projectUuid,
+                explores,
+            );
+
+        return this.catalogModel.indexCatalog(
+            projectUuid,
+            exploresWithCachedExploreUuid,
+        );
+    }
+
+    /**
+     * Migrates catalog item tags from the previous catalog to the new catalog
+     * This is a best effort migration, if the catalog item is not found in the new catalog
+     * it will not be migrated
+     *
+     * For the item to be found it needs to:
+     * - have the same name
+     * - have the same explore base table
+     * - have the same field type
+     * - have the same type
+     * - be in the same project
+     * @param projectUuid - project uuid
+     * @param prevCatalogItemsWithTags - catalog items with tags before the catalog being re-indexed
+     * @returns
+     */
+    async migrateCatalogItemTags(
+        projectUuid: string,
+        prevCatalogItemsWithTags: CatalogItemWithTagUuids[],
+    ) {
+        // Get all catalog items so we can match them with the previous catalog items
+        const currentCatalogItems =
+            await this.catalogModel.getCatalogItemsWithTags(projectUuid);
+
+        const catalogTagsMigrateIn: DbCatalogTagsMigrateIn[] =
+            currentCatalogItems.flatMap(
+                ({
+                    projectUuid: currentProjectUuid,
+                    name: currentName,
+                    exploreBaseTable: currentExploreBaseTable,
+                    fieldType: currentFieldType,
+                    type: currentType,
+                    catalogSearchUuid: currentCatalogSearchUuid,
+                }) => {
+                    // Just a safeguard, this should never happen since the getTaggedCatalogItems query is scoped to the project
+                    if (projectUuid !== currentProjectUuid) {
+                        return [];
+                    }
+
+                    const prevCatalogItem = prevCatalogItemsWithTags.find(
+                        ({
+                            name: prevName,
+                            exploreBaseTable: prevExploreBaseTable,
+                            fieldType: prevFieldType,
+                            type: prevType,
+                            projectUuid: prevProjectUuid,
+                        }) =>
+                            prevName === currentName &&
+                            prevExploreBaseTable === currentExploreBaseTable &&
+                            prevFieldType === currentFieldType &&
+                            prevType === currentType &&
+                            prevProjectUuid === currentProjectUuid,
+                    );
+
+                    if (prevCatalogItem) {
+                        // Pass the current catalog item uuid with the old tags
+                        return prevCatalogItem.catalogTags.map(
+                            ({
+                                tagUuid: prevCatalogTagUuid,
+                                createdByUserUuid: prevCreatedByUserUuid,
+                                createdAt: prevCreatedAt,
+                            }) => ({
+                                catalog_search_uuid: currentCatalogSearchUuid,
+                                tag_uuid: prevCatalogTagUuid,
+                                created_by_user_uuid: prevCreatedByUserUuid,
+                                created_at: prevCreatedAt,
+                            }),
+                        );
+                    }
+
+                    return [];
+                },
+            );
+
+        return this.catalogModel.migrateCatalogItemTags(catalogTagsMigrateIn);
     }
 
     async getCatalog(
