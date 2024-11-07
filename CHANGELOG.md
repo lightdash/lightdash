@@ -1,3 +1,10 @@
+## [0.1352.2](https://github.com/lightdash/lightdash/compare/0.1352.1...0.1352.2) (2024-11-07)
+
+
+### Bug Fixes
+
+* cli generate when passing project dir ([#12292](https://github.com/lightdash/lightdash/issues/12292)) ([3c1b4bf](https://github.com/lightdash/lightdash/commit/3c1b4bf5e3e2c4259ea7f4ad78e69e96c049c605))
+
 ## [0.1352.1](https://github.com/lightdash/lightdash/compare/0.1352.0...0.1352.1) (2024-11-07)
 
 
