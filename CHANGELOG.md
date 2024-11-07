@@ -1,3 +1,10 @@
+## [0.1351.1](https://github.com/lightdash/lightdash/compare/0.1351.0...0.1351.1) (2024-11-07)
+
+
+### Bug Fixes
+
+* additional dimension timestamp description ([#12296](https://github.com/lightdash/lightdash/issues/12296)) ([639dbe1](https://github.com/lightdash/lightdash/commit/639dbe15f8c8b0ac8e40a4d1255f7162f6f6a170))
+
 # [0.1351.0](https://github.com/lightdash/lightdash/compare/0.1350.0...0.1351.0) (2024-11-06)
 
 
