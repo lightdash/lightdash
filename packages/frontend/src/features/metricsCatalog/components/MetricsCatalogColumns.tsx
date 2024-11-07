@@ -4,6 +4,7 @@ import { useHover } from '@mantine/hooks';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { CatalogTag } from './CatalogTag';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogTagForm } from './MetricsCatalogTagForm';
@@ -65,6 +66,10 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         size: 150,
         minSize: 180,
         Cell: ({ row }) => {
+            const canManageTags = useAppSelector(
+                (state) => state.metricsCatalog.abilities.canManageTags,
+            );
+
             const { hovered, ref } = useHover();
             const tags = useMemo(() => row.original.catalogTags ?? [], [row]);
 
@@ -73,11 +78,13 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     {tags.map((tag) => (
                         <CatalogTag key={tag.tagUuid} tag={tag} />
                     ))}
-                    <MetricsCatalogTagForm
-                        catalogSearchUuid={row.original.catalogSearchUuid}
-                        metricTags={tags}
-                        hovered={hovered}
-                    />
+                    {canManageTags && (
+                        <MetricsCatalogTagForm
+                            catalogSearchUuid={row.original.catalogSearchUuid}
+                            metricTags={tags}
+                            hovered={hovered}
+                        />
+                    )}
                 </Group>
             );
         },

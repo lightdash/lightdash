@@ -1,11 +1,14 @@
+import { subject } from '@casl/ability';
 import { Group, Stack, Title } from '@mantine/core';
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
+import { useApp } from '../../../providers/AppProvider';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
+    setAbility,
     setActiveMetric,
     setOrganizationUuid,
     setProjectUuid,
@@ -14,16 +17,18 @@ import { MetricChartUsageModal } from './MetricChartUsageModal';
 import { MetricsTable } from './MetricsTable';
 
 export const MetricsCatalogPanel = () => {
+    const dispatch = useAppDispatch();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
+
     const params = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
+    const { user } = useApp();
 
-    const dispatch = useAppDispatch();
     const isMetricUsageModalOpen = useAppSelector(
         (state) => state.metricsCatalog.modals.chartUsageModal.isOpen,
     );
@@ -42,6 +47,25 @@ export const MetricsCatalogPanel = () => {
             dispatch(setOrganizationUuid(project.organizationUuid));
         }
     }, [project, dispatch, organizationUuid]);
+
+    useEffect(
+        function handleManageTagsAbility() {
+            if (user.data) {
+                const canManageTags = user.data.ability.can(
+                    'manage',
+                    subject('Tags', {
+                        organizationUuid: user.data.organizationUuid,
+                        projectUuid,
+                    }),
+                );
+
+                console.log({ canManageTags });
+
+                dispatch(setAbility({ canManageTags }));
+            }
+        },
+        [user.data, dispatch, projectUuid],
+    );
 
     return (
         <Stack>
