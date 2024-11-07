@@ -42,7 +42,7 @@ import {
 import { convertExploresToCatalog } from './utils';
 import { parseCatalog } from './utils/parser';
 
-type CatalogModelArguments = {
+export type CatalogModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
 };
