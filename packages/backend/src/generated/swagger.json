@@ -114,7 +114,7 @@
                                 "type": "number",
                                 "format": "double"
                             },
-                            "catalogTags": {
+                            "categories": {
                                 "items": {
                                     "$ref": "#/components/schemas/Pick_Tag.name-or-color-or-tagUuid_"
                                 },
@@ -143,7 +143,7 @@
                             }
                         },
                         "required": [
-                            "catalogTags",
+                            "categories",
                             "tableName",
                             "type",
                             "catalogSearchUuid"
@@ -253,7 +253,7 @@
                                 },
                                 "type": "array"
                             },
-                            "catalogTags": {
+                            "categories": {
                                 "items": {
                                     "$ref": "#/components/schemas/Pick_Tag.name-or-color-or-tagUuid_"
                                 },
@@ -281,11 +281,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": [
-                            "catalogTags",
-                            "type",
-                            "catalogSearchUuid"
-                        ],
+                        "required": ["categories", "type", "catalogSearchUuid"],
                         "type": "object"
                     }
                 ]
@@ -3903,6 +3899,10 @@
                     "warehouseType": {
                         "$ref": "#/components/schemas/WarehouseTypes"
                     },
+                    "upstreamProjectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "createdByUserUuid": {
                         "type": "string",
                         "nullable": true
@@ -3922,6 +3922,7 @@
                 "required": [
                     "requireUserCredentials",
                     "warehouseType",
+                    "upstreamProjectUuid",
                     "createdByUserUuid",
                     "type",
                     "name",
@@ -10934,7 +10935,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1348.1",
+        "version": "0.1352.2",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -11292,7 +11293,7 @@
                     },
                     {
                         "in": "query",
-                        "name": "catalogTags",
+                        "name": "categories",
                         "required": false,
                         "schema": {
                             "type": "array",
@@ -11304,9 +11305,9 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/dataCatalog/{catalogSearchUuid}/tags": {
+        "/api/v1/projects/{projectUuid}/dataCatalog/{catalogSearchUuid}/categories": {
             "post": {
-                "operationId": "tagCatalogItem",
+                "operationId": "addCategoryToCatalogItem",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -11359,9 +11360,9 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/dataCatalog/{catalogSearchUuid}/tags/{tagUuid}": {
+        "/api/v1/projects/{projectUuid}/dataCatalog/{catalogSearchUuid}/categories/{tagUuid}": {
             "delete": {
-                "operationId": "untagCatalogItem",
+                "operationId": "removeCategoryFromCatalogItem",
                 "responses": {
                     "200": {
                         "description": "Success",

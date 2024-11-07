@@ -175,7 +175,7 @@ export class CatalogController extends BaseController {
         @Query() pageSize?: number,
         @Query() sort?: ApiSort['sort'],
         @Query() order?: ApiSort['order'],
-        @Query() catalogTags?: ApiCatalogSearch['catalogTags'],
+        @Query() categories?: ApiCatalogSearch['catalogTags'],
     ): Promise<ApiMetricsCatalog> {
         this.setStatus(200);
 
@@ -202,7 +202,7 @@ export class CatalogController extends BaseController {
                 paginateArgs,
                 {
                     searchQuery: search,
-                    catalogTags,
+                    catalogTags: categories,
                 },
                 sortArgs,
             );
@@ -215,9 +215,9 @@ export class CatalogController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('{catalogSearchUuid}/tags')
-    @OperationId('tagCatalogItem')
-    async tagCatalogItem(
+    @Post('{catalogSearchUuid}/categories')
+    @OperationId('addCategoryToCatalogItem')
+    async addCategoryToCatalogItem(
         @Path() catalogSearchUuid: string,
         @Body()
         body: {
@@ -239,9 +239,9 @@ export class CatalogController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Delete('{catalogSearchUuid}/tags/{tagUuid}')
-    @OperationId('untagCatalogItem')
-    async untagCatalogItem(
+    @Delete('{catalogSearchUuid}/categories/{tagUuid}')
+    @OperationId('removeCategoryFromCatalogItem')
+    async removeCategoryFromCatalogItem(
         @Path() catalogSearchUuid: string,
         @Path() tagUuid: string,
         @Request() req: express.Request,

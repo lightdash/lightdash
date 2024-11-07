@@ -17,13 +17,13 @@ const parseFieldFromMetricOrDimension = (
     {
         catalogSearchUuid,
         tags,
-        catalogTags,
+        categories,
         requiredAttributes,
         chartUsage,
     }: {
         catalogSearchUuid: string;
         tags: string[];
-        catalogTags: Pick<Tag, 'tagUuid' | 'color' | 'name'>[];
+        categories: Pick<Tag, 'tagUuid' | 'color' | 'name'>[];
         requiredAttributes: Record<string, string | string[]> | undefined;
         chartUsage: number | undefined;
     },
@@ -39,7 +39,7 @@ const parseFieldFromMetricOrDimension = (
     type: CatalogType.Field,
     requiredAttributes,
     tags,
-    catalogTags,
+    categories,
     chartUsage,
     catalogSearchUuid,
 });
@@ -54,7 +54,7 @@ export const parseFieldsFromCompiledTable = (
     return tableFields.map((field) =>
         parseFieldFromMetricOrDimension(table, field, {
             tags: [],
-            catalogTags: [],
+            categories: [],
             requiredAttributes:
                 field.requiredAttributes ?? table.requiredAttributes,
             // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
@@ -82,7 +82,7 @@ export const parseCatalog = (
             type: CatalogType.Table,
             requiredAttributes: dbCatalog.required_attributes ?? undefined,
             tags: dbCatalog.explore.tags,
-            catalogTags: dbCatalog.catalog_tags,
+            categories: dbCatalog.catalog_tags,
             chartUsage: dbCatalog.chart_usage ?? undefined,
         };
     }
@@ -105,7 +105,7 @@ export const parseCatalog = (
     return parseFieldFromMetricOrDimension(baseTable, findField, {
         catalogSearchUuid: dbCatalog.catalog_search_uuid,
         tags: dbCatalog.explore.tags,
-        catalogTags: dbCatalog.catalog_tags,
+        categories: dbCatalog.catalog_tags,
         requiredAttributes: dbCatalog.required_attributes ?? undefined,
         chartUsage: dbCatalog.chart_usage ?? 0,
     });

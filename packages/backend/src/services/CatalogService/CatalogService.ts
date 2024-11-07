@@ -170,7 +170,7 @@ export class CatalogService<
                         chartUsage: undefined,
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
-                        catalogTags: [],
+                        categories: [],
                     },
                 ];
             }
@@ -195,7 +195,7 @@ export class CatalogService<
                         chartUsage: undefined,
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
-                        catalogTags: [],
+                        categories: [],
                     },
                 ];
             }
