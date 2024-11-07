@@ -136,7 +136,9 @@ export const Table = styled.table<{ $showFooter?: boolean }>`
         left: 1px;
         z-index: 1;
         background-color: white !important;
-        word-break: break-word;
+        white-space: normal;
+        overflow: visible;
+        min-width: fit-content;
     }
     .last-sticky-column {
         border-right: 2px solid darkgray;
