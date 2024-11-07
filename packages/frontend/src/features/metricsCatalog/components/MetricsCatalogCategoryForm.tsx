@@ -49,21 +49,40 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         const organizationUuid = useAppSelector(
             (state) => state.metricsCatalog.organizationUuid,
         );
+
         const [opened, setOpened] = useState(false);
         const [search, setSearch] = useState('');
         const [tagColor, setTagColor] = useState<string>();
+        const [optimisticCategories, setOptimisticCategories] = useState<
+            CatalogField['categories']
+        >(() => metricCategories);
 
         const { data: tags } = useProjectTags(projectUuid);
         const createTagMutation = useCreateTag();
         const tagCatalogItemMutation = useAddCategoryToCatalogItem();
         const untagCatalogItemMutation = useRemoveCategoryFromCatalogItem();
 
-        // Generate new color when popover opens
+        const categoryNames = useMemo(
+            () => metricCategories.map((category) => category.name),
+            [metricCategories],
+        );
+
+        const handleSearchChange = useCallback((value: string) => {
+            setSearch(value);
+        }, []);
+
+        const handlePopoverChange = useCallback((value: boolean) => {
+            setOpened(value);
+        }, []);
+
+        useEffect(() => {
+            setOptimisticCategories(metricCategories);
+        }, [metricCategories]);
+
         useEffect(() => {
             if (opened) {
                 setTagColor(getRandomColor(colors));
             } else {
-                // setSearch('');
                 setTagColor(undefined);
             }
         }, [opened, colors]);
@@ -78,7 +97,28 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     );
 
                     if (existingTag) {
-                        await tagCatalogItemMutation.mutateAsync({
+                        console.log(
+                            'Adding existing tag - Before optimistic update:',
+                            optimisticCategories,
+                        );
+                        setOptimisticCategories((prev) => {
+                            const newCategories = prev.some(
+                                (tag) => tag.tagUuid === existingTag.tagUuid,
+                            )
+                                ? prev
+                                : [...prev, existingTag];
+                            console.log(
+                                'Adding existing tag - After optimistic update:',
+                                newCategories,
+                            );
+                            return newCategories;
+                        });
+
+                        console.log(
+                            'Calling API to add existing tag:',
+                            existingTag,
+                        );
+                        tagCatalogItemMutation.mutate({
                             projectUuid,
                             catalogSearchUuid,
                             tagUuid: existingTag.tagUuid,
@@ -87,20 +127,37 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     } else {
                         if (!tagColor) return;
 
-                        const newTag = await createTagMutation.mutateAsync({
+                        console.log(
+                            'Creating new tag - Before optimistic update:',
+                            optimisticCategories,
+                        );
+                        const optimisticTag = {
+                            tagUuid: `temp-${Date.now()}`,
+                            name: tagName,
+                            color: tagColor,
+                        };
+                        setOptimisticCategories((prev) => {
+                            const newCategories = [...prev, optimisticTag];
+                            console.log(
+                                'Creating new tag - After optimistic update:',
+                                newCategories,
+                            );
+                            return newCategories;
+                        });
+
+                        console.log(
+                            'Calling API to create new tag:',
+                            optimisticTag,
+                        );
+                        createTagMutation.mutate({
                             projectUuid,
                             data: {
                                 name: tagName,
                                 color: tagColor,
                             },
+                            catalogSearchUuid,
                         });
 
-                        await tagCatalogItemMutation.mutateAsync({
-                            projectUuid,
-                            catalogSearchUuid,
-                            tagUuid: newTag.tagUuid,
-                        });
-                        // Reset search and color after creating a new tag
                         setSearch('');
                         setTagColor(getRandomColor(colors));
                     }
@@ -115,7 +172,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         },
                     });
                 } catch (error) {
-                    // TODO: Add toast on error
+                    setOptimisticCategories(metricCategories);
                     console.error('Error adding tag:', error);
                 }
             },
@@ -124,11 +181,13 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 tags,
                 track,
                 organizationUuid,
+                optimisticCategories,
                 tagCatalogItemMutation,
                 catalogSearchUuid,
                 tagColor,
                 createTagMutation,
                 colors,
+                metricCategories,
             ],
         );
 
@@ -136,45 +195,96 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             async (tagUuid: string) => {
                 if (!projectUuid) return;
 
-                await untagCatalogItemMutation.mutateAsync({
-                    projectUuid,
-                    catalogSearchUuid,
-                    tagUuid,
+                console.log(
+                    'Removing tag - Before optimistic update:',
+                    optimisticCategories,
+                );
+                setOptimisticCategories((prev) => {
+                    const newCategories = prev.filter(
+                        (category) => category.tagUuid !== tagUuid,
+                    );
+                    console.log(
+                        'Removing tag - After optimistic update:',
+                        newCategories,
+                    );
+                    return newCategories;
                 });
+
+                try {
+                    console.log('Calling API to remove tag:', tagUuid);
+                    untagCatalogItemMutation.mutate({
+                        projectUuid,
+                        catalogSearchUuid,
+                        tagUuid,
+                    });
+                } catch (error) {
+                    console.error(
+                        'Error removing tag - Reverting to:',
+                        metricCategories,
+                    );
+                    setOptimisticCategories(metricCategories);
+                }
             },
-            [projectUuid, catalogSearchUuid, untagCatalogItemMutation],
+            [
+                projectUuid,
+                optimisticCategories,
+                untagCatalogItemMutation,
+                catalogSearchUuid,
+                metricCategories,
+            ],
         );
 
-        // Filter existing categories that are already applied to this metric
-        // Returns categories whose names match the search term (case insensitive)
         const filteredExistingCategories = useMemo(
             () =>
-                filter(metricCategories, (category) =>
+                filter(optimisticCategories, (category) =>
                     includes(category.name.toLowerCase(), search.toLowerCase()),
                 ),
-            [metricCategories, search],
+            [optimisticCategories, search],
         );
 
-        // Filter available categories that can be applied to this metric
-        // 1. Get categories that aren't already applied (using differenceBy)
-        // 2. Filter remaining categories to match search term (case insensitive)
         const filteredAvailableCategories = useMemo(
             () =>
                 filter(
-                    differenceBy(tags, metricCategories, 'tagUuid'),
+                    differenceBy(tags, optimisticCategories, 'tagUuid'),
                     (category) =>
                         includes(
                             category.name.toLowerCase(),
                             search.toLowerCase(),
                         ),
                 ),
-            [tags, search, metricCategories],
+            [tags, search, optimisticCategories],
+        );
+
+        const renderValueComponent = useCallback(
+            ({ value, onRemove }: any) => (
+                <Box mx={2}>
+                    <CatalogCategory
+                        category={{
+                            name: value,
+                            color:
+                                metricCategories.find(
+                                    (category) => category.name === value,
+                                )?.color ?? getRandomColor(colors),
+                        }}
+                        onRemove={() => {
+                            onRemove(value);
+                            const tagUuid = metricCategories.find(
+                                (category) => category.name === value,
+                            )?.tagUuid;
+                            if (tagUuid) {
+                                void handleUntag(tagUuid);
+                            }
+                        }}
+                    />
+                </Box>
+            ),
+            [colors, metricCategories, handleUntag],
         );
 
         return (
             <Popover
                 opened={opened}
-                onChange={setOpened}
+                onChange={handlePopoverChange}
                 position="bottom"
                 width={300}
                 withArrow
@@ -215,45 +325,18 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 </Popover.Target>
                 <Popover.Dropdown p="xs">
                     <TagInput
-                        value={metricCategories.map(
-                            (category) => category.name,
-                        )}
+                        value={categoryNames}
+                        onSearchChange={handleSearchChange}
+                        searchValue={search}
+                        valueComponent={renderValueComponent}
                         placeholder="Search"
                         size="xs"
                         mb="xs"
                         radius="md"
-                        onSearchChange={(value) => {
-                            setSearch(value);
-                        }}
-                        searchValue={search}
                         addOnBlur={false}
                         onBlur={(e) => {
                             e.stopPropagation();
                         }}
-                        valueComponent={({ value, onRemove }) => (
-                            <Box mx={2}>
-                                <CatalogCategory
-                                    category={{
-                                        name: value,
-                                        color:
-                                            metricCategories.find(
-                                                (category) =>
-                                                    category.name === value,
-                                            )?.color ?? getRandomColor(colors),
-                                    }}
-                                    onRemove={() => {
-                                        onRemove(value);
-                                        const tagUuid = metricCategories.find(
-                                            (category) =>
-                                                category.name === value,
-                                        )?.tagUuid;
-                                        if (tagUuid) {
-                                            void handleUntag(tagUuid);
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        )}
                     />
                     <Text size="xs" fw={500} color="dimmed" mb="xs">
                         Select a category or create a new one
@@ -263,7 +346,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             spacing={4}
                             w="100%"
                             mah={140}
-                            // For the scrollbar to not overlap the button
                             pr="sm"
                             sx={{
                                 overflow: 'auto',

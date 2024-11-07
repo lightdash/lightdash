@@ -8,7 +8,7 @@ type AddCategoryToCatalogItemParams = {
     tagUuid: string;
 };
 
-const addCategoryToCatalogItem = async ({
+export const addCategoryToCatalogItem = async ({
     projectUuid,
     catalogSearchUuid,
     tagUuid,
@@ -31,8 +31,15 @@ export const useAddCategoryToCatalogItem = () => {
         AddCategoryToCatalogItemParams
     >({
         mutationFn: addCategoryToCatalogItem,
+        onMutate: async (variables) => {
+            console.log('Adding category - Mutation started:', variables);
+        },
         onSuccess: async () => {
-            await queryClient.invalidateQueries(['metrics-catalog']);
+            console.log('Adding category - API call successful');
+            void queryClient.invalidateQueries(['metrics-catalog']);
+        },
+        onError: (error) => {
+            console.error('Adding category - API call failed:', error);
         },
     });
 };
@@ -62,8 +69,15 @@ export const useRemoveCategoryFromCatalogItem = () => {
         RemoveCategoryFromCatalogItemParams
     >({
         mutationFn: removeCategoryFromCatalogItem,
+        onMutate: async (variables) => {
+            console.log('Removing category - Mutation started:', variables);
+        },
         onSuccess: async () => {
-            await queryClient.invalidateQueries(['metrics-catalog']);
+            console.log('Removing category - API call successful');
+            void queryClient.invalidateQueries(['metrics-catalog']);
+        },
+        onError: (error) => {
+            console.error('Removing category - API call failed:', error);
         },
     });
 };

@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
+import { addCategoryToCatalogItem } from './useCatalogCategories';
 
 const createTag = async (
     projectUuid: string,
@@ -24,14 +25,78 @@ const createTag = async (
  */
 export const useCreateTag = () => {
     const queryClient = useQueryClient();
+
     return useMutation<
         ApiCreateTagResponse['results'],
         ApiError,
-        { projectUuid: string; data: Pick<Tag, 'name' | 'color'> }
+        {
+            projectUuid: string;
+            data: Pick<Tag, 'name' | 'color'>;
+            catalogSearchUuid?: string; // Make optional to support both with/without catalog item tagging
+        },
+        { previousTags: Tag[] }
     >({
-        mutationFn: ({ projectUuid, data }) => createTag(projectUuid, data),
+        // @ts-expect-error - TODO: fix this
+        mutationFn: async ({ projectUuid, data, catalogSearchUuid }) => {
+            // First create the tag
+            const newTag = await createTag(projectUuid, data);
+
+            // If catalogSearchUuid is provided, also tag the catalog item
+            if (catalogSearchUuid) {
+                await addCategoryToCatalogItem({
+                    projectUuid,
+                    catalogSearchUuid,
+                    tagUuid: newTag.tagUuid,
+                });
+            }
+
+            return newTag;
+        },
+        onMutate: async ({ projectUuid, data }) => {
+            // Cancel any outgoing refetches
+            await queryClient.cancelQueries(['project-tags', projectUuid]);
+
+            // Snapshot the previous value
+            const previousTags = queryClient.getQueryData<Tag[]>([
+                'project-tags',
+                projectUuid,
+            ]);
+
+            // Optimistically update the cache
+            queryClient.setQueryData(
+                ['project-tags', projectUuid],
+                (old: Tag[] = []) => {
+                    const optimisticTag: Tag = {
+                        tagUuid: `temp-${Date.now()}`, // Temporary ID
+                        name: data.name,
+                        color: data.color,
+                        createdAt: new Date(),
+                        projectUuid,
+                        createdBy: {
+                            userUuid: 'user',
+                            firstName: 'user',
+                            lastName: 'user',
+                        },
+                    };
+                    return [...old, optimisticTag];
+                },
+            );
+
+            // Return context with the snapshotted value
+            return { previousTags };
+        },
+        onError: (err, variables, context) => {
+            // If the mutation fails, roll back to the previous value
+            if (context?.previousTags) {
+                queryClient.setQueryData(
+                    ['project-tags', variables.projectUuid],
+                    context.previousTags,
+                );
+            }
+        },
         onSuccess: async () => {
-            await queryClient.invalidateQueries(['project-tags']);
+            void queryClient.invalidateQueries(['project-tags']);
+            void queryClient.invalidateQueries(['metrics-catalog']);
         },
     });
 };
