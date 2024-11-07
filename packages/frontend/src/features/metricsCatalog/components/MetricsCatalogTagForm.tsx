@@ -107,7 +107,7 @@ export const MetricsCatalogTagForm: FC<Props> = memo(
                     }
 
                     track({
-                        name: EventName.METRICS_CATALOG_TAG_ADDED,
+                        name: EventName.METRICS_CATALOG_TAG_CLICKED,
                         properties: {
                             organizationId: organizationUuid,
                             projectId: projectUuid,

@@ -62,7 +62,7 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_CHART_USAGE_CLICKED
         | EventName.METRICS_CATALOG_EXPLORE_CLICKED
         | EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED
-        | EventName.METRICS_CATALOG_TAG_ADDED
+        | EventName.METRICS_CATALOG_TAG_CLICKED
         | EventName.METRICS_CATALOG_TAG_FILTER_APPLIED;
     properties?: {};
 };
@@ -207,8 +207,8 @@ type MetricsCatalogChartUsageChartClickedEvent = {
     };
 };
 
-type MetricsCatalogTagAddedEvent = {
-    name: EventName.METRICS_CATALOG_TAG_ADDED;
+type MetricsCatalogTagClickedEvent = {
+    name: EventName.METRICS_CATALOG_TAG_CLICKED;
     properties: {
         organizationId: string;
         projectId: string;
@@ -241,7 +241,7 @@ export type EventData =
     | MetricsCatalogChartUsageClickedEvent
     | MetricsCatalogExploreClickedEvent
     | MetricsCatalogChartUsageChartClickedEvent
-    | MetricsCatalogTagAddedEvent
+    | MetricsCatalogTagClickedEvent
     | MetricsCatalogTagFilterAppliedEvent;
 
 type IdentifyData = {
