@@ -32,7 +32,7 @@ type Props = {
 const CategoriesFilter = () => {
     const { track } = useTracking();
     const dispatch = useAppDispatch();
-    // Tracks selected tags while the popover is open - when the user closes the popover, the selected tags are set in the redux store,
+    // Tracks selected categories while the popover is open - when the user closes the popover, the selected categories are set in the redux store,
     // which triggers a new search
     const [selectedCategories, selectedCategoriesHandlers] = useListState<
         CatalogField['categories'][number]['tagUuid']
@@ -120,7 +120,7 @@ const CategoriesFilter = () => {
                 <Popover.Dropdown>
                     <Stack spacing="sm">
                         <Group position="apart">
-                            <Text weight={500}>Filter by tags</Text>
+                            <Text weight={500}>Filter by categories</Text>
                         </Group>
                         {categories?.map((category) => (
                             <Checkbox

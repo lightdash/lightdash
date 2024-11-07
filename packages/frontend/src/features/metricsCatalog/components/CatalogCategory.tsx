@@ -6,22 +6,18 @@ import MantineIcon from '../../../components/common/MantineIcon';
 
 type Props = {
     category: Pick<CatalogItem['categories'][number], 'name' | 'color'>;
-    onTagClick?: () => void;
+    onClick?: () => void;
     onRemove?: () => void;
 };
 
-export const CatalogCategory: FC<Props> = ({
-    category,
-    onTagClick,
-    onRemove,
-}) => {
+export const CatalogCategory: FC<Props> = ({ category, onClick, onRemove }) => {
     return (
         <Badge
             key={category.name}
             size="sm"
             radius="sm"
             variant="light"
-            onClick={onTagClick}
+            onClick={onClick}
             styles={(theme) => ({
                 root: {
                     textTransform: 'none',

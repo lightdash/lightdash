@@ -145,8 +145,8 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             [projectUuid, catalogSearchUuid, untagCatalogItemMutation],
         );
 
-        // Filter existing tags that are already applied to this metric
-        // Returns tags whose names match the search term (case insensitive)
+        // Filter existing categories that are already applied to this metric
+        // Returns categories whose names match the search term (case insensitive)
         const filteredExistingCategories = useMemo(
             () =>
                 filter(metricCategories, (category) =>
@@ -155,9 +155,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             [metricCategories, search],
         );
 
-        // Filter available tags that can be applied to this metric
-        // 1. Get tags that aren't already applied (using differenceBy)
-        // 2. Filter remaining tags to match search term (case insensitive)
+        // Filter available categories that can be applied to this metric
+        // 1. Get categories that aren't already applied (using differenceBy)
+        // 2. Filter remaining categories to match search term (case insensitive)
         const filteredAvailableCategories = useMemo(
             () =>
                 filter(
@@ -256,7 +256,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         )}
                     />
                     <Text size="xs" fw={500} color="dimmed" mb="xs">
-                        Select a tag or create a new one
+                        Select a category or create a new one
                     </Text>
                     <Stack spacing="xs" align="flex-start">
                         <Stack
@@ -279,9 +279,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 <MetricCatalogCategoryFormItem
                                     key={category.tagUuid}
                                     category={category}
-                                    onTagClick={() =>
-                                        handleAddTag(category.name)
-                                    }
+                                    onClick={() => handleAddTag(category.name)}
                                 />
                             ))}
                         </Stack>

@@ -61,7 +61,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     },
     {
         accessorKey: 'categories',
-        header: 'Categories',
+        header: 'Category',
         enableSorting: false,
         size: 150,
         minSize: 180,

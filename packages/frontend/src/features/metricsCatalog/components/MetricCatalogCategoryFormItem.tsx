@@ -18,12 +18,12 @@ import { CatalogCategory } from './CatalogCategory';
 
 type Props = {
     category: CatalogItem['categories'][number];
-    onTagClick?: () => void;
+    onClick?: () => void;
 };
 
 export const MetricCatalogCategoryFormItem: FC<Props> = ({
     category,
-    onTagClick,
+    onClick,
 }) => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
@@ -127,7 +127,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
         <Group spacing={4} position="apart" w="100%">
             <CatalogCategory
                 category={category}
-                onTagClick={onTagClick}
+                onClick={onClick}
                 onRemove={onDelete}
             />
             <ActionIcon
