@@ -1,3 +1,10 @@
+# [0.1352.0](https://github.com/lightdash/lightdash/compare/0.1351.1...0.1352.0) (2024-11-07)
+
+
+### Features
+
+* migrate tags from previous catalog to newly indexed catalog ([#12294](https://github.com/lightdash/lightdash/issues/12294)) ([8ba44a8](https://github.com/lightdash/lightdash/commit/8ba44a879acd6940f74dd48a2ec5c8b43e4f8e27))
+
 ## [0.1351.1](https://github.com/lightdash/lightdash/compare/0.1351.0...0.1351.1) (2024-11-07)
 
 
