@@ -21,6 +21,7 @@ import {
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import type { LightdashConfig } from '../../config/parseConfig';
 import {
     CatalogTableName,
     CatalogTagsTableName,
@@ -41,15 +42,19 @@ import {
 import { convertExploresToCatalog } from './utils';
 import { parseCatalog } from './utils/parser';
 
-type SearchModelArguments = {
+type CatalogModelArguments = {
     database: Knex;
+    lightdashConfig: LightdashConfig;
 };
 
 export class CatalogModel {
     protected database: Knex;
 
-    constructor(args: SearchModelArguments) {
+    protected lightdashConfig: LightdashConfig;
+
+    constructor(args: CatalogModelArguments) {
         this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
     }
 
     async indexCatalog(
