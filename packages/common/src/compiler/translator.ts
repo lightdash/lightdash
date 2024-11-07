@@ -346,6 +346,8 @@ export const convertTable = (
                                                           label: dim.label,
                                                           groups: dim.groups,
                                                           sql: dim.sql,
+                                                          description:
+                                                              dim.description,
                                                       },
                                                   },
                                               }
