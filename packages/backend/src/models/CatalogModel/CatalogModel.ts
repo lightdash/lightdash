@@ -511,7 +511,7 @@ export class CatalogModel {
             .delete();
     }
 
-    async getCatalogItemsAndTags(projectUuid: string) {
+    async getCatalogItemsWithTags(projectUuid: string) {
         const itemsWithTags: (DbCatalog & {
             explore_base_table: string;
             catalog_tag_uuids: {

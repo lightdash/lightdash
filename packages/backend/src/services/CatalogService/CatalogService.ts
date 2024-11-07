@@ -273,7 +273,7 @@ export class CatalogService<
         prevCatalogItemsWithTags: CatalogItemWithTagUuids[],
     ) {
         const currentCatalogItems =
-            await this.catalogModel.getCatalogItemsAndTags(projectUuid);
+            await this.catalogModel.getCatalogItemsWithTags(projectUuid);
 
         const catalogTagsMigrateIn: DbCatalogTagsMigrateIn[] =
             currentCatalogItems.flatMap(
@@ -285,7 +285,7 @@ export class CatalogService<
                     type: currentType,
                     catalogSearchUuid: currentCatalogSearchUuid,
                 }) => {
-                    // Just a safeguard, this should never happen since the getCatalogItemsAndTags query is scoped to the project
+                    // Just a safeguard, this should never happen since the getCatalogItemsWithTags query is scoped to the project
                     if (projectUuid !== currentProjectUuid) {
                         return [];
                     }
