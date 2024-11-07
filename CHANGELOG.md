@@ -1,3 +1,10 @@
+## [0.1352.5](https://github.com/lightdash/lightdash/compare/0.1352.4...0.1352.5) (2024-11-07)
+
+
+### Bug Fixes
+
+* date format gsheets ([#12268](https://github.com/lightdash/lightdash/issues/12268)) ([626eaf2](https://github.com/lightdash/lightdash/commit/626eaf2cae4aa303811f87fdb8448241af1a4c6a))
+
 ## [0.1352.4](https://github.com/lightdash/lightdash/compare/0.1352.3...0.1352.4) (2024-11-07)
 
 
