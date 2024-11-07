@@ -60,6 +60,18 @@ export function getColumnMatchRegexQuery(
     });
 }
 
+export function getColumnMatchExactQuery(
+    queryBuilder: Knex.QueryBuilder,
+    searchQuery: string,
+    columns: string[],
+) {
+    return queryBuilder.where((builder) => {
+        columns.forEach((column) =>
+            builder.orWhereRaw(`?? = ?`, [column, searchQuery]),
+        );
+    });
+}
+
 export function getTableOrFieldMatchCount(
     regex: RegExp,
     tableOrField: CompiledTable | CompiledField,
