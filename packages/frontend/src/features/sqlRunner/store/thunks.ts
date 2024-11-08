@@ -70,7 +70,7 @@ export const runSqlQuery = createAsyncThunk<
                 return rejectWithValue(job.error);
             }
         } catch (error) {
-            return rejectWithValue(error as ApiErrorDetail);
+            return rejectWithValue(error?.error as ApiErrorDetail);
         }
     },
 );
