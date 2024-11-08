@@ -1,3 +1,10 @@
+## [0.1352.6](https://github.com/lightdash/lightdash/compare/0.1352.5...0.1352.6) (2024-11-08)
+
+
+### Bug Fixes
+
+* remove virtual explore from exposure ([#12287](https://github.com/lightdash/lightdash/issues/12287)) ([1a7e931](https://github.com/lightdash/lightdash/commit/1a7e931f15e22a4f2b5dfed72583fc45d6548e88))
+
 ## [0.1352.5](https://github.com/lightdash/lightdash/compare/0.1352.4...0.1352.5) (2024-11-07)
 
 
