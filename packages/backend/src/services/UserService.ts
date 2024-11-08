@@ -282,6 +282,9 @@ export class UserService extends BaseService {
             event: 'user.created',
             userId: user.userUuid,
             properties: {
+                context: 'accept_invite',
+                createdUserId: user.userUuid,
+                organizationId: user.organizationUuid,
                 userConnectionType: 'password',
             },
         });
@@ -292,19 +295,19 @@ export class UserService extends BaseService {
     }
 
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
-        const [orgForUser] = await this.userModel.getOrganizationsForUser(
+        const userToDelete = await this.userModel.getUserDetailsByUuid(
             userUuidToDelete,
         );
         // The user might not have an org yet
         // This is expected on the "Cancel registration" flow on single org instances.
-        if (orgForUser?.organizationUuid) {
+        if (userToDelete?.organizationUuid) {
             // We assume only one org per user
 
             if (
                 user.ability.cannot(
                     'delete',
                     subject('OrganizationMemberProfile', {
-                        organizationUuid: orgForUser.organizationUuid,
+                        organizationUuid: userToDelete.organizationUuid,
                     }),
                 )
             ) {
@@ -314,7 +317,7 @@ export class UserService extends BaseService {
             // Race condition between check and delete
             const [admin, ...remainingAdmins] =
                 await this.organizationMemberProfileModel.getOrganizationAdmins(
-                    orgForUser.organizationUuid,
+                    userToDelete.organizationUuid,
                 );
             if (
                 remainingAdmins.length === 0 &&
@@ -333,7 +336,15 @@ export class UserService extends BaseService {
             event: 'user.deleted',
             userId: user.userUuid,
             properties: {
-                deletedUserUuid: userUuidToDelete,
+                context:
+                    user.userUuid !== userUuidToDelete
+                        ? 'delete_org_member'
+                        : 'delete_self',
+                firstName: userToDelete.firstName,
+                lastName: userToDelete.lastName,
+                email: userToDelete.email,
+                organizationId: userToDelete.organizationUuid,
+                deletedUserId: userUuidToDelete,
             },
         });
     }
@@ -882,6 +893,7 @@ export class UserService extends BaseService {
             properties: {
                 ...completeUser,
                 jobTitle,
+                context: 'complete_setup',
             },
         });
         return completeUser;
@@ -1034,7 +1046,10 @@ export class UserService extends BaseService {
         this.analytics.track({
             userId: updatedUser.userUuid,
             event: 'user.updated',
-            properties: updatedUser,
+            properties: {
+                ...updatedUser,
+                context: 'update_self',
+            },
         });
         return updatedUser;
     }
@@ -1095,6 +1110,9 @@ export class UserService extends BaseService {
             event: 'user.created',
             userId: user.userUuid,
             properties: {
+                context: 'accept_invite',
+                createdUserId: user.userUuid,
+                organizationId: user.organizationUuid,
                 userConnectionType: isOpenIdUser(createUser)
                     ? createUser.openId.issuerType
                     : 'password',
