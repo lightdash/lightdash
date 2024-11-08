@@ -67,6 +67,7 @@ export class GroupsService extends BaseService {
                     name: updatedGroup.name,
                     countUsersInGroup: updatedGroup.memberUuids.length,
                     viaSso: false,
+                    context: 'add_member',
                 },
             });
         }
@@ -105,6 +106,7 @@ export class GroupsService extends BaseService {
                     name: updatedGroup.name,
                     countUsersInGroup: updatedGroup.memberUuids.length,
                     viaSso: false,
+                    context: 'remove_member',
                 },
             });
         }
@@ -130,6 +132,7 @@ export class GroupsService extends BaseService {
             properties: {
                 organizationId: group.organizationUuid,
                 groupId: group.uuid,
+                context: 'delete_group',
             },
         });
     }
@@ -191,6 +194,7 @@ export class GroupsService extends BaseService {
                 name: updatedGroup.name,
                 countUsersInGroup: updatedGroup.memberUuids.length,
                 viaSso: false,
+                context: 'update_group',
             },
         });
         return updatedGroup;
