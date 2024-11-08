@@ -74,6 +74,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
 
         useEffect(() => {
             if (opened) {
+                // Generate new color when popover opens
                 setTagColor(getRandomColor(colors));
             } else {
                 setTagColor(undefined);
@@ -108,6 +109,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             catalogSearchUuid,
                         });
 
+                        // Reset search and color after creating a new tag
                         setSearch('');
                         setTagColor(getRandomColor(colors));
                     }
@@ -122,6 +124,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         },
                     });
                 } catch (error) {
+                    // TODO: Add toast on error
                     console.error('Error adding tag:', error);
                 }
             },
@@ -155,6 +158,8 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             [projectUuid, untagCatalogItemMutation, catalogSearchUuid],
         );
 
+        // Filter existing categories that are already applied to this metric
+        // Returns categories whose names match the search term (case insensitive)
         const filteredExistingCategories = useMemo(
             () =>
                 filter(metricCategories, (category) =>
@@ -163,6 +168,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             [metricCategories, search],
         );
 
+        // Filter available categories that can be applied to this metric
+        // 1. Get categories that aren't already applied to this metric
+        // 2. Filter remaining categories to match search term (case insensitive)
         const filteredAvailableCategories = useMemo(
             () =>
                 filter(
@@ -273,6 +281,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             spacing={4}
                             w="100%"
                             mah={140}
+                            // For the scrollbar to not overlap the button
                             pr="sm"
                             sx={{
                                 overflow: 'auto',
