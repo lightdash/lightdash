@@ -1,3 +1,10 @@
+# [0.1354.0](https://github.com/lightdash/lightdash/compare/0.1353.2...0.1354.0) (2024-11-08)
+
+
+### Features
+
+* ability to transfer tiles on tab delete ([#11986](https://github.com/lightdash/lightdash/issues/11986)) ([452947a](https://github.com/lightdash/lightdash/commit/452947a35d9e6498db6d17846047ec0178c402e8))
+
 ## [0.1353.2](https://github.com/lightdash/lightdash/compare/0.1353.1...0.1353.2) (2024-11-08)
 
 
