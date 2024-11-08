@@ -1,3 +1,11 @@
+## [0.1353.1](https://github.com/lightdash/lightdash/compare/0.1353.0...0.1353.1) (2024-11-08)
+
+
+### Bug Fixes
+
+* **analytics:** group create/update/delete analytics ([#12324](https://github.com/lightdash/lightdash/issues/12324)) ([ba9ea32](https://github.com/lightdash/lightdash/commit/ba9ea32ee339f963d1765d1fe7786e5b87bacf28))
+* **analytics:** user create/update/delete analytics event ([#12322](https://github.com/lightdash/lightdash/issues/12322)) ([e86edf2](https://github.com/lightdash/lightdash/commit/e86edf26e28df4dfb022013c858c30c542a2c7fd))
+
 # [0.1353.0](https://github.com/lightdash/lightdash/compare/0.1352.7...0.1353.0) (2024-11-08)
 
 
