@@ -415,6 +415,11 @@ export class GroupsModel {
                         )
                         .andWhere('groups.group_uuid', groupUuid);
 
+                    // Check if the initial and resulting counts match
+                    if (newMembers.length !== membersToAdd.length) {
+                        throw new Error(`Some provided user UUIDs are invalid`);
+                    }
+
                     await trx('group_memberships')
                         .insert(newMembers)
                         .onConflict()
