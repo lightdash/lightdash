@@ -892,6 +892,8 @@ export class UserService extends BaseService {
             userId: completeUser.userUuid,
             properties: {
                 ...completeUser,
+                updatedUserId: completeUser.userUuid,
+                organizationId: completeUser.organizationUuid,
                 jobTitle,
                 context: 'complete_setup',
             },
@@ -1048,6 +1050,8 @@ export class UserService extends BaseService {
             event: 'user.updated',
             properties: {
                 ...updatedUser,
+                updatedUserId: updatedUser.userUuid,
+                organizationId: updatedUser.organizationUuid,
                 context: 'update_self',
             },
         });

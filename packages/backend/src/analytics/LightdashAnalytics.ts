@@ -114,7 +114,9 @@ type DeleteUserEvent = BaseTrack & {
 
 type UpdateUserEvent = BaseTrack & {
     event: 'user.updated';
-    properties: LightdashUser & {
+    properties: Omit<LightdashUser, 'userUuid' | 'organizationUuid'> & {
+        updatedUserId: string;
+        organizationId: string | undefined;
         jobTitle?: string;
         context: string; // context on where/why this user was updated
     };
