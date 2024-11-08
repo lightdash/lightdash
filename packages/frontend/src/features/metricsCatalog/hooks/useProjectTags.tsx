@@ -6,10 +6,14 @@ import {
     type ApiSuccessEmpty,
     type Tag,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type InfiniteData,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import { addCategoryToCatalogItem } from './useCatalogCategories';
-import { useMetricsCatalog } from './useMetricsCatalog';
 
 const createTag = async (
     projectUuid: string,
@@ -23,7 +27,7 @@ const createTag = async (
 };
 
 /**
- * Create a tag in a project - it will be available to be used in any catalog item in that project
+ * Create a tag in a project and tag it to a catalog item if provided
  */
 export const useCreateTag = () => {
     const queryClient = useQueryClient();
@@ -36,7 +40,7 @@ export const useCreateTag = () => {
             data: Pick<Tag, 'name' | 'color'>;
             catalogSearchUuid?: string;
         },
-        { previousCatalog: unknown }
+        { previousCatalog: InfiniteData<ApiMetricsCatalog['results']> }
     >({
         mutationFn: async ({ projectUuid, data, catalogSearchUuid }) => {
             const newTag = await createTag(projectUuid, data);
@@ -85,18 +89,20 @@ export const useCreateTag = () => {
 
             // Update metrics catalog if needed
             if (catalogSearchUuid) {
-                queryClient.setQueriesData(
+                queryClient.setQueriesData<
+                    InfiniteData<ApiMetricsCatalog['results']>
+                >(
                     {
                         queryKey: ['metrics-catalog', projectUuid],
                         exact: false,
                     },
-                    (old: any) => {
+                    (old) => {
                         if (!old?.pages) return old;
                         return {
                             ...old,
-                            pages: old.pages.map((page: any) => ({
+                            pages: old.pages.map((page) => ({
                                 ...page,
-                                data: page.data.map((item: any) =>
+                                data: page.data.map((item) =>
                                     item.catalogSearchUuid === catalogSearchUuid
                                         ? {
                                               ...item,
@@ -188,7 +194,7 @@ export const useUpdateTag = () => {
             tagUuid: string;
             data: Pick<Tag, 'name' | 'color'>;
         },
-        { previousCatalog: unknown }
+        { previousCatalog: InfiniteData<ApiMetricsCatalog['results']> }
     >({
         mutationFn: ({ projectUuid, tagUuid, data }) => {
             return updateTag(projectUuid, tagUuid, data);
@@ -215,24 +221,25 @@ export const useUpdateTag = () => {
             );
 
             // Optimistically update metrics catalog
-            queryClient.setQueriesData(
+            queryClient.setQueriesData<
+                InfiniteData<ApiMetricsCatalog['results']>
+            >(
                 {
                     queryKey: ['metrics-catalog', projectUuid],
                     exact: false,
                 },
-                (old: any) => {
+                (old) => {
                     if (!old?.pages) return old;
                     return {
                         ...old,
-                        pages: old.pages.map((page: any) => ({
+                        pages: old.pages.map((page) => ({
                             ...page,
-                            data: page.data.map((item: any) => ({
+                            data: page.data.map((item) => ({
                                 ...item,
-                                categories: item.categories.map(
-                                    (category: any) =>
-                                        category.tagUuid === tagUuid
-                                            ? { ...category, ...data }
-                                            : category,
+                                categories: item.categories.map((category) =>
+                                    category.tagUuid === tagUuid
+                                        ? { ...category, ...data }
+                                        : category,
                                 ),
                             })),
                         })),
@@ -279,10 +286,10 @@ const deleteTag = async (projectUuid: string, tagUuid: string) => {
 export const useDeleteTag = () => {
     const queryClient = useQueryClient();
     return useMutation<
-        ApiSuccessEmpty['results'],
+        ApiSuccessEmpty,
         ApiError,
         { projectUuid: string; tagUuid: string },
-        { previousCatalog: unknown }
+        { previousCatalog: InfiniteData<ApiMetricsCatalog['results']> }
     >({
         mutationFn: ({ projectUuid, tagUuid }) => {
             return deleteTag(projectUuid, tagUuid);
@@ -307,22 +314,23 @@ export const useDeleteTag = () => {
             );
 
             // Optimistically update metrics catalog
-            queryClient.setQueriesData(
+            queryClient.setQueriesData<
+                InfiniteData<ApiMetricsCatalog['results']>
+            >(
                 {
                     queryKey: ['metrics-catalog', projectUuid],
                     exact: false,
                 },
-                (old: any) => {
+                (old) => {
                     if (!old?.pages) return old;
                     return {
                         ...old,
-                        pages: old.pages.map((page: any) => ({
+                        pages: old.pages.map((page) => ({
                             ...page,
-                            data: page.data.map((item: any) => ({
+                            data: page.data.map((item) => ({
                                 ...item,
                                 categories: item.categories.filter(
-                                    (category: any) =>
-                                        category.tagUuid !== tagUuid,
+                                    (category) => category.tagUuid !== tagUuid,
                                 ),
                             })),
                         })),
@@ -332,7 +340,7 @@ export const useDeleteTag = () => {
 
             return { previousCatalog };
         },
-        onError: (_, { projectUuid }, context) => {
+        onError: (_, {}, context) => {
             if (context?.previousCatalog) {
                 Object.entries(context.previousCatalog).forEach(
                     ([queryKeyStr, data]) => {
