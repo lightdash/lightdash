@@ -1,4 +1,9 @@
-import { type ApiError, type ApiSuccessEmpty } from '@lightdash/common';
+import {
+    type ApiError,
+    type ApiMetricsCatalog,
+    type ApiSuccessEmpty,
+    type Tag,
+} from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
@@ -28,18 +33,84 @@ export const useAddCategoryToCatalogItem = () => {
     return useMutation<
         ApiSuccessEmpty['results'],
         ApiError,
-        AddCategoryToCatalogItemParams
+        AddCategoryToCatalogItemParams,
+        { previousCatalog: unknown }
     >({
         mutationFn: addCategoryToCatalogItem,
-        onMutate: async (variables) => {
-            console.log('Adding category - Mutation started:', variables);
+        onMutate: async ({ catalogSearchUuid, tagUuid, projectUuid }) => {
+            // Cancel any outgoing refetches
+            await queryClient.cancelQueries({
+                queryKey: ['metrics-catalog', projectUuid],
+            });
+
+            // Get the existing tag
+            const existingTag = queryClient
+                .getQueryData<Tag[]>(['project-tags', projectUuid])
+                ?.find((tag) => tag.tagUuid === tagUuid);
+
+            if (!existingTag) return { previousCatalog: null };
+
+            // Get the previous catalog state
+            const previousCatalog = queryClient.getQueryData([
+                'metrics-catalog',
+                projectUuid,
+            ]);
+
+            // Update all matching queries
+            queryClient.setQueriesData(
+                {
+                    queryKey: ['metrics-catalog', projectUuid],
+                    exact: false,
+                },
+                (old: any) => {
+                    if (!old?.pages) return old;
+
+                    return {
+                        ...old,
+                        pages: old.pages.map((page: any) => ({
+                            ...page,
+                            data: page.data.map((item: any) =>
+                                item.catalogSearchUuid === catalogSearchUuid
+                                    ? {
+                                          ...item,
+                                          categories: [
+                                              ...item.categories,
+                                              existingTag,
+                                          ].sort((a, b) =>
+                                              a.name
+                                                  .toLowerCase()
+                                                  .localeCompare(
+                                                      b.name.toLowerCase(),
+                                                  ),
+                                          ),
+                                      }
+                                    : item,
+                            ),
+                        })),
+                    };
+                },
+            );
+
+            return { previousCatalog };
         },
-        onSuccess: async () => {
-            console.log('Adding category - API call successful');
-            void queryClient.invalidateQueries(['metrics-catalog']);
+        onError: (_, __, context) => {
+            if (context?.previousCatalog) {
+                Object.entries(context.previousCatalog).forEach(
+                    ([queryKeyStr, data]) => {
+                        const queryKey = JSON.parse(queryKeyStr);
+                        queryClient.setQueryData<ApiMetricsCatalog['results']>(
+                            queryKey,
+                            data,
+                        );
+                    },
+                );
+            }
         },
-        onError: (error) => {
-            console.error('Adding category - API call failed:', error);
+        onSettled: (_, __, { projectUuid }) => {
+            void queryClient.invalidateQueries([
+                'metrics-catalog',
+                projectUuid,
+            ]);
         },
     });
 };
@@ -66,18 +137,71 @@ export const useRemoveCategoryFromCatalogItem = () => {
     return useMutation<
         ApiSuccessEmpty['results'],
         ApiError,
-        RemoveCategoryFromCatalogItemParams
+        RemoveCategoryFromCatalogItemParams,
+        { previousCatalog: unknown }
     >({
         mutationFn: removeCategoryFromCatalogItem,
-        onMutate: async (variables) => {
-            console.log('Removing category - Mutation started:', variables);
+        onMutate: async ({ catalogSearchUuid, tagUuid, projectUuid }) => {
+            // Cancel any outgoing refetches
+            await queryClient.cancelQueries({
+                queryKey: ['metrics-catalog', projectUuid],
+            });
+
+            // Get the previous catalog state
+            const previousCatalog = queryClient.getQueryData([
+                'metrics-catalog',
+                projectUuid,
+            ]);
+
+            // Update all matching queries
+            queryClient.setQueriesData(
+                {
+                    queryKey: ['metrics-catalog', projectUuid],
+                    exact: false,
+                },
+                (old: any) => {
+                    if (!old?.pages) return old;
+
+                    return {
+                        ...old,
+                        pages: old.pages.map((page: any) => ({
+                            ...page,
+                            data: page.data.map((item: any) =>
+                                item.catalogSearchUuid === catalogSearchUuid
+                                    ? {
+                                          ...item,
+                                          categories: item.categories.filter(
+                                              (category: any) =>
+                                                  category.tagUuid !== tagUuid,
+                                          ),
+                                      }
+                                    : item,
+                            ),
+                        })),
+                    };
+                },
+            );
+
+            return { previousCatalog };
         },
-        onSuccess: async () => {
-            console.log('Removing category - API call successful');
-            void queryClient.invalidateQueries(['metrics-catalog']);
+        onError: (_, __, context) => {
+            if (context?.previousCatalog) {
+                Object.entries(context.previousCatalog).forEach(
+                    ([queryKeyStr, data]) => {
+                        const queryKey = JSON.parse(queryKeyStr);
+                        queryClient.setQueryData<ApiMetricsCatalog['results']>(
+                            queryKey,
+                            data,
+                        );
+                    },
+                );
+            }
         },
-        onError: (error) => {
-            console.error('Removing category - API call failed:', error);
+        onSettled: (_, __, { projectUuid }) => {
+            void queryClient.invalidateQueries([
+                'metrics-catalog',
+                projectUuid,
+            ]);
         },
     });
 };
