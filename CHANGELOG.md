@@ -1,3 +1,10 @@
+## [0.1353.2](https://github.com/lightdash/lightdash/compare/0.1353.1...0.1353.2) (2024-11-08)
+
+
+### Bug Fixes
+
+* added check and throw error in group update if newMembers does not match expected ([#12328](https://github.com/lightdash/lightdash/issues/12328)) ([ba9d1a0](https://github.com/lightdash/lightdash/commit/ba9d1a0b8734ad9750a8d1dcb1e2bf21e47d6111))
+
 ## [0.1353.1](https://github.com/lightdash/lightdash/compare/0.1353.0...0.1353.1) (2024-11-08)
 
 
