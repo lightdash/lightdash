@@ -37,21 +37,12 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
 
     const handleSave = useCallback(async () => {
         if (category.tagUuid && projectUuid) {
-            console.log('Initiating tag update:', {
-                projectUuid,
-                tagUuid: category.tagUuid,
-                currentName: category.name,
-                newName: editName,
-                currentColor: category.color,
-                newColor: editColor,
-            });
             try {
                 updateTag({
                     projectUuid,
                     tagUuid: category.tagUuid,
                     data: { name: editName, color: editColor },
                 });
-                console.log('Tag update completed successfully');
                 setIsEditing(false);
             } catch (error) {
                 console.error('Tag update failed:', error);
@@ -61,14 +52,8 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
 
     const onDelete = useCallback(async () => {
         if (category.tagUuid && projectUuid) {
-            console.log('Initiating tag deletion:', {
-                projectUuid,
-                tagUuid: category.tagUuid,
-                categoryName: category.name,
-            });
             try {
                 deleteTag({ projectUuid, tagUuid: category.tagUuid });
-                console.log('Tag deletion completed successfully');
             } catch (error) {
                 console.error('Tag deletion failed:', error);
             }

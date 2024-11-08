@@ -1,4 +1,4 @@
-import { type CatalogField } from '@lightdash/common';
+import { type CatalogField, type Tag } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -53,9 +53,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         const [opened, setOpened] = useState(false);
         const [search, setSearch] = useState('');
         const [tagColor, setTagColor] = useState<string>();
-        const [optimisticCategories, setOptimisticCategories] = useState<
-            CatalogField['categories']
-        >(() => metricCategories);
 
         const { data: tags } = useProjectTags(projectUuid);
         const createTagMutation = useCreateTag();
@@ -76,10 +73,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         }, []);
 
         useEffect(() => {
-            setOptimisticCategories(metricCategories);
-        }, [metricCategories]);
-
-        useEffect(() => {
             if (opened) {
                 setTagColor(getRandomColor(colors));
             } else {
@@ -97,27 +90,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     );
 
                     if (existingTag) {
-                        console.log(
-                            'Adding existing tag - Before optimistic update:',
-                            optimisticCategories,
-                        );
-                        setOptimisticCategories((prev) => {
-                            const newCategories = prev.some(
-                                (tag) => tag.tagUuid === existingTag.tagUuid,
-                            )
-                                ? prev
-                                : [...prev, existingTag];
-                            console.log(
-                                'Adding existing tag - After optimistic update:',
-                                newCategories,
-                            );
-                            return newCategories;
-                        });
-
-                        console.log(
-                            'Calling API to add existing tag:',
-                            existingTag,
-                        );
                         tagCatalogItemMutation.mutate({
                             projectUuid,
                             catalogSearchUuid,
@@ -127,28 +99,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     } else {
                         if (!tagColor) return;
 
-                        console.log(
-                            'Creating new tag - Before optimistic update:',
-                            optimisticCategories,
-                        );
-                        const optimisticTag = {
-                            tagUuid: `temp-${Date.now()}`,
-                            name: tagName,
-                            color: tagColor,
-                        };
-                        setOptimisticCategories((prev) => {
-                            const newCategories = [...prev, optimisticTag];
-                            console.log(
-                                'Creating new tag - After optimistic update:',
-                                newCategories,
-                            );
-                            return newCategories;
-                        });
-
-                        console.log(
-                            'Calling API to create new tag:',
-                            optimisticTag,
-                        );
                         createTagMutation.mutate({
                             projectUuid,
                             data: {
@@ -172,7 +122,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         },
                     });
                 } catch (error) {
-                    setOptimisticCategories(metricCategories);
                     console.error('Error adding tag:', error);
                 }
             },
@@ -181,13 +130,11 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 tags,
                 track,
                 organizationUuid,
-                optimisticCategories,
                 tagCatalogItemMutation,
                 catalogSearchUuid,
                 tagColor,
                 createTagMutation,
                 colors,
-                metricCategories,
             ],
         );
 
@@ -195,68 +142,48 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             async (tagUuid: string) => {
                 if (!projectUuid) return;
 
-                console.log(
-                    'Removing tag - Before optimistic update:',
-                    optimisticCategories,
-                );
-                setOptimisticCategories((prev) => {
-                    const newCategories = prev.filter(
-                        (category) => category.tagUuid !== tagUuid,
-                    );
-                    console.log(
-                        'Removing tag - After optimistic update:',
-                        newCategories,
-                    );
-                    return newCategories;
-                });
-
                 try {
-                    console.log('Calling API to remove tag:', tagUuid);
                     untagCatalogItemMutation.mutate({
                         projectUuid,
                         catalogSearchUuid,
                         tagUuid,
                     });
                 } catch (error) {
-                    console.error(
-                        'Error removing tag - Reverting to:',
-                        metricCategories,
-                    );
-                    setOptimisticCategories(metricCategories);
+                    console.error('Error removing tag', error);
                 }
             },
-            [
-                projectUuid,
-                optimisticCategories,
-                untagCatalogItemMutation,
-                catalogSearchUuid,
-                metricCategories,
-            ],
+            [projectUuid, untagCatalogItemMutation, catalogSearchUuid],
         );
 
         const filteredExistingCategories = useMemo(
             () =>
-                filter(optimisticCategories, (category) =>
+                filter(metricCategories, (category) =>
                     includes(category.name.toLowerCase(), search.toLowerCase()),
                 ),
-            [optimisticCategories, search],
+            [metricCategories, search],
         );
 
         const filteredAvailableCategories = useMemo(
             () =>
                 filter(
-                    differenceBy(tags, optimisticCategories, 'tagUuid'),
+                    differenceBy(tags, metricCategories, 'tagUuid'),
                     (category) =>
                         includes(
                             category.name.toLowerCase(),
                             search.toLowerCase(),
                         ),
                 ),
-            [tags, search, optimisticCategories],
+            [tags, search, metricCategories],
         );
 
         const renderValueComponent = useCallback(
-            ({ value, onRemove }: any) => (
+            ({
+                value,
+                onRemove,
+            }: {
+                value: Tag['tagUuid'];
+                onRemove: (value: Tag['tagUuid']) => void;
+            }) => (
                 <Box mx={2}>
                     <CatalogCategory
                         category={{
