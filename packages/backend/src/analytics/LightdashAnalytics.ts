@@ -90,8 +90,9 @@ type IdentityLinkedEvent = BaseTrack & {
     };
 };
 
-type CreateUserEvent = BaseTrack & {
+export type CreateUserEvent = BaseTrack & {
     event: 'user.created';
+    userId: string;
     properties: {
         context: string; // context on where/why this user was created
         createdUserId: string;
@@ -100,8 +101,9 @@ type CreateUserEvent = BaseTrack & {
     };
 };
 
-type DeleteUserEvent = BaseTrack & {
+export type DeleteUserEvent = BaseTrack & {
     event: 'user.deleted';
+    userId: string;
     properties: {
         context: string; // context on where/why this user was delete
         firstName: string;
@@ -112,8 +114,9 @@ type DeleteUserEvent = BaseTrack & {
     };
 };
 
-type UpdateUserEvent = BaseTrack & {
+export type UpdateUserEvent = BaseTrack & {
     event: 'user.updated';
+    userId: string;
     properties: Omit<LightdashUser, 'userUuid' | 'organizationUuid'> & {
         updatedUserId: string;
         organizationId: string | undefined;
