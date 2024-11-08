@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    NotFoundError,
     SupportedDbtVersions,
     UnexpectedGitError,
     UnexpectedServerError,
@@ -44,8 +45,18 @@ const gitErrorHandler = (e: Error) => {
             { message: e.message },
         );
     }
+    if (e.message.includes('Repository not found')) {
+        const repo = e.message.match(/github\.com\/([^/]+\/[^/.]+)/)?.[1]; // Get repo from error message
+        throw new NotFoundError(
+            `Could not find Git repository "${repo}". Check that your personal access token has access to the repository and that the repository name is correct.`,
+        );
+    }
     if (e instanceof GitError) {
-        throw new GitError(e.task, stripTokensFromUrls(e.message));
+        throw new UnexpectedGitError(
+            `Error while running "${
+                e.task?.commands[0]
+            }": ${stripTokensFromUrls(e.message)}`,
+        );
     }
     throw new UnexpectedGitError(
         `Unexpected error while cloning git repository: ${e}`,
