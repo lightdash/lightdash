@@ -252,8 +252,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             spacing={4}
                             w="100%"
                             mah={140}
-                            // For the scrollbar to not overlap the button
-                            pr="sm"
                             sx={{
                                 overflow: 'auto',
                             }}
