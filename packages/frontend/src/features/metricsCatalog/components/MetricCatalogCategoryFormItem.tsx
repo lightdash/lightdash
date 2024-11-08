@@ -28,8 +28,8 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
-    const { mutateAsync: updateTag } = useUpdateTag();
-    const { mutateAsync: deleteTag } = useDeleteTag();
+    const { mutate: updateTag } = useUpdateTag();
+    const { mutate: deleteTag } = useDeleteTag();
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(category.name);
     const [editColor, setEditColor] = useState(category.color);
@@ -37,20 +37,43 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
 
     const handleSave = useCallback(async () => {
         if (category.tagUuid && projectUuid) {
-            await updateTag({
+            console.log('Initiating tag update:', {
                 projectUuid,
                 tagUuid: category.tagUuid,
-                data: { name: editName, color: editColor },
+                currentName: category.name,
+                newName: editName,
+                currentColor: category.color,
+                newColor: editColor,
             });
+            try {
+                updateTag({
+                    projectUuid,
+                    tagUuid: category.tagUuid,
+                    data: { name: editName, color: editColor },
+                });
+                console.log('Tag update completed successfully');
+                setIsEditing(false);
+            } catch (error) {
+                console.error('Tag update failed:', error);
+            }
         }
-        setIsEditing(false);
-    }, [editColor, editName, projectUuid, category.tagUuid, updateTag]);
+    }, [editColor, editName, projectUuid, category, updateTag]);
 
     const onDelete = useCallback(async () => {
         if (category.tagUuid && projectUuid) {
-            await deleteTag({ projectUuid, tagUuid: category.tagUuid });
+            console.log('Initiating tag deletion:', {
+                projectUuid,
+                tagUuid: category.tagUuid,
+                categoryName: category.name,
+            });
+            try {
+                deleteTag({ projectUuid, tagUuid: category.tagUuid });
+                console.log('Tag deletion completed successfully');
+            } catch (error) {
+                console.error('Tag deletion failed:', error);
+            }
         }
-    }, [deleteTag, projectUuid, category.tagUuid]);
+    }, [deleteTag, projectUuid, category]);
 
     if (isEditing) {
         return (
