@@ -415,11 +415,9 @@ export class GroupsModel {
                         )
                         .andWhere('groups.group_uuid', groupUuid);
 
-                    // Check if there are no valid users to add and throw an error if so
-                    if (newMembers.length === 0) {
-                        throw new Error(
-                            `No valid users found for the provided user UUIDs`,
-                        );
+                    // Check if the initial and resulting counts match
+                    if (newMembers.length !== membersToAdd.length) {
+                        throw new Error(`Some provided user UUIDs are invalid`);
                     }
 
                     await trx('group_memberships')
