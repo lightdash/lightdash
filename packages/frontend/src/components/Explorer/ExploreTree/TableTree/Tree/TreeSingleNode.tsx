@@ -215,7 +215,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                             label={
                                 isFiltered
                                     ? 'This field is filtered'
-                                    : `Click here to filter by ${item.name}`
+                                    : `Click here to add filter`
                             }
                         >
                             <ActionIcon
@@ -223,7 +223,7 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                                     track({
                                         name: EventName.ADD_FILTER_CLICKED,
                                     });
-                                    addFilter(item, undefined);
+                                    if (!isFiltered) addFilter(item, undefined);
                                     e.stopPropagation(); // Do not toggle the field on filter click
                                 }}
                             >
