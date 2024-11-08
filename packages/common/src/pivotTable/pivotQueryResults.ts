@@ -1,19 +1,16 @@
-import {
-    FieldType,
-    formatItemValue,
-    type ItemsMap,
-    type MetricQuery,
-    type PivotColumn,
-    type PivotConfig,
-    type PivotData,
-    type ResultRow,
-    type ResultValue,
-    type TotalField,
-} from '@lightdash/common';
 import isNumber from 'lodash/isNumber';
 import last from 'lodash/last';
 import { type Entries } from 'type-fest';
-import { isSummable } from '../useColumnTotals';
+import { FieldType, isSummable, type ItemsMap } from '../types/field';
+import { type MetricQuery } from '../types/metricQuery';
+import {
+    type PivotColumn,
+    type PivotConfig,
+    type PivotData,
+    type TotalField,
+} from '../types/pivot';
+import { type ResultRow, type ResultValue } from '../types/results';
+import { formatItemValue } from '../utils/formatting';
 
 type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
 
@@ -41,19 +38,17 @@ type RecursiveRecord<T = unknown> = {
     [key: string]: RecursiveRecord<T> | T;
 };
 
-const isRecursiveRecord = (value: unknown): value is RecursiveRecord => {
-    return typeof value === 'object' && value !== null;
-};
+const isRecursiveRecord = (value: unknown): value is RecursiveRecord =>
+    typeof value === 'object' && value !== null;
 
 const create2DArray = <T>(
     rows: number,
     columns: number,
     value: T | null = null,
-): (T | null)[][] => {
-    return Array.from({ length: rows }, () => {
-        return Array.from({ length: columns }, () => value);
-    });
-};
+): (T | null)[][] =>
+    Array.from({ length: rows }, () =>
+        Array.from({ length: columns }, () => value),
+    );
 
 const parseNumericValue = (value: ResultValue | null): number => {
     if (value === null) return 0;
@@ -73,12 +68,14 @@ const setIndexByKey = (
     const [key, ...rest] = keys;
     if (rest.length === 0) {
         if (obj[key] === undefined) {
+            // eslint-disable-next-line no-param-reassign
             obj[key] = value;
             return true;
         }
         return false;
     }
     if (obj[key] === undefined) {
+        // eslint-disable-next-line no-param-reassign
         obj[key] = {};
     }
 
@@ -112,9 +109,8 @@ const getIndexByKey = (
         const nextObj = obj[key];
         if (isRecursiveRecord(nextObj)) {
             return getIndexByKey(nextObj, rest);
-        } else {
-            throw new Error('Expected a RecursiveRecord object');
         }
+        throw new Error('Expected a RecursiveRecord object');
     }
 };
 
@@ -126,21 +122,21 @@ const getAllIndicesForFieldId = (
     return entries.reduce<number[]>((acc, [key, value]) => {
         if (key === fieldId && isNumber(value)) {
             return [...acc, value];
-        } else if (isRecursiveRecord(value)) {
+        }
+        if (isRecursiveRecord(value)) {
             return [...acc, ...getAllIndicesForFieldId(value, fieldId)];
         }
         return acc;
     }, []);
 };
 
-const getAllIndices = (obj: RecursiveRecord<number>): number[] => {
-    return Object.values(obj).reduce<number[]>((acc, value) => {
+const getAllIndices = (obj: RecursiveRecord<number>): number[] =>
+    Object.values(obj).reduce<number[]>((acc, value) => {
         if (isNumber(value)) {
             return [...acc, value];
         }
         return [...acc, ...getAllIndices(value)];
     }, []);
-};
 
 const getAllIndicesByKey = (
     obj: RecursiveRecord<number>,
@@ -153,14 +149,12 @@ const getAllIndicesByKey = (
             return [value];
         }
         return getAllIndices(value);
-    } else {
-        const nextObj = obj[key];
-        if (isRecursiveRecord(nextObj)) {
-            return getAllIndicesByKey(nextObj, rest);
-        } else {
-            throw new Error('Expected a RecursiveRecord object');
-        }
     }
+    const nextObj = obj[key];
+    if (isRecursiveRecord(nextObj)) {
+        return getAllIndicesByKey(nextObj, rest);
+    }
+    throw new Error('Expected a RecursiveRecord object');
 };
 
 const getColSpanByKey = (
@@ -217,10 +211,10 @@ const combinedRetrofit = (
 
     data.headerValues.forEach((headerRow) => {
         headerRow.forEach((headerColValue, colIndex) => {
-            uniqueIdsForDataValueColumns[colIndex] =
+            uniqueIdsForDataValueColumns[colIndex] = `${
                 (uniqueIdsForDataValueColumns[colIndex] ?? '') +
-                headerColValue.fieldId +
-                '__';
+                headerColValue.fieldId
+            }__`;
         });
     });
 
@@ -265,7 +259,7 @@ const combinedRetrofit = (
                 const cellValue = getFieldLabel(cell.fieldId);
                 return {
                     ...cell,
-                    fieldId: 'label-' + colIndex,
+                    fieldId: `label-${colIndex}`,
                     value: {
                         raw: cellValue,
                         formatted: cellValue,
@@ -287,7 +281,7 @@ const combinedRetrofit = (
                 const baseId = baseIdInfoForCol?.fieldId;
                 const id = uniqueIdsForDataValueColumns[colIndex] + colIndex;
                 return {
-                    baseId: baseId,
+                    baseId,
                     fieldId: id,
                     value: dataValue || {},
                 };
@@ -296,7 +290,7 @@ const combinedRetrofit = (
 
         const remappedRowTotals = data.rowTotals?.[rowIndex]?.map(
             (total, colIndex) => {
-                const baseId = 'row-total-' + colIndex;
+                const baseId = `row-total-${colIndex}`;
                 const id = baseId;
                 const underlyingData = last(data.rowTotalFields)?.[colIndex];
 
@@ -307,10 +301,10 @@ const combinedRetrofit = (
                     ? undefined
                     : underlyingData?.fieldId;
                 return {
-                    baseId: baseId,
+                    baseId,
                     fieldId: id,
-                    underlyingId: underlyingId,
-                    value: value,
+                    underlyingId,
+                    value,
                     columnType: 'rowTotal',
                 };
             },
@@ -347,7 +341,7 @@ const combinedRetrofit = (
 
         return altRow;
     });
-
+    // eslint-disable-next-line no-param-reassign
     data.retrofitData = { allCombinedData, pivotColumnInfo };
     return data;
 };
@@ -367,9 +361,9 @@ export const pivotQueryResults = ({
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
     const summableMetricFieldIds = pivotConfig.summableMetricFieldIds || [];
 
-    const columnOrder = (pivotConfig.columnOrder || []).filter((id) => {
-        return !hiddenMetricFieldIds.includes(id);
-    });
+    const columnOrder = (pivotConfig.columnOrder || []).filter(
+        (id) => !hiddenMetricFieldIds.includes(id),
+    );
 
     const dimensions = [...metricQuery.dimensions];
 
@@ -429,20 +423,20 @@ export const pivotQueryResults = ({
     const indexValues: PivotData['indexValues'] = [];
     const headerValuesT: PivotData['headerValues'] = [];
 
-    let rowIndices = {};
-    let columnIndices = {};
+    const rowIndices = {};
+    const columnIndices = {};
     let rowCount = 0;
     let columnCount = 0;
-    for (let nRow = 0; nRow < N_ROWS; nRow++) {
+    for (let nRow = 0; nRow < N_ROWS; nRow += 1) {
         const row = rows[nRow];
 
-        for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
+        for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
             const metric = metrics[nMetric];
 
             const indexRowValues = indexDimensions
                 .map<PivotData['indexValues'][number][number]>((fieldId) => ({
                     type: 'value',
-                    fieldId: fieldId,
+                    fieldId,
                     value: row[fieldId].value,
                     colSpan: 1,
                 }))
@@ -460,7 +454,7 @@ export const pivotQueryResults = ({
             const headerRowValues = headerDimensions
                 .map<PivotData['headerValues'][number][number]>((fieldId) => ({
                     type: 'value',
-                    fieldId: fieldId,
+                    fieldId,
                     value: row[fieldId].value,
                     colSpan: 1,
                 }))
@@ -485,7 +479,7 @@ export const pivotQueryResults = ({
                     rowCount,
                 )
             ) {
-                rowCount++;
+                rowCount += 1;
                 indexValues.push(indexRowValues);
             }
 
@@ -499,7 +493,7 @@ export const pivotQueryResults = ({
                     columnCount,
                 )
             ) {
-                columnCount++;
+                columnCount += 1;
 
                 if (columnCount > options.maxColumns) {
                     throw new Error(
@@ -560,11 +554,11 @@ export const pivotQueryResults = ({
     }
 
     // Compute pivoted data
-    for (let nRow = 0; nRow < N_ROWS; nRow++) {
+    for (let nRow = 0; nRow < N_ROWS; nRow += 1) {
         const row = rows[nRow];
-        for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
+        for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
             const metric = metrics[nMetric];
-            const value = row[metric.fieldId].value;
+            const { value } = row[metric.fieldId];
 
             const rowKeys = [
                 ...indexDimensions.map((d) => row[d].value.raw),
@@ -638,9 +632,9 @@ export const pivotQueryResults = ({
                           )
                         : [];
                     return dataValues[rowIndex]
-                        .filter((__, dataValueColIndex) => {
-                            return valueColIndices.includes(dataValueColIndex);
-                        })
+                        .filter((__, dataValueColIndex) =>
+                            valueColIndices.includes(dataValueColIndex),
+                        )
                         .reduce(
                             (acc, value) => acc + parseNumericValue(value),
                             0,
@@ -746,9 +740,9 @@ export const pivotQueryResults = ({
     const pivotData: PivotData = {
         titleFields,
 
-        headerValueTypes: headerValueTypes,
+        headerValueTypes,
         headerValues,
-        indexValueTypes: indexValueTypes,
+        indexValueTypes,
         indexValues,
 
         dataColumnCount: N_DATA_COLUMNS,
