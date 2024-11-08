@@ -127,19 +127,35 @@ export class OrganizationMemberProfileModel {
         );
     }
 
-    async getOrganizationMembers(
-        organizationUuid: string,
-        paginateArgs?: KnexPaginateArgs,
-        searchQuery?: string,
-        sort?: { column: string; direction: 'asc' | 'desc' },
-    ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
+    async getOrganizationMembers({
+        organizationUuid,
+        paginateArgs,
+        searchQuery,
+        sort,
+        exactMatchFilter,
+    }: {
+        organizationUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        searchQuery?: string;
+        sort?: { column: string; direction: 'asc' | 'desc' };
+        exactMatchFilter?: { column: string; value: string };
+    }): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         let query = this.queryBuilder()
             .where(
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
             .select<DbOrganizationMemberProfile[]>(SelectColumns);
-        // apply search query if present
+
+        // Apply exact match filter if provided
+        if (exactMatchFilter) {
+            query = query.where(
+                exactMatchFilter.column,
+                exactMatchFilter.value,
+            );
+        }
+
+        // Apply search query if present
         if (searchQuery) {
             query = getColumnMatchRegexQuery(query, searchQuery, [
                 'first_name',
@@ -148,15 +164,18 @@ export class OrganizationMemberProfileModel {
                 'role',
             ]);
         }
-        // apply sorting if present
+
+        // Apply sorting if present
         if (sort && sort.column && sort.direction) {
             query = query.orderBy(sort.column, sort.direction);
         }
-        // paginate the results
+
+        // Paginate the results
         const { pagination, data } = await KnexPaginate.paginate(
             query,
             paginateArgs,
         );
+
         const usersHaveAuthenticationRows =
             await UserModel.findIfUsersHaveAuthentication(this.database, {
                 userUuids: data.map((m) => m.user_uuid),
