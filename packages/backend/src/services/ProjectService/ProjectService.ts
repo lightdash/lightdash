@@ -4410,10 +4410,14 @@ export class ProjectService extends BaseService {
         if (user.ability.cannot('manage', subject('Project', projectSummary))) {
             throw new ForbiddenError();
         }
-        const explores = await this.projectModel.getExploresFromCache(
+        const allExplores = await this.projectModel.getExploresFromCache(
             projectUuid,
         );
-        if (!explores) {
+        const validExplores = allExplores?.filter(
+            (explore) => explore.type !== ExploreType.VIRTUAL,
+        );
+
+        if (!validExplores) {
             throw new NotFoundError('No explores found');
         }
 
@@ -4422,22 +4426,27 @@ export class ProjectService extends BaseService {
         );
 
         const chartExposures = charts.reduce<DbtExposure[]>((acc, chart) => {
-            acc.push({
-                name: `ld_chart_${snakeCaseName(chart.uuid)}`,
-                type: DbtExposureType.ANALYSIS,
-                owner: {
-                    name: `${chart.firstName} ${chart.lastName}`,
-                    email: '', // omit for now to avoid heavier query
-                },
-                label: chart.name,
-                description: chart.description ?? '',
-                url: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
-                dependsOn: Object.values(
-                    explores.find(({ name }) => name === chart.tableName)
-                        ?.tables || {},
-                ).map((table) => `ref('${table.originalName || table.name}')`),
-                tags: ['lightdash', 'chart'],
-            });
+            const dependsOn = Object.values(
+                validExplores.find(({ name }) => name === chart.tableName)
+                    ?.tables || {},
+            ).map((table) => `ref('${table.originalName || table.name}')`);
+            // Only create dbt exposure if the chart has a corresponding explore
+            // This means charts from virtual explors will not be included
+            if (dependsOn.length > 0) {
+                acc.push({
+                    name: `ld_chart_${snakeCaseName(chart.uuid)}`,
+                    type: DbtExposureType.ANALYSIS,
+                    owner: {
+                        name: `${chart.firstName} ${chart.lastName}`,
+                        email: '', // omit for now to avoid heavier query
+                    },
+                    label: chart.name,
+                    description: chart.description ?? '',
+                    url: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/saved/${chart.uuid}/view`,
+                    dependsOn,
+                    tags: ['lightdash', 'chart'],
+                });
+            }
             return acc;
         }, []);
         const dashboards = await this.dashboardModel.findInfoForDbtExposures(
