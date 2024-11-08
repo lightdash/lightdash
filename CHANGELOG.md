@@ -1,3 +1,10 @@
+# [0.1353.0](https://github.com/lightdash/lightdash/compare/0.1352.7...0.1353.0) (2024-11-08)
+
+
+### Features
+
+* added ability to list users within org and groups by exact match ([#12323](https://github.com/lightdash/lightdash/issues/12323)) ([599da26](https://github.com/lightdash/lightdash/commit/599da26c43eba1c388095c44dcbcf486117dbb21))
+
 ## [0.1352.7](https://github.com/lightdash/lightdash/compare/0.1352.6...0.1352.7) (2024-11-08)
 
 
