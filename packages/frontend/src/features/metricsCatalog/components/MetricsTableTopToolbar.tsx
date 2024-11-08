@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { useListState } from '@mantine/hooks';
 import { IconSearch, IconTag, IconX } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -61,7 +61,7 @@ const CategoriesFilter = () => {
         [categories, selectedCategories],
     );
 
-    const handlePopoverClose = useCallback(() => {
+    useEffect(() => {
         dispatch(setCategoryFilters(selectedCategories));
 
         // Track when categories are applied as filters
@@ -85,11 +85,7 @@ const CategoriesFilter = () => {
 
     return (
         <Group spacing="two">
-            <Popover
-                width={300}
-                onClose={handlePopoverClose}
-                position="bottom-start"
-            >
+            <Popover width={300} position="bottom-start">
                 <Popover.Target>
                     <Button
                         size="xs"
