@@ -40,7 +40,9 @@ export const useCreateTag = () => {
             data: Pick<Tag, 'name' | 'color'>;
             catalogSearchUuid?: string;
         },
-        { previousCatalog: InfiniteData<ApiMetricsCatalog['results']> }
+        {
+            previousCatalog: unknown;
+        }
     >({
         mutationFn: async ({ projectUuid, data, catalogSearchUuid }) => {
             const newTag = await createTag(projectUuid, data);
@@ -132,10 +134,9 @@ export const useCreateTag = () => {
                 Object.entries(context.previousCatalog).forEach(
                     ([queryKeyStr, data]) => {
                         const queryKey = JSON.parse(queryKeyStr);
-                        queryClient.setQueryData<ApiMetricsCatalog['results']>(
-                            queryKey,
-                            data,
-                        );
+                        queryClient.setQueryData<
+                            InfiniteData<ApiMetricsCatalog['results']>
+                        >(queryKey, data);
                     },
                 );
             }
@@ -194,7 +195,9 @@ export const useUpdateTag = () => {
             tagUuid: string;
             data: Pick<Tag, 'name' | 'color'>;
         },
-        { previousCatalog: InfiniteData<ApiMetricsCatalog['results']> }
+        {
+            previousCatalog: unknown;
+        }
     >({
         mutationFn: ({ projectUuid, tagUuid, data }) => {
             return updateTag(projectUuid, tagUuid, data);
@@ -289,7 +292,9 @@ export const useDeleteTag = () => {
         ApiSuccessEmpty,
         ApiError,
         { projectUuid: string; tagUuid: string },
-        { previousCatalog: InfiniteData<ApiMetricsCatalog['results']> }
+        {
+            previousCatalog: unknown;
+        }
     >({
         mutationFn: ({ projectUuid, tagUuid }) => {
             return deleteTag(projectUuid, tagUuid);

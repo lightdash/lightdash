@@ -4,7 +4,11 @@ import {
     type ApiSuccessEmpty,
     type Tag,
 } from '@lightdash/common';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQueryClient,
+    type InfiniteData,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
 type AddCategoryToCatalogItemParams = {
@@ -34,7 +38,9 @@ export const useAddCategoryToCatalogItem = () => {
         ApiSuccessEmpty['results'],
         ApiError,
         AddCategoryToCatalogItemParams,
-        { previousCatalog: unknown }
+        {
+            previousCatalog: unknown;
+        }
     >({
         mutationFn: addCategoryToCatalogItem,
         onMutate: async ({ catalogSearchUuid, tagUuid, projectUuid }) => {
@@ -57,19 +63,21 @@ export const useAddCategoryToCatalogItem = () => {
             ]);
 
             // Update all matching queries
-            queryClient.setQueriesData(
+            queryClient.setQueriesData<
+                InfiniteData<ApiMetricsCatalog['results']>
+            >(
                 {
                     queryKey: ['metrics-catalog', projectUuid],
                     exact: false,
                 },
-                (old: any) => {
+                (old) => {
                     if (!old?.pages) return old;
 
                     return {
                         ...old,
-                        pages: old.pages.map((page: any) => ({
+                        pages: old.pages.map((page) => ({
                             ...page,
-                            data: page.data.map((item: any) =>
+                            data: page.data.map((item) =>
                                 item.catalogSearchUuid === catalogSearchUuid
                                     ? {
                                           ...item,
@@ -98,10 +106,9 @@ export const useAddCategoryToCatalogItem = () => {
                 Object.entries(context.previousCatalog).forEach(
                     ([queryKeyStr, data]) => {
                         const queryKey = JSON.parse(queryKeyStr);
-                        queryClient.setQueryData<ApiMetricsCatalog['results']>(
-                            queryKey,
-                            data,
-                        );
+                        queryClient.setQueryData<
+                            InfiniteData<ApiMetricsCatalog['results']>
+                        >(queryKey, data);
                     },
                 );
             }
@@ -138,7 +145,9 @@ export const useRemoveCategoryFromCatalogItem = () => {
         ApiSuccessEmpty['results'],
         ApiError,
         RemoveCategoryFromCatalogItemParams,
-        { previousCatalog: unknown }
+        {
+            previousCatalog: unknown;
+        }
     >({
         mutationFn: removeCategoryFromCatalogItem,
         onMutate: async ({ catalogSearchUuid, tagUuid, projectUuid }) => {
@@ -154,24 +163,26 @@ export const useRemoveCategoryFromCatalogItem = () => {
             ]);
 
             // Update all matching queries
-            queryClient.setQueriesData(
+            queryClient.setQueriesData<
+                InfiniteData<ApiMetricsCatalog['results']>
+            >(
                 {
                     queryKey: ['metrics-catalog', projectUuid],
                     exact: false,
                 },
-                (old: any) => {
+                (old) => {
                     if (!old?.pages) return old;
 
                     return {
                         ...old,
-                        pages: old.pages.map((page: any) => ({
+                        pages: old.pages.map((page) => ({
                             ...page,
-                            data: page.data.map((item: any) =>
+                            data: page.data.map((item) =>
                                 item.catalogSearchUuid === catalogSearchUuid
                                     ? {
                                           ...item,
                                           categories: item.categories.filter(
-                                              (category: any) =>
+                                              (category) =>
                                                   category.tagUuid !== tagUuid,
                                           ),
                                       }
@@ -189,10 +200,9 @@ export const useRemoveCategoryFromCatalogItem = () => {
                 Object.entries(context.previousCatalog).forEach(
                     ([queryKeyStr, data]) => {
                         const queryKey = JSON.parse(queryKeyStr);
-                        queryClient.setQueryData<ApiMetricsCatalog['results']>(
-                            queryKey,
-                            data,
-                        );
+                        queryClient.setQueryData<
+                            InfiniteData<ApiMetricsCatalog['results']>
+                        >(queryKey, data);
                     },
                 );
             }
