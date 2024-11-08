@@ -542,6 +542,7 @@ export class OrganizationService extends BaseService {
                 name: groupWithMembers.name,
                 countUsersInGroup: groupWithMembers.memberUuids.length,
                 viaSso: false,
+                context: 'create_group',
             },
         });
         return groupWithMembers;

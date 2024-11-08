@@ -1039,6 +1039,7 @@ export type GroupCreateAndUpdateEvent = BaseTrack & {
     event: 'group.created' | 'group.updated';
     userId: string;
     properties: {
+        context: string; // context on where/why this group was created/updated
         organizationId: string;
         groupId: string;
         name: string;
@@ -1051,6 +1052,7 @@ export type GroupDeleteEvent = BaseTrack & {
     event: 'group.deleted';
     userId: string;
     properties: {
+        context: string; // context on where/why this group was deleted
         organizationId: string;
         groupId: string;
     };

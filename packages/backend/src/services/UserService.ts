@@ -482,6 +482,7 @@ export class UserService extends BaseService {
                             groupId: updatedGroup.uuid,
                             name: updatedGroup.name,
                             countUsersInGroup: updatedGroup.memberUuids.length,
+                            context: 'add_member_via_sso',
                         },
                     });
                 }),
