@@ -176,12 +176,14 @@ export class OrganizationService extends BaseService {
         orgUsers.forEach((orgUser) => {
             this.analytics.track({
                 event: 'user.deleted',
-                userId: orgUser.userUuid,
+                userId: user.userUuid, // track the user who deleted the org members
                 properties: {
+                    context: 'delete_org_member',
                     firstName: orgUser.firstName,
                     lastName: orgUser.lastName,
                     email: orgUser.email,
                     organizationId: organizationUuid,
+                    deletedUserId: orgUser.userUuid,
                 },
             });
         });
