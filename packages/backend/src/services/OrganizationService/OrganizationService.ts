@@ -162,9 +162,9 @@ export class OrganizationService extends BaseService {
         }
 
         const { data: orgUsers } =
-            await this.organizationMemberProfileModel.getOrganizationMembers(
+            await this.organizationMemberProfileModel.getOrganizationMembers({
                 organizationUuid,
-            );
+            });
 
         const userUuids = orgUsers.map((orgUser) => orgUser.userUuid);
 
@@ -228,11 +228,11 @@ export class OrganizationService extends BaseService {
                   paginateArgs,
                   searchQuery,
               )
-            : await this.organizationMemberProfileModel.getOrganizationMembers(
+            : await this.organizationMemberProfileModel.getOrganizationMembers({
                   organizationUuid,
                   paginateArgs,
                   searchQuery,
-              );
+              });
 
         let members = organizationMembers.filter((member) =>
             user.ability.can(

@@ -99,7 +99,11 @@ export class GroupsModel {
     }
 
     async find(
-        filters: { organizationUuid: string; searchQuery?: string },
+        filters: {
+            organizationUuid: string;
+            searchQuery?: string; // will fuzzy search on name
+            name?: string; // will exact match on name
+        },
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<Group[]>> {
         let query = this.database('groups')
@@ -110,6 +114,7 @@ export class GroupsModel {
             )
             .select<(DbGroup & DbOrganization)[]>();
 
+        // Exact match for organization UUID
         if (filters.organizationUuid) {
             query = query.where(
                 'organizations.organization_uuid',
@@ -117,6 +122,12 @@ export class GroupsModel {
             );
         }
 
+        // Exact match for name
+        if (filters.name) {
+            query = query.where('groups.name', filters.name);
+        }
+
+        // Fuzzy search using regex if searchQuery is provided
         if (filters.searchQuery) {
             query = getColumnMatchRegexQuery(query, filters.searchQuery, [
                 'name',
