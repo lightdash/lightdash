@@ -12,6 +12,7 @@ import {
     DownloadMetricCsv,
     ForbiddenError,
     formatItemValue,
+    formatRows,
     friendlyName,
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
@@ -29,6 +30,8 @@ import {
     ItemsMap,
     MetricQuery,
     MissingConfigError,
+    PivotConfig,
+    pivotQueryResults,
     QueryExecutionContext,
     SchedulerCsvOptions,
     SchedulerFilterRule,
@@ -850,6 +853,7 @@ export class CsvService extends BaseService {
             metricQuery,
             tableConfig,
             chartConfig,
+            pivotConfig,
         } = chart;
         const explore = await this.projectService.getExplore(
             user,
@@ -879,6 +883,13 @@ export class CsvService extends BaseService {
               )
             : metricQuery;
 
+        const csvPivotConfig: PivotConfig | undefined =
+            pivotConfig !== undefined
+                ? {
+                      pivotDimensions: pivotConfig.columns,
+                      metricsAsRows: false,
+                  }
+                : undefined;
         return this.scheduleDownloadCsv(user, {
             userUuid: user.userUuid,
             projectUuid,
@@ -892,6 +903,7 @@ export class CsvService extends BaseService {
             hiddenFields,
             chartName: name,
             fromSavedChart: true,
+            pivotConfig: csvPivotConfig,
         });
     }
 
@@ -968,6 +980,7 @@ export class CsvService extends BaseService {
             hiddenFields,
             chartName,
             fromSavedChart,
+            pivotConfig,
         }: DownloadMetricCsv,
     ) {
         const user = await this.userModel.findSessionUserByUUID(userUuid);
@@ -1046,7 +1059,6 @@ export class CsvService extends BaseService {
                 queryTags,
             });
             const numberRows = rows.length;
-
             const explore = await this.projectService.getExplore(
                 user,
                 projectUuid,
@@ -1058,6 +1070,25 @@ export class CsvService extends BaseService {
                 metricQuery.tableCalculations,
                 metricQuery.customDimensions,
             );
+
+            if (pivotConfig) {
+                // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
+                // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+                const formattedRows = formatRows(rows, itemMap);
+                const pivotedRows = pivotQueryResults({
+                    pivotConfig,
+                    metricQuery,
+                    rows: formattedRows,
+                    options: {
+                        maxColumns:
+                            this.lightdashConfig.pivotTable.maxColumnLimit,
+                    },
+                    getField: (fieldId: string) => itemMap && itemMap[fieldId], // itemsMap && itemsMap[fieldId],
+                    getFieldLabel: (fieldId: string) => fieldId, // getFieldLabelOverride(fieldId) || getFieldLabelDefault(fieldId)
+                });
+                console.debug('pivotedRows', pivotedRows);
+                // rows = pivotedRows.retrofitData.allCombinedData
+            }
 
             const truncated = this.couldBeTruncated(rows);
 

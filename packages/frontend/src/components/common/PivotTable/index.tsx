@@ -8,6 +8,7 @@ import {
     isField,
     isMetric,
     isNumericItem,
+    isSummable,
     MetricType,
     type ConditionalFormattingConfig,
     type ItemsMap,
@@ -31,7 +32,6 @@ import last from 'lodash/last';
 import { readableColor } from 'polished';
 import React, { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import { getDecimalPrecision } from '../../../hooks/tableVisualization/getDataAndColumns';
-import { isSummable } from '../../../hooks/useColumnTotals';
 import { getColorFromRange, isHexCodeColor } from '../../../utils/colorUtils';
 import { getConditionalRuleLabel } from '../Filters/FilterInputs';
 import Table from '../LightTable';

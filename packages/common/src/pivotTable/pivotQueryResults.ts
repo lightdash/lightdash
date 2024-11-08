@@ -761,6 +761,5 @@ export const pivotQueryResults = ({
             pivotColumnInfo: [],
         },
     };
-
     return combinedRetrofit(pivotData, getField, getFieldLabel);
 };
