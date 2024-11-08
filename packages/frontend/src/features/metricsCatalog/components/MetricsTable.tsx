@@ -175,6 +175,8 @@ export const MetricsTable = () => {
             </Box>
         ),
         enableFilterMatchHighlighting: true,
+        enableEditing: true,
+        editDisplayMode: 'cell',
     });
 
     return <MantineReactTable table={table} />;
