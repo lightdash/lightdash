@@ -888,6 +888,7 @@ export class CsvService extends BaseService {
                 ? {
                       pivotDimensions: pivotConfig.columns,
                       metricsAsRows: false,
+                      // TODO add more properties from chartConfig (table)
                   }
                 : undefined;
         return this.scheduleDownloadCsv(user, {
