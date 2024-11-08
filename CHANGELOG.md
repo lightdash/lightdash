@@ -1,3 +1,10 @@
+## [0.1352.7](https://github.com/lightdash/lightdash/compare/0.1352.6...0.1352.7) (2024-11-08)
+
+
+### Bug Fixes
+
+* Revert fix: time-based filters in scheduled deliveries  ([#12272](https://github.com/lightdash/lightdash/issues/12272)) ([#12321](https://github.com/lightdash/lightdash/issues/12321)) ([995a050](https://github.com/lightdash/lightdash/commit/995a05008e8a4504f644641dbf0ac065a0ab3ad4))
+
 ## [0.1352.6](https://github.com/lightdash/lightdash/compare/0.1352.5...0.1352.6) (2024-11-08)
 
 
