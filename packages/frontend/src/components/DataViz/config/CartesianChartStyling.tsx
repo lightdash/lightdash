@@ -122,7 +122,7 @@ export const CartesianChartStyling = ({
                     <Config.Heading>{`X-axis label`}</Config.Heading>
 
                     <TextInput
-                        value={xAxisLabel}
+                        value={xAxisLabel || ''}
                         radius="md"
                         onChange={(e) =>
                             dispatch(
@@ -162,7 +162,7 @@ export const CartesianChartStyling = ({
                                 />
                             )}
                             <TextInput
-                                value={yAxisLabel}
+                                value={yAxisLabel || ''}
                                 radius="md"
                                 onChange={(e) =>
                                     dispatch(

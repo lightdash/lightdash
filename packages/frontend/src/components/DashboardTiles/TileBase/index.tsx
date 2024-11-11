@@ -45,7 +45,7 @@ type Props<T> = {
     titleLeftIcon?: ReactNode;
     chartName?: string;
     titleHref?: string;
-    description?: string;
+    description?: string | null;
     tile: T;
     isLoading?: boolean;
     extraMenuItems?: ReactNode;
@@ -64,10 +64,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     title,
     titleLeftIcon,
     chartName,
-    description,
+    description = null,
     tile,
-    isLoading,
-    extraMenuItems,
+    isLoading = false,
+    extraMenuItems = null,
     onDelete,
     onEdit,
     children,
@@ -374,13 +374,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             />
         </Card>
     );
-};
-
-TileBase.defaultProps = {
-    isLoading: false,
-    extraMenuItems: null,
-    description: null,
-    hasFilters: false,
 };
 
 export default TileBase;
