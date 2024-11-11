@@ -1,3 +1,10 @@
+## [0.1356.2](https://github.com/lightdash/lightdash/compare/0.1356.1...0.1356.2) (2024-11-11)
+
+
+### Bug Fixes
+
+* scheduled delivery any value filter override ([#12351](https://github.com/lightdash/lightdash/issues/12351)) ([d9e6d10](https://github.com/lightdash/lightdash/commit/d9e6d10660d68a1a935f0ebd01d0935d1beff2f8))
+
 ## [0.1356.1](https://github.com/lightdash/lightdash/compare/0.1356.0...0.1356.1) (2024-11-11)
 
 
