@@ -1,3 +1,10 @@
+# [0.1356.0](https://github.com/lightdash/lightdash/compare/0.1355.0...0.1356.0) (2024-11-11)
+
+
+### Features
+
+* force unique group names at the db level ([#12330](https://github.com/lightdash/lightdash/issues/12330)) ([a9706b9](https://github.com/lightdash/lightdash/commit/a9706b950b3cf5a1f771a25028b7be9b755d6695))
+
 # [0.1355.0](https://github.com/lightdash/lightdash/compare/0.1354.2...0.1355.0) (2024-11-11)
 
 
