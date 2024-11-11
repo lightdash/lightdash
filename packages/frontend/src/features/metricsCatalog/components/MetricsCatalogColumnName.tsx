@@ -7,6 +7,7 @@ import {
     Highlight,
     Paper,
     Portal,
+    Text,
 } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
 import EmojiPicker, { EmojiStyle } from 'emoji-picker-react';
@@ -36,9 +37,17 @@ const SharedEmojiPicker = forwardRef(
                         zIndex: getDefaultZIndex('overlay'),
                     }}
                 >
-                    <Paper shadow="md">
+                    <Paper shadow="md" pos="relative">
+                        <Text fw={500} size="sm" ta="center">
+                            Coming soon
+                        </Text>
+
                         {/* TODO: display loader on emoji picker loading */}
                         <EmojiPicker
+                            style={{
+                                pointerEvents: 'none',
+                                opacity: 0.5,
+                            }}
                             // TODO: Add onEmojiClick
                             previewConfig={undefined}
                             lazyLoadEmojis
