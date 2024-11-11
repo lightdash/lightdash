@@ -3,6 +3,7 @@ import {
     Group,
     List,
     Modal,
+    ScrollArea,
     Stack,
     Text,
     type ModalProps,
@@ -52,6 +53,7 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
                 header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
                 body: { padding: 0 },
             })}
+            scrollAreaComponent={ScrollArea.Autosize}
         >
             <Stack p="md" spacing="xs">
                 <Text>This metric is used in the following charts:</Text>

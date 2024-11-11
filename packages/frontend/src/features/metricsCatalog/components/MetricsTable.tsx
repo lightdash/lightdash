@@ -124,7 +124,7 @@ export const MetricsTable = () => {
         },
         mantineTableHeadRowProps: {
             sx: {
-                paddingRight: shouldPadHeader ? '15px' : '0px',
+                paddingRight: shouldPadHeader ? '15px' : '0px', // Add padding to the right of the header to account for the scrollbar
                 boxShadow: 'none',
                 // Each head row has a divider when resizing columns is enabled
                 'th > div > div:last-child': {
@@ -135,7 +135,7 @@ export const MetricsTable = () => {
         },
         mantineTableContainerProps: {
             sx: {
-                overflowY: 'hidden',
+                overflowY: 'hidden', // Hide the vertical scrollbar on the container so it doesn't overlap the header
                 overflowX: 'auto',
             },
         },
@@ -145,7 +145,7 @@ export const MetricsTable = () => {
                 maxHeight: '600px',
                 minHeight: '600px',
                 overflowY: 'auto',
-                overflowX: 'hidden',
+                overflowX: 'hidden', // Hide the horizontal scrollbar on the body because of the column resizing
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
