@@ -47,7 +47,7 @@ You can create a preview project in the Lightdash web app by clicking on the pro
 
 ### Pull Requests (GitHub Actions)
 
-You can automatically create preview projects in GitHub each time you open a pull request. This allows you to easily test out changes you've made in dbt, in Lightdash. 
+You can automatically create preview projects in GitHub each time you open a pull request. This allows you to easily test out changes you've made to your dbt project, in Lightdash. 
 
 Learn more about setting up a Lightdash preview project for pull requests using GitHub Actions [here](/guides/cli/how-to-use-lightdash-preview#set-up-developer-previews-on-your-pull-requests).
 
@@ -57,7 +57,11 @@ Learn more about setting up a Lightdash preview project for pull requests using 
 
 All permissions from the parent project are carried over to the preview project.
 
-For example, there is a project called `Marketing Insights` and Priyanka is a project interactive viewer in it. Irakli is a developer and creates a preview project of `Marketing Insights` called `Marketing Insights Preview`. Irakli creates a chart in `Marketing Insights Preview` and shares it with Priyanka. She can open the chart because she was an interactive viewer in `Marketing Insights`, so her permissions were copied over to `Marketing Insights Preview`. 
+For example:
+- Priyanka is a **project interactive viewer** and Irakli is a **developer** in a project called `Marketing Insights`. 
+- Irakli creates a preview project of `Marketing Insights` called `Marketing Insights Preview`. 
+- He creates a chart in `Marketing Insights Preview` and shares it with Priyanka. 
+- Priyanka can open the chart because she was an interactive viewer in `Marketing Insights`, so her permissions were copied over to `Marketing Insights Preview`. 
 
 :::info
 
@@ -69,7 +73,12 @@ Only users who are developers or admins can see preview projects in the project 
 
 For the user creating a project, only content they have access to will be copied over to the preview project.
 
-For example, there is a project called `Marketing Insights` and there is a space called `Finance private space`. Irakli is a developer in `Marketing Insights`, but doesn't have access to `Finance private space`. If Irakli creates a preview project of `Marketing Insights`, then the content in `Finance private space` will not be copied over to his preview project (because he doesn't have access to it). 
+For example:
+- Irakli is a developer in the `Marketing Insights` project 
+- Inside the project, there is a space called `Finance private space`. 
+- Irakli doesn't have access to `Finance private space` 
+- Irakli creates a preview project of `Marketing Insights` called `Preview Marketing Insights`
+- The `Finance private space` will not be copied over to his preview project (because he doesn't have access to it). 
 
 ## Project connection settings 
 
