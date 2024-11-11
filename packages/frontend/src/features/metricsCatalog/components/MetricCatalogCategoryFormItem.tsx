@@ -3,9 +3,10 @@ import {
     ActionIcon,
     Button,
     Group,
-    HoverCard,
     Stack,
+    Text,
     TextInput,
+    Tooltip,
     UnstyledButton,
     useMantineTheme,
 } from '@mantine/core';
@@ -68,40 +69,43 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
             <Stack spacing="xs" w="100%">
                 <Group position="apart" noWrap>
                     <Group noWrap spacing="xs">
-                        <HoverCard>
-                            <HoverCard.Target>
-                                <ActionIcon
-                                    size="xs"
-                                    onClick={() =>
-                                        setEditColor(getRandomColor(colors))
-                                    }
-                                    sx={(theme) => ({
-                                        borderRadius: '90%',
-                                        backgroundColor: editColor,
-                                        '&:hover': {
-                                            backgroundColor: theme.fn.darken(
-                                                editColor,
-                                                0.1,
-                                            ),
-                                        },
-                                    })}
-                                >
-                                    <MantineIcon
-                                        icon={IconRefresh}
-                                        color="gray.0"
-                                        size={14}
+                        <Tooltip
+                            label={
+                                <Stack p="two" spacing="xs">
+                                    <Text fw={600}>Change color</Text>
+                                    <CatalogCategory
+                                        category={{
+                                            color: editColor,
+                                            name: editName,
+                                        }}
                                     />
-                                </ActionIcon>
-                            </HoverCard.Target>
-                            <HoverCard.Dropdown>
-                                <CatalogCategory
-                                    category={{
-                                        color: editColor,
-                                        name: editName,
-                                    }}
+                                </Stack>
+                            }
+                            variant="xs"
+                        >
+                            <ActionIcon
+                                size="xs"
+                                onClick={() =>
+                                    setEditColor(getRandomColor(colors))
+                                }
+                                sx={(theme) => ({
+                                    borderRadius: '90%',
+                                    backgroundColor: editColor,
+                                    '&:hover': {
+                                        backgroundColor: theme.fn.darken(
+                                            editColor,
+                                            0.1,
+                                        ),
+                                    },
+                                })}
+                            >
+                                <MantineIcon
+                                    icon={IconRefresh}
+                                    color="gray.0"
+                                    size={14}
                                 />
-                            </HoverCard.Dropdown>
-                        </HoverCard>
+                            </ActionIcon>
+                        </Tooltip>
 
                         <TextInput
                             size="xs"
@@ -111,14 +115,19 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                         />
                     </Group>
                     <Group spacing={4} noWrap>
-                        <ActionIcon
-                            size="xs"
-                            variant="subtle"
-                            color="gray.6"
-                            onClick={onDelete}
+                        <Tooltip
+                            variant="xs"
+                            label="Delete this tag permanently"
                         >
-                            <MantineIcon icon={IconTrash} size={14} />
-                        </ActionIcon>
+                            <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                color="red"
+                                onClick={onDelete}
+                            >
+                                <MantineIcon icon={IconTrash} size={14} />
+                            </ActionIcon>
+                        </Tooltip>
 
                         <Button
                             color="gray.9"
