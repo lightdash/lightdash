@@ -36,7 +36,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
     const [editName, setEditName] = useState(category.name);
     const [editColor, setEditColor] = useState(category.color);
     const { colors } = useMantineTheme();
-    const { ref: hoverRef, hovered } = useHover<HTMLButtonElement>();
+    const { ref: hoverRef, hovered } = useHover<HTMLDivElement>();
 
     const handleSave = useCallback(async () => {
         if (category.tagUuid && projectUuid) {
@@ -135,30 +135,35 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
     }
 
     return (
-        <UnstyledButton
+        <Group
             ref={hoverRef}
-            onClick={onClick}
             px={4}
             py={3}
+            pos="relative"
+            position="apart"
             sx={(theme) => ({
                 borderRadius: theme.radius.sm,
                 '&:hover': { backgroundColor: theme.colors.gray[2] },
             })}
         >
-            <Group spacing={4} position="apart" w="100%">
-                <CatalogCategory category={category} onRemove={onDelete} />
-                {hovered && (
-                    <ActionIcon
-                        size="xs"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setIsEditing(true);
-                        }}
-                    >
-                        <MantineIcon icon={IconDots} color="gray.6" size={14} />
-                    </ActionIcon>
-                )}
-            </Group>
-        </UnstyledButton>
+            <UnstyledButton
+                onClick={onClick}
+                w="100%"
+                h="100%"
+                pos="absolute"
+            ></UnstyledButton>
+            <CatalogCategory category={category} onRemove={onDelete} />
+            {hovered && (
+                <ActionIcon
+                    size="xs"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditing(true);
+                    }}
+                >
+                    <MantineIcon icon={IconDots} color="gray.6" size={14} />
+                </ActionIcon>
+            )}
+        </Group>
     );
 };
