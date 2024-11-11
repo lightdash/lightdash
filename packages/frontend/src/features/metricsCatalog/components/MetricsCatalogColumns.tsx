@@ -7,6 +7,7 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { CatalogCategory } from './CatalogCategory';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
+import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
@@ -14,11 +15,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Metric Name',
         enableSorting: true,
         enableEditing: false,
-        Cell: ({ row, table }) => (
-            <Highlight highlight={table.getState().globalFilter || ''}>
-                {row.original.label}
-            </Highlight>
-        ),
+        Cell: MetricsCatalogColumnName,
     },
     {
         accessorKey: 'description',
