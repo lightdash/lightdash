@@ -3,6 +3,7 @@ import {
     isCustomDimension,
     isDimension,
     isField,
+    isFilterableField,
     isMetric,
     isTableCalculation,
     isTimeInterval,
@@ -11,6 +12,7 @@ import {
     type Item,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Group,
     Highlight,
     HoverCard,
@@ -24,6 +26,8 @@ import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import { getItemBgColor } from '../../../../../hooks/useColumns';
 import { useFilters } from '../../../../../hooks/useFilters';
+import { useTracking } from '../../../../../providers/TrackingProvider';
+import { EventName } from '../../../../../types/Events';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useItemDetail } from '../ItemDetailContext';
@@ -48,6 +52,9 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
     } = useTableTreeContext();
     const { isFilteredField } = useFilters();
     const { showItemDetail } = useItemDetail();
+
+    const { addFilter } = useFilters();
+    const { track } = useTracking();
 
     const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
@@ -200,13 +207,32 @@ const TreeSingleNode: FC<Props> = ({ node }) => {
                         </HoverCard.Dropdown>
                     </HoverCard>
 
-                    {isFiltered ? (
-                        <Tooltip withinPortal label="This field is filtered">
-                            <MantineIcon
-                                icon={IconFilter}
-                                color="gray.7"
-                                style={{ flexShrink: 0 }}
-                            />
+                    {(isFiltered || isHover) &&
+                    !isAdditionalMetric(item) &&
+                    isFilterableField(item) ? (
+                        <Tooltip
+                            withinPortal
+                            label={
+                                isFiltered
+                                    ? 'This field is filtered'
+                                    : `Click here to add filter`
+                            }
+                        >
+                            <ActionIcon
+                                onClick={(e) => {
+                                    track({
+                                        name: EventName.ADD_FILTER_CLICKED,
+                                    });
+                                    if (!isFiltered) addFilter(item, undefined);
+                                    e.stopPropagation(); // Do not toggle the field on filter click
+                                }}
+                            >
+                                <MantineIcon
+                                    icon={IconFilter}
+                                    color="gray.7"
+                                    style={{ flexShrink: 0 }}
+                                />
+                            </ActionIcon>
                         </Tooltip>
                     ) : null}
 
