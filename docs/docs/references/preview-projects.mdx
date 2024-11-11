@@ -20,7 +20,7 @@ Only users who have developer permissions or above in a project can create previ
 
 :::
 
-### In the Lighdash CLI tool
+### Lighdash CLI tool (local)
 
 You can use the [Lightdash CLI tool](/guides/cli/how-to-install-the-lightdash-cli) to generate preview projects in Lightdash from your command line. 
 
@@ -38,7 +38,7 @@ lightdash start-preview
 
 You can see more information about the [`lightdash preview` CLI command here](/references/lightdash-cli#lightdash-preview).
 
-### In the Lightdash Application
+### Lightdash app
 
 You can create a preview project in the Lightdash web app by clicking on the projects list, then clicking `+ Create Preview`. 
 
@@ -48,6 +48,12 @@ You can create a preview project in the Lightdash web app by clicking on the pro
   height="751"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
+
+### Pull Requests (GitHub Actions)
+
+You can automatically create preview projects in GitHub each time you open a pull request. This allows you to easily test out changes you've made in dbt, in Lightdash. 
+
+Learn more about setting up a Lightdash preview project for pull requests using GitHub Actions [here](/guides/cli/how-to-use-lightdash-preview#set-up-developer-previews-on-your-pull-requests).
 
 ## Permissions
 
@@ -73,6 +79,21 @@ For example, there is a project called `Marketing Insights` and there is a space
 
 The project connection settings cannot be changed in a preview project.
 
-### Preview projects created from the CLI
+### Lightdash CLI tool (local)
 
-For preview projects created from the CLI, all project connection settings come from your local profiles.yml file. 
+For preview projects created from the CLI, all project connection settings come from your **local** `profiles.yml` file. 
+
+That means that we will use the same default connection settings that you're using locally for development, unless you specify different options in your CLI commands. 
+
+For example:
+- By default, `lightdash preview` will use the `profiles.yml` file located at `~/.dbt/profiles.yml`. If you want to use a different `profiles.yml` file, you can specify this using the option `lightdash preview --profiles-dir path/to/directory`.  
+- `lightdash preview` will use whatever default target that is set in your `profiles.yml` file. The database connection settings (schema, project, dataset, etc.) from this target will be used as the database connection settings for your preview project. You can override the target used to create your preview project using the flag `lightdash preview --target my-target-name`  
+
+### Lightdash app
+
+For preview projects created in the Lightdash app, all project connection settings are copied directly from the project the preview is built from. 
+
+For example, if I have a project called `Lightdash Analytics` and I create a preview project from it called `Preview Lightdash Analytics`, then `Preview Lightdash Analytics` will have the same project connection settings (warehouse connection, dbt project connection, etc.) as `Lightdash Analytics`.
+
+### Pull requests (GitHub actions) 
+
