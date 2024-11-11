@@ -8,10 +8,6 @@ Preview projects are commonly used to:
 - test changes in models, metrics and dimensions.
 - make changes to important content in production without any downtime by [promoting the content](/guides/how-to-promote-content) you've changed in your preview project when it's ready.
 
-<a href="https://www.loom.com/share/fddc9adab0694f60a85d0a48d67469be">
-  <img src="https://cdn.loom.com/sessions/thumbnails/fddc9adab0694f60a85d0a48d67469be-with-play.gif" />
-</a>
-
 ## Creating a preview project
 
 ::: info
@@ -103,3 +99,21 @@ For preview projects created from GitHub actions, the project connection setting
 
 If you haven't changed anything from our default [GitHub action script](https://github.com/lightdash/cli-actions/blob/main/start-preview.yml), then the connection settings used for your preview project should be whatever you've specified in your [`DBT_PROFILES` secret](/guides/cli/how-to-use-lightdash-preview#dbt_profiles).
 
+You can either set up a single project connection that's used in every pull request, or you can [create a project connection per developer in GitHub](/guides/cli/how-to-use-lightdash-preview#how-to-use-the-developer-credentials-in-your-preview-project) (similar to `dev` profiles in your dbt project).
+
+## Content in Preview Projects
+
+When you create a preview project, the content is copied from the production project. The content in a preview project does not get re-synced from the project it's been created from. 
+
+For example:
+- I have a project called `Lightdash Analytics` with a chart called `Revenue by source` 
+- I create a preview of that project called `Preview Lightdash Analytics`
+- The `Preview Lightdash Analytics` project has the same chart called `Revenue by source` 
+- I change the `Revenue by source` chart in `Lightdash Analytics` (i.e. in the production project)
+- The `Revenue by source` chart in `Preview Lightdash Analytics` is not updated. It is the same chart as when the preview project was first created. 
+
+### Promoting content from preview projects
+
+Promoting content allows you to sync charts and dashboards that you've created or updated in your preview project to your production project. This means you can use preview projects to make changes to important content in production without any downtime.
+
+Learn more about promoting content from preview projects [here](/guides/how-to-promote-content).
