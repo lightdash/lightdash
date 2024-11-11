@@ -1,3 +1,10 @@
+## [0.1356.1](https://github.com/lightdash/lightdash/compare/0.1356.0...0.1356.1) (2024-11-11)
+
+
+### Bug Fixes
+
+* send now filters weren't working for images, some fitlers were disabled on creation ([#12332](https://github.com/lightdash/lightdash/issues/12332)) ([584c34e](https://github.com/lightdash/lightdash/commit/584c34e0bac68a223142321a558d0025ccae7e50))
+
 # [0.1356.0](https://github.com/lightdash/lightdash/compare/0.1355.0...0.1356.0) (2024-11-11)
 
 
