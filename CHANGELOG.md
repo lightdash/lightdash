@@ -1,3 +1,10 @@
+# [0.1355.0](https://github.com/lightdash/lightdash/compare/0.1354.2...0.1355.0) (2024-11-11)
+
+
+### Features
+
+* optimistically update categories ([#12329](https://github.com/lightdash/lightdash/issues/12329)) ([4d391de](https://github.com/lightdash/lightdash/commit/4d391de634edd89f0ea7afeb399c1ccb1527e64d))
+
 ## [0.1354.2](https://github.com/lightdash/lightdash/compare/0.1354.1...0.1354.2) (2024-11-11)
 
 
