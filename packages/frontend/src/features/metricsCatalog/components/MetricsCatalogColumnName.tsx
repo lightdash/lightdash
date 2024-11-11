@@ -12,7 +12,7 @@ import {
 import { useClickOutside } from '@mantine/hooks';
 import EmojiPicker, { EmojiStyle } from 'emoji-picker-react';
 import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
-import { forwardRef, useCallback, useState, type FC } from 'react';
+import { forwardRef, useCallback, useEffect, useState, type FC } from 'react';
 import MetricIconPlaceholder from '../../../svgs/metrics-catalog-metric-icon.svg?react';
 
 const SharedEmojiPicker = forwardRef(
@@ -74,6 +74,21 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
     } | null>(null);
     const [iconRef, setIconRef] = useState<HTMLButtonElement | null>(null);
     const [pickerRef, setPickerRef] = useState<HTMLDivElement | null>(null);
+
+    useEffect(
+        function lockScroll() {
+            const tableContainer = table.refs.tableContainerRef.current;
+            if (tableContainer && isPickerOpen) {
+                tableContainer.style.overflow = 'hidden';
+            }
+            return () => {
+                if (tableContainer) {
+                    tableContainer.style.overflow = 'auto';
+                }
+            };
+        },
+        [isPickerOpen, table.refs.tableContainerRef],
+    );
 
     const handleClosePicker = useCallback(() => {
         setIsPickerOpen(false);
