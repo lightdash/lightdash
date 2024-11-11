@@ -1,4 +1,5 @@
 import CreatePreview from './assets/create-preview.jpg';
+import DeletePreview from './assets/delete-preview.jpg';
 
 # Preview Projects
 
@@ -16,7 +17,7 @@ Only users who have developer permissions or above in a project can create previ
 
 :::
 
-### Lighdash CLI tool (local)
+### Lighdash CLI Tool (Local)
 
 You can use the [Lightdash CLI tool](/guides/cli/how-to-install-the-lightdash-cli) to generate preview projects in Lightdash from your command line. 
 
@@ -34,7 +35,7 @@ lightdash start-preview
 
 You can see more information about the [`lightdash preview` CLI command here](/references/lightdash-cli#lightdash-preview).
 
-### Lightdash app
+### Lightdash App
 
 You can create a preview project in the Lightdash web app by clicking on the projects list, then clicking `+ Create Preview`. 
 
@@ -84,7 +85,7 @@ For example:
 
 The project connection settings cannot be changed in a preview project.
 
-### Lightdash CLI tool (local)
+### Lightdash CLI Tool (Local)
 
 For preview projects created from the CLI, all project connection settings come from your **local** `profiles.yml` file. 
 
@@ -94,7 +95,7 @@ For example:
 - By default, `lightdash preview` will use the `profiles.yml` file located at `~/.dbt/profiles.yml`. If you want to use a different `profiles.yml` file, you can specify this using the option `lightdash preview --profiles-dir path/to/directory`.  
 - `lightdash preview` will use whatever default target that is set in your `profiles.yml` file. The database connection settings (schema, project, dataset, etc.) from this target will be used as the database connection settings for your preview project. You can override the target used to create your preview project using the flag `lightdash preview --target my-target-name`  
 
-### Lightdash app
+### Lightdash App
 
 For preview projects created in the Lightdash app, all project connection settings are copied directly from the project the preview is built from. 
 
@@ -104,15 +105,18 @@ For example:
 
 The project connection settings cannot be changed in a preview project.
 
-### Pull requests (GitHub actions) 
+### Pull Requests (GitHub Actions) 
 
 For preview projects created from GitHub actions, the project connection settings come from the `profiles.yml` file that you've specified to use in your GitHub action. 
 
 If you haven't changed anything from our default [GitHub action script](https://github.com/lightdash/cli-actions/blob/main/start-preview.yml), then the connection settings used for your preview project should be whatever you've specified in your [`DBT_PROFILES` secret](/guides/cli/how-to-use-lightdash-preview#dbt_profiles).
 
-You can either set up a single project connection that's used in every pull request, or you can [create a project connection per developer in GitHub](/guides/cli/how-to-use-lightdash-preview#how-to-use-the-developer-credentials-in-your-preview-project) (similar to `dev` profiles in your dbt project).
+You have three options for setting up project connections in your GitHub Actions:
+1. set up a single project connection that's used in every pull request. E.g. always use the `prod` target. You can [follow the instructions here](/guides/cli/how-to-use-lightdash-preview#dbt_profiles) for your data warehouse
+2. if you're using dbt Cloud, you can [use the dbt Cloud schema](/guides/cli/how-to-use-lightdash-preview#how-to-use-the-dbt-cloud-schema-in-your-preview-project) to manage the connection used in the pull request.
+3. [create a project connection per developer in GitHub](/guides/cli/how-to-use-lightdash-preview#how-to-use-the-developer-credentials-in-your-preview-project) (similar to `dev` profiles in your dbt project) so the connection changes depending on who opened the pull request. Tis is useful if you use different development schemas for team members developing in dbt.
 
-## Content in Preview Projects
+## Content in preview projects
 
 When you create a preview project, the content is copied from the production project. The content in a preview project does not get re-synced from the project it's been created from. 
 
@@ -128,3 +132,42 @@ For example:
 Promoting content allows you to sync charts and dashboards that you've created or updated in your preview project to your production project. This means you can use preview projects to make changes to important content in production without any downtime.
 
 Learn more about promoting content from preview projects [here](/guides/how-to-promote-content).
+
+## Deleting a Preview Project
+
+Preview projects created using any method can be deleted in the [Lightdash App](/references/preview-projects#lightdash-app-2). 
+
+There are also other more automated ways of deleting preview projects created in the Lightdash CLI and in GitHub Actions explained below.
+
+### Lightdash CLI Tool (Local)
+
+If you use the command `lightdash preview` to generate a preview project from your CLI, then hitting `Enter` from your CLI should delete the preview project. 
+
+If you use the command `lightdash start-preview` to generate a preview project from your CLI, then running the command `lightdash stop-preview` should delete your preview project. 
+
+You can also delete preview projects created from the CLI in the [Lightdash App](/references/preview-projects#lightdash-app-2). 
+
+For more details on the `lightdash preview` CLI command, check out the docs [here](/references/lightdash-cli#lightdash-preview). 
+
+### Lightdash App
+
+You can delete preview projects you've created usingin the app by navigating to the `project settings`, then clicking on `all projects` in the sidebar under the `organization settings` header.
+
+You'll see a list of all of the projects in your organization. You can switch to the `preview projects` tab to filter to a list of preview projects in your organization.
+
+<img
+  src={DeletePreview}
+  width="836"
+  height="431"
+  style={{ display: 'block', margin: '0 auto 20px auto' }}
+/>
+
+If you have **developer** access, you can only delete preview projects that you created.
+
+If you are an **organization admin**, you can delete any preview project in the organization. 
+
+### Pull Requests (GitHub Actions)
+
+If you've added both the [`start-preview` and `stop-preview` workflows](/guides/cli/how-to-use-lightdash-preview#step-2-create-start-previewyml-and-close-previewyml-workflows-in-github) in GitHub, then the preview environments you've created in your pull requests should automatically be deleted when the pull request gets merged. 
+
+You can also delete preview projects created from pull requests in the [Lightdash App](/references/preview-projects#lightdash-app-2).  
