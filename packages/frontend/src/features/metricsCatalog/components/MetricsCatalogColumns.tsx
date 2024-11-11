@@ -25,7 +25,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Description',
         enableSorting: false,
         enableEditing: false,
-        size: 400,
+        size: 200,
         Cell: ({ table, row }) => (
             <HoverCard
                 withinPortal
@@ -58,7 +58,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Table',
         enableSorting: false,
         enableEditing: false,
-        size: 150,
+        size: 100,
         Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
     },
     {
