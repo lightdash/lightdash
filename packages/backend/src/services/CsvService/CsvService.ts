@@ -63,7 +63,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { runWorkerThread } from '../../utils';
+import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -1142,21 +1142,32 @@ export class CsvService extends BaseService {
             const truncated = this.couldBeTruncated(rows);
 
             if (pivotConfig) {
-                const csvResults = await this.pivotResultsAsCsv(
-                    pivotConfig,
-                    rows,
-                    itemMap,
-                    metricQuery,
-                    customLabels,
-                    onlyRaw,
-                );
+                // This pivot method returns directly the final CSV result as a string
+                // This method can be memory intensive
+                const downloadUrl = await wrapSentryTransaction<AttachmentUrl>(
+                    'pivotResultsAsCsv',
+                    {
+                        numberRows: rows.length,
+                        numberColumns,
+                    },
+                    async () => {
+                        const csvResults = await this.pivotResultsAsCsv(
+                            pivotConfig,
+                            rows,
+                            itemMap,
+                            metricQuery,
+                            customLabels,
+                            onlyRaw,
+                        );
 
-                const downloadUrl = await this.downloadCsvFile({
-                    csvContent: csvResults,
-                    fileName: chartName || exploreId,
-                    projectUuid,
-                    truncated,
-                });
+                        return this.downloadCsvFile({
+                            csvContent: csvResults,
+                            fileName: chartName || exploreId,
+                            projectUuid,
+                            truncated,
+                        });
+                    },
+                );
                 return { fileUrl: downloadUrl.path, truncated };
             }
 
