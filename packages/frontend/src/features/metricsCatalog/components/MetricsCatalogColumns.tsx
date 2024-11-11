@@ -1,8 +1,9 @@
 import { type CatalogField } from '@lightdash/common';
-import { Box, Group, Highlight, HoverCard, Text } from '@mantine/core';
+import { Box, Group, Highlight, HoverCard, Paper, Text } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
+import MetricIconPlaceholder from '../../../svgs/metrics-catalog-metric-icon.svg?react';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { CatalogCategory } from './CatalogCategory';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
