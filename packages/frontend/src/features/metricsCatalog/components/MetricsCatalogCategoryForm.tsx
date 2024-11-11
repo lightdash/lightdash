@@ -253,7 +253,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             w="100%"
                             mah={140}
                             sx={{
-                                overflow: 'auto',
+                                overflow: 'scroll-y',
                             }}
                         >
                             {filteredExistingCategories.map((category) => (
