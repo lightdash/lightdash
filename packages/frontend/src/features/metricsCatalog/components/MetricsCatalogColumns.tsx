@@ -1,13 +1,13 @@
 import { type CatalogField } from '@lightdash/common';
-import { Box, Group, Highlight, HoverCard, Paper, Text } from '@mantine/core';
+import { Box, Group, Highlight, HoverCard, Text } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
-import MetricIconPlaceholder from '../../../svgs/metrics-catalog-metric-icon.svg?react';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { CatalogCategory } from './CatalogCategory';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
+import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
@@ -15,25 +15,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Metric Name',
         enableSorting: true,
         enableEditing: false,
-        Cell: ({ row, table }) => (
-            <Group noWrap spacing="xs">
-                <Paper
-                    w={25}
-                    h={25}
-                    withBorder
-                    radius="sm"
-                    p="two"
-                    sx={{
-                        flexShrink: 0,
-                    }}
-                >
-                    <MetricIconPlaceholder width="100%" height="100%" />
-                </Paper>
-                <Highlight highlight={table.getState().globalFilter || ''}>
-                    {row.original.label}
-                </Highlight>
-            </Group>
-        ),
+        Cell: MetricsCatalogColumnName,
     },
     {
         accessorKey: 'description',
@@ -134,7 +116,6 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             return (
-                // This is a hack to make the whole cell clickable and avoid race conditions with click outside events
                 <Box
                     pos="absolute"
                     p="md"
