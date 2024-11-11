@@ -93,7 +93,13 @@ For example:
 
 For preview projects created in the Lightdash app, all project connection settings are copied directly from the project the preview is built from. 
 
-For example, if I have a project called `Lightdash Analytics` and I create a preview project from it called `Preview Lightdash Analytics`, then `Preview Lightdash Analytics` will have the same project connection settings (warehouse connection, dbt project connection, etc.) as `Lightdash Analytics`.
+For example, if I have a project called `Lightdash Analytics` and I create a preview of that project called `Preview Lightdash Analytics`, then `Preview Lightdash Analytics` will have the same project connection settings (warehouse connection, dbt project connection, etc.) as `Lightdash Analytics`.
+
+The project connection settings cannot be changed in a preview project.
 
 ### Pull requests (GitHub actions) 
+
+For preview projects created from GitHub actions, the project connection settings come from the `profiles.yml` file that you've specified to use in your GitHub action. 
+
+If you haven't changed anything from our default [GitHub action script](https://github.com/lightdash/cli-actions/blob/main/start-preview.yml), then the connection settings used for your preview project should be whatever you've specified in your [`DBT_PROFILES` secret](/guides/cli/how-to-use-lightdash-preview#dbt_profiles).
 
