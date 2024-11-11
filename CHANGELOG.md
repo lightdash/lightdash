@@ -1,3 +1,11 @@
+## [0.1354.1](https://github.com/lightdash/lightdash/compare/0.1354.0...0.1354.1) (2024-11-11)
+
+
+### Bug Fixes
+
+* filter metric on sidebar icon ([#12318](https://github.com/lightdash/lightdash/issues/12318)) ([576de98](https://github.com/lightdash/lightdash/commit/576de984404751f32c59cfb3b8dd30e94566bbfd))
+* fix sql runner page in demo ([#12320](https://github.com/lightdash/lightdash/issues/12320)) ([738ff1b](https://github.com/lightdash/lightdash/commit/738ff1b3aa8b249da6547c66f2e12f4dc4c1d88e))
+
 # [0.1354.0](https://github.com/lightdash/lightdash/compare/0.1353.2...0.1354.0) (2024-11-08)
 
 
