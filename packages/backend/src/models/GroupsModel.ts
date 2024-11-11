@@ -5,7 +5,6 @@ import {
     GroupMember,
     GroupMembership,
     GroupWithMembers,
-    KnexPaginationError,
     NotExistsError,
     NotFoundError,
     ProjectGroupAccess,
