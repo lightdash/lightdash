@@ -171,6 +171,13 @@ const convertDimension = (
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
         groups,
         isIntervalBase,
+        ...(column.meta.dimension && column.meta.dimension.tags
+            ? {
+                  tags: Array.isArray(column.meta.dimension.tags)
+                      ? column.meta.dimension.tags
+                      : [column.meta.dimension.tags],
+              }
+            : {}),
     };
 };
 
@@ -272,6 +279,13 @@ const convertDbtMetricToLightdashMetric = (
         showUnderlyingValues: metric.meta?.show_underlying_values,
         filters: parseFilters(metric.meta?.filters),
         ...(metric.meta?.urls ? { urls: metric.meta.urls } : {}),
+        ...(metric.meta && metric.meta.tags
+            ? {
+                  tags: Array.isArray(metric.meta.tags)
+                      ? metric.meta.tags
+                      : [metric.meta.tags],
+              }
+            : {}),
     };
 };
 

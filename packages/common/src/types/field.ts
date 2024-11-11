@@ -244,6 +244,7 @@ export interface Field {
     groups?: string[];
     urls?: FieldUrl[];
     index?: number;
+    tags?: string[];
 }
 
 export const isField = (field: any): field is Field =>
