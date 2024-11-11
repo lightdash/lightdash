@@ -1,3 +1,10 @@
+## [0.1354.2](https://github.com/lightdash/lightdash/compare/0.1354.1...0.1354.2) (2024-11-11)
+
+
+### Bug Fixes
+
+* react default prop and controlled component errors ([#12334](https://github.com/lightdash/lightdash/issues/12334)) ([5f3a8d7](https://github.com/lightdash/lightdash/commit/5f3a8d7d24e7088b555793c7ff09b41759d0313d))
+
 ## [0.1354.1](https://github.com/lightdash/lightdash/compare/0.1354.0...0.1354.1) (2024-11-11)
 
 
