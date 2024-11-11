@@ -152,7 +152,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 h="100%"
                 pos="absolute"
             ></UnstyledButton>
-            <CatalogCategory category={category} onRemove={onDelete} />
+            <CatalogCategory category={category} />
             {hovered && (
                 <ActionIcon
                     size="xs"
