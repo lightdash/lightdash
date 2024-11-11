@@ -888,7 +888,8 @@ export class CsvService extends BaseService {
                 ? {
                       pivotDimensions: pivotConfig.columns,
                       metricsAsRows: false,
-                      // TODO add more properties from chartConfig (table)
+                      hiddenMetricFieldIds: hiddenFields,
+                      columnOrder: tableConfig.columnOrder,
                   }
                 : undefined;
         return this.scheduleDownloadCsv(user, {
@@ -964,6 +965,73 @@ export class CsvService extends BaseService {
         const { jobId } = await this.schedulerClient.downloadCsvJob(payload);
 
         return { jobId };
+    }
+
+    async pivotResultsAsCsv(
+        pivotConfig: PivotConfig,
+        rows: Record<string, any>[],
+        itemMap: ItemsMap,
+        metricQuery: MetricQuery,
+        customLabels: Record<string, string> | undefined,
+        onlyRaw: boolean,
+    ) {
+        const getFieldLabel = (fieldId: string) => {
+            const customLabel = customLabels?.[fieldId];
+            if (customLabel !== undefined) return customLabel;
+            const field = itemMap[fieldId];
+            return (field && isField(field) && field?.label) || fieldId;
+        };
+        // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
+        // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+        const formattedRows = formatRows(rows, itemMap);
+        const pivotedResults = pivotQueryResults({
+            pivotConfig,
+            metricQuery,
+            rows: formattedRows,
+            options: {
+                maxColumns: this.lightdashConfig.pivotTable.maxColumnLimit,
+            },
+            getField: (fieldId: string) => itemMap && itemMap[fieldId], // itemsMap && itemsMap[fieldId],
+            getFieldLabel,
+        });
+        const formatField = onlyRaw ? 'raw' : 'formatted';
+        const headers = pivotedResults.headerValues.reduce<string[][]>(
+            (acc, row, i) => {
+                const values = row.map((header) =>
+                    'value' in header
+                        ? (header.value[formatField] as string)
+                        : getFieldLabel(header.fieldId),
+                );
+                const fieldId =
+                    pivotedResults.titleFields[i]?.[0]?.fieldId || '-';
+                acc[i] = [getFieldLabel(fieldId), ...values];
+
+                return acc;
+            },
+            [[]],
+        );
+
+        const pivotedRows: string[][] =
+            pivotedResults.retrofitData.allCombinedData.map((row) =>
+                Object.values(row).map(
+                    (cell) => cell.value[formatField] as string,
+                ),
+            );
+
+        return new Promise<string>((resolve, reject) => {
+            stringify(
+                [...headers, ...pivotedRows],
+                {
+                    delimiter: ',',
+                },
+                (err, output) => {
+                    if (err) {
+                        reject(new Error(err.message));
+                    }
+                    resolve(output);
+                },
+            );
+        });
     }
 
     async downloadCsv(
@@ -1071,27 +1139,26 @@ export class CsvService extends BaseService {
                 metricQuery.tableCalculations,
                 metricQuery.customDimensions,
             );
+            const truncated = this.couldBeTruncated(rows);
 
             if (pivotConfig) {
-                // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-                // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
-                const formattedRows = formatRows(rows, itemMap);
-                const pivotedRows = pivotQueryResults({
+                const csvResults = await this.pivotResultsAsCsv(
                     pivotConfig,
+                    rows,
+                    itemMap,
                     metricQuery,
-                    rows: formattedRows,
-                    options: {
-                        maxColumns:
-                            this.lightdashConfig.pivotTable.maxColumnLimit,
-                    },
-                    getField: (fieldId: string) => itemMap && itemMap[fieldId], // itemsMap && itemsMap[fieldId],
-                    getFieldLabel: (fieldId: string) => fieldId, // getFieldLabelOverride(fieldId) || getFieldLabelDefault(fieldId)
-                });
-                console.debug('pivotedRows', pivotedRows);
-                // rows = pivotedRows.retrofitData.allCombinedData
-            }
+                    customLabels,
+                    onlyRaw,
+                );
 
-            const truncated = this.couldBeTruncated(rows);
+                const downloadUrl = await this.downloadCsvFile({
+                    csvContent: csvResults,
+                    fileName: chartName || exploreId,
+                    projectUuid,
+                    truncated,
+                });
+                return { fileUrl: downloadUrl.path, truncated };
+            }
 
             const fileId = await CsvService.writeRowsToFile(
                 rows,
