@@ -1,4 +1,4 @@
-import { type CatalogField } from '@lightdash/common';
+import { type CatalogField, type Tag } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -49,6 +49,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         const organizationUuid = useAppSelector(
             (state) => state.metricsCatalog.organizationUuid,
         );
+
         const [opened, setOpened] = useState(false);
         const [search, setSearch] = useState('');
         const [tagColor, setTagColor] = useState<string>();
@@ -58,12 +59,24 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         const tagCatalogItemMutation = useAddCategoryToCatalogItem();
         const untagCatalogItemMutation = useRemoveCategoryFromCatalogItem();
 
-        // Generate new color when popover opens
+        const categoryNames = useMemo(
+            () => metricCategories.map((category) => category.name),
+            [metricCategories],
+        );
+
+        const handleSearchChange = useCallback((value: string) => {
+            setSearch(value);
+        }, []);
+
+        const handlePopoverChange = useCallback((value: boolean) => {
+            setOpened(value);
+        }, []);
+
         useEffect(() => {
             if (opened) {
+                // Generate new color when popover opens
                 setTagColor(getRandomColor(colors));
             } else {
-                // setSearch('');
                 setTagColor(undefined);
             }
         }, [opened, colors]);
@@ -78,7 +91,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     );
 
                     if (existingTag) {
-                        await tagCatalogItemMutation.mutateAsync({
+                        tagCatalogItemMutation.mutate({
                             projectUuid,
                             catalogSearchUuid,
                             tagUuid: existingTag.tagUuid,
@@ -87,19 +100,15 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     } else {
                         if (!tagColor) return;
 
-                        const newTag = await createTagMutation.mutateAsync({
+                        createTagMutation.mutate({
                             projectUuid,
                             data: {
                                 name: tagName,
                                 color: tagColor,
                             },
+                            catalogSearchUuid,
                         });
 
-                        await tagCatalogItemMutation.mutateAsync({
-                            projectUuid,
-                            catalogSearchUuid,
-                            tagUuid: newTag.tagUuid,
-                        });
                         // Reset search and color after creating a new tag
                         setSearch('');
                         setTagColor(getRandomColor(colors));
@@ -136,13 +145,17 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             async (tagUuid: string) => {
                 if (!projectUuid) return;
 
-                await untagCatalogItemMutation.mutateAsync({
-                    projectUuid,
-                    catalogSearchUuid,
-                    tagUuid,
-                });
+                try {
+                    untagCatalogItemMutation.mutate({
+                        projectUuid,
+                        catalogSearchUuid,
+                        tagUuid,
+                    });
+                } catch (error) {
+                    console.error('Error removing tag', error);
+                }
             },
-            [projectUuid, catalogSearchUuid, untagCatalogItemMutation],
+            [projectUuid, untagCatalogItemMutation, catalogSearchUuid],
         );
 
         // Filter existing categories that are already applied to this metric
@@ -156,7 +169,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         );
 
         // Filter available categories that can be applied to this metric
-        // 1. Get categories that aren't already applied (using differenceBy)
+        // 1. Get categories that aren't already applied to this metric
         // 2. Filter remaining categories to match search term (case insensitive)
         const filteredAvailableCategories = useMemo(
             () =>
@@ -171,10 +184,42 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             [tags, search, metricCategories],
         );
 
+        const renderValueComponent = useCallback(
+            ({
+                value,
+                onRemove,
+            }: {
+                value: Tag['tagUuid'];
+                onRemove: (value: Tag['tagUuid']) => void;
+            }) => (
+                <Box mx={2}>
+                    <CatalogCategory
+                        category={{
+                            name: value,
+                            color:
+                                metricCategories.find(
+                                    (category) => category.name === value,
+                                )?.color ?? getRandomColor(colors),
+                        }}
+                        onRemove={() => {
+                            onRemove(value);
+                            const tagUuid = metricCategories.find(
+                                (category) => category.name === value,
+                            )?.tagUuid;
+                            if (tagUuid) {
+                                void handleUntag(tagUuid);
+                            }
+                        }}
+                    />
+                </Box>
+            ),
+            [colors, metricCategories, handleUntag],
+        );
+
         return (
             <Popover
                 opened={opened}
-                onChange={setOpened}
+                onChange={handlePopoverChange}
                 position="bottom"
                 width={300}
                 withArrow
@@ -215,45 +260,18 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 </Popover.Target>
                 <Popover.Dropdown p="xs">
                     <TagInput
-                        value={metricCategories.map(
-                            (category) => category.name,
-                        )}
+                        value={categoryNames}
+                        onSearchChange={handleSearchChange}
+                        searchValue={search}
+                        valueComponent={renderValueComponent}
                         placeholder="Search"
                         size="xs"
                         mb="xs"
                         radius="md"
-                        onSearchChange={(value) => {
-                            setSearch(value);
-                        }}
-                        searchValue={search}
                         addOnBlur={false}
                         onBlur={(e) => {
                             e.stopPropagation();
                         }}
-                        valueComponent={({ value, onRemove }) => (
-                            <Box mx={2}>
-                                <CatalogCategory
-                                    category={{
-                                        name: value,
-                                        color:
-                                            metricCategories.find(
-                                                (category) =>
-                                                    category.name === value,
-                                            )?.color ?? getRandomColor(colors),
-                                    }}
-                                    onRemove={() => {
-                                        onRemove(value);
-                                        const tagUuid = metricCategories.find(
-                                            (category) =>
-                                                category.name === value,
-                                        )?.tagUuid;
-                                        if (tagUuid) {
-                                            void handleUntag(tagUuid);
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        )}
                     />
                     <Text size="xs" fw={500} color="dimmed" mb="xs">
                         Select a category or create a new one

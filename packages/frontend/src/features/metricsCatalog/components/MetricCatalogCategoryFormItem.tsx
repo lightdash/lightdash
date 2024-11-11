@@ -28,8 +28,8 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
-    const { mutateAsync: updateTag } = useUpdateTag();
-    const { mutateAsync: deleteTag } = useDeleteTag();
+    const { mutate: updateTag } = useUpdateTag();
+    const { mutate: deleteTag } = useDeleteTag();
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(category.name);
     const [editColor, setEditColor] = useState(category.color);
@@ -37,20 +37,28 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
 
     const handleSave = useCallback(async () => {
         if (category.tagUuid && projectUuid) {
-            await updateTag({
-                projectUuid,
-                tagUuid: category.tagUuid,
-                data: { name: editName, color: editColor },
-            });
+            try {
+                updateTag({
+                    projectUuid,
+                    tagUuid: category.tagUuid,
+                    data: { name: editName, color: editColor },
+                });
+                setIsEditing(false);
+            } catch (error) {
+                console.error('Tag update failed:', error);
+            }
         }
-        setIsEditing(false);
-    }, [editColor, editName, projectUuid, category.tagUuid, updateTag]);
+    }, [editColor, editName, projectUuid, category, updateTag]);
 
     const onDelete = useCallback(async () => {
         if (category.tagUuid && projectUuid) {
-            await deleteTag({ projectUuid, tagUuid: category.tagUuid });
+            try {
+                deleteTag({ projectUuid, tagUuid: category.tagUuid });
+            } catch (error) {
+                console.error('Tag deletion failed:', error);
+            }
         }
-    }, [deleteTag, projectUuid, category.tagUuid]);
+    }, [deleteTag, projectUuid, category]);
 
     if (isEditing) {
         return (
@@ -125,11 +133,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
 
     return (
         <Group spacing={4} position="apart" w="100%">
-            <CatalogCategory
-                category={category}
-                onClick={onClick}
-                onRemove={onDelete}
-            />
+            <CatalogCategory category={category} onClick={onClick} />
             <ActionIcon
                 size="xs"
                 variant="subtle"
