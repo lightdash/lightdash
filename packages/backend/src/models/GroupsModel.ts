@@ -1,4 +1,5 @@
 import {
+    AlreadyExistsError,
     CreateGroup,
     Group,
     GroupMember,
@@ -226,31 +227,41 @@ export class GroupsModel {
         createGroup: CreateGroup & { organizationUuid: string },
     ): Promise<GroupWithMembers> {
         const groupUuid = await this.database.transaction(async (trx) => {
-            const results = await trx.raw<{
-                rows: { created_at: Date; group_uuid: string }[];
-            }>(
-                `
+            try {
+                const results = await trx.raw<{
+                    rows: { created_at: Date; group_uuid: string }[];
+                }>(
+                    `
                     INSERT INTO groups (name, organization_id)
                     SELECT ?, organization_id
                     FROM organizations
                     WHERE organization_uuid = ? RETURNING group_uuid, groups.created_at
                 `,
-                [createGroup.name, createGroup.organizationUuid],
-            );
-            const [row] = results.rows;
-            if (row === undefined) {
-                throw new UnexpectedDatabaseError(`Failed to create group`);
-            }
-
-            if (createGroup.members && createGroup.members.length > 0) {
-                await GroupsModel.addGroupMembers(
-                    trx,
-                    row.group_uuid,
-                    createGroup.members.map((m) => m.userUuid),
+                    [createGroup.name.trim(), createGroup.organizationUuid],
                 );
+
+                const [row] = results.rows;
+                if (row === undefined) {
+                    throw new UnexpectedDatabaseError(`Failed to create group`);
+                }
+
+                if (createGroup.members && createGroup.members.length > 0) {
+                    await GroupsModel.addGroupMembers(
+                        trx,
+                        row.group_uuid,
+                        createGroup.members.map((m) => m.userUuid),
+                    );
+                }
+                return row.group_uuid;
+            } catch (error) {
+                // Unique violation in PostgreSQL
+                if (error.code === '23505') {
+                    throw new AlreadyExistsError(`Group name already exists`);
+                }
+                throw error; // Re-throw other errors
             }
-            return row.group_uuid;
         });
+
         return this.getGroupWithMembers(groupUuid);
     }
 
@@ -368,7 +379,6 @@ export class GroupsModel {
         groupUuid: string,
         update: UpdateGroupWithMembers,
     ): Promise<GroupWithMembers> {
-        // TODO: fix include member count
         const existingGroup = await this.getGroupWithMembers(groupUuid, 10000);
         if (existingGroup === undefined) {
             throw new NotFoundError(`No group found`);
@@ -376,10 +386,21 @@ export class GroupsModel {
 
         await this.database.transaction(async (trx) => {
             if (update.name) {
-                await trx('groups')
-                    .update({ name: update.name })
-                    .where('group_uuid', groupUuid);
+                try {
+                    await trx('groups')
+                        .update({ name: update.name.trim() })
+                        .where('group_uuid', groupUuid);
+                } catch (error) {
+                    // Unique violation in PostgreSQL
+                    if (error.code === '23505') {
+                        throw new AlreadyExistsError(
+                            `Group name already exists`,
+                        );
+                    }
+                    throw error; // Re-throw other errors
+                }
             }
+
             if (update.members !== undefined) {
                 const membersToAdd = differenceBy(
                     update.members,
