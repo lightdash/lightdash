@@ -282,7 +282,7 @@ const updateFilters = (
             ...(schedulerFilters ?? []),
             {
                 ...schedulerFilter,
-                disabled: false,
+                disabled: !isFilterEnabled(schedulerFilter),
             },
         ];
     }
