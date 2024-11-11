@@ -223,37 +223,39 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     <UnstyledButton w="100%" pos="absolute" />
                 </Popover.Target>
                 <Popover.Dropdown
-                    p="xs"
+                    p={0}
                     onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                     }}
                 >
-                    <TagInput
-                        value={categoryNames}
-                        onSearchChange={handleSearchChange}
-                        searchValue={search}
-                        valueComponent={renderValueComponent}
-                        ref={inputFocusTrapRef}
-                        placeholder="Search"
-                        size="xs"
-                        mb="xs"
-                        radius="md"
-                        addOnBlur={false}
-                        onBlur={(e) => {
-                            e.stopPropagation();
-                        }}
-                    />
-                    <Text size="xs" fw={500} color="dimmed" mb="xs">
-                        Select a category or create a new one
-                    </Text>
-                    <Stack spacing="xs" align="flex-start">
+                    <Box p="xs">
+                        <TagInput
+                            value={categoryNames}
+                            onSearchChange={handleSearchChange}
+                            searchValue={search}
+                            valueComponent={renderValueComponent}
+                            ref={inputFocusTrapRef}
+                            placeholder="Search"
+                            size="xs"
+                            mb="xs"
+                            radius="md"
+                            addOnBlur={false}
+                            onBlur={(e) => {
+                                e.stopPropagation();
+                            }}
+                        />
+                        <Text size="xs" fw={500} color="dimmed">
+                            Select a category or create a new one
+                        </Text>
+                    </Box>
+                    <Stack spacing="xs" px="xs" align="flex-start">
                         <Stack
                             spacing={4}
                             w="100%"
                             mah={140}
                             sx={{
-                                overflow: 'auto',
+                                overflowY: 'auto',
                             }}
                         >
                             {filteredExistingCategories.map((category) => (
