@@ -3,8 +3,8 @@ import {
     ActionIcon,
     Button,
     Group,
-    HoverCard,
     Stack,
+    Text,
     TextInput,
     Tooltip,
     UnstyledButton,
@@ -69,43 +69,43 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
             <Stack spacing="xs" w="100%">
                 <Group position="apart" noWrap>
                     <Group noWrap spacing="xs">
-                        <HoverCard>
-                            <HoverCard.Target>
-                                <Tooltip label="Change color" variant="xs">
-                                    <ActionIcon
-                                        size="xs"
-                                        onClick={() =>
-                                            setEditColor(getRandomColor(colors))
-                                        }
-                                        sx={(theme) => ({
-                                            borderRadius: '90%',
-                                            backgroundColor: editColor,
-                                            '&:hover': {
-                                                backgroundColor:
-                                                    theme.fn.darken(
-                                                        editColor,
-                                                        0.1,
-                                                    ),
-                                            },
-                                        })}
-                                    >
-                                        <MantineIcon
-                                            icon={IconRefresh}
-                                            color="gray.0"
-                                            size={14}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </HoverCard.Target>
-                            <HoverCard.Dropdown>
-                                <CatalogCategory
-                                    category={{
-                                        color: editColor,
-                                        name: editName,
-                                    }}
+                        <Tooltip
+                            label={
+                                <Stack p="two" spacing="xs">
+                                    <Text fw={600}>Change color</Text>
+                                    <CatalogCategory
+                                        category={{
+                                            color: editColor,
+                                            name: editName,
+                                        }}
+                                    />
+                                </Stack>
+                            }
+                            variant="xs"
+                        >
+                            <ActionIcon
+                                size="xs"
+                                onClick={() =>
+                                    setEditColor(getRandomColor(colors))
+                                }
+                                sx={(theme) => ({
+                                    borderRadius: '90%',
+                                    backgroundColor: editColor,
+                                    '&:hover': {
+                                        backgroundColor: theme.fn.darken(
+                                            editColor,
+                                            0.1,
+                                        ),
+                                    },
+                                })}
+                            >
+                                <MantineIcon
+                                    icon={IconRefresh}
+                                    color="gray.0"
+                                    size={14}
                                 />
-                            </HoverCard.Dropdown>
-                        </HoverCard>
+                            </ActionIcon>
+                        </Tooltip>
 
                         <TextInput
                             size="xs"
