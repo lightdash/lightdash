@@ -7,9 +7,11 @@ import {
     Stack,
     Text,
     Tooltip,
+    UnstyledButton,
     useMantineTheme,
 } from '@mantine/core';
-import { IconPlus, IconRefresh } from '@tabler/icons-react';
+import { useFocusTrap } from '@mantine/hooks';
+import { IconRefresh } from '@tabler/icons-react';
 import { differenceBy, filter, includes } from 'lodash';
 import {
     memo,
@@ -36,11 +38,12 @@ import { MetricCatalogCategoryFormItem } from './MetricCatalogCategoryFormItem';
 type Props = {
     catalogSearchUuid: string;
     metricCategories: CatalogField['categories'];
-    hovered: boolean;
+    opened: boolean;
+    onClose?: () => void;
 };
 
 export const MetricsCatalogCategoryForm: FC<Props> = memo(
-    ({ catalogSearchUuid, metricCategories, hovered }) => {
+    ({ catalogSearchUuid, metricCategories, opened, onClose }) => {
         const { track } = useTracking();
         const { colors } = useMantineTheme();
         const projectUuid = useAppSelector(
@@ -49,8 +52,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         const organizationUuid = useAppSelector(
             (state) => state.metricsCatalog.organizationUuid,
         );
-
-        const [opened, setOpened] = useState(false);
         const [search, setSearch] = useState('');
         const [tagColor, setTagColor] = useState<string>();
 
@@ -58,6 +59,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         const createTagMutation = useCreateTag();
         const tagCatalogItemMutation = useAddCategoryToCatalogItem();
         const untagCatalogItemMutation = useRemoveCategoryFromCatalogItem();
+        const inputFocusTrapRef = useFocusTrap();
 
         const categoryNames = useMemo(
             () => metricCategories.map((category) => category.name),
@@ -68,18 +70,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             setSearch(value);
         }, []);
 
-        const handlePopoverChange = useCallback((value: boolean) => {
-            setOpened(value);
-        }, []);
-
         useEffect(() => {
-            if (opened) {
-                // Generate new color when popover opens
-                setTagColor(getRandomColor(colors));
-            } else {
-                setTagColor(undefined);
-            }
-        }, [opened, colors]);
+            setTagColor(getRandomColor(colors));
+        }, [colors]);
 
         const handleAddTag = useCallback(
             async (tagName: string) => {
@@ -219,7 +212,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         return (
             <Popover
                 opened={opened}
-                onChange={handlePopoverChange}
+                onClose={onClose}
                 position="bottom"
                 width={300}
                 withArrow
@@ -227,64 +220,42 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 withinPortal
             >
                 <Popover.Target>
-                    <Button
-                        variant="default"
-                        size="xs"
-                        compact
-                        pos="absolute"
-                        leftIcon={
-                            <MantineIcon
-                                color="gray.6"
-                                size={8}
-                                icon={IconPlus}
-                            />
-                        }
-                        fz={10}
-                        right={0}
-                        bottom={0}
-                        left="auto"
-                        styles={(theme) => ({
-                            leftIcon: {
-                                marginRight: 4,
-                            },
-                            root: {
-                                border: `dashed 1px ${theme.colors.gray[4]}`,
-                                visibility:
-                                    hovered || opened ? 'visible' : 'hidden',
-                            },
-                        })}
-                        onClick={() => setOpened((prev) => !prev)}
-                    >
-                        Add
-                    </Button>
+                    <UnstyledButton w="100%" pos="absolute" />
                 </Popover.Target>
-                <Popover.Dropdown p="xs">
-                    <TagInput
-                        value={categoryNames}
-                        onSearchChange={handleSearchChange}
-                        searchValue={search}
-                        valueComponent={renderValueComponent}
-                        placeholder="Search"
-                        size="xs"
-                        mb="xs"
-                        radius="md"
-                        addOnBlur={false}
-                        onBlur={(e) => {
-                            e.stopPropagation();
-                        }}
-                    />
-                    <Text size="xs" fw={500} color="dimmed" mb="xs">
-                        Select a category or create a new one
-                    </Text>
-                    <Stack spacing="xs" align="flex-start">
+                <Popover.Dropdown
+                    p={0}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
+                >
+                    <Box p="xs">
+                        <TagInput
+                            value={categoryNames}
+                            onSearchChange={handleSearchChange}
+                            searchValue={search}
+                            valueComponent={renderValueComponent}
+                            ref={inputFocusTrapRef}
+                            placeholder="Search"
+                            size="xs"
+                            mb="xs"
+                            radius="md"
+                            addOnBlur={false}
+                            onBlur={(e) => {
+                                e.stopPropagation();
+                            }}
+                        />
+                        <Text size="xs" fw={500} color="dimmed">
+                            Select a category or create a new one
+                        </Text>
+                    </Box>
+                    <Stack spacing="xs" px="xs" align="flex-start">
                         <Stack
                             spacing={4}
                             w="100%"
                             mah={140}
-                            // For the scrollbar to not overlap the button
-                            pr="sm"
                             sx={{
-                                overflow: 'auto',
+                                overflowY: 'auto',
                             }}
                         >
                             {filteredExistingCategories.map((category) => (
