@@ -15,6 +15,8 @@ import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { forwardRef, useCallback, useEffect, useState, type FC } from 'react';
 import MetricIconPlaceholder from '../../../svgs/metrics-catalog-metric-icon.svg?react';
 
+const PICKER_HEIGHT = 400;
+
 const SharedEmojiPicker = forwardRef(
     (
         {
@@ -44,6 +46,7 @@ const SharedEmojiPicker = forwardRef(
 
                         {/* TODO: display loader on emoji picker loading */}
                         <EmojiPicker
+                            height={PICKER_HEIGHT}
                             style={{
                                 pointerEvents: 'none',
                                 opacity: 0.5,
@@ -102,8 +105,19 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
             return handleClosePicker();
         }
         const rect = e.currentTarget.getBoundingClientRect();
+
+        // Get viewport height and picker approximate height (400px is typical for emoji picker)
+        const viewportHeight = window.innerHeight;
+        const pickerHeight = PICKER_HEIGHT;
+
+        // Check if there's enough space below
+        const spaceBelow = viewportHeight - rect.bottom;
+        const shouldShowAbove = spaceBelow < pickerHeight;
+
         setPickerPosition({
-            top: rect.bottom + 5,
+            top: shouldShowAbove
+                ? rect.top - pickerHeight - 5
+                : rect.bottom + 5,
             left: rect.left,
         });
         setIsPickerOpen(true);

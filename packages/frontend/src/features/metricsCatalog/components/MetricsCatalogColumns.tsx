@@ -116,6 +116,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             return (
+                // This is a hack to make the whole cell clickable and avoid race conditions with click outside events
                 <Box
                     pos="absolute"
                     p="md"
