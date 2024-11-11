@@ -4,6 +4,7 @@ import {
     CatalogAnalytics,
     CatalogField,
     CatalogFilter,
+    CatalogItemIcon,
     CatalogMetadata,
     CatalogTable,
     CatalogType,
@@ -171,6 +172,7 @@ export class CatalogService<
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
                         categories: [],
+                        icon: null,
                     },
                 ];
             }
@@ -196,6 +198,7 @@ export class CatalogService<
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
                         categories: [],
+                        icon: null,
                     },
                 ];
             }
@@ -730,5 +733,31 @@ export class CatalogService<
         }
 
         await this.catalogModel.untagCatalogItem(catalogSearchUuid, tagUuid);
+    }
+
+    async updateCatalogItemIcon(
+        user: SessionUser,
+        projectUuid: string,
+        catalogSearchUuid: string,
+        icon: CatalogItemIcon | null,
+    ): Promise<void> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                // NOTE: being able to manage tags that the user can customise catalog items
+                subject('Tags', {
+                    projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.catalogModel.updateCatalogItemIcon(catalogSearchUuid, icon);
     }
 }

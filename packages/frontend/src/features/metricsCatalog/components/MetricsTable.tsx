@@ -115,7 +115,20 @@ export const MetricsTable = () => {
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: { maxHeight: '600px', minHeight: '600px' },
+            sx: {
+                maxHeight: '600px',
+                minHeight: '600px',
+                // Add these styles to adjust scrollbar position
+                '& .mrt-table-head': {
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1,
+                },
+                '& .mrt-table-body': {
+                    maxHeight: 'calc(600px - var(--mrt-table-head-height))',
+                    overflowY: 'auto',
+                },
+            },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },
@@ -177,6 +190,7 @@ export const MetricsTable = () => {
         enableFilterMatchHighlighting: true,
         enableEditing: true,
         editDisplayMode: 'cell',
+        enableStickyHeader: true,
     });
 
     return <MantineReactTable table={table} />;

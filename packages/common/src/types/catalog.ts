@@ -43,6 +43,23 @@ export type ApiCatalogSearch = {
     catalogTags?: string[];
 };
 
+type EmojiIcon = {
+    unicode: string;
+};
+
+type CustomIcon = {
+    url: string;
+};
+
+export type CatalogItemIcon = EmojiIcon | CustomIcon;
+
+export const isEmojiIcon = (icon: CatalogItemIcon | null): icon is EmojiIcon =>
+    Boolean(icon && 'unicode' in icon);
+
+export const isCustomIcon = (
+    icon: CatalogItemIcon | null,
+): icon is CustomIcon => Boolean(icon && 'url' in icon);
+
 export type CatalogField = Pick<
     Field,
     'name' | 'label' | 'fieldType' | 'tableLabel' | 'description'
@@ -56,6 +73,7 @@ export type CatalogField = Pick<
         tags?: string[]; // Tags from table, for filtering
         categories: Pick<Tag, 'name' | 'color' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
         chartUsage: number | undefined;
+        icon: CatalogItemIcon | null;
     };
 
 export type CatalogTable = Pick<
@@ -70,6 +88,7 @@ export type CatalogTable = Pick<
     categories: Pick<Tag, 'name' | 'color' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
     joinedTables?: CompiledExploreJoin[]; // Matched type in explore
     chartUsage: number | undefined;
+    icon: CatalogItemIcon | null;
 };
 
 export type CatalogItem = CatalogField | CatalogTable;

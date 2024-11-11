@@ -8,6 +8,7 @@ import {
     getItemId,
     type ApiSort,
     type ApiSuccessEmpty,
+    type CatalogItemIcon,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
@@ -16,6 +17,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Query,
@@ -252,6 +254,32 @@ export class CatalogController extends BaseController {
 
         this.setStatus(200);
 
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('{catalogSearchUuid}/icon')
+    @OperationId('updateCatalogItemIcon')
+    async updateCatalogItemIcon(
+        @Path() projectUuid: string,
+        @Path() catalogSearchUuid: string,
+        @Body() body: { icon: CatalogItemIcon | null },
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getCatalogService()
+            .updateCatalogItemIcon(
+                req.user!,
+                projectUuid,
+                catalogSearchUuid,
+                body.icon,
+            );
+
+        this.setStatus(200);
         return {
             status: 'ok',
             results: undefined,

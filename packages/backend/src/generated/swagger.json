@@ -100,6 +100,34 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "EmojiIcon": {
+                "properties": {
+                    "unicode": {
+                        "type": "string"
+                    }
+                },
+                "required": ["unicode"],
+                "type": "object"
+            },
+            "CustomIcon": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": ["url"],
+                "type": "object"
+            },
+            "CatalogItemIcon": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/EmojiIcon"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CustomIcon"
+                    }
+                ]
+            },
             "CatalogField": {
                 "allOf": [
                     {
@@ -110,6 +138,9 @@
                     },
                     {
                         "properties": {
+                            "icon": {
+                                "$ref": "#/components/schemas/CatalogItemIcon"
+                            },
                             "chartUsage": {
                                 "type": "number",
                                 "format": "double"
@@ -243,6 +274,9 @@
                     },
                     {
                         "properties": {
+                            "icon": {
+                                "$ref": "#/components/schemas/CatalogItemIcon"
+                            },
                             "chartUsage": {
                                 "type": "number",
                                 "format": "double"
@@ -10935,7 +10969,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1352.6",
+        "version": "0.1356.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -11412,6 +11446,74 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/{catalogSearchUuid}/icon": {
+            "patch": {
+                "operationId": "updateCatalogItemIcon",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "catalogSearchUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "icon": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/CatalogItemIcon"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["icon"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/comments/dashboards/{dashboardUuid}/{dashboardTileUuid}": {

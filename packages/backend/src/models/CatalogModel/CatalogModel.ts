@@ -1,5 +1,6 @@
 import {
     CatalogFilter,
+    CatalogItemIcon,
     CatalogType,
     Explore,
     FieldType,
@@ -171,6 +172,7 @@ export class CatalogModel {
                 `${CachedExploreTableName}.explore`,
                 `required_attributes`,
                 `chart_usage`,
+                `icon`,
                 // Add tags as an aggregated JSON array
                 {
                     search_rank: searchRankRawSql,
@@ -606,5 +608,16 @@ export class CatalogModel {
             CatalogTagsTableName,
             catalogTagsMigrateIn,
         );
+    }
+
+    async updateCatalogItemIcon(
+        catalogSearchUuid: string,
+        icon: CatalogItemIcon | null,
+    ): Promise<void> {
+        await this.database(CatalogTableName)
+            .where('catalog_search_uuid', catalogSearchUuid)
+            .update({
+                icon,
+            });
     }
 }
