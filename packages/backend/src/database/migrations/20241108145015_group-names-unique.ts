@@ -27,7 +27,7 @@ export async function up(knex: Knex): Promise<void> {
             // eslint-disable-next-line no-await-in-loop
             await knex(GroupsTableName)
                 .where({ group_uuid: rows[i].group_uuid })
-                .update({ name: `${name} ${i}` });
+                .update({ name: `${name} ${i + 1}` });
         }
     }
 
