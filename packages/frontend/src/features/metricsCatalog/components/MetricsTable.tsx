@@ -29,7 +29,7 @@ export const MetricsTable = () => {
         (state) => state.metricsCatalog.categoryFilters,
     );
 
-    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const tableBodyRef = useRef<HTMLTableSectionElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
 
@@ -84,8 +84,13 @@ export const MetricsTable = () => {
 
     // Check if we need to fetch more data on mount
     useEffect(() => {
-        fetchMoreOnBottomReached(tableContainerRef.current);
+        fetchMoreOnBottomReached(tableBodyRef.current);
     }, [fetchMoreOnBottomReached]);
+
+    const shouldPadHeader = useMemo(
+        () => hasNextPage || (data?.pages.length ?? 0) > 1,
+        [hasNextPage, data?.pages.length],
+    );
 
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
@@ -113,18 +118,13 @@ export const MetricsTable = () => {
         mantinePaperProps: {
             shadow: undefined,
         },
-        mantineTableContainerProps: {
-            ref: tableContainerRef,
-            sx: { maxHeight: '600px', minHeight: '600px' },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
-        },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: true,
         },
         mantineTableHeadRowProps: {
             sx: {
+                paddingRight: shouldPadHeader ? '15px' : '0px',
                 boxShadow: 'none',
                 // Each head row has a divider when resizing columns is enabled
                 'th > div > div:last-child': {
@@ -132,6 +132,23 @@ export const MetricsTable = () => {
                     padding: '0px',
                 },
             },
+        },
+        mantineTableContainerProps: {
+            sx: {
+                overflowY: 'hidden',
+                overflowX: 'auto',
+            },
+        },
+        mantineTableBodyProps: {
+            ref: tableBodyRef,
+            sx: {
+                maxHeight: '600px',
+                minHeight: '600px',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+            },
+            onScroll: (event: UIEvent<HTMLDivElement>) =>
+                fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },
         mantineTopToolbarProps: {
             sx: {
