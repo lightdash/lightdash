@@ -13,6 +13,7 @@ import {
     type InfiniteData,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
+import { updateMetricsCatalogQuery } from '../utils/updateMetricsCatalogQuery';
 import { addCategoryToCatalogItem } from './useCatalogCategories';
 
 const createTag = async (
@@ -98,32 +99,21 @@ export const useCreateTag = () => {
                         queryKey: ['metrics-catalog', projectUuid],
                         exact: false,
                     },
-                    (old) => {
-                        if (!old?.pages) return old;
-                        return {
-                            ...old,
-                            pages: old.pages.map((page) => ({
-                                ...page,
-                                data: page.data.map((item) =>
-                                    item.catalogSearchUuid === catalogSearchUuid
-                                        ? {
-                                              ...item,
-                                              categories: [
-                                                  ...item.categories,
-                                                  optimisticTag,
-                                              ].sort((a, b) =>
-                                                  a.name
-                                                      .toLowerCase()
-                                                      .localeCompare(
-                                                          b.name.toLowerCase(),
-                                                      ),
-                                              ),
-                                          }
-                                        : item,
-                                ),
-                            })),
-                        };
-                    },
+                    (old) =>
+                        updateMetricsCatalogQuery(
+                            old,
+                            (item) => {
+                                item.categories = [
+                                    ...item.categories,
+                                    optimisticTag,
+                                ].sort((a, b) =>
+                                    a.name
+                                        .toLowerCase()
+                                        .localeCompare(b.name.toLowerCase()),
+                                );
+                            },
+                            catalogSearchUuid,
+                        ),
                 );
             }
 
@@ -231,23 +221,14 @@ export const useUpdateTag = () => {
                     queryKey: ['metrics-catalog', projectUuid],
                     exact: false,
                 },
-                (old) => {
-                    if (!old?.pages) return old;
-                    return {
-                        ...old,
-                        pages: old.pages.map((page) => ({
-                            ...page,
-                            data: page.data.map((item) => ({
-                                ...item,
-                                categories: item.categories.map((category) =>
-                                    category.tagUuid === tagUuid
-                                        ? { ...category, ...data }
-                                        : category,
-                                ),
-                            })),
-                        })),
-                    };
-                },
+                (old) =>
+                    updateMetricsCatalogQuery(old, (item) => {
+                        item.categories = item.categories.map((category) =>
+                            category.tagUuid === tagUuid
+                                ? { ...category, ...data }
+                                : category,
+                        );
+                    }),
             );
 
             return { previousCatalog };
@@ -326,21 +307,12 @@ export const useDeleteTag = () => {
                     queryKey: ['metrics-catalog', projectUuid],
                     exact: false,
                 },
-                (old) => {
-                    if (!old?.pages) return old;
-                    return {
-                        ...old,
-                        pages: old.pages.map((page) => ({
-                            ...page,
-                            data: page.data.map((item) => ({
-                                ...item,
-                                categories: item.categories.filter(
-                                    (category) => category.tagUuid !== tagUuid,
-                                ),
-                            })),
-                        })),
-                    };
-                },
+                (old) =>
+                    updateMetricsCatalogQuery(old, (item) => {
+                        item.categories = item.categories.filter(
+                            (category) => category.tagUuid !== tagUuid,
+                        );
+                    }),
             );
 
             return { previousCatalog };
