@@ -174,7 +174,7 @@ export type CatalogFieldMap = {
 
 export type CatalogItemWithTagUuids = Pick<
     CatalogItem,
-    'catalogSearchUuid' | 'icon' | 'name' | 'type'
+    'catalogSearchUuid' | 'name' | 'type'
 > & {
     cachedExploreUuid: string;
     projectUuid: string;
