@@ -19,7 +19,9 @@ import EmojiPicker, {
 import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { forwardRef, useCallback, useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useTracking } from '../../../providers/TrackingProvider';
 import MetricIconPlaceholder from '../../../svgs/metrics-catalog-metric-icon.svg?react';
+import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogCategories';
 
@@ -91,6 +93,10 @@ type Props = {
 };
 
 export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
+    const { track } = useTracking();
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
+    );
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -168,6 +174,16 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
             catalogSearchUuid: row.original.catalogSearchUuid,
             icon,
         });
+
+        if (emoji) {
+            track({
+                name: EventName.METRICS_CATALOG_ICON_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                },
+            });
+        }
         handleClosePicker();
     };
 

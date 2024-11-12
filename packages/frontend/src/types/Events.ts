@@ -120,4 +120,5 @@ export enum EventName {
     METRICS_CATALOG_EXPLORE_CLICKED = 'metrics_catalog_explore.clicked',
     METRICS_CATALOG_CATEGORY_CLICKED = 'metrics_catalog_category.clicked',
     METRICS_CATALOG_CATEGORY_FILTER_APPLIED = 'metrics_catalog_category_filter.applied',
+    METRICS_CATALOG_ICON_APPLIED = 'metrics_catalog_icon.applied',
 }
