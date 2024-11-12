@@ -1,6 +1,7 @@
 import { type CatalogField } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Button,
     Checkbox,
     Group,
@@ -27,6 +28,7 @@ import { CatalogCategory } from './CatalogCategory';
 type Props = {
     search: string | undefined;
     setSearch: (search: string) => void;
+    totalResults?: number;
 };
 
 const CategoriesFilter = () => {
@@ -164,36 +166,39 @@ const CategoriesFilter = () => {
 };
 
 export const MetricsTableTopToolbar: FC<Props> = memo(
-    ({ search, setSearch }) => {
+    ({ search, setSearch, totalResults }) => {
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
 
         return (
-            <Group p="sm" spacing="xs">
-                {/* Search input */}
-                <TextInput
-                    size="xs"
-                    radius="md"
-                    w={300}
-                    type="search"
-                    variant="default"
-                    placeholder="Search by metric name or description"
-                    value={search}
-                    icon={<MantineIcon icon={IconSearch} />}
-                    onChange={(e) => setSearch(e.target.value)}
-                    rightSection={
-                        search && (
-                            <ActionIcon
-                                onClick={clearSearch}
-                                variant="transparent"
-                                size="xs"
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        )
-                    }
-                />
-                {/* Categories filter */}
-                <CategoriesFilter />
+            <Group position="apart" p="sm">
+                <Group spacing="xs">
+                    {/* Search input */}
+                    <TextInput
+                        size="xs"
+                        radius="md"
+                        w={300}
+                        type="search"
+                        variant="default"
+                        placeholder="Search by metric name or description"
+                        value={search}
+                        icon={<MantineIcon icon={IconSearch} />}
+                        onChange={(e) => setSearch(e.target.value)}
+                        rightSection={
+                            search && (
+                                <ActionIcon
+                                    onClick={clearSearch}
+                                    variant="transparent"
+                                    size="xs"
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            )
+                        }
+                    />
+                    {/* Categories filter */}
+                    <CategoriesFilter />
+                </Group>
+                {totalResults && <Badge size="sm">{totalResults}</Badge>}
             </Group>
         );
     },
