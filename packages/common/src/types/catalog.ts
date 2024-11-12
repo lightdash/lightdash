@@ -43,6 +43,23 @@ export type ApiCatalogSearch = {
     catalogTags?: string[];
 };
 
+type EmojiIcon = {
+    unicode: string;
+};
+
+type CustomIcon = {
+    url: string;
+};
+
+export type CatalogItemIcon = EmojiIcon | CustomIcon;
+
+export const isEmojiIcon = (icon: CatalogItemIcon | null): icon is EmojiIcon =>
+    Boolean(icon && 'unicode' in icon);
+
+export const isCustomIcon = (
+    icon: CatalogItemIcon | null,
+): icon is CustomIcon => Boolean(icon && 'url' in icon);
+
 export type CatalogField = Pick<
     Field,
     'name' | 'label' | 'fieldType' | 'tableLabel' | 'description'
@@ -56,6 +73,7 @@ export type CatalogField = Pick<
         tags?: string[]; // Tags from table, for filtering
         categories: Pick<Tag, 'name' | 'color' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
         chartUsage: number | undefined;
+        icon: CatalogItemIcon | null;
     };
 
 export type CatalogTable = Pick<
@@ -70,6 +88,7 @@ export type CatalogTable = Pick<
     categories: Pick<Tag, 'name' | 'color' | 'tagUuid'>[]; // Tags manually added by the user in the catalog
     joinedTables?: CompiledExploreJoin[]; // Matched type in explore
     chartUsage: number | undefined;
+    icon: CatalogItemIcon | null;
 };
 
 export type CatalogItem = CatalogField | CatalogTable;
@@ -153,12 +172,12 @@ export type CatalogFieldMap = {
     };
 };
 
-export type CatalogItemWithTagUuids = {
-    catalogSearchUuid: string;
+export type CatalogItemWithTagUuids = Pick<
+    CatalogItem,
+    'catalogSearchUuid' | 'name' | 'type'
+> & {
     cachedExploreUuid: string;
     projectUuid: string;
-    name: string;
-    type: CatalogType;
     fieldType?: string; // This comes from db, so it is string, this type is mostly used to compare when migrating tags
     exploreBaseTable: string;
     catalogTags: {
@@ -168,11 +187,21 @@ export type CatalogItemWithTagUuids = {
     }[];
 };
 
+export type CatalogItemsWithIcons = Pick<
+    CatalogItem,
+    'catalogSearchUuid' | 'icon' | 'name' | 'type'
+> &
+    Pick<
+        CatalogItemWithTagUuids,
+        'cachedExploreUuid' | 'projectUuid' | 'fieldType' | 'exploreBaseTable'
+    >;
+
 export type SchedulerIndexCatalogJobPayload = {
     projectUuid: string;
     explores: (Explore | ExploreError)[];
     userUuid: string;
     prevCatalogItemsWithTags: CatalogItemWithTagUuids[];
+    prevCatalogItemsWithIcons: CatalogItemsWithIcons[];
 };
 
 export type CatalogFieldWhere = {

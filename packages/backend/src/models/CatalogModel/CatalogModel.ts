@@ -1,5 +1,7 @@
 import {
     CatalogFilter,
+    CatalogItemIcon,
+    CatalogItemsWithIcons,
     CatalogType,
     Explore,
     FieldType,
@@ -171,6 +173,7 @@ export class CatalogModel {
                 `${CachedExploreTableName}.explore`,
                 `required_attributes`,
                 `chart_usage`,
+                `icon`,
                 // Add tags as an aggregated JSON array
                 {
                     search_rank: searchRankRawSql,
@@ -606,5 +609,75 @@ export class CatalogModel {
             CatalogTagsTableName,
             catalogTagsMigrateIn,
         );
+    }
+
+    async getCatalogItemsWithIcons(projectUuid: string) {
+        let query = this.database(CatalogTableName)
+            .column(
+                `${CatalogTableName}.catalog_search_uuid`,
+                `${CatalogTableName}.cached_explore_uuid`,
+                `${CatalogTableName}.project_uuid`,
+                `${CatalogTableName}.name`,
+                `${CatalogTableName}.type`,
+                `${CatalogTableName}.field_type`,
+                `${CatalogTableName}.icon`,
+                {
+                    explore_base_table: this.database.raw(
+                        `${CachedExploreTableName}.explore->>'baseTable'`,
+                    ),
+                },
+            )
+            .leftJoin(
+                CachedExploreTableName,
+                `${CatalogTableName}.cached_explore_uuid`,
+                `${CachedExploreTableName}.cached_explore_uuid`,
+            );
+
+        query = query
+            .where(`${CatalogTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${CatalogTableName}.icon`)
+            .groupBy(
+                `${CatalogTableName}.catalog_search_uuid`,
+                `${CatalogTableName}.cached_explore_uuid`,
+                `${CatalogTableName}.project_uuid`,
+                `${CatalogTableName}.name`,
+                `${CatalogTableName}.type`,
+                `${CatalogTableName}.field_type`,
+                `explore_base_table`,
+            );
+
+        const itemsWithIcons: (DbCatalog & {
+            explore_base_table: string;
+        })[] = await query;
+
+        return itemsWithIcons.map<CatalogItemsWithIcons>((i) => ({
+            catalogSearchUuid: i.catalog_search_uuid,
+            cachedExploreUuid: i.cached_explore_uuid,
+            projectUuid: i.project_uuid,
+            name: i.name,
+            type: i.type,
+            fieldType: i.field_type,
+            exploreBaseTable: i.explore_base_table,
+            icon: i.icon,
+        }));
+    }
+
+    async updateCatalogItemIcon(
+        updates: Array<{
+            catalogSearchUuid: string;
+            icon: CatalogItemIcon | null;
+        }>,
+    ): Promise<void> {
+        if (updates.length === 0) return;
+
+        await this.database.transaction(async (trx) => {
+            const updatePromises = updates.map(({ catalogSearchUuid, icon }) =>
+                trx(CatalogTableName)
+                    .where('catalog_search_uuid', catalogSearchUuid)
+                    .update({ icon }),
+            );
+
+            await Promise.all(updatePromises);
+        });
     }
 }

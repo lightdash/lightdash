@@ -1,4 +1,4 @@
-import { type CatalogField } from '@lightdash/common';
+import { isEmojiIcon, type CatalogField } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -7,13 +7,18 @@ import {
     Highlight,
     Paper,
     Portal,
-    Text,
 } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
-import EmojiPicker, { EmojiStyle } from 'emoji-picker-react';
+import EmojiPicker, {
+    Emoji,
+    EmojiStyle,
+    type EmojiClickData,
+} from 'emoji-picker-react';
 import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { forwardRef, useCallback, useEffect, useState, type FC } from 'react';
 import MetricIconPlaceholder from '../../../svgs/metrics-catalog-metric-icon.svg?react';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useUpdateCatalogItemIcon } from '../hooks/useCatalogCategories';
 
 const PICKER_HEIGHT = 400;
 
@@ -21,8 +26,10 @@ const SharedEmojiPicker = forwardRef(
     (
         {
             position,
+            onClick,
         }: {
             position: { top: number; left: number } | null;
+            onClick: (emoji: EmojiClickData) => void;
         },
         ref: React.ForwardedRef<HTMLDivElement>,
     ) => {
@@ -40,18 +47,10 @@ const SharedEmojiPicker = forwardRef(
                     }}
                 >
                     <Paper shadow="md" pos="relative">
-                        <Text fw={500} size="sm" ta="center">
-                            Coming soon
-                        </Text>
-
                         {/* TODO: display loader on emoji picker loading */}
                         <EmojiPicker
                             height={PICKER_HEIGHT}
-                            style={{
-                                pointerEvents: 'none',
-                                opacity: 0.5,
-                            }}
-                            // TODO: Add onEmojiClick
+                            onEmojiClick={onClick}
                             previewConfig={undefined}
                             lazyLoadEmojis
                             emojiStyle={EmojiStyle.NATIVE}
@@ -70,6 +69,10 @@ type Props = {
 };
 
 export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
+    const projectUuid = useAppSelector(
+        (state) => state.metricsCatalog.projectUuid,
+    );
+
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     const [pickerPosition, setPickerPosition] = useState<{
         top: number;
@@ -100,6 +103,8 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
 
     useClickOutside(handleClosePicker, null, [iconRef, pickerRef]);
 
+    const { mutate: updateCatalogItemIcon } = useUpdateCatalogItemIcon();
+
     const handleIconClick = (e: React.MouseEvent) => {
         if (isPickerOpen) {
             return handleClosePicker();
@@ -123,6 +128,22 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
         setIsPickerOpen(true);
     };
 
+    const handleOnClick = (emoji: EmojiClickData) => {
+        if (!projectUuid) return;
+        updateCatalogItemIcon({
+            projectUuid,
+            catalogSearchUuid: row.original.catalogSearchUuid,
+            icon: emoji.isCustom
+                ? {
+                      url: emoji.imageUrl,
+                  }
+                : {
+                      unicode: emoji.unified,
+                  },
+        });
+        handleClosePicker();
+    };
+
     return (
         <>
             <Group noWrap spacing="xs">
@@ -131,18 +152,30 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
                     variant="default"
                     w={25}
                     h={25}
-                    radius="sm"
+                    radius="md"
                     p="two"
                     sx={{ flexShrink: 0 }}
                     onClick={handleIconClick}
                 >
-                    <MetricIconPlaceholder width="100%" height="100%" />
+                    {isEmojiIcon(row.original.icon) ? (
+                        <Emoji size={22} unified={row.original.icon.unicode} />
+                    ) : (
+                        <MetricIconPlaceholder
+                            strokeWidth={1.5}
+                            width={22}
+                            height={22}
+                        />
+                    )}
                 </ActionIcon>
                 <Highlight highlight={table.getState().globalFilter || ''}>
                     {row.original.label}
                 </Highlight>
             </Group>
-            <SharedEmojiPicker position={pickerPosition} ref={setPickerRef} />
+            <SharedEmojiPicker
+                position={pickerPosition}
+                ref={setPickerRef}
+                onClick={handleOnClick}
+            />
         </>
     );
 };
