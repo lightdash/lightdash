@@ -1,3 +1,10 @@
+# [0.1359.0](https://github.com/lightdash/lightdash/compare/0.1358.0...0.1359.0) (2024-11-12)
+
+
+### Features
+
+* enable assigning a metric icon ([#12357](https://github.com/lightdash/lightdash/issues/12357)) ([7348613](https://github.com/lightdash/lightdash/commit/7348613651a6759771fa3343097faf1de072628b))
+
 # [0.1358.0](https://github.com/lightdash/lightdash/compare/0.1357.1...0.1358.0) (2024-11-12)
 
 
