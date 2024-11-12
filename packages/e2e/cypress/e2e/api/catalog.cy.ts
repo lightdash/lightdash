@@ -27,6 +27,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 tags: [],
                 categories: [],
                 catalogSearchUuid: '',
+                icon: null,
             });
         });
     });
@@ -56,6 +57,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 tags: [],
                 categories: [],
                 catalogSearchUuid: '',
+                icon: null,
             });
 
             const metric = resp.body.results.find(
@@ -75,6 +77,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 tags: [],
                 categories: [],
                 catalogSearchUuid: '',
+                icon: null,
             });
         });
     });
