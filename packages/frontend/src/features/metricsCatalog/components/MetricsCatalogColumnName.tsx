@@ -184,18 +184,16 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
                         flexShrink: 0,
                         borderRadius: '8px',
                         border: `1px solid ${theme.colors.gray[3]}`,
-                        boxShadow:
-                            '0px -2px 0px 0px rgba(10, 13, 18, 0.07) inset, 0px 1px 2px 0px rgba(16, 24, 40, 0.05)',
+                        ...(!isEmojiIcon(row.original.icon) && {
+                            boxShadow:
+                                '0px -2px 0px 0px rgba(10, 13, 18, 0.07) inset, 0px 1px 2px 0px rgba(16, 24, 40, 0.05)',
+                        }),
                     })}
                 >
                     {isEmojiIcon(row.original.icon) ? (
                         <Emoji size={18} unified={row.original.icon.unicode} />
                     ) : (
-                        <MetricIconPlaceholder
-                            strokeWidth={1.5}
-                            width={18}
-                            height={18}
-                        />
+                        <MetricIconPlaceholder width={12} height={12} />
                     )}
                 </ActionIcon>
                 <Highlight highlight={table.getState().globalFilter || ''}>
