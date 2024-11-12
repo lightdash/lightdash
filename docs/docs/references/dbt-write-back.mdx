@@ -65,16 +65,16 @@ If you get an `Error: not found your_table_name`, it's likely because you haven'
 #### Manual approach
 
 Once your model is merged to your dbt project, you can run `dbt run -s your_model_name_here` to create the table in your data warehouse. You might need to add `--target prod` if your default profile is set to `dev`!
-  
+
 #### Automated approach using dbt Cloud
 
-If you're using dbt Cloud to manage your dbt project, you can create a job that will automatically run any new models with the tag `created-by-lightdash`. 
+If you're using dbt Cloud to manage your dbt project, you can create a job that will automatically run any new models with the tag `created-by-lightdash`.
 
 To create a job that does this, you'll want to:
 
-1. open dbt Cloud, head to `Deploy` --> `Jobs` and click `create new job`  
-2. toggle on `triggered by pull requests` in the `Git Trigger` section  
-3. add the command `dbt run --select tag:created-by-lightdash`  
+1. open dbt Cloud, head to `Deploy` --> `Jobs` and click `create new job`
+2. toggle on `triggered by pull requests` in the `Git Trigger` section
+3. add the command `dbt run --select tag:created-by-lightdash`
 4. set `compare changes against environment` to `prod`. This will make sure that this job only runs when a model is changed from your pull request
 
 <img
