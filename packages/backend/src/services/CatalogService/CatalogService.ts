@@ -5,6 +5,7 @@ import {
     CatalogField,
     CatalogFilter,
     CatalogItemIcon,
+    CatalogItemsWithIcons,
     CatalogMetadata,
     CatalogTable,
     CatalogType,
@@ -330,6 +331,67 @@ export class CatalogService<
             );
 
         return this.catalogModel.migrateCatalogItemTags(catalogTagsMigrateIn);
+    }
+
+    async migrateCatalogItemIcons(
+        projectUuid: string,
+        prevCatalogItemsWithIcons: CatalogItemsWithIcons[],
+    ) {
+        // Get all catalog items so we can match them with the previous catalog items
+        const currentCatalogItems =
+            await this.catalogModel.getCatalogItemsWithTags(projectUuid);
+
+        const iconMigrationUpdates = currentCatalogItems.flatMap(
+            ({
+                projectUuid: currentProjectUuid,
+                name: currentName,
+                exploreBaseTable: currentExploreBaseTable,
+                fieldType: currentFieldType,
+                type: currentType,
+                catalogSearchUuid: currentCatalogSearchUuid,
+            }) => {
+                // Just a safeguard, this should never happen since the getCatalogItems query is scoped to the project
+                if (projectUuid !== currentProjectUuid) {
+                    return [];
+                }
+
+                const prevCatalogItem = prevCatalogItemsWithIcons.find(
+                    ({
+                        name: prevName,
+                        exploreBaseTable: prevExploreBaseTable,
+                        fieldType: prevFieldType,
+                        type: prevType,
+                        projectUuid: prevProjectUuid,
+                    }) =>
+                        prevName === currentName &&
+                        prevExploreBaseTable === currentExploreBaseTable &&
+                        prevFieldType === currentFieldType &&
+                        prevType === currentType &&
+                        prevProjectUuid === currentProjectUuid,
+                );
+
+                if (prevCatalogItem?.icon) {
+                    return [
+                        {
+                            catalogSearchUuid: currentCatalogSearchUuid,
+                            icon: prevCatalogItem.icon,
+                        },
+                    ];
+                }
+
+                return [];
+            },
+        );
+
+        // Batch update all icons
+        await Promise.all(
+            iconMigrationUpdates.map(({ catalogSearchUuid, icon }) =>
+                this.catalogModel.updateCatalogItemIcon(
+                    catalogSearchUuid,
+                    icon,
+                ),
+            ),
+        );
     }
 
     async getCatalog(
