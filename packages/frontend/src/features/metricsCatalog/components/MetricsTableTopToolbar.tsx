@@ -28,7 +28,7 @@ import { CatalogCategory } from './CatalogCategory';
 type Props = {
     search: string | undefined;
     setSearch: (search: string) => void;
-    totalResults?: number;
+    totalResults: number;
 };
 
 const CategoriesFilter = () => {
@@ -198,7 +198,7 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                     {/* Categories filter */}
                     <CategoriesFilter />
                 </Group>
-                {totalResults && <Badge size="sm">{totalResults}</Badge>}
+                <Badge size="sm">{totalResults}</Badge>
             </Group>
         );
     },

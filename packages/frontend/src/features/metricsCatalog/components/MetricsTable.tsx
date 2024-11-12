@@ -88,10 +88,10 @@ export const MetricsTable = () => {
     }, [fetchMoreOnBottomReached]);
 
     const totalResults = useMemo(() => {
-        if (!data) return;
+        if (!data) return 0;
         // Return total results from the last page, this should be the same but still we want to have the latest value
         const lastPage = data.pages[data.pages.length - 1];
-        return lastPage.pagination?.totalResults;
+        return lastPage.pagination?.totalResults ?? 0;
     }, [data]);
 
     const table = useMantineReactTable({
