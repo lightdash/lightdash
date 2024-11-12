@@ -155,9 +155,14 @@ export const MetricsTable = () => {
         ),
         state: {
             sorting,
-            showProgressBars: isFetching,
+            isLoading: isFetching,
             density: 'md',
             globalFilter: search ?? '',
+        },
+        mantineLoadingOverlayProps: {
+            loaderProps: {
+                color: 'violet',
+            },
         },
         initialState: {
             showGlobalFilter: true, // Show search input by default
