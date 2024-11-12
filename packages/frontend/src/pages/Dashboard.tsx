@@ -18,6 +18,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
+import DashboardFiltersWarningModal from '../components/common/modal/DashboardFiltersWarningModal';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DashboardFilter from '../components/DashboardFilter';
@@ -119,6 +120,9 @@ const Dashboard: FC = () => {
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
+    const resetDashboardFilters = useDashboardContext(
+        (c) => c.resetDashboardFilters,
+    );
     const setDashboardTemporaryFilters = useDashboardContext(
         (c) => c.setDashboardTemporaryFilters,
     );
@@ -175,6 +179,9 @@ const Dashboard: FC = () => {
             (tile) => tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART,
         );
     }, [dashboardTiles]);
+
+    const [isFilterWarningModalOpen, setIsFilterWarningModalOpen] =
+        useState(false);
 
     // tabs state
     const [activeTab, setActiveTab] = useState<DashboardTab | undefined>();
@@ -551,6 +558,23 @@ const Dashboard: FC = () => {
         haveTabsChanged,
     ]);
 
+    const handleEnterEditMode = useCallback(() => {
+        resetDashboardFilters();
+        setIsFilterWarningModalOpen(false);
+        history.replace({
+            pathname: `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+            search: '',
+        });
+    }, [history, projectUuid, dashboardUuid, resetDashboardFilters]);
+
+    const handleEditModeClicked = useCallback(() => {
+        if (haveFiltersChanged) {
+            setIsFilterWarningModalOpen(true);
+        } else {
+            handleEnterEditMode();
+        }
+    }, [haveFiltersChanged, handleEnterEditMode]);
+
     if (dashboardError) {
         return <ErrorState error={dashboardError.error} />;
     }
@@ -670,6 +694,7 @@ const Dashboard: FC = () => {
                         onExport={exportDashboardModalHandlers.open}
                         setAddingTab={setAddingTab}
                         onTogglePin={handleDashboardPinning}
+                        onEditClicked={handleEditModeClicked}
                     />
                 }
                 withFullHeight={true}
@@ -730,6 +755,13 @@ const Dashboard: FC = () => {
                         uuid={dashboard.uuid}
                         onClose={duplicateModalHandlers.close}
                         onConfirm={duplicateModalHandlers.close}
+                    />
+                )}
+                {isFilterWarningModalOpen && (
+                    <DashboardFiltersWarningModal
+                        onConfirm={handleEnterEditMode}
+                        onClose={() => setIsFilterWarningModalOpen(false)}
+                        opened={isFilterWarningModalOpen}
                     />
                 )}
             </Page>

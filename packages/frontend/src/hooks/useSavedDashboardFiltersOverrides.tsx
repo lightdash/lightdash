@@ -16,6 +16,7 @@ export const hasSavedFiltersOverrides = (
 
 const ADD_SAVED_FILTER_OVERRIDE = 'ADD_SAVED_FILTER_OVERRIDE';
 const REMOVE_SAVED_FILTER_OVERRIDE = 'REMOVE_SAVED_FILTER_OVERRIDE';
+const RESET_SAVED_FILTER_OVERRIDES = 'RESET_SAVED_FILTER_OVERRIDES';
 
 interface AddSavedFilterOverrideAction {
     type: typeof ADD_SAVED_FILTER_OVERRIDE;
@@ -27,7 +28,15 @@ interface RemoveSavedFilterOverrideAction {
     payload: DashboardFilterRuleOverride;
 }
 
-type Action = AddSavedFilterOverrideAction | RemoveSavedFilterOverrideAction;
+interface ResetSavedFilterOverridesAction {
+    type: typeof RESET_SAVED_FILTER_OVERRIDES;
+    payload: null;
+}
+
+type Action =
+    | AddSavedFilterOverrideAction
+    | RemoveSavedFilterOverrideAction
+    | ResetSavedFilterOverridesAction;
 
 const reducer = (
     state: Record<keyof DashboardFilters, DashboardFilterRuleOverride[]>,
@@ -52,6 +61,9 @@ const reducer = (
                 (dim) => dim.id !== payload.id,
             );
             return { ...state, dimensions: newDimensions };
+
+        case RESET_SAVED_FILTER_OVERRIDES:
+            return { ...state, dimensions: [], metrics: [] };
 
         default:
             return state;
@@ -84,9 +96,14 @@ export const useSavedDashboardFiltersOverrides = () => {
         dispatch({ type: REMOVE_SAVED_FILTER_OVERRIDE, payload: item });
     };
 
+    const resetSavedFilterOverrides = () => {
+        dispatch({ type: RESET_SAVED_FILTER_OVERRIDES, payload: null });
+    };
+
     return {
         overridesForSavedDashboardFilters: state,
         addSavedFilterOverride,
         removeSavedFilterOverride,
+        resetSavedFilterOverrides,
     };
 };
