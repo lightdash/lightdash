@@ -282,6 +282,7 @@ module.exports = {
                     ],
                 },
                 'references/embedding',
+                'references/scim-integration',
             ],
         },
         {

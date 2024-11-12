@@ -57,18 +57,17 @@ Once you click on `create new`, you'll be brought to a configuration screen for 
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-
 #### Delivery name
 
-This is the name of your scheduled delivery. This name will appear as the header in your scheduled delivery message. 
+This is the name of your scheduled delivery. This name will appear as the header in your scheduled delivery message.
 
 #### Delivery frequency
 
-This is how often your scheduled delivery will be sent. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options. 
+This is how often your scheduled delivery will be sent. You can make this hourly, daily, weekly, monthly, or custom - each frequency has its own options.
 
-The **custom** frequency lets you write out your own custom Cron expression if you need something more specific than our standard options. 
+The **custom** frequency lets you write out your own custom Cron expression if you need something more specific than our standard options.
 
-You can also customize the **time zone** of your scheduled delivery. By default, the deliveries are set to the project's default time zone. If you update the project's default time zone, then scheduled deliveries where you have not customized the time zone will automatically be updated to the new default time zone. 
+You can also customize the **time zone** of your scheduled delivery. By default, the deliveries are set to the project's default time zone. If you update the project's default time zone, then scheduled deliveries where you have not customized the time zone will automatically be updated to the new default time zone.
 
 #### Format
 
@@ -150,10 +149,9 @@ You can also send scheduled deliveries to private Slack channels. To do this, si
 You must add the Lightdash slack bot into the private Slack channel for it to be able to post scheduled delivery results.
 :::
 
-
 ## Configuring the default time zone
 
-Project admins can set the default time zone used for scheduled deliveries across the project in the `Project settings` --> `Syncs & Scheduled deliveries`. 
+Project admins can set the default time zone used for scheduled deliveries across the project in the `Project settings` --> `Syncs & Scheduled deliveries`.
 
 <img
   src={ProjectDefaultTimeZone}
@@ -162,17 +160,18 @@ Project admins can set the default time zone used for scheduled deliveries acros
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-Scheduled deliveries will be set to the project's default time zone that you pick here. 
+Scheduled deliveries will be set to the project's default time zone that you pick here.
 
 Users can customize the time zone used in a scheduled delivery. This will override the project default for that scheduled delivery.
 
 :::info
 
-If you update the project's default time zone, then scheduled deliveries where the time zone hasn't been customized will automatically be translated to use the new default time zone. 
+If you update the project's default time zone, then scheduled deliveries where the time zone hasn't been customized will automatically be translated to use the new default time zone.
 
 :::
 
 For example:
+
 - my project default time zone is set to UTC
 - I have a scheduled delivery set to `Weekly on Monday at 15:00`
 - I change the project default time zone to `(UTC -5:00) America/New York`
