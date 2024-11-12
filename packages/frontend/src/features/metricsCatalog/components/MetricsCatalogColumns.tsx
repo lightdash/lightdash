@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Box, Group, Highlight, HoverCard, Text } from '@mantine/core';
+import { Box, Group, Highlight, HoverCard, Text, Tooltip } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
@@ -16,14 +16,23 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Metric Name',
         enableSorting: true,
         enableEditing: false,
-        Cell: MetricsCatalogColumnName,
+        Cell: ({ row, table }) => (
+            <Tooltip
+                label={row.original.tableName}
+                disabled={!row.original.tableName}
+                withinPortal
+                position="right"
+            >
+                <MetricsCatalogColumnName row={row} table={table} />
+            </Tooltip>
+        ),
     },
     {
         accessorKey: 'description',
         header: 'Description',
         enableSorting: false,
         enableEditing: false,
-        size: 200,
+        size: 300,
         Cell: ({ table, row }) => (
             <HoverCard
                 withinPortal
@@ -52,19 +61,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         ),
     },
     {
-        accessorKey: 'directory',
-        header: 'Table',
-        enableSorting: false,
-        enableEditing: false,
-        size: 100,
-        Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
-    },
-    {
         accessorKey: 'categories',
         header: 'Category',
         enableSorting: false,
         enableEditing: true,
-        size: 150,
+        size: 200,
         minSize: 180,
         mantineTableBodyCellProps: () => {
             return {
