@@ -11,14 +11,16 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
+import { getTabUuidsForFilterRules } from '@lightdash/common';
 import { Group, Skeleton, useMantineTheme } from '@mantine/core';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import { useDashboardContext } from '../../../providers/DashboardProvider';
 import Filter from '../Filter';
 import InvalidFilter from '../InvalidFilter';
 
 interface ActiveFiltersProps {
     isEditMode: boolean;
+    activeTabUuid: string | undefined;
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
@@ -83,16 +85,22 @@ const DroppableArea: FC<{ id: string; children: ReactNode }> = ({
 
 const ActiveFilters: FC<ActiveFiltersProps> = ({
     isEditMode,
+    activeTabUuid,
     openPopoverId,
     onPopoverOpen,
     onPopoverClose,
 }) => {
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
     );
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
+    );
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
     );
     const isLoadingDashboardFilters = useDashboardContext(
         (c) => c.isLoadingDashboardFilters,
@@ -120,6 +128,51 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         activationConstraint: { delay: 250, tolerance: 5 },
     });
     const dragSensors = useSensors(mouseSensor, touchSensor);
+
+    const sortedTabUuids = useMemo(() => {
+        const sortedTabs = dashboardTabs?.sort((a, b) => a.order - b.order);
+        return sortedTabs?.map((tab) => tab.uuid) || [];
+    }, [dashboardTabs]);
+
+    const getTabsUsingFilter = useCallback(
+        (filterId: string) => {
+            const tabsForFilterMap = getTabUuidsForFilterRules(
+                dashboardTiles,
+                dashboardFilters,
+                filterableFieldsByTileUuid,
+            );
+            return sortedTabUuids.filter(
+                (tabUuid: string) =>
+                    tabsForFilterMap[filterId]?.includes(tabUuid) ?? false,
+            );
+        },
+        [
+            dashboardTiles,
+            dashboardFilters,
+            filterableFieldsByTileUuid,
+            sortedTabUuids,
+        ],
+    );
+
+    const getTabsUsingTemporaryFilter = useCallback(
+        (filterId: string) => {
+            const tabsForFilterMap = getTabUuidsForFilterRules(
+                dashboardTiles,
+                dashboardTemporaryFilters,
+                filterableFieldsByTileUuid,
+            );
+            return sortedTabUuids.filter(
+                (tabUuid: string) =>
+                    tabsForFilterMap[filterId]?.includes(tabUuid) ?? false,
+            );
+        },
+        [
+            dashboardTiles,
+            dashboardTemporaryFilters,
+            filterableFieldsByTileUuid,
+            sortedTabUuids,
+        ],
+    );
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
         return (
@@ -167,6 +220,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             >
                 {dashboardFilters.dimensions.map((item, index) => {
                     const field = allFilterableFieldsMap[item.target.fieldId];
+                    const appliesToTabs = getTabsUsingFilter(item.id);
                     return (
                         <DroppableArea key={item.id} id={item.id}>
                             <DraggableItem
@@ -180,6 +234,8 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                         isEditMode={isEditMode}
                                         field={field}
                                         filterRule={item}
+                                        activeTabUuid={activeTabUuid}
+                                        appliesToTabs={appliesToTabs}
                                         openPopoverId={openPopoverId}
                                         onPopoverOpen={onPopoverOpen}
                                         onPopoverClose={onPopoverClose}
@@ -220,6 +276,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
                 const field = allFilterableFieldsMap[item.target.fieldId];
+                const appliesToTabs = getTabsUsingTemporaryFilter(item.id);
                 return field ? (
                     <Filter
                         key={item.id}
@@ -227,6 +284,8 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         isEditMode={isEditMode}
                         field={field}
                         filterRule={item}
+                        activeTabUuid={activeTabUuid}
+                        appliesToTabs={appliesToTabs}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}
