@@ -6,22 +6,20 @@ import {
     Popover,
     Stack,
     Text,
-    Tooltip,
     UnstyledButton,
     useMantineTheme,
 } from '@mantine/core';
 import { useFocusTrap } from '@mantine/hooks';
-import { IconRefresh } from '@tabler/icons-react';
 import { differenceBy, filter, includes } from 'lodash';
 import {
     memo,
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FC,
 } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -44,6 +42,7 @@ type Props = {
 
 export const MetricsCatalogCategoryForm: FC<Props> = memo(
     ({ catalogSearchUuid, metricCategories, opened, onClose }) => {
+        const formRef = useRef<HTMLDivElement>(null);
         const { track } = useTracking();
         const { colors } = useMantineTheme();
         const projectUuid = useAppSelector(
@@ -209,15 +208,30 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             [colors, metricCategories, handleUntag],
         );
 
+        const [hasOpenSubPopover, setHasOpenSubPopover] = useState(false);
+
+        const handleFormClick = useCallback(() => {
+            if (hasOpenSubPopover) {
+                setHasOpenSubPopover(false);
+            }
+        }, [hasOpenSubPopover]);
+
         return (
             <Popover
                 opened={opened}
-                onClose={onClose}
+                onClose={() => {
+                    // Only close the main popover if no sub-popovers are open
+                    if (!hasOpenSubPopover) {
+                        onClose?.();
+                    }
+                }}
                 position="bottom"
                 width={300}
                 withArrow
                 shadow="md"
                 withinPortal
+                radius="md"
+                closeOnClickOutside={!hasOpenSubPopover} // Prevent closing when sub-popover is open
             >
                 <Popover.Target>
                     <UnstyledButton w="100%" pos="absolute" />
@@ -227,94 +241,91 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        handleFormClick();
                     }}
                 >
-                    <Box p="xs">
-                        <TagInput
-                            value={categoryNames}
-                            onSearchChange={handleSearchChange}
-                            searchValue={search}
-                            valueComponent={renderValueComponent}
-                            ref={inputFocusTrapRef}
-                            placeholder="Search"
-                            size="xs"
-                            mb="xs"
-                            radius="md"
-                            addOnBlur={false}
-                            onBlur={(e) => {
-                                e.stopPropagation();
-                            }}
-                        />
-                        <Text size="xs" fw={500} color="dimmed">
-                            Select a category or create a new one
-                        </Text>
-                    </Box>
-                    <Stack spacing="xs" px="xs" align="flex-start">
-                        <Stack
-                            spacing={4}
-                            w="100%"
-                            mah={140}
-                            sx={{
-                                overflowY: 'auto',
-                            }}
-                        >
-                            {filteredExistingCategories.map((category) => (
-                                <MetricCatalogCategoryFormItem
-                                    key={category.tagUuid}
-                                    category={category}
-                                />
-                            ))}
-                            {filteredAvailableCategories?.map((category) => (
-                                <MetricCatalogCategoryFormItem
-                                    key={category.tagUuid}
-                                    category={category}
-                                    onClick={() => handleAddTag(category.name)}
-                                />
-                            ))}
-                        </Stack>
-                        {search && !tags?.some((tag) => tag.name === search) && (
-                            <Button
-                                variant="light"
-                                color="gray"
+                    <Box
+                        ref={formRef}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleFormClick();
+                        }}
+                    >
+                        <Box p="xs">
+                            <TagInput
+                                value={categoryNames}
+                                onSearchChange={handleSearchChange}
+                                searchValue={search}
+                                valueComponent={renderValueComponent}
+                                ref={inputFocusTrapRef}
+                                placeholder="Search"
                                 size="xs"
+                                mb="xs"
+                                radius="md"
+                                addOnBlur={false}
+                                onBlur={(e) => {
+                                    e.stopPropagation();
+                                }}
+                            />
+                            <Text size="xs" fw={500} color="dimmed">
+                                Select a category or create a new one
+                            </Text>
+                        </Box>
+                        <Stack spacing="xs" align="flex-start" mb="xs">
+                            <Stack
+                                spacing={4}
                                 w="100%"
-                                onClick={() => handleAddTag(search)}
-                                styles={() => ({
-                                    rightIcon: {
-                                        marginLeft: 'auto',
-                                    },
-                                })}
-                                rightIcon={
-                                    <Tooltip variant="xs" label="Refresh color">
-                                        <MantineIcon
-                                            icon={IconRefresh}
-                                            color="gray.6"
-                                            size={14}
-                                            style={{ cursor: 'pointer' }}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setTagColor(
-                                                    getRandomColor(colors),
-                                                );
-                                            }}
-                                        />
-                                    </Tooltip>
-                                }
+                                mah={140}
+                                sx={{
+                                    overflowY: 'auto',
+                                }}
                             >
-                                <Group spacing={4}>
-                                    <Text>Create</Text>
-                                    {tagColor && (
-                                        <CatalogCategory
-                                            category={{
-                                                name: search,
-                                                color: tagColor,
-                                            }}
+                                {filteredExistingCategories.map((category) => (
+                                    <MetricCatalogCategoryFormItem
+                                        key={category.tagUuid}
+                                        category={category}
+                                        onSubPopoverChange={
+                                            setHasOpenSubPopover
+                                        }
+                                    />
+                                ))}
+                                {filteredAvailableCategories?.map(
+                                    (category) => (
+                                        <MetricCatalogCategoryFormItem
+                                            key={category.tagUuid}
+                                            category={category}
+                                            onClick={() =>
+                                                handleAddTag(category.name)
+                                            }
                                         />
-                                    )}
-                                </Group>
-                            </Button>
-                        )}
-                    </Stack>
+                                    ),
+                                )}
+                            </Stack>
+                            {search &&
+                                !tags?.some((tag) => tag.name === search) && (
+                                    <Button
+                                        variant="light"
+                                        color="gray"
+                                        size="xs"
+                                        w="100%"
+                                        onClick={() => handleAddTag(search)}
+                                    >
+                                        <Group spacing={4}>
+                                            <Text>Create</Text>
+                                            {tagColor && (
+                                                <CatalogCategory
+                                                    category={{
+                                                        name: search,
+                                                        color: tagColor,
+                                                    }}
+                                                />
+                                            )}
+                                        </Group>
+                                    </Button>
+                                )}
+                        </Stack>
+                    </Box>
                 </Popover.Dropdown>
             </Popover>
         );
