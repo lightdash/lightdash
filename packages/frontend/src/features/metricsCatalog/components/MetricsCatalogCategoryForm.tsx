@@ -1,4 +1,4 @@
-import { type CatalogField } from '@lightdash/common';
+import { type CatalogField, type Tag } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -7,9 +7,11 @@ import {
     Stack,
     Text,
     Tooltip,
+    UnstyledButton,
     useMantineTheme,
 } from '@mantine/core';
-import { IconPlus, IconRefresh } from '@tabler/icons-react';
+import { useFocusTrap } from '@mantine/hooks';
+import { IconRefresh } from '@tabler/icons-react';
 import { differenceBy, filter, includes } from 'lodash';
 import {
     memo,
@@ -36,11 +38,12 @@ import { MetricCatalogCategoryFormItem } from './MetricCatalogCategoryFormItem';
 type Props = {
     catalogSearchUuid: string;
     metricCategories: CatalogField['categories'];
-    hovered: boolean;
+    opened: boolean;
+    onClose?: () => void;
 };
 
 export const MetricsCatalogCategoryForm: FC<Props> = memo(
-    ({ catalogSearchUuid, metricCategories, hovered }) => {
+    ({ catalogSearchUuid, metricCategories, opened, onClose }) => {
         const { track } = useTracking();
         const { colors } = useMantineTheme();
         const projectUuid = useAppSelector(
@@ -49,7 +52,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         const organizationUuid = useAppSelector(
             (state) => state.metricsCatalog.organizationUuid,
         );
-        const [opened, setOpened] = useState(false);
         const [search, setSearch] = useState('');
         const [tagColor, setTagColor] = useState<string>();
 
@@ -57,16 +59,20 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         const createTagMutation = useCreateTag();
         const tagCatalogItemMutation = useAddCategoryToCatalogItem();
         const untagCatalogItemMutation = useRemoveCategoryFromCatalogItem();
+        const inputFocusTrapRef = useFocusTrap();
 
-        // Generate new color when popover opens
+        const categoryNames = useMemo(
+            () => metricCategories.map((category) => category.name),
+            [metricCategories],
+        );
+
+        const handleSearchChange = useCallback((value: string) => {
+            setSearch(value);
+        }, []);
+
         useEffect(() => {
-            if (opened) {
-                setTagColor(getRandomColor(colors));
-            } else {
-                // setSearch('');
-                setTagColor(undefined);
-            }
-        }, [opened, colors]);
+            setTagColor(getRandomColor(colors));
+        }, [colors]);
 
         const handleAddTag = useCallback(
             async (tagName: string) => {
@@ -78,7 +84,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     );
 
                     if (existingTag) {
-                        await tagCatalogItemMutation.mutateAsync({
+                        tagCatalogItemMutation.mutate({
                             projectUuid,
                             catalogSearchUuid,
                             tagUuid: existingTag.tagUuid,
@@ -87,19 +93,15 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     } else {
                         if (!tagColor) return;
 
-                        const newTag = await createTagMutation.mutateAsync({
+                        createTagMutation.mutate({
                             projectUuid,
                             data: {
                                 name: tagName,
                                 color: tagColor,
                             },
+                            catalogSearchUuid,
                         });
 
-                        await tagCatalogItemMutation.mutateAsync({
-                            projectUuid,
-                            catalogSearchUuid,
-                            tagUuid: newTag.tagUuid,
-                        });
                         // Reset search and color after creating a new tag
                         setSearch('');
                         setTagColor(getRandomColor(colors));
@@ -136,13 +138,17 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             async (tagUuid: string) => {
                 if (!projectUuid) return;
 
-                await untagCatalogItemMutation.mutateAsync({
-                    projectUuid,
-                    catalogSearchUuid,
-                    tagUuid,
-                });
+                try {
+                    untagCatalogItemMutation.mutate({
+                        projectUuid,
+                        catalogSearchUuid,
+                        tagUuid,
+                    });
+                } catch (error) {
+                    console.error('Error removing tag', error);
+                }
             },
-            [projectUuid, catalogSearchUuid, untagCatalogItemMutation],
+            [projectUuid, untagCatalogItemMutation, catalogSearchUuid],
         );
 
         // Filter existing categories that are already applied to this metric
@@ -156,7 +162,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         );
 
         // Filter available categories that can be applied to this metric
-        // 1. Get categories that aren't already applied (using differenceBy)
+        // 1. Get categories that aren't already applied to this metric
         // 2. Filter remaining categories to match search term (case insensitive)
         const filteredAvailableCategories = useMemo(
             () =>
@@ -171,10 +177,42 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             [tags, search, metricCategories],
         );
 
+        const renderValueComponent = useCallback(
+            ({
+                value,
+                onRemove,
+            }: {
+                value: Tag['tagUuid'];
+                onRemove: (value: Tag['tagUuid']) => void;
+            }) => (
+                <Box mx={2}>
+                    <CatalogCategory
+                        category={{
+                            name: value,
+                            color:
+                                metricCategories.find(
+                                    (category) => category.name === value,
+                                )?.color ?? getRandomColor(colors),
+                        }}
+                        onRemove={() => {
+                            onRemove(value);
+                            const tagUuid = metricCategories.find(
+                                (category) => category.name === value,
+                            )?.tagUuid;
+                            if (tagUuid) {
+                                void handleUntag(tagUuid);
+                            }
+                        }}
+                    />
+                </Box>
+            ),
+            [colors, metricCategories, handleUntag],
+        );
+
         return (
             <Popover
                 opened={opened}
-                onChange={setOpened}
+                onClose={onClose}
                 position="bottom"
                 width={300}
                 withArrow
@@ -182,91 +220,42 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 withinPortal
             >
                 <Popover.Target>
-                    <Button
-                        variant="default"
-                        size="xs"
-                        compact
-                        pos="absolute"
-                        leftIcon={
-                            <MantineIcon
-                                color="gray.6"
-                                size={8}
-                                icon={IconPlus}
-                            />
-                        }
-                        fz={10}
-                        right={0}
-                        bottom={0}
-                        left="auto"
-                        styles={(theme) => ({
-                            leftIcon: {
-                                marginRight: 4,
-                            },
-                            root: {
-                                border: `dashed 1px ${theme.colors.gray[4]}`,
-                                visibility:
-                                    hovered || opened ? 'visible' : 'hidden',
-                            },
-                        })}
-                        onClick={() => setOpened((prev) => !prev)}
-                    >
-                        Add
-                    </Button>
+                    <UnstyledButton w="100%" pos="absolute" />
                 </Popover.Target>
-                <Popover.Dropdown p="xs">
-                    <TagInput
-                        value={metricCategories.map(
-                            (category) => category.name,
-                        )}
-                        placeholder="Search"
-                        size="xs"
-                        mb="xs"
-                        radius="md"
-                        onSearchChange={(value) => {
-                            setSearch(value);
-                        }}
-                        searchValue={search}
-                        addOnBlur={false}
-                        onBlur={(e) => {
-                            e.stopPropagation();
-                        }}
-                        valueComponent={({ value, onRemove }) => (
-                            <Box mx={2}>
-                                <CatalogCategory
-                                    category={{
-                                        name: value,
-                                        color:
-                                            metricCategories.find(
-                                                (category) =>
-                                                    category.name === value,
-                                            )?.color ?? getRandomColor(colors),
-                                    }}
-                                    onRemove={() => {
-                                        onRemove(value);
-                                        const tagUuid = metricCategories.find(
-                                            (category) =>
-                                                category.name === value,
-                                        )?.tagUuid;
-                                        if (tagUuid) {
-                                            void handleUntag(tagUuid);
-                                        }
-                                    }}
-                                />
-                            </Box>
-                        )}
-                    />
-                    <Text size="xs" fw={500} color="dimmed" mb="xs">
-                        Select a category or create a new one
-                    </Text>
-                    <Stack spacing="xs" align="flex-start">
+                <Popover.Dropdown
+                    p={0}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
+                >
+                    <Box p="xs">
+                        <TagInput
+                            value={categoryNames}
+                            onSearchChange={handleSearchChange}
+                            searchValue={search}
+                            valueComponent={renderValueComponent}
+                            ref={inputFocusTrapRef}
+                            placeholder="Search"
+                            size="xs"
+                            mb="xs"
+                            radius="md"
+                            addOnBlur={false}
+                            onBlur={(e) => {
+                                e.stopPropagation();
+                            }}
+                        />
+                        <Text size="xs" fw={500} color="dimmed">
+                            Select a category or create a new one
+                        </Text>
+                    </Box>
+                    <Stack spacing="xs" px="xs" align="flex-start">
                         <Stack
                             spacing={4}
                             w="100%"
                             mah={140}
-                            // For the scrollbar to not overlap the button
-                            pr="sm"
                             sx={{
-                                overflow: 'auto',
+                                overflowY: 'auto',
                             }}
                         >
                             {filteredExistingCategories.map((category) => (

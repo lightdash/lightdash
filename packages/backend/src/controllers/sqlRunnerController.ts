@@ -49,11 +49,7 @@ import { BaseController } from './baseController';
 @Tags('SQL runner')
 @Hidden() // Hide from documentation while in beta
 export class SqlRunnerController extends BaseController {
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/tables')
     @OperationId('getTables')

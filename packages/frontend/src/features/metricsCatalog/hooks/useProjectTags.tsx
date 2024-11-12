@@ -2,11 +2,19 @@ import {
     type ApiCreateTagResponse,
     type ApiError,
     type ApiGetTagsResponse,
+    type ApiMetricsCatalog,
     type ApiSuccessEmpty,
     type Tag,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type InfiniteData,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
+import { updateMetricsCatalogQuery } from '../utils/updateMetricsCatalogQuery';
+import { addCategoryToCatalogItem } from './useCatalogCategories';
 
 const createTag = async (
     projectUuid: string,
@@ -20,18 +28,115 @@ const createTag = async (
 };
 
 /**
- * Create a tag in a project - it will be available to be used in any catalog item in that project
+ * Create a tag in a project and tag it to a catalog item if provided
  */
 export const useCreateTag = () => {
     const queryClient = useQueryClient();
+
     return useMutation<
         ApiCreateTagResponse['results'],
         ApiError,
-        { projectUuid: string; data: Pick<Tag, 'name' | 'color'> }
+        {
+            projectUuid: string;
+            data: Pick<Tag, 'name' | 'color'>;
+            catalogSearchUuid?: string;
+        },
+        {
+            previousCatalog: unknown;
+        }
     >({
-        mutationFn: ({ projectUuid, data }) => createTag(projectUuid, data),
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['project-tags']);
+        mutationFn: async ({ projectUuid, data, catalogSearchUuid }) => {
+            const newTag = await createTag(projectUuid, data);
+            if (catalogSearchUuid) {
+                await addCategoryToCatalogItem({
+                    projectUuid,
+                    catalogSearchUuid,
+                    tagUuid: newTag.tagUuid,
+                });
+            }
+            return newTag;
+        },
+        onMutate: async ({ projectUuid, data, catalogSearchUuid }) => {
+            // Cancel any outgoing refetches
+            await queryClient.cancelQueries({
+                queryKey: ['project-tags', projectUuid],
+            });
+            await queryClient.cancelQueries({
+                queryKey: ['metrics-catalog', projectUuid],
+            });
+
+            const optimisticTag: Tag = {
+                tagUuid: `temp-${Date.now()}`,
+                name: data.name,
+                color: data.color,
+                createdAt: new Date(),
+                projectUuid,
+                createdBy: {
+                    userUuid: 'user',
+                    firstName: 'user',
+                    lastName: 'user',
+                },
+            };
+
+            // Update project tags
+            queryClient.setQueryData(
+                ['project-tags', projectUuid],
+                (old: Tag[] = []) => [...old, optimisticTag],
+            );
+
+            // Get previous catalog state before updates
+            const previousCatalog = queryClient.getQueryData([
+                'metrics-catalog',
+                projectUuid,
+            ]);
+
+            // Update metrics catalog if needed
+            if (catalogSearchUuid) {
+                queryClient.setQueriesData<
+                    InfiniteData<ApiMetricsCatalog['results']>
+                >(
+                    {
+                        queryKey: ['metrics-catalog', projectUuid],
+                        exact: false,
+                    },
+                    (old) =>
+                        updateMetricsCatalogQuery(
+                            old,
+                            (item) => {
+                                item.categories = [
+                                    ...item.categories,
+                                    optimisticTag,
+                                ].sort((a, b) =>
+                                    a.name
+                                        .toLowerCase()
+                                        .localeCompare(b.name.toLowerCase()),
+                                );
+                            },
+                            catalogSearchUuid,
+                        ),
+                );
+            }
+
+            return { previousCatalog };
+        },
+        onError: (_, __, context) => {
+            if (context?.previousCatalog) {
+                Object.entries(context.previousCatalog).forEach(
+                    ([queryKeyStr, data]) => {
+                        const queryKey = JSON.parse(queryKeyStr);
+                        queryClient.setQueryData<
+                            InfiniteData<ApiMetricsCatalog['results']>
+                        >(queryKey, data);
+                    },
+                );
+            }
+        },
+        onSettled: (_, __, { projectUuid }) => {
+            void queryClient.invalidateQueries([
+                'metrics-catalog',
+                projectUuid,
+            ]);
+            void queryClient.invalidateQueries(['project-tags', projectUuid]);
         },
     });
 };
@@ -79,13 +184,74 @@ export const useUpdateTag = () => {
             projectUuid: string;
             tagUuid: string;
             data: Pick<Tag, 'name' | 'color'>;
+        },
+        {
+            previousCatalog: unknown;
         }
     >({
-        mutationFn: ({ projectUuid, tagUuid, data }) =>
-            updateTag(projectUuid, tagUuid, data),
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['metrics-catalog']);
-            await queryClient.invalidateQueries(['project-tags']);
+        mutationFn: ({ projectUuid, tagUuid, data }) => {
+            return updateTag(projectUuid, tagUuid, data);
+        },
+        onMutate: async ({ projectUuid, tagUuid, data }) => {
+            // Cancel any outgoing refetches
+            await queryClient.cancelQueries(['project-tags', projectUuid]);
+            await queryClient.cancelQueries(['metrics-catalog', projectUuid]);
+
+            // Get previous catalog state
+            const previousCatalog = queryClient.getQueryData([
+                'metrics-catalog',
+                projectUuid,
+            ]);
+
+            // Optimistically update project tags
+            queryClient.setQueryData(
+                ['project-tags', projectUuid],
+                (old: Tag[] = []) => {
+                    return old.map((tag) =>
+                        tag.tagUuid === tagUuid ? { ...tag, ...data } : tag,
+                    );
+                },
+            );
+
+            // Optimistically update metrics catalog
+            queryClient.setQueriesData<
+                InfiniteData<ApiMetricsCatalog['results']>
+            >(
+                {
+                    queryKey: ['metrics-catalog', projectUuid],
+                    exact: false,
+                },
+                (old) =>
+                    updateMetricsCatalogQuery(old, (item) => {
+                        item.categories = item.categories.map((category) =>
+                            category.tagUuid === tagUuid
+                                ? { ...category, ...data }
+                                : category,
+                        );
+                    }),
+            );
+
+            return { previousCatalog };
+        },
+        onError: (_, {}, context) => {
+            if (context?.previousCatalog) {
+                Object.entries(context.previousCatalog).forEach(
+                    ([queryKeyStr, data]) => {
+                        const queryKey = JSON.parse(queryKeyStr);
+                        queryClient.setQueryData<ApiMetricsCatalog['results']>(
+                            queryKey,
+                            data,
+                        );
+                    },
+                );
+            }
+        },
+        onSettled: (_, __, { projectUuid }) => {
+            void queryClient.invalidateQueries([
+                'metrics-catalog',
+                projectUuid,
+            ]);
+            void queryClient.invalidateQueries(['project-tags', projectUuid]);
         },
     });
 };
@@ -106,14 +272,70 @@ export const useDeleteTag = () => {
     return useMutation<
         ApiSuccessEmpty,
         ApiError,
-        { projectUuid: string; tagUuid: string }
+        { projectUuid: string; tagUuid: string },
+        {
+            previousCatalog: unknown;
+        }
     >({
-        mutationFn: ({ projectUuid, tagUuid }) =>
-            deleteTag(projectUuid, tagUuid),
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['metrics-catalog']);
-            await queryClient.invalidateQueries(['project-tags']);
+        mutationFn: ({ projectUuid, tagUuid }) => {
+            return deleteTag(projectUuid, tagUuid);
         },
-        // TODO: show error toast on error
+        onMutate: async ({ projectUuid, tagUuid }) => {
+            // Cancel any outgoing refetches
+            await queryClient.cancelQueries(['project-tags', projectUuid]);
+            await queryClient.cancelQueries(['metrics-catalog', projectUuid]);
+
+            // Get previous catalog state
+            const previousCatalog = queryClient.getQueryData([
+                'metrics-catalog',
+                projectUuid,
+            ]);
+
+            // Optimistically update project tags
+            queryClient.setQueryData(
+                ['project-tags', projectUuid],
+                (old: Tag[] = []) => {
+                    return old.filter((tag) => tag.tagUuid !== tagUuid);
+                },
+            );
+
+            // Optimistically update metrics catalog
+            queryClient.setQueriesData<
+                InfiniteData<ApiMetricsCatalog['results']>
+            >(
+                {
+                    queryKey: ['metrics-catalog', projectUuid],
+                    exact: false,
+                },
+                (old) =>
+                    updateMetricsCatalogQuery(old, (item) => {
+                        item.categories = item.categories.filter(
+                            (category) => category.tagUuid !== tagUuid,
+                        );
+                    }),
+            );
+
+            return { previousCatalog };
+        },
+        onError: (_, {}, context) => {
+            if (context?.previousCatalog) {
+                Object.entries(context.previousCatalog).forEach(
+                    ([queryKeyStr, data]) => {
+                        const queryKey = JSON.parse(queryKeyStr);
+                        queryClient.setQueryData<ApiMetricsCatalog['results']>(
+                            queryKey,
+                            data,
+                        );
+                    },
+                );
+            }
+        },
+        onSettled: (_, __, { projectUuid }) => {
+            void queryClient.invalidateQueries([
+                'metrics-catalog',
+                projectUuid,
+            ]);
+            void queryClient.invalidateQueries(['project-tags', projectUuid]);
+        },
     });
 };

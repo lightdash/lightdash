@@ -12,7 +12,7 @@ import {
 } from '@mantine/core';
 import { useListState } from '@mantine/hooks';
 import { IconSearch, IconTag, IconX } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -61,7 +61,7 @@ const CategoriesFilter = () => {
         [categories, selectedCategories],
     );
 
-    const handlePopoverClose = useCallback(() => {
+    useEffect(() => {
         dispatch(setCategoryFilters(selectedCategories));
 
         // Track when categories are applied as filters
@@ -85,11 +85,7 @@ const CategoriesFilter = () => {
 
     return (
         <Group spacing="two">
-            <Popover
-                width={300}
-                onClose={handlePopoverClose}
-                position="bottom-start"
-            >
+            <Popover width={300} position="bottom-start">
                 <Popover.Target>
                     <Button
                         size="xs"
@@ -168,22 +164,37 @@ const CategoriesFilter = () => {
 };
 
 export const MetricsTableTopToolbar: FC<Props> = memo(
-    ({ search, setSearch }) => (
-        <Group p="sm" spacing="xs">
-            {/* Search input */}
-            <TextInput
-                size="xs"
-                radius="md"
-                w={300}
-                type="search"
-                variant="default"
-                placeholder="Search by metric name or description"
-                value={search}
-                icon={<MantineIcon icon={IconSearch} />}
-                onChange={(e) => setSearch(e.target.value)}
-            />
-            {/* Categories filter */}
-            <CategoriesFilter />
-        </Group>
-    ),
+    ({ search, setSearch }) => {
+        const clearSearch = useCallback(() => setSearch(''), [setSearch]);
+
+        return (
+            <Group p="sm" spacing="xs">
+                {/* Search input */}
+                <TextInput
+                    size="xs"
+                    radius="md"
+                    w={300}
+                    type="search"
+                    variant="default"
+                    placeholder="Search by metric name or description"
+                    value={search}
+                    icon={<MantineIcon icon={IconSearch} />}
+                    onChange={(e) => setSearch(e.target.value)}
+                    rightSection={
+                        search && (
+                            <ActionIcon
+                                onClick={clearSearch}
+                                variant="transparent"
+                                size="xs"
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        )
+                    }
+                />
+                {/* Categories filter */}
+                <CategoriesFilter />
+            </Group>
+        );
+    },
 );

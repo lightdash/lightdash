@@ -1,3 +1,74 @@
+## [0.1357.1](https://github.com/lightdash/lightdash/compare/0.1357.0...0.1357.1) (2024-11-12)
+
+
+### Bug Fixes
+
+* add clear button to search component ([#12359](https://github.com/lightdash/lightdash/issues/12359)) ([20d59e2](https://github.com/lightdash/lightdash/commit/20d59e215f6b28ab1dd3645e91dc4dffc35eb1d1))
+
+# [0.1357.0](https://github.com/lightdash/lightdash/compare/0.1356.2...0.1357.0) (2024-11-12)
+
+
+### Features
+
+* field tagging in yml ([#12337](https://github.com/lightdash/lightdash/issues/12337)) ([25e9853](https://github.com/lightdash/lightdash/commit/25e9853caf001e98b79d84b17531716f9e0c7110))
+
+## [0.1356.2](https://github.com/lightdash/lightdash/compare/0.1356.1...0.1356.2) (2024-11-11)
+
+
+### Bug Fixes
+
+* scheduled delivery any value filter override ([#12351](https://github.com/lightdash/lightdash/issues/12351)) ([d9e6d10](https://github.com/lightdash/lightdash/commit/d9e6d10660d68a1a935f0ebd01d0935d1beff2f8))
+
+## [0.1356.1](https://github.com/lightdash/lightdash/compare/0.1356.0...0.1356.1) (2024-11-11)
+
+
+### Bug Fixes
+
+* send now filters weren't working for images, some fitlers were disabled on creation ([#12332](https://github.com/lightdash/lightdash/issues/12332)) ([584c34e](https://github.com/lightdash/lightdash/commit/584c34e0bac68a223142321a558d0025ccae7e50))
+
+# [0.1356.0](https://github.com/lightdash/lightdash/compare/0.1355.0...0.1356.0) (2024-11-11)
+
+
+### Features
+
+* force unique group names at the db level ([#12330](https://github.com/lightdash/lightdash/issues/12330)) ([a9706b9](https://github.com/lightdash/lightdash/commit/a9706b950b3cf5a1f771a25028b7be9b755d6695))
+
+# [0.1355.0](https://github.com/lightdash/lightdash/compare/0.1354.2...0.1355.0) (2024-11-11)
+
+
+### Features
+
+* optimistically update categories ([#12329](https://github.com/lightdash/lightdash/issues/12329)) ([4d391de](https://github.com/lightdash/lightdash/commit/4d391de634edd89f0ea7afeb399c1ccb1527e64d))
+
+## [0.1354.2](https://github.com/lightdash/lightdash/compare/0.1354.1...0.1354.2) (2024-11-11)
+
+
+### Bug Fixes
+
+* react default prop and controlled component errors ([#12334](https://github.com/lightdash/lightdash/issues/12334)) ([5f3a8d7](https://github.com/lightdash/lightdash/commit/5f3a8d7d24e7088b555793c7ff09b41759d0313d))
+
+## [0.1354.1](https://github.com/lightdash/lightdash/compare/0.1354.0...0.1354.1) (2024-11-11)
+
+
+### Bug Fixes
+
+* filter metric on sidebar icon ([#12318](https://github.com/lightdash/lightdash/issues/12318)) ([576de98](https://github.com/lightdash/lightdash/commit/576de984404751f32c59cfb3b8dd30e94566bbfd))
+* fix sql runner page in demo ([#12320](https://github.com/lightdash/lightdash/issues/12320)) ([738ff1b](https://github.com/lightdash/lightdash/commit/738ff1b3aa8b249da6547c66f2e12f4dc4c1d88e))
+
+# [0.1354.0](https://github.com/lightdash/lightdash/compare/0.1353.2...0.1354.0) (2024-11-08)
+
+
+### Features
+
+* ability to transfer tiles on tab delete ([#11986](https://github.com/lightdash/lightdash/issues/11986)) ([452947a](https://github.com/lightdash/lightdash/commit/452947a35d9e6498db6d17846047ec0178c402e8))
+
+## [0.1353.2](https://github.com/lightdash/lightdash/compare/0.1353.1...0.1353.2) (2024-11-08)
+
+
+### Bug Fixes
+
+* added check and throw error in group update if newMembers does not match expected ([#12328](https://github.com/lightdash/lightdash/issues/12328)) ([ba9d1a0](https://github.com/lightdash/lightdash/commit/ba9d1a0b8734ad9750a8d1dcb1e2bf21e47d6111))
+
 ## [0.1353.1](https://github.com/lightdash/lightdash/compare/0.1353.0...0.1353.1) (2024-11-08)
 
 

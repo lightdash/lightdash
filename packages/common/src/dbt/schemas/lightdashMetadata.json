@@ -48,6 +48,19 @@
                 }
             }
         },
+        "Tags": {
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            ]
+        },
         "LightdashDimension": {
             "type": "object",
             "required": [],
@@ -106,6 +119,9 @@
                 "urls": {
                     "$ref": "#/definitions/Urls"
                 },
+                "tags": {
+                    "$ref": "#/definitions/Tags"
+                },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
                 }
@@ -145,6 +161,9 @@
                 },
                 "urls": {
                     "$ref": "#/definitions/Urls"
+                },
+                "tags": {
+                    "$ref": "#/definitions/Tags"
                 },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
@@ -213,6 +232,9 @@
                 },
                 "percentile": {
                     "type": "number"
+                },
+                "tags": {
+                    "$ref": "#/definitions/Tags"
                 }
             }
         },
