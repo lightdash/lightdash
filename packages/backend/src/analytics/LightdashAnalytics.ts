@@ -974,6 +974,7 @@ export type DownloadCsv = BaseTrack & {
         numRows?: number;
         numColumns?: number;
         error?: string;
+        numPivotDimensions?: number;
     };
 };
 

@@ -643,6 +643,19 @@ This method can be memory intensive
                 onlyRaw,
                 truncated,
             });
+
+            if (analyticProperties) {
+                this.analytics.track({
+                    event: 'download_results.completed',
+                    userId: user.userUuid,
+                    properties: {
+                        ...analyticProperties,
+                        numPivotDimensions: pivotConfig.columns.length,
+                        numRows: numberRows,
+                    },
+                });
+            }
+
             return downloadUrl;
         }
 
@@ -1203,6 +1216,17 @@ This method can be memory intensive
                     truncated,
                     customLabels,
                 });
+
+                this.analytics.track({
+                    event: 'download_results.completed',
+                    userId: user.userUuid,
+                    properties: {
+                        ...analyticsProperties,
+                        numRows: numberRows,
+                        numPivotDimensions: pivotConfig.pivotDimensions.length,
+                    },
+                });
+
                 return { fileUrl: downloadUrl.path, truncated };
             }
 
