@@ -198,7 +198,9 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                     {/* Categories filter */}
                     <CategoriesFilter />
                 </Group>
-                <Badge size="sm">{totalResults}</Badge>
+                <Badge size="sm" color="violet">
+                    {totalResults}
+                </Badge>
             </Group>
         );
     },
