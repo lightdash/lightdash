@@ -193,7 +193,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        icon: { ref: 'CatalogItemIcon' },
+                        icon: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CatalogItemIcon' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         chartUsage: {
                             dataType: 'union',
                             subSchemas: [
@@ -328,7 +335,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        icon: { ref: 'CatalogItemIcon' },
+                        icon: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'CatalogItemIcon' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         chartUsage: {
                             dataType: 'union',
                             subSchemas: [

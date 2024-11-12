@@ -139,7 +139,12 @@
                     {
                         "properties": {
                             "icon": {
-                                "$ref": "#/components/schemas/CatalogItemIcon"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/CatalogItemIcon"
+                                    }
+                                ],
+                                "nullable": true
                             },
                             "chartUsage": {
                                 "type": "number",
@@ -174,6 +179,7 @@
                             }
                         },
                         "required": [
+                            "icon",
                             "categories",
                             "tableName",
                             "type",
@@ -275,7 +281,12 @@
                     {
                         "properties": {
                             "icon": {
-                                "$ref": "#/components/schemas/CatalogItemIcon"
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/CatalogItemIcon"
+                                    }
+                                ],
+                                "nullable": true
                             },
                             "chartUsage": {
                                 "type": "number",
@@ -315,7 +326,12 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["categories", "type", "catalogSearchUuid"],
+                        "required": [
+                            "icon",
+                            "categories",
+                            "type",
+                            "catalogSearchUuid"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -10969,7 +10985,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1356.1",
+        "version": "0.1357.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
