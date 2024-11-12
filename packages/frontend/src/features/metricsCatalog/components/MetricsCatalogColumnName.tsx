@@ -73,9 +73,6 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
         (state) => state.metricsCatalog.projectUuid,
     );
 
-    if (row.original.icon) {
-        console.log(row.original);
-    }
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     const [pickerPosition, setPickerPosition] = useState<{
         top: number;

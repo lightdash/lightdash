@@ -26,7 +26,7 @@ export const addCategoryToCatalogItem = async ({
 }: AddCategoryToCatalogItemParams) => {
     return lightdashApi<ApiSuccessEmpty['results']>({
         url: `/projects/${projectUuid}/dataCatalog/${catalogSearchUuid}/categories`,
-        method: 'PATCH',
+        method: 'POST',
         body: JSON.stringify({ tagUuid }),
     });
 };
