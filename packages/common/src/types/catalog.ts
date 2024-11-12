@@ -172,12 +172,12 @@ export type CatalogFieldMap = {
     };
 };
 
-export type CatalogItemWithTagUuids = {
-    catalogSearchUuid: string;
+export type CatalogItemWithTagUuids = Pick<
+    CatalogItem,
+    'catalogSearchUuid' | 'icon' | 'name' | 'type'
+> & {
     cachedExploreUuid: string;
     projectUuid: string;
-    name: string;
-    type: CatalogType;
     fieldType?: string; // This comes from db, so it is string, this type is mostly used to compare when migrating tags
     exploreBaseTable: string;
     catalogTags: {
@@ -190,12 +190,11 @@ export type CatalogItemWithTagUuids = {
 export type CatalogItemsWithIcons = Pick<
     CatalogItem,
     'catalogSearchUuid' | 'icon' | 'name' | 'type'
-> & {
-    cachedExploreUuid: string;
-    projectUuid: string;
-    fieldType?: string; // This comes from db, so it is string, this type is mostly used to compare when migrating tags
-    exploreBaseTable: string;
-};
+> &
+    Pick<
+        CatalogItemWithTagUuids,
+        'cachedExploreUuid' | 'projectUuid' | 'fieldType' | 'exploreBaseTable'
+    >;
 
 export type SchedulerIndexCatalogJobPayload = {
     projectUuid: string;
