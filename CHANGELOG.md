@@ -1,3 +1,10 @@
+# [0.1361.0](https://github.com/lightdash/lightdash/compare/0.1360.0...0.1361.0) (2024-11-12)
+
+
+### Features
+
+* added documentation for SCIM integration ([#12371](https://github.com/lightdash/lightdash/issues/12371)) ([c8e3d28](https://github.com/lightdash/lightdash/commit/c8e3d28d3b5ccd77c918864af0253089accc4152))
+
 # [0.1360.0](https://github.com/lightdash/lightdash/compare/0.1359.1...0.1360.0) (2024-11-12)
 
 
