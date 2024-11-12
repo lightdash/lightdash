@@ -3,7 +3,8 @@ import { Box, Group, Highlight, HoverCard, Text } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
-import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
 import { CatalogCategory } from './CatalogCategory';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
@@ -77,6 +78,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             };
         },
         Edit: ({ table, row, cell }) => {
+            const dispatch = useAppDispatch();
             const canManageTags = useAppSelector(
                 (state) => state.metricsCatalog.abilities.canManageTags,
             );
@@ -102,7 +104,15 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                                 table.getState().editingCell?.id === cell.id
                             }
                             onClose={() => {
+                                dispatch(setCategoryPopoverIsClosing(true));
                                 table.setEditingCell(null);
+
+                                // Resetting the state to avoid race conditions with the category cell click
+                                setTimeout(() => {
+                                    dispatch(
+                                        setCategoryPopoverIsClosing(false),
+                                    );
+                                }, 100);
                             }}
                         />
                     )}
@@ -110,6 +120,10 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
         },
         Cell: ({ row, table, cell }) => {
+            const isCategoryPopoverClosing = useAppSelector(
+                (state) => state.metricsCatalog.popovers.category.isClosing,
+            );
+
             const categories = useMemo(
                 () => row.original.categories ?? [],
                 [row],
@@ -125,6 +139,10 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     w="100%"
                     h="100%"
                     onClick={() => {
+                        if (isCategoryPopoverClosing) {
+                            return;
+                        }
+
                         table.setEditingCell(cell);
                     }}
                 >
