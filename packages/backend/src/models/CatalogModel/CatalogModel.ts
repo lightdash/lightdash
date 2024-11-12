@@ -663,13 +663,21 @@ export class CatalogModel {
     }
 
     async updateCatalogItemIcon(
-        catalogSearchUuid: string,
-        icon: CatalogItemIcon | null,
+        updates: Array<{
+            catalogSearchUuid: string;
+            icon: CatalogItemIcon | null;
+        }>,
     ): Promise<void> {
-        await this.database(CatalogTableName)
-            .where('catalog_search_uuid', catalogSearchUuid)
-            .update({
-                icon,
-            });
+        if (updates.length === 0) return;
+
+        await this.database.transaction(async (trx) => {
+            const updatePromises = updates.map(({ catalogSearchUuid, icon }) =>
+                trx(CatalogTableName)
+                    .where('catalog_search_uuid', catalogSearchUuid)
+                    .update({ icon }),
+            );
+
+            await Promise.all(updatePromises);
+        });
     }
 }

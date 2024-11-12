@@ -383,15 +383,7 @@ export class CatalogService<
             },
         );
 
-        // Batch update all icons
-        await Promise.all(
-            iconMigrationUpdates.map(({ catalogSearchUuid, icon }) =>
-                this.catalogModel.updateCatalogItemIcon(
-                    catalogSearchUuid,
-                    icon,
-                ),
-            ),
-        );
+        await this.catalogModel.updateCatalogItemIcon(iconMigrationUpdates);
     }
 
     async getCatalog(
@@ -820,6 +812,11 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        await this.catalogModel.updateCatalogItemIcon(catalogSearchUuid, icon);
+        await this.catalogModel.updateCatalogItemIcon([
+            {
+                catalogSearchUuid,
+                icon,
+            },
+        ]);
     }
 }
