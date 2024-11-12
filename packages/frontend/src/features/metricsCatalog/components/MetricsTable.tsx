@@ -87,6 +87,13 @@ export const MetricsTable = () => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
+    const totalResults = useMemo(() => {
+        if (!data) return 0;
+        // Return total results from the last page, this should be the same but still we want to have the latest value
+        const lastPage = data.pages[data.pages.length - 1];
+        return lastPage.pagination?.totalResults ?? 0;
+    }, [data]);
+
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
         data: flatData,
@@ -140,7 +147,11 @@ export const MetricsTable = () => {
             },
         },
         renderTopToolbar: () => (
-            <MetricsTableTopToolbar search={search} setSearch={setSearch} />
+            <MetricsTableTopToolbar
+                search={search}
+                setSearch={setSearch}
+                totalResults={totalResults}
+            />
         ),
         positionGlobalFilter: 'left',
         enableBottomToolbar: true,
