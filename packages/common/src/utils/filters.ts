@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
+import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
 import { type Table } from '../types/explore';
 import {
     convertFieldRefToFieldId,
@@ -280,6 +281,9 @@ export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
     a.type === b.type && a.name === b.name;
 
 export const matchFieldByType = (a: Field) => (b: Field) => a.type === b.type;
+
+export const isTileFilterable = (tile: DashboardTile) =>
+    ![DashboardTileTypes.MARKDOWN, DashboardTileTypes.LOOM].includes(tile.type);
 
 const getDefaultTileTargets = (
     field: FilterableDimension | Metric | Field,
@@ -596,6 +600,49 @@ export const getDashboardFilterRulesForTile = (
             };
         })
         .filter((f): f is DashboardFilterRule => f !== null);
+
+export const getTabUuidsForFilterRules = (
+    dashboardTiles: DashboardTile[] | undefined,
+    filters: DashboardFilters,
+    filterableFieldsByTileUuid:
+        | Record<string, FilterableDimension[]>
+        | undefined,
+): Record<string, string[]> => {
+    if (!dashboardTiles) return {};
+    return dashboardTiles.reduce<Record<string, string[]>>((acc, tile) => {
+        if (!tile.tabUuid || !isTileFilterable(tile)) {
+            return acc;
+        }
+
+        const filterIdsForTile = getDashboardFilterRulesForTile(
+            tile.uuid,
+            filters.dimensions,
+        )
+            .filter((filterRule) => {
+                const tileConfig = filterRule.tileTargets?.[tile.uuid];
+                // TODO: Move this fallback logic to the getDashboardFilterRulesForTile function
+                if (tileConfig === undefined && filterableFieldsByTileUuid) {
+                    return filterableFieldsByTileUuid[tile.uuid]?.some(
+                        (f) => getItemId(f) === filterRule.target.fieldId,
+                    );
+                }
+                // Apply filter to tile
+                return !!tileConfig;
+            })
+            .map((tileFilter) => tileFilter.id);
+
+        // Set filter id as key and tile tab uuids as values
+        filterIdsForTile.forEach((filterId) => {
+            if (!acc[filterId]) {
+                acc[filterId] = [];
+            }
+            if (tile.tabUuid && !acc[filterId].includes(tile.tabUuid)) {
+                acc[filterId].push(tile.tabUuid);
+            }
+        });
+        return acc;
+    }, {});
+};
 
 export const getDashboardFilterRulesForTables = (
     tables: string[],
