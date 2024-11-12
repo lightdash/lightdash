@@ -2,6 +2,7 @@ import { isEmojiIcon, type CatalogField } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
+    Button,
     getDefaultZIndex,
     Group,
     Highlight,
@@ -9,6 +10,7 @@ import {
     Portal,
 } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
+import { IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {
     Emoji,
     EmojiStyle,
@@ -16,6 +18,7 @@ import EmojiPicker, {
 } from 'emoji-picker-react';
 import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { forwardRef, useCallback, useEffect, useState, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import MetricIconPlaceholder from '../../../svgs/metrics-catalog-metric-icon.svg?react';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogCategories';
@@ -25,11 +28,13 @@ const PICKER_HEIGHT = 400;
 const SharedEmojiPicker = forwardRef(
     (
         {
+            emoji,
             position,
             onClick,
         }: {
+            emoji: CatalogField['icon'];
             position: { top: number; left: number } | null;
-            onClick: (emoji: EmojiClickData) => void;
+            onClick: (emoji: EmojiClickData | null) => void;
         },
         ref: React.ForwardedRef<HTMLDivElement>,
     ) => {
@@ -46,7 +51,21 @@ const SharedEmojiPicker = forwardRef(
                         zIndex: getDefaultZIndex('overlay'),
                     }}
                 >
-                    <Paper shadow="md" pos="relative">
+                    <Paper shadow="xs" withBorder pt="xs" px="xs">
+                        {emoji && (
+                            <Group position="right">
+                                <Button
+                                    variant="light"
+                                    size="xs"
+                                    compact
+                                    color="gray"
+                                    onClick={() => onClick(null)}
+                                    leftIcon={<MantineIcon icon={IconTrash} />}
+                                >
+                                    Remove
+                                </Button>
+                            </Group>
+                        )}
                         {/* TODO: display loader on emoji picker loading */}
                         <EmojiPicker
                             height={PICKER_HEIGHT}
@@ -55,6 +74,9 @@ const SharedEmojiPicker = forwardRef(
                             lazyLoadEmojis
                             emojiStyle={EmojiStyle.NATIVE}
                             searchDisabled
+                            style={{
+                                border: 'none',
+                            }}
                         />
                     </Paper>
                 </Box>
@@ -128,18 +150,23 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
         setIsPickerOpen(true);
     };
 
-    const handleOnClick = (emoji: EmojiClickData) => {
+    const handleOnClick = (emoji: EmojiClickData | null) => {
         if (!projectUuid) return;
-        updateCatalogItemIcon({
-            projectUuid,
-            catalogSearchUuid: row.original.catalogSearchUuid,
-            icon: emoji.isCustom
+
+        let icon: CatalogField['icon'] = null;
+        if (emoji) {
+            icon = emoji.isCustom
                 ? {
                       url: emoji.imageUrl,
                   }
                 : {
                       unicode: emoji.unified,
-                  },
+                  };
+        }
+        updateCatalogItemIcon({
+            projectUuid,
+            catalogSearchUuid: row.original.catalogSearchUuid,
+            icon,
         });
         handleClosePicker();
     };
@@ -172,6 +199,7 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
                 </Highlight>
             </Group>
             <SharedEmojiPicker
+                emoji={row.original.icon}
                 position={pickerPosition}
                 ref={setPickerRef}
                 onClick={handleOnClick}
