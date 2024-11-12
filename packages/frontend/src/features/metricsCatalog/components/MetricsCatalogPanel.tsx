@@ -1,11 +1,13 @@
 import { subject } from '@casl/ability';
-import { Group, Stack, Title } from '@mantine/core';
+import { Avatar, Box, Group, Stack, Text } from '@mantine/core';
+import { useHover } from '@mantine/hooks';
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
 import { useApp } from '../../../providers/AppProvider';
+import { Default, Hover } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
@@ -18,6 +20,7 @@ import { MetricsTable } from './MetricsTable';
 
 export const MetricsCatalogPanel = () => {
     const dispatch = useAppDispatch();
+    const { hovered: isIconHovered, ref: iconHoverRef } = useHover();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -68,7 +71,22 @@ export const MetricsCatalogPanel = () => {
     return (
         <Stack w="100%">
             <Group position="apart">
-                <Title order={4}>Metrics Catalog</Title>
+                <Group spacing="lg">
+                    <Avatar
+                        src={isIconHovered ? Hover : Default}
+                        alt="Metrics Catalog"
+                        ref={iconHoverRef}
+                        size={48}
+                    />
+                    <Box>
+                        <Text color="gray.8" weight={600} size="xl">
+                            Metrics Catalog
+                        </Text>
+                        <Text color="gray.6" size="sm" weight={400}>
+                            Browse all Metrics & KPIs across this project
+                        </Text>
+                    </Box>
+                </Group>
                 <RefreshDbtButton />
             </Group>
             <MetricsTable />
