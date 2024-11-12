@@ -47,21 +47,10 @@ const SharedEmojiPicker = forwardRef(
                     }}
                 >
                     <Paper shadow="md" pos="relative">
-                        {/* <Text fw={500} size="sm" ta="center">
-                            Coming soon
-                        </Text> */}
-
                         {/* TODO: display loader on emoji picker loading */}
                         <EmojiPicker
                             height={PICKER_HEIGHT}
-                            style={
-                                {
-                                    // pointerEvents: 'none',
-                                    // opacity: 0.5,
-                                }
-                            }
                             onEmojiClick={onClick}
-                            // TODO: Add onEmojiClick
                             previewConfig={undefined}
                             lazyLoadEmojis
                             emojiStyle={EmojiStyle.NATIVE}
@@ -166,15 +155,19 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
                     variant="default"
                     w={25}
                     h={25}
-                    radius="sm"
+                    radius="md"
                     p="two"
                     sx={{ flexShrink: 0 }}
                     onClick={handleIconClick}
                 >
                     {isEmojiIcon(row.original.icon) ? (
-                        <Emoji unified={row.original.icon.unicode} />
+                        <Emoji size={22} unified={row.original.icon.unicode} />
                     ) : (
-                        <MetricIconPlaceholder width="100%" height="100%" />
+                        <MetricIconPlaceholder
+                            strokeWidth={1.5}
+                            width={22}
+                            height={22}
+                        />
                     )}
                 </ActionIcon>
                 <Highlight highlight={table.getState().globalFilter || ''}>
