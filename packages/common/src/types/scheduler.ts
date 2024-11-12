@@ -2,6 +2,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule } from './filter';
 import { type MetricQuery } from './metricQuery';
+import { type PivotConfig } from './pivot';
 import { type ValidationTarget } from './validation';
 
 export type SchedulerCsvOptions = {
@@ -392,6 +393,7 @@ export type DownloadCsvPayload = {
     hiddenFields: string[] | undefined;
     chartName: string | undefined;
     fromSavedChart: boolean;
+    pivotConfig?: PivotConfig;
 };
 
 export type ApiCsvUrlResponse = {

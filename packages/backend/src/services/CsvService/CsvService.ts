@@ -531,6 +531,76 @@ export class CsvService extends BaseService {
 
         const truncated = this.couldBeTruncated(rows);
 
+        const { pivotConfig } = chart;
+
+        if (pivotConfig && isTableChartConfig(config)) {
+            // This pivot method returns directly the final CSV result as a string
+            // This method can be memory intensive
+            const downloadUrl = await wrapSentryTransaction<AttachmentUrl>(
+                'getCsvForChart.pivotResultsAsCsv',
+                {
+                    numberRows: rows.length,
+                },
+                async () => {
+                    const itemMap = getItemMap(
+                        explore,
+                        metricQuery.additionalMetrics,
+                        metricQuery.tableCalculations,
+                        metricQuery.customDimensions,
+                    );
+                    // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
+                    // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+                    const formattedRows = formatRows(rows, itemMap);
+                    const hiddenFields = getHiddenTableFields(
+                        chart.chartConfig,
+                    );
+                    const customLabels = getCustomLabelsFromTableConfig(config);
+
+                    const csvPivotConfig: PivotConfig | undefined = {
+                        pivotDimensions: pivotConfig.columns,
+                        metricsAsRows: false,
+                        hiddenMetricFieldIds: hiddenFields,
+                        columnOrder: chart.tableConfig.columnOrder,
+                    };
+
+                    const csvResults = pivotResultsAsCsv(
+                        csvPivotConfig,
+                        formattedRows,
+                        itemMap,
+                        metricQuery,
+                        customLabels,
+                        onlyRaw,
+                        this.lightdashConfig.pivotTable.maxColumnLimit,
+                    );
+
+                    const csvContent = await new Promise<string>(
+                        (resolve, reject) => {
+                            stringify(
+                                csvResults,
+                                {
+                                    delimiter: ',',
+                                },
+                                (err, output) => {
+                                    if (err) {
+                                        reject(new Error(err.message));
+                                    }
+                                    resolve(output);
+                                },
+                            );
+                        },
+                    );
+
+                    return this.downloadCsvFile({
+                        csvContent,
+                        fileName: chart.name || exploreId,
+                        projectUuid: chart.projectUuid,
+                        truncated,
+                    });
+                },
+            );
+            return downloadUrl;
+        }
+
         const fileId = await CsvService.writeRowsToFile(
             rows,
             onlyRaw,
@@ -1079,7 +1149,7 @@ export class CsvService extends BaseService {
                 // This pivot method returns directly the final CSV result as a string
                 // This method can be memory intensive
                 const downloadUrl = await wrapSentryTransaction<AttachmentUrl>(
-                    'pivotResultsAsCsv',
+                    'downloadCsv.pivotResultsAsCsv',
                     {
                         numberRows: rows.length,
                         numberColumns,
