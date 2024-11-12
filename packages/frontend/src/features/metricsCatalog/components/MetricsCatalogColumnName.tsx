@@ -177,20 +177,24 @@ export const MetricsCatalogColumnName: FC<Props> = ({ row, table }) => {
                 <ActionIcon
                     ref={setIconRef}
                     variant="default"
-                    w={25}
-                    h={25}
-                    radius="md"
-                    p="two"
-                    sx={{ flexShrink: 0 }}
                     onClick={handleIconClick}
+                    sx={(theme) => ({
+                        width: 28,
+                        height: 28,
+                        flexShrink: 0,
+                        borderRadius: '8px',
+                        border: `1px solid ${theme.colors.gray[3]}`,
+                        boxShadow:
+                            '0px -2px 0px 0px rgba(10, 13, 18, 0.07) inset, 0px 1px 2px 0px rgba(16, 24, 40, 0.05)',
+                    })}
                 >
                     {isEmojiIcon(row.original.icon) ? (
-                        <Emoji size={22} unified={row.original.icon.unicode} />
+                        <Emoji size={18} unified={row.original.icon.unicode} />
                     ) : (
                         <MetricIconPlaceholder
                             strokeWidth={1.5}
-                            width={22}
-                            height={22}
+                            width={18}
+                            height={18}
                         />
                     )}
                 </ActionIcon>
