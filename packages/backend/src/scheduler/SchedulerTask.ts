@@ -1995,6 +1995,11 @@ export default class SchedulerTask {
                     payload.prevCatalogItemsWithTags,
                 );
 
+                await this.catalogService.migrateCatalogItemIcons(
+                    payload.projectUuid,
+                    payload.prevCatalogItemsWithIcons,
+                );
+
                 await this.catalogService.setChartUsages(
                     payload.projectUuid,
                     catalogFieldMap,

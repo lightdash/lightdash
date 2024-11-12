@@ -1,5 +1,6 @@
 import {
     CatalogField,
+    CatalogItemIcon,
     CatalogTable,
     CatalogType,
     CompiledDimension,
@@ -20,12 +21,14 @@ const parseFieldFromMetricOrDimension = (
         categories,
         requiredAttributes,
         chartUsage,
+        icon,
     }: {
         catalogSearchUuid: string;
         tags: string[];
         categories: Pick<Tag, 'tagUuid' | 'color' | 'name'>[];
         requiredAttributes: Record<string, string | string[]> | undefined;
         chartUsage: number | undefined;
+        icon: CatalogItemIcon | null;
     },
 ): CatalogField => ({
     name: field.name,
@@ -42,6 +45,7 @@ const parseFieldFromMetricOrDimension = (
     categories,
     chartUsage,
     catalogSearchUuid,
+    icon,
 });
 
 export const parseFieldsFromCompiledTable = (
@@ -60,6 +64,7 @@ export const parseFieldsFromCompiledTable = (
             // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
             chartUsage: undefined,
             catalogSearchUuid: '',
+            icon: null,
         }),
     );
 };
@@ -84,6 +89,7 @@ export const parseCatalog = (
             tags: dbCatalog.explore.tags,
             categories: dbCatalog.catalog_tags,
             chartUsage: dbCatalog.chart_usage ?? undefined,
+            icon: dbCatalog.icon ?? null,
         };
     }
 
@@ -108,5 +114,6 @@ export const parseCatalog = (
         categories: dbCatalog.catalog_tags,
         requiredAttributes: dbCatalog.required_attributes ?? undefined,
         chartUsage: dbCatalog.chart_usage ?? 0,
+        icon: dbCatalog.icon ?? null,
     });
 };

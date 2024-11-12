@@ -4,6 +4,8 @@ import {
     CatalogAnalytics,
     CatalogField,
     CatalogFilter,
+    CatalogItemIcon,
+    CatalogItemsWithIcons,
     CatalogMetadata,
     CatalogTable,
     CatalogType,
@@ -171,6 +173,7 @@ export class CatalogService<
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
                         categories: [],
+                        icon: null,
                     },
                 ];
             }
@@ -196,6 +199,7 @@ export class CatalogService<
                         // ! since we're not pulling from the catalog search table these do not exist (keep compatibility with data catalog)
                         catalogSearchUuid: '',
                         categories: [],
+                        icon: null,
                     },
                 ];
             }
@@ -327,6 +331,59 @@ export class CatalogService<
             );
 
         return this.catalogModel.migrateCatalogItemTags(catalogTagsMigrateIn);
+    }
+
+    async migrateCatalogItemIcons(
+        projectUuid: string,
+        prevCatalogItemsWithIcons: CatalogItemsWithIcons[],
+    ) {
+        // Get all catalog items so we can match them with the previous catalog items
+        const currentCatalogItems =
+            await this.catalogModel.getCatalogItemsWithTags(projectUuid);
+
+        const iconMigrationUpdates = currentCatalogItems.flatMap(
+            ({
+                projectUuid: currentProjectUuid,
+                name: currentName,
+                exploreBaseTable: currentExploreBaseTable,
+                fieldType: currentFieldType,
+                type: currentType,
+                catalogSearchUuid: currentCatalogSearchUuid,
+            }) => {
+                // Just a safeguard, this should never happen since the getCatalogItems query is scoped to the project
+                if (projectUuid !== currentProjectUuid) {
+                    return [];
+                }
+
+                const prevCatalogItem = prevCatalogItemsWithIcons.find(
+                    ({
+                        name: prevName,
+                        exploreBaseTable: prevExploreBaseTable,
+                        fieldType: prevFieldType,
+                        type: prevType,
+                        projectUuid: prevProjectUuid,
+                    }) =>
+                        prevName === currentName &&
+                        prevExploreBaseTable === currentExploreBaseTable &&
+                        prevFieldType === currentFieldType &&
+                        prevType === currentType &&
+                        prevProjectUuid === currentProjectUuid,
+                );
+
+                if (prevCatalogItem?.icon) {
+                    return [
+                        {
+                            catalogSearchUuid: currentCatalogSearchUuid,
+                            icon: prevCatalogItem.icon,
+                        },
+                    ];
+                }
+
+                return [];
+            },
+        );
+
+        await this.catalogModel.updateCatalogItemIcon(iconMigrationUpdates);
     }
 
     async getCatalog(
@@ -730,5 +787,36 @@ export class CatalogService<
         }
 
         await this.catalogModel.untagCatalogItem(catalogSearchUuid, tagUuid);
+    }
+
+    async updateCatalogItemIcon(
+        user: SessionUser,
+        projectUuid: string,
+        catalogSearchUuid: string,
+        icon: CatalogItemIcon | null,
+    ): Promise<void> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                // NOTE: being able to manage tags that the user can customise catalog items
+                subject('Tags', {
+                    projectUuid,
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.catalogModel.updateCatalogItemIcon([
+            {
+                catalogSearchUuid,
+                icon,
+            },
+        ]);
     }
 }

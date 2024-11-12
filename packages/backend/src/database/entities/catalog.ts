@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    CatalogItemIcon,
     CatalogType,
     type CatalogItem,
 } from '@lightdash/common';
@@ -17,6 +18,7 @@ export type DbCatalog = {
     field_type?: string;
     required_attributes: Record<string, string | string[]> | null;
     chart_usage: number | null;
+    icon: CatalogItemIcon | null;
 };
 
 export type DbCatalogIn = Pick<
@@ -33,8 +35,8 @@ export type DbCatalogIn = Pick<
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
 export type DbCatalogUpdate =
     | Pick<DbCatalog, 'embedding_vector'>
-    | Pick<DbCatalog, 'chart_usage'>;
-
+    | Pick<DbCatalog, 'chart_usage'>
+    | Pick<DbCatalog, 'icon'>;
 export type CatalogTable = Knex.CompositeTableType<
     DbCatalog,
     DbCatalogIn,
@@ -58,6 +60,8 @@ export function getDbCatalogColumnFromCatalogProperty(
             return 'required_attributes';
         case 'catalogSearchUuid':
             return 'catalog_search_uuid';
+        case 'icon':
+            return 'icon';
         case 'categories':
         case 'label':
         case 'tags':
@@ -92,5 +96,10 @@ export type CatalogTagsTable = Knex.CompositeTableType<
 >;
 
 export type DbCatalogTagsMigrateIn = DbCatalogTag;
+
+export type DbCatalogItemsMigrateIn = Pick<
+    DbCatalog,
+    'catalog_search_uuid' | 'icon'
+>;
 
 export const CatalogTagsTableName = 'catalog_search_tags';

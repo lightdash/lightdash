@@ -1,3 +1,17 @@
+# [0.1359.0](https://github.com/lightdash/lightdash/compare/0.1358.0...0.1359.0) (2024-11-12)
+
+
+### Features
+
+* enable assigning a metric icon ([#12357](https://github.com/lightdash/lightdash/issues/12357)) ([7348613](https://github.com/lightdash/lightdash/commit/7348613651a6759771fa3343097faf1de072628b))
+
+# [0.1358.0](https://github.com/lightdash/lightdash/compare/0.1357.1...0.1358.0) (2024-11-12)
+
+
+### Features
+
+* deactivate unused filters for tab ([#11803](https://github.com/lightdash/lightdash/issues/11803)) ([f64ee47](https://github.com/lightdash/lightdash/commit/f64ee47f39f0cc47f92aaac1d671a91061edb451))
+
 ## [0.1357.1](https://github.com/lightdash/lightdash/compare/0.1357.0...0.1357.1) (2024-11-12)
 
 

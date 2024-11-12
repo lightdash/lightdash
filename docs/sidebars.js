@@ -170,6 +170,11 @@ module.exports = {
                         },
                         {
                             type: 'doc',
+                            id: 'references/preview-projects',
+                            label: 'Preview Projects',
+                        },
+                        {
+                            type: 'doc',
                             id: 'references/validating-your-content',
                             label: 'Validator',
                         },
