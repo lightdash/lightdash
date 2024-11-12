@@ -1,3 +1,10 @@
+## [0.1359.1](https://github.com/lightdash/lightdash/compare/0.1359.0...0.1359.1) (2024-11-12)
+
+
+### Bug Fixes
+
+* click on category cell only closes the popover ([#12372](https://github.com/lightdash/lightdash/issues/12372)) ([cc7343b](https://github.com/lightdash/lightdash/commit/cc7343b67ea4316b0991b5be37533aedd2e06cbd))
+
 # [0.1359.0](https://github.com/lightdash/lightdash/compare/0.1358.0...0.1359.0) (2024-11-12)
 
 
