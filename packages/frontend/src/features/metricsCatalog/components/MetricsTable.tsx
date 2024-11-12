@@ -29,7 +29,7 @@ export const MetricsTable = () => {
         (state) => state.metricsCatalog.categoryFilters,
     );
 
-    const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+    const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
 
@@ -84,13 +84,8 @@ export const MetricsTable = () => {
 
     // Check if we need to fetch more data on mount
     useEffect(() => {
-        fetchMoreOnBottomReached(tableBodyRef.current);
+        fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
-
-    const shouldPadHeader = useMemo(
-        () => hasNextPage || (data?.pages.length ?? 0) > 1,
-        [hasNextPage, data?.pages.length],
-    );
 
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
@@ -118,13 +113,18 @@ export const MetricsTable = () => {
         mantinePaperProps: {
             shadow: undefined,
         },
+        mantineTableContainerProps: {
+            ref: tableContainerRef,
+            sx: { maxHeight: '600px', minHeight: '600px' },
+            onScroll: (event: UIEvent<HTMLDivElement>) =>
+                fetchMoreOnBottomReached(event.target as HTMLDivElement),
+        },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: true,
         },
         mantineTableHeadRowProps: {
             sx: {
-                paddingRight: shouldPadHeader ? '15px' : '0px', // Add padding to the right of the header to account for the scrollbar
                 boxShadow: 'none',
                 // Each head row has a divider when resizing columns is enabled
                 'th > div > div:last-child': {
@@ -132,23 +132,6 @@ export const MetricsTable = () => {
                     padding: '0px',
                 },
             },
-        },
-        mantineTableContainerProps: {
-            sx: {
-                overflowY: 'hidden', // Hide the vertical scrollbar on the container so it doesn't overlap the header
-                overflowX: 'auto',
-            },
-        },
-        mantineTableBodyProps: {
-            ref: tableBodyRef,
-            sx: {
-                maxHeight: '600px',
-                minHeight: '600px',
-                overflowY: 'auto',
-                overflowX: 'hidden', // Hide the horizontal scrollbar on the body because of the column resizing
-            },
-            onScroll: (event: UIEvent<HTMLDivElement>) =>
-                fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },
         mantineTopToolbarProps: {
             sx: {
