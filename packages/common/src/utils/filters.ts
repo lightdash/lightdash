@@ -601,6 +601,49 @@ export const getDashboardFilterRulesForTile = (
         })
         .filter((f): f is DashboardFilterRule => f !== null);
 
+export const getTabUuidsForFilterRules = (
+    dashboardTiles: DashboardTile[] | undefined,
+    filters: DashboardFilters,
+    filterableFieldsByTileUuid:
+        | Record<string, FilterableDimension[]>
+        | undefined,
+): Record<string, string[]> => {
+    if (!dashboardTiles) return {};
+    return dashboardTiles.reduce<Record<string, string[]>>((acc, tile) => {
+        if (!tile.tabUuid || !isTileFilterable(tile)) {
+            return acc;
+        }
+
+        const filterIdsForTile = getDashboardFilterRulesForTile(
+            tile.uuid,
+            filters.dimensions,
+        )
+            .filter((filterRule) => {
+                const tileConfig = filterRule.tileTargets?.[tile.uuid];
+                // TODO: Move this fallback logic to the getDashboardFilterRulesForTile function
+                if (tileConfig === undefined && filterableFieldsByTileUuid) {
+                    return filterableFieldsByTileUuid[tile.uuid]?.some(
+                        (f) => getItemId(f) === filterRule.target.fieldId,
+                    );
+                }
+                // Apply filter to tile
+                return !!tileConfig;
+            })
+            .map((tileFilter) => tileFilter.id);
+
+        // Set filter id as key and tile tab uuids as values
+        filterIdsForTile.forEach((filterId) => {
+            if (!acc[filterId]) {
+                acc[filterId] = [];
+            }
+            if (tile.tabUuid && !acc[filterId].includes(tile.tabUuid)) {
+                acc[filterId].push(tile.tabUuid);
+            }
+        });
+        return acc;
+    }, {});
+};
+
 export const getDashboardFilterRulesForTables = (
     tables: string[],
     rules: DashboardFilterRule[],
