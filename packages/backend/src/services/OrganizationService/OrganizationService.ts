@@ -531,8 +531,11 @@ export class OrganizationService extends BaseService {
         }
 
         const groupWithMembers = await this.groupsModel.createGroup({
-            organizationUuid: actor.organizationUuid,
-            ...createGroup,
+            createdByUserUuid: actor.userUuid,
+            createGroup: {
+                organizationUuid: actor.organizationUuid,
+                ...createGroup,
+            },
         });
 
         this.analytics.track({

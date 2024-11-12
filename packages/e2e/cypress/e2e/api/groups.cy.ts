@@ -31,15 +31,16 @@ describe('Groups API', () => {
     });
 
     it('should create a group in organization', () => {
+        const groupName = `Org A Group ${new Date().getTime()}`;
         cy.request({
             url: 'api/v1/org/groups',
             method: 'POST',
             body: {
-                name: 'Org A Group',
+                name: groupName,
             },
         }).then((resp) => {
             expect(resp.status).to.eq(201);
-            expect(resp.body.results.name).to.eq('Org A Group');
+            expect(resp.body.results.name).to.eq(groupName);
         });
     });
 
@@ -50,8 +51,8 @@ describe('Groups API', () => {
         }).then((resp) => {
             expect(resp.status).to.eq(200);
             expect(
-                resp.body.results.data.find(
-                    (group) => group.name === 'Org A Group',
+                resp.body.results.data.find((group) =>
+                    group.name.startsWith('Org A Group'),
                 ),
             ).to.not.eq(undefined); // Depends on a previous test
         });
@@ -82,7 +83,7 @@ describe('Groups API', () => {
             url: 'api/v1/org/groups',
             method: 'POST',
             body: {
-                name: 'Test group',
+                name: `Test group${new Date().getTime()}`,
             },
         }).then((response) =>
             cy
@@ -101,22 +102,23 @@ describe('Groups API', () => {
             url: 'api/v1/org/groups',
             method: 'POST',
             body: {
-                name: 'Test group',
+                name: `Test group${new Date().getTime()}`,
             },
-        }).then((response) =>
-            cy
+        }).then((response) => {
+            const newGroupName = `New name${new Date().getTime()}`;
+            return cy
                 .request({
                     url: `api/v1/groups/${response.body.results.uuid}`,
                     method: 'PATCH',
                     body: {
-                        name: 'New name',
+                        name: newGroupName,
                     },
                 })
                 .then((resp) => {
                     expect(resp.status).to.eq(200);
-                    expect(resp.body.results.name).to.eq('New name');
-                }),
-        );
+                    expect(resp.body.results.name).to.eq(newGroupName);
+                });
+        });
     });
 
     it('should get group members', () => {
@@ -133,10 +135,10 @@ describe('Groups API', () => {
             url: 'api/v1/org/groups',
             method: 'POST',
             body: {
-                name: 'Test group',
+                name: `Test group${new Date().getTime()}`,
             },
         }).then((response) => {
-            const newGroupName = 'New Group Name';
+            const newGroupName = `New Group Name${new Date().getTime()}`;
             const newMembers = [{ userUuid: SEED_ORG_1_ADMIN.user_uuid }];
             cy.request({
                 url: `api/v1/groups/${response.body.results.uuid}`,
@@ -177,7 +179,7 @@ describe('Groups API', () => {
             url: 'api/v1/org/groups',
             method: 'POST',
             body: {
-                name: 'Test group 2',
+                name: `Test group 2${new Date().getTime()}`,
             },
         }).then((response) => {
             const newGroupName = 'New Group Name 2';

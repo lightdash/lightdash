@@ -21,7 +21,7 @@ import {
     DbGroupMembership,
     GroupMembershipTableName,
 } from '../database/entities/groupMemberships';
-import type { DbGroup } from '../database/entities/groups';
+import { DbGroup, GroupTableName } from '../database/entities/groups';
 import {
     OrganizationTableName,
     type DbOrganization,
@@ -113,7 +113,10 @@ export class GroupsModel {
                 'groups.organization_id',
                 'organizations.organization_id',
             )
-            .select<(DbGroup & DbOrganization)[]>();
+            .select<(DbGroup & Pick<DbOrganization, 'organization_uuid'>)[]>(
+                'groups.*',
+                'organizations.organization_uuid',
+            );
 
         // Exact match for organization UUID
         if (filters.organizationUuid) {
@@ -146,6 +149,9 @@ export class GroupsModel {
                 uuid: group.group_uuid,
                 name: group.name,
                 createdAt: group.created_at,
+                createdByUserUuid: group.created_by_user_uuid,
+                updatedAt: group.updated_at,
+                updatedByUserUuid: group.updated_by_user_uuid,
                 organizationUuid: group.organization_uuid,
             })),
         };
@@ -223,21 +229,29 @@ export class GroupsModel {
         };
     }
 
-    async createGroup(
-        createGroup: CreateGroup & { organizationUuid: string },
-    ): Promise<GroupWithMembers> {
+    async createGroup({
+        createdByUserUuid,
+        createGroup,
+    }: {
+        createdByUserUuid: string | null;
+        createGroup: CreateGroup & { organizationUuid: string };
+    }): Promise<GroupWithMembers> {
         const groupUuid = await this.database.transaction(async (trx) => {
             try {
                 const results = await trx.raw<{
                     rows: { created_at: Date; group_uuid: string }[];
                 }>(
                     `
-                    INSERT INTO groups (name, organization_id)
-                    SELECT ?, organization_id
+                    INSERT INTO groups (name, created_by_user_uuid, organization_id)
+                    SELECT ?, ?, organization_id
                     FROM organizations
                     WHERE organization_uuid = ? RETURNING group_uuid, groups.created_at
                 `,
-                    [createGroup.name.trim(), createGroup.organizationUuid],
+                    [
+                        createGroup.name.trim(),
+                        createdByUserUuid,
+                        createGroup.organizationUuid,
+                    ],
                 );
 
                 const [row] = results.rows;
@@ -273,7 +287,10 @@ export class GroupsModel {
                 'organizations.organization_id',
             )
             .where('group_uuid', groupUuid)
-            .select();
+            .select<(DbGroup & Pick<DbOrganization, 'organization_uuid'>)[]>(
+                'groups.*',
+                'organizations.organization_uuid',
+            );
         if (group === undefined) {
             throw new NotFoundError(`No group found`);
         }
@@ -281,6 +298,9 @@ export class GroupsModel {
             uuid: group.group_uuid,
             name: group.name,
             createdAt: group.created_at,
+            createdByUserUuid: group.created_by_user_uuid,
+            updatedAt: group.updated_at,
+            updatedByUserUuid: group.updated_by_user_uuid,
             organizationUuid: group.organization_uuid,
         };
     }
@@ -336,10 +356,7 @@ export class GroupsModel {
         );
 
         return {
-            uuid: group.uuid,
-            name: group.name,
-            createdAt: group.createdAt,
-            organizationUuid: group.organizationUuid,
+            ...group,
             members: memberProfiles.map((row) => ({
                 userUuid: row.user_uuid,
                 email: row.email,
@@ -375,10 +392,15 @@ export class GroupsModel {
         return deletedRows.length > 0;
     }
 
-    async updateGroup(
-        groupUuid: string,
-        update: UpdateGroupWithMembers,
-    ): Promise<GroupWithMembers> {
+    async updateGroup({
+        updatedByUserUuid,
+        groupUuid,
+        update,
+    }: {
+        updatedByUserUuid: string | null;
+        groupUuid: string;
+        update: UpdateGroupWithMembers;
+    }): Promise<GroupWithMembers> {
         const existingGroup = await this.getGroupWithMembers(groupUuid, 10000);
         if (existingGroup === undefined) {
             throw new NotFoundError(`No group found`);
@@ -387,8 +409,12 @@ export class GroupsModel {
         await this.database.transaction(async (trx) => {
             if (update.name) {
                 try {
-                    await trx('groups')
-                        .update({ name: update.name.trim() })
+                    await trx(GroupTableName)
+                        .update({
+                            name: update.name.trim(),
+                            updated_at: new Date(),
+                            updated_by_user_uuid: updatedByUserUuid,
+                        })
                         .where('group_uuid', groupUuid);
                 } catch (error) {
                     // Unique violation in PostgreSQL

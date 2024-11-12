@@ -14,6 +14,18 @@ export type Group = {
      */
     createdAt: Date;
     /**
+     * The UUID of the user that created the group
+     */
+    createdByUserUuid: string | null;
+    /**
+     * The time that the group was last updated
+     */
+    updatedAt: Date;
+    /**
+     * The UUID of the user that last updated the group
+     */
+    updatedByUserUuid: string | null;
+    /**
      * The UUID of the organization that the group belongs to
      */
     organizationUuid: string;
