@@ -159,6 +159,11 @@ export const MetricsTable = () => {
             density: 'md',
             globalFilter: search ?? '',
         },
+        mantineLoadingOverlayProps: {
+            loaderProps: {
+                color: 'violet',
+            },
+        },
         initialState: {
             showGlobalFilter: true, // Show search input by default
         },
