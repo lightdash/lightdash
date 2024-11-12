@@ -32,6 +32,7 @@ import {
     MissingConfigError,
     PivotConfig,
     pivotQueryResults,
+    pivotResultsAsCsv,
     QueryExecutionContext,
     SchedulerCsvOptions,
     SchedulerFilterRule,
@@ -967,73 +968,6 @@ export class CsvService extends BaseService {
         return { jobId };
     }
 
-    async pivotResultsAsCsv(
-        pivotConfig: PivotConfig,
-        rows: Record<string, any>[],
-        itemMap: ItemsMap,
-        metricQuery: MetricQuery,
-        customLabels: Record<string, string> | undefined,
-        onlyRaw: boolean,
-    ) {
-        const getFieldLabel = (fieldId: string) => {
-            const customLabel = customLabels?.[fieldId];
-            if (customLabel !== undefined) return customLabel;
-            const field = itemMap[fieldId];
-            return (field && isField(field) && field?.label) || fieldId;
-        };
-        // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-        // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
-        const formattedRows = formatRows(rows, itemMap);
-        const pivotedResults = pivotQueryResults({
-            pivotConfig,
-            metricQuery,
-            rows: formattedRows,
-            options: {
-                maxColumns: this.lightdashConfig.pivotTable.maxColumnLimit,
-            },
-            getField: (fieldId: string) => itemMap && itemMap[fieldId], // itemsMap && itemsMap[fieldId],
-            getFieldLabel,
-        });
-        const formatField = onlyRaw ? 'raw' : 'formatted';
-        const headers = pivotedResults.headerValues.reduce<string[][]>(
-            (acc, row, i) => {
-                const values = row.map((header) =>
-                    'value' in header
-                        ? (header.value[formatField] as string)
-                        : getFieldLabel(header.fieldId),
-                );
-                const fieldId =
-                    pivotedResults.titleFields[i]?.[0]?.fieldId || '-';
-                acc[i] = [getFieldLabel(fieldId), ...values];
-
-                return acc;
-            },
-            [[]],
-        );
-
-        const pivotedRows: string[][] =
-            pivotedResults.retrofitData.allCombinedData.map((row) =>
-                Object.values(row).map(
-                    (cell) => cell.value[formatField] as string,
-                ),
-            );
-
-        return new Promise<string>((resolve, reject) => {
-            stringify(
-                [...headers, ...pivotedRows],
-                {
-                    delimiter: ',',
-                },
-                (err, output) => {
-                    if (err) {
-                        reject(new Error(err.message));
-                    }
-                    resolve(output);
-                },
-            );
-        });
-    }
-
     async downloadCsv(
         jobId: string,
         {
@@ -1151,17 +1085,39 @@ export class CsvService extends BaseService {
                         numberColumns,
                     },
                     async () => {
-                        const csvResults = await this.pivotResultsAsCsv(
+                        // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
+                        // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+                        const formattedRows = formatRows(rows, itemMap);
+
+                        const csvResults = pivotResultsAsCsv(
                             pivotConfig,
-                            rows,
+                            formattedRows,
                             itemMap,
                             metricQuery,
                             customLabels,
                             onlyRaw,
+                            this.lightdashConfig.pivotTable.maxColumnLimit,
+                        );
+
+                        const csvContent = await new Promise<string>(
+                            (resolve, reject) => {
+                                stringify(
+                                    csvResults,
+                                    {
+                                        delimiter: ',',
+                                    },
+                                    (err, output) => {
+                                        if (err) {
+                                            reject(new Error(err.message));
+                                        }
+                                        resolve(output);
+                                    },
+                                );
+                            },
                         );
 
                         return this.downloadCsvFile({
-                            csvContent: csvResults,
+                            csvContent,
                             fileName: chartName || exploreId,
                             projectUuid,
                             truncated,
