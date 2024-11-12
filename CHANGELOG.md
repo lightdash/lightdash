@@ -1,3 +1,10 @@
+# [0.1357.0](https://github.com/lightdash/lightdash/compare/0.1356.2...0.1357.0) (2024-11-12)
+
+
+### Features
+
+* field tagging in yml ([#12337](https://github.com/lightdash/lightdash/issues/12337)) ([25e9853](https://github.com/lightdash/lightdash/commit/25e9853caf001e98b79d84b17531716f9e0c7110))
+
 ## [0.1356.2](https://github.com/lightdash/lightdash/compare/0.1356.1...0.1356.2) (2024-11-11)
 
 
