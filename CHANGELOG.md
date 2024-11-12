@@ -1,3 +1,15 @@
+# [0.1360.0](https://github.com/lightdash/lightdash/compare/0.1359.1...0.1360.0) (2024-11-12)
+
+
+### Bug Fixes
+
+* metrics catalog scroll bars ([#12356](https://github.com/lightdash/lightdash/issues/12356)) ([3b18536](https://github.com/lightdash/lightdash/commit/3b185366e28a2fedbb700c7930ba280802f72e6d))
+
+
+### Features
+
+* allow deleting a metric icon ([#12368](https://github.com/lightdash/lightdash/issues/12368)) ([65063a5](https://github.com/lightdash/lightdash/commit/65063a5673721346f4b49f2a394a39be48461715))
+
 ## [0.1359.1](https://github.com/lightdash/lightdash/compare/0.1359.0...0.1359.1) (2024-11-12)
 
 
