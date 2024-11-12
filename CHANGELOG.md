@@ -1,3 +1,10 @@
+## [0.1357.1](https://github.com/lightdash/lightdash/compare/0.1357.0...0.1357.1) (2024-11-12)
+
+
+### Bug Fixes
+
+* add clear button to search component ([#12359](https://github.com/lightdash/lightdash/issues/12359)) ([20d59e2](https://github.com/lightdash/lightdash/commit/20d59e215f6b28ab1dd3645e91dc4dffc35eb1d1))
+
 # [0.1357.0](https://github.com/lightdash/lightdash/compare/0.1356.2...0.1357.0) (2024-11-12)
 
 
