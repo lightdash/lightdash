@@ -21,8 +21,8 @@ const DashboardFiltersWarningModal: FC<DashboardFiltersWarningModalProps> = ({
             <Stack pt="sm">
                 <Text>
                     Your current filter values do not match the defaults for
-                    this dashboard. Do you want to continue to edit and lose the
-                    current values?
+                    this dashboard. Do you want to discard your filter changes
+                    and edit the dashboard?
                 </Text>
 
                 <Group position="right" mt="sm">
