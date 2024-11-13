@@ -40,3 +40,27 @@ GET /api/v1/org/projects HTTP/1.1
 Host: my.lightdash.com
 Authorization: ApiKey eeaa81d8bcd89a770bd8a581cabd052b
 ```
+
+## Rotating a personal access token
+
+To maintain security, you may want to rotate your personal access tokens periodically. Follow these steps to rotate an existing token.
+
+Requirements for Rotation
+
+- **Token UUID**: To rotate a token, you’ll need its unique identifier (UUID), which you can find on the tokens page in your account settings.
+- **Expiration Date**: You must specify a new expiration date when rotating a token. Tokens without an expiration cannot be rotated.
+- **Time Interval**: Tokens can only be rotated once per hour.
+
+Use the following curl command to rotate a personal access token. Replace `<personal-access-token-uuid>` with the UUID of the token you wish to rotate,
+and `<personal-access-token>` with your current token.
+
+```
+curl --location --request PATCH 'https://my.lightdash.com/api/v1/me/personal-access-tokens/<personal-access-token-uuid>/rotate' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: ApiKey <personal-access-token>' \
+--data '{
+    "expiresAt": "2025-12-13T16:10:04.976Z"
+}'
+```
+
+This process will invalidate the previous token and return a new token with the specified expiration date.
