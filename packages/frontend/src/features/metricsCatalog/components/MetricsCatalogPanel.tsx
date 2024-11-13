@@ -16,7 +16,7 @@ import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useApp } from '../../../providers/AppProvider';
-import { Default } from '../../../svgs/metricsCatalog';
+import { MetricsCatalogIcon } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
@@ -89,7 +89,11 @@ export const MetricsCatalogPanel = () => {
         <Stack w="100%" spacing="xxl">
             <Group position="apart">
                 <Group spacing="sm">
-                    <Avatar src={Default} alt="Metrics Catalog" size={48} />
+                    <Avatar
+                        src={MetricsCatalogIcon}
+                        alt="Metrics Catalog"
+                        size={48}
+                    />
                     <Box>
                         <Text color="gray.8" weight={600} size="xl">
                             Metrics Catalog
