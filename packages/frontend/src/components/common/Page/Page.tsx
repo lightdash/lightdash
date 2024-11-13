@@ -165,7 +165,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
 
             ...(params.withXLargePaddedContent
                 ? {
-                      padding: theme.spacing['3xl'],
+                      padding: theme.spacing.xxl,
                   }
                 : {}),
 
