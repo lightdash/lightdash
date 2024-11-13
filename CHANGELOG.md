@@ -1,3 +1,10 @@
+## [0.1363.1](https://github.com/lightdash/lightdash/compare/0.1363.0...0.1363.1) (2024-11-13)
+
+
+### Bug Fixes
+
+* dont shorten urls before creating EFH share link ([#12400](https://github.com/lightdash/lightdash/issues/12400)) ([4b56be3](https://github.com/lightdash/lightdash/commit/4b56be3e97b14276ec493523dbc1583bda962d1f))
+
 # [0.1363.0](https://github.com/lightdash/lightdash/compare/0.1362.0...0.1363.0) (2024-11-13)
 
 
