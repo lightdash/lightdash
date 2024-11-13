@@ -1,3 +1,10 @@
+# [0.1362.0](https://github.com/lightdash/lightdash/compare/0.1361.2...0.1362.0) (2024-11-13)
+
+
+### Features
+
+* add group created and updated metadata ([#12384](https://github.com/lightdash/lightdash/issues/12384)) ([313e2a0](https://github.com/lightdash/lightdash/commit/313e2a08c13150afd8e4a1e1f5eddbef169c9d2f))
+
 ## [0.1361.2](https://github.com/lightdash/lightdash/compare/0.1361.1...0.1361.2) (2024-11-13)
 
 
