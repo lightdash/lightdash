@@ -4,6 +4,7 @@ description: Learn how to use Lightdash's AI Analyst to explore your data
 ---
 
 import { AllCloudPills } from '@site/src/components/PlanPills';
+import AiTags from './assets/ai-tags.png';
 
 <AllCloudPills />
 
@@ -37,4 +38,32 @@ Remember: If your colleague wouldn't understand your documentation, neither will
 
 ### Curating your data models
 
-[Content to be added]
+You can use tags in your metrics and dimensions definitions within your YAML file to control which fields the AI Analyst can access, focusing the AI on the most relevant data for analysis. By tagging specific fields, you ensure the AI only considers the data you choose to make available.
+
+Here's an example of how you can tag your fields:
+
+```yaml
+- name: orders
+  columns:
+    - name: status
+      meta:
+        dimension:
+          tags: ai #    <--------- tagging the dimension
+    - name: amount
+      description: Total amount of the order
+      meta:
+        metrics:
+          total_order_amount:
+            type: sum
+            format: usd
+            round: 2
+            tags: ai #    <--------- tagging the metric
+```
+
+:::note
+
+You can use any tags you like and as many as you like. The AI Analyst will only consider fields with the tags you specify in the Lightdash settings which you can find under the Organization / Integrations section.
+
+<img src={AiTags} alt="AI Analyst tags" width="50%" />
+
+:::
