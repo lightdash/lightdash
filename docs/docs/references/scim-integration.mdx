@@ -145,6 +145,12 @@ You can skip this step if you have Azure SSO already configured. An application 
      style={{ display: 'block', margin: '0 auto 20px auto' }}
    />
 
+:::info
+
+Lightdash will sync the active status from Okta to Lightdash. For example, if a user is provisioned as inactive or is deactivated in Okta, that user will still exist in Lightdash marked as inactive, meaning they will be unable to use the platform.
+
+:::
+
 ## Azure Integration
 
 ### Step 1 - Connect SCIM to Lightdash from Azure
@@ -192,3 +198,9 @@ You can skip this step if you have Azure SSO already configured. An application 
 
 5. Select **Provision > Start provisioning**.
 6. After a few minutes, your users and groups will be synced.
+
+:::info
+
+Lightdash will sync the active status from Azure to Lightdash. For example, if a user is provisioned as inactive or is deactivated in Azure, that user will still exist in Lightdash marked as inactive, meaning they will be unable to use the platform.
+
+:::
