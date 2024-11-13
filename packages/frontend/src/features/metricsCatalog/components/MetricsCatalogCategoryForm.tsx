@@ -208,6 +208,11 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
 
         const [hasOpenSubPopover, setHasOpenSubPopover] = useState(false);
 
+        const canCreateTag = useMemo(
+            () => search && !tags?.some((tag) => tag.name === search),
+            [search, tags],
+        );
+
         return (
             <Popover
                 opened={opened}
@@ -246,7 +251,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 e.stopPropagation();
                             }}
                             onChange={async (val) => {
-                                void handleAddTag(val[val.length - 1]);
+                                if (canCreateTag) {
+                                    void handleAddTag(val[val.length - 1]);
+                                }
                             }}
                         />
                         <Text size="xs" fw={500} color="dimmed">
@@ -278,7 +285,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 />
                             ))}
                         </Stack>
-                        {search && !tags?.some((tag) => tag.name === search) && (
+                        {canCreateTag && (
                             <Button
                                 variant="light"
                                 color="gray"
