@@ -282,6 +282,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                     key={category.tagUuid}
                                     category={category}
                                     onClick={() => handleAddTag(category.name)}
+                                    onSubPopoverChange={setHasOpenSubPopover}
                                 />
                             ))}
                         </Stack>
