@@ -1,6 +1,8 @@
 import {
     CreatePersonalAccessToken,
+    ParameterError,
     PersonalAccessToken,
+    PersonalAccessTokenWithToken,
     RequestMethod,
     SessionUser,
 } from '@lightdash/common';
@@ -28,7 +30,7 @@ export class PersonalAccessTokenService extends BaseService {
         user: Pick<SessionUser, 'userId' | 'userUuid'>,
         data: CreatePersonalAccessToken,
         method: RequestMethod,
-    ): Promise<PersonalAccessToken & { token: string }> {
+    ): Promise<PersonalAccessTokenWithToken> {
         const result = await this.personalAccessTokenModel.create(user, data);
         this.analytics.track({
             userId: user.userUuid,
@@ -57,5 +59,43 @@ export class PersonalAccessTokenService extends BaseService {
         user: Pick<SessionUser, 'userId'>,
     ): Promise<PersonalAccessToken[]> {
         return this.personalAccessTokenModel.getAllForUser(user.userId);
+    }
+
+    async rotatePersonalAccessToken(
+        user: Pick<SessionUser, 'userUuid'>,
+        personalAccessTokenUuid: string,
+        data: { expiresAt: Date },
+    ): Promise<PersonalAccessTokenWithToken> {
+        if (data.expiresAt.getTime() < Date.now()) {
+            throw new ParameterError('Expire time must be in the future');
+        }
+
+        const existingToken = await this.personalAccessTokenModel.getUserToken({
+            userUuid: user.userUuid,
+            tokenUuid: personalAccessTokenUuid,
+        });
+
+        if (!existingToken.expiresAt) {
+            throw new ParameterError(
+                'Token with no expiration date cannot be rotated',
+            );
+        }
+
+        if (
+            existingToken.rotatedAt &&
+            existingToken.rotatedAt.getTime() > Date.now() - 3600000
+        ) {
+            throw new ParameterError('Token can only be rotated once per hour');
+        }
+
+        const newToken = await this.personalAccessTokenModel.rotate({
+            personalAccessTokenUuid,
+            expiresAt: data.expiresAt,
+        });
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'personal_access_token.rotated',
+        });
+        return newToken;
     }
 }
