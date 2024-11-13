@@ -7,7 +7,6 @@ import {
     Text,
     useMantineTheme,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
 import { IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -16,8 +15,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
-import { Default, Hover } from '../../../pngs/metricsCatalog';
 import { useApp } from '../../../providers/AppProvider';
+import { Default } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
@@ -30,7 +29,6 @@ import { MetricsTable } from './MetricsTable';
 
 export const MetricsCatalogPanel = () => {
     const dispatch = useAppDispatch();
-    const { hovered: isIconHovered, ref: iconHoverRef } = useHover();
     const theme = useMantineTheme();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
@@ -91,12 +89,7 @@ export const MetricsCatalogPanel = () => {
         <Stack w="100%" spacing={theme.spacing['3xl']}>
             <Group position="apart">
                 <Group spacing="sm">
-                    <Avatar
-                        src={isIconHovered ? Hover : Default}
-                        alt="Metrics Catalog"
-                        ref={iconHoverRef}
-                        size={48}
-                    />
+                    <Avatar src={Default} alt="Metrics Catalog" size={48} />
                     <Box>
                         <Text color="gray.8" weight={600} size="xl">
                             Metrics Catalog

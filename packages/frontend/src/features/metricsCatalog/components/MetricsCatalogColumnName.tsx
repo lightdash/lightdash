@@ -20,7 +20,7 @@ import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
-import MetricIconPlaceholder from '../../../svgs/metrics-catalog-metric-icon.svg?react';
+import { MetricIconPlaceholder } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogCategories';
