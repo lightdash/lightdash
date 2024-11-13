@@ -1,5 +1,6 @@
 import { type CatalogItem } from '@lightdash/common';
 import { Box, Divider, Group, Text, useMantineTheme } from '@mantine/core';
+import { useIsMutating } from '@tanstack/react-query';
 import {
     MantineReactTable,
     useMantineReactTable,
@@ -47,9 +48,16 @@ export const MetricsTable = () => {
 
     const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
 
-    const { data, fetchNextPage, hasNextPage, isFetching } = useMetricsCatalog({
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetching,
+        isLoading,
+        isPreviousData,
+    } = useMetricsCatalog({
         projectUuid,
-        pageSize: 20,
+        pageSize: 50,
         search: deferredSearch,
         categories: categoryFilters,
         // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
@@ -63,6 +71,25 @@ export const MetricsTable = () => {
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data],
     );
+
+    // Check if we are mutating any of the icons or categories related mutations
+    const isMutating = useIsMutating({
+        predicate: (mutation) => {
+            const mutationKeys = [
+                'create-tag',
+                'update-tag',
+                'delete-tag',
+                'add-category',
+                'remove-category',
+                'update-catalog-item-icon',
+            ];
+            return Boolean(
+                mutation.options.mutationKey?.some((key) =>
+                    mutationKeys.includes(key as string),
+                ),
+            );
+        },
+    });
 
     //called on scroll and possibly on mount to fetch more data as the user scrolls and reaches bottom of table
     const fetchMoreOnBottomReached = useCallback(
@@ -94,6 +121,11 @@ export const MetricsTable = () => {
         const lastPage = data.pages[data.pages.length - 1];
         return lastPage.pagination?.totalResults ?? 0;
     }, [data]);
+
+    const showLoadingOverlay = useMemo(
+        () => isFetching && isPreviousData && !isMutating,
+        [isFetching, isPreviousData, isMutating],
+    );
 
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
@@ -189,7 +221,9 @@ export const MetricsTable = () => {
         ),
         state: {
             sorting,
-            isLoading: isFetching,
+            showProgressBars: false,
+            showLoadingOverlay, // show loading overlay when fetching (like search, category filtering), but hide when editing rows.
+            showSkeletons: isLoading, // loading for the first time with no data
             density: 'md',
             globalFilter: search ?? '',
         },

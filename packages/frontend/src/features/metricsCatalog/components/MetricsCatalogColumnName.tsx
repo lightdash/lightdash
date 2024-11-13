@@ -23,7 +23,7 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { MetricIconPlaceholder } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { useUpdateCatalogItemIcon } from '../hooks/useCatalogCategories';
+import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
 
 import '../../../styles/emoji-picker-react.css';
 
