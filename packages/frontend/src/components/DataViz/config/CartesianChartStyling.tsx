@@ -1,6 +1,7 @@
 import {
     ECHARTS_DEFAULT_COLORS,
     friendlyName,
+    ValueLabelPositionOptions,
     type ChartKind,
 } from '@lightdash/common';
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
@@ -22,6 +23,7 @@ import {
     CartesianChartSeries,
     type ConfigurableSeries,
 } from './CartesianChartSeries';
+import { CartesianChartValueLabelConfig } from './CartesianChartValueLabelConfig';
 
 export const CartesianChartStyling = ({
     selectedChartType,
@@ -176,21 +178,54 @@ export const CartesianChartStyling = ({
                         </Group>
                     </Config.Group>
                     {series.length < 1 && (
-                        <Config.Group>
-                            <Config.Label>{`Format`}</Config.Label>
-                            <CartesianChartFormatConfig
-                                format={
-                                    currentConfig?.display?.yAxis?.[0]?.format
-                                }
-                                onChangeFormat={(value) => {
-                                    dispatch(
-                                        actions.setYAxisFormat({
-                                            format: value,
-                                        }),
-                                    );
-                                }}
-                            />
-                        </Config.Group>
+                        <>
+                            <Config.Group>
+                                <Config.Label>{`Format`}</Config.Label>
+                                <CartesianChartFormatConfig
+                                    format={
+                                        currentConfig?.display?.yAxis?.[0]
+                                            ?.format
+                                    }
+                                    onChangeFormat={(value) => {
+                                        dispatch(
+                                            actions.setYAxisFormat({
+                                                format: value,
+                                            }),
+                                        );
+                                    }}
+                                />
+                            </Config.Group>
+                            <Config.Group>
+                                <Config.Label>Value labels</Config.Label>
+                                <CartesianChartValueLabelConfig
+                                    valueLabelPosition={
+                                        Object.values(
+                                            currentConfig?.display?.series ||
+                                                {},
+                                        )[0]?.valueLabelPosition ??
+                                        ValueLabelPositionOptions.HIDDEN
+                                    }
+                                    onChangeValueLabelPosition={(value) => {
+                                        if (
+                                            !currentConfig?.fieldConfig?.y[0]
+                                                .reference
+                                        )
+                                            return;
+                                        dispatch(
+                                            actions.setSeriesValueLabelPosition(
+                                                {
+                                                    reference:
+                                                        currentConfig
+                                                            ?.fieldConfig?.y[0]
+                                                            .reference,
+                                                    valueLabelPosition: value,
+                                                },
+                                            ),
+                                        );
+                                    }}
+                                />
+                            </Config.Group>
+                        </>
                     )}
 
                     <Config.Group>
