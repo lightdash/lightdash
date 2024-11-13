@@ -124,9 +124,9 @@ export const MetricsCatalogPanel = () => {
                     defaultTextOverride={
                         lastDbtRefreshAt
                             ? `Last refreshed ${timeAgo}`
-                            : 'Refresh dbt'
+                            : 'Refresh catalog'
                     }
-                    refreshingTextOverride="Refreshing dbt"
+                    refreshingTextOverride="Refreshing catalog"
                 />
             </Group>
             <MetricsTable />
