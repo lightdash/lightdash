@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconDots, IconTrash } from '@tabler/icons-react';
-import { useCallback, useRef, useState, type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useDeleteTag, useUpdateTag } from '../hooks/useProjectTags';
@@ -42,7 +42,6 @@ const EditPopover: FC<EditPopoverProps> = ({
     const [editName, setEditName] = useState(category.name);
     const [editColor, setEditColor] = useState(category.color);
     const colors = getTagColorSwatches(useMantineTheme().colors);
-    const popoverRef = useRef<HTMLDivElement>(null);
 
     const handleClose = useCallback(() => {
         close();
@@ -82,7 +81,7 @@ const EditPopover: FC<EditPopoverProps> = ({
             opened={opened}
             trapFocus
             radius="md"
-            closeOnClickOutside={true}
+            closeOnClickOutside
             width={200}
             onClose={handleClose}
             withinPortal
@@ -110,7 +109,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                     e.preventDefault();
                 }}
             >
-                <Stack spacing="xs" ref={popoverRef}>
+                <Stack spacing="xs">
                     <Text size="xs" weight={500} c="gray.6">
                         Edit category
                     </Text>
