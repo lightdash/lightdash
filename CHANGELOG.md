@@ -1,3 +1,10 @@
+# [0.1363.0](https://github.com/lightdash/lightdash/compare/0.1362.0...0.1363.0) (2024-11-13)
+
+
+### Features
+
+* add warning about default filter override ([#12382](https://github.com/lightdash/lightdash/issues/12382)) ([f9327d4](https://github.com/lightdash/lightdash/commit/f9327d47a0af605015179d3264579fdd455b1160))
+
 # [0.1362.0](https://github.com/lightdash/lightdash/compare/0.1361.2...0.1362.0) (2024-11-13)
 
 
