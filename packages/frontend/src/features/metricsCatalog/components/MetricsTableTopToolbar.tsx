@@ -101,7 +101,6 @@ const CategoriesFilter = () => {
                         c="gray.7"
                         fw={500}
                         fz="sm"
-                        fs="normal"
                         variant="default"
                         radius="md"
                         py="xs"
@@ -118,17 +117,23 @@ const CategoriesFilter = () => {
                             />
                         }
                         loading={isLoading}
-                        sx={(theme) => ({
-                            border: hasSelectedCategories
-                                ? `1px solid ${theme.colors.indigo[2]}`
-                                : `1px dashed ${theme.colors.gray[3]}`,
-                            backgroundColor: hasSelectedCategories
-                                ? theme.colors.indigo[0]
-                                : undefined,
-                            textOverflow: 'ellipsis',
-                            boxShadow: '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
-                            '&:hover': {
-                                backgroundColor: theme.colors.gray[0],
+                        styles={(theme) => ({
+                            root: {
+                                border: hasSelectedCategories
+                                    ? `1px solid ${theme.colors.indigo[2]}`
+                                    : `1px dashed ${theme.colors.gray[3]}`,
+                                backgroundColor: hasSelectedCategories
+                                    ? theme.colors.indigo[0]
+                                    : undefined,
+                                textOverflow: 'ellipsis',
+                                boxShadow:
+                                    '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
+                                '&:hover': {
+                                    backgroundColor: theme.colors.gray[0],
+                                },
+                            },
+                            label: {
+                                height: 24,
                             },
                         })}
                     >
