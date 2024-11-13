@@ -16,8 +16,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import { Default, Hover } from '../../../pngs/metricsCatalog';
 import { useApp } from '../../../providers/AppProvider';
-import { Default, Hover } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
