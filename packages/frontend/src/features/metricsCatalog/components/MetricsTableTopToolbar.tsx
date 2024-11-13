@@ -265,8 +265,12 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                     px="xs"
                     tt="none"
                 >
-                    <Group spacing={6}>
-                        <MantineIcon icon={IconPointFilled} size="sm" />
+                    <Group spacing={0}>
+                        <MantineIcon
+                            icon={IconPointFilled}
+                            color="#4E5BA6"
+                            size="lg"
+                        />
                         <Text fz="sm" fw={500}>
                             {totalResults} metrics
                         </Text>
