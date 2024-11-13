@@ -110,18 +110,26 @@ const CategoriesFilter = () => {
                             <MantineIcon
                                 icon={IconTag}
                                 size="md"
-                                color="gray.5"
+                                color={
+                                    hasSelectedCategories
+                                        ? 'indigo.5'
+                                        : 'gray.5'
+                                }
                             />
                         }
                         loading={isLoading}
                         sx={(theme) => ({
                             border: hasSelectedCategories
-                                ? `1px solid ${theme.colors.indigo[4]}`
+                                ? `1px solid ${theme.colors.indigo[2]}`
                                 : `1px dashed ${theme.colors.gray[3]}`,
                             backgroundColor: hasSelectedCategories
-                                ? theme.fn.lighten(theme.colors.indigo[0], 0.3)
+                                ? theme.colors.indigo[0]
                                 : undefined,
                             textOverflow: 'ellipsis',
+                            boxShadow: '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
+                            '&:hover': {
+                                backgroundColor: theme.colors.gray[0],
+                            },
                         })}
                     >
                         {hasSelectedCategories
