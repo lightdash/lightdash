@@ -23,6 +23,7 @@ import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectA
 export type DbtGitProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
     remoteRepositoryUrl: string;
+    repository: string;
     gitBranch: string;
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
@@ -38,7 +39,7 @@ const stripTokensFromUrls = (raw: string) => {
     return raw.replace(pattern, '//*****@');
 };
 
-const gitErrorHandler = (e: Error) => {
+const gitErrorHandler = (e: Error, repository: string) => {
     if (e.message.includes('Authentication failed')) {
         throw new AuthorizationError(
             'Git credentials not recognized for this repository',
@@ -46,9 +47,8 @@ const gitErrorHandler = (e: Error) => {
         );
     }
     if (e.message.includes('Repository not found')) {
-        const repo = e.message.match(/github\.com\/([^/]+\/[^/.]+)/)?.[1]; // Get repo from error message
         throw new NotFoundError(
-            `Could not find Git repository "${repo}". Check that your personal access token has access to the repository and that the repository name is correct.`,
+            `Could not find Git repository "${repository}". Check that your personal access token has access to the repository and that the repository name is correct.`,
         );
     }
     if (e instanceof GitError) {
@@ -68,6 +68,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     remoteRepositoryUrl: string;
 
+    repository: string;
+
     projectDirectorySubPath: string;
 
     branch: string;
@@ -76,6 +78,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     constructor({
         warehouseClient,
+        repository,
         remoteRepositoryUrl,
         gitBranch,
         projectDirectorySubPath,
@@ -105,6 +108,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         this.localRepositoryDir = localRepositoryDir;
         this.remoteRepositoryUrl = remoteRepositoryUrl;
         this.branch = gitBranch;
+        this.repository = repository;
         this.git = simpleGit({
             progress({ method, stage, progress }: SimpleGitProgressEvent) {
                 Logger.debug(
@@ -164,7 +168,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                     defaultCloneOptions,
                 );
         } catch (e) {
-            gitErrorHandler(e);
+            gitErrorHandler(e, this.repository);
         }
     }
 
@@ -182,7 +186,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                     '--progress': null,
                 });
         } catch (e) {
-            gitErrorHandler(e);
+            gitErrorHandler(e, this.repository);
         }
     }
 
