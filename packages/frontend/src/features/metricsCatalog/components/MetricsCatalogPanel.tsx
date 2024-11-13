@@ -86,7 +86,7 @@ export const MetricsCatalogPanel = () => {
     };
 
     return (
-        <Stack w="100%" spacing={theme.spacing['3xl']}>
+        <Stack w="100%" spacing="xxl">
             <Group position="apart">
                 <Group spacing="sm">
                     <Avatar src={Default} alt="Metrics Catalog" size={48} />
