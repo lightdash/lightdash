@@ -473,6 +473,7 @@ export default class SchedulerTask {
                 cron,
                 timezone,
                 thresholds,
+                includeLinks,
             } = scheduler;
 
             await this.schedulerService.logSchedulerJob({
@@ -507,6 +508,11 @@ export default class SchedulerTask {
                     schedulerUuid,
                 );
 
+            const schedulerFooter = includeLinks
+                ? `<${url}?scheduler_uuid=${
+                      schedulerUuid || ''
+                  }|scheduled delivery>`
+                : 'scheduled delivery';
             const getBlocksArgs = {
                 title: name,
                 name: details.name,
@@ -514,28 +520,32 @@ export default class SchedulerTask {
                 message:
                     scheduler.message && slackifyMarkdown(scheduler.message),
                 ctaUrl: url,
-                footerMarkdown: `This is a <${url}?scheduler_uuid=${
-                    schedulerUuid || ''
-                }|scheduled delivery> ${getHumanReadableCronExpression(
+                footerMarkdown: `This is a ${schedulerFooter} ${getHumanReadableCronExpression(
                     cron,
                     timezone ?? defaultSchedulerTimezone,
                 )} from Lightdash\n${
                     this.s3Client.getExpirationWarning()?.slack || ''
                 }`,
+                includeLinks,
             };
 
             if (thresholds !== undefined && thresholds.length > 0) {
                 // We assume the threshold is possitive , so we don't need to get results here
                 if (savedChartUuid) {
+                    const thresholdFooter = includeLinks
+                        ? `<${url}?threshold_uuid=${
+                              schedulerUuid || ''
+                          }|data alert>`
+                        : 'data alert';
+
                     const blocks = getChartThresholdAlertBlocks({
                         ...getBlocksArgs,
-                        footerMarkdown: `This is a <${url}?threshold_uuid=${
-                            schedulerUuid || ''
-                        }|data alert> sent by Lightdash. For security reasons, delivered files expire after ${
+                        footerMarkdown: `This is a ${thresholdFooter} sent by Lightdash. For security reasons, delivered files expire after ${
                             this.s3Client.getExpirationWarning()?.days || 3
                         } days`,
                         imageUrl,
                         thresholds,
+                        includeLinks,
                     });
                     await this.slackClient.postMessage({
                         organizationUuid,
