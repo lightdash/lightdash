@@ -162,19 +162,20 @@ export const MetricsTable = () => {
         renderBottomToolbar: () => (
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
+                fz="xs"
+                fw={500}
+                color="gray.8"
             >
                 {isFetching ? (
-                    <Text fz={12} fw={500} color="gray.8">
-                        Loading more...
-                    </Text>
+                    <Text>Loading more...</Text>
                 ) : (
                     <Group spacing="two">
-                        <Text fz={12} fw={500} color="gray.8">
+                        <Text>
                             {hasNextPage
                                 ? 'Scroll for more metrics'
                                 : 'All metrics loaded'}
                         </Text>
-                        <Text fz={12} fw={400} color="gray.6">
+                        <Text fw={400} color="gray.6">
                             {hasNextPage
                                 ? `(${flatData.length} loaded)`
                                 : `(${flatData.length})`}
