@@ -46,6 +46,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             warehouseClient,
             gitBranch: gitlabBranch,
             remoteRepositoryUrl,
+            repository: gitlabRepository,
             projectDirectorySubPath,
             warehouseCredentials,
             targetName,

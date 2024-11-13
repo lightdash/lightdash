@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    NotFoundError,
     SupportedDbtVersions,
     UnexpectedGitError,
     UnexpectedServerError,
@@ -22,6 +23,7 @@ import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectA
 export type DbtGitProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
     remoteRepositoryUrl: string;
+    repository: string;
     gitBranch: string;
     projectDirectorySubPath: string;
     warehouseCredentials: CreateWarehouseCredentials;
@@ -37,15 +39,24 @@ const stripTokensFromUrls = (raw: string) => {
     return raw.replace(pattern, '//*****@');
 };
 
-const gitErrorHandler = (e: Error) => {
+const gitErrorHandler = (e: Error, repository: string) => {
     if (e.message.includes('Authentication failed')) {
         throw new AuthorizationError(
             'Git credentials not recognized for this repository',
             { message: e.message },
         );
     }
+    if (e.message.includes('Repository not found')) {
+        throw new NotFoundError(
+            `Could not find Git repository "${repository}". Check that your personal access token has access to the repository and that the repository name is correct.`,
+        );
+    }
     if (e instanceof GitError) {
-        throw new GitError(e.task, stripTokensFromUrls(e.message));
+        throw new UnexpectedGitError(
+            `Error while running "${
+                e.task?.commands[0]
+            }": ${stripTokensFromUrls(e.message)}`,
+        );
     }
     throw new UnexpectedGitError(
         `Unexpected error while cloning git repository: ${e}`,
@@ -57,6 +68,8 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     remoteRepositoryUrl: string;
 
+    repository: string;
+
     projectDirectorySubPath: string;
 
     branch: string;
@@ -65,6 +78,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
 
     constructor({
         warehouseClient,
+        repository,
         remoteRepositoryUrl,
         gitBranch,
         projectDirectorySubPath,
@@ -94,6 +108,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
         this.localRepositoryDir = localRepositoryDir;
         this.remoteRepositoryUrl = remoteRepositoryUrl;
         this.branch = gitBranch;
+        this.repository = repository;
         this.git = simpleGit({
             progress({ method, stage, progress }: SimpleGitProgressEvent) {
                 Logger.debug(
@@ -153,7 +168,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                     defaultCloneOptions,
                 );
         } catch (e) {
-            gitErrorHandler(e);
+            gitErrorHandler(e, this.repository);
         }
     }
 
@@ -171,7 +186,7 @@ export class DbtGitProjectAdapter extends DbtLocalCredentialsProjectAdapter {
                     '--progress': null,
                 });
         } catch (e) {
-            gitErrorHandler(e);
+            gitErrorHandler(e, this.repository);
         }
     }
 
