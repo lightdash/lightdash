@@ -1,0 +1,13 @@
+.EmojiPickerReact {
+    --epr-emoji-size: 20px !important;
+    --epr-header-padding: 4px !important;
+    --epr-category-navigation-button-size: 20px !important;
+    --epr-emoji-gap: 8px;
+
+    border: none !important;
+}
+
+.EmojiPickerReact li.epr-emoji-category > .epr-emoji-category-label {
+    font-size: 12px;
+    height: 20px;
+}
