@@ -1,5 +1,12 @@
 import { subject } from '@casl/ability';
-import { Avatar, Box, Group, Stack, Text } from '@mantine/core';
+import {
+    Avatar,
+    Box,
+    Group,
+    Stack,
+    Text,
+    useMantineTheme,
+} from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
@@ -21,6 +28,7 @@ import { MetricsTable } from './MetricsTable';
 export const MetricsCatalogPanel = () => {
     const dispatch = useAppDispatch();
     const { hovered: isIconHovered, ref: iconHoverRef } = useHover();
+    const theme = useMantineTheme();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -69,7 +77,7 @@ export const MetricsCatalogPanel = () => {
     );
 
     return (
-        <Stack w="100%">
+        <Stack w="100%" spacing={theme.spacing['3xl']}>
             <Group position="apart">
                 <Group spacing="lg">
                     <Avatar
