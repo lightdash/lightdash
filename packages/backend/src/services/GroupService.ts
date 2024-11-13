@@ -181,10 +181,11 @@ export class GroupsService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const updatedGroup = await this.groupsModel.updateGroup(
+        const updatedGroup = await this.groupsModel.updateGroup({
+            updatedByUserUuid: actor.userUuid,
             groupUuid,
             update,
-        );
+        });
         this.analytics.track({
             userId: actor.userUuid,
             event: 'group.updated',
