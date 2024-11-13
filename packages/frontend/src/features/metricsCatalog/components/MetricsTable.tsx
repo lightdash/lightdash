@@ -1,5 +1,5 @@
 import { type CatalogItem } from '@lightdash/common';
-import { Box, Text } from '@mantine/core';
+import { Box, Group, Text, useMantineTheme } from '@mantine/core';
 import {
     MantineReactTable,
     useMantineReactTable,
@@ -22,6 +22,7 @@ import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 
 export const MetricsTable = () => {
+    const theme = useMantineTheme();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -119,10 +120,18 @@ export const MetricsTable = () => {
         enableTopToolbar: true,
         mantinePaperProps: {
             shadow: undefined,
+            sx: {
+                border: `1px solid ${theme.colors.gray[2]}`,
+                borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
+                boxShadow: '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
+            },
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: { maxHeight: '600px', minHeight: '600px' },
+            sx: {
+                maxHeight: '600px',
+                minHeight: '600px',
+            },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },
@@ -140,29 +149,39 @@ export const MetricsTable = () => {
                 },
             },
         },
-        mantineTopToolbarProps: {
-            sx: {
-                display: 'flex',
-                justifyContent: 'flex-start',
-            },
-        },
         renderTopToolbar: () => (
             <MetricsTableTopToolbar
                 search={search}
                 setSearch={setSearch}
                 totalResults={totalResults}
+                position="apart"
+                p={`${theme.spacing.lg} ${theme.spacing.xl}`}
             />
         ),
         positionGlobalFilter: 'left',
-        enableBottomToolbar: true,
-        renderBottomToolbarCustomActions: () => (
-            <Text>
-                {isFetching
-                    ? 'Loading more...'
-                    : hasNextPage
-                    ? `Scroll for more metrics (${flatData.length} loaded)`
-                    : `All metrics loaded (${flatData.length})`}
-            </Text>
+        renderBottomToolbar: () => (
+            <Box
+                p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
+            >
+                {isFetching ? (
+                    <Text fz={12} fw={500} color="gray.8">
+                        Loading more...
+                    </Text>
+                ) : (
+                    <Group spacing="two">
+                        <Text fz={12} fw={500} color="gray.8">
+                            {hasNextPage
+                                ? 'Scroll for more metrics'
+                                : 'All metrics loaded'}
+                        </Text>
+                        <Text fz={12} fw={400} color="gray.6">
+                            {hasNextPage
+                                ? `(${flatData.length} loaded)`
+                                : `(${flatData.length})`}
+                        </Text>
+                    </Group>
+                )}
+            </Box>
         ),
         state: {
             sorting,

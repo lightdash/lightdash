@@ -10,6 +10,7 @@ import {
     Text,
     TextInput,
     Tooltip,
+    type GroupProps,
 } from '@mantine/core';
 import { useListState } from '@mantine/hooks';
 import { IconSearch, IconTag, IconX } from '@tabler/icons-react';
@@ -25,7 +26,7 @@ import {
 } from '../store/metricsCatalogSlice';
 import { CatalogCategory } from './CatalogCategory';
 
-type Props = {
+type Props = GroupProps & {
     search: string | undefined;
     setSearch: (search: string) => void;
     totalResults: number;
@@ -166,11 +167,11 @@ const CategoriesFilter = () => {
 };
 
 export const MetricsTableTopToolbar: FC<Props> = memo(
-    ({ search, setSearch, totalResults }) => {
+    ({ search, setSearch, totalResults, ...props }) => {
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
 
         return (
-            <Group position="apart" p="sm">
+            <Group {...props}>
                 <Group spacing="xs">
                     {/* Search input */}
                     <TextInput
