@@ -583,11 +583,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             return getExplorerUrlFromCreateSavedChartVersion(
                 chartWithDashboardFilters.projectUuid,
                 queryWithoutCustomDimensions,
+                true,
             );
         }
         return getExplorerUrlFromCreateSavedChartVersion(
             chartWithDashboardFilters.projectUuid,
             chartWithDashboardFilters,
+            true,
         );
     }, [chartWithDashboardFilters, cannotUseCustomDimensions]);
 

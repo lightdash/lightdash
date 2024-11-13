@@ -101,6 +101,11 @@ export const createMetricPreviewUnsavedChartVersion = (
 export const getExplorerUrlFromCreateSavedChartVersion = (
     projectUuid: string,
     createSavedChart: CreateSavedChartVersion,
+    // Pass true to preserve long url. This is sometimes desireable when we want
+    // all of the information in the URL, but don't use it for navigation.
+    // For example, the explore from here button uses the entire URL to create
+    // shareable, shortened links.
+    preserveLongUrl?: boolean,
 ): { pathname: string; search: string } => {
     const newParams = new URLSearchParams();
 
@@ -108,6 +113,7 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     const stringifiedChartSize = stringifiedChart.length;
     if (
         stringifiedChartSize > 3000 &&
+        !preserveLongUrl &&
         isCartesianChartConfig(createSavedChart.chartConfig.config)
     ) {
         console.warn(
