@@ -66,7 +66,7 @@ export const MetricsCatalogPanel = () => {
     );
 
     return (
-        <Stack>
+        <Stack w="100%">
             <Group position="apart">
                 <Title order={4}>Metrics Catalog</Title>
                 <RefreshDbtButton />

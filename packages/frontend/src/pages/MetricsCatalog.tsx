@@ -18,7 +18,13 @@ const MetricsCatalog: FC = () => {
                     }`,
                 }}
             >
-                <Page withFitContent withPaddedContent withLargeContent>
+                <Page
+                    withCenteredRoot
+                    withCenteredContent
+                    withXLargePaddedContent
+                    withLargeContent
+                    backgroundColor="#FAFAFA"
+                >
                     <MetricsCatalogPanel />
                 </Page>
             </MantineProvider>
