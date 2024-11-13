@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://security-api.appsec.inday.io/schemas/security_config.json
+# This is the configuration file for Chimera. This file is required to allow scanning platform to scan your repo.
+# Please see https://confluence.workday.com/pages/viewpage.action?pageId=1943985516
+
+#####################
+# CHANGE LOG
+#####################
+# (re)adding code analysis service webhook: seeking approval on pr [https://ghe.megaleo.com/perftool/lightdash-public/pulls/3]
+# (re)adding code analysis service ac svc-secapi-appsec: seeking approval on pr [https://ghe.megaleo.com/perftool/lightdash-public/pulls/3]
+
+#####################
+# SLACK CONFIGURATION
+#####################
+# Uncomment the below section and provide a Slack channel's name to allow Chimera to
+# notifiy your slack channel about scans. Please see Chimera documentation on how to do this.
+#slack:
+  #enabled: true
+  #channel: <slack-channel-name>
+
+##########################
+# SCAN TOOL  CONFIGURATION
+##########################
+tools_config:
+  semgrep:
+    rulesets:
+    - p/docker-compose
+    - p/dockerfile
+    - p/headless-browser
+    - p/insecure-transport
+    - p/javascript
+    - p/nodejs
+    - p/python
+    - p/react
+    - p/typescript
+    excludes:
+    - node_modules/*
+    - packages/backend/node_modules/*
+    - packages/cli/dist/*
+    - packages/cli/node_modules/*
+    - packages/common/dist/*
+    - packages/common/node_modules/*
+    - packages/e2e/node_modules/*
+    - packages/frontend/node_modules/*
+  snyk: {}
+  trufflehog:
+    max_commit_depth: 50
+  checkov: {}

@@ -1,0 +1,55 @@
+# This file contains contact info for the team that maintains
+# this repo. This information will be used by security in the
+# event that we need to contact you about security issues
+# discovered in this code.
+#
+# See https://wolinks.com/repocontact for more information.
+#
+# You may use the Red Hat YAML extension in VS Code to validate this file.
+# yaml-language-server: $schema=https://security-api.appsec.inday.io/schemas/security_contact.json
+
+version: '1.0'
+
+# Owners identify the individuals/groups who maintain this repo.
+owners:
+    # Users are Corp AD/LDAP usernames (CNs), prefixed with 'corp:'.
+    # We require at least one user to be specified to allow us to
+    # map users into WoW. This might be the manager or tech lead
+    # for this repo.
+  users:
+  - corp:thiago.croce
+    # Groups are optional, but allow you to point to existing AD/LDAP
+    # user groups (CNs), prefixed with 'corp:'. This might be your
+    # team's existing DL group or similar. You may remove 'groups' or
+    # keep it empty if you are not using any groups.
+  groups:
+  - corp:perftools
+
+# Specify how you would like to be contacted if security finds an issue
+# in your code. You must provide at least one contact method. You may
+# remove any contact methods you are not using. You may set 'notify' to
+# 'false' for cases where you'd like to list a contact method for
+# completeness, but don't actually want us to send automated alerts to it.
+contact:
+  jira:
+  - project: PERFTOOL
+    component: CHANGEME_OPTIONAL
+    notify: true
+
+# Which services does the code in this repo support?
+# Service names should match those in https://wolinks.com/servicenames.
+# This field also supports some special values for repos that do not
+# directly host code for production services, including:
+#    - LIBRARY: For cases where the repo is a library imported by prod services
+#    - BUILDTOOL: For cases where the repo is a tool that builds prod services
+#    - LEGACY: For cases where the repo is no longer in use
+#    - NONE: For cases where the repo does not support prod services or fall
+#            into any of the other categories above.
+services:
+- perftool
+
+# Which service account(s) does your team use with artifactory? You may
+# this or leave a blank list if this repo does not store build artifacts
+# in artifactory.
+service_accounts:
+- portal-buildadm
