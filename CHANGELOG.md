@@ -1,3 +1,10 @@
+## [0.1361.1](https://github.com/lightdash/lightdash/compare/0.1361.0...0.1361.1) (2024-11-13)
+
+
+### Bug Fixes
+
+* Pin the version of `trino-client` at v0.2.3 ([#12388](https://github.com/lightdash/lightdash/issues/12388)) ([bdb7744](https://github.com/lightdash/lightdash/commit/bdb7744df2d438399d27802021d7decf5471955e))
+
 # [0.1361.0](https://github.com/lightdash/lightdash/compare/0.1360.0...0.1361.0) (2024-11-12)
 
 
