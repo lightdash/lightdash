@@ -239,6 +239,7 @@ export default class EmailClient {
         attachment: AttachmentUrl,
         url: string,
         schedulerUrl: string,
+        includeLinks: boolean,
         expirationDays?: number,
     ) {
         const csvUrl = attachment.path;
@@ -261,6 +262,7 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                includeLinks,
             },
             text: title,
         });
@@ -277,6 +279,7 @@ export default class EmailClient {
         attachments: AttachmentUrl[],
         url: string,
         schedulerUrl: string,
+        includeLinks: boolean,
         expirationDays?: number,
     ) {
         const csvUrls = attachments.filter(
@@ -306,6 +309,7 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
                 schedulerUrl,
                 expirationDays,
+                includeLinks,
             },
             text: title,
         });

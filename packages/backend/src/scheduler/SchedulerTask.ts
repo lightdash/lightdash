@@ -1140,8 +1140,14 @@ export default class SchedulerTask {
         });
 
         try {
-            const { format, savedChartUuid, dashboardUuid, name, thresholds } =
-                scheduler;
+            const {
+                format,
+                savedChartUuid,
+                dashboardUuid,
+                name,
+                thresholds,
+                includeLinks,
+            } = scheduler;
 
             await this.schedulerService.logSchedulerJob({
                 task: 'sendEmailNotification',
@@ -1259,6 +1265,7 @@ export default class SchedulerTask {
                     csvUrl,
                     url,
                     schedulerUrl,
+                    includeLinks,
                     this.s3Client.getExpirationWarning()?.days,
                 );
             } else if (dashboardUuid) {
@@ -1280,6 +1287,7 @@ export default class SchedulerTask {
                     csvUrls,
                     url,
                     schedulerUrl,
+                    includeLinks,
                     this.s3Client.getExpirationWarning()?.days,
                 );
             } else {
