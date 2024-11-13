@@ -274,9 +274,10 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         </Box>
                         <Stack spacing="xs" align="flex-start" mb="xs">
                             <Stack
-                                spacing={4}
+                                spacing={0}
                                 w="100%"
                                 mah={140}
+                                px="xs"
                                 sx={{
                                     overflowY: 'auto',
                                 }}
