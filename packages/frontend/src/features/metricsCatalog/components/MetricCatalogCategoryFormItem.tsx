@@ -1,8 +1,8 @@
 import { type CatalogItem } from '@lightdash/common';
 import {
     ActionIcon,
-    Box,
     Button,
+    Divider,
     Group,
     Popover,
     SimpleGrid,
@@ -57,22 +57,23 @@ const EditPopover: FC<EditPopoverProps> = ({
                     tagUuid: category.tagUuid,
                     data: { name: editName, color: editColor },
                 });
-                handleClose();
+                close();
             } catch (error) {
                 console.error('Tag update failed:', error);
             }
         }
-    }, [editColor, editName, projectUuid, category, updateTag, handleClose]);
+    }, [editColor, editName, projectUuid, category, updateTag, close]);
 
     const onDelete = useCallback(async () => {
         if (category.tagUuid && projectUuid) {
             try {
                 deleteTag({ projectUuid, tagUuid: category.tagUuid });
+                close();
             } catch (error) {
                 console.error('Tag deletion failed:', error);
             }
         }
-    }, [deleteTag, projectUuid, category]);
+    }, [deleteTag, projectUuid, category, close]);
 
     return (
         <Popover
@@ -91,7 +92,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                     sx={{
                         visibility: hovered || opened ? 'visible' : 'hidden',
                     }}
-                    size="xs"
+                    size="sm"
                     onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
@@ -103,60 +104,47 @@ const EditPopover: FC<EditPopoverProps> = ({
                 </ActionIcon>
             </Popover.Target>
             <Popover.Dropdown
+                px="sm"
                 onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
                 }}
             >
                 <Stack spacing="xs" ref={popoverRef}>
-                    <Stack w="100%" spacing="two">
-                        <Text size="xs" weight={500} c="gray.7">
-                            Name
-                        </Text>
-                        <TextInput
-                            size="xs"
-                            radius="md"
-                            w="100%"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                        />
-                    </Stack>
+                    <Text size="xs" weight={500} c="gray.6">
+                        Edit category
+                    </Text>
+                    <TextInput
+                        placeholder="Category name"
+                        size="xs"
+                        radius="md"
+                        w="100%"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                    />
 
-                    <Stack spacing="two">
-                        <Text size="xs" weight={500} c="gray.7">
-                            Colors
-                        </Text>
-                        <Group spacing="xs">
-                            <SimpleGrid cols={8} spacing="xs">
-                                {colors.map((color) => (
-                                    <Box
-                                        key={color}
-                                        w={14}
-                                        h={14}
-                                        bg={color}
-                                        sx={(theme) => ({
-                                            cursor: 'pointer',
-                                            borderRadius: '2px',
-                                            border:
-                                                editColor === color
-                                                    ? '1px solid black'
-                                                    : 'none',
-                                            '&:hover': {
-                                                backgroundColor:
-                                                    theme.fn.darken(color, 0.3),
-                                            },
-                                        })}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setEditColor(color);
-                                        }}
-                                    />
-                                ))}
-                            </SimpleGrid>
-                        </Group>
-                    </Stack>
+                    <SimpleGrid cols={7} spacing="xs" verticalSpacing="xs">
+                        {colors.map((color) => (
+                            <CatalogCategory
+                                key={color}
+                                category={{ name: '', color }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditColor(color);
+                                }}
+                                selected={editColor === color}
+                            />
+                        ))}
+                    </SimpleGrid>
 
-                    <Group position="right" mt="xs">
+                    <Divider
+                        c="gray.2"
+                        sx={(theme) => ({
+                            borderTopColor: theme.colors.gray[2],
+                        })}
+                    />
+
+                    <Group position="apart">
                         <Tooltip
                             variant="xs"
                             label="Delete this tag permanently"
@@ -164,10 +152,14 @@ const EditPopover: FC<EditPopoverProps> = ({
                             <ActionIcon
                                 size="sm"
                                 variant="outline"
-                                color="gray"
+                                color="gray.4"
                                 onClick={onDelete}
                             >
-                                <MantineIcon icon={IconTrash} size={14} />
+                                <MantineIcon
+                                    color="red"
+                                    icon={IconTrash}
+                                    size={14}
+                                />
                             </ActionIcon>
                         </Tooltip>
 
