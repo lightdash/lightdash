@@ -1,3 +1,10 @@
+## [0.1361.2](https://github.com/lightdash/lightdash/compare/0.1361.1...0.1361.2) (2024-11-13)
+
+
+### Bug Fixes
+
+* better git errors ([#12376](https://github.com/lightdash/lightdash/issues/12376)) ([1c061b4](https://github.com/lightdash/lightdash/commit/1c061b48f65296df9f9a25769b375832d43bb889))
+
 ## [0.1361.1](https://github.com/lightdash/lightdash/compare/0.1361.0...0.1361.1) (2024-11-13)
 
 
