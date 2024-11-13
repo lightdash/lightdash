@@ -232,6 +232,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     <Box p="xs">
                         <TagInput
                             value={categoryNames}
+                            allowDuplicates={false}
                             onSearchChange={handleSearchChange}
                             searchValue={search}
                             valueComponent={renderValueComponent}
@@ -243,6 +244,9 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             addOnBlur={false}
                             onBlur={(e) => {
                                 e.stopPropagation();
+                            }}
+                            onChange={async (val) => {
+                                void handleAddTag(val[val.length - 1]);
                             }}
                         />
                         <Text size="xs" fw={500} color="dimmed">
