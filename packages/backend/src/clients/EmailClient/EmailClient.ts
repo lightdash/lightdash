@@ -193,6 +193,7 @@ export default class EmailClient {
         imageUrl: string,
         url: string,
         schedulerUrl: string,
+        includeLinks: boolean,
         pdfFile?: string,
         expirationDays?: number,
         deliveryType: string = 'Scheduled delivery',
@@ -214,6 +215,7 @@ export default class EmailClient {
                 schedulerUrl,
                 expirationDays,
                 deliveryType,
+                includeLinks,
             },
             text: title,
             attachments: pdfFile

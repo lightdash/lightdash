@@ -1222,6 +1222,7 @@ export default class SchedulerTask {
                     imageUrl,
                     url,
                     schedulerUrl,
+                    includeLinks,
                     pdfFile,
                     undefined, // expiration days
                     'This is a data alert sent by Lightdash',
@@ -1244,6 +1245,7 @@ export default class SchedulerTask {
                     imageUrl,
                     url,
                     schedulerUrl,
+                    includeLinks,
                     pdfFile,
                     this.s3Client.getExpirationWarning()?.days,
                 );

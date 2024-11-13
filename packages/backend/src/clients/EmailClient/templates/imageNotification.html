@@ -941,6 +941,7 @@
                                                                                     </div>
                                                                                 </td>
                                                                             </tr>
+                                                                            {{#if includeLinks}}
                                                                             <tr>
                                                                                 <td>
                                                                                     <table
@@ -1006,6 +1007,7 @@
                                                                                     </table>
                                                                                 </td>
                                                                             </tr>
+                                                                            {{/if}}
                                                                             <tr>
                                                                                 <td>
                                                                                     <div
@@ -1067,6 +1069,7 @@
                                                                                                         mso-text-raise: 3px;
                                                                                                     "
                                                                                                 >
+                                                                                                {{#if   includeLinks}}
                                                                                                     <a
                                                                                                         class="t180"
                                                                                                         href="{{schedulerUrl}}"
@@ -1091,7 +1094,19 @@
                                                                                                             "
                                                                                                             >{{deliveryType}}</span
                                                                                                         ></a
-                                                                                                    ><span
+                                                                                                    >
+                                                                                                    {{/if}}
+                                                                                                    {{#unless includeLinks}}
+                                                                                                    <span
+                                                                                                            class="t179"
+                                                                                                            style="
+                                                                                                                margin-bottom: 0;
+                                                                                                                margin-bottom: 0;
+                                                                                                                mso-line-height-rule: exactly;
+                                                                                                            "
+                                                                                                            >{{deliveryType}}</span
+                                                                                                        >
+                                                                                                    {{/unless}}<span
                                                                                                         class="t166"
                                                                                                         style="
                                                                                                             margin-bottom: 0;
