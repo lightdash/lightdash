@@ -56,6 +56,10 @@ export const getMantineThemeOverride = (overrides?: {
 
     cursorType: 'pointer',
 
+    shadows: {
+        subtle: '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
+    },
+
     components: {
         Kbd: {
             styles: (theme, _params) => ({

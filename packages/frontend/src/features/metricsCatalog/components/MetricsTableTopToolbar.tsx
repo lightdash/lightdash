@@ -126,8 +126,7 @@ const CategoriesFilter = () => {
                                     ? theme.colors.indigo[0]
                                     : undefined,
                                 textOverflow: 'ellipsis',
-                                boxShadow:
-                                    '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
+                                boxShadow: theme.shadows.subtle,
                                 '&:hover': {
                                     backgroundColor: theme.colors.gray[0],
                                 },
@@ -214,8 +213,7 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                                 color: search
                                     ? theme.colors.gray[8]
                                     : theme.colors.gray[5],
-                                boxShadow:
-                                    '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
+                                boxShadow: theme.shadows.subtle,
                                 border: `1px solid ${theme.colors.gray[3]}`,
                                 '&:hover': {
                                     border: `1px solid ${theme.colors.gray[4]}`,

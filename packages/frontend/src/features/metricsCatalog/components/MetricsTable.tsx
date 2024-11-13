@@ -123,7 +123,7 @@ export const MetricsTable = () => {
             sx: {
                 border: `1px solid ${theme.colors.gray[2]}`,
                 borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
-                boxShadow: '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
+                boxShadow: theme.shadows.subtle,
             },
         },
         mantineTableContainerProps: {
