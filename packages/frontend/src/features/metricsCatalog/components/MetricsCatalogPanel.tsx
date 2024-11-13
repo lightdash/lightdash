@@ -90,7 +90,7 @@ export const MetricsCatalogPanel = () => {
     return (
         <Stack w="100%" spacing={theme.spacing['3xl']}>
             <Group position="apart">
-                <Group spacing="lg">
+                <Group spacing="sm">
                     <Avatar
                         src={isIconHovered ? Hover : Default}
                         alt="Metrics Catalog"
