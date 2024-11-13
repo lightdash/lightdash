@@ -8,11 +8,14 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { useEffect } from 'react';
+import { IconRefresh } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
+import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import { useProject } from '../../../hooks/useProject';
+import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useApp } from '../../../providers/AppProvider';
 import { Default, Hover } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
@@ -36,6 +39,10 @@ export const MetricsCatalogPanel = () => {
         (state) => state.metricsCatalog.organizationUuid,
     );
 
+    const [lastDbtRefreshAt, setLastDbtRefreshAt] = useState<
+        Date | undefined
+    >();
+    const timeAgo = useTimeAgo(lastDbtRefreshAt || new Date());
     const params = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const { user } = useApp();
@@ -76,6 +83,10 @@ export const MetricsCatalogPanel = () => {
         [user.data, dispatch, projectUuid],
     );
 
+    const handleRefreshDbt = () => {
+        setLastDbtRefreshAt(new Date());
+    };
+
     return (
         <Stack w="100%" spacing={theme.spacing['3xl']}>
             <Group position="apart">
@@ -95,7 +106,31 @@ export const MetricsCatalogPanel = () => {
                         </Text>
                     </Box>
                 </Group>
-                <RefreshDbtButton />
+                <RefreshDbtButton
+                    onClick={handleRefreshDbt}
+                    leftIcon={
+                        <MantineIcon
+                            size="sm"
+                            color="gray.7"
+                            icon={IconRefresh}
+                        />
+                    }
+                    buttonStyles={{
+                        borderRadius: theme.radius.md,
+                        backgroundColor: '#FAFAFA',
+                        border: `1px solid ${theme.colors.gray[2]}`,
+                        padding: `${theme.spacing.xxs} 10px ${theme.spacing.xxs} ${theme.spacing.xs}`,
+                        fontSize: theme.fontSizes.sm,
+                        fontWeight: 500,
+                        color: theme.colors.gray[7],
+                    }}
+                    defaultTextOverride={
+                        lastDbtRefreshAt
+                            ? `Last refreshed ${timeAgo}`
+                            : 'Refresh dbt'
+                    }
+                    refreshingTextOverride="Refreshing dbt"
+                />
             </Group>
             <MetricsTable />
             <MetricChartUsageModal
