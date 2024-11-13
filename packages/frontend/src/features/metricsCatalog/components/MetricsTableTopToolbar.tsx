@@ -198,7 +198,18 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                                 textOverflow: 'ellipsis',
                                 fontSize: theme.fontSizes.sm,
                                 fontWeight: 400,
-                                color: theme.colors.gray[5],
+                                color: search
+                                    ? theme.colors.gray[8]
+                                    : theme.colors.gray[5],
+                                boxShadow:
+                                    '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                                '&:hover': {
+                                    border: `1px solid ${theme.colors.gray[4]}`,
+                                },
+                                '&:focus': {
+                                    border: `1px solid ${theme.colors.blue[5]}`,
+                                },
                             },
                         })}
                         type="search"
@@ -219,7 +230,7 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                                     onClick={clearSearch}
                                     variant="transparent"
                                     size="xs"
-                                    color="gray.6"
+                                    color="gray.5"
                                 >
                                     <MantineIcon icon={IconX} />
                                 </ActionIcon>
