@@ -1,3 +1,10 @@
+# [0.1366.0](https://github.com/lightdash/lightdash/compare/0.1365.1...0.1366.0) (2024-11-14)
+
+
+### Features
+
+* include links scheduler ([#12404](https://github.com/lightdash/lightdash/issues/12404)) ([9bbf53f](https://github.com/lightdash/lightdash/commit/9bbf53fdb0cf2c6d11f189654a5a820f0ee99491))
+
 ## [0.1365.1](https://github.com/lightdash/lightdash/compare/0.1365.0...0.1365.1) (2024-11-14)
 
 
