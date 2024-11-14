@@ -168,6 +168,9 @@ export const MetricsTable = () => {
                 fz="xs"
                 fw={500}
                 color="gray.8"
+                sx={{
+                    borderTop: `1px solid ${theme.colors.gray[3]}`,
+                }}
             >
                 {isFetching ? (
                     <Text>Loading more...</Text>
