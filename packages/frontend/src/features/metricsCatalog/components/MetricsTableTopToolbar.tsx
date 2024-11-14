@@ -4,6 +4,7 @@ import {
     Badge,
     Button,
     Checkbox,
+    Divider,
     Group,
     Popover,
     Stack,
@@ -13,7 +14,12 @@ import {
     type GroupProps,
 } from '@mantine/core';
 import { useListState } from '@mantine/hooks';
-import { IconSearch, IconTag, IconX } from '@tabler/icons-react';
+import {
+    IconPointFilled,
+    IconSearch,
+    IconTag,
+    IconX,
+} from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -91,24 +97,43 @@ const CategoriesFilter = () => {
             <Popover width={300} position="bottom-start">
                 <Popover.Target>
                     <Button
-                        size="xs"
-                        color="gray.5"
-                        c={hasSelectedCategories ? 'gray.8' : 'gray.6'}
+                        h={32}
+                        c="gray.7"
+                        fw={500}
+                        fz="sm"
                         variant="default"
                         radius="md"
-                        leftIcon={<MantineIcon icon={IconTag} color="gray.6" />}
+                        py="xs"
+                        px="sm"
+                        leftIcon={
+                            <MantineIcon
+                                icon={IconTag}
+                                size="md"
+                                color={
+                                    hasSelectedCategories
+                                        ? 'indigo.5'
+                                        : 'gray.5'
+                                }
+                            />
+                        }
                         loading={isLoading}
-                        sx={(theme) => ({
-                            border: hasSelectedCategories
-                                ? `1px solid ${theme.colors.indigo[4]}`
-                                : `1px dashed ${theme.colors.gray[4]}`,
-                            backgroundColor: theme.fn.lighten(
-                                hasSelectedCategories
+                        styles={(theme) => ({
+                            root: {
+                                border: hasSelectedCategories
+                                    ? `1px solid ${theme.colors.indigo[2]}`
+                                    : `1px dashed ${theme.colors.gray[3]}`,
+                                backgroundColor: hasSelectedCategories
                                     ? theme.colors.indigo[0]
-                                    : theme.colors.gray[0],
-                                0.3,
-                            ),
-                            fontWeight: hasSelectedCategories ? 400 : 500,
+                                    : undefined,
+                                textOverflow: 'ellipsis',
+                                boxShadow: theme.shadows.subtle,
+                                '&:hover': {
+                                    backgroundColor: theme.colors.gray[0],
+                                },
+                            },
+                            label: {
+                                height: 24,
+                            },
                         })}
                     >
                         {hasSelectedCategories
@@ -177,12 +202,38 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                     <TextInput
                         size="xs"
                         radius="md"
-                        w={300}
+                        h={32}
+                        w={309}
+                        styles={(theme) => ({
+                            input: {
+                                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                                textOverflow: 'ellipsis',
+                                fontSize: theme.fontSizes.sm,
+                                fontWeight: 400,
+                                color: search
+                                    ? theme.colors.gray[8]
+                                    : theme.colors.gray[5],
+                                boxShadow: theme.shadows.subtle,
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                                '&:hover': {
+                                    border: `1px solid ${theme.colors.gray[4]}`,
+                                },
+                                '&:focus': {
+                                    border: `1px solid ${theme.colors.blue[5]}`,
+                                },
+                            },
+                        })}
                         type="search"
                         variant="default"
-                        placeholder="Search by metric name or description"
+                        placeholder="Search by name or description"
                         value={search}
-                        icon={<MantineIcon icon={IconSearch} />}
+                        icon={
+                            <MantineIcon
+                                size="md"
+                                color="gray.6"
+                                icon={IconSearch}
+                            />
+                        }
                         onChange={(e) => setSearch(e.target.value)}
                         rightSection={
                             search && (
@@ -190,17 +241,40 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                                     onClick={clearSearch}
                                     variant="transparent"
                                     size="xs"
+                                    color="gray.5"
                                 >
                                     <MantineIcon icon={IconX} />
                                 </ActionIcon>
                             )
                         }
                     />
+                    <Divider
+                        orientation="vertical"
+                        w={1}
+                        h={20}
+                        sx={{ alignSelf: 'center', borderColor: '#DEE2E6' }}
+                    />
                     {/* Categories filter */}
                     <CategoriesFilter />
                 </Group>
-                <Badge size="sm" color="violet">
-                    {totalResults}
+                <Badge
+                    bg="#F8F9FC"
+                    c="#363F72"
+                    radius={6}
+                    py="two"
+                    px="xs"
+                    tt="none"
+                >
+                    <Group spacing={0}>
+                        <MantineIcon
+                            icon={IconPointFilled}
+                            color="#4E5BA6"
+                            size="lg"
+                        />
+                        <Text fz="sm" fw={500}>
+                            {totalResults} metrics
+                        </Text>
+                    </Group>
                 </Badge>
             </Group>
         );
