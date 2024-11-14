@@ -1,5 +1,10 @@
 import { type CatalogItem } from '@lightdash/common';
 import { Box, Divider, Group, Text, useMantineTheme } from '@mantine/core';
+import {
+    IconArrowDown,
+    IconArrowsSort,
+    IconArrowUp,
+} from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
 import {
     MantineReactTable,
@@ -16,6 +21,7 @@ import {
     useState,
     type UIEvent,
 } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { ExploreMetricButton } from './ExploreMetricButton';
@@ -151,6 +157,7 @@ export const MetricsTable = () => {
         manualSorting: true,
         onSortingChange: setSorting,
         enableTopToolbar: true,
+        positionGlobalFilter: 'left',
         mantinePaperProps: {
             shadow: undefined,
             sx: {
@@ -162,8 +169,8 @@ export const MetricsTable = () => {
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
-                maxHeight: '600px',
-                minHeight: '600px',
+                maxHeight: 'calc(100dvh - 350px)',
+                minHeight: 'calc(100dvh - 350px)',
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
@@ -171,17 +178,58 @@ export const MetricsTable = () => {
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: true,
+            sx: {
+                // Remove border on last column - this is the column with the actions buttons (added by default by mantine-react-table)
+                'thead > tr > th:last-of-type, tbody > tr > td:last-of-type': {
+                    borderLeft: 'none',
+                },
+            },
         },
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
+
                 // Each head row has a divider when resizing columns is enabled
                 'th > div > div:last-child': {
-                    width: '0.5px',
-                    padding: '0px',
+                    height: 40,
+                    top: -10,
+                    right: -5,
+                },
+
+                'th > div > div:last-child > .mantine-Divider-root': {
+                    border: 'none',
                 },
             },
         },
+        mantineTableHeadCellProps: (props) => {
+            const isAnyColumnResizing = props.table
+                .getAllColumns()
+                .some((c) => c.getIsResizing());
+            return {
+                bg: 'gray.0',
+                h: '3xl',
+                pos: 'relative',
+                style: {
+                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
+                },
+                sx: {
+                    justifyContent: 'center',
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderRight: props.column.getIsResizing()
+                        ? `2px solid ${theme.colors.blue[3]}`
+                        : `1px solid ${theme.colors.gray[2]}`,
+                    '&:hover': {
+                        borderRight: !isAnyColumnResizing
+                            ? `2px solid ${theme.colors.blue[3]}`
+                            : undefined,
+                    },
+                    'tr > th:last-of-type': {
+                        borderLeft: `2px solid ${theme.colors.blue[3]}`,
+                    },
+                },
+            };
+        },
+
         renderTopToolbar: () => (
             <Box>
                 <MetricsTableTopToolbar
@@ -194,7 +242,6 @@ export const MetricsTable = () => {
                 <Divider color="gray.2" />
             </Box>
         ),
-        positionGlobalFilter: 'left',
         renderBottomToolbar: () => (
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
@@ -223,6 +270,17 @@ export const MetricsTable = () => {
                 )}
             </Box>
         ),
+        icons: {
+            IconArrowsSort: () => (
+                <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
+            ),
+            IconSortAscending: () => (
+                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
+            ),
+            IconSortDescending: () => (
+                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
+            ),
+        },
         state: {
             sorting,
             showProgressBars: false,
