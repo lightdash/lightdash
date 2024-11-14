@@ -1,3 +1,52 @@
+## [0.1366.1](https://github.com/lightdash/lightdash/compare/0.1366.0...0.1366.1) (2024-11-14)
+
+
+### Bug Fixes
+
+* **dashboard:** inactive filter styles ([#12437](https://github.com/lightdash/lightdash/issues/12437)) ([9b8e621](https://github.com/lightdash/lightdash/commit/9b8e621ea1fa7351f122961208de2a23b67c1c33))
+
+# [0.1366.0](https://github.com/lightdash/lightdash/compare/0.1365.1...0.1366.0) (2024-11-14)
+
+
+### Features
+
+* include links scheduler ([#12404](https://github.com/lightdash/lightdash/issues/12404)) ([9bbf53f](https://github.com/lightdash/lightdash/commit/9bbf53fdb0cf2c6d11f189654a5a820f0ee99491))
+
+## [0.1365.1](https://github.com/lightdash/lightdash/compare/0.1365.0...0.1365.1) (2024-11-14)
+
+
+### Bug Fixes
+
+* packages/backend/package.json to reduce vulnerabilities ([#12422](https://github.com/lightdash/lightdash/issues/12422)) ([dc20e14](https://github.com/lightdash/lightdash/commit/dc20e14d9007678646adea9bc9b312c757dd5781))
+
+# [0.1365.0](https://github.com/lightdash/lightdash/compare/0.1364.3...0.1365.0) (2024-11-14)
+
+
+### Features
+
+* value label options for sql runner charts ([#12410](https://github.com/lightdash/lightdash/issues/12410)) ([9179965](https://github.com/lightdash/lightdash/commit/9179965114a7ba0c2e68a4690962d9e6107f5d93))
+
+## [0.1364.3](https://github.com/lightdash/lightdash/compare/0.1364.2...0.1364.3) (2024-11-14)
+
+
+### Bug Fixes
+
+* update port for site_url in .env ([#12429](https://github.com/lightdash/lightdash/issues/12429)) ([f0cdfb2](https://github.com/lightdash/lightdash/commit/f0cdfb21bca2de7cc6d9bc8eafeb84f0db749a5e))
+
+## [0.1364.2](https://github.com/lightdash/lightdash/compare/0.1364.1...0.1364.2) (2024-11-14)
+
+
+### Bug Fixes
+
+* packages/backend/package.json to reduce vulnerabilities ([#12425](https://github.com/lightdash/lightdash/issues/12425)) ([5ce515f](https://github.com/lightdash/lightdash/commit/5ce515f04634636704b856d013a7fe2ad5704930))
+
+## [0.1364.1](https://github.com/lightdash/lightdash/compare/0.1364.0...0.1364.1) (2024-11-14)
+
+
+### Bug Fixes
+
+* get all tags when filtering ([#12426](https://github.com/lightdash/lightdash/issues/12426)) ([7e308c0](https://github.com/lightdash/lightdash/commit/7e308c08e4dc5a7ff6efaf2991c86f7478770b40))
+
 # [0.1364.0](https://github.com/lightdash/lightdash/compare/0.1363.1...0.1364.0) (2024-11-13)
 
 

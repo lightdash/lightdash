@@ -6,6 +6,7 @@ import {
     VIZ_DEFAULT_AGGREGATION,
     type CartesianChartDisplay,
     type SortByDirection,
+    type ValueLabelPositionOptions,
     type VizAggregationOptions,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
@@ -429,6 +430,30 @@ export const cartesianChartConfigSlice = createSlice({
                     yAxisIndex: action.payload.index,
                     color: action.payload.color,
                 };
+            }
+        },
+        setSeriesValueLabelPosition: (
+            { fieldConfig, display },
+            action: PayloadAction<{
+                reference: string;
+                valueLabelPosition: ValueLabelPositionOptions;
+                index?: number;
+            }>,
+        ) => {
+            if (!fieldConfig) return;
+            display = display || {};
+            display.yAxis = display.yAxis || [];
+            display.series = display.series || {};
+
+            if (fieldConfig?.y.length === 1) {
+                const yReference = fieldConfig?.y[0].reference;
+                if (yReference) {
+                    display.series[yReference] = {
+                        ...display.series[yReference],
+                        yAxisIndex: 0,
+                        valueLabelPosition: action.payload.valueLabelPosition,
+                    };
+                }
             }
         },
     },

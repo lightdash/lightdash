@@ -1,5 +1,11 @@
 import { type CatalogItem } from '@lightdash/common';
-import { Box, Group, Text, useMantineTheme } from '@mantine/core';
+import { Box, Divider, Group, Text, useMantineTheme } from '@mantine/core';
+import {
+    IconArrowDown,
+    IconArrowsSort,
+    IconArrowUp,
+} from '@tabler/icons-react';
+import { useIsMutating } from '@tanstack/react-query';
 import {
     MantineReactTable,
     useMantineReactTable,
@@ -15,6 +21,7 @@ import {
     useState,
     type UIEvent,
 } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { ExploreMetricButton } from './ExploreMetricButton';
@@ -47,9 +54,16 @@ export const MetricsTable = () => {
 
     const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
 
-    const { data, fetchNextPage, hasNextPage, isFetching } = useMetricsCatalog({
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetching,
+        isLoading,
+        isPreviousData,
+    } = useMetricsCatalog({
         projectUuid,
-        pageSize: 20,
+        pageSize: 50,
         search: deferredSearch,
         categories: categoryFilters,
         // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
@@ -63,6 +77,26 @@ export const MetricsTable = () => {
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data],
     );
+
+    // Check if we are mutating any of the icons or categories related mutations
+    // TODO: Move this to separate hook and utilise constants so this scales better
+    const isMutating = useIsMutating({
+        predicate: (mutation) => {
+            const mutationKeys = [
+                'create-tag',
+                'update-tag',
+                'delete-tag',
+                'add-category',
+                'remove-category',
+                'update-catalog-item-icon',
+            ];
+            return Boolean(
+                mutation.options.mutationKey?.some((key) =>
+                    mutationKeys.includes(key as string),
+                ),
+            );
+        },
+    });
 
     //called on scroll and possibly on mount to fetch more data as the user scrolls and reaches bottom of table
     const fetchMoreOnBottomReached = useCallback(
@@ -95,6 +129,11 @@ export const MetricsTable = () => {
         return lastPage.pagination?.totalResults ?? 0;
     }, [data]);
 
+    const showLoadingOverlay = useMemo(
+        () => isFetching && isPreviousData && !isMutating,
+        [isFetching, isPreviousData, isMutating],
+    );
+
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
         data: flatData,
@@ -118,19 +157,20 @@ export const MetricsTable = () => {
         manualSorting: true,
         onSortingChange: setSorting,
         enableTopToolbar: true,
+        positionGlobalFilter: 'left',
         mantinePaperProps: {
             shadow: undefined,
             sx: {
                 border: `1px solid ${theme.colors.gray[2]}`,
                 borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
-                boxShadow: '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
+                boxShadow: theme.shadows.subtle,
             },
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
-                maxHeight: '600px',
-                minHeight: '600px',
+                maxHeight: 'calc(100dvh - 350px)',
+                minHeight: 'calc(100dvh - 350px)',
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
@@ -138,33 +178,79 @@ export const MetricsTable = () => {
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: true,
+            sx: {
+                // Remove border on last column - this is the column with the actions buttons (added by default by mantine-react-table)
+                'thead > tr > th:last-of-type, tbody > tr > td:last-of-type': {
+                    borderLeft: 'none',
+                },
+            },
         },
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
+
                 // Each head row has a divider when resizing columns is enabled
                 'th > div > div:last-child': {
-                    width: '0.5px',
-                    padding: '0px',
+                    height: 40,
+                    top: -10,
+                    right: -5,
+                },
+
+                'th > div > div:last-child > .mantine-Divider-root': {
+                    border: 'none',
                 },
             },
         },
+        mantineTableHeadCellProps: (props) => {
+            const isAnyColumnResizing = props.table
+                .getAllColumns()
+                .some((c) => c.getIsResizing());
+            return {
+                bg: 'gray.0',
+                h: '3xl',
+                pos: 'relative',
+                style: {
+                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
+                },
+                sx: {
+                    justifyContent: 'center',
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderRight: props.column.getIsResizing()
+                        ? `2px solid ${theme.colors.blue[3]}`
+                        : `1px solid ${theme.colors.gray[2]}`,
+                    '&:hover': {
+                        borderRight: !isAnyColumnResizing
+                            ? `2px solid ${theme.colors.blue[3]}`
+                            : undefined,
+                    },
+                    'tr > th:last-of-type': {
+                        borderLeft: `2px solid ${theme.colors.blue[3]}`,
+                    },
+                },
+            };
+        },
+
         renderTopToolbar: () => (
-            <MetricsTableTopToolbar
-                search={search}
-                setSearch={setSearch}
-                totalResults={totalResults}
-                position="apart"
-                p={`${theme.spacing.lg} ${theme.spacing.xl}`}
-            />
+            <Box>
+                <MetricsTableTopToolbar
+                    search={search}
+                    setSearch={setSearch}
+                    totalResults={totalResults}
+                    position="apart"
+                    p={`${theme.spacing.lg} ${theme.spacing.xl}`}
+                />
+                <Divider color="gray.2" />
+            </Box>
         ),
-        positionGlobalFilter: 'left',
         renderBottomToolbar: () => (
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
                 color="gray.8"
+                sx={{
+                    borderTop: `1px solid ${theme.colors.gray[3]}`,
+                }}
             >
                 {isFetching ? (
                     <Text>Loading more...</Text>
@@ -184,9 +270,22 @@ export const MetricsTable = () => {
                 )}
             </Box>
         ),
+        icons: {
+            IconArrowsSort: () => (
+                <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
+            ),
+            IconSortAscending: () => (
+                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
+            ),
+            IconSortDescending: () => (
+                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
+            ),
+        },
         state: {
             sorting,
-            isLoading: isFetching,
+            showProgressBars: false,
+            showLoadingOverlay, // show loading overlay when fetching (like search, category filtering), but hide when editing rows.
+            showSkeletons: isLoading, // loading for the first time with no data
             density: 'md',
             globalFilter: search ?? '',
         },

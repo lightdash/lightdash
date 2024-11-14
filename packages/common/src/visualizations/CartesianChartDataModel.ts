@@ -499,6 +499,10 @@ export class CartesianChartDataModel {
                     (s) => s.yAxisIndex === index,
                 )?.color;
 
+                const seriesValueLabelPosition = Object.values(
+                    display?.series || {},
+                ).find((s) => s.yAxisIndex === index)?.valueLabelPosition;
+
                 return {
                     dimensions: [xAxisReference, seriesColumn],
                     type: defaultSeriesType,
@@ -524,6 +528,12 @@ export class CartesianChartDataModel {
                               )
                             : undefined,
                     },
+                    label: seriesValueLabelPosition
+                        ? {
+                              show: seriesValueLabelPosition !== 'hidden',
+                              position: seriesValueLabelPosition,
+                          }
+                        : undefined,
                     color:
                         seriesColor ||
                         CartesianChartDataModel.getDefaultColor(
@@ -619,6 +629,15 @@ export class CartesianChartDataModel {
     }
 }
 
+export enum ValueLabelPositionOptions {
+    HIDDEN = 'hidden',
+    TOP = 'top',
+    BOTTOM = 'bottom',
+    LEFT = 'left',
+    RIGHT = 'right',
+    INSIDE = 'inside',
+}
+
 export type CartesianChartDisplay = {
     xAxis?: {
         label?: string;
@@ -631,11 +650,14 @@ export type CartesianChartDisplay = {
     }[];
     series?: {
         [key: string]: {
+            // Label maps to 'name' in ECharts
             label?: string;
             format?: Format;
             yAxisIndex?: number;
             color?: string;
             type?: ChartKind.LINE | ChartKind.VERTICAL_BAR;
+            // Value labels maps to 'label' in ECharts
+            valueLabelPosition?: ValueLabelPositionOptions;
         };
     };
     legend?: {

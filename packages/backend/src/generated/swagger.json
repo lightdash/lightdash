@@ -3523,6 +3523,21 @@
                         "type": "string",
                         "description": "The UUID of the organization that the group belongs to"
                     },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The UUID of the user that last updated the group"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "The time that the group was last updated"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The UUID of the user that created the group"
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time",
@@ -3537,7 +3552,15 @@
                         "description": "The group's UUID"
                     }
                 },
-                "required": ["organizationUuid", "createdAt", "name", "uuid"],
+                "required": [
+                    "organizationUuid",
+                    "updatedByUserUuid",
+                    "updatedAt",
+                    "createdByUserUuid",
+                    "createdAt",
+                    "name",
+                    "uuid"
+                ],
                 "type": "object"
             },
             "GroupMember": {
@@ -7289,6 +7312,9 @@
             },
             "SchedulerBase": {
                 "properties": {
+                    "includeLinks": {
+                        "type": "boolean"
+                    },
                     "notificationFrequency": {
                         "$ref": "#/components/schemas/NotificationFrequency"
                     },
@@ -7343,6 +7369,7 @@
                     }
                 },
                 "required": [
+                    "includeLinks",
                     "enabled",
                     "options",
                     "dashboardUuid",
@@ -8331,6 +8358,10 @@
                 "required": ["y"],
                 "type": "object"
             },
+            "ValueLabelPositionOptions": {
+                "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
+                "type": "string"
+            },
             "CartesianChartDisplay": {
                 "properties": {
                     "stack": {
@@ -8354,6 +8385,9 @@
                         "properties": {},
                         "additionalProperties": {
                             "properties": {
+                                "valueLabelPosition": {
+                                    "$ref": "#/components/schemas/ValueLabelPositionOptions"
+                                },
                                 "type": {
                                     "anyOf": [
                                         {
@@ -10985,7 +11019,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1357.0",
+        "version": "0.1364.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

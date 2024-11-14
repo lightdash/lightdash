@@ -857,6 +857,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
             type: 'slack' | 'email';
         }>;
         timeZone: string | undefined;
+        includeLinks: boolean;
     };
 };
 export type SchedulerTimezoneUpdateEvent = BaseTrack & {
