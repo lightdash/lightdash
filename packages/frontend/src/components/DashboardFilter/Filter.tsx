@@ -144,8 +144,8 @@ const Filter: FC<Props> = ({
                 })
                 .join(', ');
             return appliedTabList
-                ? `This filter only applies to tabs: ${appliedTabList}.`
-                : 'This filter is not currently applied to any tabs.';
+                ? `This filter only applies to tabs: ${appliedTabList}`
+                : 'This filter is not currently applied to any tabs';
         }
     }, [activeTabUuid, appliesToTabs, dashboardTabs]);
 
