@@ -229,7 +229,26 @@ export const MetricsTable = () => {
                 },
             };
         },
-
+        mantineTableBodyRowProps: {
+            sx: {
+                '&:hover': {
+                    td: {
+                        backgroundColor: theme.colors.gray[0],
+                    },
+                },
+            },
+        },
+        mantineTableBodyCellProps: {
+            h: 72,
+            style: {
+                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+            },
+            sx: {
+                display: 'inline-flex',
+                alignItems: 'center',
+                flexShrink: 0,
+            },
+        },
         renderTopToolbar: () => (
             <Box>
                 <MetricsTableTopToolbar
