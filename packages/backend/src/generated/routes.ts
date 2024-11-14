@@ -7580,6 +7580,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValueLabelPositionOptions: {
+        dataType: 'refEnum',
+        enums: ['hidden', 'top', 'bottom', 'left', 'right', 'inside'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CartesianChartDisplay: {
         dataType: 'refAlias',
         type: {
@@ -7616,6 +7621,9 @@ const models: TsoaRoute.Models = {
                     additionalProperties: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            valueLabelPosition: {
+                                ref: 'ValueLabelPositionOptions',
+                            },
                             type: {
                                 dataType: 'union',
                                 subSchemas: [
