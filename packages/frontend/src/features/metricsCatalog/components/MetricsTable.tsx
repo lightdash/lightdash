@@ -178,6 +178,12 @@ export const MetricsTable = () => {
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: true,
+            sx: {
+                // Remove border on last column - this is the column with the actions buttons (added by default by mantine-react-table)
+                'thead > tr > th:last-of-type, tbody > tr > td:last-of-type': {
+                    borderLeft: 'none',
+                },
+            },
         },
         mantineTableHeadRowProps: {
             sx: {
@@ -217,9 +223,13 @@ export const MetricsTable = () => {
                             ? `2px solid ${theme.colors.blue[3]}`
                             : undefined,
                     },
+                    'tr > th:last-of-type': {
+                        borderLeft: `2px solid ${theme.colors.blue[3]}`,
+                    },
                 },
             };
         },
+
         renderTopToolbar: () => (
             <Box>
                 <MetricsTableTopToolbar
