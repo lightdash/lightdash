@@ -275,6 +275,7 @@ export class SchedulerService extends BaseService {
                         : 0,
                 }),
                 timeZone: getTimezoneLabel(scheduler.timezone),
+                includeLinks: scheduler.includeLinks !== false,
             },
         };
         this.analytics.track(updateSchedulerEventData);

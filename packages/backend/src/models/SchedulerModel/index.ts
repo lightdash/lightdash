@@ -73,6 +73,7 @@ export class SchedulerModel {
             enabled: scheduler.enabled,
             notificationFrequency: scheduler.notification_frequency,
             selectedTabs: scheduler.selected_tabs,
+            includeLinks: scheduler.include_links,
         } as Scheduler;
     }
 
@@ -270,6 +271,7 @@ export class SchedulerModel {
                         newScheduler.selectedTabs
                             ? newScheduler.selectedTabs
                             : null,
+                    include_links: newScheduler.includeLinks !== false,
                 })
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
@@ -339,6 +341,7 @@ export class SchedulerModel {
                         'selectedTabs' in scheduler && scheduler.selectedTabs
                             ? (scheduler.selectedTabs as string[])
                             : null,
+                    include_links: scheduler.includeLinks !== false,
                 })
                 .where('scheduler_uuid', scheduler.schedulerUuid);
 

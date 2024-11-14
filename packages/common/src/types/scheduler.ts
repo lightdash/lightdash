@@ -122,6 +122,7 @@ export type SchedulerBase = {
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
     notificationFrequency?: NotificationFrequency;
+    includeLinks: boolean;
 };
 
 export type ChartScheduler = SchedulerBase & {
@@ -216,6 +217,7 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'options'
     | 'thresholds'
     | 'notificationFrequency'
+    | 'includeLinks'
 > &
     Pick<DashboardScheduler, 'filters' | 'customViewportWidth'> & {
         targets: Array<
