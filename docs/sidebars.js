@@ -64,6 +64,11 @@ module.exports = {
             type: 'category',
             label: 'Guides',
             items: [
+                {
+                    type: 'doc',
+                    id: 'guides/ai-analyst',
+                    label: 'AI Analyst',
+                },
                 'guides/adding-tables-to-lightdash',
                 'guides/how-to-create-dimensions',
                 'guides/how-to-create-metrics',
