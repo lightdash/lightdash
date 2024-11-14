@@ -202,10 +202,10 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                     <TextInput
                         size="xs"
                         radius="md"
-                        h={32}
-                        w={309}
                         styles={(theme) => ({
                             input: {
+                                height: 32,
+                                width: 309,
                                 padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                                 textOverflow: 'ellipsis',
                                 fontSize: theme.fontSizes.sm,
