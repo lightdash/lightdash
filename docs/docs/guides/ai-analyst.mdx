@@ -42,11 +42,14 @@ Good documentation is crucial for AI Analyst to understand your data models and 
 
 Remember: If your colleague wouldn't understand your documentation, neither will the AI Analyst. The more context you provide, the better the AI can interpret and analyze your data.
 
-### Curating your data models
+### Curating the fields used by the AI Analyst
 
-You can use tags in your metrics and dimensions definitions within your YAML file to control which fields the AI Analyst can access, focusing the AI on the most relevant data for analysis. By tagging specific fields, you ensure the AI only considers the data you choose to make available.
+You can use tags in your metrics and dimensions definitions within your YAML file to control which fields the AI Analyst can access. This helps focus the AI on the most relevant data for analysis. 
 
-Here's an example of how you can tag your fields:
+#### Adding tags to metrics & dimensions in your .yml 
+
+To configure which fields are used by your AI analyst, you need to add `tags` to your metrics & dimensions in your .yml files. You can then use these tags in your AI analyst setup to filter the metrics & dimensions available in each AI analyst channel connection.
+
 
 ```yaml
 - name: orders
@@ -55,6 +58,10 @@ Here's an example of how you can tag your fields:
       meta:
         dimension:
           tags: ai #    <--------- tagging the dimension
+     - name: location
+      meta:
+        dimension:
+          tags: ['ai', 'operations'] #    <--------- adding many tags
     - name: amount
       description: Total amount of the order
       meta:
@@ -66,10 +73,12 @@ Here's an example of how you can tag your fields:
             tags: ai #    <--------- tagging the metric
 ```
 
-:::note
+#### Configuring the tags used by the AI Analyst 
 
-You can use any tags you like and as many as you like. The AI Analyst will only consider fields with the tags you specify in the Lightdash settings which you can find under the Organization / Integrations section.
+For each AI Analyst Slack channel connection, you can configure which fields are used to answer questions using the tags you've defined in your .yml files.
+
+You can set this up by going to the `organization settings` --> `Integrations` and adjusting the fields configuration in each channel. 
+
+You can add one or many tags to this list. Fields with **any** of the tags in the list will be considered by the AI Analyst in that Slack channel.
 
 <img src={AiTags} alt="AI Analyst tags" width="50%" />
-
-:::
