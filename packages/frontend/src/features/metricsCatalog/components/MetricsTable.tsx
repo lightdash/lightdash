@@ -73,6 +73,7 @@ export const MetricsTable = () => {
     );
 
     // Check if we are mutating any of the icons or categories related mutations
+    // TODO: Move this to separate hook and utilise constants so this scales better
     const isMutating = useIsMutating({
         predicate: (mutation) => {
             const mutationKeys = [
