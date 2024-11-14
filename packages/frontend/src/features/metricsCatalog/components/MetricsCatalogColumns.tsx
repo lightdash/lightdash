@@ -1,12 +1,14 @@
 import { type CatalogField } from '@lightdash/common';
 import { Box, Group, Highlight, HoverCard, Text, Tooltip } from '@mantine/core';
-import { IconChartLine, IconHash, IconTag } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
-import { useMemo } from 'react';
-import MantineIcon, {
-    type MantineIconProps,
-} from '../../../components/common/MantineIcon';
+import { useMemo, type FC, type SVGProps } from 'react';
+import {
+    Description,
+    Hash,
+    Popularity,
+    Tag,
+} from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
 import { CatalogCategory } from './CatalogCategory';
@@ -16,14 +18,14 @@ import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 
 const HeaderCell = ({
     children,
-    icon,
+    Icon,
 }: {
     children: React.ReactNode;
-    icon: MantineIconProps['icon'];
+    Icon: FC<SVGProps<SVGSVGElement>>;
 }) => {
     return (
         <Group spacing={6} mr={6} h="100%" noWrap>
-            <MantineIcon icon={icon} size="md" color="gray.5" />
+            <Icon />
             <Text
                 fz="xs"
                 fw={600}
@@ -46,7 +48,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         enableSorting: true,
         enableEditing: false,
         Header: ({ column }) => (
-            <HeaderCell icon={IconHash}>{column.columnDef.header}</HeaderCell>
+            <HeaderCell Icon={Hash}>{column.columnDef.header}</HeaderCell>
         ),
         Cell: ({ row, table }) => (
             <Tooltip
@@ -66,7 +68,9 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         size: 300,
         header: 'Description',
         Header: ({ column }) => (
-            <HeaderCell icon={IconHash}>{column.columnDef.header}</HeaderCell>
+            <HeaderCell Icon={Description}>
+                {column.columnDef.header}
+            </HeaderCell>
         ),
         Cell: ({ table, row }) => (
             <HoverCard
@@ -114,7 +118,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             };
         },
         Header: ({ column }) => (
-            <HeaderCell icon={IconTag}>{column.columnDef.header}</HeaderCell>
+            <HeaderCell Icon={Tag}>{column.columnDef.header}</HeaderCell>
         ),
         Edit: ({ table, row, cell }) => {
             const dispatch = useAppDispatch();
@@ -204,9 +208,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         enableEditing: false,
         size: 100,
         Header: ({ column }) => (
-            <HeaderCell icon={IconChartLine}>
-                {column.columnDef.header}
-            </HeaderCell>
+            <HeaderCell Icon={Popularity}>{column.columnDef.header}</HeaderCell>
         ),
         Cell: ({ row }) => <MetricChartUsageButton row={row} />,
     },
