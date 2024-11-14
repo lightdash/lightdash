@@ -1,5 +1,5 @@
 import { type CatalogItem } from '@lightdash/common';
-import { Box, Group, Text, useMantineTheme } from '@mantine/core';
+import { Box, Divider, Group, Text, useMantineTheme } from '@mantine/core';
 import {
     MantineReactTable,
     useMantineReactTable,
@@ -150,13 +150,16 @@ export const MetricsTable = () => {
             },
         },
         renderTopToolbar: () => (
-            <MetricsTableTopToolbar
-                search={search}
-                setSearch={setSearch}
-                totalResults={totalResults}
-                position="apart"
-                p={`${theme.spacing.lg} ${theme.spacing.xl}`}
-            />
+            <Box>
+                <MetricsTableTopToolbar
+                    search={search}
+                    setSearch={setSearch}
+                    totalResults={totalResults}
+                    position="apart"
+                    p={`${theme.spacing.lg} ${theme.spacing.xl}`}
+                />
+                <Divider color="gray.2" />
+            </Box>
         ),
         positionGlobalFilter: 'left',
         renderBottomToolbar: () => (
