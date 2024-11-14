@@ -1,23 +1,19 @@
 import type { CatalogItem } from '@lightdash/common';
-import { ActionIcon, Badge, Box, Group, useMantineTheme } from '@mantine/core';
-import { IconCheck, IconX } from '@tabler/icons-react';
+import { ActionIcon, Badge, Group } from '@mantine/core';
+import { IconX } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useCategoryStyles } from '../styles/useCategoryStyles';
 
 type Props = {
     category: Pick<CatalogItem['categories'][number], 'name' | 'color'>;
     onClick?: React.MouseEventHandler<HTMLDivElement> | undefined;
     onRemove?: () => void;
-    selected?: boolean;
 };
 
-export const CatalogCategory: FC<Props> = ({
-    category,
-    onClick,
-    onRemove,
-    selected,
-}) => {
-    const { fn } = useMantineTheme();
+export const CatalogCategory: FC<Props> = ({ category, onClick, onRemove }) => {
+    const { classes } = useCategoryStyles(category.color);
+
     return (
         <Badge
             key={category.name}
@@ -26,19 +22,15 @@ export const CatalogCategory: FC<Props> = ({
             radius="xl"
             variant="light"
             onClick={onClick}
-            styles={(theme) => ({
+            py={10}
+            h={24}
+            className={classes.base}
+            styles={() => ({
                 root: {
+                    fontSize: '12px',
                     textTransform: 'none',
                     fontWeight: 400,
-                    border: `1px solid ${fn.lighten(category.color, 0.6)}`,
-                    backgroundColor: fn.lighten(category.color, 0.9),
-                    color: fn.darken(category.color, 0.2),
-                    cursor: 'pointer',
                     paddingRight: onRemove ? 2 : 8,
-                    boxShadow: theme.shadows.subtle,
-                    '&:hover': {
-                        backgroundColor: fn.lighten(category.color, 0.8),
-                    },
                 },
             })}
         >
@@ -51,23 +43,13 @@ export const CatalogCategory: FC<Props> = ({
                         onClick={onRemove}
                     >
                         <MantineIcon
-                            color={fn.darken(category.color, 0.4)}
+                            className={classes.removeIcon}
                             icon={IconX}
                             strokeWidth={1.8}
                         />
                     </ActionIcon>
                 )}
             </Group>
-            {selected && (
-                <Box pos="absolute" right={2} top={2}>
-                    <MantineIcon
-                        icon={IconCheck}
-                        strokeWidth={2}
-                        color="dark"
-                        size={12}
-                    />
-                </Box>
-            )}
         </Badge>
     );
 };
