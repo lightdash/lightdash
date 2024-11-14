@@ -65,7 +65,7 @@
         "cronstrue": "^2.22.0",
         "csv-stringify": "^6.5.1",
         "dayjs": "^1.11.10",
-        "echarts": "^5.4.3",
+        "echarts": "^5.5.1",
         "echarts-for-react": "^3.0.2",
         "emoji-picker-react": "^4.12.0",
         "fuse.js": "^6.5.3",
