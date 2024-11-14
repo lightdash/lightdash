@@ -393,6 +393,9 @@ type AuthOidcConfig = {
 
 export type AuthConfig = {
     disablePasswordAuthentication: boolean;
+    /**
+     * @deprecated Group Sync is deprecated. https://github.com/lightdash/lightdash/issues/12430
+     */
     enableGroupSync: boolean;
     enableOidcLinking: boolean;
     enableOidcToEmailLinking: boolean;
