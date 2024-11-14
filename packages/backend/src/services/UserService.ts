@@ -473,6 +473,9 @@ export class UserService extends BaseService {
         });
     }
 
+    /**
+     * @deprecated Group Sync is deprecated. https://github.com/lightdash/lightdash/issues/12430
+     */
     private async tryAddUserToGroups(
         ...data: ArgumentsOf<GroupsModel['addUserToGroupsIfExist']>
     ) {
