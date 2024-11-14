@@ -205,7 +205,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     {categories.length === 0 && hovered ? (
                         <Group spacing={2}>
                             <MantineIcon
-                                color="gray.6"
+                                color="dark.1"
                                 icon={IconPlus}
                                 size={12}
                             />
