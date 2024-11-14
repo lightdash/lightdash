@@ -18,6 +18,7 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import usePageWidth from '../../hooks/usePageWidth';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
@@ -155,6 +156,9 @@ const Filter: FC<Props> = ({
 
     const isPopoverDisabled =
         !filterableFieldsByTileUuid || !allFilterableFields;
+
+    const pageWidth = usePageWidth();
+    console.log(pageWidth);
 
     return (
         <Popover
@@ -308,14 +312,20 @@ const Filter: FC<Props> = ({
                                             is any value
                                         </Text>
                                     ) : (
-                                        <>
+                                        <div
+                                            style={{
+                                                display: 'inline-block',
+                                                position: 'relative',
+                                                maxWidth: `${pageWidth}px`,
+                                            }}
+                                        >
                                             <Text span color="gray.7">
                                                 {filterRuleLabels?.operator}{' '}
                                             </Text>
                                             <Text fw={700} span>
                                                 {filterRuleLabels?.value}
                                             </Text>
-                                        </>
+                                        </div>
                                     )}
                                 </Text>
                             </Text>
