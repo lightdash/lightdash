@@ -24,7 +24,15 @@ const HeaderCell = ({
     return (
         <Group spacing={6} mr={6} h="100%" noWrap>
             <MantineIcon icon={icon} size="md" color="gray.5" />
-            <Text fz="xs" fw={600} color="dark.3">
+            <Text
+                fz="xs"
+                fw={600}
+                color="dark.3"
+                sx={{
+                    // Turn off highlight text cursor - useful when resizing columns
+                    userSelect: 'none',
+                }}
+            >
                 {children}
             </Text>
         </Group>
