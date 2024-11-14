@@ -1,11 +1,11 @@
 import { type CatalogItem } from '@lightdash/common';
 import { Box, Divider, Group, Text, useMantineTheme } from '@mantine/core';
-import { useIsMutating } from '@tanstack/react-query';
 import {
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
 } from '@tabler/icons-react';
+import { useIsMutating } from '@tanstack/react-query';
 import {
     MantineReactTable,
     useMantineReactTable,
