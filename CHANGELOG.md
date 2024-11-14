@@ -1,3 +1,10 @@
+# [0.1364.0](https://github.com/lightdash/lightdash/compare/0.1363.1...0.1364.0) (2024-11-13)
+
+
+### Features
+
+* display color swatch picker ([#12385](https://github.com/lightdash/lightdash/issues/12385)) ([9726946](https://github.com/lightdash/lightdash/commit/972694637f70173e995ac70b5b559689233cdc40))
+
 ## [0.1363.1](https://github.com/lightdash/lightdash/compare/0.1363.0...0.1363.1) (2024-11-13)
 
 
