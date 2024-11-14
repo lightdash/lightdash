@@ -44,12 +44,11 @@ Remember: If your colleague wouldn't understand your documentation, neither will
 
 ### Curating the fields used by the AI Analyst
 
-You can use tags in your metrics and dimensions definitions within your YAML file to control which fields the AI Analyst can access. This helps focus the AI on the most relevant data for analysis. 
+You can use tags in your metrics and dimensions definitions within your YAML file to control which fields the AI Analyst can access. This helps focus the AI on the most relevant data for analysis.
 
-#### Adding tags to metrics & dimensions in your .yml 
+#### Adding tags to metrics & dimensions in your .yml
 
 To configure which fields are used by your AI analyst, you need to add `tags` to your metrics & dimensions in your .yml files. You can then use these tags in your AI analyst setup to filter the metrics & dimensions available in each AI analyst channel connection.
-
 
 ```yaml
 - name: orders
@@ -73,11 +72,11 @@ To configure which fields are used by your AI analyst, you need to add `tags` to
             tags: ai #    <--------- tagging the metric
 ```
 
-#### Configuring the tags used by the AI Analyst 
+#### Configuring the tags used by the AI Analyst
 
 For each AI Analyst Slack channel connection, you can configure which fields are used to answer questions using the tags you've defined in your .yml files.
 
-You can set this up by going to the `organization settings` --> `Integrations` and adjusting the fields configuration in each channel. 
+You can set this up by going to the `organization settings` --> `Integrations` and adjusting the fields configuration in each channel.
 
 You can add one or many tags to this list. Fields with **any** of the tags in the list will be considered by the AI Analyst in that Slack channel.
 
