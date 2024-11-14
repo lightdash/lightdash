@@ -2,6 +2,11 @@ import { type CatalogItem } from '@lightdash/common';
 import { Box, Divider, Group, Text, useMantineTheme } from '@mantine/core';
 import { useIsMutating } from '@tanstack/react-query';
 import {
+    IconArrowDown,
+    IconArrowsSort,
+    IconArrowUp,
+} from '@tabler/icons-react';
+import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_SortingState,
@@ -16,6 +21,7 @@ import {
     useState,
     type UIEvent,
 } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { ExploreMetricButton } from './ExploreMetricButton';
@@ -151,6 +157,7 @@ export const MetricsTable = () => {
         manualSorting: true,
         onSortingChange: setSorting,
         enableTopToolbar: true,
+        positionGlobalFilter: 'left',
         mantinePaperProps: {
             shadow: undefined,
             sx: {
@@ -175,10 +182,37 @@ export const MetricsTable = () => {
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
+
                 // Each head row has a divider when resizing columns is enabled
                 'th > div > div:last-child': {
-                    width: '0.5px',
-                    padding: '0px',
+                    height: 40,
+                    top: -10,
+                    right: -5,
+                },
+
+                'th > div > div:last-child > .mantine-Divider-root': {
+                    border: 'none',
+                },
+            },
+        },
+        mantineTableHeadCellProps: {
+            bg: 'gray.0',
+            h: '3xl',
+            pos: 'relative',
+            style: {
+                padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
+            },
+            sx: {
+                justifyContent: 'center',
+                borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                borderRight: `1px solid ${theme.colors.gray[2]}`,
+
+                '.mantine-TableHeadCell-Content-Labels': {
+                    alignItems: 'flex-end',
+                },
+
+                '&:hover': {
+                    borderRight: `2px solid ${theme.colors.blue[3]}`,
                 },
             },
         },
@@ -194,7 +228,6 @@ export const MetricsTable = () => {
                 <Divider color="gray.2" />
             </Box>
         ),
-        positionGlobalFilter: 'left',
         renderBottomToolbar: () => (
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
@@ -223,6 +256,17 @@ export const MetricsTable = () => {
                 )}
             </Box>
         ),
+        icons: {
+            IconArrowsSort: () => (
+                <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
+            ),
+            IconSortAscending: () => (
+                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
+            ),
+            IconSortDescending: () => (
+                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
+            ),
+        },
         state: {
             sorting,
             showProgressBars: false,

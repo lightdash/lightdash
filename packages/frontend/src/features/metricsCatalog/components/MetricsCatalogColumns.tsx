@@ -1,8 +1,12 @@
 import { type CatalogField } from '@lightdash/common';
 import { Box, Group, Highlight, HoverCard, Text, Tooltip } from '@mantine/core';
+import { IconChartLine, IconHash, IconTag } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
+import MantineIcon, {
+    type MantineIconProps,
+} from '../../../components/common/MantineIcon';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
 import { CatalogCategory } from './CatalogCategory';
@@ -10,12 +14,32 @@ import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 
+const HeaderCell = ({
+    children,
+    icon,
+}: {
+    children: React.ReactNode;
+    icon: MantineIconProps['icon'];
+}) => {
+    return (
+        <Group spacing={6} mr={6} h="100%" noWrap>
+            <MantineIcon icon={icon} size="md" color="gray.5" />
+            <Text fz="xs" fw={600} color="dark.3">
+                {children}
+            </Text>
+        </Group>
+    );
+};
+
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
         accessorKey: 'name',
-        header: 'Metric Name',
+        header: 'Metric',
         enableSorting: true,
         enableEditing: false,
+        Header: ({ column }) => (
+            <HeaderCell icon={IconHash}>{column.columnDef.header}</HeaderCell>
+        ),
         Cell: ({ row, table }) => (
             <Tooltip
                 label={row.original.tableName}
@@ -29,10 +53,13 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     },
     {
         accessorKey: 'description',
-        header: 'Description',
         enableSorting: false,
         enableEditing: false,
         size: 300,
+        header: 'Description',
+        Header: ({ column }) => (
+            <HeaderCell icon={IconHash}>{column.columnDef.header}</HeaderCell>
+        ),
         Cell: ({ table, row }) => (
             <HoverCard
                 withinPortal
@@ -78,6 +105,9 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                 },
             };
         },
+        Header: ({ column }) => (
+            <HeaderCell icon={IconTag}>{column.columnDef.header}</HeaderCell>
+        ),
         Edit: ({ table, row, cell }) => {
             const dispatch = useAppDispatch();
             const canManageTags = useAppSelector(
@@ -165,6 +195,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         enableSorting: true,
         enableEditing: false,
         size: 100,
+        Header: ({ column }) => (
+            <HeaderCell icon={IconChartLine}>
+                {column.columnDef.header}
+            </HeaderCell>
+        ),
         Cell: ({ row }) => <MetricChartUsageButton row={row} />,
     },
 ];
