@@ -195,26 +195,30 @@ export const MetricsTable = () => {
                 },
             },
         },
-        mantineTableHeadCellProps: {
-            bg: 'gray.0',
-            h: '3xl',
-            pos: 'relative',
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-            },
-            sx: {
-                justifyContent: 'center',
-                borderBottom: `1px solid ${theme.colors.gray[2]}`,
-                borderRight: `1px solid ${theme.colors.gray[2]}`,
-
-                '.mantine-TableHeadCell-Content-Labels': {
-                    alignItems: 'flex-end',
+        mantineTableHeadCellProps: (props) => {
+            const isAnyColumnResizing = props.table
+                .getAllColumns()
+                .some((c) => c.getIsResizing());
+            return {
+                bg: 'gray.0',
+                h: '3xl',
+                pos: 'relative',
+                style: {
+                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
                 },
-
-                '&:hover': {
-                    borderRight: `2px solid ${theme.colors.blue[3]}`,
+                sx: {
+                    justifyContent: 'center',
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderRight: props.column.getIsResizing()
+                        ? `2px solid ${theme.colors.blue[3]}`
+                        : `1px solid ${theme.colors.gray[2]}`,
+                    '&:hover': {
+                        borderRight: !isAnyColumnResizing
+                            ? `2px solid ${theme.colors.blue[3]}`
+                            : undefined,
+                    },
                 },
-            },
+            };
         },
         renderTopToolbar: () => (
             <Box>
