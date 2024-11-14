@@ -188,7 +188,8 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                 <Flex
                     ref={ref}
                     pos="absolute"
-                    p="md"
+                    py={6}
+                    px="md"
                     left={0}
                     top={0}
                     w="100%"
