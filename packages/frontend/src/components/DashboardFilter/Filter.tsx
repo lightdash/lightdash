@@ -307,6 +307,7 @@ const Filter: FC<Props> = ({
                                             isPopoverOpen ||
                                             !filterRuleTables?.length
                                         }
+                                        openDelay={1000}
                                         offset={8}
                                         label={
                                             <Text fz="xs">
