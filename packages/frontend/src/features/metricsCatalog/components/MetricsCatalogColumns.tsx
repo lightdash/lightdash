@@ -1,9 +1,10 @@
 import { type CatalogField } from '@lightdash/common';
-import { Box, Group, Highlight, HoverCard, Text } from '@mantine/core';
+import { Box, Group, Highlight, HoverCard, Text, Tooltip } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
-import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
 import { CatalogCategory } from './CatalogCategory';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
@@ -15,14 +16,23 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Metric Name',
         enableSorting: true,
         enableEditing: false,
-        Cell: MetricsCatalogColumnName,
+        Cell: ({ row, table }) => (
+            <Tooltip
+                label={row.original.tableName}
+                disabled={!row.original.tableName}
+                withinPortal
+                position="right"
+            >
+                <MetricsCatalogColumnName row={row} table={table} />
+            </Tooltip>
+        ),
     },
     {
         accessorKey: 'description',
         header: 'Description',
         enableSorting: false,
         enableEditing: false,
-        size: 400,
+        size: 300,
         Cell: ({ table, row }) => (
             <HoverCard
                 withinPortal
@@ -51,19 +61,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         ),
     },
     {
-        accessorKey: 'directory',
-        header: 'Table',
-        enableSorting: false,
-        enableEditing: false,
-        size: 150,
-        Cell: ({ row }) => <Text fw={500}>{row.original.tableName}</Text>,
-    },
-    {
         accessorKey: 'categories',
         header: 'Category',
         enableSorting: false,
         enableEditing: true,
-        size: 150,
+        size: 200,
         minSize: 180,
         mantineTableBodyCellProps: () => {
             return {
@@ -77,6 +79,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             };
         },
         Edit: ({ table, row, cell }) => {
+            const dispatch = useAppDispatch();
             const canManageTags = useAppSelector(
                 (state) => state.metricsCatalog.abilities.canManageTags,
             );
@@ -102,7 +105,15 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                                 table.getState().editingCell?.id === cell.id
                             }
                             onClose={() => {
+                                dispatch(setCategoryPopoverIsClosing(true));
                                 table.setEditingCell(null);
+
+                                // Resetting the state to avoid race conditions with the category cell click
+                                setTimeout(() => {
+                                    dispatch(
+                                        setCategoryPopoverIsClosing(false),
+                                    );
+                                }, 100);
                             }}
                         />
                     )}
@@ -110,6 +121,10 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
         },
         Cell: ({ row, table, cell }) => {
+            const isCategoryPopoverClosing = useAppSelector(
+                (state) => state.metricsCatalog.popovers.category.isClosing,
+            );
+
             const categories = useMemo(
                 () => row.original.categories ?? [],
                 [row],
@@ -125,6 +140,10 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     w="100%"
                     h="100%"
                     onClick={() => {
+                        if (isCategoryPopoverClosing) {
+                            return;
+                        }
+
                         table.setEditingCell(cell);
                     }}
                 >

@@ -44,6 +44,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
             warehouseClient,
             gitBranch: branch,
             remoteRepositoryUrl,
+            repository,
             projectDirectorySubPath,
             warehouseCredentials,
             targetName,

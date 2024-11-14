@@ -14,6 +14,11 @@ type MetricsCatalogState = {
     projectUuid: string | undefined;
     organizationUuid: string | undefined;
     categoryFilters: CatalogField['categories'][number]['tagUuid'][];
+    popovers: {
+        category: {
+            isClosing: boolean;
+        };
+    };
 };
 
 const initialState: MetricsCatalogState = {
@@ -27,6 +32,11 @@ const initialState: MetricsCatalogState = {
     modals: {
         chartUsageModal: {
             isOpen: false,
+        },
+    },
+    popovers: {
+        category: {
+            isClosing: false,
         },
     },
 };
@@ -65,6 +75,12 @@ export const metricsCatalogSlice = createSlice({
         ) => {
             state.abilities = action.payload;
         },
+        setCategoryPopoverIsClosing: (
+            state,
+            action: PayloadAction<boolean>,
+        ) => {
+            state.popovers.category.isClosing = action.payload;
+        },
     },
 });
 
@@ -75,4 +91,5 @@ export const {
     clearCategoryFilters,
     setOrganizationUuid,
     setAbility,
+    setCategoryPopoverIsClosing,
 } = metricsCatalogSlice.actions;

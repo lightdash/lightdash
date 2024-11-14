@@ -19,10 +19,11 @@ const MetricsCatalog: FC = () => {
                 }}
             >
                 <Page
-                    withFitContent
-                    withPaddedContent
-                    withRightSidebar
+                    withCenteredRoot
+                    withCenteredContent
+                    withXLargePaddedContent
                     withLargeContent
+                    backgroundColor="#FAFAFA"
                 >
                     <MetricsCatalogPanel />
                 </Page>

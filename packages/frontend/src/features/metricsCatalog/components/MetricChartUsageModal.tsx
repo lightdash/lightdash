@@ -35,63 +35,82 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
     });
 
     return (
-        <Modal
+        <Modal.Root
             opened={opened}
             onClose={onClose}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconDeviceAnalytics}
-                        size="lg"
-                        color="gray.7"
-                    />
-                    <Text fw={500}>Metric Usage</Text>
-                </Group>
-            }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.gray[4]}` },
-                body: { padding: 0 },
-            })}
+            yOffset={200}
+            scrollAreaComponent={undefined}
+            size="lg"
         >
-            <Stack p="md" spacing="xs">
-                <Text>This metric is used in the following charts:</Text>
-                {isLoading ? (
-                    <Text size="sm" color="dimmed">
-                        Loading...
-                    </Text>
-                ) : analytics?.charts.length === 0 ? (
-                    <Text size="sm" color="dimmed">
-                        No charts found using this metric
-                    </Text>
-                ) : (
-                    <List pl="sm">
-                        {analytics?.charts.map((chart) => (
-                            <List.Item key={chart.uuid} fz="sm">
-                                <Anchor
-                                    href={`/projects/${projectUuid}/saved/${chart.uuid}`}
-                                    target="_blank"
-                                    onClick={() => {
-                                        track({
-                                            name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED,
-                                            properties: {
-                                                organizationId:
-                                                    organizationUuid,
-                                                projectId: projectUuid,
-                                                metricName: activeMetric?.name,
-                                                tableName:
-                                                    activeMetric?.tableName,
-                                                chartId: chart.uuid,
-                                            },
-                                        });
-                                    }}
-                                >
-                                    {chart.name}
-                                </Anchor>
-                            </List.Item>
-                        ))}
-                    </List>
-                )}
-            </Stack>
-        </Modal>
+            <Modal.Overlay />
+            <Modal.Content sx={{ overflow: 'hidden' }}>
+                <Modal.Header
+                    sx={(theme) => ({
+                        borderBottom: `1px solid ${theme.colors.gray[4]}`,
+                    })}
+                >
+                    <Group spacing="xs">
+                        <MantineIcon
+                            icon={IconDeviceAnalytics}
+                            size="lg"
+                            color="gray.7"
+                        />
+                        <Text fw={500}>Metric Usage</Text>
+                    </Group>
+                    <Modal.CloseButton />
+                </Modal.Header>
+                <Modal.Body
+                    p={0}
+                    mah={300}
+                    h="100%"
+                    sx={{
+                        overflowY: 'auto',
+                    }}
+                >
+                    <Stack spacing="xs" p="md">
+                        <Text>
+                            This metric is used in the following charts:
+                        </Text>
+                        {isLoading ? (
+                            <Text size="sm" color="dimmed">
+                                Loading...
+                            </Text>
+                        ) : analytics?.charts.length === 0 ? (
+                            <Text size="sm" color="dimmed">
+                                No charts found using this metric
+                            </Text>
+                        ) : (
+                            <List pl="sm">
+                                {analytics?.charts.map((chart) => (
+                                    <List.Item key={chart.uuid} fz="sm">
+                                        <Anchor
+                                            href={`/projects/${projectUuid}/saved/${chart.uuid}`}
+                                            target="_blank"
+                                            onClick={() => {
+                                                track({
+                                                    name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED,
+                                                    properties: {
+                                                        organizationId:
+                                                            organizationUuid,
+                                                        projectId: projectUuid,
+                                                        metricName:
+                                                            activeMetric?.name,
+                                                        tableName:
+                                                            activeMetric?.tableName,
+                                                        chartId: chart.uuid,
+                                                    },
+                                                });
+                                            }}
+                                        >
+                                            {chart.name}
+                                        </Anchor>
+                                    </List.Item>
+                                ))}
+                            </List>
+                        )}
+                    </Stack>
+                </Modal.Body>
+            </Modal.Content>
+        </Modal.Root>
     );
 };

@@ -35,7 +35,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
-import { useHistory, useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { useToggle } from 'react-use';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -87,6 +87,7 @@ type DashboardHeaderProps = {
     onToggleFullscreen: () => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     onTogglePin: () => void;
+    onEditClicked: () => void;
 };
 
 const DashboardHeader = ({
@@ -112,6 +113,7 @@ const DashboardHeader = ({
     onToggleFullscreen,
     setAddingTab,
     onTogglePin,
+    onEditClicked,
 }: DashboardHeaderProps) => {
     const { search } = useLocation();
     const { projectUuid, dashboardUuid } = useParams<{
@@ -120,7 +122,6 @@ const DashboardHeader = ({
         organizationUuid: string;
     }>();
 
-    const history = useHistory();
     const { data: project } = useProject(projectUuid);
 
     const { track } = useTracking();
@@ -374,11 +375,7 @@ const DashboardHeader = ({
                         >
                             <ActionIcon
                                 variant="default"
-                                onClick={() => {
-                                    history.replace(
-                                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-                                    );
-                                }}
+                                onClick={onEditClicked}
                             >
                                 <MantineIcon icon={IconPencil} />
                             </ActionIcon>

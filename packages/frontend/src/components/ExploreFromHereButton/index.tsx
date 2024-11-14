@@ -19,6 +19,7 @@ const ExploreFromHereButton = () => {
             return getExplorerUrlFromCreateSavedChartVersion(
                 savedChart.projectUuid,
                 savedChart,
+                true,
             );
         }
     }, [savedChart]);

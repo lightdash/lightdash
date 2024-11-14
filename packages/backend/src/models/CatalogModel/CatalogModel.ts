@@ -316,10 +316,18 @@ export class CatalogModel {
         }
 
         if (catalogTags) {
-            catalogItemsQuery = catalogItemsQuery.andWhere(
-                `${CatalogTagsTableName}.tag_uuid`,
-                'in',
-                catalogTags,
+            catalogItemsQuery = catalogItemsQuery.whereExists(
+                function getAllCatalogCategoriesThatMatchTags() {
+                    void this.select('*')
+                        .from(CatalogTagsTableName)
+                        .whereRaw(
+                            `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                        )
+                        .whereIn(
+                            `${CatalogTagsTableName}.tag_uuid`,
+                            catalogTags,
+                        );
+                },
             );
         }
 

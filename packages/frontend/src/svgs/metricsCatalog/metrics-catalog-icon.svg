@@ -1,0 +1,36 @@
+<svg width="50" height="51" viewBox="0 0 50 51" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="14.1041" y="0.612342" width="36.5282" height="36.5282" rx="9.5" transform="rotate(15 14.1041 0.612342)" fill="url(#paint0_linear_384_2217)" fill-opacity="0.61"/>
+<rect x="14.1041" y="0.612342" width="36.5282" height="36.5282" rx="9.5" transform="rotate(15 14.1041 0.612342)" stroke="#C0ACFA"/>
+<g filter="url(#filter0_dii_384_2217)">
+<rect x="2" y="10" width="38" height="38" rx="10" fill="white" shape-rendering="crispEdges"/>
+<rect x="2.5" y="10.5" width="37" height="37" rx="9.5" stroke="#9775FA" shape-rendering="crispEdges"/>
+<path d="M18.5 20L15.5 38M26.5 20L23.5 38M29.5 25H12.5M28.5 33H11.5" stroke="#845EF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<defs>
+<filter id="filter0_dii_384_2217" x="0" y="9" width="42" height="42" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="1"/>
+<feGaussianBlur stdDeviation="1"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.0627451 0 0 0 0 0.0941176 0 0 0 0 0.156863 0 0 0 0.05 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_384_2217"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_384_2217" result="shape"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset dy="-4"/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.0392157 0 0 0 0 0.0496732 0 0 0 0 0.0705882 0 0 0 0.07 0"/>
+<feBlend mode="normal" in2="shape" result="effect2_innerShadow_384_2217"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feMorphology radius="1" operator="erode" in="SourceAlpha" result="effect3_innerShadow_384_2217"/>
+<feOffset/>
+<feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.0392157 0 0 0 0 0.0496732 0 0 0 0 0.0705882 0 0 0 0.18 0"/>
+<feBlend mode="normal" in2="effect2_innerShadow_384_2217" result="effect3_innerShadow_384_2217"/>
+</filter>
+<linearGradient id="paint0_linear_384_2217" x1="32.5146" y1="-3.05176e-05" x2="32.5146" y2="37.5282" gradientUnits="userSpaceOnUse">
+<stop stop-color="#DACDFB"/>
+<stop offset="1" stop-color="white"/>
+</linearGradient>
+</defs>
+</svg>

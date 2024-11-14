@@ -1,0 +1,209 @@
+import ScimAzureConfigureProvisioning from './assets/scim/scim-azure-configure-provisioning.png';
+import ScimAzureCreateApp from './assets/scim/scim-azure-create-app.png';
+import ScimAzureEditApp from './assets/scim/scim-azure-edit-app.png';
+import ScimLightdashGenerateToken from './assets/scim/scim-lightdash-generate-token.png';
+import ScimLightdashGeneratedToken from './assets/scim/scim-lightdash-generated-token.png';
+import ScimLightdashTokensList from './assets/scim/scim-lightdash-tokens-list.png';
+import ScimLightdashUserSettings from './assets/scim/scim-lightdash-user-settings.png';
+import ScimLightdashViewURL from './assets/scim/scim-lightdash-view-url.png';
+import ScimOktaAssignUsers from './assets/scim/scim-okta-assign-users.png';
+import ScimOktaConfigureApiIntegration from './assets/scim/scim-okta-configure-api-integration.png';
+import ScimOktaCreateIntegration from './assets/scim/scim-okta-create-integration.png';
+import ScimOktaNameApp from './assets/scim/scim-okta-name-app.png';
+import ScimOktaProvisioning from './assets/scim/scim-okta-provisioning.png';
+import { CloudEnterprisePill } from '../../src/components/PlanPills.jsx';
+
+# SCIM Integration
+
+<CloudEnterprisePill />
+
+:::info
+
+SCIM Integration is only available on Lightdash Enterprise plans. For more information on our plans, visit our [pricing page](https://www.lightdash.com/pricing).
+
+:::
+
+## Summary
+
+This document describes the steps required to integrate Azure or Okta SCIM protocol into your Enterprise instance. This provides a connection for Azure or Okta to manage users and groups within your organization.
+
+## SCIM Setup within Lightdash
+
+1. Sign into your Lightdash instance, click your initials at the top-right, and select **User Settings**.
+
+   <img
+     src={ScimLightdashUserSettings}
+     width="483"
+     height="278"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+2. In the sidebar, select **SCIM Access Tokens**.
+
+   <img
+     src={ScimLightdashTokensList}
+     width="1376"
+     height="760"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+3. Click **Generate new token**.
+
+   - Give it a name and an optional expiration date.
+
+   <img
+     src={ScimLightdashGenerateToken}
+     width="754"
+     height="375"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+4. Once generated, copy and save it in a safe place, as it cannot be viewed again once the modal is closed.
+
+   <img
+     src={ScimLightdashGeneratedToken}
+     width="670"
+     height="266"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+5. Note: Now you will also be able to see your SCIM URL at the top of the page. You will need this when connecting an external SCIM service, such as Okta or Azure.
+
+   <img
+     src={ScimLightdashViewURL}
+     width="968"
+     height="249"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+## Okta Integration
+
+### Step 1 - Add or Create Application in Okta
+
+:::note
+You can skip this step if you have Azure SSO already configured. An application will already be present.
+:::
+
+1. Visit your Okta account and sign in.
+2. In the sidebar, click **Applications > Browse App Catalog**.
+3. Search for "SCIM" and select **SCIM 2.0 Test App (Header Auth)**.
+4. Click **+ Add Integration**.
+
+   <img
+     src={ScimOktaCreateIntegration}
+     width="1707"
+     height="788"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+5. Give it a friendly name and click **Next**.
+
+   <img
+     src={ScimOktaNameApp}
+     width="1271"
+     height="713"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+6. Change **Application username format** to email.
+7. Save your configuration by clicking **Done**.
+
+### Step 2 - Connect SCIM to Lightdash from Okta
+
+1. In the sidebar, click **Applications > Applications**.
+2. Select your application and go to the **Provisioning** tab.
+
+   <img
+     src={ScimOktaProvisioning}
+     width="1086"
+     height="927"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+3. Select **Configure API Integration**.
+
+   <img
+     src={ScimOktaConfigureApiIntegration}
+     width="1413"
+     height="750"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+4. Check the **Enable API integration** checkbox.
+5. Fill in the following fields:
+   - **Base URL**: `https://YOUR_APP_URL/api/v1/scim/v2/`
+   - **API Token**: `Bearer YOUR_SCIM_TOKEN` (See SCIM Setup within Lightdash above for generating a token)
+6. Save your configuration.
+7. More options should be available. In **Provisioning > To App**, select **Edit**.
+   - Enable **Create Users**.
+   - Enable **Update User Attributes**.
+   - Enable **Deactivate Users**.
+   - Click **Save**.
+8. Test the integration by clicking **Assignments**. Select **Assign > Assign to people**. Choose a user and click **Assign > Save and Go Back**. This user should be created in your Lightdash instance.
+
+   <img
+     src={ScimOktaAssignUsers}
+     width="1379"
+     height="795"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+:::info
+
+Lightdash will sync the active status from Okta to Lightdash. For example, if a user is provisioned as inactive or is deactivated in Okta, that user will still exist in Lightdash marked as inactive, meaning they will be unable to use the platform.
+
+:::
+
+## Azure Integration
+
+### Step 1 - Connect SCIM to Lightdash from Azure
+
+1. Visit [Entra ID](https://entra.microsoft.com/) and sign in.
+2. In the sidebar, click **Applications > Enterprise applications**.
+3. Select **+ New Registration**.
+
+   <img
+     src={ScimAzureCreateApp}
+     width="1376"
+     height="714"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+4. At the top of the page, select **+ Create Your own application**.
+
+   - Add a friendly title.
+   - Leave the default "Non-gallery" option selected.
+   - Click **Test Connection** to verify the credentials are correct.
+
+   <img
+     src={ScimAzureEditApp}
+     width="1377"
+     height="809"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+5. Save your configuration by clicking **Create**.
+
+### Step 2 - Connect SCIM to Lightdash from Azure
+
+1. Navigate to **Applications > Enterprise applications** and select your application.
+2. Select **Users and groups > + Add user/group**.
+3. Click **None selected**, which will open a modal.
+   - Select any users and groups you want to provision and then close the modal with **Select**.
+4. Click **Assign** to save.
+
+   <img
+     src={ScimAzureConfigureProvisioning}
+     width="1165"
+     height="862"
+     style={{ display: 'block', margin: '0 auto 20px auto' }}
+   />
+
+5. Select **Provision > Start provisioning**.
+6. After a few minutes, your users and groups will be synced.
+
+:::info
+
+Lightdash will sync the active status from Azure to Lightdash. For example, if a user is provisioned as inactive or is deactivated in Azure, that user will still exist in Lightdash marked as inactive, meaning they will be unable to use the platform.
+
+:::

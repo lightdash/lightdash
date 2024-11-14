@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.1359.0",
+    "version": "0.1365.1",
     "license": "MIT",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
@@ -10,13 +10,13 @@
     "dependencies": {
         "@databricks/sql": "1.8.1",
         "@google-cloud/bigquery": "^7.2.0",
-        "@lightdash/common": "^0.1359.0",
+        "@lightdash/common": "^0.1365.1",
         "lodash": "^4.17.21",
         "pg": "^8.11.3",
         "pg-cursor": "^2.10.0",
         "snowflake-sdk": "~1.14.0",
         "ssh2": "^1.14.0",
-        "trino-client": "^0.2.3"
+        "trino-client": "0.2.3"
     },
     "devDependencies": {
         "@types/pg": "^8.10.7",

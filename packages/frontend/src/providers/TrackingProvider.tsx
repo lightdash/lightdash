@@ -63,7 +63,8 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_EXPLORE_CLICKED
         | EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED
         | EventName.METRICS_CATALOG_CATEGORY_CLICKED
-        | EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED;
+        | EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED
+        | EventName.METRICS_CATALOG_ICON_APPLIED;
     properties?: {};
 };
 
@@ -225,6 +226,14 @@ type MetricsCatalogCategoryFilterAppliedEvent = {
     };
 };
 
+type MetricsCatalogIconAppliedEvent = {
+    name: EventName.METRICS_CATALOG_ICON_APPLIED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -242,7 +251,8 @@ export type EventData =
     | MetricsCatalogExploreClickedEvent
     | MetricsCatalogChartUsageChartClickedEvent
     | MetricsCatalogCategoryClickedEvent
-    | MetricsCatalogCategoryFilterAppliedEvent;
+    | MetricsCatalogCategoryFilterAppliedEvent
+    | MetricsCatalogIconAppliedEvent;
 
 type IdentifyData = {
     id: string;

@@ -52,6 +52,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             remoteRepositoryUrl,
             projectDirectorySubPath,
             warehouseCredentials,
+            repository: githubRepository,
             gitBranch: githubBranch,
             targetName,
             environment,
