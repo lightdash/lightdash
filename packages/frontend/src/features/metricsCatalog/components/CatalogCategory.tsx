@@ -23,10 +23,10 @@ export const CatalogCategory: FC<Props> = ({
             key={category.name}
             pos="relative"
             size="sm"
-            radius="sm"
+            radius="xl"
             variant="light"
             onClick={onClick}
-            styles={{
+            styles={(theme) => ({
                 root: {
                     textTransform: 'none',
                     fontWeight: 400,
@@ -35,11 +35,12 @@ export const CatalogCategory: FC<Props> = ({
                     color: fn.darken(category.color, 0.2),
                     cursor: 'pointer',
                     paddingRight: onRemove ? 2 : 8,
+                    boxShadow: theme.shadows.subtle,
                     '&:hover': {
                         backgroundColor: fn.lighten(category.color, 0.8),
                     },
                 },
-            }}
+            })}
         >
             <Group spacing={1}>
                 {category.name}
