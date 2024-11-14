@@ -209,7 +209,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                                 icon={IconPlus}
                                 size={12}
                             />
-                            <Text span fz="sm" color="gray.6">
+                            <Text span fz="sm" color="dark.1">
                                 Click to add
                             </Text>
                         </Group>
