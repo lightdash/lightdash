@@ -1,0 +1,83 @@
+---
+title: AI Analyst
+description: Learn how to use Lightdash's AI Analyst to explore your data
+---
+
+import {
+  CloudProPill,
+  CloudEnterprisePill,
+} from '@site/src/components/PlanPills';
+import AiTags from './assets/ai-tags.png';
+
+<div>
+  <CloudProPill />
+  <CloudEnterprisePill />
+</div>
+
+The Lightdash AI Analyst transforms the way you interact with your data by allowing you to ask questions in natural language and get meaningful insights back. Currently, you can interact with the AI Analyst via Slack with more options coming soon.
+
+## How it works
+
+Simply ask the AI Analyst questions about your data, and it will:
+
+- Automatically select the most relevant data model and metrics to answer your question
+- Build and execute queries with appropriate dimensions, filters, and limits
+- Present results in the most insightful format - whether that's a visualization, table, or natural language summary
+- Ask clarifying questions when needed to ensure you get exactly what you're looking for
+
+## Preparing your data for the AI Analyst
+
+To get the most out of the AI Analyst, it's important to properly prepare your metrics. The quality of the results depend on the quality of your metadata and documentation.
+
+### Documenting your data
+
+Good documentation is crucial for AI Analyst to understand your data models and provide meaningful insights. Here are some key tips:
+
+- Write clear, descriptive names for metrics and dimensions that avoid acronyms or technical jargon
+- Add detailed descriptions to all metrics and dimensions explaining what they represent.
+- Descriptions can even include example questions that the AI Analyst could answer with the metric (e.g. "Useful for answering questions like 'What is the total revenue for the USA?'").
+- Use business terminology that would make sense to any user, not just technical teams
+- Include units of measurement where applicable (e.g. "Revenue in USD" rather than just "Revenue")
+- Document any important caveats or limitations about the data
+
+Remember: If your colleague wouldn't understand your documentation, neither will the AI Analyst. The more context you provide, the better the AI can interpret and analyze your data.
+
+### Curating the fields used by the AI Analyst
+
+You can use tags in your metrics and dimensions definitions within your YAML file to control which fields the AI Analyst can access. This helps focus the AI on the most relevant data for analysis.
+
+#### Adding tags to metrics & dimensions in your .yml
+
+To configure which fields are used by your AI analyst, you need to add `tags` to your metrics & dimensions in your .yml files. You can then use these tags in your AI analyst setup to filter the metrics & dimensions available in each AI analyst channel connection.
+
+```yaml
+- name: orders
+  columns:
+    - name: status
+      meta:
+        dimension:
+          tags: ai #    <--------- tagging the dimension
+     - name: location
+      meta:
+        dimension:
+          tags: ['ai', 'operations'] #    <--------- adding many tags
+    - name: amount
+      description: Total amount of the order
+      meta:
+        metrics:
+          total_order_amount:
+            type: sum
+            format: usd
+            round: 2
+            tags: ai #    <--------- tagging the metric
+```
+
+#### Configuring the tags used by the AI Analyst
+
+For each AI Analyst Slack channel connection, you can configure which fields are used to answer questions using the tags you've defined in your .yml files.
+
+You can set this up by going to the `organization settings` --> `Integrations` and adjusting the fields configuration in each channel.
+
+You can add one or many tags to this list. Fields with **any** of the tags in the list will be considered by the AI Analyst in that Slack channel.
+
+<img src={AiTags} alt="AI Analyst tags" width="50%" />

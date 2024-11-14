@@ -66,6 +66,7 @@ type DashboardContext = {
     allFilters: DashboardFilters;
     isLoadingDashboardFilters: boolean;
     isFetchingDashboardFilters: boolean;
+    resetDashboardFilters: () => void;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setDashboardTemporaryFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (
@@ -224,6 +225,7 @@ export const DashboardProvider: React.FC<
         overridesForSavedDashboardFilters,
         addSavedFilterOverride,
         removeSavedFilterOverride,
+        resetSavedFilterOverrides,
     } = useSavedDashboardFiltersOverrides();
 
     const savedChartUuidsAndTileUuids = useMemo(
@@ -272,7 +274,7 @@ export const DashboardProvider: React.FC<
         }
     }, [dashboard, dashboardFilters, overridesForSavedDashboardFilters]);
 
-    // Updates url with temp filters
+    // Updates url with temp and overridden filters
     useEffect(() => {
         const newParams = new URLSearchParams(search);
         if (
@@ -437,6 +439,27 @@ export const DashboardProvider: React.FC<
         };
     }, [dashboardFilters, dashboardTemporaryFilters]);
 
+    // Resets all dashboard filters. There's a bit of a race condition
+    // here because we store filters in memory in two places:
+    //  1. dashboardFilters: in memory
+    //  2. overridesForSavedDashboardFilters: in url
+    // This resets all of them.
+    // TODO: fix up the data flow for filters so that they get set
+    // and read more centrally.
+    const resetDashboardFilters = useCallback(() => {
+        // reset in memory filters
+        setDashboardFilters(dashboard?.filters ?? emptyFilters);
+        // reset temporary filters
+        setDashboardTemporaryFilters(emptyFilters);
+        // reset saved filter overrides which are stored in url
+        resetSavedFilterOverrides();
+    }, [
+        setDashboardFilters,
+        setDashboardTemporaryFilters,
+        dashboard?.filters,
+        resetSavedFilterOverrides,
+    ]);
+
     const hasChartTiles = useMemo(
         () =>
             Boolean(
@@ -489,6 +512,7 @@ export const DashboardProvider: React.FC<
                             );
                         if (isReverted) {
                             removeSavedFilterOverride(item);
+                            setHaveFiltersChanged(false);
                         } else {
                             const hasChanged = hasSavedFilterValueChanged(
                                 previousFilters.dimensions[index],
@@ -634,6 +658,7 @@ export const DashboardProvider: React.FC<
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         addMetricDashboardFilter,
+        resetDashboardFilters,
         setDashboardFilters,
         haveFiltersChanged,
         setHaveFiltersChanged,

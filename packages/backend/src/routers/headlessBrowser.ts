@@ -1,9 +1,8 @@
 import { ForbiddenError } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import express from 'express';
+import playwright from 'playwright';
 import { lightdashConfig } from '../config/lightdashConfig';
-
-const puppeteer = require('puppeteer');
 
 export const headlessBrowserRouter = express.Router({ mergeParams: true });
 
@@ -62,9 +61,9 @@ if (
         try {
             const browserWSEndpoint = `ws://${process.env.HEADLESS_BROWSER_HOST}:${process.env.HEADLESS_BROWSER_PORT}`;
             console.debug(`Headless chrome endpoint: ${browserWSEndpoint}`);
-            browser = await puppeteer.connect({
+            browser = await playwright.chromium.connectOverCDP(
                 browserWSEndpoint,
-            });
+            );
 
             const page = await browser.newPage();
 
@@ -72,6 +71,9 @@ if (
             console.debug(`Fetching headless chrome URL: ${testUrl}`);
 
             const response = await page.goto(testUrl, {});
+            if (!response) {
+                throw new Error('No response');
+            }
             const result = await response.json();
 
             res.json({
@@ -104,16 +106,16 @@ if (
         try {
             const browserWSEndpoint = `ws://${process.env.HEADLESS_BROWSER_HOST}:${process.env.HEADLESS_BROWSER_PORT}`;
             console.debug(`Headless chrome endpoint: ${browserWSEndpoint}`);
-            browser = await puppeteer.connect({
+            browser = await playwright.chromium.connectOverCDP(
                 browserWSEndpoint,
-            });
+            );
 
             const page = await browser.newPage();
             await page.setExtraHTTPHeaders({
                 cookie: req.headers.cookie || '',
             });
 
-            await page.setViewport({
+            await page.setViewportSize({
                 width: 1400,
                 height: 768, // hardcoded
             });
@@ -124,7 +126,6 @@ if (
                 'analytics.lightdash.com',
                 'intercom.io',
             ];
-            await page.setRequestInterception(true);
             page.on('request', (request: any) => {
                 const requestUrl = request.url();
                 if (blockedUrls.includes(requestUrl)) {
@@ -136,7 +137,6 @@ if (
             });
             await page.goto(url, {
                 timeout: 100000,
-                waitUntil: 'networkidle0',
             });
 
             const selector = isDashboard
@@ -161,6 +161,9 @@ if (
                 });
             }
 
+            if (!element) {
+                throw new Error('Element not found');
+            }
             const imageBuffer = await element.screenshot({
                 path: '/tmp/test-screenshot.png',
             });

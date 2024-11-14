@@ -6,12 +6,10 @@ import {
     Popover,
     Stack,
     Text,
-    Tooltip,
     UnstyledButton,
     useMantineTheme,
 } from '@mantine/core';
 import { useFocusTrap } from '@mantine/hooks';
-import { IconRefresh } from '@tabler/icons-react';
 import { differenceBy, filter, includes } from 'lodash';
 import {
     memo,
@@ -21,7 +19,6 @@ import {
     useState,
     type FC,
 } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { TagInput } from '../../../components/common/TagInput/TagInput';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
@@ -209,29 +206,38 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
             [colors, metricCategories, handleUntag],
         );
 
+        const [hasOpenSubPopover, setHasOpenSubPopover] = useState(false);
+
+        const canCreateTag = useMemo(
+            () => search && !tags?.some((tag) => tag.name === search),
+            [search, tags],
+        );
+
         return (
             <Popover
                 opened={opened}
-                onClose={onClose}
+                onClose={() => {
+                    // Only close the main popover if no sub-popovers are open
+                    if (!hasOpenSubPopover) {
+                        onClose?.();
+                    }
+                }}
                 position="bottom"
                 width={300}
                 withArrow
                 shadow="md"
                 withinPortal
+                radius="md"
+                closeOnClickOutside={!hasOpenSubPopover} // Prevent closing when sub-popover is open
             >
                 <Popover.Target>
                     <UnstyledButton w="100%" pos="absolute" />
                 </Popover.Target>
-                <Popover.Dropdown
-                    p={0}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }}
-                >
+                <Popover.Dropdown p={0}>
                     <Box p="xs">
                         <TagInput
                             value={categoryNames}
+                            allowDuplicates={false}
                             onSearchChange={handleSearchChange}
                             searchValue={search}
                             valueComponent={renderValueComponent}
@@ -244,16 +250,22 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             onBlur={(e) => {
                                 e.stopPropagation();
                             }}
+                            onChange={async (val) => {
+                                if (canCreateTag) {
+                                    void handleAddTag(val[val.length - 1]);
+                                }
+                            }}
                         />
                         <Text size="xs" fw={500} color="dimmed">
                             Select a category or create a new one
                         </Text>
                     </Box>
-                    <Stack spacing="xs" px="xs" align="flex-start">
+                    <Stack spacing="xs" align="flex-start" mb="xs">
                         <Stack
-                            spacing={4}
+                            spacing={0}
                             w="100%"
                             mah={140}
+                            px="xs"
                             sx={{
                                 overflowY: 'auto',
                             }}
@@ -262,6 +274,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 <MetricCatalogCategoryFormItem
                                     key={category.tagUuid}
                                     category={category}
+                                    onSubPopoverChange={setHasOpenSubPopover}
                                 />
                             ))}
                             {filteredAvailableCategories?.map((category) => (
@@ -269,37 +282,17 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                     key={category.tagUuid}
                                     category={category}
                                     onClick={() => handleAddTag(category.name)}
+                                    onSubPopoverChange={setHasOpenSubPopover}
                                 />
                             ))}
                         </Stack>
-                        {search && !tags?.some((tag) => tag.name === search) && (
+                        {canCreateTag && (
                             <Button
                                 variant="light"
                                 color="gray"
                                 size="xs"
                                 w="100%"
                                 onClick={() => handleAddTag(search)}
-                                styles={() => ({
-                                    rightIcon: {
-                                        marginLeft: 'auto',
-                                    },
-                                })}
-                                rightIcon={
-                                    <Tooltip variant="xs" label="Refresh color">
-                                        <MantineIcon
-                                            icon={IconRefresh}
-                                            color="gray.6"
-                                            size={14}
-                                            style={{ cursor: 'pointer' }}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setTagColor(
-                                                    getRandomColor(colors),
-                                                );
-                                            }}
-                                        />
-                                    </Tooltip>
-                                }
                             >
                                 <Group spacing={4}>
                                     <Text>Create</Text>

@@ -48,6 +48,7 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
             warehouseClient,
             gitBranch: branch,
             remoteRepositoryUrl,
+            repository,
             projectDirectorySubPath,
             warehouseCredentials,
             targetName,

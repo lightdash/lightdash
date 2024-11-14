@@ -20,12 +20,15 @@ import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
-import MetricIconPlaceholder from '../../../svgs/metrics-catalog-metric-icon.svg?react';
+import { MetricIconPlaceholder } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { useUpdateCatalogItemIcon } from '../hooks/useCatalogCategories';
+import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
 
-const PICKER_HEIGHT = 400;
+import '../../../styles/emoji-picker-react.css';
+
+const PICKER_HEIGHT = 300;
+const PICKER_WIDTH = 350;
 
 const SharedEmojiPicker = forwardRef(
     (
@@ -53,7 +56,7 @@ const SharedEmojiPicker = forwardRef(
                         zIndex: getDefaultZIndex('overlay'),
                     }}
                 >
-                    <Paper shadow="xs" withBorder pt="xs" px="xs">
+                    <Paper shadow="xs" withBorder pt="xs" px="two">
                         {emoji && (
                             <Group position="right">
                                 <Button
@@ -71,14 +74,13 @@ const SharedEmojiPicker = forwardRef(
                         {/* TODO: display loader on emoji picker loading */}
                         <EmojiPicker
                             height={PICKER_HEIGHT}
+                            width={PICKER_WIDTH}
                             onEmojiClick={onClick}
-                            previewConfig={undefined}
+                            previewConfig={{
+                                showPreview: false,
+                            }}
                             lazyLoadEmojis
                             emojiStyle={EmojiStyle.NATIVE}
-                            searchDisabled
-                            style={{
-                                border: 'none',
-                            }}
                         />
                     </Paper>
                 </Box>

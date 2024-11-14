@@ -1,3 +1,73 @@
+## [0.1365.1](https://github.com/lightdash/lightdash/compare/0.1365.0...0.1365.1) (2024-11-14)
+
+
+### Bug Fixes
+
+* packages/backend/package.json to reduce vulnerabilities ([#12422](https://github.com/lightdash/lightdash/issues/12422)) ([dc20e14](https://github.com/lightdash/lightdash/commit/dc20e14d9007678646adea9bc9b312c757dd5781))
+
+# [0.1365.0](https://github.com/lightdash/lightdash/compare/0.1364.3...0.1365.0) (2024-11-14)
+
+
+### Features
+
+* value label options for sql runner charts ([#12410](https://github.com/lightdash/lightdash/issues/12410)) ([9179965](https://github.com/lightdash/lightdash/commit/9179965114a7ba0c2e68a4690962d9e6107f5d93))
+
+## [0.1364.3](https://github.com/lightdash/lightdash/compare/0.1364.2...0.1364.3) (2024-11-14)
+
+
+### Bug Fixes
+
+* update port for site_url in .env ([#12429](https://github.com/lightdash/lightdash/issues/12429)) ([f0cdfb2](https://github.com/lightdash/lightdash/commit/f0cdfb21bca2de7cc6d9bc8eafeb84f0db749a5e))
+
+## [0.1364.2](https://github.com/lightdash/lightdash/compare/0.1364.1...0.1364.2) (2024-11-14)
+
+
+### Bug Fixes
+
+* packages/backend/package.json to reduce vulnerabilities ([#12425](https://github.com/lightdash/lightdash/issues/12425)) ([5ce515f](https://github.com/lightdash/lightdash/commit/5ce515f04634636704b856d013a7fe2ad5704930))
+
+## [0.1364.1](https://github.com/lightdash/lightdash/compare/0.1364.0...0.1364.1) (2024-11-14)
+
+
+### Bug Fixes
+
+* get all tags when filtering ([#12426](https://github.com/lightdash/lightdash/issues/12426)) ([7e308c0](https://github.com/lightdash/lightdash/commit/7e308c08e4dc5a7ff6efaf2991c86f7478770b40))
+
+# [0.1364.0](https://github.com/lightdash/lightdash/compare/0.1363.1...0.1364.0) (2024-11-13)
+
+
+### Features
+
+* display color swatch picker ([#12385](https://github.com/lightdash/lightdash/issues/12385)) ([9726946](https://github.com/lightdash/lightdash/commit/972694637f70173e995ac70b5b559689233cdc40))
+
+## [0.1363.1](https://github.com/lightdash/lightdash/compare/0.1363.0...0.1363.1) (2024-11-13)
+
+
+### Bug Fixes
+
+* dont shorten urls before creating EFH share link ([#12400](https://github.com/lightdash/lightdash/issues/12400)) ([4b56be3](https://github.com/lightdash/lightdash/commit/4b56be3e97b14276ec493523dbc1583bda962d1f))
+
+# [0.1363.0](https://github.com/lightdash/lightdash/compare/0.1362.0...0.1363.0) (2024-11-13)
+
+
+### Features
+
+* add warning about default filter override ([#12382](https://github.com/lightdash/lightdash/issues/12382)) ([f9327d4](https://github.com/lightdash/lightdash/commit/f9327d47a0af605015179d3264579fdd455b1160))
+
+# [0.1362.0](https://github.com/lightdash/lightdash/compare/0.1361.2...0.1362.0) (2024-11-13)
+
+
+### Features
+
+* add group created and updated metadata ([#12384](https://github.com/lightdash/lightdash/issues/12384)) ([313e2a0](https://github.com/lightdash/lightdash/commit/313e2a08c13150afd8e4a1e1f5eddbef169c9d2f))
+
+## [0.1361.2](https://github.com/lightdash/lightdash/compare/0.1361.1...0.1361.2) (2024-11-13)
+
+
+### Bug Fixes
+
+* better git errors ([#12376](https://github.com/lightdash/lightdash/issues/12376)) ([1c061b4](https://github.com/lightdash/lightdash/commit/1c061b48f65296df9f9a25769b375832d43bb889))
+
 ## [0.1361.1](https://github.com/lightdash/lightdash/compare/0.1361.0...0.1361.1) (2024-11-13)
 
 

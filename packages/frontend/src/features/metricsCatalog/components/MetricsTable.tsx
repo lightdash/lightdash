@@ -1,5 +1,6 @@
 import { type CatalogItem } from '@lightdash/common';
-import { Box, Text } from '@mantine/core';
+import { Box, Divider, Group, Text, useMantineTheme } from '@mantine/core';
+import { useIsMutating } from '@tanstack/react-query';
 import {
     MantineReactTable,
     useMantineReactTable,
@@ -22,6 +23,7 @@ import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 
 export const MetricsTable = () => {
+    const theme = useMantineTheme();
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -46,9 +48,16 @@ export const MetricsTable = () => {
 
     const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
 
-    const { data, fetchNextPage, hasNextPage, isFetching } = useMetricsCatalog({
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetching,
+        isLoading,
+        isPreviousData,
+    } = useMetricsCatalog({
         projectUuid,
-        pageSize: 20,
+        pageSize: 50,
         search: deferredSearch,
         categories: categoryFilters,
         // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
@@ -62,6 +71,26 @@ export const MetricsTable = () => {
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data],
     );
+
+    // Check if we are mutating any of the icons or categories related mutations
+    // TODO: Move this to separate hook and utilise constants so this scales better
+    const isMutating = useIsMutating({
+        predicate: (mutation) => {
+            const mutationKeys = [
+                'create-tag',
+                'update-tag',
+                'delete-tag',
+                'add-category',
+                'remove-category',
+                'update-catalog-item-icon',
+            ];
+            return Boolean(
+                mutation.options.mutationKey?.some((key) =>
+                    mutationKeys.includes(key as string),
+                ),
+            );
+        },
+    });
 
     //called on scroll and possibly on mount to fetch more data as the user scrolls and reaches bottom of table
     const fetchMoreOnBottomReached = useCallback(
@@ -94,6 +123,11 @@ export const MetricsTable = () => {
         return lastPage.pagination?.totalResults ?? 0;
     }, [data]);
 
+    const showLoadingOverlay = useMemo(
+        () => isFetching && isPreviousData && !isMutating,
+        [isFetching, isPreviousData, isMutating],
+    );
+
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
         data: flatData,
@@ -119,10 +153,18 @@ export const MetricsTable = () => {
         enableTopToolbar: true,
         mantinePaperProps: {
             shadow: undefined,
+            sx: {
+                border: `1px solid ${theme.colors.gray[2]}`,
+                borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
+                boxShadow: theme.shadows.subtle,
+            },
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            sx: { maxHeight: '600px', minHeight: '600px' },
+            sx: {
+                maxHeight: '600px',
+                minHeight: '600px',
+            },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },
@@ -140,33 +182,52 @@ export const MetricsTable = () => {
                 },
             },
         },
-        mantineTopToolbarProps: {
-            sx: {
-                display: 'flex',
-                justifyContent: 'flex-start',
-            },
-        },
         renderTopToolbar: () => (
-            <MetricsTableTopToolbar
-                search={search}
-                setSearch={setSearch}
-                totalResults={totalResults}
-            />
+            <Box>
+                <MetricsTableTopToolbar
+                    search={search}
+                    setSearch={setSearch}
+                    totalResults={totalResults}
+                    position="apart"
+                    p={`${theme.spacing.lg} ${theme.spacing.xl}`}
+                />
+                <Divider color="gray.2" />
+            </Box>
         ),
         positionGlobalFilter: 'left',
-        enableBottomToolbar: true,
-        renderBottomToolbarCustomActions: () => (
-            <Text>
-                {isFetching
-                    ? 'Loading more...'
-                    : hasNextPage
-                    ? `Scroll for more metrics (${flatData.length} loaded)`
-                    : `All metrics loaded (${flatData.length})`}
-            </Text>
+        renderBottomToolbar: () => (
+            <Box
+                p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
+                fz="xs"
+                fw={500}
+                color="gray.8"
+                sx={{
+                    borderTop: `1px solid ${theme.colors.gray[3]}`,
+                }}
+            >
+                {isFetching ? (
+                    <Text>Loading more...</Text>
+                ) : (
+                    <Group spacing="two">
+                        <Text>
+                            {hasNextPage
+                                ? 'Scroll for more metrics'
+                                : 'All metrics loaded'}
+                        </Text>
+                        <Text fw={400} color="gray.6">
+                            {hasNextPage
+                                ? `(${flatData.length} loaded)`
+                                : `(${flatData.length})`}
+                        </Text>
+                    </Group>
+                )}
+            </Box>
         ),
         state: {
             sorting,
-            isLoading: isFetching,
+            showProgressBars: false,
+            showLoadingOverlay, // show loading overlay when fetching (like search, category filtering), but hide when editing rows.
+            showSkeletons: isLoading, // loading for the first time with no data
             density: 'md',
             globalFilter: search ?? '',
         },
