@@ -15,6 +15,8 @@ export interface LightdashUser {
     isMarketingOptedIn: boolean;
     isSetupComplete: boolean;
     role?: OrganizationMemberRole;
+    createdAt: Date;
+    updatedAt: Date;
     /**
      * Whether the user can login
      */

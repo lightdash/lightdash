@@ -28,6 +28,8 @@ import { UserModel } from './UserModel';
 
 type DbOrganizationMemberProfile = {
     user_uuid: string;
+    user_created_at: Date;
+    user_updated_at: Date;
     first_name: string;
     last_name: string;
     is_active: boolean;
@@ -47,6 +49,8 @@ const SelectColumns = [
     `${OrganizationTableName}.organization_uuid`,
     `${OrganizationMembershipsTableName}.role`,
     `${InviteLinkTableName}.expires_at`,
+    `${UserTableName}.created_at as user_created_at`,
+    `${UserTableName}.updated_at as user_updated_at`,
 ];
 
 export class OrganizationMemberProfileModel {
@@ -98,6 +102,8 @@ export class OrganizationMemberProfileModel {
             isActive: member.is_active,
             isInviteExpired,
             isPending,
+            userCreatedAt: member.user_created_at,
+            userUpdatedAt: member.user_updated_at,
         };
     }
 

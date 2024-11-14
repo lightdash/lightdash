@@ -19,6 +19,8 @@ export type OrganizationMemberProfile = {
      * @format uuid
      */
     userUuid: string;
+    userCreatedAt: Date;
+    userUpdatedAt: Date;
     firstName: string;
     lastName: string;
     email: string;

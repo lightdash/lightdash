@@ -16,6 +16,8 @@ export const orgProfile: OrganizationMemberProfile = {
     lastName: '',
     organizationUuid: 'organization-uuid-view',
     isActive: true,
+    userCreatedAt: new Date(),
+    userUpdatedAt: new Date(),
 };
 export const projectProfile: ProjectMemberProfile = {
     userUuid: 'user-uuid-1234',
