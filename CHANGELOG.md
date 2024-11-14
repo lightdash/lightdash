@@ -1,3 +1,10 @@
+## [0.1365.1](https://github.com/lightdash/lightdash/compare/0.1365.0...0.1365.1) (2024-11-14)
+
+
+### Bug Fixes
+
+* packages/backend/package.json to reduce vulnerabilities ([#12422](https://github.com/lightdash/lightdash/issues/12422)) ([dc20e14](https://github.com/lightdash/lightdash/commit/dc20e14d9007678646adea9bc9b312c757dd5781))
+
 # [0.1365.0](https://github.com/lightdash/lightdash/compare/0.1364.3...0.1365.0) (2024-11-14)
 
 
