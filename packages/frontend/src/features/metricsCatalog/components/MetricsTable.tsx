@@ -169,8 +169,8 @@ export const MetricsTable = () => {
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
-                maxHeight: '600px',
-                minHeight: '600px',
+                maxHeight: 'calc(100dvh - 350px)',
+                minHeight: 'calc(100dvh - 350px)',
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
