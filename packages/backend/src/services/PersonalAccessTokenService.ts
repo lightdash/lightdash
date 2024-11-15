@@ -75,6 +75,7 @@ export class PersonalAccessTokenService extends BaseService {
             tokenUuid: personalAccessTokenUuid,
         });
 
+        // Business decision, we don't want to rotate tokens that don't expire. Rotation is a security feature that should be used with tokens that expire.
         if (!existingToken.expiresAt) {
             throw new ParameterError(
                 'Token with no expiration date cannot be rotated',
