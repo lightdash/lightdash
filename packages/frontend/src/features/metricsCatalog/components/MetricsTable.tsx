@@ -236,6 +236,10 @@ export const MetricsTable = () => {
                     td: {
                         backgroundColor: theme.colors.gray[0],
                     },
+
+                    'td:last-of-type > div': {
+                        visibility: 'visible',
+                    },
                 },
             },
         },
@@ -328,11 +332,13 @@ export const MetricsTable = () => {
                 header: '',
             },
         },
-        renderRowActions: ({ row }) => (
-            <Box>
-                <ExploreMetricButton row={row} />
-            </Box>
-        ),
+        renderRowActions: ({ row }) => {
+            return (
+                <Box sx={{ visibility: 'hidden' }}>
+                    <ExploreMetricButton row={row} />
+                </Box>
+            );
+        },
         enableFilterMatchHighlighting: true,
         enableEditing: true,
         editDisplayMode: 'cell',
