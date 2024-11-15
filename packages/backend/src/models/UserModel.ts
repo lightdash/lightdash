@@ -518,10 +518,13 @@ export class UserModel {
             user.organization_id,
             user.user_uuid,
         );
-        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
-            ...projectRoles,
-            ...groupProjectRoles,
-        ]);
+        const abilityBuilder = getUserAbilityBuilder({
+            user: lightdashUser,
+            projectProfiles: [...projectRoles, ...groupProjectRoles],
+            permissionsConfig: {
+                pat: this.lightdashConfig.auth.pat,
+            },
+        });
 
         return {
             userId: user.user_id,
@@ -678,10 +681,13 @@ export class UserModel {
             user.organization_id,
             user.user_uuid,
         );
-        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
-            ...projectRoles,
-            ...groupProjectRoles,
-        ]);
+        const abilityBuilder = getUserAbilityBuilder({
+            user: lightdashUser,
+            projectProfiles: [...projectRoles, ...groupProjectRoles],
+            permissionsConfig: {
+                pat: this.lightdashConfig.auth.pat,
+            },
+        });
         return {
             ...lightdashUser,
             userId: user.user_id,
@@ -717,10 +723,13 @@ export class UserModel {
             user.organization_id,
             user.user_uuid,
         );
-        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
-            ...projectRoles,
-            ...groupProjectRoles,
-        ]);
+        const abilityBuilder = getUserAbilityBuilder({
+            user: lightdashUser,
+            projectProfiles: [...projectRoles, ...groupProjectRoles],
+            permissionsConfig: {
+                pat: this.lightdashConfig.auth.pat,
+            },
+        });
         return {
             ...lightdashUser,
             userId: user.user_id,
@@ -752,10 +761,13 @@ export class UserModel {
             user.organization_id,
             user.user_uuid,
         );
-        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
-            ...projectRoles,
-            ...groupProjectRoles,
-        ]);
+        const abilityBuilder = getUserAbilityBuilder({
+            user: lightdashUser,
+            projectProfiles: [...projectRoles, ...groupProjectRoles],
+            permissionsConfig: {
+                pat: this.lightdashConfig.auth.pat,
+            },
+        });
 
         return {
             ...lightdashUser,
@@ -835,10 +847,13 @@ export class UserModel {
             row.organization_id,
             row.user_uuid,
         );
-        const abilityBuilder = getUserAbilityBuilder(lightdashUser, [
-            ...projectRoles,
-            ...groupProjectRoles,
-        ]);
+        const abilityBuilder = getUserAbilityBuilder({
+            user: lightdashUser,
+            projectProfiles: [...projectRoles, ...groupProjectRoles],
+            permissionsConfig: {
+                pat: this.lightdashConfig.auth.pat,
+            },
+        });
         return {
             user: {
                 ...mapDbUserDetailsToLightdashUser(

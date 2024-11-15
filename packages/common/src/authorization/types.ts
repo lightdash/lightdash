@@ -47,6 +47,7 @@ type Subject =
     | 'SemanticViewer'
     | 'VirtualView'
     | 'Tags'
+    | 'PersonalAccessToken'
     | 'all';
 
 type PossibleAbilities = [
