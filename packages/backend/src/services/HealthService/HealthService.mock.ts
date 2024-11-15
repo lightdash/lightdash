@@ -40,6 +40,9 @@ export const BaseResponse: HealthState = {
             enabled: false,
             loginPath: '',
         },
+        pat: {
+            maxExpirationTimeInDays: undefined,
+        },
     },
     intercom: {
         apiBase: '',
