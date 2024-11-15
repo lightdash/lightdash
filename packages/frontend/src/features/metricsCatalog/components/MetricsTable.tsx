@@ -24,7 +24,6 @@ import {
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
-import { ExploreMetricButton } from './ExploreMetricButton';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 
@@ -139,7 +138,6 @@ export const MetricsTable = () => {
         data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: false,
-        enableRowActions: true,
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
         enablePagination: false,
@@ -237,7 +235,7 @@ export const MetricsTable = () => {
                         backgroundColor: theme.colors.gray[0],
                     },
 
-                    'td:last-of-type > div': {
+                    'td:first-of-type > div > .explore-button': {
                         visibility: 'visible',
                     },
                 },
@@ -331,13 +329,6 @@ export const MetricsTable = () => {
             'mrt-row-actions': {
                 header: '',
             },
-        },
-        renderRowActions: ({ row }) => {
-            return (
-                <Box sx={{ visibility: 'hidden' }}>
-                    <ExploreMetricButton row={row} />
-                </Box>
-            );
         },
         enableFilterMatchHighlighting: true,
         enableEditing: true,

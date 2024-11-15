@@ -12,10 +12,12 @@ import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 
 type Props = {
+    className?: string;
+    visibility?: 'visible' | 'hidden';
     row: MRT_Row<CatalogField>;
 };
 
-export const ExploreMetricButton = ({ row }: Props) => {
+export const ExploreMetricButton = ({ row, visibility, className }: Props) => {
     const [isGeneratingPreviewUrl, setIsGeneratingPreviewUrl] = useState(false);
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
@@ -65,11 +67,20 @@ export const ExploreMetricButton = ({ row }: Props) => {
 
     return (
         <Button
+            className={className}
             size="xs"
             compact
-            variant="subtle"
+            bg="linear-gradient(180deg, #202B37 0%, #151C24 100%)"
+            radius="md"
             onClick={handleExploreClick}
             loading={isFetching || isGeneratingPreviewUrl}
+            py="xxs"
+            px={10}
+            sx={{
+                border: `1px solid #414E62`,
+                boxShadow: '0px 0px 0px 1px #151C24',
+                visibility,
+            }}
         >
             Explore
         </Button>
