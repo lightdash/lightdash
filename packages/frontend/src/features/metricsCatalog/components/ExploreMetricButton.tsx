@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, Text } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
 import { useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
@@ -68,7 +68,6 @@ export const ExploreMetricButton = ({ row, visibility, className }: Props) => {
     return (
         <Button
             className={className}
-            size="xs"
             compact
             bg="linear-gradient(180deg, #202B37 0%, #151C24 100%)"
             radius="md"
@@ -76,13 +75,16 @@ export const ExploreMetricButton = ({ row, visibility, className }: Props) => {
             loading={isFetching || isGeneratingPreviewUrl}
             py="xxs"
             px={10}
+            h={28}
             sx={{
                 border: `1px solid #414E62`,
                 boxShadow: '0px 0px 0px 1px #151C24',
                 visibility,
             }}
         >
-            Explore
+            <Text fz="sm" fw={500}>
+                Explore
+            </Text>
         </Button>
     );
 };
