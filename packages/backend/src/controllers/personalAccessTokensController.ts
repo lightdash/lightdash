@@ -15,14 +15,22 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+} from './authentication';
 import { BaseController } from './baseController';
 
 @Route('/api/v1/me/personal-access-tokens')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Personal Access Tokens')
 export class PersonalAccessTokensController extends BaseController {
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('/{personalAccessTokenUuid}/rotate')
     @OperationId('Rotate personal access token')
