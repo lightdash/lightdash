@@ -265,6 +265,8 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationTableName}.organization_uuid`,
                 `${OrganizationMembershipsTableName}.role`,
                 `${InviteLinkTableName}.expires_at`,
+                `${UserTableName}.created_at as user_created_at`,
+                `${UserTableName}.updated_at as user_updated_at`,
             )
             .select<DbOrganizationMemberProfile[]>(
                 this.database.raw(
