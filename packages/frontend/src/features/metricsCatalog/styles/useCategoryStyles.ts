@@ -30,6 +30,7 @@ export const useCategoryStyles = createStyles(
                 boxShadow: '0px -2px 0px 0px rgba(4, 4, 4, 0.04) inset',
                 '&:hover': {
                     backgroundColor: hoverBackgroundColor,
+                    transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                 },
             },
             removeIcon: {

@@ -135,6 +135,11 @@ export const getMantineThemeOverride = (overrides?: {
         ...overrides?.components,
     },
 
+    other: {
+        transitionTimingFunction: 'ease-in-out',
+        transitionDuration: 200, // in ms
+    },
+
     globalStyles: (theme) => ({
         'html, body': {
             backgroundColor: theme.colors.gray[0],

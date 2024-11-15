@@ -125,6 +125,7 @@ const CategoriesFilter = () => {
                                 boxShadow: theme.shadows.subtle,
                                 '&:hover': {
                                     backgroundColor: theme.colors.gray[0],
+                                    transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                                 },
                             },
                             label: {
