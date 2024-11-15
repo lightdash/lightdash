@@ -75,7 +75,7 @@ const TokenItem: FC<{
                     </Group>
                 </td>
                 <td>
-                    {lastUsedAt ? (
+                    {lastUsedAt && (
                         <Tooltip
                             withinPortal
                             position="top"
@@ -84,8 +84,6 @@ const TokenItem: FC<{
                         >
                             <Text>{formatDate(lastUsedAt)}</Text>
                         </Tooltip>
-                    ) : (
-                        <Text color="gray.6">Never used</Text>
                     )}
                 </td>
                 <td>
