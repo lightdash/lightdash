@@ -1,3 +1,10 @@
+## [0.1366.2](https://github.com/lightdash/lightdash/compare/0.1366.1...0.1366.2) (2024-11-15)
+
+
+### Bug Fixes
+
+* cant invite project users to space ([#12413](https://github.com/lightdash/lightdash/issues/12413)) ([fd23f0e](https://github.com/lightdash/lightdash/commit/fd23f0e5a47424f522fbd065adc50d7f700d6c99))
+
 ## [0.1366.1](https://github.com/lightdash/lightdash/compare/0.1366.0...0.1366.1) (2024-11-14)
 
 
