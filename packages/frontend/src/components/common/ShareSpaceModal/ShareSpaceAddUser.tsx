@@ -62,9 +62,6 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     const { mutateAsync: shareGroupSpaceMutation } =
         useAddGroupSpaceShareMutation(projectUuid, space.uuid);
 
-    const [allSearchedOrganizationUsers, setAllSearchedOrganizationUsers] =
-        useState<OrganizationMemberProfile[]>([]);
-
     const {
         data: infiniteOrganizationGroups,
         fetchNextPage: fetchGroupsNextPage,
@@ -94,6 +91,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         { keepPreviousData: true },
     );
 
+    // Aggregates all fetched users across pages and search queries into a unified list.
+    // This ensures that previously fetched users are preserved even when the search query changes.
+    // Uses 'userUuid' to remove duplicates and maintain a consistent set of unique users.
+    const [allSearchedOrganizationUsers, setAllSearchedOrganizationUsers] =
+        useState<OrganizationMemberProfile[]>([]);
     useEffect(() => {
         const allPages =
             infiniteOrganizationUsers?.pages.map((p) => p.data).flat() ?? [];
