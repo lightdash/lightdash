@@ -1,8 +1,18 @@
 import { type CatalogField } from '@lightdash/common';
-import { Box, Group, Highlight, HoverCard, Text, Tooltip } from '@mantine/core';
+import {
+    Flex,
+    Group,
+    Highlight,
+    HoverCard,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { useHover } from '@mantine/hooks';
+import { IconPlus } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo, type FC, type SVGProps } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import {
     Description,
     Hash,
@@ -163,6 +173,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
         },
         Cell: ({ row, table, cell }) => {
+            const { hovered, ref } = useHover();
             const isCategoryPopoverClosing = useAppSelector(
                 (state) => state.metricsCatalog.popovers.category.isClosing,
             );
@@ -174,9 +185,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
 
             return (
                 // This is a hack to make the whole cell clickable and avoid race conditions with click outside events
-                <Box
+                <Flex
+                    ref={ref}
                     pos="absolute"
-                    p="md"
+                    py={6}
+                    px="md"
                     left={0}
                     top={0}
                     w="100%"
@@ -189,15 +202,28 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                         table.setEditingCell(cell);
                     }}
                 >
-                    <Group spacing="two" pos="relative" w="100%" h="100%">
-                        {categories.map((category) => (
-                            <CatalogCategory
-                                key={category.tagUuid}
-                                category={category}
+                    {categories.length === 0 && hovered ? (
+                        <Group spacing={2}>
+                            <MantineIcon
+                                color="dark.1"
+                                icon={IconPlus}
+                                size={12}
                             />
-                        ))}
-                    </Group>
-                </Box>
+                            <Text span fz="sm" color="dark.1">
+                                Click to add
+                            </Text>
+                        </Group>
+                    ) : (
+                        <Group spacing="two" pos="relative" w="100%" h="100%">
+                            {categories.map((category) => (
+                                <CatalogCategory
+                                    key={category.tagUuid}
+                                    category={category}
+                                />
+                            ))}
+                        </Group>
+                    )}
+                </Flex>
             );
         },
     },

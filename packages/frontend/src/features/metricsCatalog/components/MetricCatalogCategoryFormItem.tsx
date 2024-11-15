@@ -21,6 +21,7 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useDeleteTag, useUpdateTag } from '../hooks/useProjectTags';
 import { getTagColorSwatches } from '../utils/getRandomTagColor';
 import { CatalogCategory } from './CatalogCategory';
+import { CatalogCategorySwatch } from './CatalogCategorySwatch';
 
 type EditPopoverProps = {
     hovered: boolean;
@@ -124,9 +125,9 @@ const EditPopover: FC<EditPopoverProps> = ({
 
                     <SimpleGrid cols={7} spacing="xs" verticalSpacing="xs">
                         {colors.map((color) => (
-                            <CatalogCategory
+                            <CatalogCategorySwatch
                                 key={color}
-                                category={{ name: '', color }}
+                                color={color}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setEditColor(color);

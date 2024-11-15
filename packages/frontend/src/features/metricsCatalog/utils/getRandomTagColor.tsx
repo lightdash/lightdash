@@ -4,16 +4,15 @@ export const getTagColorSwatches = (
     mantineColors: ReturnType<typeof useMantineTheme>['colors'],
 ) => {
     const colors = [
-        mantineColors.blue[7],
-        mantineColors.indigo[8],
-        mantineColors.teal[4],
-        mantineColors.orange[6],
-        mantineColors.red[6],
+        mantineColors.gray[5],
+        mantineColors.violet[4],
+        mantineColors.red[4],
+        mantineColors.orange[4],
+        mantineColors.green[4],
+        mantineColors.blue[4],
+        mantineColors.indigo[4],
+        mantineColors.pink[4],
         mantineColors.yellow[4],
-        mantineColors.grape[7],
-        mantineColors.pink[7],
-        mantineColors.violet[6],
-        mantineColors.gray[6],
     ];
     return colors;
 };
