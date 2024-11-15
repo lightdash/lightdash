@@ -12,6 +12,7 @@ import {
     generateSlug,
     isExploreError,
     NotExistsError,
+    NotFoundError,
     OrganizationProject,
     ParameterError,
     PreviewContentMapping,
@@ -455,9 +456,38 @@ export class ProjectModel {
     }
 
     async delete(projectUuid: string): Promise<void> {
-        await this.database('projects')
-            .where('project_uuid', projectUuid)
-            .delete();
+        await this.database.transaction(async (trx) => {
+            const [project] = await trx('projects')
+                .select('project_id')
+                .where('project_uuid', projectUuid);
+
+            if (!project) {
+                throw new NotFoundError('Project not found');
+            }
+            const projectId = project.project_id;
+            // First we delete some of the content from the project
+            // to avoid getting deadlock issues
+            await trx('catalog_search')
+                .where('project_uuid', projectUuid)
+                .delete();
+
+            await trx('cached_explores')
+                .where('project_uuid', projectUuid)
+                .delete();
+
+            await trx('cached_explore')
+                .where('project_uuid', projectUuid)
+                .delete();
+
+            // Deleting spaces will also delete dashboards and charts in cascade,
+            // At the same time, charts and dashboards will delete analytic_views, schedulers, pinned content, and more.
+            await trx('spaces').where('project_id', projectId).delete();
+
+            await trx('jobs').where('project_uuid', projectUuid).delete();
+
+            // Finally, delete the project and everything else in cascade
+            await trx('projects').where('project_uuid', projectUuid).delete();
+        });
     }
 
     async getWithSensitiveFields(
