@@ -456,7 +456,7 @@ export class ProjectModel {
 
     async delete(projectUuid: string): Promise<void> {
         await this.database.transaction(async (trx) => {
-            await this.database('projects')
+            await trx('projects')
                 .where('project_uuid', projectUuid)
                 .delete();
         });
