@@ -1,9 +1,8 @@
 import { type CatalogField } from '@lightdash/common';
 import { Button } from '@mantine/core';
-import { IconChartBar } from '@tabler/icons-react';
 import { type MRT_Row } from 'mantine-react-table';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
+import { BarChart } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setActiveMetric } from '../store/metricsCatalogSlice';
@@ -44,32 +43,26 @@ export const MetricChartUsageButton = ({
             size="xs"
             compact
             color="gray.6"
-            variant="default"
+            variant="subtle"
             disabled={!hasChartsUsage}
             onClick={handleChartUsageClick}
-            leftIcon={
-                <MantineIcon
-                    display={hasChartsUsage ? 'block' : 'none'}
-                    icon={IconChartBar}
-                    color="gray.6"
-                    size={12}
-                    strokeWidth={1.2}
-                    fill="gray.2"
-                />
-            }
+            leftIcon={<BarChart />}
+            opacity={hasChartsUsage ? 1 : 0.8}
+            fz="sm"
+            c="dark.4"
             sx={{
                 '&[data-disabled]': {
                     backgroundColor: 'transparent',
                     fontWeight: 400,
                 },
             }}
-            styles={{
+            styles={(theme) => ({
                 leftIcon: {
-                    marginRight: 4,
+                    marginRight: theme.spacing.xxs,
                 },
-            }}
+            })}
         >
-            {hasChartsUsage ? `${row.original.chartUsage}` : 'No usage'}
+            {row.original.chartUsage}
         </Button>
     );
 };
