@@ -209,27 +209,51 @@ export const MetricsTable = () => {
                 bg: 'gray.0',
                 h: '3xl',
                 pos: 'relative',
+                // Adding to inline styles to override the default ones which can't be overridden with sx
                 style: {
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                },
-                sx: {
-                    justifyContent: 'center',
                     borderBottom: `1px solid ${theme.colors.gray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${theme.colors.gray[2]}`,
-                    '&:hover': {
-                        borderRight: !isAnyColumnResizing
-                            ? `2px solid ${theme.colors.blue[3]}`
-                            : undefined,
-                    },
+                },
+                sx: {
+                    justifyContent: 'center',
                     'tr > th:last-of-type': {
                         borderLeft: `2px solid ${theme.colors.blue[3]}`,
+                    },
+                    '&:hover': {
+                        borderRight: !isAnyColumnResizing
+                            ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
+                            : undefined,
                     },
                 },
             };
         },
-
+        mantineTableBodyRowProps: {
+            sx: {
+                '&:hover': {
+                    td: {
+                        backgroundColor: theme.colors.gray[0],
+                    },
+                },
+            },
+        },
+        mantineTableBodyCellProps: {
+            h: 72,
+            // Adding to inline styles to override the default ones which can't be overridden with sx
+            style: {
+                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                borderRight: `1px solid ${theme.colors.gray[2]}`,
+                borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                borderTop: 'none',
+            },
+            sx: {
+                display: 'inline-flex',
+                alignItems: 'center',
+                flexShrink: 0,
+            },
+        },
         renderTopToolbar: () => (
             <Box>
                 <MetricsTableTopToolbar
