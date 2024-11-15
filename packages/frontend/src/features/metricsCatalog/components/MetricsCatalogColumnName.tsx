@@ -211,7 +211,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                     >
                         {isEmojiIcon(row.original.icon) ? (
                             <Emoji
-                                size={18}
+                                size={16}
                                 unified={row.original.icon.unicode}
                             />
                         ) : (
