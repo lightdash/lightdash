@@ -50,6 +50,7 @@ export const MetricChartUsageButton = ({
             opacity={hasChartsUsage ? 1 : 0.8}
             fz="sm"
             c="dark.4"
+            fw={500}
             sx={{
                 '&[data-disabled]': {
                     backgroundColor: 'transparent',
