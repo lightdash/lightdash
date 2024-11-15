@@ -168,7 +168,7 @@ export const MetricsTable = () => {
             ref: tableContainerRef,
             sx: {
                 maxHeight: 'calc(100dvh - 350px)',
-                minHeight: 'calc(100dvh - 350px)',
+                minHeight: '600px',
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
