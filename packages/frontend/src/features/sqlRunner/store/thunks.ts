@@ -88,7 +88,6 @@ export const prepareAndFetchChartData = createAsyncThunk(
             state.sqlRunner.selectedChartType,
         );
 
-        // TODO: need this somewhere for back compat
         const sortBy =
             currentVizConfig && 'fieldConfig' in currentVizConfig
                 ? currentVizConfig.fieldConfig?.sortBy

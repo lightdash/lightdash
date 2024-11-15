@@ -70,7 +70,6 @@ export const addChartConfigListener = (
                 previousState,
                 currentSelectedChartType,
             );
-
             return (
                 !isEqual(currentVizConfig, previousVizConfig) ||
                 previousSelectedChartType !== currentSelectedChartType
