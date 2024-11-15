@@ -233,6 +233,13 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         enableSorting: true,
         enableEditing: false,
         size: 100,
+        mantineTableBodyCellProps: () => {
+            return {
+                sx: {
+                    justifyContent: 'center',
+                },
+            };
+        },
         Header: ({ column }) => (
             <HeaderCell Icon={Popularity}>{column.columnDef.header}</HeaderCell>
         ),
