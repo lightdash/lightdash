@@ -72,11 +72,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     >
                         <MetricsCatalogColumnName row={row} table={table} />
                     </Tooltip>
-                    <ExploreMetricButton
-                        row={row}
-                        className="explore-button"
-                        visibility="hidden"
-                    />
+                    <ExploreMetricButton row={row} className="explore-button" />
                 </Flex>
             );
         },

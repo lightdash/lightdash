@@ -218,19 +218,27 @@ export const MetricsTable = () => {
                         borderRight: !isAnyColumnResizing
                             ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
                             : undefined,
+                        transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
                 },
             };
         },
         mantineTableBodyRowProps: {
             sx: {
+                'td:first-of-type > div > .explore-button': {
+                    visibility: 'hidden',
+                    opacity: 0,
+                },
                 '&:hover': {
                     td: {
                         backgroundColor: theme.colors.gray[0],
+                        transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
 
                     'td:first-of-type > div > .explore-button': {
                         visibility: 'visible',
+                        opacity: 1,
+                        transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
                 },
             },

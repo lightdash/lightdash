@@ -197,8 +197,11 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
             pos="relative"
             position="apart"
             sx={(theme) => ({
-                borderRadius: theme.radius.sm,
-                '&:hover': { backgroundColor: theme.colors.gray[2] },
+                borderRadius: theme.radius.md,
+                '&:hover': {
+                    backgroundColor: theme.colors.gray[1],
+                    transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                },
             })}
         >
             <UnstyledButton
