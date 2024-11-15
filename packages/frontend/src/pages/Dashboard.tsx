@@ -700,14 +700,28 @@ const Dashboard: FC = () => {
                 withFullHeight={true}
             >
                 <Group position="apart" align="flex-start" noWrap px={'lg'}>
-                    {dashboardChartTiles && dashboardChartTiles.length > 0 && (
-                        <DashboardFilter
-                            isEditMode={isEditMode}
-                            activeTabUuid={activeTab?.uuid}
-                        />
-                    )}
+                    <Box style={{ flexGrow: 1, overflow: 'auto' }}>
+                        {/* This Group will take up remaining space (and not push DateZoom) */}
+                        <Group
+                            position="apart"
+                            align="flex-start"
+                            noWrap
+                            px={'lg'}
+                        >
+                            {dashboardChartTiles &&
+                                dashboardChartTiles.length > 0 && (
+                                    <DashboardFilter
+                                        isEditMode={isEditMode}
+                                        activeTabUuid={activeTab?.uuid}
+                                    />
+                                )}
+                        </Group>
+                    </Box>
+                    {/* DateZoom section will adjust width dynamically */}
                     {hasDashboardTiles && !hasNewSemanticLayerChart && (
-                        <DateZoom isEditMode={isEditMode} />
+                        <Box style={{ marginLeft: 'auto' }}>
+                            <DateZoom isEditMode={isEditMode} />
+                        </Box>
                     )}
                 </Group>
                 <Flex style={{ flexGrow: 1, flexDirection: 'column' }}>

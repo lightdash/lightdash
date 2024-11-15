@@ -18,7 +18,6 @@ import {
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
-import usePageWidth from '../../hooks/usePageWidth';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import {
     getConditionalRuleLabel,
@@ -157,9 +156,6 @@ const Filter: FC<Props> = ({
     const isPopoverDisabled =
         !filterableFieldsByTileUuid || !allFilterableFields;
 
-    const pageWidth = usePageWidth();
-    console.log(pageWidth);
-
     return (
         <Popover
             position="bottom-start"
@@ -273,6 +269,14 @@ const Filter: FC<Props> = ({
                                         : inactiveFilterInfo
                                         ? 'dashed 1px'
                                         : 'default',
+                                    maxWidth: 800,
+                                },
+                                label: {
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    display: 'flex',
+                                    width: '100%',
                                 },
                             }}
                             onClick={() =>
@@ -281,7 +285,7 @@ const Filter: FC<Props> = ({
                                     : onPopoverOpen(popoverId)
                             }
                         >
-                            <Text fz="xs">
+                            <Text size="xs" truncate>
                                 <Tooltip
                                     withinPortal
                                     position="top-start"
@@ -306,37 +310,33 @@ const Filter: FC<Props> = ({
                                             filterRuleLabels?.field}{' '}
                                     </Text>
                                 </Tooltip>
-                                <Text fw={400} span>
-                                    {filterRule?.disabled ? (
-                                        <Text span color="gray.6">
-                                            is any value
-                                        </Text>
-                                    ) : (
-                                        <div
-                                            style={{
-                                                display: 'inline-block',
-                                                position: 'relative',
-                                                maxWidth: `${pageWidth}px`,
-                                            }}
-                                        >
-                                            <Text span color="gray.7">
-                                                {filterRuleLabels?.operator}{' '}
-                                            </Text>
-                                            <Text fw={700} span>
-                                                {filterRuleLabels?.value}
-                                            </Text>
-                                        </div>
-                                    )}
+                                <Text component="span" fw={600}>
+                                    {filterRule?.label ||
+                                        filterRuleLabels?.field}{' '}
                                 </Text>
+                                {filterRule?.disabled ? (
+                                    <Text component="span" color="gray.6">
+                                        is any value
+                                    </Text>
+                                ) : (
+                                    <>
+                                        <Text component="span" color="gray.7">
+                                            {filterRuleLabels?.operator}{' '}
+                                        </Text>
+                                        <Text component="span" fw={700}>
+                                            {filterRuleLabels?.value}
+                                        </Text>
+                                    </>
+                                )}
                             </Text>
-                            {inactiveFilterInfo ? (
+                            {inactiveFilterInfo && (
                                 <Tooltip fz="xs" label={inactiveFilterInfo}>
                                     <MantineIcon
                                         icon={IconInfoCircle}
                                         style={{ marginLeft: 10 }}
                                     />
                                 </Tooltip>
-                            ) : null}
+                            )}
                         </Button>
                     </Indicator>
                 )}
