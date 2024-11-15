@@ -19,7 +19,7 @@ export const CatalogCategory: FC<Props> = ({ category, onClick, onRemove }) => {
             key={category.name}
             pos="relative"
             size="sm"
-            radius="xl"
+            radius="md"
             variant="light"
             onClick={onClick}
             py={10}
@@ -29,7 +29,7 @@ export const CatalogCategory: FC<Props> = ({ category, onClick, onRemove }) => {
                 root: {
                     fontSize: '12px',
                     textTransform: 'none',
-                    fontWeight: 400,
+                    fontWeight: 500,
                     paddingRight: onRemove ? 2 : 8,
                 },
             })}
