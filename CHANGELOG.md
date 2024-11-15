@@ -1,3 +1,10 @@
+## [0.1368.1](https://github.com/lightdash/lightdash/compare/0.1368.0...0.1368.1) (2024-11-15)
+
+
+### Bug Fixes
+
+* column sizes to match figma & table head border ([#12469](https://github.com/lightdash/lightdash/issues/12469)) ([b3d8f3c](https://github.com/lightdash/lightdash/commit/b3d8f3c2c23d51fe2f4a5c6da0dc472459b9d4de))
+
 # [0.1368.0](https://github.com/lightdash/lightdash/compare/0.1367.0...0.1368.0) (2024-11-15)
 
 
