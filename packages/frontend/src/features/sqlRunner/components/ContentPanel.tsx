@@ -2,6 +2,7 @@ import {
     ChartKind,
     isVizTableConfig,
     type VizTableConfig,
+    type VizTableHeaderSortConfig,
 } from '@lightdash/common';
 import {
     Box,
@@ -60,12 +61,14 @@ import {
     selectProjectUuid,
     selectResultsTableConfig,
     selectSavedSqlChart,
+    selectSortBy,
     selectSql,
     selectSqlQueryResults,
     selectSqlRunnerResultsRunner,
     setActiveEditorTab,
     setEditorHighlightError,
     setSqlLimit,
+    updateSortBy,
 } from '../store/sqlRunnerSlice';
 import { runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
@@ -84,6 +87,7 @@ export const ContentPanel: FC = () => {
     const selectedChartType = useAppSelector(selectActiveChartType);
     const activeEditorTab = useAppSelector(selectActiveEditorTab);
     const limit = useAppSelector(selectLimit);
+    const sortBy = useAppSelector(selectSortBy);
     const resultsTableConfig = useAppSelector(selectResultsTableConfig);
     const isLoadingSqlQuery = useAppSelector(
         (state) => state.sqlRunner.queryIsLoading,
@@ -258,6 +262,34 @@ export const ContentPanel: FC = () => {
         (state) =>
             !!cartesianChartSelectors.getErrors(state, selectedChartType),
     );
+
+    const handleTableHeaderClick = useCallback(
+        (fieldName: string) => {
+            dispatch(updateSortBy(fieldName));
+        },
+        [dispatch],
+    );
+
+    console.log('sortBy', sortBy);
+
+    // TODO: can this just go in the table?
+    const sortConfig: VizTableHeaderSortConfig | undefined = useMemo(() => {
+        return pivotedChartInfo?.data?.tableData?.columns.reduce<VizTableHeaderSortConfig>(
+            (acc, col) => {
+                const columnSort = sortBy?.find(
+                    (sort) => sort.reference === col,
+                );
+
+                return {
+                    ...acc,
+                    [col]: {
+                        direction: columnSort?.direction,
+                    },
+                };
+            },
+            {},
+        );
+    }, [sortBy, pivotedChartInfo]);
 
     return (
         <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
@@ -708,6 +740,10 @@ export const ContentPanel: FC = () => {
                                                     flexProps={{
                                                         mah: '100%',
                                                     }}
+                                                    onTHClick={
+                                                        handleTableHeaderClick
+                                                    }
+                                                    thSortConfig={sortConfig}
                                                 />
                                             )}
                                     </ConditionalVisibility>
