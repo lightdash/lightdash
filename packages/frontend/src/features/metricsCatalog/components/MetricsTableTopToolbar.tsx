@@ -14,15 +14,11 @@ import {
     type GroupProps,
 } from '@mantine/core';
 import { useListState } from '@mantine/hooks';
-import {
-    IconPointFilled,
-    IconSearch,
-    IconTag,
-    IconX,
-} from '@tabler/icons-react';
+import { IconSearch, IconTag, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
+import { TotalMetricsDot } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useProjectTags } from '../hooks/useProjectTags';
@@ -202,10 +198,10 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                     <TextInput
                         size="xs"
                         radius="md"
-                        h={32}
-                        w={309}
                         styles={(theme) => ({
                             input: {
+                                height: 32,
+                                width: 309,
                                 padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                                 textOverflow: 'ellipsis',
                                 fontSize: theme.fontSizes.sm,
@@ -265,12 +261,8 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                     px="xs"
                     tt="none"
                 >
-                    <Group spacing={0}>
-                        <MantineIcon
-                            icon={IconPointFilled}
-                            color="#4E5BA6"
-                            size="lg"
-                        />
+                    <Group spacing={6}>
+                        <TotalMetricsDot />
                         <Text fz="sm" fw={500}>
                             {totalResults} metrics
                         </Text>

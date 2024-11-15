@@ -1,3 +1,31 @@
+# [0.1368.0](https://github.com/lightdash/lightdash/compare/0.1367.0...0.1368.0) (2024-11-15)
+
+
+### Features
+
+* allow to rotate personal access token ([#12411](https://github.com/lightdash/lightdash/issues/12411)) ([f8ad8d4](https://github.com/lightdash/lightdash/commit/f8ad8d4662e6711dab8ab79241f2d69ce9dd37af))
+
+# [0.1367.0](https://github.com/lightdash/lightdash/compare/0.1366.2...0.1367.0) (2024-11-15)
+
+
+### Features
+
+* added created_at and updated_at to user and organization member objects ([#12434](https://github.com/lightdash/lightdash/issues/12434)) ([233cadf](https://github.com/lightdash/lightdash/commit/233cadf80a04f65c9c0de994ffb29f50dbebbd81))
+
+## [0.1366.2](https://github.com/lightdash/lightdash/compare/0.1366.1...0.1366.2) (2024-11-15)
+
+
+### Bug Fixes
+
+* cant invite project users to space ([#12413](https://github.com/lightdash/lightdash/issues/12413)) ([fd23f0e](https://github.com/lightdash/lightdash/commit/fd23f0e5a47424f522fbd065adc50d7f700d6c99))
+
+## [0.1366.1](https://github.com/lightdash/lightdash/compare/0.1366.0...0.1366.1) (2024-11-14)
+
+
+### Bug Fixes
+
+* **dashboard:** inactive filter styles ([#12437](https://github.com/lightdash/lightdash/issues/12437)) ([9b8e621](https://github.com/lightdash/lightdash/commit/9b8e621ea1fa7351f122961208de2a23b67c1c33))
+
 # [0.1366.0](https://github.com/lightdash/lightdash/compare/0.1365.1...0.1366.0) (2024-11-14)
 
 

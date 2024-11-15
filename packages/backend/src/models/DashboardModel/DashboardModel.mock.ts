@@ -354,4 +354,6 @@ export const user: SessionUser = {
     ]),
     isActive: true,
     abilityRules: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
 };

@@ -1,5 +1,10 @@
 import { type CatalogItem } from '@lightdash/common';
 import { Box, Divider, Group, Text, useMantineTheme } from '@mantine/core';
+import {
+    IconArrowDown,
+    IconArrowsSort,
+    IconArrowUp,
+} from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
 import {
     MantineReactTable,
@@ -16,9 +21,9 @@ import {
     useState,
     type UIEvent,
 } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
-import { ExploreMetricButton } from './ExploreMetricButton';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 
@@ -133,7 +138,6 @@ export const MetricsTable = () => {
         data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: false,
-        enableRowActions: true,
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
         enablePagination: false,
@@ -151,6 +155,7 @@ export const MetricsTable = () => {
         manualSorting: true,
         onSortingChange: setSorting,
         enableTopToolbar: true,
+        positionGlobalFilter: 'left',
         mantinePaperProps: {
             shadow: undefined,
             sx: {
@@ -162,7 +167,7 @@ export const MetricsTable = () => {
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
-                maxHeight: '600px',
+                maxHeight: 'calc(100dvh - 350px)',
                 minHeight: '600px',
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
@@ -175,11 +180,75 @@ export const MetricsTable = () => {
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
+
                 // Each head row has a divider when resizing columns is enabled
                 'th > div > div:last-child': {
-                    width: '0.5px',
-                    padding: '0px',
+                    height: 40,
+                    top: -10,
+                    right: -5,
                 },
+
+                'th > div > div:last-child > .mantine-Divider-root': {
+                    border: 'none',
+                },
+            },
+        },
+        mantineTableHeadCellProps: (props) => {
+            const isAnyColumnResizing = props.table
+                .getAllColumns()
+                .some((c) => c.getIsResizing());
+            return {
+                bg: 'gray.0',
+                h: '3xl',
+                pos: 'relative',
+                // Adding to inline styles to override the default ones which can't be overridden with sx
+                style: {
+                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderRight: props.column.getIsResizing()
+                        ? `2px solid ${theme.colors.blue[3]}`
+                        : `1px solid ${theme.colors.gray[2]}`,
+                },
+                sx: {
+                    justifyContent: 'center',
+                    'tr > th:last-of-type': {
+                        borderLeft: `2px solid ${theme.colors.blue[3]}`,
+                    },
+                    '&:hover': {
+                        borderRight: !isAnyColumnResizing
+                            ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
+                            : undefined,
+                    },
+                },
+            };
+        },
+        mantineTableBodyRowProps: {
+            sx: {
+                '&:hover': {
+                    td: {
+                        backgroundColor: theme.colors.gray[0],
+                    },
+
+                    'td:first-of-type > div > .explore-button': {
+                        visibility: 'visible',
+                    },
+                },
+            },
+        },
+        mantineTableBodyCellProps: {
+            h: 72,
+            // Adding to inline styles to override the default ones which can't be overridden with sx
+            style: {
+                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                borderRight: `1px solid ${theme.colors.gray[2]}`,
+                borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                borderTop: 'none',
+                borderLeft: 'none',
+            },
+            sx: {
+                display: 'inline-flex',
+                alignItems: 'center',
+                flexShrink: 0,
             },
         },
         renderTopToolbar: () => (
@@ -194,7 +263,6 @@ export const MetricsTable = () => {
                 <Divider color="gray.2" />
             </Box>
         ),
-        positionGlobalFilter: 'left',
         renderBottomToolbar: () => (
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
@@ -223,6 +291,17 @@ export const MetricsTable = () => {
                 )}
             </Box>
         ),
+        icons: {
+            IconArrowsSort: () => (
+                <MantineIcon icon={IconArrowsSort} size="md" color="gray.5" />
+            ),
+            IconSortAscending: () => (
+                <MantineIcon icon={IconArrowUp} size="md" color="blue.6" />
+            ),
+            IconSortDescending: () => (
+                <MantineIcon icon={IconArrowDown} size="md" color="blue.6" />
+            ),
+        },
         state: {
             sorting,
             showProgressBars: false,
@@ -246,11 +325,6 @@ export const MetricsTable = () => {
                 header: '',
             },
         },
-        renderRowActions: ({ row }) => (
-            <Box>
-                <ExploreMetricButton row={row} />
-            </Box>
-        ),
         enableFilterMatchHighlighting: true,
         enableEditing: true,
         editDisplayMode: 'cell',

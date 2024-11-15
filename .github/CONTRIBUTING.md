@@ -237,8 +237,8 @@ When ready, access the development container and run these commands:
 # Connect to container
 docker exec -it lightdash-app-lightdash-dev-1 bash
 
-# Skip puppeteer download
-export PUPPETEER_SKIP_DOWNLOAD=true
+# Skip playwright download
+export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true
 
 # Install dependencies & build common package
 ./scripts/build.sh
