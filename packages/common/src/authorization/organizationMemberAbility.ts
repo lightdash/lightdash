@@ -9,7 +9,6 @@ import { type MemberAbility } from './types';
 
 const applyOrganizationMemberDynamicAbilities = ({
     role,
-    member,
     builder: { can },
     permissionsConfig,
 }: OrganizationMemberAbilitiesArgs) => {
@@ -17,9 +16,7 @@ const applyOrganizationMemberDynamicAbilities = ({
         permissionsConfig.pat.enabled &&
         permissionsConfig.pat.allowedOrgRoles.includes(role)
     ) {
-        can('manage', 'PersonalAccessToken', {
-            userUuid: member.userUuid,
-        });
+        can('manage', 'PersonalAccessToken', {});
     }
 };
 

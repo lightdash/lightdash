@@ -2004,26 +2004,6 @@ describe('Organization member permissions', () => {
                 ),
             ).toEqual(false);
         });
-        it('cannot create a personal access token as subject properties doesnt match', () => {
-            const ability = defineAbilityForOrganizationMember(
-                ORGANIZATION_ADMIN,
-                {
-                    pat: {
-                        enabled: true,
-                        allowedOrgRoles: [OrganizationMemberRole.ADMIN],
-                    },
-                },
-            );
-            expect(
-                ability.can(
-                    'create',
-                    subject('PersonalAccessToken', {
-                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
-                        userUuid: 'another-user-uuid',
-                    }),
-                ),
-            ).toEqual(false);
-        });
         it('can create a personal access token as PAT is enabled', () => {
             const ability = defineAbilityForOrganizationMember(
                 ORGANIZATION_ADMIN,

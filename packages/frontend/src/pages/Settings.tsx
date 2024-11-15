@@ -181,12 +181,17 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
-                                <RouterNavLink
-                                    label="Personal access tokens"
-                                    exact
-                                    to="/generalSettings/personalAccessTokens"
-                                    icon={<MantineIcon icon={IconKey} />}
-                                />
+                                {user.ability.can(
+                                    'manage',
+                                    'PersonalAccessToken',
+                                ) && (
+                                    <RouterNavLink
+                                        label="Personal access tokens"
+                                        exact
+                                        to="/generalSettings/personalAccessTokens"
+                                        icon={<MantineIcon icon={IconKey} />}
+                                    />
+                                )}
                             </Box>
 
                             <Box>
@@ -577,9 +582,11 @@ const Settings: FC = () => {
                     <AppearanceSettingsPanel />
                 </Route>
 
-                <Route exact path="/generalSettings/personalAccessTokens">
-                    <AccessTokensPanel />
-                </Route>
+                {user.ability.can('manage', 'PersonalAccessToken') && (
+                    <Route exact path="/generalSettings/personalAccessTokens">
+                        <AccessTokensPanel />
+                    </Route>
+                )}
 
                 {user.ability.can('manage', 'Organization') && (
                     <Route exact path="/generalSettings/integrations">

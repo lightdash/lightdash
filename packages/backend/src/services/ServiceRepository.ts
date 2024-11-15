@@ -389,6 +389,7 @@ export class ServiceRepository
             'personalAccessTokenService',
             () =>
                 new PersonalAccessTokenService({
+                    lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     personalAccessTokenModel:
                         this.models.getPersonalAccessTokenModel(),

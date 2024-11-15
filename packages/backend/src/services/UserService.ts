@@ -1199,6 +1199,11 @@ export class UserService extends BaseService {
         if (!user.isActive) {
             throw new DeactivatedAccountError();
         }
+        if (user.ability.cannot('view', subject('PersonalAccessToken', {}))) {
+            throw new ForbiddenError(
+                'You do not have permission to login with personal access tokens',
+            );
+        }
         const organization = this.loginToOrganization(
             user.userUuid,
             LocalIssuerTypes.API_TOKEN,
