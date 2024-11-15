@@ -55,7 +55,7 @@ Use the following curl command to rotate a personal access token. Replace `<pers
 and `<personal-access-token>` with your current token.
 
 ```
-curl --location --request PATCH 'https://my.lightdash.com/api/v1/me/personal-access-tokens/<personal-access-token-uuid>/rotate' \
+curl --location --request PATCH 'https://my.lightdash.com/api/v1/user/me/personal-access-tokens/<personal-access-token-uuid>/rotate' \
 --header 'Content-Type: application/json' \
 --header 'Authorization: ApiKey <personal-access-token>' \
 --data '{

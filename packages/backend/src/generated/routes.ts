@@ -19199,7 +19199,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.patch(
-        '/api/v1/user/:personalAccessTokenUuid/rotate',
+        '/api/v1/user/me/personal-access-tokens/:personalAccessTokenUuid/rotate',
         ...fetchMiddlewares<RequestHandler>(UserController),
         ...fetchMiddlewares<RequestHandler>(
             UserController.prototype.rotatePersonalAccessToken,

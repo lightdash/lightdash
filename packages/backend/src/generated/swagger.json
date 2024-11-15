@@ -17523,7 +17523,7 @@
                 ]
             }
         },
-        "/api/v1/user/{personalAccessTokenUuid}/rotate": {
+        "/api/v1/user/me/personal-access-tokens/{personalAccessTokenUuid}/rotate": {
             "patch": {
                 "operationId": "Rotate personal access token",
                 "responses": {

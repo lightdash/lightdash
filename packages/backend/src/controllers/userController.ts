@@ -341,7 +341,7 @@ export class UserController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Patch('/{personalAccessTokenUuid}/rotate')
+    @Patch('/me/personal-access-tokens/{personalAccessTokenUuid}/rotate')
     @OperationId('Rotate personal access token')
     async rotatePersonalAccessToken(
         @Path() personalAccessTokenUuid: string,
