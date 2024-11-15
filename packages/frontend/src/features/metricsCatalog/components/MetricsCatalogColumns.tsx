@@ -22,6 +22,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
 import { CatalogCategory } from './CatalogCategory';
+import { ExploreMetricButton } from './ExploreMetricButton';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
@@ -60,16 +61,25 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         Header: ({ column }) => (
             <HeaderCell Icon={Hash}>{column.columnDef.header}</HeaderCell>
         ),
-        Cell: ({ row, table }) => (
-            <Tooltip
-                label={row.original.tableName}
-                disabled={!row.original.tableName}
-                withinPortal
-                position="right"
-            >
-                <MetricsCatalogColumnName row={row} table={table} />
-            </Tooltip>
-        ),
+        Cell: ({ row, table }) => {
+            return (
+                <Flex justify="space-between" align="center" w="100%">
+                    <Tooltip
+                        label={row.original.tableName}
+                        disabled={!row.original.tableName}
+                        withinPortal
+                        position="right"
+                    >
+                        <MetricsCatalogColumnName row={row} table={table} />
+                    </Tooltip>
+                    <ExploreMetricButton
+                        row={row}
+                        className="explore-button"
+                        visibility="hidden"
+                    />
+                </Flex>
+            );
+        },
     },
     {
         accessorKey: 'description',

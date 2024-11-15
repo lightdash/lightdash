@@ -24,7 +24,6 @@ import {
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
-import { ExploreMetricButton } from './ExploreMetricButton';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 
@@ -139,7 +138,6 @@ export const MetricsTable = () => {
         data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: false,
-        enableRowActions: true,
         positionActionsColumn: 'last',
         enableRowVirtualization: true,
         enablePagination: false,
@@ -178,12 +176,6 @@ export const MetricsTable = () => {
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: true,
-            sx: {
-                // Remove border on last column - this is the column with the actions buttons (added by default by mantine-react-table)
-                'thead > tr > th:last-of-type, tbody > tr > td:last-of-type': {
-                    borderLeft: 'none',
-                },
-            },
         },
         mantineTableHeadRowProps: {
             sx: {
@@ -236,6 +228,10 @@ export const MetricsTable = () => {
                     td: {
                         backgroundColor: theme.colors.gray[0],
                     },
+
+                    'td:first-of-type > div > .explore-button': {
+                        visibility: 'visible',
+                    },
                 },
             },
         },
@@ -247,6 +243,7 @@ export const MetricsTable = () => {
                 borderRight: `1px solid ${theme.colors.gray[2]}`,
                 borderBottom: `1px solid ${theme.colors.gray[2]}`,
                 borderTop: 'none',
+                borderLeft: 'none',
             },
             sx: {
                 display: 'inline-flex',
@@ -328,11 +325,6 @@ export const MetricsTable = () => {
                 header: '',
             },
         },
-        renderRowActions: ({ row }) => (
-            <Box>
-                <ExploreMetricButton row={row} />
-            </Box>
-        ),
         enableFilterMatchHighlighting: true,
         enableEditing: true,
         editDisplayMode: 'cell',
