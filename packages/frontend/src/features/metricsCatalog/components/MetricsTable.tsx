@@ -208,6 +208,8 @@ export const MetricsTable = () => {
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${theme.colors.gray[2]}`,
+                    borderTop: 'none',
+                    borderLeft: 'none',
                 },
                 sx: {
                     justifyContent: 'center',

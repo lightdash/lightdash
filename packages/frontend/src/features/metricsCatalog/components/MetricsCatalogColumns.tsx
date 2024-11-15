@@ -58,6 +58,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Metric',
         enableSorting: true,
         enableEditing: false,
+        size: 400,
         Header: ({ column }) => (
             <HeaderCell Icon={Hash}>{column.columnDef.header}</HeaderCell>
         ),
@@ -81,7 +82,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'description',
         enableSorting: false,
         enableEditing: false,
-        size: 300,
+        size: 500,
         header: 'Description',
         Header: ({ column }) => (
             <HeaderCell Icon={Description}>
@@ -127,7 +128,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Category',
         enableSorting: false,
         enableEditing: true,
-        size: 200,
+        size: 300,
         minSize: 180,
         mantineTableBodyCellProps: () => {
             return {
@@ -245,7 +246,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Popularity',
         enableSorting: true,
         enableEditing: false,
-        size: 100,
+        size: 150,
         mantineTableBodyCellProps: () => {
             return {
                 sx: {
