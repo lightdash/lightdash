@@ -211,14 +211,20 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                     >
                         {isEmojiIcon(row.original.icon) ? (
                             <Emoji
-                                size={18}
+                                size={16}
                                 unified={row.original.icon.unicode}
                             />
                         ) : (
                             <MetricIconPlaceholder width={12} height={12} />
                         )}
                     </ActionIcon>
-                    <Highlight highlight={table.getState().globalFilter || ''}>
+                    <Highlight
+                        highlight={table.getState().globalFilter || ''}
+                        c="dark.9"
+                        fw={500}
+                        fz="sm"
+                        lh="150%"
+                    >
                         {row.original.label}
                     </Highlight>
                 </Group>

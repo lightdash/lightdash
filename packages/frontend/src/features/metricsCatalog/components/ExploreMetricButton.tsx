@@ -1,7 +1,7 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, Text } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
 import {
     createMetricPreviewUnsavedChartVersion,
@@ -12,11 +12,14 @@ import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 
 type Props = {
+    className?: string;
+    visibility?: 'visible' | 'hidden';
     row: MRT_Row<CatalogField>;
 };
 
-export const ExploreMetricButton = ({ row }: Props) => {
-    const [isGeneratingPreviewUrl, setIsGeneratingPreviewUrl] = useState(false);
+export const ExploreMetricButton = ({ row, visibility, className }: Props) => {
+    const [exploreUrl, setExploreUrl] = useState<string>();
+    const [shouldOpenInNewTab, setShouldOpenInNewTab] = useState(false);
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -25,32 +28,37 @@ export const ExploreMetricButton = ({ row }: Props) => {
     );
     const [currentTableName, setCurrentTableName] = useState<string>();
     const { track } = useTracking();
-    const { isFetching } = useExplore(currentTableName, {
-        onSuccess(explore) {
-            if (!!currentTableName && explore && projectUuid) {
-                setIsGeneratingPreviewUrl(true);
-                const unsavedChartVersion =
-                    createMetricPreviewUnsavedChartVersion(
-                        row.original,
-                        explore,
-                    );
 
-                const { pathname, search } =
-                    getExplorerUrlFromCreateSavedChartVersion(
-                        projectUuid,
-                        unsavedChartVersion,
-                    );
-                const url = new URL(pathname, window.location.origin);
-                url.search = new URLSearchParams(search).toString();
+    const { data: explore, isFetching } = useExplore(currentTableName);
 
-                window.open(url.href, '_blank');
-                setIsGeneratingPreviewUrl(false);
-                setCurrentTableName(undefined);
-            }
-        },
-    });
+    useEffect(() => {
+        if (!!currentTableName && explore && projectUuid) {
+            const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
+                row.original,
+                explore,
+            );
 
-    const handleExploreClick = () => {
+            const { pathname, search } =
+                getExplorerUrlFromCreateSavedChartVersion(
+                    projectUuid,
+                    unsavedChartVersion,
+                );
+
+            const url = new URL(pathname, window.location.origin);
+            url.search = new URLSearchParams(search).toString();
+
+            setExploreUrl(url.href);
+        }
+    }, [currentTableName, explore, projectUuid, row.original]);
+
+    useEffect(() => {
+        if (shouldOpenInNewTab && exploreUrl) {
+            window.open(exploreUrl, '_blank');
+            setShouldOpenInNewTab(false);
+        }
+    }, [exploreUrl, shouldOpenInNewTab]);
+
+    const handleExploreClick = useCallback(() => {
         track({
             name: EventName.METRICS_CATALOG_EXPLORE_CLICKED,
             properties: {
@@ -60,18 +68,42 @@ export const ExploreMetricButton = ({ row }: Props) => {
                 tableName: row.original.tableName,
             },
         });
-        setCurrentTableName(row.original.tableName);
-    };
+
+        if (exploreUrl) {
+            window.open(exploreUrl, '_blank');
+        } else {
+            setShouldOpenInNewTab(true);
+            setCurrentTableName(row.original.tableName);
+        }
+    }, [
+        exploreUrl,
+        organizationUuid,
+        projectUuid,
+        row.original.name,
+        row.original.tableName,
+        track,
+    ]);
 
     return (
         <Button
-            size="xs"
+            className={className}
             compact
-            variant="subtle"
+            bg="linear-gradient(180deg, #202B37 0%, #151C24 100%)"
+            radius="md"
             onClick={handleExploreClick}
-            loading={isFetching || isGeneratingPreviewUrl}
+            loading={isFetching}
+            py="xxs"
+            px={10}
+            h={28}
+            sx={{
+                border: `1px solid #414E62`,
+                boxShadow: '0px 0px 0px 1px #151C24',
+                visibility,
+            }}
         >
-            Explore
+            <Text fz="sm" fw={500}>
+                Explore
+            </Text>
         </Button>
     );
 };

@@ -9684,6 +9684,60 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "PersonalAccessToken": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "rotatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUsedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "description",
+                    "expiresAt",
+                    "rotatedAt",
+                    "lastUsedAt",
+                    "createdAt",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "PersonalAccessTokenWithToken": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/PersonalAccessToken"
+                    },
+                    {
+                        "properties": {
+                            "token": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["token"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ContentType.CHART": {
                 "enum": ["chart"],
                 "type": "string"
@@ -11019,7 +11073,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1364.0",
+        "version": "0.1366.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -17467,6 +17521,74 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/user/me/personal-access-tokens/{personalAccessTokenUuid}/rotate": {
+            "patch": {
+                "operationId": "Rotate personal access token",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/PersonalAccessTokenWithToken"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Rotate personal access token",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "personalAccessTokenUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "expiresAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    }
+                                },
+                                "required": ["expiresAt"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/validate": {

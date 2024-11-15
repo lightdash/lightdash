@@ -1,4 +1,8 @@
-import { OrganizationMemberRole, type Space } from '@lightdash/common';
+import {
+    OrganizationMemberRole,
+    type OrganizationMemberProfile,
+    type Space,
+} from '@lightdash/common';
 import {
     Avatar,
     Badge,
@@ -16,6 +20,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
+import { uniq, uniqBy } from 'lodash';
 import {
     forwardRef,
     useEffect,
@@ -86,25 +91,38 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         { keepPreviousData: true },
     );
 
-    const organizationUsers = useMemo(
-        () => infiniteOrganizationUsers?.pages.map((p) => p.data).flat(),
-        [infiniteOrganizationUsers?.pages],
-    );
+    // Aggregates all fetched users across pages and search queries into a unified list.
+    // This ensures that previously fetched users are preserved even when the search query changes.
+    // Uses 'userUuid' to remove duplicates and maintain a consistent set of unique users.
+    const [allSearchedOrganizationUsers, setAllSearchedOrganizationUsers] =
+        useState<OrganizationMemberProfile[]>([]);
+    useEffect(() => {
+        const allPages =
+            infiniteOrganizationUsers?.pages.map((p) => p.data).flat() ?? [];
+
+        setAllSearchedOrganizationUsers((previousState) =>
+            uniqBy([...previousState, ...allPages], 'userUuid'),
+        );
+    }, [infiniteOrganizationUsers?.pages]);
 
     const groups = useMemo(
         () => infiniteOrganizationGroups?.pages.map((p) => p.data).flat(),
         [infiniteOrganizationGroups?.pages],
     );
 
-    const userUuids: string[] = useMemo(() => {
-        if (organizationUsers === undefined) return [];
+    const organizationUsers = useMemo(
+        () => infiniteOrganizationUsers?.pages.map((p) => p.data).flat(),
+        [infiniteOrganizationUsers?.pages],
+    );
 
+    const userUuids: string[] = useMemo(() => {
         const projectUserUuids =
             projectAccess?.map((project) => project.userUuid) || [];
 
-        const orgUserUuids = organizationUsers
-            .filter((user) => user.role !== OrganizationMemberRole.MEMBER)
-            .map((user) => user.userUuid);
+        const orgUserUuids =
+            organizationUsers
+                ?.filter((user) => user.role !== OrganizationMemberRole.MEMBER)
+                .map((user) => user.userUuid) ?? [];
 
         return [...new Set([...projectUserUuids, ...orgUserUuids])];
     }, [organizationUsers, projectAccess]);
@@ -126,7 +144,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 );
             }
 
-            const user = organizationUsers?.find(
+            const user = allSearchedOrganizationUsers.find(
                 (userAccess) => userAccess.userUuid === props.value,
             );
 
@@ -183,34 +201,38 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 </Group>
             );
         });
-    }, [organizationUsers, space.access]);
+    }, [allSearchedOrganizationUsers, space.access]);
 
     const data = useMemo(() => {
-        const usersSet = userUuids.map((userUuid): SelectItem | null => {
-            const user = organizationUsers?.find(
-                (a) => a.userUuid === userUuid,
-            );
+        const userUuidsAndSelected = uniq([...userUuids, ...usersSelected]);
 
-            if (!user) return null;
+        const usersSet = userUuidsAndSelected.map(
+            (userUuid): SelectItem | null => {
+                const user = allSearchedOrganizationUsers.find(
+                    (a) => a.userUuid === userUuid,
+                );
 
-            const hasDirectAccess = !!(space.access || []).find(
-                (access) => access.userUuid === userUuid,
-            )?.hasDirectAccess;
+                if (!user) return null;
 
-            if (hasDirectAccess) return null;
+                const hasDirectAccess = !!(space.access || []).find(
+                    (access) => access.userUuid === userUuid,
+                )?.hasDirectAccess;
 
-            return {
-                value: userUuid,
-                label: getUserNameOrEmail(
-                    user.userUuid,
-                    user.firstName,
-                    user.lastName,
-                    user.email,
-                ),
-                group: 'Users',
-                email: user.email,
-            };
-        });
+                if (hasDirectAccess) return null;
+
+                return {
+                    value: userUuid,
+                    label: getUserNameOrEmail(
+                        user.userUuid,
+                        user.firstName,
+                        user.lastName,
+                        user.email,
+                    ),
+                    group: 'Users',
+                    email: user.email,
+                };
+            },
+        );
 
         const groupsSet = groups
             ?.filter(
@@ -231,10 +253,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             (item): item is SelectItem => item !== null,
         );
     }, [
-        organizationUsers,
         userUuids,
-        space.access,
+        usersSelected,
         groups,
+        allSearchedOrganizationUsers,
+        space.access,
         space.groupsAccess,
     ]);
 
