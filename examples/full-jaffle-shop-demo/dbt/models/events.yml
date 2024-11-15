@@ -2,6 +2,14 @@ version: 2
 models:
   - name: events
     meta:
+      metrics: 
+        total_count_events: 
+          type: count_distinct
+          sql: ${TABLE}.event_id
+        sum_event_ids:
+          type: sum
+          label: Sum of event ids
+          sql: ${TABLE}.event_id
       group_details:
         events:
           label: Events
