@@ -1,3 +1,10 @@
+# [0.1368.0](https://github.com/lightdash/lightdash/compare/0.1367.0...0.1368.0) (2024-11-15)
+
+
+### Features
+
+* allow to rotate personal access token ([#12411](https://github.com/lightdash/lightdash/issues/12411)) ([f8ad8d4](https://github.com/lightdash/lightdash/commit/f8ad8d4662e6711dab8ab79241f2d69ce9dd37af))
+
 # [0.1367.0](https://github.com/lightdash/lightdash/compare/0.1366.2...0.1367.0) (2024-11-15)
 
 
