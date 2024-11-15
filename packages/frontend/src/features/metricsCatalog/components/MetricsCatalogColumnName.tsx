@@ -221,8 +221,9 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                     <Highlight
                         highlight={table.getState().globalFilter || ''}
                         c="dark.9"
-                        fw={600}
+                        fw={500}
                         fz="sm"
+                        lh="150%"
                     >
                         {row.original.label}
                     </Highlight>

@@ -100,11 +100,18 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                 disabled={!row.original.description}
             >
                 <HoverCard.Target>
-                    <Text lineClamp={2}>
+                    <Text
+                        lineClamp={2}
+                        c={row.original.description ? 'dark.4' : 'dark.1'}
+                        fz="sm"
+                        fw={400}
+                        lh="150%"
+                    >
                         <Highlight
                             highlight={table.getState().globalFilter || ''}
+                            lh="150%"
                         >
-                            {row.original.description ?? ''}
+                            {row.original.description ?? '-'}
                         </Highlight>
                     </Text>
                 </HoverCard.Target>
