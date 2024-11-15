@@ -225,6 +225,8 @@ export function mockUserResponse(
                 },
             },
         ],
+        updatedAt: new Date('2024-01-11T03:46:50.732Z'),
+        createdAt: new Date('2024-01-11T03:46:50.732Z'),
         ...overrides,
     };
 }

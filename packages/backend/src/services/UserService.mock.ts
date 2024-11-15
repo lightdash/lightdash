@@ -44,6 +44,8 @@ export const sessionUser: SessionUser = {
     ability: new Ability([{ subject: 'InviteLink', action: ['create'] }]),
     isActive: true,
     abilityRules: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
 };
 
 export const authenticatedUser: SessionUser = {
@@ -91,6 +93,8 @@ export const newUser: SessionUser = {
     ability: new Ability([]),
     isActive: true,
     abilityRules: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
 };
 
 export const organisation: Organization = {
@@ -107,4 +111,6 @@ export const userWithoutOrg: LightdashUser = {
     isMarketingOptedIn: false,
     isSetupComplete: false,
     isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
 };

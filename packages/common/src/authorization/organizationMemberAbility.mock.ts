@@ -11,6 +11,8 @@ export const ORGANIZATION_MEMBER: OrganizationMemberProfile = {
     lastName: 'jackson',
     email: 'jane@gmail.com',
     isActive: true,
+    userCreatedAt: new Date(),
+    userUpdatedAt: new Date(),
 };
 
 export const ORGANIZATION_VIEWER: OrganizationMemberProfile = {

@@ -86,6 +86,8 @@ export const mapDbUserDetailsToLightdashUser = (
     role: user.role,
     isActive: user.is_active,
     isPending: !hasAuthentication,
+    createdAt: user.created_at,
+    updatedAt: user.updated_at,
 });
 
 const userDetailsQueryBuilder = (
