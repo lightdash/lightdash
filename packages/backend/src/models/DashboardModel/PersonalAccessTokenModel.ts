@@ -8,7 +8,10 @@ import {
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
-import { DbPersonalAccessToken } from '../../database/entities/personalAccessTokens';
+import {
+    DbPersonalAccessToken,
+    PersonalAccessTokenTableName,
+} from '../../database/entities/personalAccessTokens';
 
 export class PersonalAccessTokenModel {
     private readonly database: Knex;
@@ -35,7 +38,7 @@ export class PersonalAccessTokenModel {
     }
 
     async getAllForUser(userId: number): Promise<PersonalAccessToken[]> {
-        const rows = await this.database('personal_access_tokens')
+        const rows = await this.database(PersonalAccessTokenTableName)
             .select('*')
             .where('created_by_user_id', userId);
         return rows.map(
@@ -50,7 +53,7 @@ export class PersonalAccessTokenModel {
         userUuid: string;
         tokenUuid: string;
     }): Promise<PersonalAccessToken> {
-        const row = await this.database('personal_access_tokens')
+        const row = await this.database(PersonalAccessTokenTableName)
             .leftJoin(
                 'users',
                 'personal_access_tokens.created_by_user_id',
@@ -70,7 +73,7 @@ export class PersonalAccessTokenModel {
     }
 
     async updateUsedDate(personalAccessTokenUuid: string): Promise<void> {
-        await this.database('personal_access_tokens')
+        await this.database(PersonalAccessTokenTableName)
             .update({
                 last_used_at: new Date(),
             })
@@ -86,7 +89,7 @@ export class PersonalAccessTokenModel {
     }): Promise<PersonalAccessTokenWithToken> {
         const token = crypto.randomBytes(16).toString('hex');
         const tokenHash = PersonalAccessTokenModel._hash(token);
-        const [row] = await this.database('personal_access_tokens')
+        const [row] = await this.database(PersonalAccessTokenTableName)
             .update({
                 rotated_at: new Date(),
                 expires_at: expiresAt,
@@ -106,7 +109,7 @@ export class PersonalAccessTokenModel {
     ): Promise<PersonalAccessTokenWithToken> {
         const token = crypto.randomBytes(16).toString('hex');
         const tokenHash = PersonalAccessTokenModel._hash(token);
-        const [row] = await this.database('personal_access_tokens')
+        const [row] = await this.database(PersonalAccessTokenTableName)
             .insert({
                 created_by_user_id: user.userId,
                 expires_at: data.expiresAt,
@@ -126,7 +129,7 @@ export class PersonalAccessTokenModel {
     }
 
     async delete(personalAccessTokenUuid: string): Promise<void> {
-        await this.database('personal_access_tokens')
+        await this.database(PersonalAccessTokenTableName)
             .delete()
             .where('personal_access_token_uuid', personalAccessTokenUuid);
     }
