@@ -2,9 +2,11 @@ import { ChartKind, isVizLineChartConfig } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { prepareAndFetchChartData } from '../../../features/sqlRunner/store/thunks';
 import {
+    getNewSortBy,
     resetChartState,
     setChartConfig,
     setChartOptionsAndConfig,
+    updateChartSortBy,
 } from './actions/commonChartActions';
 import { cartesianChartConfigSlice } from './cartesianChartBaseSlice';
 
@@ -57,6 +59,14 @@ export const lineChartConfigSlice = createSlice({
             ...cartesianChartConfigSlice.getInitialState(),
             type: ChartKind.LINE,
         }));
+
+        builder.addCase(updateChartSortBy, (state, action) => {
+            if (!state.fieldConfig) return;
+            state.fieldConfig.sortBy = getNewSortBy(
+                action.payload,
+                state.fieldConfig.sortBy,
+            );
+        });
     },
 });
 

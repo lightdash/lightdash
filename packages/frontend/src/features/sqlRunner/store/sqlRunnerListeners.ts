@@ -62,11 +62,6 @@ export const addChartConfigListener = (
             const currentSelectedChartType =
                 currentState.sqlRunner.selectedChartType;
 
-            const sortByChanged = !isEqual(
-                currentState.sqlRunner.sortBy,
-                previousState.sqlRunner.sortBy,
-            );
-
             const currentVizConfig = selectChartFieldConfigByKind(
                 currentState,
                 currentSelectedChartType,
@@ -78,8 +73,7 @@ export const addChartConfigListener = (
 
             return (
                 !isEqual(currentVizConfig, previousVizConfig) ||
-                previousSelectedChartType !== currentSelectedChartType ||
-                sortByChanged
+                previousSelectedChartType !== currentSelectedChartType
             );
         },
         effect: async (_, listenerApi) => {

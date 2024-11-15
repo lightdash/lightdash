@@ -1,6 +1,5 @@
 import {
     ChartKind,
-    SortByDirection,
     WarehouseTypes,
     type ApiErrorDetail,
     type RawResultRow,
@@ -94,7 +93,6 @@ export interface SqlRunnerState {
     successfulSqlQueries: WithHistory<string | undefined>;
     hasUnrunChanges: boolean;
     limit: number;
-    sortBy: VizSortBy[] | undefined;
     activeSidebarTab: SidebarTabs;
     activeEditorTab: EditorTabs;
     selectedChartType: ChartKind | undefined;
@@ -147,7 +145,6 @@ const initialState: SqlRunnerState = {
     successfulSqlQueries: withHistory(undefined),
     hasUnrunChanges: false,
     limit: 500,
-    sortBy: undefined,
     activeSidebarTab: SidebarTabs.TABLES,
     activeEditorTab: EditorTabs.SQL,
     selectedChartType: ChartKind.VERTICAL_BAR,
@@ -200,7 +197,6 @@ export const sqlRunnerSlice = createSlice({
         selectActiveChartType: (state) => state.selectedChartType,
         selectActiveEditorTab: (state) => state.activeEditorTab,
         selectLimit: (state) => state.limit,
-        selectSortBy: (state) => state.sortBy,
         selectResultsTableConfig: (state) => state.resultsTableConfig,
         selectSavedSqlChart: (state) => state.savedSqlChart,
         selectColumns: (state) => state.sqlColumns,
@@ -261,28 +257,6 @@ export const sqlRunnerSlice = createSlice({
         },
         setSqlLimit: (state, action: PayloadAction<number>) => {
             state.limit = action.payload;
-        },
-        updateSortBy: (state, action: PayloadAction<string>) => {
-            const reference = action.payload;
-            const existing = state.sortBy?.find(
-                (sort) => sort.reference === reference,
-            );
-
-            if (!existing) {
-                state.sortBy = [
-                    {
-                        reference,
-                        direction: SortByDirection.DESC,
-                    },
-                ];
-            } else if (
-                existing &&
-                existing.direction === SortByDirection.DESC
-            ) {
-                existing.direction = SortByDirection.ASC;
-            } else {
-                state.sortBy = undefined;
-            }
         },
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
             state.activeEditorTab = action.payload;
@@ -438,7 +412,6 @@ export const {
     updateName,
     setSql,
     setSqlLimit,
-    updateSortBy,
     setActiveEditorTab,
     setSavedChartData,
     setSelectedChartType,
@@ -457,7 +430,6 @@ export const {
     selectProjectUuid,
     selectActiveChartType,
     selectLimit,
-    selectSortBy,
     selectResultsTableConfig,
     selectActiveEditorTab,
     selectSavedSqlChart,
@@ -471,7 +443,7 @@ export const selectSqlRunnerResultsRunner = createSelector(
         selectProjectUuid,
         selectLimit,
         selectSql,
-        (state, sortBy?: VizSortBy[]) => sortBy ?? state.sortBy,
+        (_state, sortBy?: VizSortBy[]) => sortBy,
     ],
     (columns, rows, projectUuid, limit, sql, sortBy) => {
         return new SqlRunnerResultsRunnerFrontend({

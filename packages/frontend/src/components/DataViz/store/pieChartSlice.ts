@@ -12,9 +12,11 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { prepareAndFetchChartData } from '../../../features/sqlRunner/store/thunks';
 import {
+    getNewSortBy,
     resetChartState,
     setChartConfig,
     setChartOptionsAndConfig,
+    updateChartSortBy,
 } from './actions/commonChartActions';
 
 export type PieChartState = {
@@ -149,6 +151,14 @@ export const pieChartConfigSlice = createSlice({
             }
         });
         builder.addCase(resetChartState, () => initialState);
+
+        builder.addCase(updateChartSortBy, (state, action) => {
+            if (!state.fieldConfig) return;
+            state.fieldConfig.sortBy = getNewSortBy(
+                action.payload,
+                state.fieldConfig.sortBy,
+            );
+        });
     },
 });
 export const { setGroupFieldIds, setYAxisReference, setYAxisAggregation } =

@@ -312,8 +312,6 @@ export class SqlRunnerController extends BaseController {
         @Request() req: express.Request,
         @Body() body: CreateSqlChart,
     ): Promise<ApiCreateSqlChart> {
-        console.log('body', body);
-
         this.setStatus(200);
         return {
             status: 'ok',

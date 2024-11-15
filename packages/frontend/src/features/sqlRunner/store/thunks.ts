@@ -6,7 +6,6 @@ import {
     ChartKind,
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
-    // isVizCartesianChartConfig,
     type ApiErrorDetail,
     type RawResultRow,
 } from '@lightdash/common';
@@ -15,6 +14,7 @@ import { type RootState } from '.';
 import {
     selectChartDisplayByKind,
     selectChartFieldConfigByKind,
+    selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { getResultsFromStream } from '../../../utils/request';
@@ -83,18 +83,17 @@ export const prepareAndFetchChartData = createAsyncThunk(
     async (_, { getState }) => {
         const state = getState() as RootState;
 
-        // const currentVizConfig = selectCompleteConfigByKind(
-        //     state,
-        //     state.sqlRunner.selectedChartType,
-        // );
+        const currentVizConfig = selectCompleteConfigByKind(
+            state,
+            state.sqlRunner.selectedChartType,
+        );
 
         // TODO: need this somewhere for back compat
-        // const sortBy = isVizCartesianChartConfig(currentVizConfig)
-        //     ? currentVizConfig.fieldConfig?.sortBy
-        //     : undefined;
-        // const { selectedChartType, limit, sql } = state.sqlRunner;
-
-        const { selectedChartType, limit, sql, sortBy } = state.sqlRunner;
+        const sortBy =
+            currentVizConfig && 'fieldConfig' in currentVizConfig
+                ? currentVizConfig.fieldConfig?.sortBy
+                : undefined;
+        const { selectedChartType, limit, sql } = state.sqlRunner;
 
         const resultsRunner = selectSqlRunnerResultsRunner(state, sortBy);
 

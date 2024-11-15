@@ -64,12 +64,18 @@ export const cartesianChartConfigSlice = createSlice({
                 (x) => x.reference === action.payload,
             );
 
-            // NOTE: now setting a field instead of just a reference.
             if (state.fieldConfig && xField) {
                 state.fieldConfig.x = {
                     type: xField.axisType,
                     reference: xField.reference,
                 };
+
+                if (
+                    state.fieldConfig.sortBy &&
+                    state.fieldConfig.sortBy[0].reference !== action.payload
+                ) {
+                    state.fieldConfig.sortBy = undefined;
+                }
             }
         },
 
@@ -111,6 +117,14 @@ export const cartesianChartConfigSlice = createSlice({
                         (option) =>
                             option.reference === action.payload.reference,
                     );
+
+                if (
+                    state.fieldConfig.sortBy &&
+                    state.fieldConfig.sortBy[0].reference !==
+                        action.payload.reference
+                ) {
+                    state.fieldConfig.sortBy = undefined;
+                }
 
                 if (yAxis) {
                     yAxis.reference = action.payload.reference;
