@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button, Text } from '@mantine/core';
+import { Button, Text, Tooltip } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
 import { useCallback, useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
@@ -85,25 +85,31 @@ export const ExploreMetricButton = ({ row, visibility, className }: Props) => {
     ]);
 
     return (
-        <Button
-            className={className}
-            compact
-            bg="linear-gradient(180deg, #202B37 0%, #151C24 100%)"
-            radius="md"
-            onClick={handleExploreClick}
-            loading={isFetching}
-            py="xxs"
-            px={10}
-            h={28}
-            sx={{
-                border: `1px solid #414E62`,
-                boxShadow: '0px 0px 0px 1px #151C24',
-                visibility,
-            }}
+        <Tooltip
+            withinPortal
+            variant="xs"
+            label="Open this metric in the explorer for detailed insights."
         >
-            <Text fz="sm" fw={500}>
-                Explore
-            </Text>
-        </Button>
+            <Button
+                className={className}
+                compact
+                bg="linear-gradient(180deg, #202B37 0%, #151C24 100%)"
+                radius="md"
+                onClick={handleExploreClick}
+                loading={isFetching}
+                py="xxs"
+                px={10}
+                h={28}
+                sx={{
+                    border: `1px solid #414E62`,
+                    boxShadow: '0px 0px 0px 1px #151C24',
+                    visibility,
+                }}
+            >
+                <Text fz="sm" fw={500}>
+                    Explore
+                </Text>
+            </Button>
+        </Tooltip>
     );
 };

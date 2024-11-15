@@ -16,6 +16,19 @@ const MetricsCatalog: FC = () => {
                     fontFamily: `Inter, ${
                         getMantineThemeOverride().fontFamily
                     }`,
+                    components: {
+                        ...getMantineThemeOverride().components,
+                        Tooltip: {
+                            defaultProps: {
+                                openDelay: 200,
+                                withinPortal: true,
+                                withArrow: true,
+                                multiline: true,
+                                maw: 250,
+                                fz: 'xs',
+                            },
+                        },
+                    },
                 }}
             >
                 <Page
