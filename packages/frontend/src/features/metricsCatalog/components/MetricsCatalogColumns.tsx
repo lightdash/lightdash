@@ -1,15 +1,7 @@
 import { type CatalogField } from '@lightdash/common';
-import {
-    Flex,
-    Group,
-    Highlight,
-    HoverCard,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Flex, Group, Text, Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo, type FC, type SVGProps } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -25,6 +17,7 @@ import { CatalogCategory } from './CatalogCategory';
 import { ExploreMetricButton } from './ExploreMetricButton';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
+import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescription';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 
 const HeaderCell = ({
@@ -88,40 +81,9 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                 {column.columnDef.header}
             </HeaderCell>
         ),
-        Cell: ({ table, row }) => (
-            <HoverCard
-                withinPortal
-                shadow="lg"
-                position="right"
-                disabled={!row.original.description}
-                radius="md"
-            >
-                <HoverCard.Target>
-                    <Text
-                        lineClamp={2}
-                        c={row.original.description ? 'dark.4' : 'dark.1'}
-                        fz="sm"
-                        fw={400}
-                        lh="150%"
-                    >
-                        <Highlight
-                            highlight={table.getState().globalFilter || ''}
-                            lh="150%"
-                        >
-                            {row.original.description ?? '-'}
-                        </Highlight>
-                    </Text>
-                </HoverCard.Target>
-                <HoverCard.Dropdown maw={300}>
-                    <MarkdownPreview
-                        source={row.original.description}
-                        style={{
-                            fontSize: '12px',
-                        }}
-                    />
-                </HoverCard.Dropdown>
-            </HoverCard>
-        ),
+        Cell: ({ row, table }) => {
+            return <MetricsCatalogColumnDescription row={row} table={table} />;
+        },
     },
     {
         accessorKey: 'categories',
