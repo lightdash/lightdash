@@ -1,11 +1,12 @@
 import {
     isLightdashMode,
+    isOrganizationMemberRole,
     LightdashMode,
+    OrganizationMemberRole,
     ParseError,
     SentryConfig,
 } from '@lightdash/common';
 import { type ClientAuthMethod } from 'openid-client';
-import internal from 'stream';
 import { VERSION } from '../version';
 
 export const getIntegerFromEnvironmentVariable = (
@@ -172,6 +173,23 @@ const parseLoggingOutput = (raw: string): LoggingOutput => {
     }
     return raw;
 };
+export const parseOrganizationMemberRoleArray = (
+    envVarName: string,
+): OrganizationMemberRole[] | undefined => {
+    const raw = process.env[envVarName];
+    if (raw === undefined) {
+        return undefined;
+    }
+    return raw.split(',').map((role) => {
+        if (!isOrganizationMemberRole(role)) {
+            throw new ParseError(
+                `Cannot parse environment variable "${envVarName}". Value must be a comma-separated list of OrganizationMemberRole but ${envVarName}=${raw}`,
+            );
+        }
+        return role;
+    });
+};
+
 export type LoggingConfig = {
     level: LoggingLevel;
     format: LoggingFormat;
@@ -404,7 +422,11 @@ export type AuthConfig = {
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
     oidc: AuthOidcConfig;
-    disablePat: boolean;
+    pat: {
+        enabled: boolean;
+        allowedOrgRoles: OrganizationMemberRole[];
+        maxExpirationTimeInDays: number | undefined;
+    };
 };
 
 export type SmtpConfig = {
@@ -547,7 +569,16 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
         },
         auth: {
-            disablePat: process.env.DISABLE_PAT === 'true',
+            pat: {
+                enabled: process.env.DISABLE_PAT !== 'true',
+                allowedOrgRoles:
+                    parseOrganizationMemberRoleArray('PAT_ALLOWED_ORG_ROLES') ??
+                    Object.values(OrganizationMemberRole),
+                maxExpirationTimeInDays:
+                    getIntegerFromEnvironmentVariable(
+                        'PAT_MAX_EXPIRATION_TIME_IN_DAYS',
+                    ) ?? undefined,
+            },
             disablePasswordAuthentication:
                 process.env.AUTH_DISABLE_PASSWORD_AUTHENTICATION === 'true',
             enableGroupSync: process.env.AUTH_ENABLE_GROUP_SYNC === 'true',

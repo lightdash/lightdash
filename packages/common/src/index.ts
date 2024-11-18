@@ -804,6 +804,9 @@ export type HealthState = {
             enabled: boolean;
             loginPath: string;
         };
+        pat: {
+            maxExpirationTimeInDays: number | undefined;
+        };
     };
     posthog:
         | {

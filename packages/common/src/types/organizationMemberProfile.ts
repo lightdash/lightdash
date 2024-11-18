@@ -10,6 +10,11 @@ export enum OrganizationMemberRole {
     ADMIN = 'admin',
 }
 
+export const isOrganizationMemberRole = (
+    x: string,
+): x is OrganizationMemberRole =>
+    Object.values(OrganizationMemberRole).includes(x as OrganizationMemberRole);
+
 /**
  * Profile for a user's membership in an organization
  */

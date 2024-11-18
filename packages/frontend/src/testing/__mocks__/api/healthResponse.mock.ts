@@ -69,6 +69,9 @@ export default function mockHealthResponse(
                 loginPath: '/login/oidc',
                 enabled: false,
             },
+            pat: {
+                maxExpirationTimeInDays: undefined,
+            },
         },
         hasEmailClient: false,
         hasHeadlessBrowser: false,

@@ -134,6 +134,10 @@ export class HealthService extends BaseService {
                     loginPath: this.lightdashConfig.auth.oidc.loginPath,
                     enabled: !!this.lightdashConfig.auth.oidc.clientId,
                 },
+                pat: {
+                    maxExpirationTimeInDays:
+                        this.lightdashConfig.auth.pat.maxExpirationTimeInDays,
+                },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
             hasHeadlessBrowser:
