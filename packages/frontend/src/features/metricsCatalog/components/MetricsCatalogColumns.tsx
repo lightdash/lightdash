@@ -30,25 +30,28 @@ import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 const HeaderCell = ({
     children,
     Icon,
+    tooltipLabel,
 }: {
     children: React.ReactNode;
+    tooltipLabel?: string;
     Icon: FC<SVGProps<SVGSVGElement>>;
 }) => {
     return (
-        <Group spacing={6} mr={6} h="100%" noWrap>
-            <Icon />
-            <Text
-                fz="xs"
-                fw={600}
-                color="dark.3"
-                sx={{
-                    // Turn off highlight text cursor - useful when resizing columns
-                    userSelect: 'none',
-                }}
-            >
-                {children}
-            </Text>
-        </Group>
+        <Tooltip variant="xs" label={tooltipLabel} disabled={!tooltipLabel}>
+            <Group spacing={6} mr={6} h="100%" noWrap>
+                <Icon />
+                <Text
+                    fz="xs"
+                    fw={600}
+                    color="dark.3"
+                    sx={{
+                        userSelect: 'none',
+                    }}
+                >
+                    {children}
+                </Text>
+            </Group>
+        </Tooltip>
     );
 };
 
@@ -58,25 +61,15 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Metric',
         enableSorting: true,
         enableEditing: false,
+        size: 400,
         Header: ({ column }) => (
             <HeaderCell Icon={Hash}>{column.columnDef.header}</HeaderCell>
         ),
         Cell: ({ row, table }) => {
             return (
                 <Flex justify="space-between" align="center" w="100%">
-                    <Tooltip
-                        label={row.original.tableName}
-                        disabled={!row.original.tableName}
-                        withinPortal
-                        position="right"
-                    >
-                        <MetricsCatalogColumnName row={row} table={table} />
-                    </Tooltip>
-                    <ExploreMetricButton
-                        row={row}
-                        className="explore-button"
-                        visibility="hidden"
-                    />
+                    <MetricsCatalogColumnName row={row} table={table} />
+                    <ExploreMetricButton row={row} className="explore-button" />
                 </Flex>
             );
         },
@@ -85,10 +78,13 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         accessorKey: 'description',
         enableSorting: false,
         enableEditing: false,
-        size: 300,
+        size: 500,
         header: 'Description',
         Header: ({ column }) => (
-            <HeaderCell Icon={Description}>
+            <HeaderCell
+                Icon={Description}
+                tooltipLabel="Defined in the metric's .yml file"
+            >
                 {column.columnDef.header}
             </HeaderCell>
         ),
@@ -98,17 +94,25 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                 shadow="lg"
                 position="right"
                 disabled={!row.original.description}
+                radius="md"
             >
                 <HoverCard.Target>
-                    <Text lineClamp={2}>
+                    <Text
+                        lineClamp={2}
+                        c={row.original.description ? 'dark.4' : 'dark.1'}
+                        fz="sm"
+                        fw={400}
+                        lh="150%"
+                    >
                         <Highlight
                             highlight={table.getState().globalFilter || ''}
+                            lh="150%"
                         >
-                            {row.original.description ?? ''}
+                            {row.original.description ?? '-'}
                         </Highlight>
                     </Text>
                 </HoverCard.Target>
-                <HoverCard.Dropdown>
+                <HoverCard.Dropdown maw={300}>
                     <MarkdownPreview
                         source={row.original.description}
                         style={{
@@ -124,7 +128,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Category',
         enableSorting: false,
         enableEditing: true,
-        size: 200,
+        size: 300,
         minSize: 180,
         mantineTableBodyCellProps: () => {
             return {
@@ -138,7 +142,12 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             };
         },
         Header: ({ column }) => (
-            <HeaderCell Icon={Tag}>{column.columnDef.header}</HeaderCell>
+            <HeaderCell
+                Icon={Tag}
+                tooltipLabel="Click to add or edit a category, if you have the required permissions."
+            >
+                {column.columnDef.header}
+            </HeaderCell>
         ),
         Edit: ({ table, row, cell }) => {
             const dispatch = useAppDispatch();
@@ -224,7 +233,15 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                             </Text>
                         </Group>
                     ) : (
-                        <Group spacing="xxs" pos="relative" w="100%" h="100%">
+                        <Group
+                            spacing="xxs"
+                            pos="relative"
+                            w="100%"
+                            h="100%"
+                            sx={{
+                                rowGap: 'unset',
+                            }}
+                        >
                             {categories.map((category) => (
                                 <CatalogCategory
                                     key={category.tagUuid}
@@ -242,7 +259,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         header: 'Popularity',
         enableSorting: true,
         enableEditing: false,
-        size: 100,
+        size: 150,
         mantineTableBodyCellProps: () => {
             return {
                 sx: {
@@ -251,7 +268,12 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             };
         },
         Header: ({ column }) => (
-            <HeaderCell Icon={Popularity}>{column.columnDef.header}</HeaderCell>
+            <HeaderCell
+                Icon={Popularity}
+                tooltipLabel="Shows how many charts use this metric."
+            >
+                {column.columnDef.header}
+            </HeaderCell>
         ),
         Cell: ({ row }) => <MetricChartUsageButton row={row} />,
     },

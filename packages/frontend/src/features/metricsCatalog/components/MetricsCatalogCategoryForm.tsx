@@ -68,7 +68,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
         }, []);
 
         useEffect(() => {
-            setTagColor(getRandomColor(colors));
+            setTagColor(getRandomColor());
         }, [colors]);
 
         const handleAddTag = useCallback(
@@ -101,7 +101,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
 
                         // Reset search and color after creating a new tag
                         setSearch('');
-                        setTagColor(getRandomColor(colors));
+                        setTagColor(getRandomColor());
                     }
 
                     track({
@@ -127,7 +127,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 catalogSearchUuid,
                 tagColor,
                 createTagMutation,
-                colors,
             ],
         );
 
@@ -189,7 +188,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             color:
                                 metricCategories.find(
                                     (category) => category.name === value,
-                                )?.color ?? getRandomColor(colors),
+                                )?.color ?? getRandomColor(),
                         }}
                         onRemove={() => {
                             onRemove(value);
@@ -203,7 +202,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     />
                 </Box>
             ),
-            [colors, metricCategories, handleUntag],
+            [metricCategories, handleUntag],
         );
 
         const [hasOpenSubPopover, setHasOpenSubPopover] = useState(false);

@@ -168,7 +168,7 @@ export const MetricsTable = () => {
             ref: tableContainerRef,
             sx: {
                 maxHeight: 'calc(100dvh - 350px)',
-                minHeight: 'calc(100dvh - 350px)',
+                minHeight: '600px',
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
@@ -208,6 +208,8 @@ export const MetricsTable = () => {
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${theme.colors.gray[2]}`,
+                    borderTop: 'none',
+                    borderLeft: 'none',
                 },
                 sx: {
                     justifyContent: 'center',
@@ -218,19 +220,27 @@ export const MetricsTable = () => {
                         borderRight: !isAnyColumnResizing
                             ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
                             : undefined,
+                        transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
                 },
             };
         },
         mantineTableBodyRowProps: {
             sx: {
+                'td:first-of-type > div > .explore-button': {
+                    visibility: 'hidden',
+                    opacity: 0,
+                },
                 '&:hover': {
                     td: {
                         backgroundColor: theme.colors.gray[0],
+                        transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
 
                     'td:first-of-type > div > .explore-button': {
                         visibility: 'visible',
+                        opacity: 1,
+                        transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
                 },
             },

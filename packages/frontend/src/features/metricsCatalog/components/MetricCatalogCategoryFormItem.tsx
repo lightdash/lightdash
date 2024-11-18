@@ -11,7 +11,6 @@ import {
     TextInput,
     Tooltip,
     UnstyledButton,
-    useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconDots, IconTrash } from '@tabler/icons-react';
@@ -19,7 +18,7 @@ import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useDeleteTag, useUpdateTag } from '../hooks/useProjectTags';
-import { getTagColorSwatches } from '../utils/getRandomTagColor';
+import { TAG_COLOR_SWATCHES } from '../utils/getRandomTagColor';
 import { CatalogCategory } from './CatalogCategory';
 import { CatalogCategorySwatch } from './CatalogCategorySwatch';
 
@@ -42,7 +41,6 @@ const EditPopover: FC<EditPopoverProps> = ({
     const [opened, { open, close }] = useDisclosure(false);
     const [editName, setEditName] = useState(category.name);
     const [editColor, setEditColor] = useState(category.color);
-    const colors = getTagColorSwatches(useMantineTheme().colors);
 
     const handleClose = useCallback(() => {
         close();
@@ -124,7 +122,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                     />
 
                     <SimpleGrid cols={7} spacing="xs" verticalSpacing="xs">
-                        {colors.map((color) => (
+                        {TAG_COLOR_SWATCHES.map((color) => (
                             <CatalogCategorySwatch
                                 key={color}
                                 color={color}
@@ -199,8 +197,11 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
             pos="relative"
             position="apart"
             sx={(theme) => ({
-                borderRadius: theme.radius.sm,
-                '&:hover': { backgroundColor: theme.colors.gray[2] },
+                borderRadius: theme.radius.md,
+                '&:hover': {
+                    backgroundColor: theme.colors.gray[1],
+                    transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                },
             })}
         >
             <UnstyledButton

@@ -1,4 +1,5 @@
 import { type MetricQuery } from './metricQuery';
+import { type PivotConfig } from './pivot';
 
 export type DownloadMetricCsv = {
     userUuid: string;
@@ -13,4 +14,5 @@ export type DownloadMetricCsv = {
     hiddenFields: string[] | undefined;
     chartName: string | undefined;
     fromSavedChart: boolean;
+    pivotConfig?: PivotConfig;
 };

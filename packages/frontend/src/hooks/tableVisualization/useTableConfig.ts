@@ -4,6 +4,7 @@ import {
     isDimension,
     isField,
     isMetric,
+    isSummable,
     isTableCalculation,
     itemsInMetricQuery,
     type ApiQueryResults,
@@ -23,11 +24,10 @@ import {
     type TableHeader,
 } from '../../components/common/Table/types';
 import { useCalculateTotal } from '../useCalculateTotal';
-import { isSummable } from '../useColumnTotals';
 import getDataAndColumns from './getDataAndColumns';
 
 const createWorker = createWorkerFactory(
-    () => import('../pivotTable/pivotQueryResults'),
+    () => import('@lightdash/common/src/pivotTable/pivotQueryResults'),
 );
 
 const useTableConfig = (

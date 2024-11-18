@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Button, Text, Tooltip } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { BarChart } from '../../../svgs/metricsCatalog';
@@ -39,30 +39,43 @@ export const MetricChartUsageButton = ({
     };
 
     return (
-        <Button
-            size="xs"
-            compact
-            color="gray.6"
-            variant="subtle"
+        <Tooltip
+            variant="xs"
             disabled={!hasChartsUsage}
-            onClick={handleChartUsageClick}
-            leftIcon={<BarChart />}
-            opacity={hasChartsUsage ? 1 : 0.8}
-            fz="sm"
-            c="dark.4"
-            sx={{
-                '&[data-disabled]': {
-                    backgroundColor: 'transparent',
-                    fontWeight: 400,
-                },
-            }}
-            styles={(theme) => ({
-                leftIcon: {
-                    marginRight: theme.spacing.xxs,
-                },
-            })}
+            label={
+                <Text>
+                    Used by {row.original.chartUsage} charts.
+                    <br />
+                    Click to view the full list.
+                </Text>
+            }
         >
-            {row.original.chartUsage}
-        </Button>
+            <Button
+                size="xs"
+                compact
+                color="gray.6"
+                variant="subtle"
+                disabled={!hasChartsUsage}
+                onClick={handleChartUsageClick}
+                leftIcon={<BarChart />}
+                opacity={hasChartsUsage ? 1 : 0.8}
+                fz="sm"
+                c="dark.4"
+                fw={500}
+                sx={{
+                    '&[data-disabled]': {
+                        backgroundColor: 'transparent',
+                        fontWeight: 400,
+                    },
+                }}
+                styles={(theme) => ({
+                    leftIcon: {
+                        marginRight: theme.spacing.xxs,
+                    },
+                })}
+            >
+                {row.original.chartUsage}
+            </Button>
+        </Tooltip>
     );
 };

@@ -1217,6 +1217,10 @@ export class UserService extends BaseService {
             }
             throw new AuthorizationError();
         }
+        // Update last used date
+        await this.personalAccessTokenModel.updateUsedDate(
+            personalAccessToken.uuid,
+        );
         return userWithOrganization;
     }
 

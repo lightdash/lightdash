@@ -8,9 +8,10 @@ import {
     Highlight,
     Paper,
     Portal,
+    Tooltip,
 } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
-import { IconTrash } from '@tabler/icons-react';
+import { IconTable, IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {
     Emoji,
     EmojiStyle,
@@ -211,16 +212,38 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                     >
                         {isEmojiIcon(row.original.icon) ? (
                             <Emoji
-                                size={18}
+                                size={16}
                                 unified={row.original.icon.unicode}
                             />
                         ) : (
                             <MetricIconPlaceholder width={12} height={12} />
                         )}
                     </ActionIcon>
-                    <Highlight highlight={table.getState().globalFilter || ''}>
-                        {row.original.label}
-                    </Highlight>
+                    <Tooltip
+                        label={
+                            <Group spacing={4}>
+                                <MantineIcon
+                                    color="gray.2"
+                                    icon={IconTable}
+                                    stroke={2.0}
+                                />
+                                {row.original.tableName}
+                            </Group>
+                        }
+                        disabled={!row.original.tableName}
+                        variant="xs"
+                        openDelay={300}
+                    >
+                        <Highlight
+                            highlight={table.getState().globalFilter || ''}
+                            c="dark.9"
+                            fw={500}
+                            fz="sm"
+                            lh="150%"
+                        >
+                            {row.original.label}
+                        </Highlight>
+                    </Tooltip>
                 </Group>
                 <SharedEmojiPicker
                     emoji={row.original.icon}

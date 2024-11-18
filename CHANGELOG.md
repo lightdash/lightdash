@@ -1,3 +1,52 @@
+## [0.1369.3](https://github.com/lightdash/lightdash/compare/0.1369.2...0.1369.3) (2024-11-18)
+
+
+### Bug Fixes
+
+* optimize project deletion ([#12461](https://github.com/lightdash/lightdash/issues/12461)) ([4effb63](https://github.com/lightdash/lightdash/commit/4effb634b704b10be9bdc3ba8229aba2bb6cbabd))
+
+## [0.1369.2](https://github.com/lightdash/lightdash/compare/0.1369.1...0.1369.2) (2024-11-18)
+
+
+### Bug Fixes
+
+* export pivot results on csv ([#12333](https://github.com/lightdash/lightdash/issues/12333)) ([6fd825b](https://github.com/lightdash/lightdash/commit/6fd825b319e3f19d12a3d85034254eb2da37bf94))
+
+## [0.1369.1](https://github.com/lightdash/lightdash/compare/0.1369.0...0.1369.1) (2024-11-18)
+
+
+### Bug Fixes
+
+* dashboard breaking width if too many filters ([#12439](https://github.com/lightdash/lightdash/issues/12439)) ([369b622](https://github.com/lightdash/lightdash/commit/369b622603e1bdb663ba825133fa288d72cd7d1d))
+
+# [0.1369.0](https://github.com/lightdash/lightdash/compare/0.1368.1...0.1369.0) (2024-11-18)
+
+
+### Features
+
+* remove filter warning and clear temp filters ([#12465](https://github.com/lightdash/lightdash/issues/12465)) ([a8875b7](https://github.com/lightdash/lightdash/commit/a8875b7deb2ef905899730cfb345b7fff0e5197d))
+
+## [0.1368.1](https://github.com/lightdash/lightdash/compare/0.1368.0...0.1368.1) (2024-11-15)
+
+
+### Bug Fixes
+
+* column sizes to match figma & table head border ([#12469](https://github.com/lightdash/lightdash/issues/12469)) ([b3d8f3c](https://github.com/lightdash/lightdash/commit/b3d8f3c2c23d51fe2f4a5c6da0dc472459b9d4de))
+
+# [0.1368.0](https://github.com/lightdash/lightdash/compare/0.1367.0...0.1368.0) (2024-11-15)
+
+
+### Features
+
+* allow to rotate personal access token ([#12411](https://github.com/lightdash/lightdash/issues/12411)) ([f8ad8d4](https://github.com/lightdash/lightdash/commit/f8ad8d4662e6711dab8ab79241f2d69ce9dd37af))
+
+# [0.1367.0](https://github.com/lightdash/lightdash/compare/0.1366.2...0.1367.0) (2024-11-15)
+
+
+### Features
+
+* added created_at and updated_at to user and organization member objects ([#12434](https://github.com/lightdash/lightdash/issues/12434)) ([233cadf](https://github.com/lightdash/lightdash/commit/233cadf80a04f65c9c0de994ffb29f50dbebbd81))
+
 ## [0.1366.2](https://github.com/lightdash/lightdash/compare/0.1366.1...0.1366.2) (2024-11-15)
 
 

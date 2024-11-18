@@ -92,50 +92,57 @@ const CategoriesFilter = () => {
         <Group spacing="two">
             <Popover width={300} position="bottom-start">
                 <Popover.Target>
-                    <Button
-                        h={32}
-                        c="gray.7"
-                        fw={500}
-                        fz="sm"
-                        variant="default"
-                        radius="md"
-                        py="xs"
-                        px="sm"
-                        leftIcon={
-                            <MantineIcon
-                                icon={IconTag}
-                                size="md"
-                                color={
-                                    hasSelectedCategories
-                                        ? 'indigo.5'
-                                        : 'gray.5'
-                                }
-                            />
-                        }
-                        loading={isLoading}
-                        styles={(theme) => ({
-                            root: {
-                                border: hasSelectedCategories
-                                    ? `1px solid ${theme.colors.indigo[2]}`
-                                    : `1px dashed ${theme.colors.gray[3]}`,
-                                backgroundColor: hasSelectedCategories
-                                    ? theme.colors.indigo[0]
-                                    : undefined,
-                                textOverflow: 'ellipsis',
-                                boxShadow: theme.shadows.subtle,
-                                '&:hover': {
-                                    backgroundColor: theme.colors.gray[0],
-                                },
-                            },
-                            label: {
-                                height: 24,
-                            },
-                        })}
+                    <Tooltip
+                        withinPortal
+                        variant="xs"
+                        label="Easily filter metrics by category to find what you're looking for."
                     >
-                        {hasSelectedCategories
-                            ? categoryNames
-                            : 'All categories'}
-                    </Button>
+                        <Button
+                            h={32}
+                            c="gray.7"
+                            fw={500}
+                            fz="sm"
+                            variant="default"
+                            radius="md"
+                            py="xs"
+                            px="sm"
+                            leftIcon={
+                                <MantineIcon
+                                    icon={IconTag}
+                                    size="md"
+                                    color={
+                                        hasSelectedCategories
+                                            ? 'indigo.5'
+                                            : 'gray.5'
+                                    }
+                                />
+                            }
+                            loading={isLoading}
+                            styles={(theme) => ({
+                                root: {
+                                    border: hasSelectedCategories
+                                        ? `1px solid ${theme.colors.indigo[2]}`
+                                        : `1px dashed ${theme.colors.gray[3]}`,
+                                    backgroundColor: hasSelectedCategories
+                                        ? theme.colors.indigo[0]
+                                        : undefined,
+                                    textOverflow: 'ellipsis',
+                                    boxShadow: theme.shadows.subtle,
+                                    '&:hover': {
+                                        backgroundColor: theme.colors.gray[0],
+                                        transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                                    },
+                                },
+                                label: {
+                                    height: 24,
+                                },
+                            })}
+                        >
+                            {hasSelectedCategories
+                                ? categoryNames
+                                : 'All categories'}
+                        </Button>
+                    </Tooltip>
                 </Popover.Target>
                 <Popover.Dropdown>
                     <Stack spacing="sm">
@@ -194,56 +201,62 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
         return (
             <Group {...props}>
                 <Group spacing="xs">
-                    {/* Search input */}
-                    <TextInput
-                        size="xs"
-                        radius="md"
-                        styles={(theme) => ({
-                            input: {
-                                height: 32,
-                                width: 309,
-                                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                                textOverflow: 'ellipsis',
-                                fontSize: theme.fontSizes.sm,
-                                fontWeight: 400,
-                                color: search
-                                    ? theme.colors.gray[8]
-                                    : theme.colors.gray[5],
-                                boxShadow: theme.shadows.subtle,
-                                border: `1px solid ${theme.colors.gray[3]}`,
-                                '&:hover': {
-                                    border: `1px solid ${theme.colors.gray[4]}`,
+                    <Tooltip
+                        withinPortal
+                        variant="xs"
+                        label="Search by metric name or description"
+                    >
+                        {/* Search input */}
+                        <TextInput
+                            size="xs"
+                            radius="md"
+                            styles={(theme) => ({
+                                input: {
+                                    height: 32,
+                                    width: 309,
+                                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                                    textOverflow: 'ellipsis',
+                                    fontSize: theme.fontSizes.sm,
+                                    fontWeight: 400,
+                                    color: search
+                                        ? theme.colors.gray[8]
+                                        : theme.colors.gray[5],
+                                    boxShadow: theme.shadows.subtle,
+                                    border: `1px solid ${theme.colors.gray[3]}`,
+                                    '&:hover': {
+                                        border: `1px solid ${theme.colors.gray[4]}`,
+                                    },
+                                    '&:focus': {
+                                        border: `1px solid ${theme.colors.blue[5]}`,
+                                    },
                                 },
-                                '&:focus': {
-                                    border: `1px solid ${theme.colors.blue[5]}`,
-                                },
-                            },
-                        })}
-                        type="search"
-                        variant="default"
-                        placeholder="Search by name or description"
-                        value={search}
-                        icon={
-                            <MantineIcon
-                                size="md"
-                                color="gray.6"
-                                icon={IconSearch}
-                            />
-                        }
-                        onChange={(e) => setSearch(e.target.value)}
-                        rightSection={
-                            search && (
-                                <ActionIcon
-                                    onClick={clearSearch}
-                                    variant="transparent"
-                                    size="xs"
-                                    color="gray.5"
-                                >
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            )
-                        }
-                    />
+                            })}
+                            type="search"
+                            variant="default"
+                            placeholder="Search by name or description"
+                            value={search}
+                            icon={
+                                <MantineIcon
+                                    size="md"
+                                    color="gray.6"
+                                    icon={IconSearch}
+                                />
+                            }
+                            onChange={(e) => setSearch(e.target.value)}
+                            rightSection={
+                                search && (
+                                    <ActionIcon
+                                        onClick={clearSearch}
+                                        variant="transparent"
+                                        size="xs"
+                                        color="gray.5"
+                                    >
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                )
+                            }
+                        />
+                    </Tooltip>
                     <Divider
                         orientation="vertical"
                         w={1}
@@ -257,7 +270,7 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                     bg="#F8F9FC"
                     c="#363F72"
                     radius={6}
-                    py="two"
+                    py="sm"
                     px="xs"
                     tt="none"
                 >

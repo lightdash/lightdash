@@ -275,15 +275,28 @@ module.exports = {
                         slug: 'references/admin',
                     },
                     items: [
-                        {
-                            type: 'doc',
-                            id: 'references/personal_tokens',
-                            label: 'Project Settings',
-                        },
                         'references/usage-analytics',
                         'references/roles',
                         'references/groups',
                         'references/user-attributes',
+                    ],
+                },
+                {
+                    type: 'category',
+                    label: 'User',
+                    link: {
+                        type: 'generated-index',
+                        title: 'Lightdash User References',
+                        description:
+                            'Below are reference docs for all user functions and features in Lightdash.',
+                        slug: 'references/user',
+                    },
+                    items: [
+                        {
+                            type: 'doc',
+                            id: 'references/personal_tokens',
+                            label: 'Personal access tokens',
+                        },
                     ],
                 },
                 'references/embedding',

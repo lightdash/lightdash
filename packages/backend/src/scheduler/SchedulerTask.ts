@@ -335,7 +335,6 @@ export default class SchedulerTask {
                 const csvOptions = isSchedulerCsvOptions(options)
                     ? options
                     : undefined;
-
                 const baseAnalyticsProperties: DownloadCsv['properties'] = {
                     jobId,
                     userId: userUuid,
@@ -1818,7 +1817,6 @@ export default class SchedulerTask {
                 : await this.schedulerService.schedulerModel.getSchedulerAndTargets(
                       schedulerPayload.schedulerUuid,
                   );
-
         if (!scheduler.enabled) {
             // This should not happen, if schedulers are not enabled, we should remove the scheduled jobs from the queue
             throw new Error('Scheduler is disabled');
