@@ -34,13 +34,14 @@ export async function isFeatureFlagEnabled(
         throwOnTimeout?: boolean;
         timeoutMilliseconds?: number;
     } = {},
+    defaultValue: boolean = false,
 ): Promise<boolean> {
     /** If we don't have a PostHog client instance, we return false for all checks */
     if (!postHogClient) {
         Logger.warn(
             'PostHog: client not found, check PostHog related environment variables',
         );
-        return false;
+        return defaultValue;
     }
 
     /**
@@ -66,7 +67,7 @@ export async function isFeatureFlagEnabled(
                         `Silently ignoring timeout waiting for a feature flag with Posthog for flag "${flag}"`,
                     );
 
-                    resolve(false);
+                    resolve(defaultValue);
                 }
             }, timeoutMilliseconds);
         });
@@ -98,7 +99,6 @@ export async function isFeatureFlagEnabled(
         timeoutPromise(),
         featureFlagPromise(),
     ]);
-
-    // isFeatureEnabled returns boolean | undefined, so we force it into a boolean:
-    return !!isEnabled;
+    // isFeatureEnabled returns boolean | undefined, so we return a boolean, or defaultValue:
+    return isEnabled ?? defaultValue;
 }

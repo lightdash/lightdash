@@ -88,8 +88,8 @@ export class CommentService extends BaseService {
             FeatureFlags.DashboardComments,
             user,
             { throwOnTimeout: false },
+            true, // default value
         );
-
         if (!isEnabled) throw new ForbiddenError('Feature not enabled');
     }
 
