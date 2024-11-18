@@ -109,7 +109,7 @@ import {
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
-    type ApiCreateProjectResults,
+    type CreateProjectResult,
     type SemanticLayerConnectionUpdate,
     type Tag,
 } from '@lightdash/common';
@@ -533,11 +533,11 @@ export class ProjectService extends BaseService {
         return project;
     }
 
-    async createWithoutCompile(
+    async _createWithoutCompile(
         user: SessionUser,
         data: CreateProject,
         method: RequestMethod,
-    ): Promise<ApiCreateProjectResults> {
+    ): Promise<CreateProjectResult> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -550,10 +550,6 @@ export class ProjectService extends BaseService {
             user.organizationUuid,
             createProject,
         );
-
-        // Do not give this user admin permissions on this new project,
-        // as it could be an interactive viewer creating a preview
-        // and we don't want to allow users to acces sql runner or leak admin data
 
         this.analytics.track({
             event: 'project.created',
@@ -598,6 +594,29 @@ export class ProjectService extends BaseService {
             hasContentCopy,
             project,
         };
+    }
+
+    async scheduleCreateWithoutCompile(
+        user: SessionUser,
+        data: CreateProject,
+        method: RequestMethod,
+    ): Promise<{ schedulerJobId: string }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        await this.validateProjectCreationPermissions(user, data);
+
+        const schedulerJob =
+            await this.schedulerClient.createProjectWithoutCompile({
+                createdByUserUuid: user.userUuid,
+                isPreview: data.type === ProjectType.PREVIEW,
+                organizationUuid: user.organizationUuid,
+                requestMethod: method,
+                data,
+            });
+
+        return { schedulerJobId: schedulerJob.jobId };
     }
 
     async create(
@@ -709,6 +728,7 @@ export class ProjectService extends BaseService {
 
         await this.jobModel.create(job);
         doAsyncWork().catch((e) => {
+            console.log('but we continue running right?..');
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
             }
@@ -718,6 +738,8 @@ export class ProjectService extends BaseService {
                 }`,
             );
         });
+
+        console.log('we return');
         return {
             jobUuid: job.jobUuid,
         };
@@ -4049,7 +4071,7 @@ export class ProjectService extends BaseService {
             dbtVersion: project.dbtVersion,
         };
 
-        const previewProject = await this.createWithoutCompile(
+        const previewProject = await this._createWithoutCompile(
             user,
             previewData,
             context,
