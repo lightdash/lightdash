@@ -18,7 +18,7 @@ export const useCategoryStyles = createStyles(
             ? theme.colors[color][2]
             : theme.fn.lighten(color, 0.45);
         const removeIconColor = isMantineColorKey
-            ? theme.fn.darken(theme.colors[color][0], 0.4)
+            ? theme.fn.darken(theme.colors[color][6], 0.4)
             : theme.fn.darken(color, 0.4);
 
         return {

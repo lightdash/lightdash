@@ -213,6 +213,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     top={0}
                     w="100%"
                     h="100%"
+                    gap={4}
                     onClick={() => {
                         if (isCategoryPopoverClosing) {
                             return;
