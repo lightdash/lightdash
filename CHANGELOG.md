@@ -1,3 +1,10 @@
+# [0.1369.0](https://github.com/lightdash/lightdash/compare/0.1368.1...0.1369.0) (2024-11-18)
+
+
+### Features
+
+* remove filter warning and clear temp filters ([#12465](https://github.com/lightdash/lightdash/issues/12465)) ([a8875b7](https://github.com/lightdash/lightdash/commit/a8875b7deb2ef905899730cfb345b7fff0e5197d))
+
 ## [0.1368.1](https://github.com/lightdash/lightdash/compare/0.1368.0...0.1368.1) (2024-11-15)
 
 
