@@ -233,7 +233,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     <UnstyledButton w="100%" pos="absolute" />
                 </Popover.Target>
                 <Popover.Dropdown p={0}>
-                    <Box p="xs">
+                    <Stack px="sm" pt="xs" spacing="xs">
                         <TagInput
                             value={categoryNames}
                             allowDuplicates={false}
@@ -254,17 +254,31 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                     void handleAddTag(val[val.length - 1]);
                                 }
                             }}
+                            styles={(theme) => ({
+                                input: {
+                                    backgroundColor: theme.colors.gray[0],
+                                    paddingBottom: 4,
+                                    paddingRight: 3,
+                                },
+                                wrapper: {
+                                    boxShadow: `0px 1px 2px 0px rgba(10, 13, 18, 0.05)`,
+                                    borderRadius: theme.radius.md,
+                                    backgroundColor: 'transparent',
+                                },
+                                values: {
+                                    rowGap: 4,
+                                },
+                            })}
                         />
                         <Text size="xs" fw={500} color="dimmed">
                             Select a category or create a new one
                         </Text>
-                    </Box>
-                    <Stack spacing="xs" align="flex-start" mb="xs">
+                    </Stack>
+                    <Stack spacing="xs" align="flex-start" px="xs" pb="sm">
                         <Stack
                             spacing={0}
                             w="100%"
                             mah={140}
-                            px="xs"
                             sx={{
                                 overflowY: 'auto',
                             }}
@@ -292,6 +306,12 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 size="xs"
                                 w="100%"
                                 onClick={() => handleAddTag(search)}
+                                fullWidth
+                                styles={{
+                                    inner: {
+                                        justifyContent: 'flex-start',
+                                    },
+                                }}
                             >
                                 <Group spacing={4}>
                                     <Text>Create</Text>

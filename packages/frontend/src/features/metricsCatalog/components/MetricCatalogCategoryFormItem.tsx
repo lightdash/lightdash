@@ -199,7 +199,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
             sx={(theme) => ({
                 borderRadius: theme.radius.md,
                 '&:hover': {
-                    backgroundColor: theme.colors.gray[1],
+                    backgroundColor: '#F8F9FA',
                     transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                 },
             })}
