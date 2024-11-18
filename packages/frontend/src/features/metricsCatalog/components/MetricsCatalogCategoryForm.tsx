@@ -242,6 +242,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             size="xs"
                             mb="xs"
                             radius="md"
+                            fw={500}
                             addOnBlur={false}
                             onBlur={(e) => {
                                 e.stopPropagation();
@@ -257,10 +258,15 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                     paddingBottom: 4,
                                     paddingRight: 3,
                                 },
+                                tagInput: {
+                                    fontWeight: 500,
+                                    color: theme.colors.dark[9],
+                                },
                                 wrapper: {
                                     boxShadow: theme.shadows.subtle,
                                     borderRadius: theme.radius.md,
                                     backgroundColor: 'transparent',
+                                    fontWeight: 500,
                                 },
                                 values: {
                                     rowGap: 4,
