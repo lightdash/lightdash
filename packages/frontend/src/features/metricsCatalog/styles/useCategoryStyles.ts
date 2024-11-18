@@ -27,7 +27,7 @@ export const useCategoryStyles = createStyles(
                 backgroundColor,
                 color: textColor,
                 cursor: 'pointer',
-                boxShadow: '0px -2px 0px 0px rgba(4, 4, 4, 0.04) inset',
+                boxShadow: '0px -1px 0px 0px rgba(4, 4, 4, 0.04) inset',
             },
             removeIcon: {
                 color: removeIconColor,
