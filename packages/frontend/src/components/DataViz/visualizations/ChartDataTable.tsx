@@ -4,7 +4,7 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import { Badge, Flex, Group, type FlexProps } from '@mantine/core';
+import { Badge, Flex, Group, Text, type FlexProps } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { useMemo } from 'react';
@@ -26,6 +26,17 @@ type TableProps = {
     flexProps?: FlexProps;
     thSortConfig?: VizTableHeaderSortConfig;
     onTHClick?: (fieldName: string) => void;
+};
+
+const getSortLabel = (label: SortByDirection | undefined) => {
+    switch (label) {
+        case SortByDirection.ASC:
+            return 'Sort ascending';
+        case SortByDirection.DESC:
+            return 'Sort descending';
+        default:
+            return 'No sorting';
+    }
 };
 
 // This is a simple table that is set up to be virtualized from basically
@@ -89,7 +100,11 @@ export const ChartDataTable = ({
                                                   }
                                         }
                                     >
-                                        <Group spacing="two" fz={13}>
+                                        <Group
+                                            spacing="two"
+                                            fz={13}
+                                            position="apart"
+                                        >
                                             {columnsConfig?.[header.id]
                                                 ?.aggregation && (
                                                 <Badge
@@ -111,17 +126,25 @@ export const ChartDataTable = ({
                                                 header.getContext(),
                                             )}
 
-                                            {onClick &&
-                                                sortConfig?.direction && (
-                                                    <MantineIcon
-                                                        icon={
-                                                            sortConfig.direction ===
-                                                            SortByDirection.ASC
-                                                                ? IconArrowUp
-                                                                : IconArrowDown
-                                                        }
-                                                    ></MantineIcon>
-                                                )}
+                                            {onClick && (
+                                                <Group noWrap spacing="two">
+                                                    <Text fz="xs" c="gray.6">
+                                                        {getSortLabel(
+                                                            sortConfig?.direction,
+                                                        )}
+                                                    </Text>
+                                                    {sortConfig?.direction && (
+                                                        <MantineIcon
+                                                            icon={
+                                                                sortConfig.direction ===
+                                                                SortByDirection.ASC
+                                                                    ? IconArrowUp
+                                                                    : IconArrowDown
+                                                            }
+                                                        ></MantineIcon>
+                                                    )}
+                                                </Group>
+                                            )}
                                         </Group>
                                     </th>
                                 );
