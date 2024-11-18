@@ -62,12 +62,30 @@ export class CartesianChartDataModel {
         this.type = args.type ?? ChartKind.VERTICAL_BAR;
     }
 
+    // Get the formatter for the tooltip, which has a simple callback signature
     static getTooltipFormatter(format: Format | undefined) {
         if (format === Format.PERCENT) {
             return (value: number) =>
                 applyCustomFormat(value, {
                     type: CustomFormatType.PERCENT,
                 });
+        }
+        return undefined;
+    }
+
+    // Get the formatter for the value label,
+    // which has more complex inputs
+    static getValueFormatter(format: Format | undefined) {
+        if (format === Format.PERCENT) {
+            // Echarts doesn't export the types for this function
+            return (params: any) => {
+                const value =
+                    params.value[params.dimensionNames[params.encode.y[0]]];
+
+                return applyCustomFormat(value, {
+                    type: CustomFormatType.PERCENT,
+                });
+            };
         }
         return undefined;
     }
@@ -532,6 +550,11 @@ export class CartesianChartDataModel {
                         ? {
                               show: seriesValueLabelPosition !== 'hidden',
                               position: seriesValueLabelPosition,
+                              formatter: seriesFormat
+                                  ? CartesianChartDataModel.getValueFormatter(
+                                        seriesFormat,
+                                    )
+                                  : undefined,
                           }
                         : undefined,
                     color:
