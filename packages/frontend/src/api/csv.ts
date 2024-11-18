@@ -20,6 +20,7 @@ export const downloadCsv = async ({
     customLabels,
     hiddenFields,
     chartName,
+    pivotColumns,
 }: {
     projectUuid: string;
     tableId: string;
@@ -31,6 +32,7 @@ export const downloadCsv = async ({
     customLabels?: Record<string, string>;
     hiddenFields?: string[];
     chartName?: string;
+    pivotColumns?: string[];
 }) => {
     const timezoneFixQuery = {
         ...query,
@@ -49,6 +51,7 @@ export const downloadCsv = async ({
             hiddenFields,
             chartName,
             timezone: query.timezone ?? undefined,
+            pivotColumns,
         }),
     });
 };

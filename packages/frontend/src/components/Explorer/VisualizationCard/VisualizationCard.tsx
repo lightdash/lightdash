@@ -71,7 +71,9 @@ const VisualizationCard: FC<{
     const tableCalculationsMetadata = useExplorerContext(
         (context) => context.state.metadata?.tableCalculations,
     );
-
+    const pivotConfig = useExplorerContext(
+        (context) => context.state.unsavedChartVersion.pivotConfig,
+    );
     const isOpen = useMemo(
         () => expandedSections.includes(ExplorerSection.VISUALIZATION),
         [expandedSections],
@@ -127,6 +129,7 @@ const VisualizationCard: FC<{
                 hiddenFields: getHiddenTableFields(
                     unsavedChartVersion.chartConfig,
                 ),
+                pivotColumns: pivotConfig?.columns,
             });
             return csvResponse;
         }

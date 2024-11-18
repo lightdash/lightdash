@@ -12,6 +12,7 @@ import {
     DownloadMetricCsv,
     ForbiddenError,
     formatItemValue,
+    formatRows,
     friendlyName,
     getCustomLabelsFromTableConfig,
     getDashboardFiltersForTileAndTables,
@@ -29,11 +30,18 @@ import {
     ItemsMap,
     MetricQuery,
     MissingConfigError,
+    ParameterError,
+    PivotConfig,
+    pivotQueryResults,
+    pivotResultsAsCsv,
     QueryExecutionContext,
+    SavedChart,
+    SavedChartDAO,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
     SessionUser,
+    TableChartConfig,
 } from '@lightdash/common';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
@@ -60,7 +68,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { runWorkerThread } from '../../utils';
+import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
 
@@ -432,6 +440,82 @@ export class CsvService extends BaseService {
         };
     }
 
+    /*  
+This pivot method returns directly the final CSV result as a string
+This method can be memory intensive
+*/
+    async downloadPivotTableCsv({
+        name,
+        projectUuid,
+        rows,
+        itemMap,
+        metricQuery,
+        pivotConfig,
+        exploreId,
+        onlyRaw,
+        truncated,
+        customLabels,
+    }: {
+        name?: string;
+        projectUuid: string;
+        rows: Record<string, any>[];
+        itemMap: ItemsMap;
+        metricQuery: MetricQuery;
+        pivotConfig: PivotConfig;
+        exploreId: string;
+        onlyRaw: boolean;
+        truncated: boolean;
+        customLabels: Record<string, string> | undefined;
+    }) {
+        return wrapSentryTransaction<AttachmentUrl>(
+            'downloadPivotTableCsv',
+            {
+                numberRows: rows.length,
+                projectUuid,
+                pivotColumns: pivotConfig.pivotDimensions,
+            },
+            async () => {
+                // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
+                // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+                const formattedRows = formatRows(rows, itemMap);
+
+                const csvResults = pivotResultsAsCsv(
+                    pivotConfig,
+                    formattedRows,
+                    itemMap,
+                    metricQuery,
+                    customLabels,
+                    onlyRaw,
+                    this.lightdashConfig.pivotTable.maxColumnLimit,
+                );
+
+                const csvContent = await new Promise<string>(
+                    (resolve, reject) => {
+                        stringify(
+                            csvResults,
+                            {
+                                delimiter: ',',
+                            },
+                            (err, output) => {
+                                if (err) {
+                                    reject(new Error(err.message));
+                                }
+                                resolve(output);
+                            },
+                        );
+                    },
+                );
+
+                return this.downloadCsvFile({
+                    csvContent,
+                    fileName: name || exploreId,
+                    projectUuid,
+                    truncated,
+                });
+            },
+        );
+    }
+
     async getCsvForChart(
         user: SessionUser,
         chartUuid: string,
@@ -526,6 +610,54 @@ export class CsvService extends BaseService {
             };
 
         const truncated = this.couldBeTruncated(rows);
+
+        const { pivotConfig } = chart;
+
+        if (pivotConfig && isTableChartConfig(config)) {
+            const itemMap = getItemMap(
+                explore,
+                metricQuery.additionalMetrics,
+                metricQuery.tableCalculations,
+                metricQuery.customDimensions,
+            );
+            const customLabels = getCustomLabelsFromTableConfig(config);
+            const hiddenFields = getHiddenTableFields(chart.chartConfig);
+
+            const csvPivotConfig: PivotConfig | undefined = {
+                pivotDimensions: pivotConfig.columns,
+                metricsAsRows: false,
+                hiddenMetricFieldIds: hiddenFields,
+                columnOrder: chart.tableConfig.columnOrder,
+            };
+
+            const downloadUrl = this.downloadPivotTableCsv({
+                pivotConfig: csvPivotConfig,
+                name: chart.name,
+                projectUuid: chart.projectUuid,
+                customLabels,
+                rows,
+                itemMap,
+                metricQuery,
+
+                exploreId,
+                onlyRaw,
+                truncated,
+            });
+
+            if (analyticProperties) {
+                this.analytics.track({
+                    event: 'download_results.completed',
+                    userId: user.userUuid,
+                    properties: {
+                        ...analyticProperties,
+                        numPivotDimensions: pivotConfig.columns.length,
+                        numRows: numberRows,
+                    },
+                });
+            }
+
+            return downloadUrl;
+        }
 
         const fileId = await CsvService.writeRowsToFile(
             rows,
@@ -850,6 +982,7 @@ export class CsvService extends BaseService {
             metricQuery,
             tableConfig,
             chartConfig,
+            pivotConfig,
         } = chart;
         const explore = await this.projectService.getExplore(
             user,
@@ -879,6 +1012,15 @@ export class CsvService extends BaseService {
               )
             : metricQuery;
 
+        const csvPivotConfig: PivotConfig | undefined =
+            pivotConfig !== undefined
+                ? {
+                      pivotDimensions: pivotConfig.columns,
+                      metricsAsRows: false,
+                      hiddenMetricFieldIds: hiddenFields,
+                      columnOrder: tableConfig.columnOrder,
+                  }
+                : undefined;
         return this.scheduleDownloadCsv(user, {
             userUuid: user.userUuid,
             projectUuid,
@@ -892,6 +1034,7 @@ export class CsvService extends BaseService {
             hiddenFields,
             chartName: name,
             fromSavedChart: true,
+            pivotConfig: csvPivotConfig,
         });
     }
 
@@ -968,6 +1111,7 @@ export class CsvService extends BaseService {
             hiddenFields,
             chartName,
             fromSavedChart,
+            pivotConfig,
         }: DownloadMetricCsv,
     ) {
         const user = await this.userModel.findSessionUserByUUID(userUuid);
@@ -1046,7 +1190,6 @@ export class CsvService extends BaseService {
                 queryTags,
             });
             const numberRows = rows.length;
-
             const explore = await this.projectService.getExplore(
                 user,
                 projectUuid,
@@ -1058,8 +1201,34 @@ export class CsvService extends BaseService {
                 metricQuery.tableCalculations,
                 metricQuery.customDimensions,
             );
-
             const truncated = this.couldBeTruncated(rows);
+
+            if (pivotConfig) {
+                const downloadUrl = await this.downloadPivotTableCsv({
+                    pivotConfig,
+                    name: chartName,
+                    projectUuid,
+                    rows,
+                    itemMap,
+                    metricQuery,
+                    exploreId,
+                    onlyRaw,
+                    truncated,
+                    customLabels,
+                });
+
+                this.analytics.track({
+                    event: 'download_results.completed',
+                    userId: user.userUuid,
+                    properties: {
+                        ...analyticsProperties,
+                        numRows: numberRows,
+                        numPivotDimensions: pivotConfig.pivotDimensions.length,
+                    },
+                });
+
+                return { fileUrl: downloadUrl.path, truncated };
+            }
 
             const fileId = await CsvService.writeRowsToFile(
                 rows,

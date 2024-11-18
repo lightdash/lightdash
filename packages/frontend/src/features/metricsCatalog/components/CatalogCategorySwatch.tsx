@@ -15,12 +15,12 @@ export const CatalogCategorySwatch: FC<Props> = ({
     onClick,
     selected,
 }: Props) => {
-    const { classes, theme } = useCategoryStyles(color);
+    const { classes, theme, cx } = useCategoryStyles(color);
     return (
         <Center
             h={18}
             w={18}
-            className={classes.base}
+            className={cx(classes.base, classes.withHover)}
             onClick={onClick}
             sx={{
                 borderRadius: theme.radius.sm,

@@ -1,3 +1,38 @@
+## [0.1369.4](https://github.com/lightdash/lightdash/compare/0.1369.3...0.1369.4) (2024-11-18)
+
+
+### Bug Fixes
+
+* enable by default comments feature ([#12481](https://github.com/lightdash/lightdash/issues/12481)) ([97c2e99](https://github.com/lightdash/lightdash/commit/97c2e99e7615aa2b7111ff9ccd9422c57cae4302))
+
+## [0.1369.3](https://github.com/lightdash/lightdash/compare/0.1369.2...0.1369.3) (2024-11-18)
+
+
+### Bug Fixes
+
+* optimize project deletion ([#12461](https://github.com/lightdash/lightdash/issues/12461)) ([4effb63](https://github.com/lightdash/lightdash/commit/4effb634b704b10be9bdc3ba8229aba2bb6cbabd))
+
+## [0.1369.2](https://github.com/lightdash/lightdash/compare/0.1369.1...0.1369.2) (2024-11-18)
+
+
+### Bug Fixes
+
+* export pivot results on csv ([#12333](https://github.com/lightdash/lightdash/issues/12333)) ([6fd825b](https://github.com/lightdash/lightdash/commit/6fd825b319e3f19d12a3d85034254eb2da37bf94))
+
+## [0.1369.1](https://github.com/lightdash/lightdash/compare/0.1369.0...0.1369.1) (2024-11-18)
+
+
+### Bug Fixes
+
+* dashboard breaking width if too many filters ([#12439](https://github.com/lightdash/lightdash/issues/12439)) ([369b622](https://github.com/lightdash/lightdash/commit/369b622603e1bdb663ba825133fa288d72cd7d1d))
+
+# [0.1369.0](https://github.com/lightdash/lightdash/compare/0.1368.1...0.1369.0) (2024-11-18)
+
+
+### Features
+
+* remove filter warning and clear temp filters ([#12465](https://github.com/lightdash/lightdash/issues/12465)) ([a8875b7](https://github.com/lightdash/lightdash/commit/a8875b7deb2ef905899730cfb345b7fff0e5197d))
+
 ## [0.1368.1](https://github.com/lightdash/lightdash/compare/0.1368.0...0.1368.1) (2024-11-15)
 
 

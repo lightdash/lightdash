@@ -233,7 +233,15 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                             </Text>
                         </Group>
                     ) : (
-                        <Group spacing="xxs" pos="relative" w="100%" h="100%">
+                        <Group
+                            spacing="xxs"
+                            pos="relative"
+                            w="100%"
+                            h="100%"
+                            sx={{
+                                rowGap: 'unset',
+                            }}
+                        >
                             {categories.map((category) => (
                                 <CatalogCategory
                                     key={category.tagUuid}

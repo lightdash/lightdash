@@ -1,4 +1,5 @@
-import { type MetricQuery, type ResultRow } from '@lightdash/common';
+import { type MetricQuery } from '../types/metricQuery';
+import { type ResultRow } from '../types/results';
 
 export const METRIC_QUERY_2DIM_2METRIC: Pick<
     MetricQuery,

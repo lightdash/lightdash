@@ -18,7 +18,7 @@ export const useCategoryStyles = createStyles(
             ? theme.colors[color][2]
             : theme.fn.lighten(color, 0.45);
         const removeIconColor = isMantineColorKey
-            ? theme.fn.darken(theme.colors[color][0], 0.4)
+            ? theme.fn.darken(theme.colors[color][6], 0.4)
             : theme.fn.darken(color, 0.4);
 
         return {
@@ -27,14 +27,16 @@ export const useCategoryStyles = createStyles(
                 backgroundColor,
                 color: textColor,
                 cursor: 'pointer',
-                boxShadow: '0px -2px 0px 0px rgba(4, 4, 4, 0.04) inset',
+                boxShadow: '0px -1px 0px 0px rgba(4, 4, 4, 0.04) inset',
+            },
+            removeIcon: {
+                color: removeIconColor,
+            },
+            withHover: {
                 '&:hover': {
                     backgroundColor: hoverBackgroundColor,
                     transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                 },
-            },
-            removeIcon: {
-                color: removeIconColor,
             },
         };
     },
