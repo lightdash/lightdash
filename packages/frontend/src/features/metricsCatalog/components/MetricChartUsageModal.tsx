@@ -43,7 +43,7 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
             size="lg"
         >
             <Modal.Overlay />
-            <Modal.Content sx={{ overflow: 'hidden' }}>
+            <Modal.Content sx={{ overflow: 'hidden' }} radius="md">
                 <Modal.Header
                     sx={(theme) => ({
                         borderBottom: `1px solid ${theme.colors.gray[4]}`,

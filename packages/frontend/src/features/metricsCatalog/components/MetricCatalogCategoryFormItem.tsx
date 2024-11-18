@@ -76,14 +76,10 @@ const EditPopover: FC<EditPopoverProps> = ({
     return (
         <Popover
             position="top"
-            shadow="md"
             opened={opened}
-            trapFocus
-            radius="md"
             closeOnClickOutside
             width={200}
             onClose={handleClose}
-            withinPortal
         >
             <Popover.Target>
                 <ActionIcon

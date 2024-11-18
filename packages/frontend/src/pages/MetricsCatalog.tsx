@@ -28,6 +28,14 @@ const MetricsCatalog: FC = () => {
                                 fz: 'xs',
                             },
                         },
+                        Popover: {
+                            defaultProps: {
+                                withinPortal: true,
+                                trapFocus: true,
+                                radius: 'md',
+                                shadow: 'sm',
+                            },
+                        },
                     },
                 }}
             >

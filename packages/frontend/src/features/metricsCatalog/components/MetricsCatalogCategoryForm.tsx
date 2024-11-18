@@ -224,9 +224,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 position="bottom"
                 width={300}
                 withArrow
-                shadow="md"
-                withinPortal
-                radius="md"
                 closeOnClickOutside={!hasOpenSubPopover} // Prevent closing when sub-popover is open
             >
                 <Popover.Target>
@@ -261,7 +258,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                     paddingRight: 3,
                                 },
                                 wrapper: {
-                                    boxShadow: `0px 1px 2px 0px rgba(10, 13, 18, 0.05)`,
+                                    boxShadow: theme.shadows.subtle,
                                     borderRadius: theme.radius.md,
                                     backgroundColor: 'transparent',
                                 },
