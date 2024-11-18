@@ -4,6 +4,7 @@ import {
     type FilterableDimension,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     CloseButton,
     createStyles,
@@ -292,6 +293,12 @@ const Filter: FC<Props> = ({
                                     inner: {
                                         color: 'black',
                                     },
+                                    label: {
+                                        maxWidth: '800px',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                    },
                                 }}
                                 onClick={() =>
                                     isPopoverOpen
@@ -299,51 +306,61 @@ const Filter: FC<Props> = ({
                                         : onPopoverOpen(popoverId)
                                 }
                             >
-                                <Text fz="xs">
-                                    <Tooltip
-                                        withinPortal
-                                        position="top-start"
-                                        disabled={
-                                            isPopoverOpen ||
-                                            !filterRuleTables?.length
-                                        }
-                                        openDelay={1000}
-                                        offset={8}
-                                        label={
-                                            <Text fz="xs">
-                                                {filterRuleTables?.length === 1
-                                                    ? 'Table: '
-                                                    : 'Tables: '}
-                                                <Text span fw={600}>
-                                                    {filterRuleTables?.join(
-                                                        ', ',
-                                                    )}
+                                <Box
+                                    sx={{
+                                        maxWidth: '100%',
+                                        overflow: 'hidden',
+                                    }}
+                                >
+                                    <Text fz="xs" truncate>
+                                        <Tooltip
+                                            withinPortal
+                                            position="top-start"
+                                            disabled={
+                                                isPopoverOpen ||
+                                                !filterRuleTables?.length
+                                            }
+                                            openDelay={1000}
+                                            offset={8}
+                                            label={
+                                                <Text fz="xs">
+                                                    {filterRuleTables?.length ===
+                                                    1
+                                                        ? 'Table: '
+                                                        : 'Tables: '}
+                                                    <Text span fw={600}>
+                                                        {filterRuleTables?.join(
+                                                            ', ',
+                                                        )}
+                                                    </Text>
                                                 </Text>
+                                            }
+                                        >
+                                            <Text fw={600} span truncate>
+                                                {filterRule?.label ||
+                                                    filterRuleLabels?.field}{' '}
                                             </Text>
-                                        }
-                                    >
-                                        <Text fw={600} span>
-                                            {filterRule?.label ||
-                                                filterRuleLabels?.field}{' '}
-                                        </Text>
-                                    </Tooltip>
-                                    <Text fw={400} span>
+                                        </Tooltip>
                                         {filterRule?.disabled ? (
-                                            <Text span color="gray.6">
+                                            <Text span color="gray.6" truncate>
                                                 is any value
                                             </Text>
                                         ) : (
                                             <>
-                                                <Text span color="gray.7">
+                                                <Text
+                                                    span
+                                                    color="gray.7"
+                                                    truncate
+                                                >
                                                     {filterRuleLabels?.operator}{' '}
                                                 </Text>
-                                                <Text fw={700} span>
+                                                <Text fw={700} span truncate>
                                                     {filterRuleLabels?.value}
                                                 </Text>
                                             </>
                                         )}
                                     </Text>
-                                </Text>
+                                </Box>
                             </Button>
                         </Tooltip>
                     </Indicator>
