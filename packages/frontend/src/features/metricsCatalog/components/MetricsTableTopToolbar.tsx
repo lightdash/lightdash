@@ -151,7 +151,7 @@ const CategoriesFilter = () => {
                         </Text>
 
                         {categories?.length === 0 && (
-                            <Text fz="xs" fw={500} c="dark.6">
+                            <Text fz="xs" fw={500} c="gray.6">
                                 No categories added yet. Click on the category
                                 cells to assign categories to your metrics.
                             </Text>
