@@ -76,7 +76,7 @@ const EditPopover: FC<EditPopoverProps> = ({
     return (
         <Popover
             position="top"
-            shadow="lg"
+            shadow="md"
             opened={opened}
             trapFocus
             radius="md"
@@ -89,6 +89,9 @@ const EditPopover: FC<EditPopoverProps> = ({
                 <ActionIcon
                     sx={{
                         visibility: hovered || opened ? 'visible' : 'hidden',
+                        '&:hover': {
+                            backgroundColor: 'white',
+                        },
                     }}
                     size="sm"
                     onClick={(e) => {
