@@ -1,3 +1,10 @@
+## [0.1369.2](https://github.com/lightdash/lightdash/compare/0.1369.1...0.1369.2) (2024-11-18)
+
+
+### Bug Fixes
+
+* export pivot results on csv ([#12333](https://github.com/lightdash/lightdash/issues/12333)) ([6fd825b](https://github.com/lightdash/lightdash/commit/6fd825b319e3f19d12a3d85034254eb2da37bf94))
+
 ## [0.1369.1](https://github.com/lightdash/lightdash/compare/0.1369.0...0.1369.1) (2024-11-18)
 
 
