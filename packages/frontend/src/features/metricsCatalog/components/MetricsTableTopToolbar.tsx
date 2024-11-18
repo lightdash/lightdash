@@ -270,7 +270,7 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                     bg="#F8F9FC"
                     c="#363F72"
                     radius={6}
-                    py="two"
+                    py="sm"
                     px="xs"
                     tt="none"
                 >
