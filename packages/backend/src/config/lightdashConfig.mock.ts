@@ -1,10 +1,14 @@
-import { LightdashMode } from '@lightdash/common';
+import { LightdashMode, OrganizationMemberRole } from '@lightdash/common';
 import { LightdashConfig } from './parseConfig';
 
 export const lightdashConfigMock: LightdashConfig = {
     allowMultiOrgs: false,
     auth: {
-        disablePat: false,
+        pat: {
+            enabled: false,
+            allowedOrgRoles: Object.values(OrganizationMemberRole),
+            maxExpirationTimeInDays: undefined,
+        },
         enableGroupSync: false,
         disablePasswordAuthentication: false,
         enableOidcLinking: false,

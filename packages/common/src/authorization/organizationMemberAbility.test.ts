@@ -1,8 +1,11 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
-import { type OrganizationMemberProfile } from '../types/organizationMemberProfile';
+import {
+    OrganizationMemberRole,
+    type OrganizationMemberProfile,
+} from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
-import { organizationMemberAbilities } from './organizationMemberAbility';
+import applyOrganizationMemberAbilities from './organizationMemberAbility';
 import {
     ORGANIZATION_ADMIN,
     ORGANIZATION_DEVELOPER,
@@ -20,10 +23,26 @@ const defineAbilityForOrganizationMember = (
               'role' | 'organizationUuid' | 'userUuid'
           >
         | undefined,
+    permissionsConfig?: {
+        pat: {
+            enabled: boolean;
+            allowedOrgRoles: OrganizationMemberRole[];
+        };
+    },
 ): MemberAbility => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (member) {
-        organizationMemberAbilities[member.role](member, builder);
+        applyOrganizationMemberAbilities({
+            role: member.role,
+            member,
+            builder,
+            permissionsConfig: permissionsConfig ?? {
+                pat: {
+                    enabled: true,
+                    allowedOrgRoles: Object.values(OrganizationMemberRole),
+                },
+            },
+        });
     }
     return builder.build();
 };
@@ -1938,5 +1957,73 @@ describe('Organization member permissions', () => {
                 });
             },
         );
+    });
+
+    // test permissionsConfig
+    describe('Personal Access Tokens permissions', () => {
+        it('cannot create a personal access token as PAT is disabled', () => {
+            const ability = defineAbilityForOrganizationMember(
+                ORGANIZATION_ADMIN,
+                {
+                    pat: {
+                        enabled: false,
+                        allowedOrgRoles: Object.values(OrganizationMemberRole),
+                    },
+                },
+            );
+
+            expect(
+                ability.can(
+                    'create',
+                    subject('PersonalAccessToken', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        userUuid: ORGANIZATION_ADMIN.userUuid,
+                    }),
+                ),
+            ).toEqual(false);
+        });
+        it('cannot create a personal access token as PAT allowed roles dont match', () => {
+            const ability = defineAbilityForOrganizationMember(
+                ORGANIZATION_DEVELOPER,
+                {
+                    pat: {
+                        enabled: true,
+                        allowedOrgRoles: [OrganizationMemberRole.ADMIN],
+                    },
+                },
+            );
+
+            expect(
+                ability.can(
+                    'create',
+                    subject('PersonalAccessToken', {
+                        organizationUuid:
+                            ORGANIZATION_DEVELOPER.organizationUuid,
+                        userUuid: ORGANIZATION_DEVELOPER.userUuid,
+                    }),
+                ),
+            ).toEqual(false);
+        });
+        it('can create a personal access token as PAT is enabled', () => {
+            const ability = defineAbilityForOrganizationMember(
+                ORGANIZATION_ADMIN,
+                {
+                    pat: {
+                        enabled: true,
+                        allowedOrgRoles: [OrganizationMemberRole.ADMIN],
+                    },
+                },
+            );
+
+            expect(
+                ability.can(
+                    'create',
+                    subject('PersonalAccessToken', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                        userUuid: ORGANIZATION_ADMIN.userUuid,
+                    }),
+                ),
+            ).toEqual(true);
+        });
     });
 });
