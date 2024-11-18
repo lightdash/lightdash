@@ -34,7 +34,7 @@
         "fix-format": "yarn run formatter ./src --write",
         "test": "jest",
         "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
-        "build": "tsc --build tsconfig.json && yarn copy-files",
-        "dev": "tsc --build --watch --preserveWatchOutput tsconfig.json"
+        "build": "yarn copy-files && tsc --build tsconfig.json",
+        "dev": "yarn copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json"
     }
 }
