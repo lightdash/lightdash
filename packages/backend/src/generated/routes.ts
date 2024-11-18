@@ -11316,6 +11316,10 @@ export function RegisterRoutes(app: express.Router) {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                pivotColumns: {
+                                    dataType: 'array',
+                                    array: { dataType: 'string' },
+                                },
                                 chartName: { dataType: 'string' },
                                 hiddenFields: {
                                     dataType: 'array',

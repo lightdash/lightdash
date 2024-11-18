@@ -34,6 +34,7 @@ const ResultsCard: FC = memo(() => {
     const sorts = useExplorerContext(
         (context) => context.state.unsavedChartVersion.metricQuery.sorts,
     );
+
     const rows = useExplorerContext(
         (context) => context.queryResults.data?.rows,
     );
@@ -54,7 +55,6 @@ const ResultsCard: FC = memo(() => {
     const disabled = !resultsData || resultsData.rows.length <= 0;
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
-
     const getCsvLink = async (csvLimit: number | null, onlyRaw: boolean) => {
         const csvResponse = await downloadCsv({
             projectUuid,
@@ -64,6 +64,7 @@ const ResultsCard: FC = memo(() => {
             onlyRaw,
             columnOrder,
             showTableNames: true,
+            pivotColumns: undefined, // results are always unpivoted
         });
         return csvResponse;
     };

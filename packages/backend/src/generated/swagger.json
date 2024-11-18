@@ -12241,6 +12241,12 @@
                                     },
                                     {
                                         "properties": {
+                                            "pivotColumns": {
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "type": "array"
+                                            },
                                             "chartName": {
                                                 "type": "string"
                                             },
