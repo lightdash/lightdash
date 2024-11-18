@@ -38,14 +38,15 @@ export const CatalogCategory: FC<Props> = ({ category, onClick, onRemove }) => {
                 {category.name}
                 {onRemove && (
                     <ActionIcon
-                        variant="transparent"
-                        size={12}
+                        variant="subtle"
+                        color="gray"
+                        size={14}
                         onClick={onRemove}
                     >
                         <MantineIcon
                             className={classes.removeIcon}
                             icon={IconX}
-                            strokeWidth={1.8}
+                            strokeWidth={2.5}
                         />
                     </ActionIcon>
                 )}
