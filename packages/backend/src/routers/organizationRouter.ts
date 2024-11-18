@@ -1,5 +1,4 @@
 import {
-    ForbiddenError,
     getRequestMethod,
     LightdashRequestMethodHeader,
     OnboardingStatus,
@@ -43,7 +42,7 @@ organizationRouter.post(
     async (req, res, next) =>
         req.services
             .getProjectService()
-            .createWithoutCompile(
+            .scheduleCreateWithoutCompile(
                 req.user!,
                 req.body,
                 getRequestMethod(req.header(LightdashRequestMethodHeader)),
