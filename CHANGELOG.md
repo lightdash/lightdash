@@ -1,3 +1,10 @@
+## [0.1369.4](https://github.com/lightdash/lightdash/compare/0.1369.3...0.1369.4) (2024-11-18)
+
+
+### Bug Fixes
+
+* enable by default comments feature ([#12481](https://github.com/lightdash/lightdash/issues/12481)) ([97c2e99](https://github.com/lightdash/lightdash/commit/97c2e99e7615aa2b7111ff9ccd9422c57cae4302))
+
 ## [0.1369.3](https://github.com/lightdash/lightdash/compare/0.1369.2...0.1369.3) (2024-11-18)
 
 
