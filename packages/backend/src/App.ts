@@ -375,6 +375,13 @@ export default class App {
                 },
                 noSniff: true,
                 xFrameOptions: false,
+                crossOriginOpenerPolicy: {
+                    policy: [LightdashMode.DEMO, LightdashMode.PR].includes(
+                        this.lightdashConfig.mode,
+                    )
+                        ? 'unsafe-none'
+                        : 'same-origin',
+                },
             }),
         );
 
