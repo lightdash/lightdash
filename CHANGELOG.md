@@ -1,3 +1,10 @@
+# [0.1370.0](https://github.com/lightdash/lightdash/compare/0.1369.4...0.1370.0) (2024-11-18)
+
+
+### Features
+
+* limit personal access token's access and expiration time ([#12473](https://github.com/lightdash/lightdash/issues/12473)) ([d3be60b](https://github.com/lightdash/lightdash/commit/d3be60ba91957565afa1ab46888aeadea6c13a16))
+
 ## [0.1369.4](https://github.com/lightdash/lightdash/compare/0.1369.3...0.1369.4) (2024-11-18)
 
 
