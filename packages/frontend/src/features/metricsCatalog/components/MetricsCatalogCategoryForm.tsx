@@ -224,16 +224,13 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 position="bottom"
                 width={300}
                 withArrow
-                shadow="md"
-                withinPortal
-                radius="md"
                 closeOnClickOutside={!hasOpenSubPopover} // Prevent closing when sub-popover is open
             >
                 <Popover.Target>
                     <UnstyledButton w="100%" pos="absolute" />
                 </Popover.Target>
                 <Popover.Dropdown p={0}>
-                    <Box p="xs">
+                    <Stack px="sm" pt="xs" spacing="xs">
                         <TagInput
                             value={categoryNames}
                             allowDuplicates={false}
@@ -245,6 +242,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             size="xs"
                             mb="xs"
                             radius="md"
+                            fw={500}
                             addOnBlur={false}
                             onBlur={(e) => {
                                 e.stopPropagation();
@@ -254,17 +252,36 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                     void handleAddTag(val[val.length - 1]);
                                 }
                             }}
+                            styles={(theme) => ({
+                                input: {
+                                    backgroundColor: theme.colors.gray[0],
+                                    paddingBottom: 4,
+                                    paddingRight: 3,
+                                },
+                                tagInput: {
+                                    fontWeight: 500,
+                                    color: theme.colors.dark[9],
+                                },
+                                wrapper: {
+                                    boxShadow: theme.shadows.subtle,
+                                    borderRadius: theme.radius.md,
+                                    backgroundColor: 'transparent',
+                                    fontWeight: 500,
+                                },
+                                values: {
+                                    rowGap: 4,
+                                },
+                            })}
                         />
                         <Text size="xs" fw={500} color="dimmed">
                             Select a category or create a new one
                         </Text>
-                    </Box>
-                    <Stack spacing="xs" align="flex-start" mb="xs">
+                    </Stack>
+                    <Stack spacing="xs" align="flex-start" px="xs" pb="sm">
                         <Stack
                             spacing={0}
                             w="100%"
                             mah={140}
-                            px="xs"
                             sx={{
                                 overflowY: 'auto',
                             }}
@@ -292,6 +309,12 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 size="xs"
                                 w="100%"
                                 onClick={() => handleAddTag(search)}
+                                fullWidth
+                                styles={{
+                                    inner: {
+                                        justifyContent: 'flex-start',
+                                    },
+                                }}
                             >
                                 <Group spacing={4}>
                                     <Text>Create</Text>

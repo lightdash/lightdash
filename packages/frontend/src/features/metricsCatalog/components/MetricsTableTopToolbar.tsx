@@ -144,11 +144,19 @@ const CategoriesFilter = () => {
                         </Button>
                     </Tooltip>
                 </Popover.Target>
-                <Popover.Dropdown>
-                    <Stack spacing="sm">
-                        <Group position="apart">
-                            <Text weight={500}>Filter by categories</Text>
-                        </Group>
+                <Popover.Dropdown p="sm">
+                    <Stack spacing={4}>
+                        <Text fz="xs" c="dark.3" fw={600}>
+                            Filter by categories:
+                        </Text>
+
+                        {categories?.length === 0 && (
+                            <Text fz="xs" fw={500} c="gray.6">
+                                No categories added yet. Click on the category
+                                cells to assign categories to your metrics.
+                            </Text>
+                        )}
+
                         {categories?.map((category) => (
                             <Checkbox
                                 key={category.tagUuid}
@@ -156,6 +164,19 @@ const CategoriesFilter = () => {
                                 checked={selectedCategories.includes(
                                     category.tagUuid,
                                 )}
+                                size="xs"
+                                styles={(theme) => ({
+                                    body: {
+                                        alignItems: 'center',
+                                    },
+                                    input: {
+                                        borderRadius: theme.radius.sm,
+                                        border: `1px solid ${theme.colors.gray[4]}`,
+                                    },
+                                    label: {
+                                        paddingLeft: theme.spacing.xs,
+                                    },
+                                })}
                                 onChange={() => {
                                     if (
                                         selectedCategories.includes(
