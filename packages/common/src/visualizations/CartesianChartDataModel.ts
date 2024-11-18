@@ -534,6 +534,9 @@ export class CartesianChartDataModel {
                               position: seriesValueLabelPosition,
                           }
                         : undefined,
+                    labelLayout: {
+                        hideOverlap: true,
+                    },
                     color:
                         seriesColor ||
                         CartesianChartDataModel.getDefaultColor(
