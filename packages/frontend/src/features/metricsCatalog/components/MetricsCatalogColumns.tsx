@@ -123,7 +123,15 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             return (
-                <Group spacing="xxs" pos="relative" w="100%" h="100%">
+                <Group
+                    pos="absolute"
+                    spacing="xxs"
+                    w="100%"
+                    h="100%"
+                    left={0}
+                    top={0}
+                    px="md"
+                >
                     {categories.map((category) => (
                         <CatalogCategory
                             key={category.tagUuid}
