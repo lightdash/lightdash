@@ -1,3 +1,10 @@
+## [0.1369.1](https://github.com/lightdash/lightdash/compare/0.1369.0...0.1369.1) (2024-11-18)
+
+
+### Bug Fixes
+
+* dashboard breaking width if too many filters ([#12439](https://github.com/lightdash/lightdash/issues/12439)) ([369b622](https://github.com/lightdash/lightdash/commit/369b622603e1bdb663ba825133fa288d72cd7d1d))
+
 # [0.1369.0](https://github.com/lightdash/lightdash/compare/0.1368.1...0.1369.0) (2024-11-18)
 
 
