@@ -1,3 +1,36 @@
+# [0.1372.0](https://github.com/lightdash/lightdash/compare/0.1371.0...0.1372.0) (2024-11-19)
+
+
+### Bug Fixes
+
+* fix cell context menu embedding ([#12497](https://github.com/lightdash/lightdash/issues/12497)) ([f3c83dd](https://github.com/lightdash/lightdash/commit/f3c83ddf4e3cf7919ee9f3e481fdc5441b9fcf6b))
+
+
+### Features
+
+* sorting in the SQL runner ([#12463](https://github.com/lightdash/lightdash/issues/12463)) ([161fb7c](https://github.com/lightdash/lightdash/commit/161fb7c35619f7a681cd6fba11c057b9350054c8))
+
+# [0.1371.0](https://github.com/lightdash/lightdash/compare/0.1370.2...0.1371.0) (2024-11-19)
+
+
+### Features
+
+* display expanded cell on click of description and tweaks ([#12494](https://github.com/lightdash/lightdash/issues/12494)) ([a6ec0cc](https://github.com/lightdash/lightdash/commit/a6ec0cc3bdd21533dd46b02ae65e5fe952299483))
+
+## [0.1370.2](https://github.com/lightdash/lightdash/compare/0.1370.1...0.1370.2) (2024-11-19)
+
+
+### Bug Fixes
+
+* overlapping value labels in sql runner ([#12493](https://github.com/lightdash/lightdash/issues/12493)) ([478a3fd](https://github.com/lightdash/lightdash/commit/478a3fd3f5f114b264a1f17002369e3f1d31700b))
+
+## [0.1370.1](https://github.com/lightdash/lightdash/compare/0.1370.0...0.1370.1) (2024-11-19)
+
+
+### Bug Fixes
+
+* disable databricks sqlrunner ([#12483](https://github.com/lightdash/lightdash/issues/12483)) ([c5a5eae](https://github.com/lightdash/lightdash/commit/c5a5eae8efd2fd9e24500eab7a2da6c0e1e39c19))
+
 # [0.1370.0](https://github.com/lightdash/lightdash/compare/0.1369.4...0.1370.0) (2024-11-18)
 
 

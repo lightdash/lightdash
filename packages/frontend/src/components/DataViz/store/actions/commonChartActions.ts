@@ -1,10 +1,12 @@
 import {
+    SortByDirection,
     type ChartKind,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
     type VizPieChartConfig,
     type VizPieChartOptions,
+    type VizSortBy,
     type VizTableConfig,
     type VizTableOptions,
 } from '@lightdash/common';
@@ -44,5 +46,36 @@ export const setChartOptionsAndConfig = createAction<ChartOptionsAndConfig>(
 );
 
 export const setChartConfig = createAction<ChartConfig>('chart/setChartConfig');
+
+export const updateChartSortBy = createAction<string>(
+    'chart/updateChartSortBy',
+);
+
+// A common function to handle updateChartSortBy
+export const getNewSortBy = (
+    reference: string,
+    currentSortBy?: VizSortBy[],
+) => {
+    const existing = currentSortBy?.find(
+        (sort) => sort.reference === reference,
+    );
+    if (!existing) {
+        return [
+            {
+                reference,
+                direction: SortByDirection.DESC,
+            },
+        ];
+    } else if (existing && existing.direction === SortByDirection.DESC) {
+        return [
+            {
+                reference,
+                direction: SortByDirection.ASC,
+            },
+        ];
+    } else {
+        return undefined;
+    }
+};
 
 export const resetChartState = createAction('chart/resetState');

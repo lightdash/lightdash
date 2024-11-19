@@ -2,6 +2,7 @@ import {
     ChartKind,
     isVizTableConfig,
     type VizTableConfig,
+    type VizTableHeaderSortConfig,
 } from '@lightdash/common';
 import {
     Box,
@@ -39,6 +40,7 @@ import {
 } from 'react-resizable-panels';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { updateChartSortBy } from '../../../components/DataViz/store/actions/commonChartActions';
 import {
     cartesianChartSelectors,
     selectCompleteConfigByKind,
@@ -258,6 +260,36 @@ export const ContentPanel: FC = () => {
         (state) =>
             !!cartesianChartSelectors.getErrors(state, selectedChartType),
     );
+
+    const handleTableHeaderClick = useCallback(
+        (fieldName: string) => {
+            dispatch(updateChartSortBy(fieldName));
+        },
+        [dispatch],
+    );
+
+    // TODO: can this just go in the table?
+    const sortConfig: VizTableHeaderSortConfig | undefined = useMemo(() => {
+        if (!currentVizConfig || isVizTableConfig(currentVizConfig)) {
+            return undefined;
+        }
+
+        return pivotedChartInfo?.data?.tableData?.columns.reduce<VizTableHeaderSortConfig>(
+            (acc, col) => {
+                const columnSort = currentVizConfig?.fieldConfig?.sortBy?.find(
+                    (sort) => sort.reference === col,
+                );
+
+                return {
+                    ...acc,
+                    [col]: {
+                        direction: columnSort?.direction,
+                    },
+                };
+            },
+            {},
+        );
+    }, [currentVizConfig, pivotedChartInfo]);
 
     return (
         <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
@@ -708,6 +740,10 @@ export const ContentPanel: FC = () => {
                                                     flexProps={{
                                                         mah: '100%',
                                                     }}
+                                                    onTHClick={
+                                                        handleTableHeaderClick
+                                                    }
+                                                    thSortConfig={sortConfig}
                                                 />
                                             )}
                                     </ConditionalVisibility>

@@ -111,6 +111,9 @@ models:
           type: number
           sql: ${total_completed_order_amount}/${total_order_amount}
           format: percent
+      default_time_dimension:
+        field: order_date
+        interval: MONTH
     columns:
       - name: order_id
         tests:

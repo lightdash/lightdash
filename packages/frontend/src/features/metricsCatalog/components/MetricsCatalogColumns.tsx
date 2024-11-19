@@ -1,15 +1,7 @@
 import { type CatalogField } from '@lightdash/common';
-import {
-    Flex,
-    Group,
-    Highlight,
-    HoverCard,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Flex, Group, Text, Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo, type FC, type SVGProps } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -25,6 +17,7 @@ import { CatalogCategory } from './CatalogCategory';
 import { ExploreMetricButton } from './ExploreMetricButton';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
+import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescription';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 
 const HeaderCell = ({
@@ -88,40 +81,9 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                 {column.columnDef.header}
             </HeaderCell>
         ),
-        Cell: ({ table, row }) => (
-            <HoverCard
-                withinPortal
-                shadow="lg"
-                position="right"
-                disabled={!row.original.description}
-                radius="md"
-            >
-                <HoverCard.Target>
-                    <Text
-                        lineClamp={2}
-                        c={row.original.description ? 'dark.4' : 'dark.1'}
-                        fz="sm"
-                        fw={400}
-                        lh="150%"
-                    >
-                        <Highlight
-                            highlight={table.getState().globalFilter || ''}
-                            lh="150%"
-                        >
-                            {row.original.description ?? '-'}
-                        </Highlight>
-                    </Text>
-                </HoverCard.Target>
-                <HoverCard.Dropdown maw={300}>
-                    <MarkdownPreview
-                        source={row.original.description}
-                        style={{
-                            fontSize: '12px',
-                        }}
-                    />
-                </HoverCard.Dropdown>
-            </HoverCard>
-        ),
+        Cell: ({ row, table }) => {
+            return <MetricsCatalogColumnDescription row={row} table={table} />;
+        },
     },
     {
         accessorKey: 'categories',
@@ -161,13 +123,15 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             return (
-                <Group spacing="xxs" pos="relative" w="100%" h="100%">
-                    {categories.map((category) => (
-                        <CatalogCategory
-                            key={category.tagUuid}
-                            category={category}
-                        />
-                    ))}
+                <Group pos="absolute" w="100%" h="100%" left={0} top={0}>
+                    <Group mx="md" spacing="xxs">
+                        {categories.map((category) => (
+                            <CatalogCategory
+                                key={category.tagUuid}
+                                category={category}
+                            />
+                        ))}
+                    </Group>
                     {canManageTags && (
                         <MetricsCatalogCategoryForm
                             catalogSearchUuid={row.original.catalogSearchUuid}
@@ -196,6 +160,9 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             const isCategoryPopoverClosing = useAppSelector(
                 (state) => state.metricsCatalog.popovers.category.isClosing,
             );
+            const isDescriptionPopoverClosing = useAppSelector(
+                (state) => state.metricsCatalog.popovers.description.isClosing,
+            );
 
             const categories = useMemo(
                 () => row.original.categories ?? [],
@@ -203,7 +170,6 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             return (
-                // This is a hack to make the whole cell clickable and avoid race conditions with click outside events
                 <Flex
                     ref={ref}
                     pos="absolute"
@@ -214,7 +180,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     w="100%"
                     h="100%"
                     onClick={() => {
-                        if (isCategoryPopoverClosing) {
+                        // Prevent the cell from being clicked if the category or description popover is closing
+                        if (
+                            isCategoryPopoverClosing ||
+                            isDescriptionPopoverClosing
+                        ) {
                             return;
                         }
 

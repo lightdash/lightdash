@@ -104,7 +104,8 @@ const ContentCharts: FC<ContentChartsProps> = ({ onTableHeaderClick }) => {
         setOpenPanel(undefined);
     };
 
-    // ! TODO: THIS SHOULD COME FROM THE CORRESPONDING TABLE DATA MODELS
+    // TODO: this is a static method on the table, but the sort
+    // is really a property of the page/query. Is there a better place for it?
     const tableVizSorts = useMemo(() => {
         return TableDataModel.getTableHeaderSortConfig(
             resultsRunner.getColumnNames(),
