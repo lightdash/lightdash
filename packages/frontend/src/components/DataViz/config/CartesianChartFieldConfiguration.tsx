@@ -21,6 +21,7 @@ import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
 import { cartesianChartSelectors } from '../store/selectors';
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
+import { DataVizSortConfig } from './DataVizSortConfig';
 
 const YFieldsAxisConfig: FC<{
     field: PivotChartLayout['y'][number];
@@ -164,6 +165,22 @@ const XFieldAxisConfig = ({
                         columns?.find((x) => x.reference === field.reference)
                             ?.type) ||
                     DimensionType.STRING
+                }
+                rightSection={
+                    field?.reference && (
+                        <DataVizSortConfig
+                            sortBy={field.sortBy?.direction}
+                            onChangeSortBy={(value) =>
+                                field.reference &&
+                                dispatch(
+                                    actions.setSortBy({
+                                        reference: field.reference,
+                                        direction: value,
+                                    }),
+                                )
+                            }
+                        />
+                    )
                 }
             />
             <Tooltip variant="xs" label="Remove X axis">
