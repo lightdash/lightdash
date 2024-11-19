@@ -1,3 +1,10 @@
+## [0.1370.2](https://github.com/lightdash/lightdash/compare/0.1370.1...0.1370.2) (2024-11-19)
+
+
+### Bug Fixes
+
+* overlapping value labels in sql runner ([#12493](https://github.com/lightdash/lightdash/issues/12493)) ([478a3fd](https://github.com/lightdash/lightdash/commit/478a3fd3f5f114b264a1f17002369e3f1d31700b))
+
 ## [0.1370.1](https://github.com/lightdash/lightdash/compare/0.1370.0...0.1370.1) (2024-11-19)
 
 
