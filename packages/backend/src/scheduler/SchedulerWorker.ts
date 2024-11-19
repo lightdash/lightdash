@@ -5,7 +5,6 @@ import {
     sqlRunnerJob,
     sqlRunnerPivotQueryJob,
 } from '@lightdash/common';
-import { getSchedule, stringToArray } from 'cron-converter';
 import {
     JobHelpers,
     Logger as GraphileLogger,
@@ -16,7 +15,9 @@ import {
     TaskList,
 } from 'graphile-worker';
 import moment from 'moment';
+import ExecutionContext from 'node-execution-context';
 import Logger from '../logging/logger';
+import { ExecutionContextInfo } from '../logging/winston';
 import { wrapSentryTransaction } from '../utils';
 import { SchedulerClient } from './SchedulerClient';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
@@ -70,12 +71,24 @@ const traceTask = (taskName: string, task: Task): Task => {
                     span.setAttribute('worker.job.key', job.key);
                 }
 
-                let hasError = false;
                 try {
-                    await task(payload, helpers);
+                    const executionContext: ExecutionContextInfo = {
+                        worker: {
+                            id: job.locked_by,
+                        },
+                        job: {
+                            id: job.id,
+                            queue_name: job.queue_name,
+                            task_identifier: job.task_identifier,
+                            priority: job.priority,
+                            attempts: job.attempts,
+                        },
+                    };
+                    await ExecutionContext.run(
+                        () => task(payload, helpers),
+                        executionContext,
+                    );
                 } catch (e) {
-                    hasError = true;
-
                     span.setStatus({
                         code: 2, // Error
                     });
