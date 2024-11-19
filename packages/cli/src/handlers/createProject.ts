@@ -71,7 +71,7 @@ const askPermissionToStoreWarehouseCredentials = async (): Promise<boolean> => {
 
 const pollJobStatus = async (
     jobId: string,
-    maxAttempts: number = 10,
+    maxAttempts: number = 30,
     interval: number = 3000,
 ): Promise<ApiJobStatusResponse['results']> => {
     let attempts = 0;
