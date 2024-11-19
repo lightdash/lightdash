@@ -95,8 +95,33 @@ export type PivotChartData = {
     fileUrl: string | undefined;
     results: RawResultRow[];
     indexColumn: PivotIndexColum;
-    valuesColumns: string[];
+    // valuesColumns: {
+    //     reference: string; // like event_playlist_deleted
+    //     groupByDimensions: {
+    //         reference: string; // like event_type
+    //         value: unknown; // like playlist_deleted
+    //     }[];
+    //     valueReference: string; // like event (sum)
+    // }[];
+
+    valuesColumns: {
+        [keyOfValueColumn: string]: {
+            reference: string; // like event_playlist_deleted
+            groupByIndex: {
+                reference: string; // like event_type
+                value: unknown; // like playlist_deleted
+            }[];
+            valueReference: string; // like event (sum)
+        };
+    };
     columns: VizColumn[];
+};
+
+const testing = {
+    event_playlist_deleted: {
+        metric: 'event',
+        pivotValue: [{ dimensions: 'X', value: 'playlist_deleted' }],
+    },
 };
 
 // TODO: This type is used by both the cartesian and pie chart data models,

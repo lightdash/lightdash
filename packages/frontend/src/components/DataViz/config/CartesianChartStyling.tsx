@@ -16,7 +16,10 @@ import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
-import { selectCurrentCartesianChartState } from '../store/selectors';
+import {
+    selectCurrentCartesianChartState,
+    selectPivotChartSeriesByKind,
+} from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 import {
     CartesianChartSeries,
@@ -36,6 +39,9 @@ export const CartesianChartStyling = ({
 
     const currentConfig = useVizSelector((state) =>
         selectCurrentCartesianChartState(state, selectedChartType),
+    );
+    const seriesFromPivotData = useVizSelector((state) =>
+        selectPivotChartSeriesByKind(state, selectedChartType),
     );
 
     const series: ConfigurableSeries[] = useMemo(() => {
@@ -65,6 +71,9 @@ export const CartesianChartStyling = ({
             };
         });
     }, [colors, currentConfig?.display?.series, currentConfig?.fieldConfig?.y]);
+
+    console.log('current series', { series });
+    console.log('series from pivot data', { seriesFromPivotData });
 
     const xAxisLabel = useMemo(() => {
         return (

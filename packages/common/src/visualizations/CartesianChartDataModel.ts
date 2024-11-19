@@ -612,14 +612,43 @@ export type CartesianChartDisplay = {
         format?: Format;
     }[];
     series?: {
-        [key: string]: {
+        [referenceFromPivotData: string]: {
+            label?: string;
+
+            yAxisIndex?: number; // is for us to know which index of yAxis it belongs to
+            color?: string;
+
+            reference?: string; // series from pivot data (grouped) must have this
+
+            // DOWN here we have the series that are not grouped, and users can change format and type
+
+            // these need to be here in case it's a single series, but children of grouped series shouldn't allow this
+            format?: Format;
+            type?: ChartKind.LINE | ChartKind.VERTICAL_BAR;
+
+            // TODO: have type guard to differentiate between grouped and not grouped series (grouped series should not have format and type, and have a reference)
+        };
+    };
+    seriesGroup?: {
+        [referenceOfYAxis: string]: {
+            // like event (sum/count,etc)
             label?: string;
             format?: Format;
             yAxisIndex?: number;
-            color?: string;
+            // color?: string; - dont need color for group
             type?: ChartKind.LINE | ChartKind.VERTICAL_BAR;
         };
     };
+    // draft - just for reference
+    // {
+    //     yAxisIndex: 0,
+    //    groupByValues:[ {
+    //           groupByIndex: 0,
+    //           value: 'created'
+    //         }]}
+
+    // yAxis: [ ... metricA]
+    // groupBy: [... dimensionX]
     legend?: {
         position: 'top' | 'bottom' | 'left' | 'right';
         align: 'start' | 'center' | 'end';

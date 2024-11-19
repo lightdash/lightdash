@@ -163,6 +163,11 @@ export const selectCurrentCartesianChartState = createSelector(
     },
 );
 
+export const selectPivotChartSeriesByKind = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.series,
+);
+
 export const selectPivotChartDataByKind = createSelector(
     [
         (_, chartKind) => chartKind,
