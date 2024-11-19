@@ -27,6 +27,7 @@ import {
     DashboardBasicDetails,
     DashboardFilters,
     DateGranularity,
+    dateGranularityToTimeFrameMap,
     DbtExposure,
     DbtExposureType,
     DbtProjectType,
@@ -42,6 +43,7 @@ import {
     FilterOperator,
     findFieldByIdInExplore,
     ForbiddenError,
+    formatDate,
     formatRows,
     getAggregatedField,
     getDashboardFilterRulesForTables,
@@ -60,6 +62,8 @@ import {
     isDimension,
     isExploreError,
     isFilterableDimension,
+    isFilterRule,
+    isOrFilterGroup,
     isUserWithOrg,
     ItemsMap,
     Job,
@@ -97,6 +101,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UnexpectedServerError,
+    updateFilterValueInFilters,
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
@@ -1025,6 +1030,47 @@ export class ProjectService extends BaseService {
         return { adapter, sshTunnel };
     }
 
+    static updateMetricQueryWithGranularity(
+        explore: Explore,
+        metricQuery: MetricQuery,
+        warehouseClient: WarehouseClient,
+        granularity?: DateGranularity,
+    ): MetricQuery {
+        if (granularity) {
+            const dimensionFilters = metricQuery.filters.dimensions;
+            if (!dimensionFilters) return metricQuery;
+
+            // These filters are updated by reference
+            updateFilterValueInFilters(
+                dimensionFilters,
+                (fieldId: string, filterValues: any[] | undefined) => {
+                    if (
+                        fieldId === 'customers_created_week' &&
+                        filterValues?.[0]
+                    ) {
+                        // TODO updated field id
+                        // Apply date granularity to filter value
+                        const filterValue = filterValues[0];
+                        const newDate = formatDate(
+                            filterValue,
+                            dateGranularityToTimeFrameMap[granularity],
+                        );
+                        return [newDate];
+                    }
+                    return filterValues;
+                },
+            );
+            return {
+                ...metricQuery,
+                filters: {
+                    ...metricQuery.filters,
+                    dimensions: dimensionFilters,
+                },
+            };
+        }
+        return metricQuery;
+    }
+
     static updateExploreWithGranularity(
         explore: Explore,
         metricQuery: MetricQuery,
@@ -1094,9 +1140,16 @@ export class ProjectService extends BaseService {
             granularity,
         );
 
+        const metricWithOverride =
+            ProjectService.updateMetricQueryWithGranularity(
+                explore,
+                metricQuery,
+                warehouseClient,
+                granularity,
+            );
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
-            metricQuery,
+            metricQuery: metricWithOverride,
             warehouseClient,
         });
 
