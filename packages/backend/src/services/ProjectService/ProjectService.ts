@@ -728,7 +728,6 @@ export class ProjectService extends BaseService {
 
         await this.jobModel.create(job);
         doAsyncWork().catch((e) => {
-            console.log('but we continue running right?..');
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
             }
@@ -739,7 +738,6 @@ export class ProjectService extends BaseService {
             );
         });
 
-        console.log('we return');
         return {
             jobUuid: job.jobUuid,
         };
