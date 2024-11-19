@@ -1,3 +1,15 @@
+# [0.1372.0](https://github.com/lightdash/lightdash/compare/0.1371.0...0.1372.0) (2024-11-19)
+
+
+### Bug Fixes
+
+* fix cell context menu embedding ([#12497](https://github.com/lightdash/lightdash/issues/12497)) ([f3c83dd](https://github.com/lightdash/lightdash/commit/f3c83ddf4e3cf7919ee9f3e481fdc5441b9fcf6b))
+
+
+### Features
+
+* sorting in the SQL runner ([#12463](https://github.com/lightdash/lightdash/issues/12463)) ([161fb7c](https://github.com/lightdash/lightdash/commit/161fb7c35619f7a681cd6fba11c057b9350054c8))
+
 # [0.1371.0](https://github.com/lightdash/lightdash/compare/0.1370.2...0.1371.0) (2024-11-19)
 
 
