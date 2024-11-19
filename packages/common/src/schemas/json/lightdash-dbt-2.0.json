@@ -180,7 +180,6 @@
                                             "DAY",
                                             "WEEK",
                                             "MONTH",
-                                            "QUARTER",
                                             "YEAR"
                                         ],
                                         "description": "The default time interval to use when analyzing this time dimension"
