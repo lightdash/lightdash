@@ -446,9 +446,7 @@ Cypress.Commands.add(
                         // eslint-disable-next-line consistent-return
                         return new Promise((resolve) => {
                             setTimeout(resolve, interval);
-                        }).then(() => {
-                            pollStatus(attempts + 1);
-                        });
+                        }).then(() => pollStatus(attempts + 1));
                     });
             };
 
