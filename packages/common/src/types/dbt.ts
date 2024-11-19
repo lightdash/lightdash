@@ -75,6 +75,10 @@ type DbtModelLightdashConfig = {
     required_filters?: { [key: string]: any }[];
     required_attributes?: Record<string, string | string[]>;
     group_details?: Record<string, DbtModelGroup>;
+    default_time_dimension?: {
+        field: string;
+        interval: TimeFrames;
+    };
 };
 
 export type DbtModelGroup = {
@@ -290,6 +294,10 @@ export type DbtMetricLightdashMetadata = {
     groups?: string[];
     show_underlying_values?: string[];
     filters: Record<string, any>[];
+    default_time_dimension?: {
+        field: string;
+        interval: TimeFrames;
+    };
 };
 
 export type DbtDoc = {

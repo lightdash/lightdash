@@ -445,6 +445,10 @@ export interface Metric extends Field {
     formatOptions?: CustomFormat;
     dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
+    defaultTimeDimension?: {
+        field: string;
+        interval: TimeFrames;
+    };
 }
 
 export const isFilterableDimension = (
