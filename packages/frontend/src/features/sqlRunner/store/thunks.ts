@@ -6,7 +6,6 @@ import {
     ChartKind,
     isApiSqlRunnerJobSuccessResponse,
     isErrorDetails,
-    isVizCartesianChartConfig,
     type ApiErrorDetail,
     type RawResultRow,
 } from '@lightdash/common';
@@ -89,13 +88,13 @@ export const prepareAndFetchChartData = createAsyncThunk(
             state.sqlRunner.selectedChartType,
         );
 
-        const sortBy = isVizCartesianChartConfig(currentVizConfig)
-            ? currentVizConfig.fieldConfig?.sortBy
-            : undefined;
+        const sortBy =
+            currentVizConfig && 'fieldConfig' in currentVizConfig
+                ? currentVizConfig.fieldConfig?.sortBy
+                : undefined;
+        const { selectedChartType, limit, sql } = state.sqlRunner;
 
         const resultsRunner = selectSqlRunnerResultsRunner(state, sortBy);
-
-        const { selectedChartType, limit, sql } = state.sqlRunner;
 
         const config = selectChartFieldConfigByKind(state, selectedChartType);
 
