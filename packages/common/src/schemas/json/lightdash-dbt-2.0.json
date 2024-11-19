@@ -165,6 +165,28 @@
                                         "required": ["type", "sql"]
                                     }
                                 }
+                            },
+                            "default_time_dimension": {
+                                "type": "object",
+                                "description": "Specifies the default time dimension field and interval to use for time-based analysis (on any metric in the model). If specified, both field and interval are required.",
+                                "properties": {
+                                    "field": {
+                                        "type": "string",
+                                        "description": "The name of the field to use as the default time dimension"
+                                    },
+                                    "interval": {
+                                        "type": "string",
+                                        "enum": [
+                                            "DAY",
+                                            "WEEK",
+                                            "MONTH",
+                                            "QUARTER",
+                                            "YEAR"
+                                        ],
+                                        "description": "The default time interval to use when analyzing this time dimension"
+                                    }
+                                },
+                                "required": ["field", "interval"]
                             }
                         }
                     },
