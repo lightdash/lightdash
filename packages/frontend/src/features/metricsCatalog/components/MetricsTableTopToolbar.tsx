@@ -157,43 +157,47 @@ const CategoriesFilter = () => {
                             </Text>
                         )}
 
-                        {categories?.map((category) => (
-                            <Checkbox
-                                key={category.tagUuid}
-                                label={<CatalogCategory category={category} />}
-                                checked={selectedCategories.includes(
-                                    category.tagUuid,
-                                )}
-                                size="xs"
-                                styles={(theme) => ({
-                                    body: {
-                                        alignItems: 'center',
-                                    },
-                                    input: {
-                                        borderRadius: theme.radius.sm,
-                                        border: `1px solid ${theme.colors.gray[4]}`,
-                                    },
-                                    label: {
-                                        paddingLeft: theme.spacing.xs,
-                                    },
-                                })}
-                                onChange={() => {
-                                    if (
-                                        selectedCategories.includes(
-                                            category.tagUuid,
-                                        )
-                                    ) {
-                                        selectedCategoriesHandlers.filter(
-                                            (c) => c !== category.tagUuid,
-                                        );
-                                    } else {
-                                        selectedCategoriesHandlers.append(
-                                            category.tagUuid,
-                                        );
+                        <Stack spacing="xs">
+                            {categories?.map((category) => (
+                                <Checkbox
+                                    key={category.tagUuid}
+                                    label={
+                                        <CatalogCategory category={category} />
                                     }
-                                }}
-                            />
-                        ))}
+                                    checked={selectedCategories.includes(
+                                        category.tagUuid,
+                                    )}
+                                    size="xs"
+                                    styles={(theme) => ({
+                                        body: {
+                                            alignItems: 'center',
+                                        },
+                                        input: {
+                                            borderRadius: theme.radius.sm,
+                                            border: `1px solid ${theme.colors.gray[4]}`,
+                                        },
+                                        label: {
+                                            paddingLeft: theme.spacing.xs,
+                                        },
+                                    })}
+                                    onChange={() => {
+                                        if (
+                                            selectedCategories.includes(
+                                                category.tagUuid,
+                                            )
+                                        ) {
+                                            selectedCategoriesHandlers.filter(
+                                                (c) => c !== category.tagUuid,
+                                            );
+                                        } else {
+                                            selectedCategoriesHandlers.append(
+                                                category.tagUuid,
+                                            );
+                                        }
+                                    }}
+                                />
+                            ))}
+                        </Stack>
                     </Stack>
                 </Popover.Dropdown>
             </Popover>

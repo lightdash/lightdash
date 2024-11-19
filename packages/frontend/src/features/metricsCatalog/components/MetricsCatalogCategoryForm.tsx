@@ -230,7 +230,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     <UnstyledButton w="100%" pos="absolute" />
                 </Popover.Target>
                 <Popover.Dropdown p={0}>
-                    <Stack px="sm" pt="xs" spacing="xs">
+                    <Stack px="sm" pt="sm" spacing="xs">
                         <TagInput
                             value={categoryNames}
                             allowDuplicates={false}
@@ -254,8 +254,8 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             }}
                             styles={(theme) => ({
                                 input: {
-                                    backgroundColor: theme.colors.gray[0],
                                     paddingBottom: 4,
+                                    paddingTop: 4,
                                     paddingRight: 3,
                                 },
                                 tagInput: {
@@ -263,7 +263,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                     color: theme.colors.dark[9],
                                 },
                                 wrapper: {
-                                    boxShadow: theme.shadows.subtle,
                                     borderRadius: theme.radius.md,
                                     backgroundColor: 'transparent',
                                     fontWeight: 500,
@@ -279,7 +278,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     </Stack>
                     <Stack spacing="xs" align="flex-start" px="xs" pb="sm">
                         <Stack
-                            spacing={0}
+                            spacing={2}
                             w="100%"
                             mah={140}
                             sx={{

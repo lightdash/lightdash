@@ -80,6 +80,7 @@ const EditPopover: FC<EditPopoverProps> = ({
             closeOnClickOutside
             width={200}
             onClose={handleClose}
+            trapFocus
         >
             <Popover.Target>
                 <ActionIcon

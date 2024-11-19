@@ -123,21 +123,15 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             return (
-                <Group
-                    pos="absolute"
-                    spacing="xxs"
-                    w="100%"
-                    h="100%"
-                    left={0}
-                    top={0}
-                    px="md"
-                >
-                    {categories.map((category) => (
-                        <CatalogCategory
-                            key={category.tagUuid}
-                            category={category}
-                        />
-                    ))}
+                <Group pos="absolute" w="100%" h="100%" left={0} top={0}>
+                    <Group mx="md" spacing="xxs">
+                        {categories.map((category) => (
+                            <CatalogCategory
+                                key={category.tagUuid}
+                                category={category}
+                            />
+                        ))}
+                    </Group>
                     {canManageTags && (
                         <MetricsCatalogCategoryForm
                             catalogSearchUuid={row.original.catalogSearchUuid}
@@ -166,6 +160,9 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             const isCategoryPopoverClosing = useAppSelector(
                 (state) => state.metricsCatalog.popovers.category.isClosing,
             );
+            const isDescriptionPopoverClosing = useAppSelector(
+                (state) => state.metricsCatalog.popovers.description.isClosing,
+            );
 
             const categories = useMemo(
                 () => row.original.categories ?? [],
@@ -173,7 +170,6 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             return (
-                // This is a hack to make the whole cell clickable and avoid race conditions with click outside events
                 <Flex
                     ref={ref}
                     pos="absolute"
@@ -184,7 +180,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     w="100%"
                     h="100%"
                     onClick={() => {
-                        if (isCategoryPopoverClosing) {
+                        // Prevent the cell from being clicked if the category or description popover is closing
+                        if (
+                            isCategoryPopoverClosing ||
+                            isDescriptionPopoverClosing
+                        ) {
                             return;
                         }
 

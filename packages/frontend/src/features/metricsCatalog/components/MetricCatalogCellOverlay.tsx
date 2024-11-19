@@ -57,9 +57,9 @@ export const MetricCatalogCellOverlay: FC<Props> = ({
         const rect = cellRef.current.getBoundingClientRect();
 
         return {
-            top: rect.top + window.scrollY,
+            top: rect.top + window.scrollY - px(theme.spacing.sm),
             left: rect.left + window.scrollX - px(theme.spacing.xl), // -16px - accounts for padding from parent
-            width: rect.width + px(theme.spacing.xl) * 2 + px(theme.spacing.xs), // +32px + 8px - accounts for padding from parent and goes out 8px to help the user
+            width: rect.width + px(theme.spacing.xl) * 2, // +32px - accounts for padding from parent
         };
     };
 
