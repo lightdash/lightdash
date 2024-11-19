@@ -1,3 +1,10 @@
+## [0.1370.1](https://github.com/lightdash/lightdash/compare/0.1370.0...0.1370.1) (2024-11-19)
+
+
+### Bug Fixes
+
+* disable databricks sqlrunner ([#12483](https://github.com/lightdash/lightdash/issues/12483)) ([c5a5eae](https://github.com/lightdash/lightdash/commit/c5a5eae8efd2fd9e24500eab7a2da6c0e1e39c19))
+
 # [0.1370.0](https://github.com/lightdash/lightdash/compare/0.1369.4...0.1370.0) (2024-11-18)
 
 
