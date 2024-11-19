@@ -1,3 +1,10 @@
+# [0.1371.0](https://github.com/lightdash/lightdash/compare/0.1370.2...0.1371.0) (2024-11-19)
+
+
+### Features
+
+* display expanded cell on click of description and tweaks ([#12494](https://github.com/lightdash/lightdash/issues/12494)) ([a6ec0cc](https://github.com/lightdash/lightdash/commit/a6ec0cc3bdd21533dd46b02ae65e5fe952299483))
+
 ## [0.1370.2](https://github.com/lightdash/lightdash/compare/0.1370.1...0.1370.2) (2024-11-19)
 
 
