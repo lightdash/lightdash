@@ -521,6 +521,14 @@ export const convertTable = (
         requiredFilters: parseFilters(meta.required_filters),
         requiredAttributes: meta.required_attributes,
         groupDetails,
+        ...(meta.default_time_dimension
+            ? {
+                  defaultTimeDimension: {
+                      field: meta.default_time_dimension.field,
+                      interval: meta.default_time_dimension.interval,
+                  },
+              }
+            : {}),
     };
 };
 
