@@ -85,6 +85,8 @@ import { type ProjectMemberRole } from './types/projectMemberRole';
 import {
     DbtProjectType,
     ProjectType,
+    type ApiCreateProjectJobResponse,
+    type ApiCreateProjectWithoutCompileJobResponse,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
     type Project,
@@ -95,7 +97,6 @@ import { type ResultRow } from './types/results';
 import {
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
-    type ApiSchedulerJobIdResponse,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
     type SchedulerWithLogs,
@@ -489,10 +490,6 @@ export type ApiRefreshResults = {
     jobUuid: string;
 };
 
-export type ApiJobStartedResults = {
-    jobUuid: string;
-};
-
 export type ApiCreateUserTokenResults = {
     token: string;
     expiresAt: Date;
@@ -626,7 +623,6 @@ type ApiResults =
     | ProjectSavedChartStatus
     | null
     | Array<unknown>
-    | ApiJobStartedResults
     | ApiCreateUserTokenResults
     | CreatePersonalAccessToken
     | PersonalAccessToken
@@ -690,7 +686,8 @@ type ApiResults =
     | ApiMetricsCatalog['results']
     | ApiGroupListResponse['results']
     | ApiCreateTagResponse['results']
-    | ApiSchedulerJobIdResponse['results'];
+    | ApiCreateProjectJobResponse['results']
+    | ApiCreateProjectWithoutCompileJobResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

@@ -1,4 +1,4 @@
-import type { CreateProject } from '..';
+import type { CreateProject, UpdateProject } from '..';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule } from './filter';
@@ -49,6 +49,7 @@ export type SchedulerLog = {
         | 'uploadGsheetFromQuery'
         | 'createProjectWithoutCompile'
         | 'createProjectWithCompile'
+        | 'updateProjectWithCompile'
         | 'compileProject'
         | 'testAndCompileProject'
         | 'validateProject'
@@ -317,13 +318,6 @@ export type ApiTestSchedulerResponse = {
     };
 };
 
-export type ApiSchedulerJobIdResponse = {
-    status: 'ok';
-    results: {
-        schedulerJobId: string;
-    };
-};
-
 // Scheduler task types
 export type ScheduledDeliveryPayload =
     | { schedulerUuid: string }
@@ -431,6 +425,15 @@ export type SchedulerCreateProjectWithCompilePayload = {
     requestMethod: string;
     isPreview: boolean;
     data: CreateProject;
+    jobUuid: string;
+};
+
+export type SchedulerUpdateProjectWithCompilePayload = {
+    createdByUserUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
+    requestMethod: string;
+    data: UpdateProject;
     jobUuid: string;
 };
 

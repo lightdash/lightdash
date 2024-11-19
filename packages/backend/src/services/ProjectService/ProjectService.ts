@@ -109,7 +109,9 @@ import {
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
+    type CreateProjectJobResult,
     type CreateProjectResult,
+    type CreateProjectWithoutCompileJobResult,
     type SemanticLayerConnectionUpdate,
     type Tag,
 } from '@lightdash/common';
@@ -604,7 +606,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         data: CreateProject,
         method: RequestMethod,
-    ): Promise<{ schedulerJobId: string }> {
+    ): Promise<CreateProjectWithoutCompileJobResult> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -750,7 +752,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         data: CreateProject,
         method: RequestMethod,
-    ) {
+    ): Promise<CreateProjectJobResult> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -807,35 +809,26 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async updateAndScheduleAsyncWork(
-        projectUuid: string,
+    async _update(
         user: SessionUser,
+        projectUuid: string,
         data: UpdateProject,
+        jobUuid: string,
         method: RequestMethod,
-    ): Promise<{ jobUuid: string }> {
+    ): Promise<void> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+
         const savedProject = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
-        if (
-            user.ability.cannot(
-                'update',
-                subject('Project', {
-                    organizationUuid: savedProject.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
 
         const job: CreateJob = {
-            jobUuid: uuidv4(),
+            jobUuid,
             jobType: JobType.COMPILE_PROJECT,
             jobStatus: JobStatusType.STARTED,
-            projectUuid: undefined,
+            projectUuid,
             userUuid: user.userUuid,
             steps: [
                 { stepType: JobStepType.TESTING_ADAPTOR },
@@ -871,9 +864,47 @@ export class ProjectService extends BaseService {
                 },
             });
         }
-        return {
-            jobUuid: job.jobUuid,
-        };
+    }
+
+    async scheduleUpdate(
+        projectUuid: string,
+        user: SessionUser,
+        data: UpdateProject,
+        method: RequestMethod,
+    ): Promise<{ jobUuid: string; schedulerJobId: string }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const savedProject = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: savedProject.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const jobUuid = uuidv4();
+
+        const schedulerJob =
+            await this.schedulerClient.updateProjectWithCompile({
+                createdByUserUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                projectUuid,
+                requestMethod: method,
+                jobUuid,
+                data,
+            });
+
+        return { jobUuid, schedulerJobId: schedulerJob.jobId };
     }
 
     async testAndCompileProject(

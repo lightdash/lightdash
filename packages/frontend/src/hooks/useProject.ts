@@ -1,6 +1,8 @@
 import {
+    SchedulerJobStatus,
+    type ApiCreateProjectJobResponse,
     type ApiError,
-    type ApiJobStartedResults,
+    type ApiJobStatusResponse,
     type CreateProject,
     type MostPopularAndRecentlyUpdated,
     type Project,
@@ -14,15 +16,56 @@ import { useActiveJob } from '../providers/ActiveJobProvider';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
+const pollJobStatus = async (
+    schedulerJobId: string,
+    maxAttempts: number = 30,
+    interval: number = 3000,
+): Promise<ApiJobStatusResponse['results']> => {
+    let attempts = 0;
+
+    console.log('Polling job status');
+
+    while (attempts < maxAttempts) {
+        // eslint-disable-next-line no-await-in-loop
+        const jobResult = await lightdashApi<ApiJobStatusResponse['results']>({
+            method: 'GET',
+            url: `/schedulers/job/${schedulerJobId}/status`,
+            body: undefined,
+        });
+
+        console.log(jobResult);
+
+        if (jobResult.status === SchedulerJobStatus.ERROR) {
+            throw new Error('Job failed');
+        }
+
+        if (
+            jobResult.status === SchedulerJobStatus.STARTED ||
+            jobResult.status === SchedulerJobStatus.COMPLETED
+        ) {
+            return jobResult;
+        }
+
+        attempts += 1;
+
+        // eslint-disable-next-line @typescript-eslint/no-loop-func
+        await new Promise((resolve) => {
+            setTimeout(resolve, interval);
+        });
+    }
+
+    throw new Error('Job polling exceeded maximum attempts');
+};
+
 const createProject = async (data: CreateProject) =>
-    lightdashApi<ApiJobStartedResults>({
+    lightdashApi<ApiCreateProjectJobResponse['results']>({
         url: `/org/projects/precompiled`,
         method: 'POST',
         body: JSON.stringify(data),
     });
 
 const updateProject = async (uuid: string, data: UpdateProject) =>
-    lightdashApi<ApiJobStartedResults>({
+    lightdashApi<ApiCreateProjectJobResponse['results']>({
         url: `/projects/${uuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -77,10 +120,17 @@ export const useUpdateMutation = (uuid: string) => {
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();
-    return useMutation<ApiJobStartedResults, ApiError, UpdateProject>(
-        (data) => updateProject(uuid, data),
+    return useMutation<
+        ApiCreateProjectJobResponse['results'],
+        ApiError,
+        UpdateProject
+    >(
+        async (data) => {
+            const result = await updateProject(uuid, data);
+            await pollJobStatus(result.schedulerJobId);
+            return result;
+        },
         {
-            mutationKey: ['project_update', uuid],
             onSuccess: async (data) => {
                 setActiveJobId(data.jobUuid);
 
@@ -103,12 +153,18 @@ export const useUpdateMutation = (uuid: string) => {
 export const useCreateMutation = () => {
     const { setActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();
-    return useMutation<ApiJobStartedResults, ApiError, CreateProject>(
-        (data) => createProject(data),
+    return useMutation<
+        ApiCreateProjectJobResponse['results'],
+        ApiError,
+        CreateProject
+    >(
+        async (data) => {
+            const result = await createProject(data);
+            await pollJobStatus(result.schedulerJobId);
+            return result;
+        },
         {
-            mutationKey: ['project_create'],
-            retry: 3,
-            onSuccess: (data) => {
+            onSuccess: async (data) => {
                 setActiveJobId(data.jobUuid);
             },
             onError: ({ error }) => {

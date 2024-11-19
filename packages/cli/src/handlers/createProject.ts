@@ -5,9 +5,9 @@ import {
     ProjectType,
     SchedulerJobStatus,
     WarehouseTypes,
+    type ApiCreateProjectJobResponse,
     type ApiJobStatusResponse,
     type ApiProjectResponse,
-    type ApiSchedulerJobIdResponse,
     type Project,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
@@ -179,7 +179,7 @@ export const createProject = async (
     };
 
     const scheduleProjectCreationJob = await lightdashApi<
-        ApiSchedulerJobIdResponse['results']
+        ApiCreateProjectJobResponse['results']
     >({
         method: 'POST',
         url: `/api/v1/org/projects`,

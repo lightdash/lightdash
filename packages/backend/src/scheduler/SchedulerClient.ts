@@ -29,6 +29,7 @@ import {
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerCreateProjectWithoutCompilePayload,
     type SchedulerIndexCatalogJobPayload,
+    type SchedulerUpdateProjectWithCompilePayload,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { getSchedule, stringToArray } from 'cron-converter';
@@ -710,6 +711,37 @@ export class SchedulerClient {
                 organizationUuid: payload.organizationUuid,
                 requestMethod: payload.requestMethod,
                 isPreview: payload.isPreview,
+            },
+        });
+
+        return { jobId };
+    }
+
+    async updateProjectWithCompile(
+        payload: SchedulerUpdateProjectWithCompilePayload,
+    ) {
+        console.log('yayaya');
+
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            'updateProjectWithCompile',
+            payload,
+            now,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: 'updateProjectWithCompile',
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.createdByUserUuid,
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
+                requestMethod: payload.requestMethod,
+                jobUuid: payload.jobUuid,
             },
         });
 
