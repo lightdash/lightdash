@@ -434,7 +434,7 @@ Cypress.Commands.add(
 
                         if (jobResult.status === SchedulerJobStatus.COMPLETED) {
                             cy.log(`Project ${projectName} creation completed`);
-                            cy.wrap(jobResult);
+                            cy.wrap(jobResult.details.projectUuid);
                             return;
                         }
 
