@@ -2357,14 +2357,13 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@databricks/sql@1.8.1":
-  version "1.8.1"
-  resolved "https://registry.yarnpkg.com/@databricks/sql/-/sql-1.8.1.tgz#10d6d5ed2e75671b39023a2a55e0545a407fbad4"
-  integrity sha512-6H8ianbDIMJqTpYiWfBbVC2qv6RIbm0WBfyzutl/QoFu+rb6n1sWxmLtEZcFdq9l2KLv7MNDY7bpT5rZlSHNMg==
+"@databricks/sql@1.8.4":
+  version "1.8.4"
+  resolved "https://registry.yarnpkg.com/@databricks/sql/-/sql-1.8.4.tgz#80069db55823037334d3f771bfd574aef107868f"
+  integrity sha512-FB8JfRMTANMdzVnXjdeRK+FF8FWgoq8goXzAQIikz2Q1QYET77WJrCsbLaQLX3EfWy6HabNHVv0C2xlcFmHITg==
   dependencies:
     apache-arrow "^13.0.0"
     commander "^9.3.0"
-    lz4 "^0.6.5"
     node-fetch "^2.6.12"
     node-int64 "^0.4.0"
     open "^8.4.2"
@@ -2373,6 +2372,8 @@
     thrift "^0.16.0"
     uuid "^9.0.0"
     winston "^3.8.2"
+  optionalDependencies:
+    lz4 "^0.6.5"
 
 "@dependents/detective-less@^5.0.0":
   version "5.0.0"
