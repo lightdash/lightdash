@@ -274,7 +274,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
             {header}
 
-            <Box className={classes.root}>
+            <Box id="page-root" className={classes.root}>
                 {sidebar ? (
                     <Sidebar
                         noSidebarPadding={noSidebarPadding}

@@ -18,6 +18,9 @@ type MetricsCatalogState = {
         category: {
             isClosing: boolean;
         };
+        description: {
+            isClosing: boolean;
+        };
     };
 };
 
@@ -36,6 +39,9 @@ const initialState: MetricsCatalogState = {
     },
     popovers: {
         category: {
+            isClosing: false,
+        },
+        description: {
             isClosing: false,
         },
     },
@@ -81,6 +87,12 @@ export const metricsCatalogSlice = createSlice({
         ) => {
             state.popovers.category.isClosing = action.payload;
         },
+        setDescriptionPopoverIsClosing: (
+            state,
+            action: PayloadAction<boolean>,
+        ) => {
+            state.popovers.description.isClosing = action.payload;
+        },
     },
 });
 
@@ -92,4 +104,6 @@ export const {
     setOrganizationUuid,
     setAbility,
     setCategoryPopoverIsClosing,
+
+    setDescriptionPopoverIsClosing,
 } = metricsCatalogSlice.actions;

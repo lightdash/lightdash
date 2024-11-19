@@ -76,19 +76,19 @@ const EditPopover: FC<EditPopoverProps> = ({
     return (
         <Popover
             position="top"
-            shadow="lg"
             opened={opened}
-            trapFocus
-            radius="md"
             closeOnClickOutside
             width={200}
             onClose={handleClose}
-            withinPortal
+            trapFocus
         >
             <Popover.Target>
                 <ActionIcon
                     sx={{
                         visibility: hovered || opened ? 'visible' : 'hidden',
+                        '&:hover': {
+                            backgroundColor: 'white',
+                        },
                     }}
                     size="sm"
                     onClick={(e) => {
@@ -199,7 +199,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
             sx={(theme) => ({
                 borderRadius: theme.radius.md,
                 '&:hover': {
-                    backgroundColor: theme.colors.gray[1],
+                    backgroundColor: '#F8F9FA',
                     transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                 },
             })}
