@@ -16,7 +16,7 @@ import { useActiveJob } from '../providers/ActiveJobProvider';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
-const pollJobStatus = async (
+const pollSchedulerStatus = async (
     schedulerJobId: string,
     maxAttempts: number = 30,
     interval: number = 3000,
@@ -127,7 +127,7 @@ export const useUpdateMutation = (uuid: string) => {
     >(
         async (data) => {
             const result = await updateProject(uuid, data);
-            await pollJobStatus(result.schedulerJobId);
+            await pollSchedulerStatus(result.schedulerJobId);
             return result;
         },
         {
@@ -160,7 +160,7 @@ export const useCreateMutation = () => {
     >(
         async (data) => {
             const result = await createProject(data);
-            await pollJobStatus(result.schedulerJobId);
+            await pollSchedulerStatus(result.schedulerJobId);
             return result;
         },
         {
