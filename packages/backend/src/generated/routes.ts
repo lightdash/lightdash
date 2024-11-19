@@ -3719,6 +3719,8 @@ const models: TsoaRoute.Models = {
                 email: { dataType: 'string', required: true },
                 lastName: { dataType: 'string', required: true },
                 firstName: { dataType: 'string', required: true },
+                userUpdatedAt: { dataType: 'datetime', required: true },
+                userCreatedAt: { dataType: 'datetime', required: true },
                 userUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -7581,6 +7583,16 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'CartesianSeriesType.LINE': {
+        dataType: 'refEnum',
+        enums: ['line'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'CartesianSeriesType.BAR': {
+        dataType: 'refEnum',
+        enums: ['bar'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ValueLabelPositionOptions: {
         dataType: 'refEnum',
         enums: ['hidden', 'top', 'bottom', 'left', 'right', 'inside'],
@@ -7628,8 +7640,8 @@ const models: TsoaRoute.Models = {
                             type: {
                                 dataType: 'union',
                                 subSchemas: [
-                                    { ref: 'ChartKind.LINE' },
-                                    { ref: 'ChartKind.VERTICAL_BAR' },
+                                    { ref: 'CartesianSeriesType.LINE' },
+                                    { ref: 'CartesianSeriesType.BAR' },
                                 ],
                             },
                             color: { dataType: 'string' },
@@ -8460,6 +8472,8 @@ const models: TsoaRoute.Models = {
             isMarketingOptedIn: { dataType: 'boolean', required: true },
             isSetupComplete: { dataType: 'boolean', required: true },
             role: { ref: 'OrganizationMemberRole' },
+            createdAt: { dataType: 'datetime', required: true },
+            updatedAt: { dataType: 'datetime', required: true },
             isActive: { dataType: 'boolean', required: true },
             isPending: { dataType: 'boolean' },
         },

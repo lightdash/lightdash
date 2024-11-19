@@ -1,5 +1,6 @@
 import {
     ECHARTS_DEFAULT_COLORS,
+    getEChartsChartTypeFromChartKind,
     type CartesianChartDisplay,
     type ChartKind,
     type PivotChartLayout,
@@ -93,7 +94,12 @@ export const CartesianChartSeries: React.FC<SeriesColorProps> = ({
                                             canSelectDifferentTypeFromBaseChart={
                                                 true
                                             }
-                                            type={type ?? selectedChartType}
+                                            type={
+                                                type ??
+                                                getEChartsChartTypeFromChartKind(
+                                                    selectedChartType,
+                                                )
+                                            }
                                             onChangeType={(
                                                 value: NonNullable<
                                                     CartesianChartDisplay['series']

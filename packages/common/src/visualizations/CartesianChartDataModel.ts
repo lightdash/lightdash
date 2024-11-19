@@ -8,7 +8,11 @@ import {
 } from '../types/field';
 import { type Organization } from '../types/organization';
 import { type RawResultRow } from '../types/results';
-import { ChartKind, ECHARTS_DEFAULT_COLORS } from '../types/savedCharts';
+import {
+    ChartKind,
+    ECHARTS_DEFAULT_COLORS,
+    type CartesianSeriesType,
+} from '../types/savedCharts';
 import { type SemanticLayerQuery } from '../types/semanticLayer';
 import { applyCustomFormat } from '../utils/formatting';
 import {
@@ -479,9 +483,15 @@ export class CartesianChartDataModel {
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
-                const seriesFormat = Object.values(display?.series || {}).find(
+                const seriesDisplay = Object.values(display?.series || {}).find(
                     (s) => s.yAxisIndex === index,
-                )?.format;
+                );
+
+                const seriesFormat = seriesDisplay?.format;
+                const seriesColor = seriesDisplay?.color;
+                const seriesValueLabelPosition =
+                    seriesDisplay?.valueLabelPosition;
+                const seriesType = seriesDisplay?.type;
 
                 const singleYAxisLabel =
                     // NOTE: When there's only one y-axis left, set the label on the series as well
@@ -489,23 +499,11 @@ export class CartesianChartDataModel {
                     display?.yAxis?.[0]?.label
                         ? display.yAxis[0].label
                         : undefined;
-                const seriesLabel =
-                    singleYAxisLabel ??
-                    Object.values(display?.series || {}).find(
-                        (s) => s.yAxisIndex === index,
-                    )?.label;
-
-                const seriesColor = Object.values(display?.series || {}).find(
-                    (s) => s.yAxisIndex === index,
-                )?.color;
-
-                const seriesValueLabelPosition = Object.values(
-                    display?.series || {},
-                ).find((s) => s.yAxisIndex === index)?.valueLabelPosition;
+                const seriesLabel = singleYAxisLabel ?? seriesDisplay?.label;
 
                 return {
                     dimensions: [xAxisReference, seriesColumn],
-                    type: defaultSeriesType,
+                    type: seriesType ?? defaultSeriesType,
                     stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
                     name:
                         seriesLabel ||
@@ -658,7 +656,7 @@ export type CartesianChartDisplay = {
             format?: Format;
             yAxisIndex?: number;
             color?: string;
-            type?: ChartKind.LINE | ChartKind.VERTICAL_BAR;
+            type?: CartesianSeriesType.LINE | CartesianSeriesType.BAR;
             // Value labels maps to 'label' in ECharts
             valueLabelPosition?: ValueLabelPositionOptions;
         };
