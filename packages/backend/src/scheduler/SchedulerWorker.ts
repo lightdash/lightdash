@@ -371,6 +371,24 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            createProjectWithCompile: async (
+                payload: any,
+                helpers: JobHelpers,
+            ) => {
+                await SchedulerClient.processJob(
+                    'createProjectWithCompile',
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.createProjectWithCompile(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        );
+                    },
+                );
+            },
             compileProject: async (payload: any, helpers: JobHelpers) => {
                 await SchedulerClient.processJob(
                     'compileProject',

@@ -48,6 +48,7 @@ export type SchedulerLog = {
         | 'downloadCsv'
         | 'uploadGsheetFromQuery'
         | 'createProjectWithoutCompile'
+        | 'createProjectWithCompile'
         | 'compileProject'
         | 'testAndCompileProject'
         | 'validateProject'
@@ -422,6 +423,15 @@ export type SchedulerCreateProjectWithoutCompilePayload = {
     requestMethod: string;
     isPreview: boolean;
     data: CreateProject;
+};
+
+export type SchedulerCreateProjectWithCompilePayload = {
+    createdByUserUuid: string;
+    organizationUuid: string;
+    requestMethod: string;
+    isPreview: boolean;
+    data: CreateProject;
+    jobUuid: string;
 };
 
 export type CompileProjectPayload = {

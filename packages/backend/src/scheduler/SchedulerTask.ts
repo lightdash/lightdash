@@ -52,6 +52,7 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
+    type SchedulerCreateProjectWithCompilePayload,
     type SchedulerCreateProjectWithoutCompilePayload,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
@@ -768,6 +769,56 @@ export default class SchedulerTask {
                 details: {
                     projectUuid: projectCreationResult.project.projectUuid,
                     hasContentCopy: projectCreationResult.hasContentCopy,
+                },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    error: e,
+                },
+            });
+            throw e;
+        }
+    }
+
+    protected async createProjectWithCompile(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SchedulerCreateProjectWithCompilePayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: 'createProjectWithCompile',
+                jobId,
+                scheduledTime,
+            };
+
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                payload.createdByUserUuid,
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: { createdByUserUuid: payload.createdByUserUuid },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            const projectCreationResult = await this.projectService._create(
+                user,
+                payload.data,
+                payload.jobUuid,
+                getRequestMethod(payload.requestMethod),
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    projectUuid: projectCreationResult.projectUuid,
                 },
                 status: SchedulerJobStatus.COMPLETED,
             });

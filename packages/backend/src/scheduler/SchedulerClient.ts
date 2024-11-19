@@ -26,6 +26,7 @@ import {
     SqlRunnerPivotQueryPayload,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
+    type SchedulerCreateProjectWithCompilePayload,
     type SchedulerCreateProjectWithoutCompilePayload,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
@@ -672,6 +673,35 @@ export class SchedulerClient {
 
         await this.schedulerModel.logSchedulerJob({
             task: 'createProjectWithoutCompile',
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.createdByUserUuid,
+                organizationUuid: payload.organizationUuid,
+                requestMethod: payload.requestMethod,
+                isPreview: payload.isPreview,
+            },
+        });
+
+        return { jobId };
+    }
+
+    async createProjectWithCompile(
+        payload: SchedulerCreateProjectWithCompilePayload,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            'createProjectWithCompile',
+            payload,
+            now,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: 'createProjectWithCompile',
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,

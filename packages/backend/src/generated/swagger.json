@@ -7610,6 +7610,7 @@
                             "downloadCsv",
                             "uploadGsheetFromQuery",
                             "createProjectWithoutCompile",
+                            "createProjectWithCompile",
                             "compileProject",
                             "testAndCompileProject",
                             "validateProject",
