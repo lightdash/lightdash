@@ -294,10 +294,6 @@ export type DbtMetricLightdashMetadata = {
     groups?: string[];
     show_underlying_values?: string[];
     filters: Record<string, any>[];
-    default_time_dimension?: {
-        field: string;
-        interval: TimeFrames;
-    };
 };
 
 export type DbtDoc = {
