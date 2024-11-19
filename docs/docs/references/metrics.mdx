@@ -76,6 +76,10 @@ models:
       joins:
         - join: web_sessions
           sql_on: ${web_sessions.date} = ${sales_stats.date}
+      metrics:
+        num_unique_user_ids:
+          type: count_distinct
+          sql: ${TABLE}.user_id
       group_details:
         product_details:
           label: Product Details
