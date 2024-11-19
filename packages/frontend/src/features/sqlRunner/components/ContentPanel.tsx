@@ -557,8 +557,7 @@ export const ContentPanel: FC = () => {
                                                                             c
                                                                         }
                                                                         spec={pivotedChartInfo?.data?.getChartSpec(
-                                                                            organization?.chartColors ??
-                                                                                [],
+                                                                            organization?.chartColors,
                                                                         )}
                                                                         isLoading={
                                                                             !!pivotedChartInfo?.loading

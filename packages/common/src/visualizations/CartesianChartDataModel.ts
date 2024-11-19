@@ -466,7 +466,7 @@ export class CartesianChartDataModel {
         }
 
         const { type } = this;
-        const orgColors = colors;
+        const orgColors = colors ?? ECHARTS_DEFAULT_COLORS;
 
         const DEFAULT_X_AXIS_TYPE = VizIndexType.CATEGORY;
 
