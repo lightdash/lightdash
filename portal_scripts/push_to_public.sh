@@ -2,6 +2,7 @@
 set -e
 
 TEMP_PATCH_LOCATION="$HOME/lightdash-public-diff-patch.tmp"
+INTERNAL_SYNC_REPO_LOCATION="" # ie: "$HOME/dev/cron/lightdash-public"
 CONVENTIONAL_COMMIT_TYPE_TESTS=("feat:" "fix:" "docs:" "style:" "refactor:" "perf:" "test:" "build:" "ci:" "chore:" "revert:")
 
 get_restricted_content () {
@@ -52,6 +53,18 @@ starts_with() {
     echo "0"
 }
 
+sync_internal_to_official() {
+  echo "#### Syncing internal repo to official public repo..."
+  cd "$INTERNAL_SYNC_REPO_LOCATION"
+  git fetch origin;
+  git checkout master;
+  git pull origin master;
+  git fetch upstream main;
+  git merge upstream/main;
+  git push origin;
+  cd -
+}
+
 if ! test -f $PWD/yarn.lock; then
     echo "#### Script must run from the repository's root directory"
     exit 1
@@ -82,6 +95,10 @@ if [[ "$HAS_PUBLIC_REMOTE" -eq "0" ]]; then
 fi
 echo "#### Fetching public..."
 git fetch public
+
+if [[ -n "$INTERNAL_SYNC_REPO_LOCATION" ]]; then
+  sync_internal_to_official
+fi
 
 MODIFIED=$(git status | grep -q 'nothing to commit' && { echo 0; } || { echo 1; })
 if [[ "$MODIFIED" -eq "1" ]]; then
