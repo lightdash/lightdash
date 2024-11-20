@@ -8,7 +8,7 @@ describe('Dashboard', () => {
     it('Should see dashboard', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
-        // wiat for the dashboard to load
+        // wait for the dashboard to load
         cy.findByText('Loading dashboards').should('not.exist');
 
         cy.contains('a', 'Jaffle dashboard').click();
