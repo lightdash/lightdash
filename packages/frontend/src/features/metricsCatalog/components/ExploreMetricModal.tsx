@@ -33,7 +33,7 @@ export const ExploreMetricModal: FC<Props> = ({ opened, onClose }) => {
                     <Modal.CloseButton />
                 </Modal.Header>
                 <Modal.Body p={0} h="calc(100vh - 160px)">
-                    <Box py="20%" px="10%" h="100%">
+                    <Box h="100%" p={100}>
                         <RechartsPOC />
                     </Box>
                 </Modal.Body>

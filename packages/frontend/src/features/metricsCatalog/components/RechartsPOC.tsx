@@ -91,7 +91,7 @@ const data = [
     },
     {
         orders_order_date_day: dayjs('2018-03-26', 'YYYY-MM-DD').toDate(),
-        payments_total_revenue: 170.6,
+        payments_total_revenue: 30,
     },
     {
         orders_order_date_day: dayjs('2018-03-25', 'YYYY-MM-DD').toDate(),
@@ -99,7 +99,7 @@ const data = [
     },
     {
         orders_order_date_day: dayjs('2018-03-23', 'YYYY-MM-DD').toDate(),
-        payments_total_revenue: 9,
+        payments_total_revenue: 30,
     },
     {
         orders_order_date_day: dayjs('2018-03-22', 'YYYY-MM-DD').toDate(),
@@ -111,7 +111,7 @@ const data = [
     },
     {
         orders_order_date_day: dayjs('2018-03-19', 'YYYY-MM-DD').toDate(),
-        payments_total_revenue: 2,
+        payments_total_revenue: 40,
     },
     {
         orders_order_date_day: dayjs('2018-03-17', 'YYYY-MM-DD').toDate(),
@@ -123,7 +123,7 @@ const data = [
     },
     {
         orders_order_date_day: dayjs('2018-03-15', 'YYYY-MM-DD').toDate(),
-        payments_total_revenue: 3,
+        payments_total_revenue: 60,
     },
     {
         orders_order_date_day: dayjs('2018-03-13', 'YYYY-MM-DD').toDate(),
@@ -143,7 +143,7 @@ const data = [
     },
     {
         orders_order_date_day: dayjs('2018-03-07', 'YYYY-MM-DD').toDate(),
-        payments_total_revenue: 0,
+        payments_total_revenue: 30,
     },
     {
         orders_order_date_day: dayjs('2018-03-06', 'YYYY-MM-DD').toDate(),
@@ -171,7 +171,7 @@ const data = [
     },
     {
         orders_order_date_day: dayjs('2018-02-27', 'YYYY-MM-DD').toDate(),
-        payments_total_revenue: 4,
+        payments_total_revenue: 30,
     },
     {
         orders_order_date_day: dayjs('2018-02-26', 'YYYY-MM-DD').toDate(),
@@ -203,7 +203,7 @@ const data = [
     },
     {
         orders_order_date_day: dayjs('2018-02-18', 'YYYY-MM-DD').toDate(),
-        payments_total_revenue: 8,
+        payments_total_revenue: 10,
     },
     {
         orders_order_date_day: dayjs('2018-02-16', 'YYYY-MM-DD').toDate(),
@@ -223,7 +223,7 @@ const data = [
     },
     {
         orders_order_date_day: dayjs('2018-02-10', 'YYYY-MM-DD').toDate(),
-        payments_total_revenue: 8,
+        payments_total_revenue: 40,
     },
     {
         orders_order_date_day: dayjs('2018-02-09', 'YYYY-MM-DD').toDate(),
@@ -235,7 +235,7 @@ const data = [
     },
     {
         orders_order_date_day: dayjs('2018-02-05', 'YYYY-MM-DD').toDate(),
-        payments_total_revenue: 15,
+        payments_total_revenue: 30,
     },
     {
         orders_order_date_day: dayjs('2018-02-03', 'YYYY-MM-DD').toDate(),
@@ -270,8 +270,6 @@ const xAxisArgs = {
     ticks: timeScale.ticks(5).map((date) => date.valueOf()),
     tickFormatter: multiFormat,
 };
-
-console.log({ domain: timeScale.domain().map((date) => date.valueOf()) });
 
 const RechartsPOC: FC = () => {
     const { colors } = useMantineTheme();
@@ -319,7 +317,7 @@ const RechartsPOC: FC = () => {
                 />
 
                 <Area
-                    // isAnimationActive={false}
+                    isAnimationActive={false}
                     name="Total revenue"
                     type="monotone"
                     dataKey="payments_total_revenue"
