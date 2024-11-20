@@ -2,7 +2,6 @@
 set -e
 
 TEMP_PATCH_LOCATION="$HOME/lightdash-public-diff-patch.tmp"
-INTERNAL_SYNC_REPO_LOCATION="" # ie: "$HOME/dev/cron/lightdash-public"
 CONVENTIONAL_COMMIT_TYPE_TESTS=("feat:" "fix:" "docs:" "style:" "refactor:" "perf:" "test:" "build:" "ci:" "chore:" "revert:")
 
 get_restricted_content () {
@@ -54,15 +53,15 @@ starts_with() {
 }
 
 sync_internal_to_official() {
-  echo "#### Syncing internal repo to official public repo..."
-  cd "$INTERNAL_SYNC_REPO_LOCATION"
-  git fetch origin;
-  git checkout master;
-  git pull origin master;
-  git fetch upstream main;
-  git merge upstream/main;
-  git push origin;
-  cd -
+    echo "#### Syncing internal repo to official public repo..."
+    THIS_BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+    git fetch origin;
+    git checkout master;
+    git pull origin master;
+    git fetch upstream main;
+    git merge upstream/main;
+    git push origin;
+    git checkout $THIS_BRANCH_NAME;
 }
 
 if ! test -f $PWD/yarn.lock; then
@@ -96,9 +95,7 @@ fi
 echo "#### Fetching public..."
 git fetch public
 
-if [[ -n "$INTERNAL_SYNC_REPO_LOCATION" ]]; then
-  sync_internal_to_official
-fi
+sync_internal_to_official
 
 MODIFIED=$(git status | grep -q 'nothing to commit' && { echo 0; } || { echo 1; })
 if [[ "$MODIFIED" -eq "1" ]]; then
