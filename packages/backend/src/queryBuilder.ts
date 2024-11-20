@@ -1212,7 +1212,6 @@ export const buildQuery = ({
     ]
         .filter((l) => l !== undefined)
         .join('\n');
-
     return {
         query: metricQuerySql,
         hasExampleMetric,
