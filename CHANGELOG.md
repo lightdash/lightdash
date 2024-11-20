@@ -1,3 +1,10 @@
+# [0.1374.0](https://github.com/lightdash/lightdash/compare/0.1373.1...0.1374.0) (2024-11-20)
+
+
+### Features
+
+* open big number if no default dim on metric explore ([#12517](https://github.com/lightdash/lightdash/issues/12517)) ([daa521e](https://github.com/lightdash/lightdash/commit/daa521ea640958954066ad4ff19002bd29bb610c))
+
 ## [0.1373.1](https://github.com/lightdash/lightdash/compare/0.1373.0...0.1373.1) (2024-11-20)
 
 
