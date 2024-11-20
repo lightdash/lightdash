@@ -125,10 +125,7 @@ const getRelevantFilterForDimension = (
                     target: { fieldId: getItemId(dimension) },
                     operator: ConditionalOperator.IN_THE_CURRENT,
                     values: [],
-                    settings: {
-                        unitOfTime: UnitOfTime.days,
-                        completed: false,
-                    },
+                    settings: { unitOfTime: UnitOfTime.days },
                 },
             ];
         case TimeFrames.WEEK:
@@ -148,10 +145,7 @@ const getRelevantFilterForDimension = (
                     target: { fieldId: getItemId(dimension) },
                     operator: ConditionalOperator.IN_THE_CURRENT,
                     values: [],
-                    settings: {
-                        unitOfTime: UnitOfTime.weeks,
-                        completed: false,
-                    },
+                    settings: { unitOfTime: UnitOfTime.weeks },
                 },
             ];
         case TimeFrames.MONTH:
@@ -171,10 +165,7 @@ const getRelevantFilterForDimension = (
                     target: { fieldId: getItemId(dimension) },
                     operator: ConditionalOperator.IN_THE_CURRENT,
                     values: [],
-                    settings: {
-                        unitOfTime: UnitOfTime.months,
-                        completed: false,
-                    },
+                    settings: { unitOfTime: UnitOfTime.months },
                 },
             ];
         case TimeFrames.YEAR:
@@ -191,10 +182,7 @@ const getRelevantFilterForDimension = (
                     target: { fieldId: getItemId(dimension) },
                     operator: ConditionalOperator.IN_THE_CURRENT,
                     values: [],
-                    settings: {
-                        unitOfTime: UnitOfTime.years,
-                        completed: false,
-                    },
+                    settings: { unitOfTime: UnitOfTime.years },
                 },
             ];
         case TimeFrames.RAW:

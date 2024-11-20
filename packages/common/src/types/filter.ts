@@ -81,8 +81,8 @@ export type DashboardFilterRuleOverride = Omit<
 >;
 
 export type DateFilterSettings = {
-    unitOfTime: UnitOfTime;
-    completed: boolean;
+    unitOfTime?: UnitOfTime;
+    completed?: boolean;
 };
 
 export type DateFilterRule = FilterRule<
