@@ -2357,14 +2357,13 @@
     enabled "2.0.x"
     kuler "^2.0.0"
 
-"@databricks/sql@1.8.1":
-  version "1.8.1"
-  resolved "https://registry.yarnpkg.com/@databricks/sql/-/sql-1.8.1.tgz#10d6d5ed2e75671b39023a2a55e0545a407fbad4"
-  integrity sha512-6H8ianbDIMJqTpYiWfBbVC2qv6RIbm0WBfyzutl/QoFu+rb6n1sWxmLtEZcFdq9l2KLv7MNDY7bpT5rZlSHNMg==
+"@databricks/sql@1.8.4":
+  version "1.8.4"
+  resolved "https://registry.yarnpkg.com/@databricks/sql/-/sql-1.8.4.tgz#80069db55823037334d3f771bfd574aef107868f"
+  integrity sha512-FB8JfRMTANMdzVnXjdeRK+FF8FWgoq8goXzAQIikz2Q1QYET77WJrCsbLaQLX3EfWy6HabNHVv0C2xlcFmHITg==
   dependencies:
     apache-arrow "^13.0.0"
     commander "^9.3.0"
-    lz4 "^0.6.5"
     node-fetch "^2.6.12"
     node-int64 "^0.4.0"
     open "^8.4.2"
@@ -2373,6 +2372,8 @@
     thrift "^0.16.0"
     uuid "^9.0.0"
     winston "^3.8.2"
+  optionalDependencies:
+    lz4 "^0.6.5"
 
 "@dependents/detective-less@^5.0.0":
   version "5.0.0"
@@ -8415,10 +8416,10 @@ axios@0.26.0:
   dependencies:
     follow-redirects "^1.14.8"
 
-axios@1.7.2:
-  version "1.7.2"
-  resolved "https://registry.yarnpkg.com/axios/-/axios-1.7.2.tgz#b625db8a7051fbea61c35a3cbb3a1daa7b9c7621"
-  integrity sha512-2A8QhOMrbomlDuiLeK9XibIBzuHeRcqqNOHp0Cyp5EoJ1IFDh+XZH3A6BkXtv0K4gFGCI0Y4BM7B1wOEi0Rmgw==
+axios@1.7.7, axios@^1.7.4:
+  version "1.7.7"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-1.7.7.tgz#2f554296f9892a72ac8d8e4c5b79c14a91d0a47f"
+  integrity sha512-S4kL7XrjgBmvdGut0sN3yJxqYzrDOnivkBiN0OFs6hLiUam3UPvswUo0kqGyhqUZGEOytHyumEdXsAkgCOUf3Q==
   dependencies:
     follow-redirects "^1.15.6"
     form-data "^4.0.0"
@@ -8428,15 +8429,6 @@ axios@^1.6.8:
   version "1.7.3"
   resolved "https://registry.yarnpkg.com/axios/-/axios-1.7.3.tgz#a1125f2faf702bc8e8f2104ec3a76fab40257d85"
   integrity sha512-Ar7ND9pU99eJ9GpoGQKhKf58GpUOgnzuaB7ueNQ5BMi0p+LZ5oaEnfF999fAArcTIBwXTCHAmGcHOZJaWPq9Nw==
-  dependencies:
-    follow-redirects "^1.15.6"
-    form-data "^4.0.0"
-    proxy-from-env "^1.1.0"
-
-axios@^1.7.4:
-  version "1.7.7"
-  resolved "https://registry.yarnpkg.com/axios/-/axios-1.7.7.tgz#2f554296f9892a72ac8d8e4c5b79c14a91d0a47f"
-  integrity sha512-S4kL7XrjgBmvdGut0sN3yJxqYzrDOnivkBiN0OFs6hLiUam3UPvswUo0kqGyhqUZGEOytHyumEdXsAkgCOUf3Q==
   dependencies:
     follow-redirects "^1.15.6"
     form-data "^4.0.0"
@@ -20221,12 +20213,12 @@ tree-kill@^1.2.2:
   resolved "https://registry.npmjs.org/tree-kill/-/tree-kill-1.2.2.tgz"
   integrity sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==
 
-trino-client@0.2.3:
-  version "0.2.3"
-  resolved "https://registry.yarnpkg.com/trino-client/-/trino-client-0.2.3.tgz#ef7f37f89280c3dccbd8228122d2534023648274"
-  integrity sha512-zIHFR+rV6hL1g/dlgFzE1JCeBLNtmHphf+K6hRfu4NK4n3BdBPEcajgKGj/1Z7jyka3hBdcsB83P/ql39CQatQ==
+trino-client@0.2.6:
+  version "0.2.6"
+  resolved "https://registry.yarnpkg.com/trino-client/-/trino-client-0.2.6.tgz#2f7e29a43b1c1f8eede5bf7f74195be8bee41e6f"
+  integrity sha512-MK+seOsnxCKASAV528xSE/15+b3tTuGxkzv9VuLfyoQsQsVoX+otT2Fo56xBwDR0iDzPuUwyGbRCd3xQE2776g==
   dependencies:
-    axios "1.7.2"
+    axios "1.7.7"
 
 triple-beam@^1.2.0, triple-beam@^1.3.0:
   version "1.3.0"

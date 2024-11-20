@@ -80,14 +80,16 @@ export type DashboardFilterRuleOverride = Omit<
     'tileTargets'
 >;
 
+export type DateFilterSettings = {
+    unitOfTime?: UnitOfTime;
+    completed?: boolean;
+};
+
 export type DateFilterRule = FilterRule<
     ConditionalOperator,
     unknown,
     any,
-    {
-        unitOfTime?: UnitOfTime;
-        completed?: boolean;
-    }
+    DateFilterSettings
 >;
 
 export type FilterGroupItem = FilterGroup | FilterRule;
@@ -211,6 +213,41 @@ export const updateFieldIdInFilters = (
         } else if (isAndFilterGroup(filterGroup)) {
             filterGroup.and.forEach((item) =>
                 updateFieldIdInFilterGroupItem(item, previousName, newName),
+            );
+        }
+    }
+};
+
+export const updateFilterValueInFilters = (
+    filterGroup: FilterGroup | undefined,
+    valueChange: (
+        fieldId: string,
+        oldValue: any[] | undefined,
+    ) => any[] | undefined,
+): void => {
+    const updateFilterValueInFilterGroupItem = (
+        filterGroupItem: FilterGroupItem,
+    ): void => {
+        if (isFilterGroup(filterGroupItem)) {
+            // eslint-disable-next-line @typescript-eslint/no-use-before-define
+            updateFilterValueInFilters(filterGroupItem, valueChange);
+        } else {
+            // eslint-disable-next-line no-param-reassign
+            filterGroupItem.values = valueChange(
+                filterGroupItem.target.fieldId,
+                filterGroupItem.values,
+            );
+        }
+    };
+
+    if (filterGroup) {
+        if (isOrFilterGroup(filterGroup)) {
+            filterGroup.or.forEach((item) =>
+                updateFilterValueInFilterGroupItem(item),
+            );
+        } else if (isAndFilterGroup(filterGroup)) {
+            filterGroup.and.forEach((item) =>
+                updateFilterValueInFilterGroupItem(item),
             );
         }
     }

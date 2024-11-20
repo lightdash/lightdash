@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import timezone from 'dayjs/plugin/timezone';
 import moment, { type MomentInput } from 'moment';
 import {
@@ -25,6 +26,7 @@ import assertUnreachable from './assertUnreachable';
 import { getItemType } from './item';
 
 dayjs.extend(timezone);
+dayjs.extend(quarterOfYear);
 
 export const currencies = [
     'USD',
@@ -112,6 +114,14 @@ export const isMomentInput = (value: unknown): value is MomentInput =>
     value instanceof Date ||
     value instanceof moment ||
     value instanceof dayjs;
+
+export function getFirstDayOfQuarter(
+    date: string,
+    convertToUTC: boolean = false,
+): string {
+    const momentDate = convertToUTC ? dayjs(date).utc() : dayjs(date);
+    return momentDate.startOf('quarter').format('YYYY-MM-DD');
+}
 
 export function formatDate(
     date: MomentInput,

@@ -1,15 +1,15 @@
 import {
+    ApiChartSummaryListResponse,
     CreateChartInDashboard,
     CreateDashboard,
     Dashboard,
     DashboardChartTile,
     DashboardTileTypes,
+    isDashboardVersionedFields,
     SavedChart,
     SEED_PROJECT,
     UpdateDashboard,
 } from '@lightdash/common';
-import { isDashboardVersionedFields } from '@lightdash/common/src/types/dashboard';
-import { ApiChartSummaryListResponse } from '@lightdash/common/src/types/savedCharts';
 import { chartMock, dashboardMock } from '../../support/mocks';
 
 const apiUrl = '/api/v1';

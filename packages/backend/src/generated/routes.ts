@@ -2848,6 +2848,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                defaultTimeDimension: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        interval: { ref: 'TimeFrames', required: true },
+                        field: { dataType: 'string', required: true },
+                    },
+                },
                 groupDetails: { ref: 'Record_string.GroupType_' },
                 requiredAttributes: {
                     ref: 'Record_string.string-or-string-Array_',

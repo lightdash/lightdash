@@ -215,3 +215,94 @@ You'll need `Hybrid identity administrator` permissions to configure SCIM for yo
 Lightdash will sync the active status from Azure to Lightdash. For example, if a user is provisioned as inactive or is deactivated in Azure, that user will still exist in Lightdash marked as inactive, meaning they will be unable to use the platform.
 
 :::
+
+## Rotating a SCIM access token
+
+To maintain security, you may want to rotate your SCIM access tokens periodically. Follow these steps to rotate an existing token.
+
+Requirements for Rotation
+
+- **Token UUID**: To rotate a token, you’ll need its unique identifier (UUID), which you can find on the tokens page in your organization settings.
+- **Expiration Date**: You must specify a new expiration date when rotating a token. Tokens without an expiration cannot be rotated.
+- **Time Interval**: Tokens can only be rotated once per hour.
+
+Use the following curl command to rotate a SCIM access token. Replace `<scim-access-token-uuid>` with the UUID of the token you wish to rotate,
+and `<personal-access-token>` with your [personal access token](../references/personal_tokens.mdx).
+This process will invalidate the previous token and return a new token with the specified expiration date.
+
+```
+curl --location --request PATCH 'https://my.lightdash.com/api/v1/scim/organization-access-tokens/<personal-access-token-uuid>/rotate' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: ApiKey <personal-access-token>' \
+--data '{
+    "expiresAt": "2025-12-13T16:10:04.976Z"
+}'
+```
+
+Example response:
+
+```
+{
+    "status": "ok",
+    "results": {
+        "uuid": "bf677698-502e-4ed6-aa90-02a17999c379",
+        "organizationUuid": "172a2270-000f-42be-9c68-c4752c23ae51",
+        "description": "rotate token",
+        "createdAt": "2024-11-18T13:50:21.241Z",
+        "expiresAt": "2025-12-13T16:10:04.976Z",
+        "lastUsedAt": "2024-11-18T14:24:41.367Z",
+        "rotatedAt": "2024-11-18T15:15:24.361Z",
+        "token": "scim_204b5ccaf4d11e656efbf1f68986028a"
+    }
+}
+```
+
+To get a token metadata, use the following curl command:
+
+```
+curl --location 'http://localhost:3000/api/v1/scim/organization-access-tokens/<personal-access-token-uuid>' \
+--header 'Authorization: ApiKey <personal-access-token>'
+```
+
+Example response:
+
+```
+{
+    "status": "ok",
+    "results": {
+        "uuid": "bf677698-502e-4ed6-aa90-02a17999c379",
+        "organizationUuid": "172a2270-000f-42be-9c68-c4752c23ae51",
+        "description": "Okta SCIM token",
+        "createdAt": "2024-11-18T13:50:21.241Z",
+        "expiresAt": "2025-12-13T16:10:04.976Z",
+        "lastUsedAt": "2024-11-18T14:24:41.367Z",
+        "rotatedAt": "2024-11-18T14:10:51.460Z"
+    }
+}
+```
+
+To list all tokens, use the following curl command:
+
+```
+curl --location 'http://localhost:3000/api/v1/scim/organization-access-tokens' \
+--header 'Authorization: ApiKey <personal-access-token>'
+```
+
+Example response:
+
+```
+{
+    "status": "ok",
+    "results": [
+        {
+            "uuid": "bf677698-502e-4ed6-aa90-02a17999c379",
+            "organizationUuid": "172a2270-000f-42be-9c68-c4752c23ae51",
+            "description": "Okta SCIM token",
+            "createdAt": "2024-11-18T13:50:21.241Z",
+            "expiresAt": "2025-12-13T16:10:04.976Z",
+            "lastUsedAt": "2024-11-18T14:24:41.367Z",
+            "rotatedAt": "2024-11-18T14:10:51.460Z"
+        }
+    ]
+}
+```
