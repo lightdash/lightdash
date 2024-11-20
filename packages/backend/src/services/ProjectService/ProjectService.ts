@@ -6,6 +6,7 @@ import {
     AndFilterGroup,
     ApiChartAndResults,
     ApiQueryResults,
+    ApiSchedulerJobIdResponse,
     ApiSqlQueryResults,
     assertUnreachable,
     CacheMetadata,
@@ -600,7 +601,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         data: CreateProject,
         method: RequestMethod,
-    ): Promise<{ schedulerJobId: string }> {
+    ): Promise<ApiSchedulerJobIdResponse['results']> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -616,7 +617,7 @@ export class ProjectService extends BaseService {
                 data,
             });
 
-        return { schedulerJobId: schedulerJob.jobId };
+        return { jobId: schedulerJob.jobId };
     }
 
     async create(

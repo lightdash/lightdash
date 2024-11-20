@@ -319,7 +319,7 @@ export type ApiTestSchedulerResponse = {
 export type ApiSchedulerJobIdResponse = {
     status: 'ok';
     results: {
-        schedulerJobId: string;
+        jobId: string;
     };
 };
 

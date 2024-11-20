@@ -8,7 +8,7 @@ import {
     type ApiJobStatusResponse,
     type ApiProjectResponse,
     type ApiSchedulerJobIdResponse,
-    type Project,
+    type CreateProjectResult,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
 import path from 'path';
@@ -116,7 +116,7 @@ type CreateProjectOptions = {
 };
 export const createProject = async (
     options: CreateProjectOptions,
-): Promise<undefined | { project: Project; hasContentCopy: boolean }> => {
+): Promise<undefined | CreateProjectResult> => {
     const dbtVersion = await getSupportedDbtVersion();
 
     const absoluteProjectPath = path.resolve(options.projectDir);
@@ -186,9 +186,7 @@ export const createProject = async (
         body: JSON.stringify(payload),
     });
 
-    const jobResult = await pollJobStatus(
-        scheduleProjectCreationJob.schedulerJobId,
-    );
+    const jobResult = await pollJobStatus(scheduleProjectCreationJob.jobId);
 
     const projectUuid = jobResult.details?.projectUuid;
     if (!projectUuid) {

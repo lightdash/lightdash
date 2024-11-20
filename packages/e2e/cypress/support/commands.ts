@@ -409,7 +409,7 @@ Cypress.Commands.add(
             },
         }).then((resp) => {
             expect(resp.status).to.eq(200);
-            const { schedulerJobId } = resp.body.results;
+            const { jobId } = resp.body.results;
 
             // Poll the job status
             const pollStatus = (
@@ -423,7 +423,7 @@ Cypress.Commands.add(
 
                 return cy
                     .request({
-                        url: `/api/v1/schedulers/job/${schedulerJobId}/status`,
+                        url: `/api/v1/schedulers/job/${jobId}/status`,
                         method: 'GET',
                     })
                     .then((statusResp) => {
