@@ -6,9 +6,9 @@ CONVENTIONAL_COMMIT_TYPE_TESTS=("feat:" "fix:" "docs:" "style:" "refactor:" "per
 
 get_restricted_content () {
     ALL_CONTENT=$1
-    HAS_RESTRICTED=$(echo "$ALL_CONTENT" | grep -iq -e 'RK.AY' -e 'P.RFTO' && { echo 1; } || { echo 0; })
+    HAS_RESTRICTED=$(echo "$ALL_CONTENT" | grep -q -e '[Ww][Oo].[Kk].[Aa][Yy]' -e '[Pp].[Rr][Ff][Tt][Oo][Oo]' && { echo 1; } || { echo 0; })
     if [[ "$HAS_RESTRICTED" -eq "1" ]]; then
-        RESTRICTED_CONTENT=$(echo "$ALL_CONTENT" | (grep -i -e 'RK.AY' -e 'P.RFTO'))
+        RESTRICTED_CONTENT=$(echo "$ALL_CONTENT" | (grep -e '[Ww][Oo].[Kk].[Aa][Yy]' -e '[Pp].[Rr][Ff][Tt][Oo][Oo]'))
         echo "$RESTRICTED_CONTENT"
     fi
 }
@@ -112,6 +112,7 @@ if [[ "$IS_LOCAL_BEHIND_PUBLIC_DEV" -eq "1" ]]; then
     echo "    > git pull origin master"
     echo "    > git checkout $THIS_BRANCH_NAME"
     echo "    > git rebase origin/master"
+    echo "    > git push -f origin"
     exit 1
 fi
 
@@ -119,7 +120,7 @@ fi
 DIFFERENT_BASE_VERSION_PUBLIC_DEV=$(git diff --shortstat public/main -- CHANGELOG.md)
 IS_PUBLIC_DEV_BEHIND=$(echo $DIFFERENT_BASE_VERSION_PUBLIC_DEV | grep -q 'insertion' && { echo 1; } || { echo 0; })
 if [[ "$IS_PUBLIC_DEV_BEHIND" -eq "1" ]]; then
-    echo "#### Base LD version of local branch is ahead of your remote public branch."
+    echo "#### Base LD version of local branch is ahead of your remote public main branch."
     echo "#### From https://github.com/<your.username>/lightdash click the \"Sync fork\" button."
     echo "#### ***OR*** manually rebase remote public branch:"
     echo "#### 1) If necessary, clone your remote public repo:"
@@ -133,7 +134,7 @@ if [[ "$IS_PUBLIC_DEV_BEHIND" -eq "1" ]]; then
 fi
 IS_LOCAL_BEHIND_PUBLIC_DEV=$(echo $DIFFERENT_BASE_VERSION_PUBLIC_DEV | grep -q 'deletion' && { echo 1; } || { echo 0; })
 if [[ "$IS_LOCAL_BEHIND_PUBLIC_DEV" -eq "1" ]]; then
-    echo "#### Base LD version of remote public branch is ahead of local branch. Rebase local branch:"
+    echo "#### Base LD version of remote public main branch is ahead of local branch. Rebase local branch:"
     echo "    > git rebase public/main"
     exit 1
 fi
@@ -189,6 +190,23 @@ BRANCH_EXISTS=$(git show-ref --quiet refs/heads/$NEW_BRANCH_NAME && { echo 1; } 
 
 if [[ "$BRANCH_EXISTS" -eq "1" ]]; then
     echo "#### Using existing branch: $NEW_BRANCH_NAME"
+
+    # LOCAL AND DEV'S PUBLIC FEATURE BRANCH DIVERGE
+    DIFFERENT_BASE_VERSION_PUBLIC_FEATURE_DEV=$(git diff --shortstat public/$NEW_BRANCH_NAME -- CHANGELOG.md)
+    IS_PUBLIC_DEV_FEATURE_BEHIND=$(echo $DIFFERENT_BASE_VERSION_PUBLIC_FEATURE_DEV | grep -q 'insertion' && { echo 1; } || { echo 0; })
+    if [[ "$IS_PUBLIC_DEV_FEATURE_BEHIND" -eq "1" ]]; then
+        echo "#### Base LD version of local branch is ahead of your remote public feature branch. Rebase public feature branch:"
+        echo "    > git checkout $NEW_BRANCH_NAME"
+        echo "    > git rebase public/main"
+        echo "    > git push -f public"
+        exit 1
+    fi
+    IS_LOCAL_BEHIND_PUBLIC_DEV_FEATURE=$(echo $DIFFERENT_BASE_VERSION_PUBLIC_FEATURE_DEV | grep -q 'deletion' && { echo 1; } || { echo 0; })
+    if [[ "$IS_LOCAL_BEHIND_PUBLIC_DEV_FEATURE" -eq "1" ]]; then
+        echo "#### Base LD version of remote public feature branch is ahead of local branch."
+        echo "#### This should not happen if the local branch is updated from official LD. Contact admin."
+        exit 1
+    fi
 fi
 
 while true; do
