@@ -290,11 +290,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 grow
                                 pt={tabsEnabled ? 'lg' : undefined}
                                 pb="lg"
-                                px="lg"
+                                px="xs"
                             >
                                 <ResponsiveGridLayout
                                     {...getResponsiveGridLayoutProps()}
-                                    className={`react-grid-layout-dashboard ${
+                                    className={`${
                                         hasRequiredDashboardFiltersToSet
                                             ? 'locked'
                                             : ''
