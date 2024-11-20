@@ -252,9 +252,20 @@ export const createMetricPreviewUnsavedChartVersion = (
     const defaultTimeFilters =
         getRelevantFilterForDimension(defaultTimeDimension);
 
+    let chartConfig = DEFAULT_EMPTY_EXPLORE_CONFIG.chartConfig;
+
+    // If there is no default time dimension, we want to default to a big number chart because there is no time dimension to plot a chart
+    if (!defaultTimeDimension) {
+        chartConfig = {
+            type: ChartType.BIG_NUMBER,
+            config: {},
+        };
+    }
+
     return {
         ...DEFAULT_EMPTY_EXPLORE_CONFIG,
         tableName: metric.tableName,
+        chartConfig,
         metricQuery: {
             ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
             exploreName: metric.tableName,
