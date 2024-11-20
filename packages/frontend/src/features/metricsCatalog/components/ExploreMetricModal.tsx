@@ -1,8 +1,9 @@
-import { Group, Modal, Stack, Text, type ModalProps } from '@mantine/core';
+import { Box, Group, Modal, Text, type ModalProps } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
+import RechartsPOC from './RechartsPOC';
 
 type Props = ModalProps;
 
@@ -15,9 +16,8 @@ export const ExploreMetricModal: FC<Props> = ({ opened, onClose }) => {
         <Modal.Root
             opened={opened}
             onClose={onClose}
-            yOffset={200}
             scrollAreaComponent={undefined}
-            size="xl"
+            size="100%"
         >
             <Modal.Overlay />
             <Modal.Content sx={{ overflow: 'hidden' }} radius="md">
@@ -32,17 +32,10 @@ export const ExploreMetricModal: FC<Props> = ({ opened, onClose }) => {
                     </Group>
                     <Modal.CloseButton />
                 </Modal.Header>
-                <Modal.Body
-                    p={0}
-                    mah={300}
-                    h="100%"
-                    sx={{
-                        overflowY: 'auto',
-                    }}
-                >
-                    <Stack spacing="xs" p="md">
-                        <Text>blabla</Text>
-                    </Stack>
+                <Modal.Body p={0} h="calc(100vh - 160px)">
+                    <Box py="20%" px="10%" h="100%">
+                        <RechartsPOC />
+                    </Box>
                 </Modal.Body>
             </Modal.Content>
         </Modal.Root>
