@@ -1,3 +1,10 @@
+## [0.1373.1](https://github.com/lightdash/lightdash/compare/0.1373.0...0.1373.1) (2024-11-20)
+
+
+### Bug Fixes
+
+* color picker not matching colors in sql runner ([#12510](https://github.com/lightdash/lightdash/issues/12510)) ([ffb90ff](https://github.com/lightdash/lightdash/commit/ffb90ff24fde39c6737e1e9b8ccc351e24544cbd))
+
 # [0.1373.0](https://github.com/lightdash/lightdash/compare/0.1372.4...0.1373.0) (2024-11-20)
 
 
