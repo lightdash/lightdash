@@ -1,3 +1,10 @@
+## [0.1372.2](https://github.com/lightdash/lightdash/compare/0.1372.1...0.1372.2) (2024-11-20)
+
+
+### Bug Fixes
+
+* trino client dependency ([#12523](https://github.com/lightdash/lightdash/issues/12523)) ([42a6ac6](https://github.com/lightdash/lightdash/commit/42a6ac61f361fd474b188c24a3ed06860acddc8c))
+
 ## [0.1372.1](https://github.com/lightdash/lightdash/compare/0.1372.0...0.1372.1) (2024-11-20)
 
 
