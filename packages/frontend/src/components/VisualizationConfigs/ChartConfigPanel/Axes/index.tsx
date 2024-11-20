@@ -6,6 +6,7 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Checkbox,
     Group,
     NumberInput,
@@ -14,7 +15,11 @@ import {
     Switch,
     TextInput,
 } from '@mantine/core';
-import { IconSortAscending, IconSortDescending } from '@tabler/icons-react';
+import {
+    IconSortAscending,
+    IconSortDescending,
+    IconX,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/VisualizationConfigCartesian';
@@ -213,7 +218,17 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                 itemsMap,
                             })
                         }
-                        onBlur={(e) => setYAxisName(0, e.currentTarget.value)}
+                        rightSection={
+                            <ActionIcon
+                                variant="transparent"
+                                onClick={() => setYAxisName(0, ' ')}
+                            >
+                                <MantineIcon icon={IconX} size="xs" />
+                            </ActionIcon>
+                        }
+                        onBlur={(e) => {
+                            setYAxisName(0, e.currentTarget.value);
+                        }}
                     />
                     {showFirstAxisRange && (
                         <AxisMinMax
