@@ -3066,6 +3066,18 @@
             },
             "TableBase": {
                 "properties": {
+                    "defaultTimeDimension": {
+                        "properties": {
+                            "interval": {
+                                "$ref": "#/components/schemas/TimeFrames"
+                            },
+                            "field": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["interval", "field"],
+                        "type": "object"
+                    },
                     "groupDetails": {
                         "$ref": "#/components/schemas/Record_string.GroupType_"
                     },
@@ -4064,6 +4076,14 @@
                     "firstName": {
                         "type": "string"
                     },
+                    "userUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "userCreatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "userUuid": {
                         "type": "string",
                         "description": "Unique identifier for the user",
@@ -4077,6 +4097,8 @@
                     "email",
                     "lastName",
                     "firstName",
+                    "userUpdatedAt",
+                    "userCreatedAt",
                     "userUuid"
                 ],
                 "type": "object",
@@ -9280,6 +9302,14 @@
                     "role": {
                         "$ref": "#/components/schemas/OrganizationMemberRole"
                     },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "isActive": {
                         "type": "boolean",
                         "description": "Whether the user can login"
@@ -9296,6 +9326,8 @@
                     "isTrackingAnonymized",
                     "isMarketingOptedIn",
                     "isSetupComplete",
+                    "createdAt",
+                    "updatedAt",
                     "isActive"
                 ],
                 "type": "object",
@@ -11073,7 +11105,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1366.1",
+        "version": "0.1372.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

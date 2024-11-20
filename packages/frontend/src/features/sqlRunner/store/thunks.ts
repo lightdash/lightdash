@@ -115,7 +115,7 @@ export const prepareAndFetchChartData = createAsyncThunk(
             filters: [],
         });
 
-        const getChartSpec = (orgColors: string[]) => {
+        const getChartSpec = (orgColors?: string[]) => {
             const currentState = getState() as RootState;
             const currentDisplay = selectChartDisplayByKind(
                 currentState,

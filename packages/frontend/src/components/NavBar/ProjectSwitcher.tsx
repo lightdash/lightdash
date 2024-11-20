@@ -287,17 +287,19 @@ const ProjectSwitcher = () => {
                 </Menu.Target>
 
                 <Menu.Dropdown maw={400}>
-                    <Box
-                        pos="sticky"
-                        top={0}
-                        bg="gray.9"
-                        sx={(theme) => ({
-                            boxShadow: `0 -4px ${theme.colors.gray[9]}`,
-                        })}
-                    >
-                        <Menu.Label py={0}>All Projects</Menu.Label>
-                        <Menu.Divider />
-                    </Box>
+                    {inactiveProjects.length > 0 && (
+                        <Box
+                            pos="sticky"
+                            top={0}
+                            bg="gray.9"
+                            sx={(theme) => ({
+                                boxShadow: `0 -4px ${theme.colors.gray[9]}`,
+                            })}
+                        >
+                            <Menu.Label py={0}>All Projects</Menu.Label>
+                            <Menu.Divider />
+                        </Box>
+                    )}
 
                     {inactiveProjects.map((item) => (
                         <InactiveProjectItem
@@ -317,7 +319,7 @@ const ProjectSwitcher = () => {
                                 boxShadow: `0 4px ${theme.colors.gray[9]}`,
                             })}
                         >
-                            <Menu.Divider />
+                            {inactiveProjects.length > 0 && <Menu.Divider />}
 
                             <Menu.Item
                                 onClick={(e) => {

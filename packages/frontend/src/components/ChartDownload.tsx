@@ -42,7 +42,7 @@ export enum DownloadType {
     JSON = 'JSON',
 }
 
-const base64SvgToBase64Image = async (
+export const base64SvgToBase64Image = async (
     originalBase64: string,
     width: number,
     type: 'jpeg' | 'png' = 'png',
@@ -81,7 +81,7 @@ const base64SvgToBase64Image = async (
     });
 };
 
-function downloadImage(base64: string) {
+export function downloadImage(base64: string) {
     const link = document.createElement('a');
     link.href = base64;
     link.download = FILE_NAME;

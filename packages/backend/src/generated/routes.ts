@@ -2848,6 +2848,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                defaultTimeDimension: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        interval: { ref: 'TimeFrames', required: true },
+                        field: { dataType: 'string', required: true },
+                    },
+                },
                 groupDetails: { ref: 'Record_string.GroupType_' },
                 requiredAttributes: {
                     ref: 'Record_string.string-or-string-Array_',
@@ -3719,6 +3726,8 @@ const models: TsoaRoute.Models = {
                 email: { dataType: 'string', required: true },
                 lastName: { dataType: 'string', required: true },
                 firstName: { dataType: 'string', required: true },
+                userUpdatedAt: { dataType: 'datetime', required: true },
+                userCreatedAt: { dataType: 'datetime', required: true },
                 userUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -8460,6 +8469,8 @@ const models: TsoaRoute.Models = {
             isMarketingOptedIn: { dataType: 'boolean', required: true },
             isSetupComplete: { dataType: 'boolean', required: true },
             role: { ref: 'OrganizationMemberRole' },
+            createdAt: { dataType: 'datetime', required: true },
+            updatedAt: { dataType: 'datetime', required: true },
             isActive: { dataType: 'boolean', required: true },
             isPending: { dataType: 'boolean' },
         },

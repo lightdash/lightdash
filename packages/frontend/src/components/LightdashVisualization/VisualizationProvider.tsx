@@ -128,6 +128,7 @@ type Props = {
     invalidateCache?: boolean;
     colorPalette: string[];
     tableCalculationsMetadata?: TableCalculationMetadata[];
+    setEchartsRef?: (ref: RefObject<EChartsReact> | undefined) => void;
 };
 
 const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -149,6 +150,7 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
     invalidateCache,
     colorPalette,
     tableCalculationsMetadata,
+    setEchartsRef,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -156,6 +158,9 @@ const VisualizationProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const chartRef = useRef<EChartsReact>(null);
 
+    useEffect(() => {
+        if (setEchartsRef) setEchartsRef(chartRef);
+    }, [chartRef, setEchartsRef]);
     const [lastValidResultsData, setLastValidResultsData] =
         useState<ApiQueryResults>();
 
