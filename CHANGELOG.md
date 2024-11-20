@@ -1,3 +1,10 @@
+## [0.1372.4](https://github.com/lightdash/lightdash/compare/0.1372.3...0.1372.4) (2024-11-20)
+
+
+### Bug Fixes
+
+* change ui feedback when no perms to manage catalog ([#12531](https://github.com/lightdash/lightdash/issues/12531)) ([d37cd2d](https://github.com/lightdash/lightdash/commit/d37cd2d44e26dc10e0bcabb16384a1855f4faaa4))
+
 ## [0.1372.3](https://github.com/lightdash/lightdash/compare/0.1372.2...0.1372.3) (2024-11-20)
 
 
