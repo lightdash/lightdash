@@ -123,7 +123,16 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             return (
-                <Group pos="absolute" w="100%" h="100%" left={0} top={0}>
+                <Group
+                    pos="absolute"
+                    w="100%"
+                    h="100%"
+                    left={0}
+                    top={0}
+                    sx={{
+                        cursor: canManageTags ? 'pointer' : 'default',
+                    }}
+                >
                     <Group mx="md" spacing="xxs">
                         {categories.map((category) => (
                             <CatalogCategory
@@ -163,6 +172,9 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             const isDescriptionPopoverClosing = useAppSelector(
                 (state) => state.metricsCatalog.popovers.description.isClosing,
             );
+            const canManageTags = useAppSelector(
+                (state) => state.metricsCatalog.abilities.canManageTags,
+            );
 
             const categories = useMemo(
                 () => row.original.categories ?? [],
@@ -190,8 +202,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
 
                         table.setEditingCell(cell);
                     }}
+                    sx={{
+                        cursor: canManageTags ? 'pointer' : 'default',
+                    }}
                 >
-                    {categories.length === 0 && hovered ? (
+                    {categories.length === 0 && hovered && canManageTags ? (
                         <Group spacing={2}>
                             <MantineIcon
                                 color="dark.1"
