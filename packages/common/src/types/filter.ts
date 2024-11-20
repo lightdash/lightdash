@@ -80,14 +80,16 @@ export type DashboardFilterRuleOverride = Omit<
     'tileTargets'
 >;
 
+export type DateFilterSettings = {
+    unitOfTime: UnitOfTime;
+    completed: boolean;
+};
+
 export type DateFilterRule = FilterRule<
     ConditionalOperator,
     unknown,
     any,
-    {
-        unitOfTime?: UnitOfTime;
-        completed?: boolean;
-    }
+    DateFilterSettings
 >;
 
 export type FilterGroupItem = FilterGroup | FilterRule;
