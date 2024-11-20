@@ -1,3 +1,10 @@
+# [0.1373.0](https://github.com/lightdash/lightdash/compare/0.1372.4...0.1373.0) (2024-11-20)
+
+
+### Features
+
+* metrics explorer default filters ([#12532](https://github.com/lightdash/lightdash/issues/12532)) ([d84b120](https://github.com/lightdash/lightdash/commit/d84b120b0dd6ebdc7fc8888d413dd0d154735dad))
+
 ## [0.1372.4](https://github.com/lightdash/lightdash/compare/0.1372.3...0.1372.4) (2024-11-20)
 
 
