@@ -1,3 +1,10 @@
+## [0.1372.3](https://github.com/lightdash/lightdash/compare/0.1372.2...0.1372.3) (2024-11-20)
+
+
+### Bug Fixes
+
+* project menu empty list ([#12526](https://github.com/lightdash/lightdash/issues/12526)) ([a84cf57](https://github.com/lightdash/lightdash/commit/a84cf579c576c4b957fb69b685fab39a821cf37b))
+
 ## [0.1372.2](https://github.com/lightdash/lightdash/compare/0.1372.1...0.1372.2) (2024-11-20)
 
 
