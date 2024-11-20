@@ -46,16 +46,19 @@ import {
     IconCopy,
     IconFilter,
     IconFolders,
+    IconPhoto,
     IconStack,
     IconTableExport,
     IconTelescope,
 } from '@tabler/icons-react';
+import type EChartsReact from 'echarts-for-react';
 import React, {
     useCallback,
     useEffect,
     useMemo,
     useState,
     type FC,
+    type RefObject,
 } from 'react';
 import { useParams } from 'react-router-dom';
 import { v4 as uuid4 } from 'uuid';
@@ -75,6 +78,7 @@ import { useApp } from '../../providers/AppProvider';
 import { useDashboardContext } from '../../providers/DashboardProvider';
 import { useTracking } from '../../providers/TrackingProvider';
 import { EventName } from '../../types/Events';
+import { base64SvgToBase64Image, downloadImage } from '../ChartDownload';
 import { Can } from '../common/Authorization';
 import { getConditionalRuleLabel } from '../common/Filters/FilterInputs';
 import MantineIcon from '../common/MantineIcon';
@@ -176,11 +180,13 @@ const ValidDashboardChartTile: FC<{
         e: EchartSeriesClickEvent,
         series: EChartSeries[],
     ) => void;
+    setEchartsRef?: (ref: RefObject<EChartsReact> | undefined) => void;
 }> = ({
     tileUuid,
     isTitleHidden = false,
     chartAndResults: { chart, metricQuery, rows, cacheMetadata, fields },
     onSeriesContextMenu,
+    setEchartsRef,
 }) => {
     const addResultsCacheTime = useDashboardContext(
         (c) => c.addResultsCacheTime,
@@ -222,6 +228,7 @@ const ValidDashboardChartTile: FC<{
             dashboardFilters={dashboardFilters}
             invalidateCache={invalidateCache}
             colorPalette={chart.colorPalette}
+            setEchartsRef={setEchartsRef}
         >
             <LightdashVisualization
                 isDashboard
@@ -316,8 +323,33 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
-
+    const [echartRef, setEchartRef] = useState<
+        RefObject<EChartsReact> | undefined
+    >();
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+
+    const downloadChartImage = useCallback(() => {
+        const chartInstance = echartRef?.current?.getEchartsInstance();
+        if (!chartInstance) {
+            console.error('Chart instance is not available');
+            return;
+        }
+
+        const svgBase64 = chartInstance.getDataURL();
+        const width = chartInstance.getWidth();
+        base64SvgToBase64Image(
+            svgBase64,
+            width,
+            'png',
+            false, //isBackgroundTransparent,
+        )
+            .then((base64Image) => {
+                downloadImage(base64Image);
+            })
+            .catch((e) => {
+                console.error('Error downloading image', e);
+            });
+    }, [echartRef]);
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
@@ -841,20 +873,40 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     )}
 
                                     {userCanExportData && (
-                                        <Menu.Item
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconTableExport}
-                                                />
-                                            }
-                                            disabled={isEditMode}
-                                            onClick={() =>
-                                                setIsCSVExportModalOpen(true)
-                                            }
-                                        >
-                                            Export CSV
-                                        </Menu.Item>
+                                        <>
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconTableExport}
+                                                    />
+                                                }
+                                                disabled={isEditMode}
+                                                onClick={() =>
+                                                    setIsCSVExportModalOpen(
+                                                        true,
+                                                    )
+                                                }
+                                            >
+                                                Export CSV
+                                            </Menu.Item>
+                                        </>
                                     )}
+                                    {chart.chartConfig.type !==
+                                        ChartType.TABLE &&
+                                        userCanExportData && (
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconPhoto}
+                                                    />
+                                                }
+                                                disabled={isEditMode}
+                                                onClick={downloadChartImage}
+                                            >
+                                                Export Image
+                                            </Menu.Item>
+                                        )}
+
                                     {chart.chartConfig.type ===
                                         ChartType.TABLE &&
                                         userCanExportData && (
@@ -991,6 +1043,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         project={projectUuid}
                         isTitleHidden={hideTitle}
                         onSeriesContextMenu={onSeriesContextMenu}
+                        setEchartsRef={setEchartRef}
                     />
                 </>
             </TileBase>
