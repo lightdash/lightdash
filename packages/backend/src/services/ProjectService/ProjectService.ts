@@ -51,6 +51,7 @@ import {
     getDimensions,
     getFieldQuoteChar,
     getFields,
+    getFirstDayOfQuarter,
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
@@ -100,6 +101,7 @@ import {
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
+    TimeFrames,
     UnexpectedServerError,
     updateFilterValueInFilters,
     UpdateMetadata,
@@ -1031,12 +1033,11 @@ export class ProjectService extends BaseService {
     }
 
     static updateMetricQueryWithGranularity(
-        explore: Explore,
+        updatedDimensions: string[],
         metricQuery: MetricQuery,
-        warehouseClient: WarehouseClient,
         granularity?: DateGranularity,
     ): MetricQuery {
-        if (granularity) {
+        if (granularity && updatedDimensions.length > 0) {
             const dimensionFilters = metricQuery.filters.dimensions;
             if (!dimensionFilters) return metricQuery;
 
@@ -1045,16 +1046,20 @@ export class ProjectService extends BaseService {
                 dimensionFilters,
                 (fieldId: string, filterValues: any[] | undefined) => {
                     if (
-                        fieldId === 'customers_created_week' &&
+                        updatedDimensions.includes(fieldId) &&
                         filterValues?.[0]
                     ) {
-                        // TODO updated field id
                         // Apply date granularity to filter value
                         const filterValue = filterValues[0];
-                        const newDate = formatDate(
-                            filterValue,
-                            dateGranularityToTimeFrameMap[granularity],
-                        );
+                        const timeFrame =
+                            dateGranularityToTimeFrameMap[granularity];
+
+                        if (timeFrame === TimeFrames.QUARTER) {
+                            // Get first day of quarter using dayjs
+                            const newDate = getFirstDayOfQuarter(filterValue);
+                            return [newDate];
+                        }
+                        const newDate = formatDate(filterValue, timeFrame);
                         return [newDate];
                     }
                     return filterValues;
@@ -1076,7 +1081,7 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
         granularity?: DateGranularity,
-    ): Explore {
+    ): { explore: Explore; updatedDimensions: string[] } {
         if (granularity) {
             const timeDimensionsMap: Record<string, CompiledDimension> =
                 Object.values(explore.tables).reduce<
@@ -1115,13 +1120,17 @@ export class ProjectService extends BaseService {
                         warehouseClient,
                         granularity,
                     );
-                return replaceDimensionInExplore(
+                const updatedExplore = replaceDimensionInExplore(
                     explore,
                     dimWithGranularityOverride,
                 );
+                return {
+                    explore: updatedExplore,
+                    updatedDimensions: [getItemId(dimToOverride)],
+                };
             }
         }
-        return explore;
+        return { explore, updatedDimensions: [] };
     }
 
     static async _compileQuery(
@@ -1133,18 +1142,18 @@ export class ProjectService extends BaseService {
         timezone: string,
         granularity?: DateGranularity,
     ): Promise<CompiledQuery> {
-        const exploreWithOverride = ProjectService.updateExploreWithGranularity(
-            explore,
-            metricQuery,
-            warehouseClient,
-            granularity,
-        );
-
-        const metricWithOverride =
-            ProjectService.updateMetricQueryWithGranularity(
+        const { explore: exploreWithOverride, updatedDimensions } =
+            ProjectService.updateExploreWithGranularity(
                 explore,
                 metricQuery,
                 warehouseClient,
+                granularity,
+            );
+
+        const metricWithOverride =
+            ProjectService.updateMetricQueryWithGranularity(
+                updatedDimensions,
+                metricQuery,
                 granularity,
             );
         const compiledMetricQuery = compileMetricQuery({
