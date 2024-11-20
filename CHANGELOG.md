@@ -1,3 +1,11 @@
+## [0.1374.1](https://github.com/lightdash/lightdash/compare/0.1374.0...0.1374.1) (2024-11-20)
+
+
+### Bug Fixes
+
+* apply date granularity to filters ([#12515](https://github.com/lightdash/lightdash/issues/12515)) ([8fe7447](https://github.com/lightdash/lightdash/commit/8fe7447d97c179a2ea2473f7df8431f6039eff4d))
+* export image tile dashboard ([#12530](https://github.com/lightdash/lightdash/issues/12530)) ([bff66fd](https://github.com/lightdash/lightdash/commit/bff66fdc3c4be443068500be62716d3f6efd0ec9))
+
 # [0.1374.0](https://github.com/lightdash/lightdash/compare/0.1373.1...0.1374.0) (2024-11-20)
 
 
