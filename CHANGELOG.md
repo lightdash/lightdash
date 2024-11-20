@@ -1,3 +1,10 @@
+## [0.1372.1](https://github.com/lightdash/lightdash/compare/0.1372.0...0.1372.1) (2024-11-20)
+
+
+### Bug Fixes
+
+* apply formatting to value labels ([#12492](https://github.com/lightdash/lightdash/issues/12492)) ([b342c06](https://github.com/lightdash/lightdash/commit/b342c06526fc31685bcee1ed4d49b424e8541743))
+
 # [0.1372.0](https://github.com/lightdash/lightdash/compare/0.1371.0...0.1372.0) (2024-11-19)
 
 
