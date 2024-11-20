@@ -5,13 +5,17 @@ type MetricsCatalogState = {
     modals: {
         chartUsageModal: {
             isOpen: boolean;
+            activeMetric: CatalogField | undefined;
+        };
+        exploreModal: {
+            isOpen: boolean;
+            activeMetric: CatalogField | undefined;
         };
     };
     abilities: {
         canManageTags: boolean;
         canRefreshCatalog: boolean;
     };
-    activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
     organizationUuid: string | undefined;
     categoryFilters: CatalogField['categories'][number]['tagUuid'][];
@@ -26,7 +30,6 @@ type MetricsCatalogState = {
 };
 
 const initialState: MetricsCatalogState = {
-    activeMetric: undefined,
     projectUuid: undefined,
     organizationUuid: undefined,
     categoryFilters: [],
@@ -37,6 +40,11 @@ const initialState: MetricsCatalogState = {
     modals: {
         chartUsageModal: {
             isOpen: false,
+            activeMetric: undefined,
+        },
+        exploreModal: {
+            isOpen: false,
+            activeMetric: undefined,
         },
     },
     popovers: {
@@ -59,12 +67,19 @@ export const metricsCatalogSlice = createSlice({
         setOrganizationUuid: (state, action: PayloadAction<string>) => {
             state.organizationUuid = action.payload;
         },
-        setActiveMetric: (
+        setMetricUsageModal: (
             state,
             action: PayloadAction<CatalogField | undefined>,
         ) => {
-            state.activeMetric = action.payload;
+            state.modals.chartUsageModal.activeMetric = action.payload;
             state.modals.chartUsageModal.isOpen = !!action.payload;
+        },
+        setExploreModal: (
+            state,
+            action: PayloadAction<CatalogField | undefined>,
+        ) => {
+            state.modals.exploreModal.activeMetric = action.payload;
+            state.modals.exploreModal.isOpen = !!action.payload;
         },
         setCategoryFilters: (
             state,
@@ -101,7 +116,8 @@ export const metricsCatalogSlice = createSlice({
 });
 
 export const {
-    setActiveMetric,
+    setMetricUsageModal,
+    setExploreModal,
     setProjectUuid,
     setCategoryFilters,
     clearCategoryFilters,

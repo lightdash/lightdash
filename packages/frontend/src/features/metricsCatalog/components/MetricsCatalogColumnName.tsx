@@ -19,14 +19,14 @@ import EmojiPicker, {
 } from 'emoji-picker-react';
 import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
+import '../../../styles/emoji-picker-react.css';
 import { MetricIconPlaceholder } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
-
-import '../../../styles/emoji-picker-react.css';
 
 const PICKER_HEIGHT = 300;
 const PICKER_WIDTH = 350;
@@ -98,6 +98,8 @@ type Props = {
 export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
     ({ row, table }, ref) => {
         const { track } = useTracking();
+        const history = useHistory();
+
         const organizationUuid = useAppSelector(
             (state) => state.metricsCatalog.organizationUuid,
         );
@@ -163,7 +165,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
             setIsPickerOpen(true);
         };
 
-        const handleOnClick = (emoji: EmojiClickData | null) => {
+        const handleOnEmojiPickerClick = (emoji: EmojiClickData | null) => {
             if (!projectUuid) return;
 
             let icon: CatalogField['icon'] = null;
@@ -193,6 +195,15 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
             }
             handleClosePicker();
         };
+
+        const handleOpenExploreModal = useCallback(
+            (activeMetric: CatalogField) => {
+                history.push(
+                    `/projects/${projectUuid}/metrics/${activeMetric.name}`,
+                );
+            },
+            [history, projectUuid],
+        );
 
         return (
             <Box ref={ref}>
@@ -243,6 +254,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                     >
                         <Highlight
                             highlight={table.getState().globalFilter || ''}
+                            onClick={() => handleOpenExploreModal(row.original)}
                             c="dark.9"
                             fw={500}
                             fz="sm"
@@ -256,7 +268,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                     emoji={row.original.icon}
                     position={pickerPosition}
                     ref={setPickerRef}
-                    onClick={handleOnClick}
+                    onClick={handleOnEmojiPickerClick}
                 />
             </Box>
         );

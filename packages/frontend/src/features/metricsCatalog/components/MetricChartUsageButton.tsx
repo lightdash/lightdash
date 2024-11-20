@@ -5,7 +5,7 @@ import { useTracking } from '../../../providers/TrackingProvider';
 import { BarChart } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
-import { setActiveMetric } from '../store/metricsCatalogSlice';
+import { setMetricUsageModal } from '../store/metricsCatalogSlice';
 
 export const MetricChartUsageButton = ({
     row,
@@ -34,7 +34,7 @@ export const MetricChartUsageButton = ({
                     projectId: projectUuid,
                 },
             });
-            dispatch(setActiveMetric(row.original));
+            dispatch(setMetricUsageModal(row.original));
         }
     };
 

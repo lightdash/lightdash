@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import type { CatalogField } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -13,7 +14,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconRefresh } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams, useRouteMatch } from 'react-router-dom';
 import { useMount } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
@@ -24,10 +25,12 @@ import { MetricsCatalogIcon } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
-    setActiveMetric,
+    setExploreModal,
+    setMetricUsageModal,
     setOrganizationUuid,
     setProjectUuid,
 } from '../store/metricsCatalogSlice';
+import { ExploreMetricModal } from './ExploreMetricModal';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
 import { MetricsTable } from './MetricsTable';
 
@@ -113,14 +116,23 @@ export const MetricsCatalogPanel = () => {
     >();
     const timeAgo = useTimeAgo(lastDbtRefreshAt || new Date());
     const params = useParams<{ projectUuid: string }>();
+    const history = useHistory();
+    const routeMatch = useRouteMatch<{
+        projectUuid: string;
+        metricId?: string;
+    }>('/projects/:projectUuid/metrics/:metricId?');
+
     const { data: project } = useProject(projectUuid);
     const { user } = useApp();
 
     const isMetricUsageModalOpen = useAppSelector(
         (state) => state.metricsCatalog.modals.chartUsageModal.isOpen,
     );
+    const metricExploreModal = useAppSelector(
+        (state) => state.metricsCatalog.modals.exploreModal,
+    );
     const onCloseMetricUsageModal = () => {
-        dispatch(setActiveMetric(undefined));
+        dispatch(setMetricUsageModal(undefined));
     };
 
     useMount(() => {
@@ -134,6 +146,21 @@ export const MetricsCatalogPanel = () => {
             dispatch(setOrganizationUuid(project.organizationUuid));
         }
     }, [project, dispatch, organizationUuid]);
+
+    useEffect(() => {
+        if (
+            routeMatch &&
+            routeMatch.params.metricId &&
+            routeMatch.params.metricId !== metricExploreModal.activeMetric?.name
+        ) {
+            dispatch(
+                setExploreModal({
+                    name: routeMatch.params.metricId,
+                    // this is a hack before we implement a proper catalog field fetching
+                } as CatalogField),
+            );
+        }
+    }, [routeMatch?.params, metricExploreModal, dispatch, routeMatch]);
 
     useEffect(
         function handleAbilities() {
@@ -212,6 +239,13 @@ export const MetricsCatalogPanel = () => {
                 </Group>
             </Group>
             <MetricsTable />
+            <ExploreMetricModal
+                opened={metricExploreModal.isOpen}
+                onClose={() => {
+                    history.push(`/projects/${projectUuid}/metrics`);
+                    dispatch(setExploreModal(undefined));
+                }}
+            />
             <MetricChartUsageModal
                 opened={isMetricUsageModalOpen}
                 onClose={onCloseMetricUsageModal}
