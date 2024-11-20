@@ -283,7 +283,7 @@ describe('SQL Runner (new)', () => {
         );
 
         // Perform the styling change
-        cy.contains('Styling').click();
+        cy.contains('Axes').click();
         cy.contains('div', 'X-axis label')
             .closest('.mantine-Stack-root')
             .find('input.mantine-Input-input')
