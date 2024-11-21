@@ -1,3 +1,10 @@
+# [0.1375.0](https://github.com/lightdash/lightdash/compare/0.1374.2...0.1375.0) (2024-11-21)
+
+
+### Features
+
+* project creation in scheduler - `/api/v1/org/projects` ([#12491](https://github.com/lightdash/lightdash/issues/12491)) ([71fb811](https://github.com/lightdash/lightdash/commit/71fb811c2a7604817edd5d4024aa2107eac28774))
+
 ## [0.1374.2](https://github.com/lightdash/lightdash/compare/0.1374.1...0.1374.2) (2024-11-21)
 
 
