@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconMaximize, IconMinimize } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -110,12 +110,21 @@ const TableCalculationModal: FC<Props> = ({
 
     const handleSubmit = form.onSubmit((data) => {
         const { name, sql } = data;
-        if (sql.length === 0)
-            return addToastError({
+        // throw error if sql is empty
+        if (sql.length === 0) {
+            addToastError({
                 title: 'SQL cannot be empty',
                 key: 'table-calculation-modal',
             });
-
+            return;
+        }
+        // throw error if name is empty
+        if (name.length === 0) {
+            return addToastError({
+                title: 'Name cannot be empty',
+                key: 'table-calculation-modal',
+            });
+        }
         try {
             onSave({
                 name: getUniqueTableCalculationName(name, tableCalculations),
@@ -132,6 +141,22 @@ const TableCalculationModal: FC<Props> = ({
             });
         }
     });
+
+    // listen for Cmd+Enter or Ctrl+Enter to submit
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                handleSubmit(); // trigger form submission
+                event.preventDefault();
+            }
+        };
+        if (opened) {
+            window.addEventListener('keydown', handleKeyDown);
+        }
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [opened, handleSubmit]);
 
     const getFormatInputProps = (path: keyof CustomFormat) => {
         return form.getInputProps(`format.${path}`);
@@ -201,7 +226,11 @@ const TableCalculationModal: FC<Props> = ({
                             <Tabs.Tab value="format">Format</Tabs.Tab>
                         </Tabs.List>
                         <Tabs.Panel value="sqlEditor">
-                            <SqlForm form={form} isFullScreen={isFullscreen} />
+                            <SqlForm
+                                form={form}
+                                isFullScreen={isFullscreen}
+                                focusOnRender={true}
+                            />
                         </Tabs.Panel>
                         <Tabs.Panel value="format">
                             <FormatForm
