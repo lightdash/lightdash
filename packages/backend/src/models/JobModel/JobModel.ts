@@ -102,6 +102,12 @@ export class JobModel {
 
     async create(job: CreateJob): Promise<Job> {
         await this.database.transaction(async (trx) => {
+            // Delete existing job in case of scheduled retry
+            await trx(JobsTableName).delete().where('job_uuid', job.jobUuid);
+            await trx(JobStepsTableName)
+                .delete()
+                .where('job_uuid', job.jobUuid);
+            // Insert new job
             await trx(JobsTableName)
                 .insert({
                     project_uuid: job.projectUuid,
