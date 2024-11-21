@@ -670,6 +670,7 @@ export class SchedulerClient {
             'createProjectWithoutCompile',
             payload,
             now,
+            1,
         );
 
         await this.schedulerModel.logSchedulerJob({
@@ -699,6 +700,7 @@ export class SchedulerClient {
             'createProjectWithCompile',
             payload,
             now,
+            1,
         );
 
         await this.schedulerModel.logSchedulerJob({
@@ -729,6 +731,7 @@ export class SchedulerClient {
             'updateProjectWithCompile',
             payload,
             now,
+            1,
         );
 
         await this.schedulerModel.logSchedulerJob({
@@ -756,6 +759,7 @@ export class SchedulerClient {
             'compileProject',
             payload,
             now,
+            1,
         );
 
         await this.schedulerModel.logSchedulerJob({
@@ -784,6 +788,7 @@ export class SchedulerClient {
             'testAndCompileProject',
             payload,
             now,
+            1,
         );
 
         await this.schedulerModel.logSchedulerJob({
