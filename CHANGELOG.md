@@ -1,3 +1,10 @@
+# [0.1376.0](https://github.com/lightdash/lightdash/compare/0.1375.0...0.1376.0) (2024-11-21)
+
+
+### Features
+
+* add metrics catalog browse menu item ([#12565](https://github.com/lightdash/lightdash/issues/12565)) ([6e12ce5](https://github.com/lightdash/lightdash/commit/6e12ce5a2e9b4c6f6031aacb1c0e79f8479667b9))
+
 # [0.1375.0](https://github.com/lightdash/lightdash/compare/0.1374.2...0.1375.0) (2024-11-21)
 
 
