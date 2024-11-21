@@ -509,7 +509,7 @@ export class CartesianChartDataModel {
                 const seriesColor = seriesDisplay?.color;
                 const seriesValueLabelPosition =
                     seriesDisplay?.valueLabelPosition;
-                const seriesType = seriesDisplay?.type;
+                const seriesType = seriesDisplay?.type ?? defaultSeriesType;
 
                 const singleYAxisLabel =
                     // NOTE: When there's only one y-axis left, set the label on the series as well
@@ -522,7 +522,10 @@ export class CartesianChartDataModel {
                 return {
                     dimensions: [xAxisReference, seriesColumn],
                     type: seriesType ?? defaultSeriesType,
-                    stack: shouldStack ? 'stack-all-series' : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
+                    stack:
+                        shouldStack && seriesType === 'bar'
+                            ? 'stack-all-series'
+                            : undefined, // TODO: we should implement more sophisticated stacking logic once we have multi-pivoted charts
                     name:
                         seriesLabel ||
                         capitalize(seriesColumn.toLowerCase()).replaceAll(
