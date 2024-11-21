@@ -722,8 +722,6 @@ export class SchedulerClient {
     async updateProjectWithCompile(
         payload: SchedulerUpdateProjectWithCompilePayload,
     ) {
-        console.log('yayaya');
-
         const graphileClient = await this.graphileUtils;
         const now = new Date();
         const jobId = await SchedulerClient.addJob(
