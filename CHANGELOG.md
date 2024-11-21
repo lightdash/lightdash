@@ -1,3 +1,17 @@
+# [0.1375.0](https://github.com/lightdash/lightdash/compare/0.1374.2...0.1375.0) (2024-11-21)
+
+
+### Features
+
+* project creation in scheduler - `/api/v1/org/projects` ([#12491](https://github.com/lightdash/lightdash/issues/12491)) ([71fb811](https://github.com/lightdash/lightdash/commit/71fb811c2a7604817edd5d4024aa2107eac28774))
+
+## [0.1374.2](https://github.com/lightdash/lightdash/compare/0.1374.1...0.1374.2) (2024-11-21)
+
+
+### Bug Fixes
+
+* open dashboard filter popover within portal ([#12536](https://github.com/lightdash/lightdash/issues/12536)) ([f676727](https://github.com/lightdash/lightdash/commit/f67672783143c789ff42e02b60f9b58d7ccc9c25))
+
 ## [0.1374.1](https://github.com/lightdash/lightdash/compare/0.1374.0...0.1374.1) (2024-11-20)
 
 
