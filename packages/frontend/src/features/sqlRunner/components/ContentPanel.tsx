@@ -274,8 +274,19 @@ export const ContentPanel: FC = () => {
             return undefined;
         }
 
+        const isPivoted =
+            currentVizConfig.fieldConfig?.groupBy &&
+            currentVizConfig.fieldConfig?.groupBy.length > 0;
+
         return pivotedChartInfo?.data?.tableData?.columns.reduce<VizTableHeaderSortConfig>(
             (acc, col) => {
+                if (
+                    isPivoted &&
+                    pivotedChartInfo.data?.indexColumn?.reference !== col
+                ) {
+                    return acc;
+                }
+
                 const columnSort = currentVizConfig?.fieldConfig?.sortBy?.find(
                     (sort) => sort.reference === col,
                 );
