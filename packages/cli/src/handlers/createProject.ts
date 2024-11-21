@@ -5,10 +5,10 @@ import {
     ProjectType,
     SchedulerJobStatus,
     WarehouseTypes,
+    type ApiCreateProjectJobResponse,
     type ApiJobStatusResponse,
     type ApiProjectResponse,
     type CreateProjectResult,
-    type ApiCreateProjectJobResponse,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
 import path from 'path';
