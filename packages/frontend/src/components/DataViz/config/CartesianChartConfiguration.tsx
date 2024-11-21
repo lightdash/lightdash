@@ -2,8 +2,9 @@ import { ChartKind, type VizColumn } from '@lightdash/common';
 import { Stack, Tabs } from '@mantine/core';
 import { barChartConfigSlice } from '../store/barChartSlice';
 import { lineChartConfigSlice } from '../store/lineChartSlice';
+import { CartesianChartDisplayConfig } from './CartesianChartDisplayConfig';
 import { CartesianChartFieldConfiguration } from './CartesianChartFieldConfiguration';
-import { CartesianChartStyling } from './CartesianChartStyling';
+import { CartesianChartSeries } from './CartesianChartSeries';
 
 export const CartesianChartConfig = ({
     selectedChartType,
@@ -28,7 +29,8 @@ export const CartesianChartConfig = ({
             <Tabs color="gray" defaultValue="data" keepMounted>
                 <Tabs.List>
                     <Tabs.Tab value="data">Data</Tabs.Tab>
-                    <Tabs.Tab value="styling">Styling</Tabs.Tab>
+                    <Tabs.Tab value="series">Series</Tabs.Tab>
+                    <Tabs.Tab value="display">Display</Tabs.Tab>
                 </Tabs.List>
 
                 <Tabs.Panel value="data" pt="xs">
@@ -39,8 +41,15 @@ export const CartesianChartConfig = ({
                     />
                 </Tabs.Panel>
 
-                <Tabs.Panel value="styling" pt="xs">
-                    <CartesianChartStyling
+                <Tabs.Panel value="series" pt="xs">
+                    <CartesianChartSeries
+                        actions={actions}
+                        selectedChartType={selectedChartType}
+                    />
+                </Tabs.Panel>
+
+                <Tabs.Panel value="display" pt="xs">
+                    <CartesianChartDisplayConfig
                         actions={actions}
                         selectedChartType={selectedChartType}
                     />

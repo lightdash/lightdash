@@ -407,8 +407,6 @@ export const cartesianChartConfigSlice = createSlice({
             display.series = display.series || {};
 
             const { index, type, reference } = action.payload;
-
-            display.series = display.series || {};
             display.series[reference] = {
                 ...display.series[reference],
                 yAxisIndex: index,
@@ -428,20 +426,13 @@ export const cartesianChartConfigSlice = createSlice({
             display.yAxis = display.yAxis || [];
             display.series = display.series || {};
 
-            if (fieldConfig?.y.length === 1) {
-                const yReference = fieldConfig?.y[0].reference;
-                if (yReference) {
-                    display.series[yReference] = {
-                        ...display.series[yReference],
-                        yAxisIndex: 0,
-                        color: action.payload.color,
-                    };
-                }
-            }
-            if (action.payload.index !== undefined) {
+            if (
+                action.payload.index !== undefined &&
+                action.payload.reference !== undefined
+            ) {
                 display.series[action.payload.reference] = {
                     ...display.series[action.payload.reference],
-                    yAxisIndex: action.payload.index,
+                    yAxisIndex: action.payload.index, // TODO: Why set the index here?
                     color: action.payload.color,
                 };
             }
@@ -459,15 +450,15 @@ export const cartesianChartConfigSlice = createSlice({
             display.yAxis = display.yAxis || [];
             display.series = display.series || {};
 
-            if (fieldConfig?.y.length === 1) {
-                const yReference = fieldConfig?.y[0].reference;
-                if (yReference) {
-                    display.series[yReference] = {
-                        ...display.series[yReference],
-                        yAxisIndex: 0,
-                        valueLabelPosition: action.payload.valueLabelPosition,
-                    };
-                }
+            if (
+                action.payload.index !== undefined &&
+                action.payload.reference !== undefined
+            ) {
+                display.series[action.payload.reference] = {
+                    ...display.series[action.payload.reference],
+                    yAxisIndex: action.payload.index, // TODO: Why set the index here?
+                    valueLabelPosition: action.payload.valueLabelPosition,
+                };
             }
         },
     },

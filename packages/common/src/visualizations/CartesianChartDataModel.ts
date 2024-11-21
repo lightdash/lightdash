@@ -497,9 +497,10 @@ export class CartesianChartDataModel {
 
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
-                const seriesFormat = Object.values(display?.series || {}).find(
-                    (s) => s.yAxisIndex === index,
-                )?.format;
+                const seriesFormat =
+                    Object.values(display?.series || {}).find(
+                        (s) => s.yAxisIndex === index,
+                    )?.format ?? display?.yAxis?.[0]?.format; // TODO: don't always use the first y-axis format once there are multiple y-axes
 
                 const singleYAxisLabel =
                     // NOTE: When there's only one y-axis left, set the label on the series as well
