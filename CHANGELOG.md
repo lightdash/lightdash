@@ -1,3 +1,10 @@
+# [0.1377.0](https://github.com/lightdash/lightdash/compare/0.1376.0...0.1377.0) (2024-11-21)
+
+
+### Features
+
+* update sql runner config tabs ([#12538](https://github.com/lightdash/lightdash/issues/12538)) ([2f64709](https://github.com/lightdash/lightdash/commit/2f64709fc515d742eccff61be08ead48df2d5f03))
+
 # [0.1376.0](https://github.com/lightdash/lightdash/compare/0.1375.0...0.1376.0) (2024-11-21)
 
 
