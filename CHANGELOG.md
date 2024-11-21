@@ -1,3 +1,10 @@
+## [0.1377.1](https://github.com/lightdash/lightdash/compare/0.1377.0...0.1377.1) (2024-11-21)
+
+
+### Bug Fixes
+
+* reference line weeks ([#12553](https://github.com/lightdash/lightdash/issues/12553)) ([7de6969](https://github.com/lightdash/lightdash/commit/7de69695959eef46ddc0070dcd61cd99423609ce))
+
 # [0.1377.0](https://github.com/lightdash/lightdash/compare/0.1376.0...0.1377.0) (2024-11-21)
 
 
