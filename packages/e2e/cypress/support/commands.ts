@@ -30,6 +30,7 @@ import {
     DashboardBasicDetails,
     OrganizationProject,
     SavedChart,
+    SchedulerJobStatus,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     SEED_ORG_2_ADMIN_EMAIL,
@@ -408,9 +409,48 @@ Cypress.Commands.add(
             },
         }).then((resp) => {
             expect(resp.status).to.eq(200);
-            const { projectUuid } = resp.body.results.project;
-            cy.log(`Create project ${projectName} with uuid ${projectUuid}`);
-            cy.wrap(projectUuid);
+            const { jobId } = resp.body.results;
+
+            // Poll the job status
+            const pollStatus = (
+                attempts = 0,
+                maxAttempts = 30,
+                interval = 3000,
+            ) => {
+                if (attempts >= maxAttempts) {
+                    throw new Error('Job polling exceeded maximum attempts');
+                }
+
+                return cy
+                    .request({
+                        url: `/api/v1/schedulers/job/${jobId}/status`,
+                        method: 'GET',
+                    })
+                    .then((statusResp) => {
+                        const jobResult = statusResp.body.results;
+                        if (jobResult.status === SchedulerJobStatus.ERROR) {
+                            throw new Error('Project creation failed');
+                        }
+
+                        if (jobResult.status === SchedulerJobStatus.COMPLETED) {
+                            cy.log(`Project ${projectName} creation completed`);
+                            cy.wrap(jobResult.details.projectUuid);
+                            return;
+                        }
+
+                        // Wait and retry
+                        cy.log(
+                            `Waiting for job status... Attempt ${attempts + 1}`,
+                        );
+
+                        // eslint-disable-next-line consistent-return
+                        return new Promise((resolve) => {
+                            setTimeout(resolve, interval);
+                        }).then(() => pollStatus(attempts + 1));
+                    });
+            };
+
+            return pollStatus();
         });
     },
 );

@@ -81,10 +81,10 @@ export const base64SvgToBase64Image = async (
     });
 };
 
-export function downloadImage(base64: string) {
+export function downloadImage(base64: string, name?: string) {
     const link = document.createElement('a');
     link.href = base64;
-    link.download = FILE_NAME;
+    link.download = name || FILE_NAME;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

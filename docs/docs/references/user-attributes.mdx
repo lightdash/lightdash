@@ -116,7 +116,12 @@ models:
 
 You can use `user attributes` to limit some dimensions to some users.
 
-In the example below, only users with `is_admin` attribute `true` can use the `salary` dimension on `user` table. Users without access to this dimension will not see it or the custom metrics created from this dimension on the `explore page`.
+:::info
+Users without access to this dimension will not see it, as well as the **metrics derived from it**.
+Also note that the **custom metrics created from this dimension** on the `explore page`.
+:::
+
+In the example below, only users with `is_admin` attribute `true` can use the `salary` dimension on `user` table.
 
 ```
 columns:
@@ -130,7 +135,7 @@ columns:
           is_admin: "true"
 ```
 
-If a user without access to this dimension runs a query that contains this dimension, they will get a `Forbidden` error.
+If a user without access to this dimension runs a query that contains this dimension, they will get a `Forbidden` error. Also, if the user runs a query that contains a metric derived from this dimension, they won't see the metric on the explore page and won't be able to query from it.
 
 You can add multiple attributes for a single dimension. There are two ways to do this:
 

@@ -184,6 +184,7 @@ const Filter: FC<Props> = ({
             shadow="md"
             offset={1}
             arrowOffset={14}
+            withinPortal
         >
             <Popover.Target>
                 {isCreatingNew ? (

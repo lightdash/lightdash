@@ -1,0 +1,108 @@
+# Metrics Catalog
+
+:::note
+🏗️ The metrics catalog is currently work in progress. Some of the functionality might be subject to change.
+:::
+
+You can use the metrics catalog to **search, filter, and explore metrics** across your project.
+Each user has their own view of the metrics catalog, depending on the dimensions and metrics they have access to.
+
+## Current functionality
+
+Currently, you're able to:
+
+- **View** all metrics you have access to and **search** them
+- **Customize the icon** for a metric
+- **Categorize metrics** using tags so you can segment them and find them easier
+- **Filter metrics** by table, dimension, and metric type
+- **Explore** metrics
+
+## Exploring a metric
+
+You are able to explore a metric by clicking on it from the metrics catalog. This will open a new tab with the Explore page where you can run queries using the metric.
+
+### Serving valuable exploration experiences to your business users
+
+You can configure the explore page to have a default time period, filters, and metrics. This allows you to serve an accurate exploration experience to your business users.
+
+### 1. Check the prerequisites
+
+You have to have permissions to make changes to your Lightdash .yml files so you can set a default time dimension on a table level. This will be used to prefill the time dimension in the explore view.
+
+### 2. Set a default time dimension on a table level in your Lightdash .yml file
+
+##### Example
+
+You want to set a default time dimension on the events table so that every time you explore a metric from the events table, the time dimension `event_date`, with the grain `DAY` within the last 30 days, is prefilled.
+
+The following is an example of how your events.yml file could look like:
+
+```yml
+version: 2
+models:
+  - name: events
+    columns:
+      - name: event_date
+        description: 'Event date'
+        meta:
+          dimension:
+            label: 'Event date'
+            type: date
+            time_intervals:
+              - DAY
+      - name: event
+        description: 'Event'
+        meta:
+          dimension:
+            type: string
+          metrics:
+            count:
+              type: count
+```
+
+And now you can set a default time dimension on the table level, like so:
+
+```
+version: 2
+models:
+  - name: events
+    meta:
+      default_time_dimension:
+        field: event_date
+        interval: DAY
+    columns:...
+```
+
+Now, you can compile your project and go to the metrics catalog. Metrics with that default time set will be explored with over the event date day granularity in the last 30 days.
+
+#### Once you have set a default time dimension on a table, compile your project.
+
+This will introduce the default time dimension in the metrics catalog so every time you explore a metric from that table, the time dimension will be prefilled with the default time filters.
+(See [how to compile your project](/references/dbt-projects.mdx) for more information)
+
+#### Go to the metrics catalog and **Explore a metric** from the table/model you have set a default time dimension on.
+
+You will be redirected to the explore view with the time dimension prefilled with the default time filters.
+
+### 🙋 Questions you might have
+
+**a. What time intervals are supported?**
+
+- Currently, we only support: DAY, WEEK, MONTH, YEAR
+
+**b. What prefilled filters are applied?**
+
+- Time grain Year -> past 5 years
+- Time grain Month -> past 12 months
+- Time grain Week -> past 12 weeks
+- Time grain Day -> past 30 days
+
+So if one of your business users explores a metric with a default time grain of DAY, metrics will be shown for the past 30 days with granularity of days with the default time dimension prefilled.
+
+**c. Can I change the prefilled filters?**
+
+No, not yet.
+
+**d. Can I set a default time dimension on a column level?**
+
+No, not yet.

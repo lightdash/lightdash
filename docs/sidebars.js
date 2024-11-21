@@ -129,6 +129,7 @@ module.exports = {
                 'guides/how-to-create-multiple-projects',
                 'guides/customizing-the-appearance-of-your-project',
                 'guides/how-to-promote-content',
+                'guides/metrics-catalog',
             ],
         },
         {

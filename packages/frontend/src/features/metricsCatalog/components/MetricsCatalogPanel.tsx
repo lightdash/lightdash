@@ -1,14 +1,18 @@
 import { subject } from '@casl/ability';
 import {
+    ActionIcon,
+    Anchor,
     Avatar,
     Box,
     Group,
+    Popover,
     Stack,
     Text,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconRefresh } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { IconInfoCircle, IconRefresh } from '@tabler/icons-react';
+import { useEffect, useState, type FC } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -26,6 +30,73 @@ import {
 } from '../store/metricsCatalogSlice';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
 import { MetricsTable } from './MetricsTable';
+
+const InfoPopover: FC = () => {
+    const canRefreshCatalog = useAppSelector(
+        (state) => state.metricsCatalog.abilities.canRefreshCatalog,
+    );
+
+    if (!canRefreshCatalog) return null;
+
+    return (
+        <Popover
+            width={250}
+            offset={{
+                mainAxis: 10,
+                crossAxis: -100,
+            }}
+            position="bottom-start"
+        >
+            <Popover.Target>
+                <Tooltip variant="xs" label="Learn more" position="top">
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray.8"
+                        size="xs"
+                        radius="xl"
+                    >
+                        <MantineIcon icon={IconInfoCircle} />
+                    </ActionIcon>
+                </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown>
+                <Stack spacing="sm">
+                    <Stack spacing="xs">
+                        <Text fw={600} size="sm">
+                            Metrics Catalog
+                        </Text>
+                        <Text size="xs" c="gray.6">
+                            Explore metrics tailored to your access with
+                            permissions inherited from tables and user
+                            attributes.
+                        </Text>
+                    </Stack>
+                    <Stack spacing="xs">
+                        <Text fw={600} size="sm">
+                            Set Default Time Dimensions for Metrics
+                        </Text>
+                        <Text size="xs" c="gray.6">
+                            Enhance the metrics catalog experience by setting a
+                            default time dimension in your model .yml files.
+                            Metrics will open in the explorer with the correct
+                            time dimension pre-applied, ensuring your users
+                            start with the right context every time.
+                        </Text>
+                        <Anchor
+                            href="https://docs.lightdash.com/guides/metrics-catalog"
+                            target="_blank"
+                            size="xs"
+                        >
+                            Learn how to configure default time dimensions →
+                        </Anchor>
+                    </Stack>
+                </Stack>
+            </Popover.Dropdown>
+        </Popover>
+    );
+};
+
+// ... rest of the existing code ...
 
 export const MetricsCatalogPanel = () => {
     const dispatch = useAppDispatch();
@@ -65,7 +136,7 @@ export const MetricsCatalogPanel = () => {
     }, [project, dispatch, organizationUuid]);
 
     useEffect(
-        function handleManageTagsAbility() {
+        function handleAbilities() {
             if (user.data) {
                 const canManageTags = user.data.ability.can(
                     'manage',
@@ -74,8 +145,16 @@ export const MetricsCatalogPanel = () => {
                         projectUuid,
                     }),
                 );
+                const canRefreshCatalog =
+                    user.data.ability.can('manage', 'Job') ||
+                    user.data.ability.can('manage', 'CompileProject');
 
-                dispatch(setAbility({ canManageTags }));
+                dispatch(
+                    setAbility({
+                        canManageTags,
+                        canRefreshCatalog,
+                    }),
+                );
             }
         },
         [user.data, dispatch, projectUuid],
@@ -103,31 +182,34 @@ export const MetricsCatalogPanel = () => {
                         </Text>
                     </Box>
                 </Group>
-                <RefreshDbtButton
-                    onClick={handleRefreshDbt}
-                    leftIcon={
-                        <MantineIcon
-                            size="sm"
-                            color="gray.7"
-                            icon={IconRefresh}
-                        />
-                    }
-                    buttonStyles={{
-                        borderRadius: theme.radius.md,
-                        backgroundColor: '#FAFAFA',
-                        border: `1px solid ${theme.colors.gray[2]}`,
-                        padding: `${theme.spacing.xxs} 10px ${theme.spacing.xxs} ${theme.spacing.xs}`,
-                        fontSize: theme.fontSizes.sm,
-                        fontWeight: 500,
-                        color: theme.colors.gray[7],
-                    }}
-                    defaultTextOverride={
-                        lastDbtRefreshAt
-                            ? `Last refreshed ${timeAgo}`
-                            : 'Refresh catalog'
-                    }
-                    refreshingTextOverride="Refreshing catalog"
-                />
+                <Group spacing="xs">
+                    <RefreshDbtButton
+                        onClick={handleRefreshDbt}
+                        leftIcon={
+                            <MantineIcon
+                                size="sm"
+                                color="gray.7"
+                                icon={IconRefresh}
+                            />
+                        }
+                        buttonStyles={{
+                            borderRadius: theme.radius.md,
+                            backgroundColor: '#FAFAFA',
+                            border: `1px solid ${theme.colors.gray[2]}`,
+                            padding: `${theme.spacing.xxs} 10px ${theme.spacing.xxs} ${theme.spacing.xs}`,
+                            fontSize: theme.fontSizes.sm,
+                            fontWeight: 500,
+                            color: theme.colors.gray[7],
+                        }}
+                        defaultTextOverride={
+                            lastDbtRefreshAt
+                                ? `Last refreshed ${timeAgo}`
+                                : 'Refresh catalog'
+                        }
+                        refreshingTextOverride="Refreshing catalog"
+                    />
+                    <InfoPopover />
+                </Group>
             </Group>
             <MetricsTable />
             <MetricChartUsageModal

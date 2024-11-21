@@ -1,3 +1,38 @@
+## [0.1377.1](https://github.com/lightdash/lightdash/compare/0.1377.0...0.1377.1) (2024-11-21)
+
+
+### Bug Fixes
+
+* reference line weeks ([#12553](https://github.com/lightdash/lightdash/issues/12553)) ([7de6969](https://github.com/lightdash/lightdash/commit/7de69695959eef46ddc0070dcd61cd99423609ce))
+
+# [0.1377.0](https://github.com/lightdash/lightdash/compare/0.1376.0...0.1377.0) (2024-11-21)
+
+
+### Features
+
+* update sql runner config tabs ([#12538](https://github.com/lightdash/lightdash/issues/12538)) ([2f64709](https://github.com/lightdash/lightdash/commit/2f64709fc515d742eccff61be08ead48df2d5f03))
+
+# [0.1376.0](https://github.com/lightdash/lightdash/compare/0.1375.0...0.1376.0) (2024-11-21)
+
+
+### Features
+
+* add metrics catalog browse menu item ([#12565](https://github.com/lightdash/lightdash/issues/12565)) ([6e12ce5](https://github.com/lightdash/lightdash/commit/6e12ce5a2e9b4c6f6031aacb1c0e79f8479667b9))
+
+# [0.1375.0](https://github.com/lightdash/lightdash/compare/0.1374.2...0.1375.0) (2024-11-21)
+
+
+### Features
+
+* project creation in scheduler - `/api/v1/org/projects` ([#12491](https://github.com/lightdash/lightdash/issues/12491)) ([71fb811](https://github.com/lightdash/lightdash/commit/71fb811c2a7604817edd5d4024aa2107eac28774))
+
+## [0.1374.2](https://github.com/lightdash/lightdash/compare/0.1374.1...0.1374.2) (2024-11-21)
+
+
+### Bug Fixes
+
+* open dashboard filter popover within portal ([#12536](https://github.com/lightdash/lightdash/issues/12536)) ([f676727](https://github.com/lightdash/lightdash/commit/f67672783143c789ff42e02b60f9b58d7ccc9c25))
+
 ## [0.1374.1](https://github.com/lightdash/lightdash/compare/0.1374.0...0.1374.1) (2024-11-20)
 
 
