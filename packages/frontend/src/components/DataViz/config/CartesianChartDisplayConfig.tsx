@@ -20,7 +20,7 @@ import { type LineChartActionsType } from '../store/lineChartSlice';
 import { selectCurrentCartesianChartState } from '../store/selectors';
 import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 
-export const CartesianChartAxes = ({
+export const CartesianChartDisplayConfig = ({
     selectedChartType,
     actions,
 }: {
