@@ -131,7 +131,7 @@ The tables in your sidebar will appear in the following order:
 
 ### SQL filter (row-level security)
 
-`sql_filter` adds a filter to the table that cannot be removed in Lightdash. It is automatically added to the compiled SQL when running queries. Using `sql_filter` with [user attributes](/references/user-attributes) allows you to set up granular [row-level security in your tables](/references/user-attributes#row-filtering-with-sql_filter). 
+`sql_filter` adds a filter to the table that cannot be removed in Lightdash. It is automatically added to the compiled SQL when running queries. 
 
 For example:
 
@@ -150,6 +150,19 @@ SELECT
 FROM `lightdash`.`prod`.`sales`
 
 WHERE sales_region = 'EMEA'
+```
+
+#### Row-level security using user attributes
+
+Using `sql_filter` with [user attributes](/references/user-attributes) allows you to set up [row-level security in your tables](/references/user-attributes#row-filtering-with-sql_filter). You can reference user attributes in your `sql_filter` using `${lightdash.attributes.my_attribute_name}`
+
+For example:
+
+```yaml
+models:
+  - name: sales
+    meta:
+      sql_filter: ${TABLE}.sales_region IN (${lightdash.attributes.sales_region})
 ```
 
 #### `sql_filter` will only be applied when querying tables directly. 
