@@ -46,6 +46,7 @@ export type SchedulerLog = {
         | 'uploadGsheets'
         | 'downloadCsv'
         | 'uploadGsheetFromQuery'
+        | 'createProjectWithCompile'
         | 'compileProject'
         | 'testAndCompileProject'
         | 'validateProject'
