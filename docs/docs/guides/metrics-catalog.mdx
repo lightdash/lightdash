@@ -25,11 +25,11 @@ You are able to explore a metric by clicking on it from the metrics catalog. Thi
 
 You can configure the explore page to have a default time period, filters, and metrics. This allows you to serve an accurate exploration experience to your business users.
 
-#### 1. Check the prerequisites
+### 1. Check the prerequisites
 
 You have to have permissions to make changes to your Lightdash .yml files so you can set a default time dimension on a table level. This will be used to prefill the time dimension in the explore view.
 
-#### 2. Set a default time dimension on a table level in your Lightdash .yml file
+### 2. Set a default time dimension on a table level in your Lightdash .yml file
 
 ##### Example
 
@@ -75,12 +75,12 @@ models:
 
 Now, you can compile your project and go to the metrics catalog. Metrics with that default time set will be explored with over the event date day granularity in the last 30 days.
 
-#### 3. Once you have set a default time dimension on a table, compile your project.
+#### Once you have set a default time dimension on a table, compile your project.
 
 This will introduce the default time dimension in the metrics catalog so every time you explore a metric from that table, the time dimension will be prefilled with the default time filters.
 (See [how to compile your project](/references/dbt-projects.mdx) for more information)
 
-#### 4. Go to the metrics catalog and Explore a metric from the table/model you have set a default time dimension on.
+#### Go to the metrics catalog and **Explore a metric** from the table/model you have set a default time dimension on.
 
 You will be redirected to the explore view with the time dimension prefilled with the default time filters.
 
