@@ -1,3 +1,60 @@
+## [0.1374.1](https://github.com/lightdash/lightdash/compare/0.1374.0...0.1374.1) (2024-11-20)
+
+
+### Bug Fixes
+
+* apply date granularity to filters ([#12515](https://github.com/lightdash/lightdash/issues/12515)) ([8fe7447](https://github.com/lightdash/lightdash/commit/8fe7447d97c179a2ea2473f7df8431f6039eff4d))
+* export image tile dashboard ([#12530](https://github.com/lightdash/lightdash/issues/12530)) ([bff66fd](https://github.com/lightdash/lightdash/commit/bff66fdc3c4be443068500be62716d3f6efd0ec9))
+
+# [0.1374.0](https://github.com/lightdash/lightdash/compare/0.1373.1...0.1374.0) (2024-11-20)
+
+
+### Features
+
+* open big number if no default dim on metric explore ([#12517](https://github.com/lightdash/lightdash/issues/12517)) ([daa521e](https://github.com/lightdash/lightdash/commit/daa521ea640958954066ad4ff19002bd29bb610c))
+
+## [0.1373.1](https://github.com/lightdash/lightdash/compare/0.1373.0...0.1373.1) (2024-11-20)
+
+
+### Bug Fixes
+
+* color picker not matching colors in sql runner ([#12510](https://github.com/lightdash/lightdash/issues/12510)) ([ffb90ff](https://github.com/lightdash/lightdash/commit/ffb90ff24fde39c6737e1e9b8ccc351e24544cbd))
+
+# [0.1373.0](https://github.com/lightdash/lightdash/compare/0.1372.4...0.1373.0) (2024-11-20)
+
+
+### Features
+
+* metrics explorer default filters ([#12532](https://github.com/lightdash/lightdash/issues/12532)) ([d84b120](https://github.com/lightdash/lightdash/commit/d84b120b0dd6ebdc7fc8888d413dd0d154735dad))
+
+## [0.1372.4](https://github.com/lightdash/lightdash/compare/0.1372.3...0.1372.4) (2024-11-20)
+
+
+### Bug Fixes
+
+* change ui feedback when no perms to manage catalog ([#12531](https://github.com/lightdash/lightdash/issues/12531)) ([d37cd2d](https://github.com/lightdash/lightdash/commit/d37cd2d44e26dc10e0bcabb16384a1855f4faaa4))
+
+## [0.1372.3](https://github.com/lightdash/lightdash/compare/0.1372.2...0.1372.3) (2024-11-20)
+
+
+### Bug Fixes
+
+* project menu empty list ([#12526](https://github.com/lightdash/lightdash/issues/12526)) ([a84cf57](https://github.com/lightdash/lightdash/commit/a84cf579c576c4b957fb69b685fab39a821cf37b))
+
+## [0.1372.2](https://github.com/lightdash/lightdash/compare/0.1372.1...0.1372.2) (2024-11-20)
+
+
+### Bug Fixes
+
+* trino client dependency ([#12523](https://github.com/lightdash/lightdash/issues/12523)) ([42a6ac6](https://github.com/lightdash/lightdash/commit/42a6ac61f361fd474b188c24a3ed06860acddc8c))
+
+## [0.1372.1](https://github.com/lightdash/lightdash/compare/0.1372.0...0.1372.1) (2024-11-20)
+
+
+### Bug Fixes
+
+* apply formatting to value labels ([#12492](https://github.com/lightdash/lightdash/issues/12492)) ([b342c06](https://github.com/lightdash/lightdash/commit/b342c06526fc31685bcee1ed4d49b424e8541743))
+
 # [0.1372.0](https://github.com/lightdash/lightdash/compare/0.1371.0...0.1372.0) (2024-11-19)
 
 

@@ -75,6 +75,10 @@ type DbtModelLightdashConfig = {
     required_filters?: { [key: string]: any }[];
     required_attributes?: Record<string, string | string[]>;
     group_details?: Record<string, DbtModelGroup>;
+    default_time_dimension?: {
+        field: string;
+        interval: TimeFrames;
+    };
 };
 
 export type DbtModelGroup = {

@@ -104,6 +104,9 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
         const projectUuid = useAppSelector(
             (state) => state.metricsCatalog.projectUuid,
         );
+        const canManageTags = useAppSelector(
+            (state) => state.metricsCatalog.abilities.canManageTags,
+        );
 
         const [isPickerOpen, setIsPickerOpen] = useState(false);
         const [pickerPosition, setPickerPosition] = useState<{
@@ -197,6 +200,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                     <ActionIcon
                         ref={setIconRef}
                         variant="default"
+                        disabled={!canManageTags}
                         onClick={handleIconClick}
                         sx={(theme) => ({
                             width: 28,
@@ -208,6 +212,9 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                                 boxShadow:
                                     '0px -2px 0px 0px rgba(10, 13, 18, 0.07) inset, 0px 1px 2px 0px rgba(16, 24, 40, 0.05)',
                             }),
+                            '&:disabled': {
+                                backgroundColor: 'initial',
+                            },
                         })}
                     >
                         {isEmojiIcon(row.original.icon) ? (
