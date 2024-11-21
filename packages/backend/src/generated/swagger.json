@@ -7621,6 +7621,7 @@
                             "uploadGsheets",
                             "downloadCsv",
                             "uploadGsheetFromQuery",
+                            "createProjectWithoutCompile",
                             "compileProject",
                             "testAndCompileProject",
                             "validateProject",
@@ -8380,14 +8381,6 @@
                 "required": ["y"],
                 "type": "object"
             },
-            "CartesianSeriesType.LINE": {
-                "enum": ["line"],
-                "type": "string"
-            },
-            "CartesianSeriesType.BAR": {
-                "enum": ["bar"],
-                "type": "string"
-            },
             "ValueLabelPositionOptions": {
                 "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
                 "type": "string"
@@ -8421,10 +8414,10 @@
                                 "type": {
                                     "anyOf": [
                                         {
-                                            "$ref": "#/components/schemas/CartesianSeriesType.LINE"
+                                            "$ref": "#/components/schemas/ChartKind.LINE"
                                         },
                                         {
-                                            "$ref": "#/components/schemas/CartesianSeriesType.BAR"
+                                            "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
                                         }
                                     ]
                                 },
