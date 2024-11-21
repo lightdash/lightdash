@@ -60,16 +60,9 @@ const addExecutionContent = winston.format(
 const printMessage = (
     info: winston.Logform.TransformableInfo & ExecutionContextInfo & SentryInfo,
 ): string => {
-    const sentryTraceId = info.sentryTraceId
-        ? ` Sentry:${info.sentryTraceId}`
-        : '';
-
-    const workerId = info.worker?.id ? ` Worker:${info.worker.id}` : '';
     const jobId = info.job?.id ? ` Job:${info.job.id}` : '';
-
-    return `${info.timestamp}${sentryTraceId}${workerId}${jobId} [Lightdash] ${
-        info.level
-    }: ${info.serviceName ? `[${info.serviceName}] ` : ''}${info.message}`;
+    const serviceName = info.serviceName ? ` [${info.serviceName}]` : '';
+    return `${info.timestamp} [Lightdash]${jobId} ${info.level}:${serviceName} ${info.message}`;
 };
 
 const formatters = {
