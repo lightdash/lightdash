@@ -23,8 +23,6 @@ const pollSchedulerStatus = async (
 ): Promise<ApiJobStatusResponse['results']> => {
     let attempts = 0;
 
-    console.log('Polling job status');
-
     while (attempts < maxAttempts) {
         // eslint-disable-next-line no-await-in-loop
         const jobResult = await lightdashApi<ApiJobStatusResponse['results']>({
@@ -32,8 +30,6 @@ const pollSchedulerStatus = async (
             url: `/schedulers/job/${schedulerJobId}/status`,
             body: undefined,
         });
-
-        console.log(jobResult);
 
         if (jobResult.status === SchedulerJobStatus.ERROR) {
             throw new Error('Job failed');
