@@ -129,25 +129,22 @@ The tables in your sidebar will appear in the following order:
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-### SQL filter
+### SQL filter (row-level security)
 
-Use `sql_filter` to permanently filter the table for all queries made against it. `sql_filter` accepts a sql string that can reference
+`sql_filter` adds a filter to the table when it is queried that cannot be removed in Lightdash. Using `sql_filter` with [user attributes](/references/user-attributes) allows you to set up granular [row-level security in your tables](/references/user-attributes#row-filtering-with-sql_filter). 
 
 - `${TABLE}` the current table
 - `${dimension_a}` a dimension from the current table
 - `${table_b.dimension_b}` a dimension from a joined table
 
-:::info
 
-`sql_filter` will only be applied when querying tables directly. For example: If Table A includes another table (Table B) with `sql_filter` applied to it, then only the `sql_filter` from Table A will be applied when querying Table A directly. The `sql_filter` from Table B _will not_ be applied.
+#### `sql_filter` will only be applied when querying tables directly. 
 
-:::
+For example: If Table A includes another table (Table B) with `sql_filter` applied to it, then only the `sql_filter` from Table A will be applied when querying Table A directly. The `sql_filter` from Table B _will not_ be applied.
 
-:::info
+#### If you reference a dimension from a joined table in your `sql_filter`, the referenced table will be joined automatically. 
 
-If you reference a dimension from a joined table in your `sql_filter`, the referenced table will be joined automatically. For example: If you reference `${table_b.dimension_b}` in Table A's `sql_filter`, then Table B will be joined to Table A automatically.
-
-:::
+For example: If you reference `${table_b.dimension_b}` in Table A's `sql_filter`, then Table B will be joined to Table A automatically.
 
 ### Required attributes
 
