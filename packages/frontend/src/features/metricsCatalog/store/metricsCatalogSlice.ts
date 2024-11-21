@@ -9,6 +9,7 @@ type MetricsCatalogState = {
     };
     abilities: {
         canManageTags: boolean;
+        canRefreshCatalog: boolean;
     };
     activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
@@ -31,6 +32,7 @@ const initialState: MetricsCatalogState = {
     categoryFilters: [],
     abilities: {
         canManageTags: false,
+        canRefreshCatalog: false,
     },
     modals: {
         chartUsageModal: {
@@ -77,7 +79,9 @@ export const metricsCatalogSlice = createSlice({
         },
         setAbility: (
             state,
-            action: PayloadAction<MetricsCatalogState['abilities']>,
+            action: PayloadAction<{
+                [K in keyof MetricsCatalogState['abilities']]: boolean;
+            }>,
         ) => {
             state.abilities = action.payload;
         },
