@@ -584,11 +584,7 @@ export const getChartKind = (
 };
 
 export const getEChartsChartTypeFromChartKind = (
-    chartKind:
-        | ChartKind.VERTICAL_BAR
-        | ChartKind.LINE
-        | ChartKind.AREA
-        | ChartKind.SCATTER,
+    chartKind: ChartKind,
 ): CartesianSeriesType => {
     switch (chartKind) {
         case ChartKind.VERTICAL_BAR:
@@ -600,10 +596,7 @@ export const getEChartsChartTypeFromChartKind = (
         case ChartKind.SCATTER:
             return CartesianSeriesType.SCATTER;
         default:
-            return assertUnreachable(
-                chartKind,
-                `Unknown chart kind: ${chartKind}`,
-            );
+            return CartesianSeriesType.BAR;
     }
 };
 
