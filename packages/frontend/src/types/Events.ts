@@ -47,6 +47,7 @@ export enum PageName {
     USER_ACTIVITY = 'user_activity',
     VERIFY_EMAIL = 'verify_email',
     JOIN_ORGANIZATION = 'join_organization',
+    EMBED_DASHBOARD = 'embed_dashboard',
     CATALOG = 'catalog',
     METRICS_CATALOG = 'metrics_catalog',
 }
@@ -97,7 +98,11 @@ export enum EventName {
     NOTIFICATIONS_CLICKED = 'notifications.clicked',
     NOTIFICATIONS_ITEM_CLICKED = 'notifications_item.clicked',
     NOTIFICATIONS_READ_MORE_CLICKED = 'notifications_read_more.clicked',
+    // Commercial events
+    EMBED_DOWNLOAD_CSV_CLICKED = 'embed_download_csv.clicked',
+    EMBED_DOWNLOAD_IMAGE_CLICKED = 'embed_download_image.clicked',
 
+    DOWNLOAD_IMAGE_CLICKED = 'ownload_image.clicked',
     CUSTOM_AXIS_RANGE_TOGGLE_CLICKED = 'custom_axis_range_toggle_clicked',
     CREATE_PROJECT_ACCESS_BUTTON_CLICKED = 'create_project_access.clicked',
     SEARCH_RESULT_CLICKED = 'search_result.clicked',
