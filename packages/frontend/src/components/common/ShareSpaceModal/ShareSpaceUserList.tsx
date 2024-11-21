@@ -529,7 +529,19 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     );
 
     const accessByType = useMemo<SpaceAccessByType>(() => {
-        return space.access.reduce<SpaceAccessByType>(
+        const seenUsers = new Set<string>();
+
+        // don't show duplicate users - this can happen if a user belongs to multiple groups
+        const deduplicateUsers = (spaceShares: SpaceShare[]) =>
+            spaceShares.filter((spaceShare) => {
+                if (seenUsers.has(spaceShare.userUuid)) {
+                    return false;
+                }
+                seenUsers.add(spaceShare.userUuid);
+                return true;
+            });
+
+        const result = space.access.reduce<SpaceAccessByType>(
             (acc, spaceShare) => {
                 if (spaceShare.hasDirectAccess) {
                     acc.direct.push(spaceShare);
@@ -546,6 +558,12 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                 direct: [],
             },
         );
+
+        return {
+            project: deduplicateUsers(result.project),
+            organisation: deduplicateUsers(result.organisation),
+            direct: deduplicateUsers(result.direct),
+        };
     }, [space]);
 
     return (
