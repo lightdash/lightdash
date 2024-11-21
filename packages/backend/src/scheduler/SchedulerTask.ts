@@ -52,8 +52,10 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
+    type SchedulerCreateProjectWithCompilePayload,
     type SchedulerCreateProjectWithoutCompilePayload,
     type SchedulerIndexCatalogJobPayload,
+    type SchedulerUpdateProjectWithCompilePayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
@@ -769,6 +771,105 @@ export default class SchedulerTask {
                     projectUuid: projectCreationResult.project.projectUuid,
                     hasContentCopy: projectCreationResult.hasContentCopy,
                 },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    error: e,
+                },
+            });
+            throw e;
+        }
+    }
+
+    protected async createProjectWithCompile(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SchedulerCreateProjectWithCompilePayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: 'createProjectWithCompile',
+                jobId,
+                scheduledTime,
+            };
+
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                payload.createdByUserUuid,
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: { createdByUserUuid: payload.createdByUserUuid },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            const projectCreationResult = await this.projectService._create(
+                user,
+                payload.data,
+                payload.jobUuid,
+                getRequestMethod(payload.requestMethod),
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    projectUuid: projectCreationResult.projectUuid,
+                },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    error: e,
+                },
+            });
+            throw e;
+        }
+    }
+
+    protected async updateProjectWithCompile(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SchedulerUpdateProjectWithCompilePayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: 'updateProjectWithCompile',
+                jobId,
+                scheduledTime,
+            };
+
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                payload.createdByUserUuid,
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: { createdByUserUuid: payload.createdByUserUuid },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            await this.projectService._update(
+                user,
+                payload.projectUuid,
+                payload.data,
+                payload.jobUuid,
+                getRequestMethod(payload.requestMethod),
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {},
                 status: SchedulerJobStatus.COMPLETED,
             });
         } catch (e) {

@@ -24,7 +24,7 @@ projectRouter.patch(
     async (req, res, next) => {
         req.services
             .getProjectService()
-            .updateAndScheduleAsyncWork(
+            .scheduleUpdate(
                 req.params.projectUuid,
                 req.user!,
                 req.body,

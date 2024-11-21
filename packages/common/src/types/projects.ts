@@ -370,3 +370,22 @@ export type CreateProjectResult = {
     project: Project;
     hasContentCopy: boolean;
 };
+
+export type CreateProjectJobResult = {
+    jobUuid: string;
+    schedulerJobId: string;
+};
+
+export type ApiCreateProjectJobResponse = {
+    status: 'ok';
+    results: CreateProjectJobResult;
+};
+
+export type CreateProjectWithoutCompileJobResult = {
+    schedulerJobId: string;
+};
+
+export type ApiCreateProjectWithoutCompileJobResponse = {
+    status: 'ok';
+    results: CreateProjectWithoutCompileJobResult;
+};

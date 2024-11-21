@@ -6842,6 +6842,14 @@ const models: TsoaRoute.Models = {
                             dataType: 'enum',
                             enums: ['createProjectWithoutCompile'],
                         },
+                        {
+                            dataType: 'enum',
+                            enums: ['createProjectWithCompile'],
+                        },
+                        {
+                            dataType: 'enum',
+                            enums: ['updateProjectWithCompile'],
+                        },
                         { dataType: 'enum', enums: ['compileProject'] },
                         { dataType: 'enum', enums: ['testAndCompileProject'] },
                         { dataType: 'enum', enums: ['validateProject'] },

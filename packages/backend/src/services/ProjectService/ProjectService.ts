@@ -6,7 +6,6 @@ import {
     AndFilterGroup,
     ApiChartAndResults,
     ApiQueryResults,
-    ApiSchedulerJobIdResponse,
     ApiSqlQueryResults,
     assertUnreachable,
     CacheMetadata,
@@ -118,6 +117,8 @@ import {
     WarehouseTableSchema,
     WarehouseTypes,
     type CreateProjectResult,
+    type CreateProjectJobResult,
+    type CreateProjectWithoutCompileJobResult,
     type SemanticLayerConnectionUpdate,
     type Tag,
 } from '@lightdash/common';
@@ -310,6 +311,10 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         data: CreateProject,
     ) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
         if (!data.type) {
             throw new ParameterError('Project type must be provided');
         }
@@ -608,7 +613,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         data: CreateProject,
         method: RequestMethod,
-    ): Promise<ApiSchedulerJobIdResponse['results']> {
+    ): Promise<CreateProjectWithoutCompileJobResult> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -624,14 +629,15 @@ export class ProjectService extends BaseService {
                 data,
             });
 
-        return { jobId: schedulerJob.jobId };
+        return { schedulerJobId: schedulerJob.jobId };
     }
 
-    async create(
+    async _create(
         user: SessionUser,
         data: CreateProject,
+        jobUuid: string,
         method: RequestMethod,
-    ): Promise<{ jobUuid: string }> {
+    ): Promise<{ projectUuid: string }> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -641,7 +647,7 @@ export class ProjectService extends BaseService {
         const createProject = await this._resolveWarehouseClientSshKeys(data);
 
         const job: CreateJob = {
-            jobUuid: uuidv4(),
+            jobUuid,
             jobType: JobType.CREATE_PROJECT,
             jobStatus: JobStatusType.STARTED,
             projectUuid: undefined,
@@ -653,102 +659,130 @@ export class ProjectService extends BaseService {
             ],
         };
 
-        const doAsyncWork = async () => {
-            try {
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.RUNNING,
-                });
-                const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
-                    job.jobUuid,
-                    JobStepType.TESTING_ADAPTOR,
-                    async () =>
-                        ProjectService.testProjectAdapter(createProject, user),
-                );
-
-                const explores = await this.jobModel.tryJobStep(
-                    job.jobUuid,
-                    JobStepType.COMPILING,
-                    async () => {
-                        try {
-                            return await adapter.compileAllExplores();
-                        } finally {
-                            await adapter.destroy();
-                            await sshTunnel.disconnect();
-                        }
-                    },
-                );
-
-                const projectUuid = await this.jobModel.tryJobStep(
-                    job.jobUuid,
-                    JobStepType.CREATING_PROJECT,
-                    async () =>
-                        this.projectModel.create(
-                            user.userUuid,
-                            user.organizationUuid,
-                            createProject,
-                        ),
-                );
-
-                // Give admin user permissions to user who created this project even if he is an admin
-                if (user.email) {
-                    await this.projectModel.createProjectAccess(
-                        projectUuid,
-                        user.email,
-                        ProjectMemberRole.ADMIN,
-                    );
-                }
-
-                await this.saveExploresToCacheAndIndexCatalog(
-                    user.userUuid,
-                    projectUuid,
-                    explores,
-                );
-
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.DONE,
-                    jobResults: {
-                        projectUuid,
-                    },
-                });
-                this.analytics.track({
-                    event: 'project.created',
-                    userId: user.userUuid,
-                    properties: {
-                        projectName: createProject.name,
-                        projectId: projectUuid,
-                        projectType: createProject.dbtConnection.type,
-                        warehouseConnectionType:
-                            createProject.warehouseConnection.type,
-                        organizationId: user.organizationUuid,
-                        dbtConnectionType: createProject.dbtConnection.type,
-                        isPreview: createProject.type === ProjectType.PREVIEW,
-                        method,
-                    },
-                });
-            } catch (error) {
-                await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.ERROR,
-                });
-                throw error;
-            }
-        };
-
         await this.jobModel.create(job);
-        doAsyncWork().catch((e) => {
-            if (!(e instanceof LightdashError)) {
-                Sentry.captureException(e);
+
+        try {
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.RUNNING,
+            });
+            const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
+                job.jobUuid,
+                JobStepType.TESTING_ADAPTOR,
+                async () =>
+                    ProjectService.testProjectAdapter(createProject, user),
+            );
+
+            const explores = await this.jobModel.tryJobStep(
+                job.jobUuid,
+                JobStepType.COMPILING,
+                async () => {
+                    try {
+                        return await adapter.compileAllExplores();
+                    } finally {
+                        await adapter.destroy();
+                        await sshTunnel.disconnect();
+                    }
+                },
+            );
+
+            const projectUuid = await this.jobModel.tryJobStep(
+                job.jobUuid,
+                JobStepType.CREATING_PROJECT,
+                async () =>
+                    this.projectModel.create(
+                        user.userUuid,
+                        user.organizationUuid,
+                        createProject,
+                    ),
+            );
+
+            // Give admin user permissions to user who created this project even if he is an admin
+            if (user.email) {
+                await this.projectModel.createProjectAccess(
+                    projectUuid,
+                    user.email,
+                    ProjectMemberRole.ADMIN,
+                );
             }
+
+            await this.saveExploresToCacheAndIndexCatalog(
+                user.userUuid,
+                projectUuid,
+                explores,
+            );
+
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: {
+                    projectUuid,
+                },
+            });
+
+            this.analytics.track({
+                event: 'project.created',
+                userId: user.userUuid,
+                properties: {
+                    projectName: createProject.name,
+                    projectId: projectUuid,
+                    projectType: createProject.dbtConnection.type,
+                    warehouseConnectionType:
+                        createProject.warehouseConnection.type,
+                    organizationId: user.organizationUuid,
+                    dbtConnectionType: createProject.dbtConnection.type,
+                    isPreview: createProject.type === ProjectType.PREVIEW,
+                    method,
+                },
+            });
+
+            return { projectUuid };
+        } catch (error) {
+            if (!(error instanceof LightdashError)) {
+                Sentry.captureException(error);
+            }
+
             this.logger.error(
                 `Error running background job:${
-                    e instanceof Error ? e.stack : e
+                    error instanceof Error ? error.stack : error
                 }`,
             );
-        });
 
-        return {
-            jobUuid: job.jobUuid,
-        };
+            await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.ERROR,
+            });
+
+            throw error;
+        }
+    }
+
+    async scheduleCreate(
+        user: SessionUser,
+        data: CreateProject,
+        method: RequestMethod,
+    ): Promise<CreateProjectJobResult> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        await this.validateProjectCreationPermissions(user, data);
+
+        // this is necessary to immediately return the job id
+        const jobUuid = uuidv4();
+
+        const schedulerJob =
+            await this.schedulerClient.createProjectWithCompile({
+                createdByUserUuid: user.userUuid,
+                isPreview: data.type === ProjectType.PREVIEW,
+                organizationUuid: user.organizationUuid,
+                requestMethod: method,
+                jobUuid,
+                data,
+            });
+
+        // scheduler job id is for the scheduler job
+        // jobUuid is for the job model to track status of the project compilation and creation
+        // ideally, we should use Scheduler Logs and deprecate job model.
+        return { schedulerJobId: schedulerJob.jobId, jobUuid };
     }
 
     async setExplores(
@@ -782,35 +816,26 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async updateAndScheduleAsyncWork(
-        projectUuid: string,
+    async _update(
         user: SessionUser,
+        projectUuid: string,
         data: UpdateProject,
+        jobUuid: string,
         method: RequestMethod,
-    ): Promise<{ jobUuid: string }> {
+    ): Promise<void> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+
         const savedProject = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
-        if (
-            user.ability.cannot(
-                'update',
-                subject('Project', {
-                    organizationUuid: savedProject.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
 
         const job: CreateJob = {
-            jobUuid: uuidv4(),
+            jobUuid,
             jobType: JobType.COMPILE_PROJECT,
             jobStatus: JobStatusType.STARTED,
-            projectUuid: undefined,
+            projectUuid,
             userUuid: user.userUuid,
             steps: [
                 { stepType: JobStepType.TESTING_ADAPTOR },
@@ -846,9 +871,47 @@ export class ProjectService extends BaseService {
                 },
             });
         }
-        return {
-            jobUuid: job.jobUuid,
-        };
+    }
+
+    async scheduleUpdate(
+        projectUuid: string,
+        user: SessionUser,
+        data: UpdateProject,
+        method: RequestMethod,
+    ): Promise<{ jobUuid: string; schedulerJobId: string }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const savedProject = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: savedProject.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const jobUuid = uuidv4();
+
+        const schedulerJob =
+            await this.schedulerClient.updateProjectWithCompile({
+                createdByUserUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                projectUuid,
+                requestMethod: method,
+                jobUuid,
+                data,
+            });
+
+        return { jobUuid, schedulerJobId: schedulerJob.jobId };
     }
 
     async testAndCompileProject(

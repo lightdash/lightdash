@@ -7,8 +7,8 @@ import {
     WarehouseTypes,
     type ApiJobStatusResponse,
     type ApiProjectResponse,
-    type ApiSchedulerJobIdResponse,
     type CreateProjectResult,
+    type ApiCreateProjectJobResponse,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
 import path from 'path';
@@ -179,14 +179,16 @@ export const createProject = async (
     };
 
     const scheduleProjectCreationJob = await lightdashApi<
-        ApiSchedulerJobIdResponse['results']
+        ApiCreateProjectJobResponse['results']
     >({
         method: 'POST',
         url: `/api/v1/org/projects`,
         body: JSON.stringify(payload),
     });
 
-    const jobResult = await pollJobStatus(scheduleProjectCreationJob.jobId);
+    const jobResult = await pollJobStatus(
+        scheduleProjectCreationJob.schedulerJobId,
+    );
 
     const projectUuid = jobResult.details?.projectUuid;
     if (!projectUuid) {
