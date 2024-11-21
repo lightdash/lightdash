@@ -8,8 +8,8 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router-dom';
-
 import { useSpaceSummaries } from '../../hooks/useSpaces';
+import { Hash } from '../../svgs/metricsCatalog';
 import MantineIcon from '../common/MantineIcon';
 
 interface Props {
@@ -65,6 +65,14 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     icon={<MantineIcon icon={IconChartAreaLine} />}
                 >
                     All saved charts
+                </Menu.Item>
+
+                <Menu.Item
+                    component={Link}
+                    to={`/projects/${projectUuid}/metrics`}
+                    icon={<Hash />}
+                >
+                    Metrics Catalog
                 </Menu.Item>
 
                 {isInitialLoading || (spaces && spaces.length > 0) ? (
