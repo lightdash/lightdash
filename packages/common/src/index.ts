@@ -95,6 +95,7 @@ import { type ResultRow } from './types/results';
 import {
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
+    type ApiSchedulerJobIdResponse,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
     type SchedulerWithLogs,
@@ -577,11 +578,6 @@ export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
     role?: OrganizationMemberRole;
 };
 
-export type ApiCreateProjectResults = {
-    project: Project;
-    hasContentCopy: boolean;
-};
-
 export type ProjectSavedChartStatus = boolean;
 
 export type ApiFlashResults = Record<string, string[]>;
@@ -671,7 +667,6 @@ type ApiResults =
     | ApiGetComments['results']
     | ApiDeleteComment
     | ApiSuccessEmpty
-    | ApiCreateProjectResults
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiCatalogMetadataResults
@@ -694,7 +689,8 @@ type ApiResults =
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']
     | ApiGroupListResponse['results']
-    | ApiCreateTagResponse['results'];
+    | ApiCreateTagResponse['results']
+    | ApiSchedulerJobIdResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
