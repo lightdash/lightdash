@@ -1,6 +1,7 @@
 import {
     ECHARTS_DEFAULT_COLORS,
     friendlyName,
+    getEChartsChartTypeFromChartKind,
     ValueLabelPositionOptions,
     type CartesianChartDisplay,
     type ChartKind,
@@ -156,7 +157,12 @@ export const CartesianChartSeries = ({
                                 <Config.Label>Chart Type</Config.Label>
                                 <CartesianChartTypeConfig
                                     canSelectDifferentTypeFromBaseChart={true}
-                                    type={type ?? selectedChartType}
+                                    type={
+                                        type ??
+                                        getEChartsChartTypeFromChartKind(
+                                            selectedChartType,
+                                        )
+                                    }
                                     onChangeType={(
                                         value: NonNullable<
                                             CartesianChartDisplay['series']

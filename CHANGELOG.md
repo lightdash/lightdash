@@ -1,3 +1,10 @@
+## [0.1377.2](https://github.com/lightdash/lightdash/compare/0.1377.1...0.1377.2) (2024-11-21)
+
+
+### Bug Fixes
+
+* enable setting second series type in SQL runner ([#12512](https://github.com/lightdash/lightdash/issues/12512)) ([994366b](https://github.com/lightdash/lightdash/commit/994366bbb09db3232c112e2c5e23f302eb3f2271))
+
 ## [0.1377.1](https://github.com/lightdash/lightdash/compare/0.1377.0...0.1377.1) (2024-11-21)
 
 
