@@ -505,7 +505,8 @@ export class CartesianChartDataModel {
                     (s) => s.yAxisIndex === index,
                 );
 
-                const seriesFormat = seriesDisplay?.format;
+                const seriesFormat =
+                    seriesDisplay?.format ?? display?.yAxis?.[0]?.format; // TODO: don't always use the first y-axis format once there are multiple y-axes;
                 const seriesColor = seriesDisplay?.color;
                 const seriesValueLabelPosition =
                     seriesDisplay?.valueLabelPosition;

@@ -1,9 +1,43 @@
 import * as Sentry from '@sentry/node';
 import EventEmitter from 'events';
 import { WorkerEvents } from 'graphile-worker';
+import { Job, Worker } from 'graphile-worker/dist/interfaces';
+import ExecutionContext from 'node-execution-context';
 import Logger from '../logging/logger';
+import { ExecutionContextInfo } from '../logging/winston';
 
-const schedulerWorkerEventEmitter: WorkerEvents = new EventEmitter();
+class EventEmitterWithExecutionContent
+    extends EventEmitter
+    implements WorkerEvents
+{
+    on(event: string | symbol, listener: (...args: any[]) => void): this {
+        return super.on(event, (...args: any[]) => {
+            const { worker, job } = args[0] as { worker?: Worker; job?: Job };
+            const executionContext: ExecutionContextInfo = {};
+            if (worker) {
+                executionContext.worker = {
+                    id: worker.workerId,
+                };
+            }
+            if (job) {
+                executionContext.job = {
+                    id: job.id,
+                    queue_name: job.queue_name,
+                    task_identifier: job.task_identifier,
+                    priority: job.priority,
+                    attempts: job.attempts,
+                };
+            }
+            return ExecutionContext.run(
+                () => listener(...args),
+                executionContext,
+            );
+        });
+    }
+}
+
+const schedulerWorkerEventEmitter: WorkerEvents =
+    new EventEmitterWithExecutionContent();
 
 // Handle worker events
 schedulerWorkerEventEmitter.on('worker:create', ({ worker }) => {
