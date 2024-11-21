@@ -6,7 +6,7 @@ import {
     type ChartKind,
     type PivotChartLayout,
 } from '@lightdash/common';
-import { Group, Stack, Text, TextInput } from '@mantine/core';
+import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
 import { useMemo } from 'react';
 import {
     useAppDispatch as useVizDispatch,
@@ -18,7 +18,6 @@ import { Config } from '../../VisualizationConfigs/common/Config';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
 import { selectCurrentCartesianChartState } from '../store/selectors';
-import { CartesianChartFormatConfig } from './CartesianChartFormatConfig';
 import { CartesianChartTypeConfig } from './CartesianChartTypeConfig';
 import { CartesianChartValueLabelConfig } from './CartesianChartValueLabelConfig';
 
@@ -76,16 +75,40 @@ export const CartesianChartSeries = ({
             {series.length === 0 && (
                 <Text>No series found. Add a metric to create a series.</Text>
             )}
+            {series.length > 0 && (
+                <Config>
+                    <Config.Group>
+                        <Config.Label>{`Stacking`}</Config.Label>
+                        <SegmentedControl
+                            radius="md"
+                            disabled={series.length === 1}
+                            data={[
+                                {
+                                    value: 'None',
+                                    label: 'None',
+                                },
+                                {
+                                    value: 'Stacked',
+                                    label: 'Stacked',
+                                },
+                            ]}
+                            defaultValue={
+                                currentConfig?.display?.stack
+                                    ? 'Stacked'
+                                    : 'None'
+                            }
+                            onChange={(value) =>
+                                dispatch(
+                                    actions.setStacked(value === 'Stacked'),
+                                )
+                            }
+                        />
+                    </Config.Group>
+                </Config>
+            )}
             {series.map(
                 (
-                    {
-                        reference,
-                        label,
-                        color,
-                        type,
-                        format,
-                        valueLabelPosition,
-                    },
+                    { reference, label, color, type, valueLabelPosition },
                     index,
                 ) => (
                     <Stack key={reference} spacing="xs">
@@ -149,22 +172,7 @@ export const CartesianChartSeries = ({
                                     }}
                                 />
                             </Config.Group>
-                            <Config.Group>
-                                <Config.Label>Format</Config.Label>
 
-                                <CartesianChartFormatConfig
-                                    format={format}
-                                    onChangeFormat={(value) => {
-                                        dispatch(
-                                            actions.setSeriesFormat({
-                                                index,
-                                                format: value,
-                                                reference,
-                                            }),
-                                        );
-                                    }}
-                                />
-                            </Config.Group>
                             <Config.Group>
                                 <Config.Label>Value labels</Config.Label>
                                 <CartesianChartValueLabelConfig
