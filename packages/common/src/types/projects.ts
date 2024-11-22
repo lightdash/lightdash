@@ -365,8 +365,3 @@ export type PreviewContentMapping = {
 export type UpdateSchedulerSettings = {
     schedulerTimezone: string;
 };
-
-export type CreateProjectResult = {
-    project: Project;
-    hasContentCopy: boolean;
-};

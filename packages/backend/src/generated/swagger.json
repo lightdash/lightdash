@@ -7621,7 +7621,6 @@
                             "uploadGsheets",
                             "downloadCsv",
                             "uploadGsheetFromQuery",
-                            "createProjectWithoutCompile",
                             "compileProject",
                             "testAndCompileProject",
                             "validateProject",
@@ -8381,6 +8380,14 @@
                 "required": ["y"],
                 "type": "object"
             },
+            "CartesianSeriesType.LINE": {
+                "enum": ["line"],
+                "type": "string"
+            },
+            "CartesianSeriesType.BAR": {
+                "enum": ["bar"],
+                "type": "string"
+            },
             "ValueLabelPositionOptions": {
                 "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
                 "type": "string"
@@ -8414,10 +8421,10 @@
                                 "type": {
                                     "anyOf": [
                                         {
-                                            "$ref": "#/components/schemas/ChartKind.LINE"
+                                            "$ref": "#/components/schemas/CartesianSeriesType.LINE"
                                         },
                                         {
-                                            "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                                            "$ref": "#/components/schemas/CartesianSeriesType.BAR"
                                         }
                                     ]
                                 },
@@ -11106,7 +11113,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1375.0",
+        "version": "0.1377.3",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

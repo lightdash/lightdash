@@ -3,12 +3,8 @@ import {
     DbtProjectType,
     isWeekDay,
     ProjectType,
-    SchedulerJobStatus,
     WarehouseTypes,
-    type ApiJobStatusResponse,
-    type ApiProjectResponse,
-    type ApiSchedulerJobIdResponse,
-    type CreateProjectResult,
+    type ApiCreateProjectResults,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
 import path from 'path';
@@ -69,41 +65,6 @@ const askPermissionToStoreWarehouseCredentials = async (): Promise<boolean> => {
     return savedAnswer;
 };
 
-const pollJobStatus = async (
-    jobId: string,
-    maxAttempts: number = 30,
-    interval: number = 3000,
-): Promise<ApiJobStatusResponse['results']> => {
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-        // eslint-disable-next-line no-await-in-loop
-        const jobResult = await lightdashApi<ApiJobStatusResponse['results']>({
-            method: 'GET',
-            url: `/api/v1/schedulers/job/${jobId}/status`,
-            body: undefined,
-        });
-
-        if (jobResult.status === SchedulerJobStatus.ERROR) {
-            console.error(styles.error('Project creation failed'));
-            return jobResult;
-        }
-
-        if (jobResult.status === SchedulerJobStatus.COMPLETED) {
-            return jobResult;
-        }
-
-        attempts += 1;
-
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise((resolve) => {
-            setTimeout(resolve, interval);
-        });
-    }
-
-    throw new Error('Job polling exceeded maximum attempts');
-};
-
 type CreateProjectOptions = {
     name: string;
     projectDir: string;
@@ -116,7 +77,7 @@ type CreateProjectOptions = {
 };
 export const createProject = async (
     options: CreateProjectOptions,
-): Promise<undefined | CreateProjectResult> => {
+): Promise<ApiCreateProjectResults | undefined> => {
     const dbtVersion = await getSupportedDbtVersion();
 
     const absoluteProjectPath = path.resolve(options.projectDir);
@@ -161,7 +122,7 @@ export const createProject = async (
         }
         spinner?.start();
     }
-    const payload: CreateProject = {
+    const project: CreateProject = {
         name: options.name,
         type: options.type,
         warehouseConnection: {
@@ -178,29 +139,9 @@ export const createProject = async (
         dbtVersion,
     };
 
-    const scheduleProjectCreationJob = await lightdashApi<
-        ApiSchedulerJobIdResponse['results']
-    >({
+    return lightdashApi<ApiCreateProjectResults>({
         method: 'POST',
         url: `/api/v1/org/projects`,
-        body: JSON.stringify(payload),
+        body: JSON.stringify(project),
     });
-
-    const jobResult = await pollJobStatus(scheduleProjectCreationJob.jobId);
-
-    const projectUuid = jobResult.details?.projectUuid;
-    if (!projectUuid) {
-        throw new Error('Project creation failed');
-    }
-
-    const project = await lightdashApi<ApiProjectResponse['results']>({
-        method: 'GET',
-        url: `/api/v1/projects/${projectUuid}`,
-        body: undefined,
-    });
-
-    return {
-        project,
-        hasContentCopy: jobResult.details?.hasContentCopy ?? false,
-    };
 };

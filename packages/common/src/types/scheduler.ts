@@ -1,4 +1,3 @@
-import type { CreateProject } from '..';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule } from './filter';
@@ -47,7 +46,6 @@ export type SchedulerLog = {
         | 'uploadGsheets'
         | 'downloadCsv'
         | 'uploadGsheetFromQuery'
-        | 'createProjectWithoutCompile'
         | 'compileProject'
         | 'testAndCompileProject'
         | 'validateProject'
@@ -316,13 +314,6 @@ export type ApiTestSchedulerResponse = {
     };
 };
 
-export type ApiSchedulerJobIdResponse = {
-    status: 'ok';
-    results: {
-        jobId: string;
-    };
-};
-
 // Scheduler task types
 export type ScheduledDeliveryPayload =
     | { schedulerUuid: string }
@@ -414,14 +405,6 @@ export type ApiCsvUrlResponse = {
         status: string;
         truncated: boolean;
     };
-};
-
-export type SchedulerCreateProjectWithoutCompilePayload = {
-    createdByUserUuid: string;
-    organizationUuid: string;
-    requestMethod: string;
-    isPreview: boolean;
-    data: CreateProject;
 };
 
 export type CompileProjectPayload = {
