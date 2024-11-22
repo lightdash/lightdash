@@ -1,3 +1,11 @@
+## [0.1378.1](https://github.com/lightdash/lightdash/compare/0.1378.0...0.1378.1) (2024-11-22)
+
+
+### Bug Fixes
+
+* focus editor on load & cmd + enter to submit for table calculation ([#12566](https://github.com/lightdash/lightdash/issues/12566)) ([e06bbaa](https://github.com/lightdash/lightdash/commit/e06bbaa995cc5f123f779010a19eb653b461fac1))
+* I shouldnt be able to sort by a pivoted column ([#12569](https://github.com/lightdash/lightdash/issues/12569)) ([2cdc107](https://github.com/lightdash/lightdash/commit/2cdc10717f4f86b1e2f0086900f83e11d0ef901c))
+
 # [0.1378.0](https://github.com/lightdash/lightdash/compare/0.1377.4...0.1378.0) (2024-11-22)
 
 
