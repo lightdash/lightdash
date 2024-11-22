@@ -1,3 +1,10 @@
+## [0.1377.3](https://github.com/lightdash/lightdash/compare/0.1377.2...0.1377.3) (2024-11-22)
+
+
+### Bug Fixes
+
+* dashboard X spacing to be consistent with headers ([#12533](https://github.com/lightdash/lightdash/issues/12533)) ([d9ab031](https://github.com/lightdash/lightdash/commit/d9ab0313d41c3a220a2589ae5bf5fbcd2900f651))
+
 ## [0.1377.2](https://github.com/lightdash/lightdash/compare/0.1377.1...0.1377.2) (2024-11-21)
 
 
