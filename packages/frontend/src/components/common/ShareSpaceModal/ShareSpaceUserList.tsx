@@ -529,17 +529,25 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     );
 
     const accessByType = useMemo<SpaceAccessByType>(() => {
-        const seenUsers = new Set<string>();
+        const roleOrder = {
+            // higher roles have higher numbers
+            [SpaceMemberRole.VIEWER]: 1,
+            [SpaceMemberRole.EDITOR]: 2,
+            [SpaceMemberRole.ADMIN]: 3,
+        };
 
-        // don't show duplicate users - this can happen if a user belongs to multiple groups
-        const deduplicateUsers = (spaceShares: SpaceShare[]) =>
-            spaceShares.filter((spaceShare) => {
-                if (seenUsers.has(spaceShare.userUuid)) {
-                    return false;
-                }
-                seenUsers.add(spaceShare.userUuid);
-                return true;
-            });
+        // function to get the highest role for a user
+        const getHighestAccess = (
+            existing: SpaceShare,
+            current: SpaceShare,
+        ) => {
+            if (existing.hasDirectAccess) return existing; // direct access takes priority
+            const existingRoleNumber = roleOrder[existing.role];
+            const currentRoleNumber = roleOrder[current.role];
+            return currentRoleNumber > existingRoleNumber ? current : existing;
+        };
+
+        const deduplicatedUsersMap = new Map<string, SpaceShare>();
 
         const result = space.access.reduce<SpaceAccessByType>(
             (acc, spaceShare) => {
@@ -550,6 +558,21 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                 } else {
                     acc.organisation.push(spaceShare);
                 }
+
+                // check if user is already in the deduplicated map
+                if (!deduplicatedUsersMap.has(spaceShare.userUuid)) {
+                    deduplicatedUsersMap.set(spaceShare.userUuid, spaceShare);
+                } else {
+                    // if user is already in the map, get the highest role
+                    const existing = deduplicatedUsersMap.get(
+                        spaceShare.userUuid,
+                    )!;
+                    deduplicatedUsersMap.set(
+                        spaceShare.userUuid,
+                        getHighestAccess(existing, spaceShare),
+                    );
+                }
+
                 return acc;
             },
             {
@@ -559,10 +582,13 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             },
         );
 
+        // convert deduplicated users map to an array for the users list with the highest role
+        const deduplicatedUsers = Array.from(deduplicatedUsersMap.values());
+
         return {
-            project: deduplicateUsers(result.project),
-            organisation: deduplicateUsers(result.organisation),
-            direct: deduplicateUsers(result.direct),
+            project: result.project,
+            organisation: result.organisation,
+            direct: deduplicatedUsers,
         };
     }, [space]);
 
