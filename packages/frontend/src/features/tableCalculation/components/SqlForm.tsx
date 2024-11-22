@@ -25,6 +25,7 @@ type Props = {
     form: TableCalculationForm;
     isFullScreen: boolean;
     focusOnRender?: boolean;
+    onCmdEnter?: () => void;
 };
 
 export const SqlEditor = styled(AceEditor)<
@@ -49,6 +50,7 @@ export const SqlForm: FC<Props> = ({
     form,
     isFullScreen,
     focusOnRender = false,
+    onCmdEnter,
 }) => {
     const theme = useMantineTheme();
     const [isSoftWrapEnabled, setSoftWrapEnabled] = useLocalStorage({
@@ -60,6 +62,15 @@ export const SqlForm: FC<Props> = ({
 
     const handleEditorLoad = (editor: any) => {
         setAceEditor(editor);
+        editor.commands.addCommand({
+            name: 'executeCmdEnter',
+            bindKey: { win: 'Ctrl-Enter', mac: 'Cmd-Enter' },
+            exec: () => {
+                if (onCmdEnter) {
+                    onCmdEnter();
+                }
+            },
+        });
         if (focusOnRender) {
             // set timeout throws the focus to the end of the event loop (after the render)
             // without it the focus would be set before the editor is fully rendered (and not work)

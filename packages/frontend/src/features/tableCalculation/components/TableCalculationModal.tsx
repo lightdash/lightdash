@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconMaximize, IconMinimize } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -51,6 +51,7 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
     const [isFullscreen, toggleFullscreen] = useToggle(false);
+    const submitButtonRef = useRef<HTMLButtonElement>(null);
 
     const { addToastError } = useToaster();
 
@@ -120,10 +121,11 @@ const TableCalculationModal: FC<Props> = ({
         }
         // throw error if name is empty
         if (name.length === 0) {
-            return addToastError({
+            addToastError({
                 title: 'Name cannot be empty',
                 key: 'table-calculation-modal',
             });
+            return;
         }
         try {
             onSave({
@@ -141,22 +143,6 @@ const TableCalculationModal: FC<Props> = ({
             });
         }
     });
-
-    // listen for Cmd+Enter or Ctrl+Enter to submit
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-                handleSubmit(); // trigger form submission
-                event.preventDefault();
-            }
-        };
-        if (opened) {
-            window.addEventListener('keydown', handleKeyDown);
-        }
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [opened, handleSubmit]);
 
     const getFormatInputProps = (path: keyof CustomFormat) => {
         return form.getInputProps(`format.${path}`);
@@ -230,6 +216,11 @@ const TableCalculationModal: FC<Props> = ({
                                 form={form}
                                 isFullScreen={isFullscreen}
                                 focusOnRender={true}
+                                onCmdEnter={() => {
+                                    if (submitButtonRef.current) {
+                                        submitButtonRef.current.click();
+                                    }
+                                }}
                             />
                         </Tabs.Panel>
                         <Tabs.Panel value="format">
@@ -290,6 +281,7 @@ const TableCalculationModal: FC<Props> = ({
                             </Button>
                             <Button
                                 type="submit"
+                                ref={submitButtonRef}
                                 data-testid="table-calculation-save-button"
                             >
                                 Save
