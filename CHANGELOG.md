@@ -1,3 +1,10 @@
+# [0.1378.0](https://github.com/lightdash/lightdash/compare/0.1377.4...0.1378.0) (2024-11-22)
+
+
+### Features
+
+* sort x-axis by default in SQL runner ([#12572](https://github.com/lightdash/lightdash/issues/12572)) ([7ac99c5](https://github.com/lightdash/lightdash/commit/7ac99c58f81dcee2c4072654b99f1a72da72e02c))
+
 ## [0.1377.4](https://github.com/lightdash/lightdash/compare/0.1377.3...0.1377.4) (2024-11-22)
 
 
