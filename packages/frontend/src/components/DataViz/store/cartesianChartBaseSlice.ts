@@ -3,11 +3,11 @@
 import {
     ChartKind,
     isFormat,
+    VizAggregationOptions,
     VIZ_DEFAULT_AGGREGATION,
     type CartesianChartDisplay,
     type SortByDirection,
     type ValueLabelPositionOptions,
-    type VizAggregationOptions,
     type VizCartesianChartConfig,
     type VizCartesianChartOptions,
     type VizConfigErrors,
@@ -245,16 +245,27 @@ export const cartesianChartConfigSlice = createSlice({
 
             let defaultYAxisField;
 
+            console.log(yAxisFieldsAvailable);
+
             if (yAxisFieldsAvailable.length > 0) {
                 defaultYAxisField = yAxisFieldsAvailable[0];
             } else {
-                defaultYAxisField = state.fieldConfig.y[0];
+                // There are no fields to add
+                return;
             }
+
+            const aggregation =
+                defaultYAxisField.aggregationOptions &&
+                defaultYAxisField.aggregationOptions.includes(
+                    VizAggregationOptions.SUM,
+                )
+                    ? VizAggregationOptions.SUM
+                    : VIZ_DEFAULT_AGGREGATION;
 
             if (yAxisFields) {
                 state.fieldConfig.y.push({
                     reference: defaultYAxisField.reference,
-                    aggregation: VIZ_DEFAULT_AGGREGATION,
+                    aggregation: aggregation,
                 });
             }
         },
