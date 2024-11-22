@@ -1,3 +1,10 @@
+## [0.1377.4](https://github.com/lightdash/lightdash/compare/0.1377.3...0.1377.4) (2024-11-22)
+
+
+### Bug Fixes
+
+* create project and preview with older CLI versions   ([#12575](https://github.com/lightdash/lightdash/issues/12575)) ([4d29c54](https://github.com/lightdash/lightdash/commit/4d29c54b1088c4ce6f405f0cf71feda4ec001e68)), closes [#12491](https://github.com/lightdash/lightdash/issues/12491)
+
 ## [0.1377.3](https://github.com/lightdash/lightdash/compare/0.1377.2...0.1377.3) (2024-11-22)
 
 
