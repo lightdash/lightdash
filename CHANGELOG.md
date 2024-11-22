@@ -1,3 +1,10 @@
+## [0.1378.4](https://github.com/lightdash/lightdash/compare/0.1378.3...0.1378.4) (2024-11-22)
+
+
+### Bug Fixes
+
+* dont apply pivot when exporting CSV from charts that are not a table ([#12584](https://github.com/lightdash/lightdash/issues/12584)) ([025ef6b](https://github.com/lightdash/lightdash/commit/025ef6b99a1f7275f88367d701c32b2cc8cc42c3))
+
 ## [0.1378.3](https://github.com/lightdash/lightdash/compare/0.1378.2...0.1378.3) (2024-11-22)
 
 
