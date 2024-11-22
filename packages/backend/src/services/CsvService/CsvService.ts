@@ -1013,7 +1013,7 @@ This method can be memory intensive
             : metricQuery;
 
         const csvPivotConfig: PivotConfig | undefined =
-            pivotConfig !== undefined
+            chartConfig.type === ChartType.TABLE && pivotConfig !== undefined
                 ? {
                       pivotDimensions: pivotConfig.columns,
                       metricsAsRows: false,
