@@ -6,7 +6,6 @@ import {
     AndFilterGroup,
     ApiChartAndResults,
     ApiQueryResults,
-    ApiSchedulerJobIdResponse,
     ApiSqlQueryResults,
     assertUnreachable,
     CacheMetadata,
@@ -117,7 +116,7 @@ import {
     WarehouseTablesCatalog,
     WarehouseTableSchema,
     WarehouseTypes,
-    type CreateProjectResult,
+    type ApiCreateProjectResults,
     type SemanticLayerConnectionUpdate,
     type Tag,
 } from '@lightdash/common';
@@ -541,11 +540,11 @@ export class ProjectService extends BaseService {
         return project;
     }
 
-    async _createWithoutCompile(
+    async createWithoutCompile(
         user: SessionUser,
         data: CreateProject,
         method: RequestMethod,
-    ): Promise<CreateProjectResult> {
+    ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -558,6 +557,10 @@ export class ProjectService extends BaseService {
             user.organizationUuid,
             createProject,
         );
+
+        // Do not give this user admin permissions on this new project,
+        // as it could be an interactive viewer creating a preview
+        // and we don't want to allow users to acces sql runner or leak admin data
 
         this.analytics.track({
             event: 'project.created',
@@ -602,29 +605,6 @@ export class ProjectService extends BaseService {
             hasContentCopy,
             project,
         };
-    }
-
-    async scheduleCreateWithoutCompile(
-        user: SessionUser,
-        data: CreateProject,
-        method: RequestMethod,
-    ): Promise<ApiSchedulerJobIdResponse['results']> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
-
-        await this.validateProjectCreationPermissions(user, data);
-
-        const schedulerJob =
-            await this.schedulerClient.createProjectWithoutCompile({
-                createdByUserUuid: user.userUuid,
-                isPreview: data.type === ProjectType.PREVIEW,
-                organizationUuid: user.organizationUuid,
-                requestMethod: method,
-                data,
-            });
-
-        return { jobId: schedulerJob.jobId };
     }
 
     async create(
@@ -745,7 +725,6 @@ export class ProjectService extends BaseService {
                 }`,
             );
         });
-
         return {
             jobUuid: job.jobUuid,
         };
@@ -4132,7 +4111,7 @@ export class ProjectService extends BaseService {
             dbtVersion: project.dbtVersion,
         };
 
-        const previewProject = await this._createWithoutCompile(
+        const previewProject = await this.createWithoutCompile(
             user,
             previewData,
             context,

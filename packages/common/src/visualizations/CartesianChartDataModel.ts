@@ -16,6 +16,7 @@ import {
 import { type SemanticLayerQuery } from '../types/semanticLayer';
 import { applyCustomFormat } from '../utils/formatting';
 import {
+    SortByDirection,
     VizAggregationOptions,
     VizIndexType,
     type PivotChartData,
@@ -210,10 +211,15 @@ export class CartesianChartDataModel {
             },
         ];
 
+        const sortBy = [
+            { reference: x.reference, direction: SortByDirection.ASC },
+        ];
+
         return {
             x,
             y,
             groupBy: [],
+            sortBy,
         };
     }
 

@@ -12,6 +12,7 @@ import {
     isDashboardScheduler,
     isUserWithOrg,
     isValidFrequency,
+    NotExistsError,
     ParameterError,
     ScheduledJobs,
     Scheduler,
@@ -19,6 +20,7 @@ import {
     SchedulerCronUpdate,
     SchedulerFormat,
     SessionUser,
+    UnexpectedServerError,
     UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { arrayToString, stringToArray } from 'cron-converter';
@@ -384,6 +386,11 @@ export class SchedulerService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+        if (job.status === 'error') {
+            throw new NotExistsError(
+                job.details?.error ?? 'Unable to download CSV',
+            );
         }
         return job;
     }

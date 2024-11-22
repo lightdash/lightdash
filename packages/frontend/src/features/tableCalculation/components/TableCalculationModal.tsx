@@ -21,7 +21,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconMaximize, IconMinimize } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -51,6 +51,7 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
     const [isFullscreen, toggleFullscreen] = useToggle(false);
+    const submitButtonRef = useRef<HTMLButtonElement>(null);
 
     const { addToastError } = useToaster();
 
@@ -110,12 +111,22 @@ const TableCalculationModal: FC<Props> = ({
 
     const handleSubmit = form.onSubmit((data) => {
         const { name, sql } = data;
-        if (sql.length === 0)
-            return addToastError({
+        // throw error if sql is empty
+        if (sql.length === 0) {
+            addToastError({
                 title: 'SQL cannot be empty',
                 key: 'table-calculation-modal',
             });
-
+            return;
+        }
+        // throw error if name is empty
+        if (name.length === 0) {
+            addToastError({
+                title: 'Name cannot be empty',
+                key: 'table-calculation-modal',
+            });
+            return;
+        }
         try {
             onSave({
                 name: getUniqueTableCalculationName(name, tableCalculations),
@@ -201,7 +212,16 @@ const TableCalculationModal: FC<Props> = ({
                             <Tabs.Tab value="format">Format</Tabs.Tab>
                         </Tabs.List>
                         <Tabs.Panel value="sqlEditor">
-                            <SqlForm form={form} isFullScreen={isFullscreen} />
+                            <SqlForm
+                                form={form}
+                                isFullScreen={isFullscreen}
+                                focusOnRender={true}
+                                onCmdEnter={() => {
+                                    if (submitButtonRef.current) {
+                                        submitButtonRef.current.click();
+                                    }
+                                }}
+                            />
                         </Tabs.Panel>
                         <Tabs.Panel value="format">
                             <FormatForm
@@ -261,6 +281,7 @@ const TableCalculationModal: FC<Props> = ({
                             </Button>
                             <Button
                                 type="submit"
+                                ref={submitButtonRef}
                                 data-testid="table-calculation-save-button"
                             >
                                 Save

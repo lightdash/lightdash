@@ -1,4 +1,5 @@
 import {
+    ChartType,
     ECHARTS_DEFAULT_COLORS,
     getHiddenTableFields,
     NotFoundError,
@@ -129,7 +130,10 @@ const VisualizationCard: FC<{
                 hiddenFields: getHiddenTableFields(
                     unsavedChartVersion.chartConfig,
                 ),
-                pivotColumns: pivotConfig?.columns,
+                pivotColumns:
+                    unsavedChartVersion.chartConfig.type === ChartType.TABLE
+                        ? pivotConfig?.columns
+                        : undefined,
             });
             return csvResponse;
         }

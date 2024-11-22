@@ -52,7 +52,6 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
-    type SchedulerCreateProjectWithoutCompilePayload,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
 import { nanoid } from 'nanoid';
@@ -726,58 +725,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
-                    error: e,
-                },
-            });
-            throw e;
-        }
-    }
-
-    protected async createProjectWithoutCompile(
-        jobId: string,
-        scheduledTime: Date,
-        payload: SchedulerCreateProjectWithoutCompilePayload,
-    ) {
-        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
-            {
-                task: 'createProjectWithoutCompile',
-                jobId,
-                scheduledTime,
-            };
-
-        try {
-            const user = await this.userService.getSessionByUserUuid(
-                payload.createdByUserUuid,
-            );
-
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                details: { createdByUserUuid: payload.createdByUserUuid },
-                status: SchedulerJobStatus.STARTED,
-            });
-
-            const projectCreationResult =
-                await this.projectService._createWithoutCompile(
-                    user,
-                    payload.data,
-                    getRequestMethod(payload.requestMethod),
-                );
-
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                details: {
-                    projectUuid: projectCreationResult.project.projectUuid,
-                    hasContentCopy: projectCreationResult.hasContentCopy,
-                },
-                status: SchedulerJobStatus.COMPLETED,
-            });
-        } catch (e) {
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                status: SchedulerJobStatus.ERROR,
-                details: {
-                    createdByUserUuid: payload.createdByUserUuid,
-                    error: e,
+                    error: e.message,
                 },
             });
             throw e;
@@ -831,7 +779,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
-                    error: e,
+                    error: e.message,
                 },
             });
             throw e;
@@ -958,7 +906,10 @@ export default class SchedulerTask {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
-                details: { createdByUserUuid: payload.userUuid, error: e },
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    error: e.message,
+                },
             });
             throw e; // Cascade error to it can be retried by graphile
         }
@@ -1163,7 +1114,10 @@ export default class SchedulerTask {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
-                details: { createdByUserUuid: payload.userUuid, error: e },
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    error: e.message,
+                },
             });
 
             this.analytics.track({

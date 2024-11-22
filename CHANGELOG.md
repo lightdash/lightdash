@@ -1,3 +1,54 @@
+## [0.1378.4](https://github.com/lightdash/lightdash/compare/0.1378.3...0.1378.4) (2024-11-22)
+
+
+### Bug Fixes
+
+* dont apply pivot when exporting CSV from charts that are not a table ([#12584](https://github.com/lightdash/lightdash/issues/12584)) ([025ef6b](https://github.com/lightdash/lightdash/commit/025ef6b99a1f7275f88367d701c32b2cc8cc42c3))
+
+## [0.1378.3](https://github.com/lightdash/lightdash/compare/0.1378.2...0.1378.3) (2024-11-22)
+
+
+### Bug Fixes
+
+* adjust size panel ([#12581](https://github.com/lightdash/lightdash/issues/12581)) ([f3c31ed](https://github.com/lightdash/lightdash/commit/f3c31ed905b81f8b835798934a5f0ec2e7d5fff2))
+* remove export image from bignumber charts ([#12583](https://github.com/lightdash/lightdash/issues/12583)) ([9ccb5b7](https://github.com/lightdash/lightdash/commit/9ccb5b7e72157d96c7a95ff2cca9eda687261f35))
+
+## [0.1378.2](https://github.com/lightdash/lightdash/compare/0.1378.1...0.1378.2) (2024-11-22)
+
+
+### Bug Fixes
+
+* show error when downloading CSV ([#12580](https://github.com/lightdash/lightdash/issues/12580)) ([e75205c](https://github.com/lightdash/lightdash/commit/e75205cbbe0f3cceb8f441f07463f13e3bad5ccd))
+
+## [0.1378.1](https://github.com/lightdash/lightdash/compare/0.1378.0...0.1378.1) (2024-11-22)
+
+
+### Bug Fixes
+
+* focus editor on load & cmd + enter to submit for table calculation ([#12566](https://github.com/lightdash/lightdash/issues/12566)) ([e06bbaa](https://github.com/lightdash/lightdash/commit/e06bbaa995cc5f123f779010a19eb653b461fac1))
+* I shouldnt be able to sort by a pivoted column ([#12569](https://github.com/lightdash/lightdash/issues/12569)) ([2cdc107](https://github.com/lightdash/lightdash/commit/2cdc10717f4f86b1e2f0086900f83e11d0ef901c))
+
+# [0.1378.0](https://github.com/lightdash/lightdash/compare/0.1377.4...0.1378.0) (2024-11-22)
+
+
+### Features
+
+* sort x-axis by default in SQL runner ([#12572](https://github.com/lightdash/lightdash/issues/12572)) ([7ac99c5](https://github.com/lightdash/lightdash/commit/7ac99c58f81dcee2c4072654b99f1a72da72e02c))
+
+## [0.1377.4](https://github.com/lightdash/lightdash/compare/0.1377.3...0.1377.4) (2024-11-22)
+
+
+### Bug Fixes
+
+* create project and preview with older CLI versions   ([#12575](https://github.com/lightdash/lightdash/issues/12575)) ([4d29c54](https://github.com/lightdash/lightdash/commit/4d29c54b1088c4ce6f405f0cf71feda4ec001e68)), closes [#12491](https://github.com/lightdash/lightdash/issues/12491)
+
+## [0.1377.3](https://github.com/lightdash/lightdash/compare/0.1377.2...0.1377.3) (2024-11-22)
+
+
+### Bug Fixes
+
+* dashboard X spacing to be consistent with headers ([#12533](https://github.com/lightdash/lightdash/issues/12533)) ([d9ab031](https://github.com/lightdash/lightdash/commit/d9ab0313d41c3a220a2589ae5bf5fbcd2900f651))
+
 ## [0.1377.2](https://github.com/lightdash/lightdash/compare/0.1377.1...0.1377.2) (2024-11-21)
 
 

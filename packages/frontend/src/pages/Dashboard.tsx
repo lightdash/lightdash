@@ -695,7 +695,6 @@ const Dashboard: FC = () => {
                         position="apart"
                         align="flex-start"
                         noWrap
-                        px="lg"
                         grow
                         sx={{
                             overflow: 'auto',
@@ -709,7 +708,6 @@ const Dashboard: FC = () => {
                                 />
                             )}
                     </Group>
-
                     {/* DateZoom section will adjust width dynamically */}
                     {hasDashboardTiles && !hasNewSemanticLayerChart && (
                         <Box style={{ marginLeft: 'auto' }}>
