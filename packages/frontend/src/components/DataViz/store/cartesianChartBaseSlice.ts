@@ -245,8 +245,6 @@ export const cartesianChartConfigSlice = createSlice({
 
             let defaultYAxisField;
 
-            console.log(yAxisFieldsAvailable);
-
             if (yAxisFieldsAvailable.length > 0) {
                 defaultYAxisField = yAxisFieldsAvailable[0];
             } else {
