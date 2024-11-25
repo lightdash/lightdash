@@ -1,3 +1,10 @@
+## [0.1379.1](https://github.com/lightdash/lightdash/compare/0.1379.0...0.1379.1) (2024-11-25)
+
+
+### Bug Fixes
+
+* hide explore button when user doesn't have access to explore ([#12599](https://github.com/lightdash/lightdash/issues/12599)) ([5a5df68](https://github.com/lightdash/lightdash/commit/5a5df68d682821ea323a94e8649613799d4d6116))
+
 # [0.1379.0](https://github.com/lightdash/lightdash/compare/0.1378.5...0.1379.0) (2024-11-25)
 
 
