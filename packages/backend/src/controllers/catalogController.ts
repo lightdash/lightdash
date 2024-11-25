@@ -4,6 +4,7 @@ import {
     ApiCatalogResults,
     ApiCatalogSearch,
     ApiErrorPayload,
+    ApiGetMetric,
     ApiMetricsCatalog,
     getItemId,
     type ApiSort,
@@ -215,6 +216,36 @@ export class CatalogController extends BaseController {
         };
     }
 
+    /**
+     * Get metric by table and metric name
+     * @param projectUuid
+     * @param tableName
+     * @param metricName
+     * @returns the complete metric object
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/{tableName}/{metricName}')
+    @OperationId('getMetric')
+    async getMetric(
+        @Path() projectUuid: string,
+        @Path() tableName: string,
+        @Path() metricName: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetMetric> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetric(req.user!, projectUuid, tableName, metricName);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('{catalogSearchUuid}/categories')

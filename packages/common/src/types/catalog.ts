@@ -102,6 +102,11 @@ export type ApiMetricsCatalog = {
     results: KnexPaginatedData<ApiMetricsCatalogResults>;
 };
 
+export type ApiGetMetric = {
+    status: 'ok';
+    results: CompiledMetric;
+};
+
 export type CatalogMetadata = {
     name: string;
     description: string | undefined;
