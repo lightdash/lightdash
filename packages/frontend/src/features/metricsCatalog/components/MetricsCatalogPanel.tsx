@@ -150,7 +150,10 @@ export const MetricsCatalogPanel = () => {
                     user.data.ability.can('manage', 'Job') ||
                     user.data.ability.can('manage', 'CompileProject');
 
-                const canViewExplore = user.data.ability.can('view', 'Explore');
+                const canViewExplore = user.data.ability.can(
+                    'manage',
+                    'Explore',
+                );
 
                 dispatch(
                     setAbility({
