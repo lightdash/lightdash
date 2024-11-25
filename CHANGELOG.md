@@ -1,3 +1,10 @@
+## [0.1379.2](https://github.com/lightdash/lightdash/compare/0.1379.1...0.1379.2) (2024-11-25)
+
+
+### Bug Fixes
+
+* allow metric name to use the whole width of the cell and cta to overlay ([#12600](https://github.com/lightdash/lightdash/issues/12600)) ([d245e1a](https://github.com/lightdash/lightdash/commit/d245e1aabe85badc244e170313a301ea25f553a8))
+
 ## [0.1379.1](https://github.com/lightdash/lightdash/compare/0.1379.0...0.1379.1) (2024-11-25)
 
 
