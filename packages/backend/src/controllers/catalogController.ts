@@ -27,7 +27,11 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
+import { randomUUID } from 'crypto';
 import express from 'express';
+import { createReadStream, writeFileSync } from 'fs';
+import os from 'os';
+import path from 'path';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -35,6 +39,54 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Catalog')
 export class CatalogController extends BaseController {
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/recharts-svg-poc')
+    @OperationId('getRechartsSvgPOC')
+    async getRechartsSvgPOC(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: any }> {
+        this.setStatus(200);
+
+        const result = await this.services
+            .getCatalogService()
+            .getRechartsPoc(req.user!, projectUuid);
+
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/recharts-render-poc')
+    @OperationId('getRechartsRenderPoc')
+    async getRechartsRenderPoc(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<any> {
+        this.setStatus(200);
+        this.setHeader('Content-Type', 'image/png');
+        this.setHeader(
+            'Content-Disposition',
+            'attachment; filename="recharts-poc@2x.png"',
+        );
+
+        const sharp = await this.services
+            .getCatalogService()
+            .getRechartsRenderPoc(req.user!, projectUuid);
+
+        const buffer = await sharp.toBuffer();
+        const filePath = path.join(os.tmpdir(), `${randomUUID()}.png`);
+
+        writeFileSync(filePath, buffer.toString('binary'), 'binary');
+        const stream = createReadStream(filePath);
+
+        return stream;
+    }
+
     /**
      * Get catalog items
      * @param projectUuid

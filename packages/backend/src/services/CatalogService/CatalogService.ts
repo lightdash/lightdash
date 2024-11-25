@@ -30,6 +30,10 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
+import { JSDOM } from 'jsdom';
+import React from 'react';
+import ReactDOMServer from 'react-dom/server';
+import sharp from 'sharp';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { DbCatalogTagsMigrateIn } from '../../database/entities/catalog';
@@ -47,6 +51,8 @@ import {
     getFilteredExplore,
     hasUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
+// eslint-disable-next-line import/extensions
+import RechartsPOC from './RechartsPOC';
 
 export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     lightdashConfig: LightdashConfig;
@@ -818,5 +824,60 @@ export class CatalogService<
                 icon,
             },
         ]);
+    }
+
+    async getRechartsPoc(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const fullHtml = ReactDOMServer.renderToStaticMarkup(
+            React.createElement(RechartsPOC),
+        );
+
+        const dom = new JSDOM(fullHtml);
+        const svgParent = dom.window.document.querySelector('svg');
+        const fullHtmlWithSvg = svgParent?.outerHTML ?? '';
+
+        return { svg: fullHtmlWithSvg, html: fullHtml };
+    }
+
+    async getRechartsRenderPoc(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { svg } = await this.getRechartsPoc(user, projectUuid);
+        const svgBuffer = Buffer.from(svg);
+
+        const svgSharp = sharp(svgBuffer);
+        const pngMetadata = await svgSharp.metadata();
+        const pngSharp = svgSharp
+            .resize({
+                width: 2 * (pngMetadata.width ?? 0),
+                height: 2 * (pngMetadata.height ?? 0),
+            }) // Double the size for @2x png
+            .flatten({ background: { r: 255, g: 255, b: 255 } })
+            .png();
+
+        return pngSharp;
     }
 }

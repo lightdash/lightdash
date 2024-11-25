@@ -14,7 +14,7 @@
         ],
         "allowJs": false /* Allow javascript files to be compiled. */,
         // "checkJs": true,                             /* Report errors in .js files. */
-        // "jsx": "preserve",                           /* Specify JSX code generation: 'preserve', 'react-native', 'react', 'react-jsx' or 'react-jsxdev'. */
+        "jsx": "react-jsx", /* Specify JSX code generation: 'preserve', 'react-native', 'react', 'react-jsx' or 'react-jsxdev'. */
         // "declaration": true,                         /* Generates corresponding '.d.ts' file. */
         // "declarationMap": true,                      /* Generates a sourcemap for each corresponding '.d.ts' file. */
         // "sourceMap": true,                           /* Generates corresponding '.map' file. */
@@ -73,6 +73,7 @@
     },
     "include": [
         "src/**/*.ts",
+        "src/**/*.tsx",
         "src/**/*.json"
     ],
     "references": [

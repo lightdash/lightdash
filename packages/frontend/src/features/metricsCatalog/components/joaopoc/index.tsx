@@ -328,7 +328,7 @@ export const TimeSeriesChart: React.FC<Props> = ({
                         }
                         if (e?.activeLabel && e?.activePayload) {
                             setActiveTooltipData({
-                                activeLabel: e.activeLabel,
+                                activeLabel: Number(e.activeLabel),
                                 activePayload: e.activePayload,
                             });
                         }
