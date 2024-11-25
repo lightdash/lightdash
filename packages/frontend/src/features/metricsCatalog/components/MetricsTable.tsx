@@ -162,6 +162,8 @@ export const MetricsTable = () => {
                 border: `1px solid ${theme.colors.gray[2]}`,
                 borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
                 boxShadow: theme.shadows.subtle,
+                display: 'flex',
+                flexDirection: 'column',
             },
         },
         mantineTableContainerProps: {
@@ -169,13 +171,25 @@ export const MetricsTable = () => {
             sx: {
                 maxHeight: 'calc(100dvh - 350px)',
                 minHeight: '600px',
+                display: 'flex',
+                flexDirection: 'column',
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: true,
+            withColumnBorders: Boolean(flatData.length),
+            sx: {
+                flexGrow: 1,
+                display: 'flex',
+                flexDirection: 'column',
+            },
+        },
+        mantineTableHeadProps: {
+            sx: {
+                flexShrink: 1,
+            },
         },
         mantineTableHeadRowProps: {
             sx: {
@@ -224,6 +238,19 @@ export const MetricsTable = () => {
                     },
                 },
             };
+        },
+        mantineTableBodyProps: {
+            sx: {
+                flexGrow: 1,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                ...(!flatData.length && {
+                    'tr:last-of-type > td': {
+                        borderBottom: 'none',
+                    },
+                }),
+            },
         },
         mantineTableBodyRowProps: {
             sx: {
