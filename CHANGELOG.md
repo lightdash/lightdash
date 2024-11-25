@@ -1,3 +1,10 @@
+## [0.1379.3](https://github.com/lightdash/lightdash/compare/0.1379.2...0.1379.3) (2024-11-25)
+
+
+### Bug Fixes
+
+* remove divider when no results and double borders ([#12603](https://github.com/lightdash/lightdash/issues/12603)) ([cbb71ba](https://github.com/lightdash/lightdash/commit/cbb71ba724c5561d76c51950766e0e557c5646f6))
+
 ## [0.1379.2](https://github.com/lightdash/lightdash/compare/0.1379.1...0.1379.2) (2024-11-25)
 
 
