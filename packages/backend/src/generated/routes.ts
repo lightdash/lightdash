@@ -922,12 +922,36 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiGetMetric: {
+    'Pick_CompiledTable.defaultTimeDimension_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'CompiledMetric', required: true },
+                defaultTimeDimension: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        interval: { ref: 'TimeFrames', required: true },
+                        field: { dataType: 'string', required: true },
+                    },
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetMetricPeek: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'CompiledMetric' },
+                        { ref: 'Pick_CompiledTable.defaultTimeDimension_' },
+                    ],
+                    required: true,
+                },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},

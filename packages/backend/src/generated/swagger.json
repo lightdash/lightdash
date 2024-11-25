@@ -922,10 +922,35 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "ApiGetMetric": {
+            "Pick_CompiledTable.defaultTimeDimension_": {
+                "properties": {
+                    "defaultTimeDimension": {
+                        "properties": {
+                            "interval": {
+                                "$ref": "#/components/schemas/TimeFrames"
+                            },
+                            "field": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["interval", "field"],
+                        "type": "object"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiGetMetricPeek": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/CompiledMetric"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CompiledMetric"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CompiledTable.defaultTimeDimension_"
+                            }
+                        ]
                     },
                     "status": {
                         "type": "string",
@@ -11272,7 +11297,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1378.4",
+        "version": "0.1379.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -11651,7 +11676,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiGetMetric"
+                                    "$ref": "#/components/schemas/ApiGetMetricPeek"
                                 }
                             }
                         }

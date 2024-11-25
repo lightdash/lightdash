@@ -4,7 +4,7 @@ import {
     ApiCatalogResults,
     ApiCatalogSearch,
     ApiErrorPayload,
-    ApiGetMetric,
+    ApiGetMetricPeek,
     ApiMetricsCatalog,
     getItemId,
     type ApiSort,
@@ -232,7 +232,7 @@ export class CatalogController extends BaseController {
         @Path() tableName: string,
         @Path() metricName: string,
         @Request() req: express.Request,
-    ): Promise<ApiGetMetric> {
+    ): Promise<ApiGetMetricPeek> {
         this.setStatus(200);
 
         const results = await this.services

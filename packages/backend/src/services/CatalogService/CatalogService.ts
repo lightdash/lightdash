@@ -855,6 +855,10 @@ export class CatalogService<
 
         const filteredExplore = getFilteredExplore(explore, userAttributes);
 
+        const defaultTimeDimension =
+            filteredExplore?.tables?.[filteredExplore.baseTable]
+                ?.defaultTimeDimension;
+
         const metric =
             filteredExplore?.tables?.[filteredExplore.baseTable]?.metrics?.[
                 metricName
@@ -864,6 +868,9 @@ export class CatalogService<
             throw new NotFoundError('Metric not found');
         }
 
-        return metric;
+        return {
+            ...metric,
+            defaultTimeDimension,
+        };
     }
 }
