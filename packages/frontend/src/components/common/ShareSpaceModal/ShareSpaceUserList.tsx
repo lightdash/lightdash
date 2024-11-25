@@ -529,8 +529,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     );
 
     const accessByType = useMemo<SpaceAccessByType>(() => {
-        // function to get the highest role for a user
-        const getHighestAccess = (
+        const getDirectOrHighestAccess = (
             existing: SpaceShare,
             current: SpaceShare,
         ) => {
@@ -540,45 +539,64 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                 [SpaceMemberRole.EDITOR]: 2,
                 [SpaceMemberRole.ADMIN]: 3,
             };
-            if (existing.hasDirectAccess) return existing; // direct access takes priority
+
+            // if one has direct access, return it
+            if (existing.hasDirectAccess !== current.hasDirectAccess) {
+                if (existing.hasDirectAccess) {
+                    return existing;
+                } else {
+                    return current;
+                }
+            }
+            // otherwise, return the one with the highest role
             const existingRoleNumber = roleOrder[existing.role];
             const currentRoleNumber = roleOrder[current.role];
             return currentRoleNumber > existingRoleNumber ? current : existing;
         };
 
-        const result = space.access.reduce<{
+        const userAccessMap = space.access.reduce<Map<string, SpaceShare>>(
+            (acc, spaceShare) => {
+                const existing = acc.get(spaceShare.userUuid);
+                acc.set(
+                    spaceShare.userUuid,
+                    existing
+                        ? getDirectOrHighestAccess(existing, spaceShare)
+                        : spaceShare,
+                );
+                return acc;
+            },
+            new Map<string, SpaceShare>(),
+        );
+
+        const result = Array.from(userAccessMap.values()).reduce<{
             project: SpaceShare[];
             organisation: SpaceShare[];
-            directMap: Map<string, SpaceShare>;
+            direct: SpaceShare[];
         }>(
             (acc, spaceShare) => {
                 if (spaceShare.hasDirectAccess) {
-                    const existing = acc.directMap.get(spaceShare.userUuid);
-                    acc.directMap.set(
-                        spaceShare.userUuid,
-                        existing
-                            ? getHighestAccess(existing, spaceShare)
-                            : spaceShare,
-                    );
-                } else if (spaceShare.inheritedFrom === 'project') {
+                    acc.direct.push(spaceShare);
+                } else if (
+                    spaceShare.inheritedFrom === 'project' ||
+                    spaceShare.inheritedFrom === 'group'
+                ) {
                     acc.project.push(spaceShare);
-                } else {
+                } else if (spaceShare.inheritedFrom === 'organization') {
                     acc.organisation.push(spaceShare);
                 }
-
                 return acc;
             },
             {
                 project: [],
                 organisation: [],
-                directMap: new Map<string, SpaceShare>(),
+                direct: [],
             },
         );
 
         return {
             project: result.project,
             organisation: result.organisation,
-            direct: Array.from(result.directMap.values()),
+            direct: result.direct,
         };
     }, [space]);
 
