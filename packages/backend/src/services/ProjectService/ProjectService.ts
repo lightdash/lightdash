@@ -607,44 +607,6 @@ export class ProjectService extends BaseService {
         };
     }
 
-    async create(
-        user: SessionUser,
-        data: CreateProject,
-        method: RequestMethod,
-    ): Promise<{ jobUuid: string }> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
-
-        await this.validateProjectCreationPermissions(user, data);
-
-        const job: CreateJob = {
-            jobUuid: uuidv4(),
-            jobType: JobType.CREATE_PROJECT,
-            jobStatus: JobStatusType.STARTED,
-            projectUuid: undefined,
-            userUuid: user.userUuid,
-            steps: [
-                { stepType: JobStepType.TESTING_ADAPTOR },
-                { stepType: JobStepType.COMPILING },
-                { stepType: JobStepType.CREATING_PROJECT },
-            ],
-        };
-
-        // create legacy job steps that UI expects
-        await this.jobModel.create(job);
-        // schedule job
-        await this.schedulerClient.createProjectWithCompile({
-            createdByUserUuid: user.userUuid,
-            isPreview: data.type === ProjectType.PREVIEW,
-            organizationUuid: user.organizationUuid,
-            requestMethod: method,
-            jobUuid: job.jobUuid,
-            data,
-        });
-        return { jobUuid: job.jobUuid };
-    }
-
     async scheduleCreate(
         user: SessionUser,
         data: CreateProject,
