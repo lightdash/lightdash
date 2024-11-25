@@ -227,7 +227,7 @@ export const MetricsTable = () => {
         },
         mantineTableBodyRowProps: {
             sx: {
-                'td:first-of-type > div > .explore-button': {
+                'td:first-of-type > div > .explore-button-container': {
                     visibility: 'hidden',
                     opacity: 0,
                 },
@@ -237,7 +237,7 @@ export const MetricsTable = () => {
                         transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
 
-                    'td:first-of-type > div > .explore-button': {
+                    'td:first-of-type > div > .explore-button-container': {
                         visibility: 'visible',
                         opacity: 1,
                         transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,

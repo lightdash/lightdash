@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Flex, Group, Text, Tooltip } from '@mantine/core';
+import { Box, Flex, Group, Text, Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { type MRT_ColumnDef } from 'mantine-react-table';
@@ -64,13 +64,21 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             return (
-                <Flex justify="space-between" align="center" w="100%">
+                <Flex
+                    justify="space-between"
+                    align="center"
+                    w="100%"
+                    pos="relative"
+                >
                     <MetricsCatalogColumnName row={row} table={table} />
                     {canManageExplore && (
-                        <ExploreMetricButton
-                            row={row}
-                            className="explore-button"
-                        />
+                        <Box
+                            pos="absolute"
+                            right={0}
+                            className="explore-button-container"
+                        >
+                            <ExploreMetricButton row={row} />
+                        </Box>
                     )}
                 </Flex>
             );

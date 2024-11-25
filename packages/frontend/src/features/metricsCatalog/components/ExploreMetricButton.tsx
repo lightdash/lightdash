@@ -12,12 +12,10 @@ import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 
 type Props = {
-    className?: string;
-    visibility?: 'visible' | 'hidden';
     row: MRT_Row<CatalogField>;
 };
 
-export const ExploreMetricButton = ({ row, visibility, className }: Props) => {
+export const ExploreMetricButton = ({ row }: Props) => {
     const [exploreUrl, setExploreUrl] = useState<string>();
     const [shouldOpenInNewTab, setShouldOpenInNewTab] = useState(false);
     const projectUuid = useAppSelector(
@@ -91,7 +89,6 @@ export const ExploreMetricButton = ({ row, visibility, className }: Props) => {
             label="Open this metric in the explorer for detailed insights."
         >
             <Button
-                className={className}
                 compact
                 bg="linear-gradient(180deg, #202B37 0%, #151C24 100%)"
                 radius="md"
@@ -103,7 +100,6 @@ export const ExploreMetricButton = ({ row, visibility, className }: Props) => {
                 sx={{
                     border: `1px solid #414E62`,
                     boxShadow: '0px 0px 0px 1px #151C24',
-                    visibility,
                 }}
             >
                 <Text fz="sm" fw={500}>
