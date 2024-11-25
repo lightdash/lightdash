@@ -1,3 +1,10 @@
+## [0.1380.1](https://github.com/lightdash/lightdash/compare/0.1380.0...0.1380.1) (2024-11-25)
+
+
+### Bug Fixes
+
+* user list in space permissions shows duplicates ([#12555](https://github.com/lightdash/lightdash/issues/12555)) ([4c0533a](https://github.com/lightdash/lightdash/commit/4c0533aa555f4ff60e902bf41eb4adde20f1a8e0))
+
 # [0.1380.0](https://github.com/lightdash/lightdash/compare/0.1379.3...0.1380.0) (2024-11-25)
 
 
