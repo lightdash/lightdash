@@ -1,3 +1,10 @@
+# [0.1379.0](https://github.com/lightdash/lightdash/compare/0.1378.5...0.1379.0) (2024-11-25)
+
+
+### Features
+
+* display metric peek modal on click of metric column name ([#12593](https://github.com/lightdash/lightdash/issues/12593)) ([e59297e](https://github.com/lightdash/lightdash/commit/e59297ec64805d2cd6d55bcd0aa00578fc917691))
+
 ## [0.1378.5](https://github.com/lightdash/lightdash/compare/0.1378.4...0.1378.5) (2024-11-25)
 
 
