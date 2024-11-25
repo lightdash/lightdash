@@ -32,6 +32,7 @@ type Props = GroupProps & {
     search: string | undefined;
     setSearch: (search: string) => void;
     totalResults: number;
+    showCategoriesFilter?: boolean;
 };
 
 const CategoriesFilter = () => {
@@ -220,7 +221,7 @@ const CategoriesFilter = () => {
 };
 
 export const MetricsTableTopToolbar: FC<Props> = memo(
-    ({ search, setSearch, totalResults, ...props }) => {
+    ({ search, setSearch, totalResults, showCategoriesFilter, ...props }) => {
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
 
         return (
@@ -282,14 +283,19 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                             }
                         />
                     </Tooltip>
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        sx={{ alignSelf: 'center', borderColor: '#DEE2E6' }}
-                    />
                     {/* Categories filter */}
-                    <CategoriesFilter />
+                    {showCategoriesFilter && (
+                        <Divider
+                            orientation="vertical"
+                            w={1}
+                            h={20}
+                            sx={{
+                                alignSelf: 'center',
+                                borderColor: '#DEE2E6',
+                            }}
+                        />
+                    )}
+                    {showCategoriesFilter && <CategoriesFilter />}
                 </Group>
                 <Badge
                     bg="#F8F9FC"
