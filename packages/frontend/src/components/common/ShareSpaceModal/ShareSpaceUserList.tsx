@@ -529,13 +529,59 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
     );
 
     const accessByType = useMemo<SpaceAccessByType>(() => {
-        return space.access.reduce<SpaceAccessByType>(
+        const getDirectOrHighestAccess = (
+            existing: SpaceShare,
+            current: SpaceShare,
+        ) => {
+            const roleOrder = {
+                // higher roles have higher numbers
+                [SpaceMemberRole.VIEWER]: 1,
+                [SpaceMemberRole.EDITOR]: 2,
+                [SpaceMemberRole.ADMIN]: 3,
+            };
+
+            // if one has direct access, return it
+            if (existing.hasDirectAccess !== current.hasDirectAccess) {
+                if (existing.hasDirectAccess) {
+                    return existing;
+                } else {
+                    return current;
+                }
+            }
+            // otherwise, return the one with the highest role
+            const existingRoleNumber = roleOrder[existing.role];
+            const currentRoleNumber = roleOrder[current.role];
+            return currentRoleNumber > existingRoleNumber ? current : existing;
+        };
+
+        const userAccessMap = space.access.reduce<Map<string, SpaceShare>>(
+            (acc, spaceShare) => {
+                const existing = acc.get(spaceShare.userUuid);
+                acc.set(
+                    spaceShare.userUuid,
+                    existing
+                        ? getDirectOrHighestAccess(existing, spaceShare)
+                        : spaceShare,
+                );
+                return acc;
+            },
+            new Map<string, SpaceShare>(),
+        );
+
+        const result = Array.from(userAccessMap.values()).reduce<{
+            project: SpaceShare[];
+            organisation: SpaceShare[];
+            direct: SpaceShare[];
+        }>(
             (acc, spaceShare) => {
                 if (spaceShare.hasDirectAccess) {
                     acc.direct.push(spaceShare);
-                } else if (spaceShare.inheritedFrom === 'project') {
+                } else if (
+                    spaceShare.inheritedFrom === 'project' ||
+                    spaceShare.inheritedFrom === 'group'
+                ) {
                     acc.project.push(spaceShare);
-                } else {
+                } else if (spaceShare.inheritedFrom === 'organization') {
                     acc.organisation.push(spaceShare);
                 }
                 return acc;
@@ -546,6 +592,12 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
                 direct: [],
             },
         );
+
+        return {
+            project: result.project,
+            organisation: result.organisation,
+            direct: result.direct,
+        };
     }, [space]);
 
     return (
