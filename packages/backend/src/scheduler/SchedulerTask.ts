@@ -725,7 +725,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
-                    error: e,
+                    error: e.message,
                 },
             });
             throw e;
@@ -779,7 +779,7 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.createdByUserUuid,
-                    error: e,
+                    error: e.message,
                 },
             });
             throw e;
@@ -906,7 +906,10 @@ export default class SchedulerTask {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
-                details: { createdByUserUuid: payload.userUuid, error: e },
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    error: e.message,
+                },
             });
             throw e; // Cascade error to it can be retried by graphile
         }
@@ -1111,7 +1114,10 @@ export default class SchedulerTask {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
-                details: { createdByUserUuid: payload.userUuid, error: e },
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    error: e.message,
+                },
             });
 
             this.analytics.track({

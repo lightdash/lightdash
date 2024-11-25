@@ -17,7 +17,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
     isLoading,
     error,
 }) => {
-    const initialPanelSizes = [80, 20];
+    const initialPanelSizes = [50, 50];
     const activeTable = useAppSelector((state) => state.sqlRunner.activeTable);
 
     // state for controlling the "still loading" message
