@@ -211,6 +211,11 @@ export const MetricsTable = () => {
             const isAnyColumnResizing = props.table
                 .getAllColumns()
                 .some((c) => c.getIsResizing());
+
+            const isLastColumn =
+                props.table.getAllColumns().indexOf(props.column) ===
+                props.table.getAllColumns().length - 1;
+
             return {
                 bg: 'gray.0',
                 h: '3xl',
@@ -221,7 +226,11 @@ export const MetricsTable = () => {
                     borderBottom: `1px solid ${theme.colors.gray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${theme.colors.gray[2]}`,
+                        : `1px solid ${
+                              isLastColumn
+                                  ? 'transparent'
+                                  : theme.colors.gray[2]
+                          }`,
                     borderTop: 'none',
                     borderLeft: 'none',
                 },
@@ -245,11 +254,9 @@ export const MetricsTable = () => {
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                ...(!flatData.length && {
-                    'tr:last-of-type > td': {
-                        borderBottom: 'none',
-                    },
-                }),
+                'tr:last-of-type > td': {
+                    borderBottom: 'none',
+                },
             },
         },
         mantineTableBodyRowProps: {
@@ -272,21 +279,33 @@ export const MetricsTable = () => {
                 },
             },
         },
-        mantineTableBodyCellProps: {
-            h: 72,
-            // Adding to inline styles to override the default ones which can't be overridden with sx
-            style: {
-                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                borderRight: `1px solid ${theme.colors.gray[2]}`,
-                borderBottom: `1px solid ${theme.colors.gray[2]}`,
-                borderTop: 'none',
-                borderLeft: 'none',
-            },
-            sx: {
-                display: 'inline-flex',
-                alignItems: 'center',
-                flexShrink: 0,
-            },
+        mantineTableBodyCellProps: (props) => {
+            const isLastColumn =
+                props.table.getAllColumns().indexOf(props.column) ===
+                props.table.getAllColumns().length - 1;
+
+            const isLastRow = props.row.index === totalResults - 1;
+
+            return {
+                h: 72,
+                // Adding to inline styles to override the default ones which can't be overridden with sx
+                style: {
+                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                    borderRight: isLastColumn
+                        ? 'none'
+                        : `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: isLastRow
+                        ? 'none'
+                        : `1px solid ${theme.colors.gray[2]}`,
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                },
+                sx: {
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    flexShrink: 0,
+                },
+            };
         },
         renderTopToolbar: () => (
             <Box>
