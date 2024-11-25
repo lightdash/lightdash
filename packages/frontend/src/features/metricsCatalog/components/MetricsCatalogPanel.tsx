@@ -27,8 +27,10 @@ import {
     setActiveMetric,
     setOrganizationUuid,
     setProjectUuid,
+    toggleMetricPeekModal,
 } from '../store/metricsCatalogSlice';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
+import { MetricPeekModal } from './MetricPeekModal';
 import { MetricsTable } from './MetricsTable';
 
 const InfoPopover: FC = () => {
@@ -122,6 +124,16 @@ export const MetricsCatalogPanel = () => {
     const onCloseMetricUsageModal = () => {
         dispatch(setActiveMetric(undefined));
     };
+    const isMetricPeekModalOpen = useAppSelector(
+        (state) => state.metricsCatalog.modals.metricPeekModal.isOpen,
+    );
+    const onCloseMetricPeekModal = () => {
+        dispatch(toggleMetricPeekModal(undefined));
+    };
+    const { tableName, metricName } = useParams<{
+        tableName: string;
+        metricName: string;
+    }>();
 
     useMount(() => {
         if (!projectUuid && params.projectUuid) {
@@ -145,19 +157,40 @@ export const MetricsCatalogPanel = () => {
                         projectUuid,
                     }),
                 );
+
                 const canRefreshCatalog =
                     user.data.ability.can('manage', 'Job') ||
                     user.data.ability.can('manage', 'CompileProject');
+
+                const canManageExplore = user.data.ability.can(
+                    'manage',
+                    'Explore',
+                );
 
                 dispatch(
                     setAbility({
                         canManageTags,
                         canRefreshCatalog,
+                        canManageExplore,
                     }),
                 );
             }
         },
         [user.data, dispatch, projectUuid],
+    );
+
+    useEffect(
+        function openMetricPeekModal() {
+            if (tableName && metricName) {
+                dispatch(
+                    toggleMetricPeekModal({
+                        name: metricName,
+                        tableName,
+                    }),
+                );
+            }
+        },
+        [tableName, metricName, dispatch],
     );
 
     const handleRefreshDbt = () => {
@@ -215,6 +248,10 @@ export const MetricsCatalogPanel = () => {
             <MetricChartUsageModal
                 opened={isMetricUsageModalOpen}
                 onClose={onCloseMetricUsageModal}
+            />
+            <MetricPeekModal
+                opened={isMetricPeekModalOpen}
+                onClose={onCloseMetricPeekModal}
             />
         </Stack>
     );

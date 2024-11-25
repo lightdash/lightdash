@@ -167,9 +167,9 @@ export class CartesianChartDataModel {
         );
 
         const xColumn =
+            dateColumns[0] ||
             categoricalColumns[0] ||
             booleanColumns[0] ||
-            dateColumns[0] ||
             numericColumns[0] ||
             dimensions[0];
 

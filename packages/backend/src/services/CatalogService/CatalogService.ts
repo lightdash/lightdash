@@ -819,4 +819,55 @@ export class CatalogService<
             },
         ]);
     }
+
+    async getMetric(
+        user: SessionUser,
+        projectUuid: string,
+        tableName: string,
+        metricName: string,
+    ) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            tableName,
+        );
+
+        if (!explore || isExploreError(explore)) {
+            throw new NotFoundError('Explore not found');
+        }
+
+        const filteredExplore = getFilteredExplore(explore, userAttributes);
+
+        const defaultTimeDimension =
+            filteredExplore?.tables?.[tableName]?.defaultTimeDimension;
+
+        const metric =
+            filteredExplore?.tables?.[tableName]?.metrics?.[metricName];
+
+        if (!metric) {
+            throw new NotFoundError('Metric not found');
+        }
+
+        return {
+            ...metric,
+            defaultTimeDimension,
+        };
+    }
 }

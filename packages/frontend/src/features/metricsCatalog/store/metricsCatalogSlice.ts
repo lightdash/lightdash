@@ -6,10 +6,15 @@ type MetricsCatalogState = {
         chartUsageModal: {
             isOpen: boolean;
         };
+        metricPeekModal: {
+            isOpen: boolean;
+            metric: Pick<CatalogField, 'name' | 'tableName'> | undefined;
+        };
     };
     abilities: {
         canManageTags: boolean;
         canRefreshCatalog: boolean;
+        canManageExplore: boolean;
     };
     activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
@@ -33,10 +38,15 @@ const initialState: MetricsCatalogState = {
     abilities: {
         canManageTags: false,
         canRefreshCatalog: false,
+        canManageExplore: false,
     },
     modals: {
         chartUsageModal: {
             isOpen: false,
+        },
+        metricPeekModal: {
+            isOpen: false,
+            metric: undefined,
         },
     },
     popovers: {
@@ -97,6 +107,15 @@ export const metricsCatalogSlice = createSlice({
         ) => {
             state.popovers.description.isClosing = action.payload;
         },
+        toggleMetricPeekModal: (
+            state,
+            action: PayloadAction<
+                Pick<CatalogField, 'name' | 'tableName'> | undefined
+            >,
+        ) => {
+            state.modals.metricPeekModal.isOpen = Boolean(action.payload);
+            state.modals.metricPeekModal.metric = action.payload;
+        },
     },
 });
 
@@ -108,6 +127,6 @@ export const {
     setOrganizationUuid,
     setAbility,
     setCategoryPopoverIsClosing,
-
     setDescriptionPopoverIsClosing,
+    toggleMetricPeekModal,
 } = metricsCatalogSlice.actions;

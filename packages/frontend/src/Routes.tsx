@@ -351,6 +351,15 @@ const Routes: FC = () => {
                                         </TrackPage>
                                     </Route>
 
+                                    <Route path="/projects/:projectUuid/metrics/peek/:tableName/:metricName">
+                                        <NavBar />
+                                        <TrackPage
+                                            name={PageName.METRICS_CATALOG}
+                                        >
+                                            <MetricsCatalog />
+                                        </TrackPage>
+                                    </Route>
+
                                     <Route path="/projects/:projectUuid/metrics">
                                         <NavBar />
                                         <TrackPage
