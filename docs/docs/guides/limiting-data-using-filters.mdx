@@ -397,13 +397,13 @@ Example with payments and orders models:
 
 ```yaml
 - name: customers
----
+...
 - name: orders
   meta:
     joins:
       - join: customers
         sql_on: ${customers.customer_id} = ${orders.customer_id}
----
+...
 - name: payments
   meta:
     joins:
