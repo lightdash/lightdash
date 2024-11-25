@@ -85,7 +85,6 @@ type FieldSelectProps<T extends Item = Item> = Omit<
     hasGrouping?: boolean;
     baseTable?: string;
     focusOnRender?: boolean;
-    onCmdEnter?: () => void;
 };
 
 const getLabel = (item: Item, hasGrouping: boolean) => {
@@ -103,7 +102,6 @@ const FieldSelect = <T extends Item = Item>({
     hasGrouping = false,
     baseTable,
     focusOnRender = false,
-    onCmdEnter,
     ...rest
 }: FieldSelectProps<T>): JSX.Element => {
     const inputRef = useRef<HTMLInputElement | null>(null); // Input ref for focus handling
