@@ -145,14 +145,18 @@ export const MetricsCatalogPanel = () => {
                         projectUuid,
                     }),
                 );
+
                 const canRefreshCatalog =
                     user.data.ability.can('manage', 'Job') ||
                     user.data.ability.can('manage', 'CompileProject');
+
+                const canViewExplore = user.data.ability.can('view', 'Explore');
 
                 dispatch(
                     setAbility({
                         canManageTags,
                         canRefreshCatalog,
+                        canViewExplore,
                     }),
                 );
             }

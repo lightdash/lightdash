@@ -10,6 +10,7 @@ type MetricsCatalogState = {
     abilities: {
         canManageTags: boolean;
         canRefreshCatalog: boolean;
+        canViewExplore: boolean;
     };
     activeMetric: CatalogField | undefined;
     projectUuid: string | undefined;
@@ -33,6 +34,7 @@ const initialState: MetricsCatalogState = {
     abilities: {
         canManageTags: false,
         canRefreshCatalog: false,
+        canViewExplore: false,
     },
     modals: {
         chartUsageModal: {
