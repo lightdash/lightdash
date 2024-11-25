@@ -1,10 +1,11 @@
 import {
     type ApiError,
+    type ApiGetMetric,
     type ApiMetricsCatalog,
     type ApiSort,
     type KnexPaginateArgs,
 } from '@lightdash/common';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
 type UseMetricsCatalogOptions = {
@@ -96,5 +97,44 @@ export const useMetricsCatalog = ({
         },
         enabled: !!projectUuid && (!!search ? search.length > 2 : true),
         keepPreviousData: true,
+    });
+};
+
+type UseMetricOptions = {
+    projectUuid: string | undefined;
+    tableName: string | undefined;
+    metricName: string | undefined;
+};
+
+const getMetric = async ({
+    projectUuid,
+    tableName,
+    metricName,
+}: {
+    projectUuid: string;
+    tableName: string;
+    metricName: string;
+}) => {
+    return lightdashApi<ApiGetMetric['results']>({
+        url: `/projects/${projectUuid}/dataCatalog/metrics/${tableName}/${metricName}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useMetric = ({
+    projectUuid,
+    tableName,
+    metricName,
+}: UseMetricOptions) => {
+    return useQuery<ApiGetMetric['results'], ApiError>({
+        queryKey: ['metric', projectUuid, tableName, metricName],
+        queryFn: () =>
+            getMetric({
+                projectUuid: projectUuid!,
+                tableName: tableName!,
+                metricName: metricName!,
+            }),
+        enabled: !!projectUuid && !!tableName && !!metricName,
     });
 };
