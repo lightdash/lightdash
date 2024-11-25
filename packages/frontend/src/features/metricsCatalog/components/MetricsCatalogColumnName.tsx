@@ -9,6 +9,7 @@ import {
     Paper,
     Portal,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
 import { IconTable, IconTrash } from '@tabler/icons-react';
@@ -19,12 +20,14 @@ import EmojiPicker, {
 } from 'emoji-picker-react';
 import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
+import { useHistory } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { MetricIconPlaceholder } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
-import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
+import { toggleMetricPeekModal } from '../store/metricsCatalogSlice';
 
 import '../../../styles/emoji-picker-react.css';
 
@@ -97,6 +100,7 @@ type Props = {
 
 export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
     ({ row, table }, ref) => {
+        const dispatch = useAppDispatch();
         const { track } = useTracking();
         const organizationUuid = useAppSelector(
             (state) => state.metricsCatalog.organizationUuid,
@@ -115,6 +119,8 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
         } | null>(null);
         const [iconRef, setIconRef] = useState<HTMLButtonElement | null>(null);
         const [pickerRef, setPickerRef] = useState<HTMLDivElement | null>(null);
+
+        const history = useHistory();
 
         useEffect(
             function lockScroll() {
@@ -161,6 +167,18 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                 left: rect.left,
             });
             setIsPickerOpen(true);
+        };
+
+        const handlePeekMetric = (metric: CatalogField) => {
+            history.push(
+                `/projects/${projectUuid}/metrics/peek/${metric.tableName}/${metric.name}`,
+            );
+            dispatch(
+                toggleMetricPeekModal({
+                    name: metric.name,
+                    tableName: metric.tableName,
+                }),
+            );
         };
 
         const handleOnClick = (emoji: EmojiClickData | null) => {
@@ -241,15 +259,19 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                         variant="xs"
                         openDelay={300}
                     >
-                        <Highlight
-                            highlight={table.getState().globalFilter || ''}
-                            c="dark.9"
-                            fw={500}
-                            fz="sm"
-                            lh="150%"
+                        <UnstyledButton
+                            onClick={() => handlePeekMetric(row.original)}
                         >
-                            {row.original.label}
-                        </Highlight>
+                            <Highlight
+                                highlight={table.getState().globalFilter || ''}
+                                c="dark.9"
+                                fw={500}
+                                fz="sm"
+                                lh="150%"
+                            >
+                                {row.original.label}
+                            </Highlight>
+                        </UnstyledButton>
                     </Tooltip>
                 </Group>
                 <SharedEmojiPicker
