@@ -284,8 +284,6 @@ export const MetricsTable = () => {
                 props.table.getAllColumns().indexOf(props.column) ===
                 props.table.getAllColumns().length - 1;
 
-            const isLastRow = props.row.index === totalResults - 1;
-
             return {
                 h: 72,
                 // Adding to inline styles to override the default ones which can't be overridden with sx
@@ -294,9 +292,7 @@ export const MetricsTable = () => {
                     borderRight: isLastColumn
                         ? 'none'
                         : `1px solid ${theme.colors.gray[2]}`,
-                    borderBottom: isLastRow
-                        ? 'none'
-                        : `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
                     borderTop: 'none',
                     borderLeft: 'none',
                 },
