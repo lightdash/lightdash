@@ -1,6 +1,6 @@
 import {
     type ApiError,
-    type ApiGetMetric,
+    type ApiGetMetricPeek,
     type ApiMetricsCatalog,
     type ApiSort,
     type KnexPaginateArgs,
@@ -115,7 +115,7 @@ const getMetric = async ({
     tableName: string;
     metricName: string;
 }) => {
-    return lightdashApi<ApiGetMetric['results']>({
+    return lightdashApi<ApiGetMetricPeek['results']>({
         url: `/projects/${projectUuid}/dataCatalog/metrics/${tableName}/${metricName}`,
         method: 'GET',
         body: undefined,
@@ -127,7 +127,7 @@ export const useMetric = ({
     tableName,
     metricName,
 }: UseMetricOptions) => {
-    return useQuery<ApiGetMetric['results'], ApiError>({
+    return useQuery<ApiGetMetricPeek['results'], ApiError>({
         queryKey: ['metric', projectUuid, tableName, metricName],
         queryFn: () =>
             getMetric({

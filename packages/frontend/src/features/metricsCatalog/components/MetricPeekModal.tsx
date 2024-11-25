@@ -14,6 +14,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { Hash } from '../../../svgs/metricsCatalog';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetric } from '../hooks/useMetricsCatalog';
+import { MetricPeekDatePicker } from './MetricPeekDatePicker';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
@@ -44,9 +45,9 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         <Modal.Root
             opened={opened}
             onClose={handleClose}
-            yOffset={200}
+            yOffset={150}
             scrollAreaComponent={undefined}
-            size="lg"
+            size="xl"
         >
             <Modal.Overlay />
             <Modal.Content sx={{ overflow: 'hidden' }} radius="md">
@@ -63,13 +64,18 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     <Modal.CloseButton />
                 </Modal.Header>
                 <Modal.Body p={0} h="100%">
-                    <Stack spacing="xs" p="md">
-                        <Text fw={500}>Name</Text>
-                        <Text>{data?.label}</Text>
-                        <Text fw={500}>Description</Text>
-                        <Text>
-                            {data?.description || 'No description provided'}
+                    <Stack spacing="md" p="md" align="flex-start">
+                        <Text fw={500} fz="lg">
+                            {data?.label}
                         </Text>
+
+                        {data && (
+                            <MetricPeekDatePicker
+                                defaultTimeDimension={
+                                    data?.defaultTimeDimension
+                                }
+                            />
+                        )}
                     </Stack>
                     <Alert
                         title="Visualization"
