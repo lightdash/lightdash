@@ -176,7 +176,6 @@ export const cartesianChartConfigSlice = createSlice({
             if (!display) display = {};
 
             display.yAxis = display.yAxis || [];
-            display.yAxis = display.yAxis || [];
 
             const { index, label } = action.payload;
             if (display.yAxis[index] === undefined) {
@@ -203,28 +202,6 @@ export const cartesianChartConfigSlice = createSlice({
                 yAxisIndex: action.payload.index,
                 label: action.payload.label,
             };
-        },
-
-        setYAxisPosition: (
-            { display },
-            action: PayloadAction<{
-                index: number;
-                position: string | undefined;
-            }>,
-        ) => {
-            if (!display) display = {};
-
-            display.yAxis = display.yAxis || [];
-            display.yAxis = display.yAxis || [];
-
-            const { index, position } = action.payload;
-            if (display.yAxis[index] === undefined) {
-                display.yAxis[index] = {
-                    position,
-                };
-            } else {
-                display.yAxis[index].position = position;
-            }
         },
 
         addYAxisField: (state) => {
@@ -328,7 +305,7 @@ export const cartesianChartConfigSlice = createSlice({
 
         setYAxisFormat: (
             { fieldConfig, display },
-            action: PayloadAction<{ format: string }>,
+            action: PayloadAction<{ format: string; index: number }>,
         ) => {
             if (!fieldConfig) return;
             display = display || {};
@@ -337,22 +314,30 @@ export const cartesianChartConfigSlice = createSlice({
                 ? action.payload.format
                 : undefined;
 
-            display.yAxis = display.yAxis || [];
+            display.yAxis = display.yAxis || [
+                { format: undefined },
+                { format: undefined },
+            ];
 
-            if (display.yAxis.length === 0) {
-                display.yAxis.push({ format: validFormat });
+            if (!display.yAxis[action.payload.index]) {
+                display.yAxis[action.payload.index] = {
+                    format: validFormat,
+                };
             } else {
-                display.yAxis[0].format = validFormat;
+                display.yAxis[action.payload.index].format = validFormat;
             }
 
             // Update the format for series with yAxisIndex 0
             if (display.series) {
-                Object.values(display.series).forEach((series) => {
-                    if (series.yAxisIndex === 0) {
-                        series.format = validFormat;
-                    }
-                });
+                // TODO: Do this but series need a new prop for axis index
+                // Object.values(display.series).forEach((series) => {
+                //     if (series.yAxisIndex === action.payload.index) {
+                //         series.format = validFormat;
+                //     }
+                // });
             } else if (fieldConfig?.y[0].reference) {
+                // TODO: this looks like it sets the first series to this axis.
+                // What should it do? Set any series not set to the other axis to this one?
                 display.series = {
                     [fieldConfig?.y[0].reference]: {
                         format: validFormat,

@@ -651,6 +651,33 @@ export class CartesianChartDataModel {
                           }
                         : {}),
                 },
+                {
+                    type: 'value',
+                    position: 'right',
+                    name:
+                        (display?.yAxis && display.yAxis[1]?.label) ||
+                        friendlyName(
+                            transformedData.valuesColumns.length === 1
+                                ? transformedData.valuesColumns[1]
+                                : '',
+                        ),
+                    nameLocation: 'center',
+                    nameGap: 50,
+                    nameRotate: -90,
+                    nameTextStyle: {
+                        fontWeight: 'bold',
+                    },
+                    ...(display?.yAxis?.[1]?.format
+                        ? {
+                              axisLabel: {
+                                  formatter:
+                                      CartesianChartDataModel.getTooltipFormatter(
+                                          display?.yAxis?.[1].format,
+                                      ),
+                              },
+                          }
+                        : {}),
+                },
             ],
             dataset: {
                 id: 'dataset',

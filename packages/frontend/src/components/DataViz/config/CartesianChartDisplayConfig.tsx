@@ -1,19 +1,10 @@
 import { type ChartKind } from '@lightdash/common';
-import {
-    Group,
-    SegmentedControl,
-    Space,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine/core';
-import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
+import { Group, Stack, TextInput } from '@mantine/core';
 import { useMemo } from 'react';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
 } from '../../../features/sqlRunner/store/hooks';
-import MantineIcon from '../../common/MantineIcon';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
@@ -39,14 +30,14 @@ export const CartesianChartDisplayConfig = ({
             currentConfig?.fieldConfig?.x?.reference
         );
     }, [currentConfig]);
-    const yAxisLabel = useMemo(() => {
-        return (
+    const yAxisLabels = useMemo(() => {
+        return [
             currentConfig?.display?.yAxis?.[0]?.label ??
-            currentConfig?.fieldConfig?.y?.[0]?.reference
-        );
+                currentConfig?.fieldConfig?.y?.[0]?.reference,
+            currentConfig?.display?.yAxis?.[1]?.label ??
+                currentConfig?.fieldConfig?.y?.[1]?.reference,
+        ];
     }, [currentConfig]);
-
-    const yAxisPosition = currentConfig?.display?.yAxis?.[0]?.position;
 
     return (
         <Stack spacing="xl" mt="sm">
@@ -68,12 +59,12 @@ export const CartesianChartDisplayConfig = ({
             </Config>
             <Config>
                 <Config.Section>
-                    <Config.Heading>{`Y-axis`}</Config.Heading>
+                    <Config.Heading>{`Y-axis (left)`}</Config.Heading>
                     <Group noWrap w="100%">
                         <Config.Label>{`Label`}</Config.Label>
                         <TextInput
                             w="100%"
-                            value={yAxisLabel || ''}
+                            value={yAxisLabels[0] || ''}
                             radius="md"
                             onChange={(e) =>
                                 dispatch(
@@ -94,47 +85,46 @@ export const CartesianChartDisplayConfig = ({
                                 dispatch(
                                     actions.setYAxisFormat({
                                         format: value,
+                                        index: 0,
                                     }),
                                 );
                             }}
                         />
                     </Config.Group>
-                    <Config.Group>
-                        <Space />
-                        <SegmentedControl
-                            sx={{ alignSelf: 'center' }}
+                </Config.Section>
+            </Config>
+            <Config>
+                <Config.Section>
+                    <Config.Heading>{`Y-axis (right)`}</Config.Heading>
+                    <Group noWrap w="100%">
+                        <Config.Label>{`Label`}</Config.Label>
+                        <TextInput
+                            w="100%"
+                            value={yAxisLabels[1] || ''}
                             radius="md"
-                            data={[
-                                {
-                                    value: 'left',
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <MantineIcon icon={IconAlignLeft} />
-                                            <Text>Left</Text>
-                                        </Group>
-                                    ),
-                                },
-                                {
-                                    value: 'right',
-                                    label: (
-                                        <Group spacing="xs" noWrap>
-                                            <Text>Right</Text>
-                                            <MantineIcon
-                                                icon={IconAlignRight}
-                                            />
-                                        </Group>
-                                    ),
-                                },
-                            ]}
-                            value={yAxisPosition}
-                            onChange={(value) =>
+                            onChange={(e) =>
                                 dispatch(
-                                    actions.setYAxisPosition({
-                                        index: 0,
-                                        position: value || undefined,
+                                    actions.setYAxisLabel({
+                                        index: 1,
+                                        label: e.target.value,
                                     }),
                                 )
                             }
+                        />
+                    </Group>
+
+                    <Config.Group>
+                        <Config.Label>{`Format`}</Config.Label>
+                        <CartesianChartFormatConfig
+                            format={currentConfig?.display?.yAxis?.[0]?.format}
+                            onChangeFormat={(value) => {
+                                dispatch(
+                                    actions.setYAxisFormat({
+                                        format: value,
+                                        index: 1,
+                                    }),
+                                );
+                            }}
                         />
                     </Config.Group>
                 </Config.Section>
