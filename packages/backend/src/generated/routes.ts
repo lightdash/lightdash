@@ -7641,6 +7641,7 @@ const models: TsoaRoute.Models = {
                     additionalProperties: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            whichYAxis: { dataType: 'double' },
                             valueLabelPosition: {
                                 ref: 'ValueLabelPositionOptions',
                             },
