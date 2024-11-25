@@ -1,8 +1,20 @@
-import { Box, Group, Modal, Text, type ModalProps } from '@mantine/core';
+import {
+    Box,
+    Group,
+    Modal,
+    SegmentedControl,
+    Text,
+    type ModalProps,
+} from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { TimeSeriesChart } from './joaopoc';
+import {
+    staticMockData,
+    staticMockDataPreviousYear,
+} from './joaopoc/generateMockData';
 import RechartsPOC from './RechartsPOC';
 
 type Props = ModalProps;
@@ -10,6 +22,10 @@ type Props = ModalProps;
 export const ExploreMetricModal: FC<Props> = ({ opened, onClose }) => {
     const activeMetric = useAppSelector(
         (state) => state.metricsCatalog.modals.exploreModal.activeMetric,
+    );
+
+    const [selectedChart, setSelectedChart] = useState<'recharts' | 'joaopoc'>(
+        'joaopoc',
     );
 
     return (
@@ -32,9 +48,25 @@ export const ExploreMetricModal: FC<Props> = ({ opened, onClose }) => {
                     </Group>
                     <Modal.CloseButton />
                 </Modal.Header>
-                <Modal.Body p={0} h="calc(100vh - 160px)">
-                    <Box h="100%" p={100}>
-                        <RechartsPOC />
+                <Modal.Body h="calc(100vh - 160px)">
+                    <SegmentedControl
+                        data={[
+                            { label: 'Recharts', value: 'recharts' },
+                            { label: 'Joao', value: 'joaopoc' },
+                        ]}
+                        value={selectedChart}
+                        onChange={(value) =>
+                            setSelectedChart(value as 'recharts' | 'joaopoc')
+                        }
+                    />
+                    <Box h="100%" p="md">
+                        {selectedChart === 'recharts' && <RechartsPOC />}
+                        {selectedChart === 'joaopoc' && (
+                            <TimeSeriesChart
+                                data={staticMockData}
+                                previousPeriodData={staticMockDataPreviousYear}
+                            />
+                        )}
                     </Box>
                 </Modal.Body>
             </Modal.Content>
