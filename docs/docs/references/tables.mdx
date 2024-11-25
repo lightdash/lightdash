@@ -129,25 +129,56 @@ The tables in your sidebar will appear in the following order:
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-### SQL filter
+### SQL filter (row-level security)
 
-Use `sql_filter` to permanently filter the table for all queries made against it. `sql_filter` accepts a sql string that can reference
+`sql_filter` adds a filter to the table that cannot be removed in Lightdash. It is automatically added to the compiled SQL when running queries. 
 
-- `${TABLE}` the current table
-- `${dimension_a}` a dimension from the current table
-- `${table_b.dimension_b}` a dimension from a joined table
+For example:
 
-:::info
+```yaml
+models:
+  - name: sales
+    meta:
+      sql_filter: ${TABLE}.sales_region = 'EMEA'
+```
 
-`sql_filter` will only be applied when querying tables directly. For example: If Table A includes another table (Table B) with `sql_filter` applied to it, then only the `sql_filter` from Table A will be applied when querying Table A directly. The `sql_filter` from Table B _will not_ be applied.
+Any queries that I run using the `Sales` table in Lightdash will always have a filter for `sales_region = 'EMEA'` in their compiled SQL
 
-:::
+```sql
+SELECT
+  [...]
+FROM `lightdash`.`prod`.`sales`
 
-:::info
+WHERE sales_region = 'EMEA'
+```
 
-If you reference a dimension from a joined table in your `sql_filter`, the referenced table will be joined automatically. For example: If you reference `${table_b.dimension_b}` in Table A's `sql_filter`, then Table B will be joined to Table A automatically.
+#### Row-level security using user attributes
 
-:::
+Using `sql_filter` with [user attributes](/references/user-attributes) allows you to set up [row-level security in your tables](/references/user-attributes#row-filtering-with-sql_filter). You can reference user attributes in your `sql_filter` using `${lightdash.attributes.my_attribute_name}`
+
+For example:
+
+```yaml
+models:
+  - name: sales
+    meta:
+      sql_filter: ${TABLE}.sales_region IN (${lightdash.attributes.sales_region})
+```
+
+#### `sql_filter` will only be applied when querying tables directly. 
+
+For example:  
+- Table A is joined to Table B
+- Table B has a `sql_filter` applied to it  
+- A user queries Table A and adds a field from the joined table (Table B) to their query
+- the `sql_filter` from Table B will **not** be applied to the query (you would need to add this as a `sql_filter` to Table A directly for it to apply)
+
+#### If you reference a dimension from a joined table in your `sql_filter`, the referenced table will always be joined in your queries.
+
+For example:   
+- You have Table A which is joined to Table B  
+- In Table A, you've added a `sql_filter: ${TABLE}.sales_region = 'EMEA' OR ${table_b}.sales_region IS NULL`  
+- Table B will always be joined to Table A in your queries (even if there are no fields from Table B selected in your results table)
 
 ### Required attributes
 
