@@ -1,3 +1,10 @@
+## [0.1378.5](https://github.com/lightdash/lightdash/compare/0.1378.4...0.1378.5) (2024-11-25)
+
+
+### Bug Fixes
+
+* new defaults for SQL runner chart fields ([#12582](https://github.com/lightdash/lightdash/issues/12582)) ([fd27f8f](https://github.com/lightdash/lightdash/commit/fd27f8ffad38ac5b8464498d1bdfcafbd91a645f))
+
 ## [0.1378.4](https://github.com/lightdash/lightdash/compare/0.1378.3...0.1378.4) (2024-11-22)
 
 
