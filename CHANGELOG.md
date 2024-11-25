@@ -1,3 +1,25 @@
+## [0.1378.4](https://github.com/lightdash/lightdash/compare/0.1378.3...0.1378.4) (2024-11-22)
+
+
+### Bug Fixes
+
+* dont apply pivot when exporting CSV from charts that are not a table ([#12584](https://github.com/lightdash/lightdash/issues/12584)) ([025ef6b](https://github.com/lightdash/lightdash/commit/025ef6b99a1f7275f88367d701c32b2cc8cc42c3))
+
+## [0.1378.3](https://github.com/lightdash/lightdash/compare/0.1378.2...0.1378.3) (2024-11-22)
+
+
+### Bug Fixes
+
+* adjust size panel ([#12581](https://github.com/lightdash/lightdash/issues/12581)) ([f3c31ed](https://github.com/lightdash/lightdash/commit/f3c31ed905b81f8b835798934a5f0ec2e7d5fff2))
+* remove export image from bignumber charts ([#12583](https://github.com/lightdash/lightdash/issues/12583)) ([9ccb5b7](https://github.com/lightdash/lightdash/commit/9ccb5b7e72157d96c7a95ff2cca9eda687261f35))
+
+## [0.1378.2](https://github.com/lightdash/lightdash/compare/0.1378.1...0.1378.2) (2024-11-22)
+
+
+### Bug Fixes
+
+* show error when downloading CSV ([#12580](https://github.com/lightdash/lightdash/issues/12580)) ([e75205c](https://github.com/lightdash/lightdash/commit/e75205cbbe0f3cceb8f441f07463f13e3bad5ccd))
+
 ## [0.1378.1](https://github.com/lightdash/lightdash/compare/0.1378.0...0.1378.1) (2024-11-22)
 
 
