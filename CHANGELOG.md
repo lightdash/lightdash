@@ -1,3 +1,10 @@
+# [0.1380.0](https://github.com/lightdash/lightdash/compare/0.1379.3...0.1380.0) (2024-11-25)
+
+
+### Features
+
+* display date-range picker and allow preset selection [UI] ([#12605](https://github.com/lightdash/lightdash/issues/12605)) ([fcf4d4d](https://github.com/lightdash/lightdash/commit/fcf4d4d30920ce2a5b7e94570c3551ec2f5a5956))
+
 ## [0.1379.3](https://github.com/lightdash/lightdash/compare/0.1379.2...0.1379.3) (2024-11-25)
 
 
