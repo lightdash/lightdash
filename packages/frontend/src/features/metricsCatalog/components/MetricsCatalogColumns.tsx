@@ -64,12 +64,21 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             );
 
             return (
-                <Flex justify="space-between" align="center" w="100%">
+                <Flex
+                    justify="space-between"
+                    align="center"
+                    w="100%"
+                    pos="relative"
+                >
                     <MetricsCatalogColumnName row={row} table={table} />
                     {canManageExplore && (
                         <ExploreMetricButton
                             row={row}
                             className="explore-button"
+                            sx={{
+                                position: 'absolute',
+                                right: 0,
+                            }}
                         />
                     )}
                 </Flex>

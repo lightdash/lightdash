@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button, Text, Tooltip } from '@mantine/core';
+import { Button, Text, Tooltip, type ButtonProps } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
 import { useCallback, useEffect, useState } from 'react';
 import { useExplore } from '../../../hooks/useExplore';
@@ -13,11 +13,11 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 
 type Props = {
     className?: string;
-    visibility?: 'visible' | 'hidden';
     row: MRT_Row<CatalogField>;
+    sx?: ButtonProps['sx'];
 };
 
-export const ExploreMetricButton = ({ row, visibility, className }: Props) => {
+export const ExploreMetricButton = ({ row, className, sx }: Props) => {
     const [exploreUrl, setExploreUrl] = useState<string>();
     const [shouldOpenInNewTab, setShouldOpenInNewTab] = useState(false);
     const projectUuid = useAppSelector(
@@ -103,7 +103,7 @@ export const ExploreMetricButton = ({ row, visibility, className }: Props) => {
                 sx={{
                     border: `1px solid #414E62`,
                     boxShadow: '0px 0px 0px 1px #151C24',
-                    visibility,
+                    ...sx,
                 }}
             >
                 <Text fz="sm" fw={500}>
