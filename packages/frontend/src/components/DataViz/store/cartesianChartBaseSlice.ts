@@ -326,25 +326,6 @@ export const cartesianChartConfigSlice = createSlice({
             } else {
                 display.yAxis[action.payload.index].format = validFormat;
             }
-
-            // Update the format for series with yAxisIndex 0
-            if (display.series) {
-                // TODO: Do this but series need a new prop for axis index
-                // Object.values(display.series).forEach((series) => {
-                //     if (series.yAxisIndex === action.payload.index) {
-                //         series.format = validFormat;
-                //     }
-                // });
-            } else if (fieldConfig?.y[0].reference) {
-                // TODO: this looks like it sets the first series to this axis.
-                // What should it do? Set any series not set to the other axis to this one?
-                display.series = {
-                    [fieldConfig?.y[0].reference]: {
-                        format: validFormat,
-                        yAxisIndex: 0,
-                    },
-                };
-            }
         },
         setSeriesFormat: (
             { display },
@@ -396,6 +377,27 @@ export const cartesianChartConfigSlice = createSlice({
                 ...display.series[reference],
                 yAxisIndex: index,
                 type,
+            };
+        },
+        setSeriesYAxis: (
+            { display },
+            action: PayloadAction<{
+                index: number;
+                whichYAxis: NonNullable<
+                    CartesianChartDisplay['series']
+                >[number]['whichYAxis'];
+                reference: string;
+            }>,
+        ) => {
+            if (!display) return;
+            display = display || {};
+            display.series = display.series || {};
+
+            const { index, whichYAxis, reference } = action.payload;
+            display.series[reference] = {
+                ...display.series[reference],
+                yAxisIndex: index,
+                whichYAxis,
             };
         },
         setSeriesColor: (
