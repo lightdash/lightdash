@@ -59,10 +59,19 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             <HeaderCell Icon={Hash}>{column.columnDef.header}</HeaderCell>
         ),
         Cell: ({ row, table }) => {
+            const canManageExplore = useAppSelector(
+                (state) => state.metricsCatalog.abilities.canManageExplore,
+            );
+
             return (
                 <Flex justify="space-between" align="center" w="100%">
                     <MetricsCatalogColumnName row={row} table={table} />
-                    <ExploreMetricButton row={row} className="explore-button" />
+                    {canManageExplore && (
+                        <ExploreMetricButton
+                            row={row}
+                            className="explore-button"
+                        />
+                    )}
                 </Flex>
             );
         },
