@@ -856,13 +856,10 @@ export class CatalogService<
         const filteredExplore = getFilteredExplore(explore, userAttributes);
 
         const defaultTimeDimension =
-            filteredExplore?.tables?.[filteredExplore.baseTable]
-                ?.defaultTimeDimension;
+            filteredExplore?.tables?.[tableName]?.defaultTimeDimension;
 
         const metric =
-            filteredExplore?.tables?.[filteredExplore.baseTable]?.metrics?.[
-                metricName
-            ];
+            filteredExplore?.tables?.[tableName]?.metrics?.[metricName];
 
         if (!metric) {
             throw new NotFoundError('Metric not found');
