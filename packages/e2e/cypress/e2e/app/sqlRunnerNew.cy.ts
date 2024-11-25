@@ -95,7 +95,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('label', 'Chart').click();
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('First name')
+            .contains('Created')
             .should('be.visible');
         cy.get('.echarts-for-react')
             .find('text')
@@ -145,7 +145,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('label', 'Chart').click();
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('First name')
+            .contains('Created')
             .should('be.visible');
         cy.get('.echarts-for-react')
             .find('text')
@@ -228,9 +228,9 @@ describe('SQL Runner (new)', () => {
 
         // Verify that there are errors to be fixed and fix them
         cy.contains('label', 'Chart').click();
-        cy.contains(
-            'Column "first_name" does not exist. Choose another',
-        ).should('be.visible');
+        cy.contains('Column "created" does not exist. Choose another').should(
+            'be.visible',
+        );
         cy.contains('Save').click();
         cy.get('section[role="dialog"]')
             .find('button')
@@ -274,7 +274,7 @@ describe('SQL Runner (new)', () => {
         cy.contains('label', 'Chart').click();
         cy.get('.echarts-for-react')
             .find('text')
-            .contains('First name')
+            .contains('Created')
             .should('be.visible');
 
         // Intercept the API call we don't expect to happen
