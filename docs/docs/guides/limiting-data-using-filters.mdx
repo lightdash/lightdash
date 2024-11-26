@@ -388,3 +388,33 @@ For example, if I had a chart for Sales in Asia and I filtered to `country` **is
 So, the result? My tile would only include Sales where the `country = India`.
 
 Here's another example using a date filter: If my original saved chart was filtered to only include orders completed on or after April 3rd, 2022. But, I add a date filter to my dashboard to include orders completed on or after August 1st, 2022, then the dashboard filter would be added to the saved chart filter and I'll end up with the chart filtered by orders completed on or after August 1st, 2022.
+
+#### Dashboard filters autocomplete
+
+When determining possible values for a dashboard filter, the system will take into account all relevant filters, including those applied to fields from joined tables.
+
+Example with payments and orders models:
+
+```yaml
+- name: customers
+...
+- name: orders
+  meta:
+    joins:
+      - join: customers
+        sql_on: ${customers.customer_id} = ${orders.customer_id}
+...
+- name: payments
+  meta:
+    joins:
+      - join: orders
+        sql_on: ${orders.order_id} = ${payments.order_id}
+      - join: customers
+        sql_on: ${customers.customer_id} = ${orders.customer_id}
+```
+
+Following this example:
+
+- when filtering on a field from the `payments` model, the system will consider the filters applied to fields from the `payments`, `orders` and `customers` models
+- when filtering on a field from the `orders` model, the system will consider the filters applied to fields from the `orders` and `customers` models
+- when filtering on a field from the `customers` model, the system will consider the filters applied to fields from the `customers` model

@@ -2575,7 +2575,12 @@ export class ProjectService extends BaseService {
             },
         ];
         if (filters) {
-            autocompleteDimensionFilters.push(filters);
+            const filtersCompatibleWithExplore = filters.and.filter(
+                (filter) =>
+                    isFilterRule(filter) &&
+                    findFieldByIdInExplore(explore, filter.target.fieldId),
+            );
+            autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
         }
         const metricQuery: MetricQuery = {
             exploreName: explore.name,
