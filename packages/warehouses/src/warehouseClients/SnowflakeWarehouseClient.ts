@@ -196,7 +196,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
-            rowLimit?: number;
         },
     ): Promise<void> {
         let connection: Connection;
@@ -253,29 +252,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
             );
 
-            if (options?.rowLimit) {
-                const wrappedSql = `
-                    WITH ordered_results AS (
-                        ${sql}
-                    )
-                    SELECT *
-                    FROM ordered_results
-                    LIMIT ${options.rowLimit}`;
-
-                await this.executeStreamStatement(
-                    connection,
-                    wrappedSql,
-                    streamCallback,
-                    options,
-                );
-            } else {
-                await this.executeStreamStatement(
-                    connection,
-                    sql,
-                    streamCallback,
-                    options,
-                );
-            }
+            await this.executeStreamStatement(
+                connection,
+                sql,
+                streamCallback,
+                options,
+            );
         } catch (e) {
             const error = e as SnowflakeError;
             throw this.parseError(error, sql);
