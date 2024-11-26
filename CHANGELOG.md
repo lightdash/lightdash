@@ -1,3 +1,10 @@
+## [0.1380.2](https://github.com/lightdash/lightdash/compare/0.1380.1...0.1380.2) (2024-11-26)
+
+
+### Bug Fixes
+
+* duplicate user on create throws correct error ([#12613](https://github.com/lightdash/lightdash/issues/12613)) ([7fbc4c1](https://github.com/lightdash/lightdash/commit/7fbc4c1df5a835626c78a22376a3648eed1789ac))
+
 ## [0.1380.1](https://github.com/lightdash/lightdash/compare/0.1380.0...0.1380.1) (2024-11-25)
 
 
