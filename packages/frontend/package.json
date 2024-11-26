@@ -58,6 +58,7 @@
         "@tiptap/starter-kit": "^2.2.4",
         "@tiptap/suggestion": "^2.2.4",
         "@uiw/react-md-editor": "^3.23.5",
+        "@xyflow/react": "^12.3.5",
         "ace-builds": "^1.4.14",
         "canvas-confetti": "^1.6.0",
         "colorjs.io": "^0.4.5",
