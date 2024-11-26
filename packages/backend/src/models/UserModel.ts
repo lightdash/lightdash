@@ -1,5 +1,6 @@
 import {
     ActivateUser,
+    AlreadyExistsError,
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
@@ -643,7 +644,7 @@ export class UserModel {
                 email,
             );
             if (duplicatedEmails.length > 0) {
-                throw new ParameterError(`Email ${email} already in use`);
+                throw new AlreadyExistsError(`Email ${email} already in use`);
             }
 
             const newUser = await this.createUserTransaction(trx, {
