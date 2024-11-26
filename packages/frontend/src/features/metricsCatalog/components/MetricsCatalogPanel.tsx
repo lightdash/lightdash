@@ -7,6 +7,7 @@ import {
     Group,
     Popover,
     Stack,
+    Tabs,
     Text,
     Tooltip,
     useMantineTheme,
@@ -32,6 +33,7 @@ import {
 import { MetricChartUsageModal } from './MetricChartUsageModal';
 import { MetricPeekModal } from './MetricPeekModal';
 import { MetricsTable } from './MetricsTable';
+import MetricTree from './MetricTree';
 
 const InfoPopover: FC = () => {
     const canRefreshCatalog = useAppSelector(
@@ -244,15 +246,27 @@ export const MetricsCatalogPanel = () => {
                     <InfoPopover />
                 </Group>
             </Group>
-            <MetricsTable />
-            <MetricChartUsageModal
-                opened={isMetricUsageModalOpen}
-                onClose={onCloseMetricUsageModal}
-            />
-            <MetricPeekModal
-                opened={isMetricPeekModalOpen}
-                onClose={onCloseMetricPeekModal}
-            />
+            <Tabs defaultValue="metrics-catalog">
+                <Tabs.List>
+                    <Tabs.Tab value="metrics-catalog">Metrics Catalog</Tabs.Tab>
+                    <Tabs.Tab value="metrics-tree">Metrics Tree</Tabs.Tab>
+                </Tabs.List>
+
+                <Tabs.Panel value="metrics-catalog">
+                    <MetricsTable />
+                    <MetricChartUsageModal
+                        opened={isMetricUsageModalOpen}
+                        onClose={onCloseMetricUsageModal}
+                    />
+                    <MetricPeekModal
+                        opened={isMetricPeekModalOpen}
+                        onClose={onCloseMetricPeekModal}
+                    />
+                </Tabs.Panel>
+                <Tabs.Panel value="metrics-tree">
+                    <MetricTree />
+                </Tabs.Panel>
+            </Tabs>
         </Stack>
     );
 };
