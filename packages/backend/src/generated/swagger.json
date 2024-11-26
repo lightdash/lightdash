@@ -3950,6 +3950,46 @@
             "UpdateDBProjectGroupAccess": {
                 "$ref": "#/components/schemas/Pick_DBProjectGroupAccess.role_"
             },
+            "Record_string._value-ResultValue--__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ResultRow": {
+                "$ref": "#/components/schemas/Record_string._value-ResultValue--__"
+            },
+            "MetricsExplorerQueryResults": {
+                "properties": {
+                    "comparisonRows": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultRow"
+                        },
+                        "type": "array"
+                    },
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultRow"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["rows"],
+                "type": "object"
+            },
+            "ApiMetricsExplorerQueryResults": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MetricsExplorerQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "NotificationBase": {
                 "properties": {
                     "url": {
@@ -13399,16 +13439,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "results": {},
-                                        "status": {
-                                            "type": "string",
-                                            "enum": ["ok"],
-                                            "nullable": false
-                                        }
-                                    },
-                                    "required": ["results", "status"],
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ApiMetricsExplorerQueryResults"
                                 }
                             }
                         }

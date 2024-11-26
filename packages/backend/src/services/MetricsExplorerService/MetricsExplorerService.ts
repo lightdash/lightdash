@@ -8,6 +8,7 @@ import {
     MetricExplorerComparison,
     MetricExplorerComparisonType,
     type MetricQuery,
+    type MetricsExplorerQueryResults,
     type ResultRow,
     type SessionUser,
 } from '@lightdash/common';
@@ -55,7 +56,7 @@ export class MetricsExplorerService<
         exploreName: string,
         metricName: string,
         compare: MetricExplorerComparisonType | undefined,
-    ) {
+    ): Promise<MetricsExplorerQueryResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -166,6 +167,6 @@ export class MetricsExplorerService<
             }
         }
 
-        return { currentResult, comparisonResult };
+        return { rows: currentResult, comparisonRows: comparisonResult };
     }
 }

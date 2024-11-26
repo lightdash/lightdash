@@ -121,6 +121,7 @@ import {
     type ApiContentResponse,
 } from './types/content';
 import type { ApiGroupListResponse } from './types/groups';
+import type { ApiMetricsExplorerQueryResults } from './types/metricsExplorer';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiSemanticLayerClientInfo,
@@ -695,6 +696,7 @@ type ApiResults =
     | ApiCreateVirtualView['results']
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']
+    | ApiMetricsExplorerQueryResults['results']
     | ApiGroupListResponse['results']
     | ApiCreateTagResponse['results'];
 

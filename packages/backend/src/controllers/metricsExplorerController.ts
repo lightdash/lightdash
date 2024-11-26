@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     MetricExplorerComparison,
+    type ApiMetricsExplorerQueryResults,
     type MetricExplorerComparisonType,
 } from '@lightdash/common';
 import {
@@ -41,7 +42,7 @@ export class MetricsExplorerController extends BaseController {
         @Request() req: express.Request,
         @Query() compareToPreviousPeriod?: boolean,
         @Query() compareToMetric?: string,
-    ): Promise<{ status: 'ok'; results: unknown /* TODO: */ }> {
+    ): Promise<ApiMetricsExplorerQueryResults> {
         this.setStatus(200);
 
         let compare: MetricExplorerComparisonType | undefined;
