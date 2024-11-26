@@ -162,6 +162,8 @@ export const MetricsTable = () => {
                 border: `1px solid ${theme.colors.gray[2]}`,
                 borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
                 boxShadow: theme.shadows.subtle,
+                display: 'flex',
+                flexDirection: 'column',
             },
         },
         mantineTableContainerProps: {
@@ -169,13 +171,25 @@ export const MetricsTable = () => {
             sx: {
                 maxHeight: 'calc(100dvh - 350px)',
                 minHeight: '600px',
+                display: 'flex',
+                flexDirection: 'column',
             },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: true,
+            withColumnBorders: Boolean(flatData.length),
+            sx: {
+                flexGrow: 1,
+                display: 'flex',
+                flexDirection: 'column',
+            },
+        },
+        mantineTableHeadProps: {
+            sx: {
+                flexShrink: 1,
+            },
         },
         mantineTableHeadRowProps: {
             sx: {
@@ -197,6 +211,11 @@ export const MetricsTable = () => {
             const isAnyColumnResizing = props.table
                 .getAllColumns()
                 .some((c) => c.getIsResizing());
+
+            const isLastColumn =
+                props.table.getAllColumns().indexOf(props.column) ===
+                props.table.getAllColumns().length - 1;
+
             return {
                 bg: 'gray.0',
                 h: '3xl',
@@ -207,7 +226,11 @@ export const MetricsTable = () => {
                     borderBottom: `1px solid ${theme.colors.gray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${theme.colors.gray[2]}`,
+                        : `1px solid ${
+                              isLastColumn
+                                  ? 'transparent'
+                                  : theme.colors.gray[2]
+                          }`,
                     borderTop: 'none',
                     borderLeft: 'none',
                 },
@@ -225,9 +248,20 @@ export const MetricsTable = () => {
                 },
             };
         },
+        mantineTableBodyProps: {
+            sx: {
+                flexGrow: 1,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                'tr:last-of-type > td': {
+                    borderBottom: 'none',
+                },
+            },
+        },
         mantineTableBodyRowProps: {
             sx: {
-                'td:first-of-type > div > .explore-button': {
+                'td:first-of-type > div > .explore-button-container': {
                     visibility: 'hidden',
                     opacity: 0,
                 },
@@ -237,7 +271,7 @@ export const MetricsTable = () => {
                         transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
 
-                    'td:first-of-type > div > .explore-button': {
+                    'td:first-of-type > div > .explore-button-container': {
                         visibility: 'visible',
                         opacity: 1,
                         transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
@@ -245,21 +279,29 @@ export const MetricsTable = () => {
                 },
             },
         },
-        mantineTableBodyCellProps: {
-            h: 72,
-            // Adding to inline styles to override the default ones which can't be overridden with sx
-            style: {
-                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                borderRight: `1px solid ${theme.colors.gray[2]}`,
-                borderBottom: `1px solid ${theme.colors.gray[2]}`,
-                borderTop: 'none',
-                borderLeft: 'none',
-            },
-            sx: {
-                display: 'inline-flex',
-                alignItems: 'center',
-                flexShrink: 0,
-            },
+        mantineTableBodyCellProps: (props) => {
+            const isLastColumn =
+                props.table.getAllColumns().indexOf(props.column) ===
+                props.table.getAllColumns().length - 1;
+
+            return {
+                h: 72,
+                // Adding to inline styles to override the default ones which can't be overridden with sx
+                style: {
+                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                    borderRight: isLastColumn
+                        ? 'none'
+                        : `1px solid ${theme.colors.gray[2]}`,
+                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                },
+                sx: {
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    flexShrink: 0,
+                },
+            };
         },
         renderTopToolbar: () => (
             <Box>

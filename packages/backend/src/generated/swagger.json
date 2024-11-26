@@ -544,6 +544,423 @@
                 "type": "string",
                 "enum": ["asc", "desc"]
             },
+            "Record_string.Record_string.string-or-string-Array__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "FieldType.METRIC": {
+                "enum": ["metric"],
+                "type": "string"
+            },
+            "MetricType": {
+                "enum": [
+                    "percentile",
+                    "average",
+                    "count",
+                    "count_distinct",
+                    "sum",
+                    "min",
+                    "max",
+                    "number",
+                    "median",
+                    "string",
+                    "date",
+                    "timestamp",
+                    "boolean"
+                ],
+                "type": "string"
+            },
+            "ConditionalOperator": {
+                "enum": [
+                    "isNull",
+                    "notNull",
+                    "equals",
+                    "notEquals",
+                    "startsWith",
+                    "endsWith",
+                    "include",
+                    "doesNotInclude",
+                    "lessThan",
+                    "lessThanOrEqual",
+                    "greaterThan",
+                    "greaterThanOrEqual",
+                    "inThePast",
+                    "notInThePast",
+                    "inTheNext",
+                    "inTheCurrent",
+                    "notInTheCurrent",
+                    "inBetween"
+                ],
+                "type": "string"
+            },
+            "MetricFilterRule": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "properties": {
+                            "fieldRef": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["fieldRef"],
+                        "type": "object"
+                    },
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    },
+                    "required": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "CustomFormatType": {
+                "enum": [
+                    "default",
+                    "percent",
+                    "currency",
+                    "number",
+                    "id",
+                    "date",
+                    "timestamp"
+                ],
+                "type": "string"
+            },
+            "NumberSeparator": {
+                "enum": [
+                    "default",
+                    "commaPeriod",
+                    "spacePeriod",
+                    "periodComma",
+                    "noSeparatorPeriod"
+                ],
+                "type": "string"
+            },
+            "Compact": {
+                "enum": ["thousands", "millions", "billions", "trillions"],
+                "type": "string"
+            },
+            "CompactOrAlias": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/Compact"
+                    },
+                    {
+                        "type": "string",
+                        "enum": [
+                            "K",
+                            "thousand",
+                            "M",
+                            "million",
+                            "B",
+                            "billion",
+                            "T",
+                            "trillion"
+                        ]
+                    }
+                ]
+            },
+            "TimeFrames": {
+                "enum": [
+                    "RAW",
+                    "YEAR",
+                    "QUARTER",
+                    "MONTH",
+                    "WEEK",
+                    "DAY",
+                    "HOUR",
+                    "MINUTE",
+                    "SECOND",
+                    "MILLISECOND",
+                    "DAY_OF_WEEK_INDEX",
+                    "DAY_OF_MONTH_NUM",
+                    "DAY_OF_YEAR_NUM",
+                    "WEEK_NUM",
+                    "MONTH_NUM",
+                    "QUARTER_NUM",
+                    "YEAR_NUM",
+                    "DAY_OF_WEEK_NAME",
+                    "MONTH_NAME",
+                    "QUARTER_NAME",
+                    "HOUR_OF_DAY_NUM",
+                    "MINUTE_OF_HOUR_NUM"
+                ],
+                "type": "string"
+            },
+            "CustomFormat": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/CustomFormatType"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "prefix": {
+                        "type": "string"
+                    },
+                    "suffix": {
+                        "type": "string"
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "SourcePosition": {
+                "properties": {
+                    "character": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "line": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["character", "line"],
+                "type": "object"
+            },
+            "Source": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "highlight": {
+                        "properties": {
+                            "end": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            },
+                            "start": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            }
+                        },
+                        "required": ["end", "start"],
+                        "type": "object"
+                    },
+                    "range": {
+                        "properties": {
+                            "end": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            },
+                            "start": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            }
+                        },
+                        "required": ["end", "start"],
+                        "type": "object"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["content", "range", "path"],
+                "type": "object"
+            },
+            "Format": {
+                "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
+                "type": "string"
+            },
+            "FieldUrl": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": ["label", "url"],
+                "type": "object"
+            },
+            "CompiledMetric": {
+                "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType.METRIC"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/MetricType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
+                    "tableLabel": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/Source"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "format": {
+                        "$ref": "#/components/schemas/Format"
+                    },
+                    "groupLabel": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "urls": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldUrl"
+                        },
+                        "type": "array"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "isAutoGenerated": {
+                        "type": "boolean"
+                    },
+                    "showUnderlyingValues": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "percentile": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    },
+                    "dimensionReference": {
+                        "type": "string"
+                    },
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "compiledSql": {
+                        "type": "string"
+                    },
+                    "tablesReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "tablesRequiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.Record_string.string-or-string-Array__"
+                    }
+                },
+                "required": [
+                    "fieldType",
+                    "type",
+                    "name",
+                    "label",
+                    "table",
+                    "tableLabel",
+                    "sql",
+                    "hidden",
+                    "isAutoGenerated",
+                    "compiledSql"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "Pick_CompiledTable.defaultTimeDimension_": {
+                "properties": {
+                    "defaultTimeDimension": {
+                        "properties": {
+                            "interval": {
+                                "$ref": "#/components/schemas/TimeFrames"
+                            },
+                            "field": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["interval", "field"],
+                        "type": "object"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ApiGetMetricPeek": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CompiledMetric"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CompiledTable.defaultTimeDimension_"
+                            }
+                        ]
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiSuccessEmpty": {
                 "properties": {
                     "results": {},
@@ -998,29 +1415,6 @@
                 "required": ["tableName", "fieldId"],
                 "type": "object"
             },
-            "ConditionalOperator": {
-                "enum": [
-                    "isNull",
-                    "notNull",
-                    "equals",
-                    "notEquals",
-                    "startsWith",
-                    "endsWith",
-                    "include",
-                    "doesNotInclude",
-                    "lessThan",
-                    "lessThanOrEqual",
-                    "greaterThan",
-                    "greaterThanOrEqual",
-                    "inThePast",
-                    "notInThePast",
-                    "inTheNext",
-                    "inTheCurrent",
-                    "notInTheCurrent",
-                    "inBetween"
-                ],
-                "type": "string"
-            },
             "FilterRule_ConditionalOperator.T.V.any_": {
                 "properties": {
                     "values": {
@@ -1449,111 +1843,6 @@
                 "required": ["descending", "fieldId"],
                 "type": "object"
             },
-            "CustomFormatType": {
-                "enum": [
-                    "default",
-                    "percent",
-                    "currency",
-                    "number",
-                    "id",
-                    "date",
-                    "timestamp"
-                ],
-                "type": "string"
-            },
-            "NumberSeparator": {
-                "enum": [
-                    "default",
-                    "commaPeriod",
-                    "spacePeriod",
-                    "periodComma",
-                    "noSeparatorPeriod"
-                ],
-                "type": "string"
-            },
-            "Compact": {
-                "enum": ["thousands", "millions", "billions", "trillions"],
-                "type": "string"
-            },
-            "CompactOrAlias": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/Compact"
-                    },
-                    {
-                        "type": "string",
-                        "enum": [
-                            "K",
-                            "thousand",
-                            "M",
-                            "million",
-                            "B",
-                            "billion",
-                            "T",
-                            "trillion"
-                        ]
-                    }
-                ]
-            },
-            "TimeFrames": {
-                "enum": [
-                    "RAW",
-                    "YEAR",
-                    "QUARTER",
-                    "MONTH",
-                    "WEEK",
-                    "DAY",
-                    "HOUR",
-                    "MINUTE",
-                    "SECOND",
-                    "MILLISECOND",
-                    "DAY_OF_WEEK_INDEX",
-                    "DAY_OF_MONTH_NUM",
-                    "DAY_OF_YEAR_NUM",
-                    "WEEK_NUM",
-                    "MONTH_NUM",
-                    "QUARTER_NUM",
-                    "YEAR_NUM",
-                    "DAY_OF_WEEK_NAME",
-                    "MONTH_NAME",
-                    "QUARTER_NAME",
-                    "HOUR_OF_DAY_NUM",
-                    "MINUTE_OF_HOUR_NUM"
-                ],
-                "type": "string"
-            },
-            "CustomFormat": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/CustomFormatType"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator"
-                    },
-                    "currency": {
-                        "type": "string"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
-                    },
-                    "prefix": {
-                        "type": "string"
-                    },
-                    "suffix": {
-                        "type": "string"
-                    },
-                    "timeInterval": {
-                        "$ref": "#/components/schemas/TimeFrames"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "additionalProperties": true
-            },
             "TableCalculationType": {
                 "enum": ["number", "string", "date", "timestamp", "boolean"],
                 "type": "string"
@@ -1582,61 +1871,6 @@
                 },
                 "required": ["sql", "displayName", "name"],
                 "type": "object"
-            },
-            "MetricType": {
-                "enum": [
-                    "percentile",
-                    "average",
-                    "count",
-                    "count_distinct",
-                    "sum",
-                    "min",
-                    "max",
-                    "number",
-                    "median",
-                    "string",
-                    "date",
-                    "timestamp",
-                    "boolean"
-                ],
-                "type": "string"
-            },
-            "Format": {
-                "enum": ["km", "mi", "usd", "gbp", "eur", "id", "percent"],
-                "type": "string"
-            },
-            "MetricFilterRule": {
-                "properties": {
-                    "values": {
-                        "items": {},
-                        "type": "array"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
-                    },
-                    "id": {
-                        "type": "string"
-                    },
-                    "target": {
-                        "properties": {
-                            "fieldRef": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["fieldRef"],
-                        "type": "object"
-                    },
-                    "settings": {},
-                    "disabled": {
-                        "type": "boolean"
-                    },
-                    "required": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": true
             },
             "AdditionalMetric": {
                 "properties": {
@@ -3144,56 +3378,6 @@
             },
             "LineageGraph": {
                 "$ref": "#/components/schemas/Record_string.LineageNodeDependency-Array_"
-            },
-            "SourcePosition": {
-                "properties": {
-                    "character": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "line": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["character", "line"],
-                "type": "object"
-            },
-            "Source": {
-                "properties": {
-                    "content": {
-                        "type": "string"
-                    },
-                    "highlight": {
-                        "properties": {
-                            "end": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            },
-                            "start": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            }
-                        },
-                        "required": ["end", "start"],
-                        "type": "object"
-                    },
-                    "range": {
-                        "properties": {
-                            "end": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            },
-                            "start": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            }
-                        },
-                        "required": ["end", "start"],
-                        "type": "object"
-                    },
-                    "path": {
-                        "type": "string"
-                    }
-                },
-                "required": ["content", "range", "path"],
-                "type": "object"
             },
             "CompiledTable": {
                 "allOf": [
@@ -11117,7 +11301,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1378.4",
+        "version": "0.1380.1",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -11482,6 +11666,62 @@
                             "items": {
                                 "type": "string"
                             }
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/{tableName}/{metricName}": {
+            "get": {
+                "operationId": "getMetric",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetMetricPeek"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get metric by table and metric name",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "tableName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "metricName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]

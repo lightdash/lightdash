@@ -1,3 +1,52 @@
+## [0.1380.1](https://github.com/lightdash/lightdash/compare/0.1380.0...0.1380.1) (2024-11-25)
+
+
+### Bug Fixes
+
+* user list in space permissions shows duplicates ([#12555](https://github.com/lightdash/lightdash/issues/12555)) ([4c0533a](https://github.com/lightdash/lightdash/commit/4c0533aa555f4ff60e902bf41eb4adde20f1a8e0))
+
+# [0.1380.0](https://github.com/lightdash/lightdash/compare/0.1379.3...0.1380.0) (2024-11-25)
+
+
+### Features
+
+* display date-range picker and allow preset selection [UI] ([#12605](https://github.com/lightdash/lightdash/issues/12605)) ([fcf4d4d](https://github.com/lightdash/lightdash/commit/fcf4d4d30920ce2a5b7e94570c3551ec2f5a5956))
+
+## [0.1379.3](https://github.com/lightdash/lightdash/compare/0.1379.2...0.1379.3) (2024-11-25)
+
+
+### Bug Fixes
+
+* remove divider when no results and double borders ([#12603](https://github.com/lightdash/lightdash/issues/12603)) ([cbb71ba](https://github.com/lightdash/lightdash/commit/cbb71ba724c5561d76c51950766e0e557c5646f6))
+
+## [0.1379.2](https://github.com/lightdash/lightdash/compare/0.1379.1...0.1379.2) (2024-11-25)
+
+
+### Bug Fixes
+
+* allow metric name to use the whole width of the cell and cta to overlay ([#12600](https://github.com/lightdash/lightdash/issues/12600)) ([d245e1a](https://github.com/lightdash/lightdash/commit/d245e1aabe85badc244e170313a301ea25f553a8))
+
+## [0.1379.1](https://github.com/lightdash/lightdash/compare/0.1379.0...0.1379.1) (2024-11-25)
+
+
+### Bug Fixes
+
+* hide explore button when user doesn't have access to explore ([#12599](https://github.com/lightdash/lightdash/issues/12599)) ([5a5df68](https://github.com/lightdash/lightdash/commit/5a5df68d682821ea323a94e8649613799d4d6116))
+
+# [0.1379.0](https://github.com/lightdash/lightdash/compare/0.1378.5...0.1379.0) (2024-11-25)
+
+
+### Features
+
+* display metric peek modal on click of metric column name ([#12593](https://github.com/lightdash/lightdash/issues/12593)) ([e59297e](https://github.com/lightdash/lightdash/commit/e59297ec64805d2cd6d55bcd0aa00578fc917691))
+
+## [0.1378.5](https://github.com/lightdash/lightdash/compare/0.1378.4...0.1378.5) (2024-11-25)
+
+
+### Bug Fixes
+
+* new defaults for SQL runner chart fields ([#12582](https://github.com/lightdash/lightdash/issues/12582)) ([fd27f8f](https://github.com/lightdash/lightdash/commit/fd27f8ffad38ac5b8464498d1bdfcafbd91a645f))
+
 ## [0.1378.4](https://github.com/lightdash/lightdash/compare/0.1378.3...0.1378.4) (2024-11-22)
 
 

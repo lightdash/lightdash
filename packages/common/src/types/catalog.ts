@@ -1,6 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     type CompiledExploreJoin,
+    type CompiledTable,
     type Explore,
     type ExploreError,
     type InlineError,
@@ -100,6 +101,11 @@ export type ApiMetricsCatalogResults = CatalogField[];
 export type ApiMetricsCatalog = {
     status: 'ok';
     results: KnexPaginatedData<ApiMetricsCatalogResults>;
+};
+
+export type ApiGetMetricPeek = {
+    status: 'ok';
+    results: CompiledMetric & Pick<CompiledTable, 'defaultTimeDimension'>;
 };
 
 export type CatalogMetadata = {
