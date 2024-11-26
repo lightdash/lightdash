@@ -21,7 +21,6 @@ import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
-import { RenameService } from './RenameService/RenameService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SavedSemanticViewerChartService } from './SavedSemanticViewerChartService/SavedSemanticViewerChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
@@ -75,7 +74,6 @@ interface ServiceManifest {
     contentService: ContentService;
     semanticLayerService: SemanticLayerService;
     savedSemanticViewerChartService: SavedSemanticViewerChartService;
-    renameService: RenameService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -602,22 +600,6 @@ export class ServiceRepository
                         this.models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
-                }),
-        );
-    }
-
-    public getRenameService(): RenameService {
-        return this.getService(
-            'renameService',
-            () =>
-                new RenameService({
-                    lightdashConfig: this.context.lightdashConfig,
-                    analytics: this.context.lightdashAnalytics,
-                    projectModel: this.models.getProjectModel(),
-                    savedChartModel: this.models.getSavedChartModel(),
-                    dashboardModel: this.models.getDashboardModel(),
-                    schedulerModel: this.models.getSchedulerModel(),
-                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }

@@ -11,8 +11,6 @@ import {
     indexCatalogJob,
     isCreateSchedulerSlackTarget,
     NotificationPayloadBase,
-    RenameModelAction,
-    RenameModelPayload,
     ScheduledDeliveryPayload,
     ScheduledJobs,
     Scheduler,
@@ -681,27 +679,6 @@ export class SchedulerClient {
                 isPreview: payload.isPreview,
                 jobUuid: payload.jobUuid,
             },
-        });
-
-        return { jobId };
-    }
-
-    async renameModel(payload: RenameModelPayload) {
-        const graphileClient = await this.graphileUtils;
-        const now = new Date();
-        const jobId = await SchedulerClient.addJob(
-            graphileClient,
-            RenameModelAction,
-            payload,
-            now,
-        );
-
-        await this.schedulerModel.logSchedulerJob({
-            task: RenameModelAction,
-            jobId,
-            scheduledTime: now,
-            status: SchedulerJobStatus.SCHEDULED,
-            details: payload,
         });
 
         return { jobId };
