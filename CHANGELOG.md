@@ -1,3 +1,10 @@
+# [0.1381.0](https://github.com/lightdash/lightdash/compare/0.1380.3...0.1381.0) (2024-11-26)
+
+
+### Features
+
+* autocomplete include all dashboard filters if part of filter ex… ([#12587](https://github.com/lightdash/lightdash/issues/12587)) ([d4a34b0](https://github.com/lightdash/lightdash/commit/d4a34b035d18ae467c9d2d0c54277b61daecf3c3))
+
 ## [0.1380.3](https://github.com/lightdash/lightdash/compare/0.1380.2...0.1380.3) (2024-11-26)
 
 
