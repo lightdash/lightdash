@@ -52,7 +52,8 @@ export type SchedulerLog = {
         | 'sqlRunner'
         | 'sqlRunnerPivotQuery'
         | 'semanticLayer'
-        | 'indexCatalog';
+        | 'indexCatalog'
+        | typeof RenameModelAction;
     schedulerUuid?: string;
     jobId: string;
     jobGroup?: string;
@@ -414,6 +415,16 @@ export type CompileProjectPayload = {
     requestMethod: string;
     jobUuid: string;
     isPreview: boolean;
+};
+
+export const RenameModelAction = 'renameModel';
+export type RenameModelPayload = {
+    createdByUserUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
+    oldModel: string;
+    newModel: string;
+    preview: boolean;
 };
 
 export type ValidateProjectPayload = {
