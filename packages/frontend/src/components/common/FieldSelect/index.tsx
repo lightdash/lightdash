@@ -100,6 +100,7 @@ const FieldSelect = <T extends Item = Item>({
     const inputRef = useRef<HTMLInputElement | null>(null); // Input ref for focus handling
     useEffect(() => {
         if (focusOnRender) {
+            // focus on the input after the component has rendered by throwing it to the end of the event loop first
             setTimeout(() => {
                 if (inputRef.current) {
                     inputRef.current.focus();
