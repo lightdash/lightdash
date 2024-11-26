@@ -36,6 +36,10 @@ export const MetricsTable = () => {
         (state) => state.metricsCatalog.categoryFilters,
     );
 
+    const canManageTags = useAppSelector(
+        (state) => state.metricsCatalog.abilities.canManageTags,
+    );
+
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
@@ -76,6 +80,10 @@ export const MetricsTable = () => {
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data],
     );
+
+    const dataHasCategories = useMemo(() => {
+        return flatData.some((item) => item.categories?.length);
+    }, [flatData]);
 
     // Check if we are mutating any of the icons or categories related mutations
     // TODO: Move this to separate hook and utilise constants so this scales better
@@ -311,6 +319,7 @@ export const MetricsTable = () => {
                     totalResults={totalResults}
                     position="apart"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
+                    showCategoriesFilter={canManageTags || dataHasCategories}
                 />
                 <Divider color="gray.2" />
             </Box>
@@ -369,6 +378,9 @@ export const MetricsTable = () => {
         },
         initialState: {
             showGlobalFilter: true, // Show search input by default
+            columnVisibility: {
+                categories: false,
+            },
         },
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { overscan: 40 },
@@ -381,6 +393,12 @@ export const MetricsTable = () => {
         enableEditing: true,
         editDisplayMode: 'cell',
     });
+
+    useEffect(() => {
+        table.setColumnVisibility({
+            categories: canManageTags || dataHasCategories,
+        });
+    }, [canManageTags, dataHasCategories, table]);
 
     return <MantineReactTable table={table} />;
 };

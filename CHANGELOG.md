@@ -1,3 +1,17 @@
+## [0.1380.3](https://github.com/lightdash/lightdash/compare/0.1380.2...0.1380.3) (2024-11-26)
+
+
+### Bug Fixes
+
+* additional dimensions date extra group ([#12590](https://github.com/lightdash/lightdash/issues/12590)) ([13ebfa4](https://github.com/lightdash/lightdash/commit/13ebfa4063ac487a18f55416c19fe70cb178e750))
+
+## [0.1380.2](https://github.com/lightdash/lightdash/compare/0.1380.1...0.1380.2) (2024-11-26)
+
+
+### Bug Fixes
+
+* duplicate user on create throws correct error ([#12613](https://github.com/lightdash/lightdash/issues/12613)) ([7fbc4c1](https://github.com/lightdash/lightdash/commit/7fbc4c1df5a835626c78a22376a3648eed1789ac))
+
 ## [0.1380.1](https://github.com/lightdash/lightdash/compare/0.1380.0...0.1380.1) (2024-11-25)
 
 
