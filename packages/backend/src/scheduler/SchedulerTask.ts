@@ -779,6 +779,8 @@ export default class SchedulerTask {
                     error: e,
                 },
             });
+            // Update legacy job
+            await this.projectService._markJobAsFailed(payload.jobUuid);
             throw e;
         }
     }

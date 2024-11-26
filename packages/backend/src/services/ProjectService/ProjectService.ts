@@ -731,10 +731,7 @@ export class ProjectService extends BaseService {
 
             return { projectUuid };
         } catch (error) {
-            await this.jobModel.setPendingJobsToSkipped(jobUuid);
-            await this.jobModel.update(jobUuid, {
-                jobStatus: JobStatusType.ERROR,
-            });
+            await this._markJobAsFailed(jobUuid);
             if (!(error instanceof LightdashError)) {
                 Sentry.captureException(error);
             }
@@ -745,6 +742,13 @@ export class ProjectService extends BaseService {
             );
             throw error;
         }
+    }
+
+    async _markJobAsFailed(jobUuid: string) {
+        await this.jobModel.setPendingJobsToSkipped(jobUuid);
+        await this.jobModel.update(jobUuid, {
+            jobStatus: JobStatusType.ERROR,
+        });
     }
 
     async setExplores(
