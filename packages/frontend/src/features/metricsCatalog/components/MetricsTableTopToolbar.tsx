@@ -3,10 +3,12 @@ import {
     ActionIcon,
     Badge,
     Button,
+    Center,
     Checkbox,
     Divider,
     Group,
     Popover,
+    SegmentedControl,
     Stack,
     Text,
     TextInput,
@@ -14,7 +16,13 @@ import {
     type GroupProps,
 } from '@mantine/core';
 import { useListState } from '@mantine/hooks';
-import { IconSearch, IconTag, IconX } from '@tabler/icons-react';
+import {
+    IconList,
+    IconSearch,
+    IconSitemap,
+    IconTag,
+    IconX,
+} from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTracking } from '../../../providers/TrackingProvider';
@@ -28,11 +36,18 @@ import {
 } from '../store/metricsCatalogSlice';
 import { CatalogCategory } from './CatalogCategory';
 
+export enum MetricCatalogView {
+    LIST = 'list',
+    TREE = 'tree',
+}
+
 type Props = GroupProps & {
     search: string | undefined;
     setSearch: (search: string) => void;
     totalResults: number;
     showCategoriesFilter?: boolean;
+    onMetricCatalogViewChange?: (view: MetricCatalogView) => void;
+    metricCatalogView: MetricCatalogView;
 };
 
 const CategoriesFilter = () => {
@@ -221,7 +236,15 @@ const CategoriesFilter = () => {
 };
 
 export const MetricsTableTopToolbar: FC<Props> = memo(
-    ({ search, setSearch, totalResults, showCategoriesFilter, ...props }) => {
+    ({
+        search,
+        setSearch,
+        totalResults,
+        showCategoriesFilter,
+        onMetricCatalogViewChange,
+        metricCatalogView,
+        ...props
+    }) => {
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
 
         return (
@@ -297,21 +320,72 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                     )}
                     {showCategoriesFilter && <CategoriesFilter />}
                 </Group>
-                <Badge
-                    bg="#F8F9FC"
-                    c="#363F72"
-                    radius={6}
-                    py="sm"
-                    px="xs"
-                    tt="none"
-                >
-                    <Group spacing={6}>
-                        <TotalMetricsDot />
-                        <Text fz="sm" fw={500}>
-                            {totalResults} metrics
-                        </Text>
-                    </Group>
-                </Badge>
+                <Group spacing="xs">
+                    <Badge
+                        bg="#F8F9FC"
+                        c="#363F72"
+                        radius={6}
+                        py="sm"
+                        px="xs"
+                        tt="none"
+                    >
+                        <Group spacing={6}>
+                            <TotalMetricsDot />
+                            <Text fz="sm" fw={500}>
+                                {totalResults} metrics
+                            </Text>
+                        </Group>
+                    </Badge>
+                    <Divider
+                        orientation="vertical"
+                        w={1}
+                        h={20}
+                        sx={{
+                            alignSelf: 'center',
+                            borderColor: '#DEE2E6',
+                        }}
+                    />
+                    <SegmentedControl
+                        size="xs"
+                        value={metricCatalogView}
+                        styles={(theme) => ({
+                            // TODO: Take care of padding
+                            root: {
+                                borderRadius: theme.radius.md,
+                                gap: theme.spacing.two,
+                            },
+                            indicator: {
+                                borderRadius: theme.radius.md,
+                                border: `1px solid ${theme.colors.gray[2]}`,
+                                backgroundColor: 'white',
+                                boxShadow: theme.shadows.subtle,
+                            },
+                        })}
+                        data={[
+                            {
+                                label: (
+                                    <Center>
+                                        <IconList size={16} />
+                                    </Center>
+                                ),
+                                value: MetricCatalogView.LIST,
+                            },
+                            {
+                                label: (
+                                    <Center>
+                                        <IconSitemap size={16} />
+                                    </Center>
+                                ),
+                                value: MetricCatalogView.TREE,
+                            },
+                        ]}
+                        onChange={(value) => {
+                            onMetricCatalogViewChange?.(
+                                value as MetricCatalogView,
+                            );
+                        }}
+                    />
+                </Group>
             </Group>
         );
     },

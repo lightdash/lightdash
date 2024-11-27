@@ -12,8 +12,13 @@ const initialEdges = [{ id: 'e1-2', source: '1', target: '2' }];
 
 const MetricTree: FC = () => {
     return (
-        <Box w="100%" h="calc(100dvh - 350px)">
-            <ReactFlow nodes={initialNodes} edges={initialEdges} />
+        <Box w="100%" h="100%">
+            <ReactFlow
+                nodes={initialNodes}
+                edges={initialEdges}
+                fitView
+                attributionPosition="top-right"
+            />
         </Box>
     );
 };
