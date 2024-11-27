@@ -32,6 +32,27 @@ export const unitOfTimeFormat: Record<UnitOfTime, string> = {
     years: 'YYYY',
 };
 
+export const getUnitsOfTimeGreaterOrEqual = (
+    unit: UnitOfTime,
+): UnitOfTime[] => {
+    const unitsInOrder: UnitOfTime[] = [
+        UnitOfTime.milliseconds,
+        UnitOfTime.seconds,
+        UnitOfTime.minutes,
+        UnitOfTime.hours,
+        UnitOfTime.days,
+        UnitOfTime.weeks,
+        UnitOfTime.months,
+        UnitOfTime.quarters,
+        UnitOfTime.years,
+    ];
+    const index = unitsInOrder.indexOf(unit);
+    if (index === -1) {
+        throw new Error(`Invalid unit of time: ${unit}`);
+    }
+    return unitsInOrder.slice(index);
+};
+
 export type FieldTarget = {
     fieldId: string;
 };

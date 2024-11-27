@@ -1,4 +1,4 @@
-import { UnitOfTime } from '@lightdash/common';
+import { getUnitsOfTimeGreaterOrEqual, UnitOfTime } from '@lightdash/common'; // Modified import to include getUnitsOfTimeGreaterOrEqual
 import { Select, type SelectProps } from '@mantine/core';
 import { type FC } from 'react';
 
@@ -14,17 +14,20 @@ const getUnitOfTimeLabel = (
 
 const getUnitOfTimeOptions = ({
     isTimestamp,
+    minUnitOfTime,
     showCompletedOptions,
     showOptionsInPlural,
 }: {
     isTimestamp: boolean;
+    minUnitOfTime?: UnitOfTime;
     showCompletedOptions: boolean;
     showOptionsInPlural: boolean;
 }) => {
     const dateIndex = Object.keys(UnitOfTime).indexOf(UnitOfTime.days);
 
-    // Filter unitTimes before Days if we are filtering Dates only
-    const unitsOfTime = isTimestamp
+    const unitsOfTime = minUnitOfTime
+        ? getUnitsOfTimeGreaterOrEqual(minUnitOfTime)
+        : isTimestamp
         ? Object.values(UnitOfTime)
         : Object.values(UnitOfTime).slice(dateIndex);
 
@@ -60,6 +63,7 @@ const getUnitOfTimeOptions = ({
 interface Props extends Omit<SelectProps, 'data' | 'onChange'> {
     isTimestamp: boolean;
     unitOfTime: UnitOfTime | null;
+    minUnitOfTime?: UnitOfTime;
     showOptionsInPlural?: boolean;
     showCompletedOptions?: boolean;
     completed: boolean;
@@ -69,6 +73,7 @@ interface Props extends Omit<SelectProps, 'data' | 'onChange'> {
 const FilterUnitOfTimeAutoComplete: FC<Props> = ({
     isTimestamp,
     unitOfTime,
+    minUnitOfTime,
     showOptionsInPlural = true,
     showCompletedOptions = true,
     completed,
@@ -83,6 +88,7 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
         value={completed ? `${unitOfTime}-completed` : unitOfTime}
         data={getUnitOfTimeOptions({
             isTimestamp,
+            minUnitOfTime,
             showCompletedOptions,
             showOptionsInPlural,
         })}
