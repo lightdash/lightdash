@@ -6,6 +6,7 @@ import {
     isFilterRuleDefinedForFieldId,
     removeFieldFromFilterGroup,
     type AndFilterGroup,
+    type DashboardTileTarget,
     type FilterGroup,
 } from './filter';
 
@@ -19,7 +20,7 @@ describe('compress and uncompress dashboard filters', () => {
                 fieldId: 'payments_payment_method',
                 tableName: 'payments',
             },
-            tileTargets: {},
+            tileTargets: {} as Record<string, DashboardTileTarget>,
             disabled: false,
             values: ['credit_card'],
         };
@@ -199,7 +200,7 @@ describe('compress and uncompress dashboard filters', () => {
                             fieldId: 'payments_payment_method',
                             tableName: 'payments',
                         },
-                        tileTargets: {},
+                        tileTargets: {} as Record<string, DashboardTileTarget>,
                         disabled: false,
                         values: ['credit_card'],
                     },

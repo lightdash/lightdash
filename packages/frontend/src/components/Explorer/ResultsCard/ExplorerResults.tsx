@@ -57,13 +57,13 @@ export const ExplorerResults = memo(() => {
     const [isExpandModalOpened, setIsExpandModalOpened] = useState(false);
     const [expandData, setExpandData] = useState<{
         name: string;
-        jsonObject: object;
+        jsonObject: Record<string, unknown>;
     }>({
         name: 'unknown',
         jsonObject: {},
     });
 
-    const handleCellExpand = (name: string, data: object) => {
+    const handleCellExpand = (name: string, data: Record<string, unknown>) => {
         setExpandData({
             name: name,
             jsonObject: data,

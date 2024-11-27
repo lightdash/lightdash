@@ -17,6 +17,6 @@ declare module '@tanstack/react-table' {
         isVisible?: boolean;
         onHeaderClick?: MouseEventHandler<HTMLTableHeaderCellElement>;
         type?: string;
-        headerInfo?: {};
+        headerInfo?: Record<string, any>;
     }
 }
