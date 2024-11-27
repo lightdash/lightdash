@@ -164,6 +164,7 @@ export * from './types/api/sort';
 export * from './types/api/success';
 export * from './types/api/uuid';
 export * from './types/catalog';
+export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';

@@ -5,6 +5,7 @@ import { ModelRepository } from '../models/ModelRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
+import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
 import { CsvService } from './CsvService/CsvService';
@@ -74,6 +75,7 @@ interface ServiceManifest {
     contentService: ContentService;
     semanticLayerService: SemanticLayerService;
     savedSemanticViewerChartService: SavedSemanticViewerChartService;
+    coderService: CoderService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -614,6 +616,22 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     validationModel: this.models.getValidationModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    schedulerClient: this.clients.getSchedulerClient(),
+                }),
+        );
+    }
+
+    public getCoderService(): CoderService {
+        return this.getService(
+            'coderService',
+            () =>
+                new CoderService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
