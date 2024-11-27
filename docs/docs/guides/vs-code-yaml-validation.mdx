@@ -1,0 +1,22 @@
+import VSCodeError from './assets/vs-code-error.png';
+
+# How to set up Lightdash YAML validation for VS Code 
+
+If you use VS Code to make edits to your dbt project, we recommend setting up Lightdash YAML validation. The validator will flag any formatting or configuration issues before compiling your project, so you can fix issues faster. 
+
+The validation uses the same logic that Lightdash uses when compiling your project. 
+
+All you have to do is add this snippet to your `settings.json` file in VS Code. [Read this guide](https://code.visualstudio.com/docs/getstarted/settings#_settings-json-file) to details on how to edit your `settings.json`. 
+
+```
+    "yaml.schemas": {
+        "https://raw.githubusercontent.com/lightdash/lightdash/main/packages/common/src/schemas/json/lightdash-dbt-2.0.json": [
+            "/**/models/**/*.yml",
+            "/**/models/**/*.yaml"
+        ]
+    },
+```
+
+Once it's been added you'll see warnings like this when working on your `schema.yml` files.
+
+<img src={VSCodeError} />
