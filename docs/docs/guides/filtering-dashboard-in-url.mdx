@@ -60,10 +60,10 @@ This is the process for setting it up:
   ></iframe>
 </div>
   
-  
-1. Open the dashboard you want to dynamically filter.
-2. Add a value to the filter you want to filter dynamically. 
-3. Copy the URL shown after applying the filter. It should look something like the image below. 
+<br>
+1. Open the dashboard you want to dynamically filter.  
+2. Add a value to the filter you want to filter dynamically.  
+3. Copy the URL shown after applying the filter. It should look something like the image below.  
 
 
 <figure>
@@ -73,8 +73,12 @@ This is the process for setting it up:
     height="60%"
     style={{ display: 'block', margin: '0 auto 20px auto' }}
   />
-  <figcaption>You'll notice there's a `?filters=` key in the URL. Everything after that is a JSON object that has been URL encoded. If you want to see the JSON you can find a URL decoder online to reformat it.</figcaption>
-</figure>
+
+:::note
+
+You'll notice there's a `?filters=` key in the URL. Everything after that is a JSON object that has been URL encoded. If you want to see the JSON you can find a URL decoder online to reformat it.
+
+:::
 
 4. Replace the filter value that you chose in step 2 with `${ value.formatted | url_encode }` to make it dynamic. In the example the value is `Plant+Paradise` (highlighted in the image). 
 5. Paste that URL into the YAML file for the model you're working in. See an [example in our demo project here](https://github.com/lightdash/lightdash-demo-data-gardening/blob/5632406cb5b43fdf066a2086142dc3e86a41e947/dbt/models/dbt_orders.yml#L31-L32). 
