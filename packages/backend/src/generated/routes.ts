@@ -941,17 +941,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricWithAssociatedTimeDimension: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CompiledMetric' },
+                { ref: 'Pick_CompiledTable.defaultTimeDimension_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGetMetricPeek: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'CompiledMetric' },
-                        { ref: 'Pick_CompiledTable.defaultTimeDimension_' },
-                    ],
+                    ref: 'MetricWithAssociatedTimeDimension',
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
@@ -12742,13 +12750,13 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post(
-        '/api/v1/projects/:projectUuid/metricsExplorer/:explore/:metric/runMetricsExplorerQuery',
+        '/api/v1/projects/:projectUuid/metricsExplorer/:explore/:metric/runMetricExplorerQuery',
         ...fetchMiddlewares<RequestHandler>(MetricsExplorerController),
         ...fetchMiddlewares<RequestHandler>(
-            MetricsExplorerController.prototype.runMetricsExplorerQuery,
+            MetricsExplorerController.prototype.runMetricExplorerQuery,
         ),
 
-        async function MetricsExplorerController_runMetricsExplorerQuery(
+        async function MetricsExplorerController_runMetricExplorerQuery(
             request: any,
             response: any,
             next: any,
@@ -12809,7 +12817,7 @@ export function RegisterRoutes(app: express.Router) {
                     controller.setStatus(undefined);
                 }
 
-                const promise = controller.runMetricsExplorerQuery.apply(
+                const promise = controller.runMetricExplorerQuery.apply(
                     controller,
                     validatedArgs as any,
                 );

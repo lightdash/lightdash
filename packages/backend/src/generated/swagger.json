@@ -940,17 +940,20 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "MetricWithAssociatedTimeDimension": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CompiledMetric"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Pick_CompiledTable.defaultTimeDimension_"
+                    }
+                ]
+            },
             "ApiGetMetricPeek": {
                 "properties": {
                     "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/CompiledMetric"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CompiledTable.defaultTimeDimension_"
-                            }
-                        ]
+                        "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
                     },
                     "status": {
                         "type": "string",
@@ -13430,9 +13433,9 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricsExplorerQuery": {
+        "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricExplorerQuery": {
             "post": {
-                "operationId": "runMetricsExplorerQuery",
+                "operationId": "runMetricExplorerQuery",
                 "responses": {
                     "200": {
                         "description": "Success",
