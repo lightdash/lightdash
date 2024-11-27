@@ -28,7 +28,6 @@ import ConditionalFormattingRule from './assets/conditional-formatting-rule.png'
 import ColumnsRowsMetricsExample from './assets/columns-rows-metrics-example.jpg';
 import MetricsAsRows from './assets/metrics-as-rows.jpg';
 import PivotedTable from './assets/pivoted-table.jpg';
-import TablesLowerTotal from './assets/tables-lower-total.png';
 import PieChartLayout from './assets/pie-chart-layout.png';
 import PieChartSeries from './assets/pie-chart-series.png';
 import PieChartDisplay from './assets/pie-chart-display.png';
@@ -169,51 +168,11 @@ To move your metrics to rows in your table, you need to have at least 1 dimensio
 
 #### Totals
 
-You can add column totals or row totals (in pivot tables) to your tables by selecting `Show column totals` or `Show row totals` in the chart configuration panel. ​The column totals in your results and table visualizations are calculated using the underlying data from your table, not only the values that are visible in the table.
-
-:::info
+You can add column totals or row totals (in pivot tables) to your tables by selecting `show column totals` or `show row totals` in the chart configuration panel.
 
 Totals are not calculated for table calculations. Also, in pivot tables, totals are not shown for `count distinct`, `average`, `max`, `min`, and `median` metric types.
 
-:::
-
-
-#### My Totals are not what I expect
-
-**Why are my totals lower?​**
-
-When using the `count_distinct` metric type, you can sometimes get totals that are smaller than if you sum up the values seen in the table.
-
-For example, if you count the distinct number of devices that viewed pages on our website each month, it would look something like this:
-
-<img src={TablesLowerTotal} />;
-
-If you manually add each row in the `Anonymous device count` column, the value you get is much higher than the total shown in the table. This is because the same device can view pages on our website across many months. So, when you add up the values in the table, you'll be counting some devices more than once.
-
-Lightdash uses a SQL query to calculate the distinct number of devices across all of the months so we avoid double-counting devices.
-
-**Why are my totals higher?​**
-
-There are two reasons why this could be happening:
-
-1. You've set a row limit in your query that's truncating the results. If the number of possible results from your query is larger than the row limit you've set, Lightdash will calculate the totals using all of the results (including the rows that have been removed from your table because of the limit).
-2. You're using metric or table calculation filters. When you use metric or table calculation filters, the totals are calculated before the filters are applied.
-
-**How do I calculate totals based on what's shown in my table?​**
-
-If you want to calculate totals based on just the values shown in your table, you can create a new column using a table calculation to do this.
-
-Here's the table calculation you'll need to use to do this:
-
-```sql
-SUM(${my_table_name.my_metric_name}) OVER()
-```
-
-:::note
-
-This calculation isn't a "true" total when you're using metrics types that are `count_distinct`!
-
-:::
+If your total values are different to what you'd expect, check out our [FAQs page](https://intercom.help/lightdash-faqs/en/articles/8967771-why-don-t-my-totals-match-what-s-in-my-table) on "Why don't my totals match what's in my table?"
 
 #### Subtotals
 
