@@ -60,6 +60,7 @@ import {
     isDimension,
     isExploreError,
     isFilterableDimension,
+    isFilterRule,
     isUserWithOrg,
     ItemsMap,
     Job,
