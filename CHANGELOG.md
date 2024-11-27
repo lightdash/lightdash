@@ -1,3 +1,10 @@
+## [0.1381.1](https://github.com/lightdash/lightdash/compare/0.1381.0...0.1381.1) (2024-11-27)
+
+
+### Bug Fixes
+
+* Revert "fix: apply date granularity to filters" ([#12616](https://github.com/lightdash/lightdash/issues/12616)) ([17fe459](https://github.com/lightdash/lightdash/commit/17fe459b0e6031f3e9bcc3d8d58eb8ab36330812)), closes [#12515](https://github.com/lightdash/lightdash/issues/12515)
+
 # [0.1381.0](https://github.com/lightdash/lightdash/compare/0.1380.3...0.1381.0) (2024-11-26)
 
 
