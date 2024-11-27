@@ -1,3 +1,10 @@
+# [0.1382.0](https://github.com/lightdash/lightdash/compare/0.1381.2...0.1382.0) (2024-11-27)
+
+
+### Features
+
+* focus filter input on open ([#12588](https://github.com/lightdash/lightdash/issues/12588)) ([5e6db27](https://github.com/lightdash/lightdash/commit/5e6db27d6f5707c5c917bd90e37d29a258cc1e19))
+
 ## [0.1381.2](https://github.com/lightdash/lightdash/compare/0.1381.1...0.1381.2) (2024-11-27)
 
 
