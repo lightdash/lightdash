@@ -1,3 +1,10 @@
+## [0.1381.2](https://github.com/lightdash/lightdash/compare/0.1381.1...0.1381.2) (2024-11-27)
+
+
+### Bug Fixes
+
+* add missing import ([#12623](https://github.com/lightdash/lightdash/issues/12623)) ([c0d5b18](https://github.com/lightdash/lightdash/commit/c0d5b1869cfcc0cc363286c5a336492d5ca69053))
+
 ## [0.1381.1](https://github.com/lightdash/lightdash/compare/0.1381.0...0.1381.1) (2024-11-27)
 
 
