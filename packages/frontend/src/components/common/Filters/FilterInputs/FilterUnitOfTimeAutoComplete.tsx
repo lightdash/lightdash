@@ -1,4 +1,4 @@
-import { getUnitsOfTimeGreaterOrEqual, UnitOfTime } from '@lightdash/common'; // Modified import to include getUnitsOfTimeGreaterOrEqual
+import { getUnitsOfTimeGreaterOrEqual, UnitOfTime } from '@lightdash/common';
 import { Select, type SelectProps } from '@mantine/core';
 import { type FC } from 'react';
 
