@@ -6,10 +6,10 @@ In this guide you'll learn how to format a dashboard URL to apply dynamic values
 
 For example, you might have a sales dashbaord that shows your most profitable Partners, then use a URL so that when you click on a specific partner name it brings you to a new dashboard that is filtered to show KPIs filtered to that partner.
 
+## Example of dashboard URL Filtering
+
 Here's a quick walk through video that shows what it looks like once it's complete: 
 
-[video showing drill into chart and link to filtered dashboard]
-
 <div
   style={{
     position: 'relative',
@@ -33,11 +33,9 @@ Here's a quick walk through video that shows what it looks like once it's comple
   ></iframe>
 </div>
 
+## Setting up dashboard URL filtering
 
-And this is the process for setting it up: 
-
-[video showing how to get the filter URL and replace the value with dynamic in the YAML]
-
+This is the process for setting it up: 
 
 <div
   style={{
@@ -61,15 +59,22 @@ And this is the process for setting it up:
     }}
   ></iframe>
 </div>
-
-
+  
+  
 1. Open the dashboard you want to dynamically filter.
 2. Add a value to the filter you want to filter dynamically. 
 3. Copy the URL shown after applying the filter. It should look something like the image below. 
 
-<img src={DashboardURLFilter} />;
 
-_You'll notice there's a `?filters=` key in the URL. Everything after that is a JSON object that has been URL encoded. If you want to see the JSON you can find a URL decoder online to reformat it._
+<figure>
+  <img
+    src={DashboardURLFilter}
+    width="60%"
+    height="60%"
+    style={{ display: 'block', margin: '0 auto 20px auto' }}
+  />
+  <figcaption>You'll notice there's a `?filters=` key in the URL. Everything after that is a JSON object that has been URL encoded. If you want to see the JSON you can find a URL decoder online to reformat it.</figcaption>
+</figure>
 
 4. Replace the filter value that you chose in step 2 with `${ value.formatted | url_encode }` to make it dynamic. In the example the value is `Plant+Paradise` (highlighted in the image). 
 5. Paste that URL into the YAML file for the model you're working in. See an [example in our demo project here](https://github.com/lightdash/lightdash-demo-data-gardening/blob/5632406cb5b43fdf066a2086142dc3e86a41e947/dbt/models/dbt_orders.yml#L31-L32). 
