@@ -115,9 +115,11 @@ WHERE (
 
 Check out our [filters reference doc here](../references/filters.md) to see a list of all available filters and their uses.
 
+
 ## Adding filters in the Explore view
 
 There are a couple of ways that you can add filters in the Explore view.
+
 
 ### Adding a filter from within the `Filters` tab
 
@@ -132,6 +134,7 @@ In the Explores view, you can add filters from within the `Filters` tab. Just cl
 
 Select the field you would like to filter from the drop-down list, then select the filtering options.
 
+
 ### Adding a filter from the sidebar
 
 It's easy to add filters directly from the list of fields in the sidebar. Just click on the `options` for a field, then click `add filter`.
@@ -143,6 +146,7 @@ It's easy to add filters directly from the list of fields in the sidebar. Just c
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
+
 ### Adding a filter from the results table
 
 Once you have some results in your results table, you can add filters by clicking on the three-dot menu of the column you want to filter on, or by clicking on the value you want to filter by.
@@ -153,6 +157,7 @@ Once you have some results in your results table, you can add filters by clickin
   height="553"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
+
 
 ### Adding nested filters
 
@@ -172,15 +177,18 @@ Then, you can add a new filter to the nested filter by clicking `add filter`.
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
+
 ## Adding filters to your dashboard
 
 There are a couple of ways that you can add filters to your Dashboards.
+
 
 ### Adding temporary filters to your dashboard
 
 If you add a temporary filter to your dasboard, then only you will see the filters you've applied (you won't be changing the dashboard for everyone who comes to look at it). If you want to save the dashboard filters you're adding, then check out [adding saved filters to your dashboard](#adding-saved-filters-to-your-dashboard).
 
 There are two ways to add temporary filters to your dashboard.
+
 
 #### Adding temporary filters using the `add filters` button
 
@@ -220,6 +228,14 @@ You can remove the filter from a certain tile, or you can change which field the
   height="188"
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
+
+
+:::note
+
+Values for temporary and overriden saved filters are reverted when entering Dashboard edit mode.
+
+:::
+
 
 #### `Cross filtering` your dashboard using values in your tiles
 
@@ -364,7 +380,7 @@ Rules for sharing dashboards with filters applied:
 - In view mode and when overriding a saved filter, you can only change the value and operator, so the field and tile configuration will remain the same.
 - In edit mode, when changing a saved filter (with an override present), once you save the changes (click "Apply"), the override for that filter will be removed.
 
-The same behaviour applies when exporting dashboards.
+The same behaviour applies when exporting dashboards or sending them to email or Slack in [scheduled deliveries](/guides/how-to-create-scheduled-deliveries).
 
 #### You can easily see which dashboard tiles have which filters applied to them
 
@@ -379,12 +395,17 @@ You can also hover over this to see **_which_** filters have been applied to tha
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-#### Dashboard filters _are added to_ the filters applied in a saved chart so `ALL` the conditions match
 
-For example, if I had a chart for Sales in Asia and I filtered to `country` **is equal to** `China`, `India`, `Japan`. Then, on my dashboard I added a filter `country` **is equal to** `India`. My saved chart's filter would still be included, and my new dashboard filter would be applied as well, so the tile in the dashboard would be filtered to include:
+#### Dashboard filters override filters applied in a saved chart
 
-`country` **is equal to** `China`, `India`, `Japan` AND `country` **is equal to** `India`
+For example, if I had a chart for Sales in Asia and I filtered to `country` **is** `China`, `India`, `Japan`. Then, on my dashboard I added a filter `country` **is** `India`. My saved chart's filter would be removed, and my new dashboard filter would be applied instead, so the tile in the dashboard would be filtered to: `country` **is** `India`.
 
-So, the result? My tile would only include Sales where the `country = India`.
+Here's another example using a date filter: If my original saved chart was filtered to only include orders completed on or after April 3rd, 2024. But, I add a date filter to my dashboard to include orders completed on or after August 1st, 2024, then the dashboard filter would override the saved chart filter and I'll end up with the chart filtered by orders completed on or after August 1st, 2022.
 
-Here's another example using a date filter: If my original saved chart was filtered to only include orders completed on or after April 3rd, 2022. But, I add a date filter to my dashboard to include orders completed on or after August 1st, 2022, then the dashboard filter would be added to the saved chart filter and I'll end up with the chart filtered by orders completed on or after August 1st, 2022.
+**How charts work in this context:**
+
+- When you **Explore from here** from a dashboard, the chart will include the same filters you saw on the Dashboard version. Any filters overriden in the dahsboard will be overriden in the **Explore from here** view. Filters NOT overriden in the dashboad will be the same as they were in the original chart. 
+- If you 'Edit' the chart instead of explore from here, you will see the original chart filters.
+
+
+
