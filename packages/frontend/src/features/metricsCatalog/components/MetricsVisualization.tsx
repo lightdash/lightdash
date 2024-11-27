@@ -124,11 +124,12 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                         stroke={colors.gray[2]}
                     />
 
-                    <YAxis axisLine={false} tickLine={false}>
+                    <YAxis axisLine={false} tickLine={false} fontSize={11}>
                         <Label
                             angle={-90}
                             position="insideLeft"
                             value={metric.label}
+                            fill={colors.gray[7]}
                             style={{ textAnchor: 'middle' }}
                         />
                     </YAxis>
@@ -138,6 +139,7 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                         {...xAxisArgs}
                         axisLine={false}
                         tickLine={false}
+                        fontSize={11}
                     />
 
                     <Line
@@ -148,7 +150,7 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                         dot={false}
                     />
 
-                    <Legend />
+                    <Legend align="center" />
                 </LineChart>
             </ResponsiveContainer>
         </AspectRatio>
