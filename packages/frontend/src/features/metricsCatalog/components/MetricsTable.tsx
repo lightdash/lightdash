@@ -449,7 +449,7 @@ export const MetricsTable = () => {
                         <Divider color="gray.2" />
                     </Box>
                     <Box w="100%" h="calc(100dvh - 350px)">
-                        <MetricTree />
+                        <MetricTree metrics={flatData} />
                     </Box>
                 </Paper>
             );
