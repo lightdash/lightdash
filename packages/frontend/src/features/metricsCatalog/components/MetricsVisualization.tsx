@@ -38,7 +38,7 @@ const FORMATS = {
     year: (date: Date) => dayjs(date).format('YYYY'),
 };
 
-const timeFormatter = (date: Date) => {
+const tickFormatter = (date: Date) => {
     return (
         timeSecond(date) < date
             ? FORMATS.millisecond
@@ -71,7 +71,8 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
     const timeSeriesData = useMemo(() => {
         if (!timeDimension) return null;
 
-        return data.rows.map((row) => ({
+        // TODO: zipping with index is not a smart idea.
+        return data.rows.map((row, index) => ({
             date: new Date(
                 String(
                     row[
@@ -88,24 +89,43 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                     name: metric.name,
                 })
             ].value.raw,
+            ...(data.comparisonRows
+                ? {
+                      compareMetric:
+                          data.comparisonRows[index][
+                              getItemId({
+                                  table: metric.table,
+                                  name: metric.name,
+                              })
+                          ]?.value.raw,
+                  }
+                : {}),
         }));
-    }, [data.rows, timeDimension, metric.name, metric.table]);
+    }, [
+        timeDimension,
+        data.rows,
+        data.comparisonRows,
+        metric.table,
+        metric.name,
+    ]);
 
     const xAxisArgs = useMemo(() => {
         if (!timeSeriesData) return null;
 
         const timeValues = timeSeriesData.map((row) => row.date);
+
         const numericValues = timeValues.map((time) => time.valueOf());
-        const timeScale = scaleTime()
-            .domain([Math.min(...numericValues), Math.max(...numericValues)])
-            .nice();
+        const timeScale = scaleTime().domain([
+            Math.min(...numericValues),
+            Math.max(...numericValues),
+        ]);
 
         return {
             domain: timeScale.domain().map((date) => date.valueOf()),
             scale: timeScale,
             type: 'number' as const,
             ticks: timeScale.ticks(5).map((date) => date.valueOf()),
-            tickFormatter: timeFormatter,
+            tickFormatter,
         };
     }, [timeSeriesData]);
 
@@ -143,14 +163,27 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                     />
 
                     <Line
+                        name={metric.label}
                         type="monotone"
                         dataKey="metric"
-                        stroke="#8884d8"
+                        stroke={colors.indigo[7]}
                         strokeWidth={2}
                         dot={false}
                     />
 
-                    <Legend align="center" />
+                    {data.comparisonRows && (
+                        <Line
+                            name={`${metric.label} (comparison)`}
+                            type="monotone"
+                            dataKey="compareMetric"
+                            stroke={colors.teal[7]}
+                            strokeDasharray={'3 3'}
+                            strokeWidth={2}
+                            dot={false}
+                        />
+                    )}
+
+                    <Legend />
                 </LineChart>
             </ResponsiveContainer>
         </AspectRatio>

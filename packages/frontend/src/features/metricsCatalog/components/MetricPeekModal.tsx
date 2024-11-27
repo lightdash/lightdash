@@ -1,4 +1,8 @@
-import { MetricExplorerComparison } from '@lightdash/common';
+import {
+    assertUnreachable,
+    MetricExplorerComparison,
+    type MetricExplorerComparisonType,
+} from '@lightdash/common';
 import {
     Button,
     Divider,
@@ -13,7 +17,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Hash } from '../../../svgs/metricsCatalog';
@@ -30,6 +34,11 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         (state) => state.metricsCatalog.projectUuid,
     );
 
+    const history = useHistory();
+
+    const [comparisonType, setComparisonType] =
+        useState<MetricExplorerComparison>(MetricExplorerComparison.NONE);
+
     const { tableName, metricName } = useParams<{
         tableName: string;
         metricName: string;
@@ -41,21 +50,45 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         metricName,
     });
 
+    const comparisonParams = useMemo(():
+        | MetricExplorerComparisonType
+        | undefined => {
+        if (!metricQuery.isSuccess) return undefined;
+
+        switch (comparisonType) {
+            case MetricExplorerComparison.NONE:
+                return {
+                    type: MetricExplorerComparison.NONE,
+                };
+            case MetricExplorerComparison.PREVIOUS_PERIOD:
+                return {
+                    type: MetricExplorerComparison.PREVIOUS_PERIOD,
+                };
+            case MetricExplorerComparison.DIFFERENT_METRIC:
+                return {
+                    type: MetricExplorerComparison.DIFFERENT_METRIC,
+                    metricName: metricQuery.data.name,
+                };
+            default:
+                return assertUnreachable(
+                    comparisonType,
+                    `Unknown comparison type: ${comparisonType}`,
+                );
+        }
+    }, [comparisonType, metricQuery.isSuccess, metricQuery.data]);
+
     const metricResultsQuery = useRunMetricExplorerQuery({
         projectUuid,
         exploreName: tableName,
         metricName,
+        comparison: comparisonParams,
     });
-
-    const history = useHistory();
 
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
+        setComparisonType(MetricExplorerComparison.NONE);
         onClose();
     }, [history, onClose, projectUuid]);
-
-    const [comparisonType, setComparisonType] =
-        useState<MetricExplorerComparison>();
 
     return (
         <Modal.Root
@@ -109,7 +142,11 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                             ? 'visible'
                                             : 'hidden',
                                     }}
-                                    onClick={() => setComparisonType(undefined)}
+                                    onClick={() =>
+                                        setComparisonType(
+                                            MetricExplorerComparison.NONE,
+                                        )
+                                    }
                                 >
                                     Clear
                                 </Button>

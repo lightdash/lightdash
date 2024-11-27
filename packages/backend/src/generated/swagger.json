@@ -3961,8 +3961,19 @@
             "ResultRow": {
                 "$ref": "#/components/schemas/Record_string._value-ResultValue--__"
             },
+            "Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ItemsMap": {
+                "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
+            },
             "MetricsExplorerQueryResults": {
                 "properties": {
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap"
+                    },
                     "comparisonRows": {
                         "items": {
                             "$ref": "#/components/schemas/ResultRow"
@@ -3976,7 +3987,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["rows"],
+                "required": ["fields", "rows"],
                 "type": "object"
             },
             "ApiMetricsExplorerQueryResults": {
@@ -11341,7 +11352,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1380.2",
+        "version": "0.1383.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
