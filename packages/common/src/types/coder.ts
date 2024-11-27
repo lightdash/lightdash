@@ -25,3 +25,11 @@ export type ApiChartAsCodeListResponse = {
     status: 'ok';
     results: ChartAsCode[];
 };
+
+export type ApiChartAsCodeUpsertResponse = {
+    status: 'ok';
+    results: {
+        chart: ChartAsCode;
+        created: boolean;
+    };
+};

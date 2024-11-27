@@ -1,5 +1,10 @@
 /* eslint-disable no-await-in-loop */
-import { AuthorizationError, ChartAsCode, SavedChart } from '@lightdash/common';
+import {
+    ApiChartAsCodeListResponse,
+    ApiChartAsCodeUpsertResponse,
+    AuthorizationError,
+    SavedChart,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { getConfig } from '../config';
@@ -29,7 +34,9 @@ export const downloadHandler = async (
             'No project selected. Run lightdash config set-project',
         );
     }
-    const chartsAsCode = await lightdashApi<ChartAsCode[]>({
+    const chartsAsCode = await lightdashApi<
+        ApiChartAsCodeListResponse['results']
+    >({
         method: 'GET',
         url: `/api/v1/projects/${projectId}/coder/charts`,
         body: undefined,
@@ -101,38 +108,25 @@ export const uploadHandler = async (
 
     console.info(`Found ${charts.length} chart files`);
 
+    let created = 0;
+    let updated = 0;
     for (const chart of charts) {
-        console.info(`updating chart ${chart.slug}`);
-
-        // TODO update chart name, description, spaceUuid
-        /* const chartData = await lightdashApi({
-            method: 'PATCH',
-            url: `/api/v1/projects/${projectId}/saved/${chart.uuid}`,
+        GlobalState.debug(`Upserting chart ${chart.slug}`);
+        const chartData = await lightdashApi<
+            ApiChartAsCodeUpsertResponse['results']
+        >({
+            method: 'POST',
+            url: `/api/v1/projects/${projectId}/coder/chart`,
             body: JSON.stringify(chart),
         });
-        /*try {
-
-            // This will throw an error if the chart doesn't exist
-            // in that case, we will create the chart, otherwise, we will update
-            await lightdashApi({
-                method: 'GET',
-                url: `/api/v1/saved/${chart.uuid}`,
-                body: undefined,
-            });
-
-            const chartVersion = await lightdashApi({
-                method: 'POST',
-                url: `/api/v1/saved/${chart.uuid}/version`,
-                body: JSON.stringify(chart),
-            });
-            console.info(`created chart version ${JSON.stringify(chartVersion)}`);
-    
-        } catch (e: any) {
-           
-        } */
-
-        /*
-        // Create chart version
-           */
+        if (chartData.created) {
+            created += 1;
+            GlobalState.debug(`Created chart: ${chart.name}`);
+        } else {
+            updated += 1;
+            GlobalState.debug(`Updated chart: ${chart.name}`);
+        }
     }
+    console.info(`Total charts created: ${created} `);
+    console.info(`Total charts updated: ${updated} `);
 };

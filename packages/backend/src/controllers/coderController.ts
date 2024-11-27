@@ -1,10 +1,17 @@
-import { ApiChartAsCodeListResponse, ApiErrorPayload } from '@lightdash/common';
 import {
+    ApiChartAsCodeListResponse,
+    ApiChartAsCodeUpsertResponse,
+    ApiErrorPayload,
+    ChartAsCode,
+} from '@lightdash/common';
+import {
+    Body,
     Get,
     Hidden,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
@@ -34,6 +41,24 @@ export class CoderController extends BaseController {
             results: await this.services
                 .getCoderService()
                 .getCharts(req.user!, projectUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chart')
+    @OperationId('upsertChartAsCode')
+    async upsertChartAsCode(
+        @Path() projectUuid: string,
+        @Body() chart: Omit<ChartAsCode, 'metricQuery'> & { metricQuery: any },
+        @Request() req: express.Request,
+    ): Promise<ApiChartAsCodeUpsertResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertChart(req.user!, projectUuid, chart),
         };
     }
 }

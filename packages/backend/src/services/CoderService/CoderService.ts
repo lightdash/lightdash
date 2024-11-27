@@ -1,9 +1,11 @@
 import { subject } from '@casl/ability';
 import {
+    CreateSavedChart,
     NotFoundError,
     SavedChartDAO,
     SessionUser,
     SpaceSummary,
+    UpdatedByUser,
 } from '@lightdash/common';
 import { ChartAsCode, currentVersion } from '@lightdash/common/src/types/coder';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -112,5 +114,67 @@ export class CoderService extends BaseService {
         return charts.map((chart) =>
             CoderService.transformChart(chart, spaces),
         );
+    }
+
+    async upsertChart(
+        user: SessionUser,
+        projectUuid: string,
+        chartAsCode: ChartAsCode,
+    ) {
+        // TODO handle permissions
+
+        const [chart] = await this.savedChartModel.find({
+            slug: chartAsCode.slug,
+        });
+        if (chart === undefined) {
+            // TODO create space if does not exist
+            console.info(
+                `Creating chart ${chartAsCode.name} on project ${projectUuid}`,
+            );
+
+            const createChart: CreateSavedChart & {
+                updatedByUser: UpdatedByUser;
+                slug: string;
+            } = {
+                ...chartAsCode,
+                updatedByUser: user,
+            };
+            const newChart = await this.savedChartModel.create(
+                projectUuid,
+                user.userUuid,
+                createChart,
+            );
+            const spaces = await this.spaceModel.find({
+                spaceUuids: [newChart.spaceUuid],
+            });
+
+            return {
+                chart: CoderService.transformChart(newChart, spaces),
+                created: true,
+            };
+        }
+        // update
+        console.info(
+            `Updating chart ${chartAsCode.name} on project ${projectUuid}`,
+        );
+
+        // TODO update space or create if does not exist
+        await this.savedChartModel.update(chart.uuid, {
+            name: chartAsCode.name,
+            description: chartAsCode.description,
+        });
+
+        const updatedChart = await this.savedChartModel.createVersion(
+            chart.uuid,
+            chartAsCode,
+            user,
+        );
+        const spaces = await this.spaceModel.find({
+            spaceUuids: [updatedChart.spaceUuid],
+        });
+        return {
+            chart: CoderService.transformChart(updatedChart, spaces),
+            created: false,
+        };
     }
 }
