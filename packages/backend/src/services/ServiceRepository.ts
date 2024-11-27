@@ -15,6 +15,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
+import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
@@ -69,6 +70,7 @@ interface ServiceManifest {
     userService: UserService;
     validationService: ValidationService;
     catalogService: CatalogService;
+    metricsExplorerService: MetricsExplorerService;
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
@@ -634,6 +636,19 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     tagsModel: this.models.getTagsModel(),
+                }),
+        );
+    }
+
+    public getMetricsExplorerService(): MetricsExplorerService {
+        return this.getService(
+            'metricsExplorerService',
+            () =>
+                new MetricsExplorerService({
+                    catalogModel: this.models.getCatalogModel(),
+                    projectService: this.getProjectService(),
+                    catalogService: this.getCatalogService(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }

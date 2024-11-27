@@ -1,3 +1,31 @@
+# [0.1383.0](https://github.com/lightdash/lightdash/compare/0.1382.0...0.1383.0) (2024-11-27)
+
+
+### Features
+
+* metrics explorer backend with previous period comparison ([#12621](https://github.com/lightdash/lightdash/issues/12621)) ([7d40de9](https://github.com/lightdash/lightdash/commit/7d40de9d5939ef97d9f540c0bda9f7b499112e46))
+
+# [0.1382.0](https://github.com/lightdash/lightdash/compare/0.1381.2...0.1382.0) (2024-11-27)
+
+
+### Features
+
+* focus filter input on open ([#12588](https://github.com/lightdash/lightdash/issues/12588)) ([5e6db27](https://github.com/lightdash/lightdash/commit/5e6db27d6f5707c5c917bd90e37d29a258cc1e19))
+
+## [0.1381.2](https://github.com/lightdash/lightdash/compare/0.1381.1...0.1381.2) (2024-11-27)
+
+
+### Bug Fixes
+
+* add missing import ([#12623](https://github.com/lightdash/lightdash/issues/12623)) ([c0d5b18](https://github.com/lightdash/lightdash/commit/c0d5b1869cfcc0cc363286c5a336492d5ca69053))
+
+## [0.1381.1](https://github.com/lightdash/lightdash/compare/0.1381.0...0.1381.1) (2024-11-27)
+
+
+### Bug Fixes
+
+* Revert "fix: apply date granularity to filters" ([#12616](https://github.com/lightdash/lightdash/issues/12616)) ([17fe459](https://github.com/lightdash/lightdash/commit/17fe459b0e6031f3e9bcc3d8d58eb8ab36330812)), closes [#12515](https://github.com/lightdash/lightdash/issues/12515)
+
 # [0.1381.0](https://github.com/lightdash/lightdash/compare/0.1380.3...0.1381.0) (2024-11-26)
 
 
