@@ -4,7 +4,7 @@
     "main": "dist/index",
     "license": "MIT",
     "devDependencies": {
-        "@tsoa/cli": "^4.1.3",
+        "@tsoa/cli": "^6.5.1",
         "@types/archiver": "^6.0.2",
         "@types/bcrypt": "^5.0.0",
         "@types/connect-flash": "^0.0.37",
@@ -49,7 +49,7 @@
         "@sentry/types": "8.9.2",
         "@slack/bolt": "^3.22.0",
         "@slack/web-api": "^6.12.1",
-        "@tsoa/runtime": "^4.1.3",
+        "@tsoa/runtime": "^6.5.1",
         "@types/async": "^3.2.16",
         "@types/sshpk": "^1.17.1",
         "ajv": "^8.3.0",
@@ -88,6 +88,7 @@
         "nodejs-polars": "^0.15.0",
         "nodemailer": "^6.9.9",
         "nodemailer-express-handlebars": "^6.1.0",
+        "nodemon": "^3.1.7",
         "octokit": "^3.1.2",
         "openid-client": "^5.6.4",
         "passport": "^0.6.0",
@@ -114,6 +115,7 @@
     "scripts": {
         "generate-api": "tsoa spec-and-routes --configuration tsoa.yml",
         "dev": "LIGHTDASH_MODE=development HEADLESS=true tsx watch --clear-screen=false src/index.ts",
+        "dev-tsoa": "nodemon -x \"tsoa spec-and-routes --configuration tsoa.yml\" --watch ./src/controllers --ext ts",
         "debug": "tsx watch --clear-screen=false --inspect-brk=0.0.0.0:9229 src/index.ts ",
         "build": "tsc --build tsconfig.json",
         "postbuild": "copyfiles --error --up 1 src/**/*.html dist",
