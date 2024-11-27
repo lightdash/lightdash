@@ -1,6 +1,6 @@
 import { getUnitsOfTimeGreaterOrEqual, UnitOfTime } from '@lightdash/common';
 import { Select, type SelectProps } from '@mantine/core';
-import { type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 
 const getUnitOfTimeLabel = (
     unitOfTime: UnitOfTime,
@@ -79,29 +79,73 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
     completed,
     onChange,
     ...rest
-}) => (
-    <Select
-        searchable
-        placeholder="Select value"
-        size="xs"
-        {...rest}
-        value={completed ? `${unitOfTime}-completed` : unitOfTime}
-        data={getUnitOfTimeOptions({
-            isTimestamp,
-            minUnitOfTime,
-            showCompletedOptions,
-            showOptionsInPlural,
-        })}
-        onChange={(value) => {
-            if (value === null) return;
+}) => {
+    // Memoize options to prevent unnecessary re-renders
+    const options = useMemo(
+        () =>
+            getUnitOfTimeOptions({
+                isTimestamp,
+                minUnitOfTime,
+                showCompletedOptions,
+                showOptionsInPlural,
+            }),
+        [isTimestamp, minUnitOfTime, showCompletedOptions, showOptionsInPlural],
+    );
 
-            const [unitOfTimeValue, isCompleted] = value.split('-');
-            onChange({
-                unitOfTime: unitOfTimeValue as UnitOfTime,
-                completed: isCompleted === 'completed',
-            });
-        }}
-    />
-);
+    // Memoize option values
+    const optionValues = useMemo(() => options.map((o) => o.value), [options]);
+
+    const currentValue = unitOfTime
+        ? completed
+            ? `${unitOfTime}-completed`
+            : unitOfTime
+        : '';
+
+    // reset value only if it's no longer valid (e.g. options changed and the current value is no longer in the list)
+    useEffect(() => {
+        if (!optionValues.includes(currentValue)) {
+            // The current value is no longer valid
+            const firstOptionValue = options[0]?.value;
+            if (firstOptionValue) {
+                const [unitOfTimeValue, isCompleted] =
+                    firstOptionValue.split('-');
+                onChange({
+                    unitOfTime: unitOfTimeValue as UnitOfTime,
+                    completed: isCompleted === 'completed',
+                });
+            } else {
+                // no options available, reset value
+                onChange({
+                    unitOfTime: UnitOfTime.days,
+                    completed: false,
+                });
+            }
+        }
+    }, [currentValue, optionValues, onChange, options]);
+
+    const selectValue: string | null = optionValues.includes(currentValue)
+        ? currentValue
+        : options[0]?.value ?? null;
+
+    return (
+        <Select
+            searchable
+            placeholder="Select value"
+            size="xs"
+            {...rest}
+            value={selectValue}
+            data={options}
+            onChange={(value) => {
+                if (value === null) return;
+
+                const [unitOfTimeValue, isCompleted] = value.split('-');
+                onChange({
+                    unitOfTime: unitOfTimeValue as UnitOfTime,
+                    completed: isCompleted === 'completed',
+                });
+            }}
+        />
+    );
+};
 
 export default FilterUnitOfTimeAutoComplete;

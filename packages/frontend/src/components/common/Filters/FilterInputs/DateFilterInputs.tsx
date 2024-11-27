@@ -48,12 +48,22 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
 
     const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
         switch (timeframe) {
+            case TimeFrames.MILLISECOND:
+                return UnitOfTime.milliseconds;
+            case TimeFrames.SECOND:
+                return UnitOfTime.seconds;
+            case TimeFrames.MINUTE:
+                return UnitOfTime.minutes;
+            case TimeFrames.HOUR:
+                return UnitOfTime.hours;
             case TimeFrames.DAY:
                 return UnitOfTime.days;
             case TimeFrames.WEEK:
                 return UnitOfTime.weeks;
             case TimeFrames.MONTH:
                 return UnitOfTime.months;
+            case TimeFrames.QUARTER:
+                return UnitOfTime.quarters;
             case TimeFrames.YEAR:
                 return UnitOfTime.years;
             default:

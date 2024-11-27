@@ -48,7 +48,8 @@ export const getUnitsOfTimeGreaterOrEqual = (
     ];
     const index = unitsInOrder.indexOf(unit);
     if (index === -1) {
-        throw new Error(`Invalid unit of time: ${unit}`);
+        // return the original array if the unit is not found
+        return unitsInOrder;
     }
     return unitsInOrder.slice(index);
 };
