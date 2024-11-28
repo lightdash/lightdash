@@ -1,3 +1,10 @@
+## [0.1385.1](https://github.com/lightdash/lightdash/compare/0.1385.0...0.1385.1) (2024-11-28)
+
+
+### Bug Fixes
+
+* promote content for developers ([#12631](https://github.com/lightdash/lightdash/issues/12631)) ([fb60627](https://github.com/lightdash/lightdash/commit/fb60627d03dc682dba0b036a99269dc6603bce51))
+
 # [0.1385.0](https://github.com/lightdash/lightdash/compare/0.1384.0...0.1385.0) (2024-11-28)
 
 
