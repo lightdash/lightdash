@@ -372,7 +372,10 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                                     {
                                         label: (
                                             <Center>
-                                                <IconList size={16} />
+                                                <MantineIcon
+                                                    icon={IconList}
+                                                    size="md"
+                                                />
                                             </Center>
                                         ),
                                         value: MetricCatalogView.LIST,
@@ -380,7 +383,10 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                                     {
                                         label: (
                                             <Center>
-                                                <IconSitemap size={16} />
+                                                <MantineIcon
+                                                    icon={IconSitemap}
+                                                    size="md"
+                                                />
                                             </Center>
                                         ),
                                         value: MetricCatalogView.TREE,
