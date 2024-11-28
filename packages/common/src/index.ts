@@ -117,6 +117,10 @@ import {
     type ApiMetricsCatalog,
 } from './types/catalog';
 import {
+    type ApiChartAsCodeListResponse,
+    type ApiChartAsCodeUpsertResponse,
+} from './types/coder';
+import {
     type ApiChartContentResponse,
     type ApiContentResponse,
 } from './types/content';
@@ -165,6 +169,7 @@ export * from './types/api/sort';
 export * from './types/api/success';
 export * from './types/api/uuid';
 export * from './types/catalog';
+export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
@@ -698,7 +703,9 @@ type ApiResults =
     | ApiMetricsCatalog['results']
     | ApiMetricsExplorerQueryResults['results']
     | ApiGroupListResponse['results']
-    | ApiCreateTagResponse['results'];
+    | ApiCreateTagResponse['results']
+    | ApiChartAsCodeListResponse['results']
+    | ApiChartAsCodeUpsertResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

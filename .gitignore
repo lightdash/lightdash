@@ -68,3 +68,6 @@ logs/
 
 # dangerfile
 dangerfile.development.ts
+
+# Charts as code
+lightdash
