@@ -982,26 +982,29 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "Pick_CatalogField.catalogSearchUuid-or-name_": {
+            "Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_": {
                 "properties": {
                     "name": {
                         "type": "string"
                     },
                     "catalogSearchUuid": {
                         "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
                     }
                 },
-                "required": ["name", "catalogSearchUuid"],
+                "required": ["name", "catalogSearchUuid", "tableName"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CatalogMetricsTreeEdge": {
                 "properties": {
                     "target": {
-                        "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name_"
+                        "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_"
                     },
                     "source": {
-                        "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name_"
+                        "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_"
                     }
                 },
                 "required": ["target", "source"],
@@ -3076,6 +3079,9 @@
                     "slug": {
                         "type": "string"
                     },
+                    "tableName": {
+                        "type": "string"
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -3087,9 +3093,6 @@
                         "type": "number",
                         "format": "double",
                         "nullable": true
-                    },
-                    "tableName": {
-                        "type": "string"
                     },
                     "metricQuery": {
                         "$ref": "#/components/schemas/MetricQuery"
@@ -3139,9 +3142,9 @@
                     "dashboardUuid",
                     "dashboardName",
                     "slug",
+                    "tableName",
                     "updatedAt",
                     "pinnedListOrder",
-                    "tableName",
                     "metricQuery",
                     "chartConfig",
                     "tableConfig",

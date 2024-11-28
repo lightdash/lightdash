@@ -987,13 +987,14 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CatalogField.catalogSearchUuid-or-name_': {
+    'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
                 catalogSearchUuid: { dataType: 'string', required: true },
+                tableName: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -1005,11 +1006,11 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 target: {
-                    ref: 'Pick_CatalogField.catalogSearchUuid-or-name_',
+                    ref: 'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_',
                     required: true,
                 },
                 source: {
-                    ref: 'Pick_CatalogField.catalogSearchUuid-or-name_',
+                    ref: 'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_',
                     required: true,
                 },
             },
@@ -2835,6 +2836,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 slug: { dataType: 'string', required: true },
+                tableName: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 updatedByUser: { ref: 'UpdatedByUser' },
                 pinnedListOrder: {
@@ -2845,7 +2847,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                tableName: { dataType: 'string', required: true },
                 metricQuery: { ref: 'MetricQuery', required: true },
                 pivotConfig: {
                     dataType: 'nestedObjectLiteral',
