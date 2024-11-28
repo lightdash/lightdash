@@ -98,7 +98,7 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
         if (unitOfTime) {
             return `${unitOfTime}${completed ? '-completed' : ''}`;
         }
-        // return the last option value if it's not valid
+        // return the last option value
         if (options.length > 0) {
             return options[options.length - 1]?.value;
         }
