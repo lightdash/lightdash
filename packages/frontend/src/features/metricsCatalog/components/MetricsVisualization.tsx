@@ -3,7 +3,7 @@ import {
     type MetricsExplorerQueryResults,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
-import { AspectRatio, useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine/core';
 import { scaleTime } from 'd3-scale';
 import {
     timeDay,
@@ -132,61 +132,59 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
     if (!timeSeriesData) return null;
 
     return (
-        <AspectRatio ratio={16 / 9} w="100%">
-            <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                    data={timeSeriesData}
-                    margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
-                >
-                    <CartesianGrid
-                        horizontal
-                        vertical={false}
-                        stroke={colors.gray[2]}
+        <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+                data={timeSeriesData}
+                margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
+            >
+                <CartesianGrid
+                    horizontal
+                    vertical={false}
+                    stroke={colors.gray[2]}
+                />
+
+                <YAxis axisLine={false} tickLine={false} fontSize={11}>
+                    <Label
+                        angle={-90}
+                        position="insideLeft"
+                        value={metric.label}
+                        fill={colors.gray[7]}
+                        style={{ textAnchor: 'middle' }}
                     />
+                </YAxis>
 
-                    <YAxis axisLine={false} tickLine={false} fontSize={11}>
-                        <Label
-                            angle={-90}
-                            position="insideLeft"
-                            value={metric.label}
-                            fill={colors.gray[7]}
-                            style={{ textAnchor: 'middle' }}
-                        />
-                    </YAxis>
+                <XAxis
+                    dataKey="date"
+                    {...xAxisArgs}
+                    axisLine={false}
+                    tickLine={false}
+                    fontSize={11}
+                />
 
-                    <XAxis
-                        dataKey="date"
-                        {...xAxisArgs}
-                        axisLine={false}
-                        tickLine={false}
-                        fontSize={11}
-                    />
+                <Line
+                    name={metric.label}
+                    type="monotone"
+                    dataKey="metric"
+                    stroke={colors.indigo[7]}
+                    strokeWidth={2}
+                    dot={false}
+                />
 
+                {data.comparisonRows && (
                     <Line
-                        name={metric.label}
+                        name={`${metric.label} (comparison)`}
                         type="monotone"
-                        dataKey="metric"
-                        stroke={colors.indigo[7]}
+                        dataKey="compareMetric"
+                        stroke={colors.teal[7]}
+                        strokeDasharray={'3 3'}
                         strokeWidth={2}
                         dot={false}
                     />
+                )}
 
-                    {data.comparisonRows && (
-                        <Line
-                            name={`${metric.label} (comparison)`}
-                            type="monotone"
-                            dataKey="compareMetric"
-                            stroke={colors.teal[7]}
-                            strokeDasharray={'3 3'}
-                            strokeWidth={2}
-                            dot={false}
-                        />
-                    )}
-
-                    <Legend />
-                </LineChart>
-            </ResponsiveContainer>
-        </AspectRatio>
+                <Legend />
+            </LineChart>
+        </ResponsiveContainer>
     );
 };
 
