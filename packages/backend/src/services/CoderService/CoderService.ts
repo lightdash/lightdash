@@ -96,9 +96,17 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Project ${projectUuid} not found`);
         }
 
-        // TODO handle permissions
+        // TODO allow more than just admins
         // Filter charts based on user permissions (from private spaces)
-        if (user.ability.cannot('manage', subject('Project', project))) {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         // TODO
@@ -126,9 +134,18 @@ export class CoderService extends BaseService {
         chartAsCode: ChartAsCode,
     ) {
         // TODO handle permissions in spaces
+        // TODO allow more than just admins
         const project = await this.projectModel.get(projectUuid);
 
-        if (user.ability.cannot('manage', subject('Project', project))) {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const [chart] = await this.savedChartModel.find({
