@@ -1,4 +1,4 @@
-import { type CatalogField } from '@lightdash/common';
+import { FeatureFlags, type CatalogField } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -25,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { TotalMetricsDot } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
@@ -247,6 +248,10 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
     }) => {
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
 
+        const isMetricTreesEnabled = useFeatureFlagEnabled(
+            FeatureFlags.MetricTrees,
+        );
+
         return (
             <Group {...props}>
                 <Group spacing="xs">
@@ -336,55 +341,59 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                             </Text>
                         </Group>
                     </Badge>
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        sx={{
-                            alignSelf: 'center',
-                            borderColor: '#DEE2E6',
-                        }}
-                    />
-                    <SegmentedControl
-                        size="xs"
-                        value={metricCatalogView}
-                        styles={(theme) => ({
-                            // TODO: Take care of padding
-                            root: {
-                                borderRadius: theme.radius.md,
-                                gap: theme.spacing.two,
-                            },
-                            indicator: {
-                                borderRadius: theme.radius.md,
-                                border: `1px solid ${theme.colors.gray[2]}`,
-                                backgroundColor: 'white',
-                                boxShadow: theme.shadows.subtle,
-                            },
-                        })}
-                        data={[
-                            {
-                                label: (
-                                    <Center>
-                                        <IconList size={16} />
-                                    </Center>
-                                ),
-                                value: MetricCatalogView.LIST,
-                            },
-                            {
-                                label: (
-                                    <Center>
-                                        <IconSitemap size={16} />
-                                    </Center>
-                                ),
-                                value: MetricCatalogView.TREE,
-                            },
-                        ]}
-                        onChange={(value) => {
-                            onMetricCatalogViewChange?.(
-                                value as MetricCatalogView,
-                            );
-                        }}
-                    />
+                    {isMetricTreesEnabled && (
+                        <>
+                            <Divider
+                                orientation="vertical"
+                                w={1}
+                                h={20}
+                                sx={{
+                                    alignSelf: 'center',
+                                    borderColor: '#DEE2E6',
+                                }}
+                            />
+                            <SegmentedControl
+                                size="xs"
+                                value={metricCatalogView}
+                                styles={(theme) => ({
+                                    // TODO: Take care of padding
+                                    root: {
+                                        borderRadius: theme.radius.md,
+                                        gap: theme.spacing.two,
+                                    },
+                                    indicator: {
+                                        borderRadius: theme.radius.md,
+                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                        backgroundColor: 'white',
+                                        boxShadow: theme.shadows.subtle,
+                                    },
+                                })}
+                                data={[
+                                    {
+                                        label: (
+                                            <Center>
+                                                <IconList size={16} />
+                                            </Center>
+                                        ),
+                                        value: MetricCatalogView.LIST,
+                                    },
+                                    {
+                                        label: (
+                                            <Center>
+                                                <IconSitemap size={16} />
+                                            </Center>
+                                        ),
+                                        value: MetricCatalogView.TREE,
+                                    },
+                                ]}
+                                onChange={(value) => {
+                                    onMetricCatalogViewChange?.(
+                                        value as MetricCatalogView,
+                                    );
+                                }}
+                            />
+                        </>
+                    )}
                 </Group>
             </Group>
         );
