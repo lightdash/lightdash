@@ -1,5 +1,13 @@
-import { type CatalogItem } from '@lightdash/common';
-import { Box, Divider, Group, Text, useMantineTheme } from '@mantine/core';
+import { assertUnreachable, type CatalogItem } from '@lightdash/common';
+import {
+    Box,
+    Divider,
+    Group,
+    Paper,
+    Text,
+    useMantineTheme,
+    type PaperProps,
+} from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -25,7 +33,11 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
-import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
+import {
+    MetricCatalogView,
+    MetricsTableTopToolbar,
+} from './MetricsTableTopToolbar';
+import MetricTree from './MetricTree';
 
 export const MetricsTable = () => {
     const theme = useMantineTheme();
@@ -46,6 +58,9 @@ export const MetricsTable = () => {
 
     const [search, setSearch] = useState<string | undefined>(undefined);
     const deferredSearch = useDeferredValue(search);
+
+    const [metricCatalogView, setMetricCatalogView] =
+        useState<MetricCatalogView>(MetricCatalogView.LIST);
 
     // Enable sorting by highest popularity(how many charts use the metric) by default
     const initialSorting = [
@@ -141,6 +156,25 @@ export const MetricsTable = () => {
         [isFetching, isPreviousData, isMutating],
     );
 
+    const handleViewChange = (view: MetricCatalogView) => {
+        setMetricCatalogView(view);
+    };
+
+    // Reusable paper props to avoid duplicate when rendering tree view
+    const mantinePaperProps: PaperProps = useMemo(
+        () => ({
+            shadow: undefined,
+            sx: {
+                border: `1px solid ${theme.colors.gray[2]}`,
+                borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
+                boxShadow: theme.shadows.subtle,
+                display: 'flex',
+                flexDirection: 'column',
+            },
+        }),
+        [theme],
+    );
+
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
         data: flatData,
@@ -164,16 +198,7 @@ export const MetricsTable = () => {
         onSortingChange: setSorting,
         enableTopToolbar: true,
         positionGlobalFilter: 'left',
-        mantinePaperProps: {
-            shadow: undefined,
-            sx: {
-                border: `1px solid ${theme.colors.gray[2]}`,
-                borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column',
-            },
-        },
+        mantinePaperProps,
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
@@ -264,6 +289,7 @@ export const MetricsTable = () => {
                 alignItems: 'center',
                 'tr:last-of-type > td': {
                     borderBottom: 'none',
+                    borderLeft: 'none !important',
                 },
             },
         },
@@ -302,7 +328,6 @@ export const MetricsTable = () => {
                         : `1px solid ${theme.colors.gray[2]}`,
                     borderBottom: `1px solid ${theme.colors.gray[2]}`,
                     borderTop: 'none',
-                    borderLeft: 'none',
                 },
                 sx: {
                     display: 'inline-flex',
@@ -320,6 +345,8 @@ export const MetricsTable = () => {
                     position="apart"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
+                    onMetricCatalogViewChange={handleViewChange}
+                    metricCatalogView={metricCatalogView}
                 />
                 <Divider color="gray.2" />
             </Box>
@@ -400,5 +427,36 @@ export const MetricsTable = () => {
         });
     }, [canManageTags, dataHasCategories, table]);
 
-    return <MantineReactTable table={table} />;
+    switch (metricCatalogView) {
+        case MetricCatalogView.LIST:
+            return <MantineReactTable table={table} />;
+        case MetricCatalogView.TREE:
+            return (
+                <Paper {...mantinePaperProps}>
+                    <Box>
+                        <MetricsTableTopToolbar
+                            search={search}
+                            setSearch={setSearch}
+                            totalResults={totalResults}
+                            position="apart"
+                            p={`${theme.spacing.lg} ${theme.spacing.xl}`}
+                            showCategoriesFilter={
+                                canManageTags || dataHasCategories
+                            }
+                            onMetricCatalogViewChange={handleViewChange}
+                            metricCatalogView={metricCatalogView}
+                        />
+                        <Divider color="gray.2" />
+                    </Box>
+                    <Box w="100%" h="calc(100dvh - 350px)">
+                        <MetricTree metrics={flatData} />
+                    </Box>
+                </Paper>
+            );
+        default:
+            return assertUnreachable(
+                metricCatalogView,
+                'Invalid metric catalog view',
+            );
+    }
 };
