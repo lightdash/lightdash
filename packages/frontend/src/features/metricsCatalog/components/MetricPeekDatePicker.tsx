@@ -145,11 +145,11 @@ export const MetricPeekDatePicker: FC<Props> = ({ defaultTimeDimension }) => {
                                             },
                                         '&[data-in-range]': {
                                             backgroundColor:
-                                                theme.colors.gray[0],
+                                                theme.colors.gray[1],
                                         },
                                         '&[data-in-range]:hover': {
                                             backgroundColor:
-                                                theme.colors.gray[0],
+                                                theme.colors.gray[1],
                                         },
                                         '&[data-selected]': {
                                             backgroundColor:
