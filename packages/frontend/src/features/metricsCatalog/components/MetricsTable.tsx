@@ -454,6 +454,9 @@ export const MetricsTable = () => {
                 </Paper>
             );
         default:
-            assertUnreachable(metricCatalogView, 'Invalid metric catalog view');
+            return assertUnreachable(
+                metricCatalogView,
+                'Invalid metric catalog view',
+            );
     }
 };
