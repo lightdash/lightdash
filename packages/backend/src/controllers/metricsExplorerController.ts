@@ -33,9 +33,9 @@ export class MetricsExplorerController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/{explore}/{metric}/runMetricsExplorerQuery')
-    @OperationId('runMetricsExplorerQuery')
-    async runMetricsExplorerQuery(
+    @Post('/{explore}/{metric}/runMetricExplorerQuery')
+    @OperationId('runMetricExplorerQuery')
+    async runMetricExplorerQuery(
         @Path() projectUuid: string,
         @Path() explore: string,
         @Path() metric: string,

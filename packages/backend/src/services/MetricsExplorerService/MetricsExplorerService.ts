@@ -13,6 +13,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import type { LightdashConfig } from '../../config/parseConfig';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
@@ -20,6 +21,7 @@ import { CatalogService } from '../CatalogService/CatalogService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 
 export type MetricsExplorerArguments<T extends CatalogModel = CatalogModel> = {
+    lightdashConfig: LightdashConfig;
     catalogModel: T;
     projectModel: ProjectModel;
     catalogService: CatalogService;
@@ -29,6 +31,8 @@ export type MetricsExplorerArguments<T extends CatalogModel = CatalogModel> = {
 export class MetricsExplorerService<
     T extends CatalogModel = CatalogModel,
 > extends BaseService {
+    maxQueryLimit: LightdashConfig['query']['maxLimit'];
+
     catalogModel: T;
 
     projectModel: ProjectModel;
@@ -38,12 +42,14 @@ export class MetricsExplorerService<
     projectService: ProjectService;
 
     constructor({
+        lightdashConfig,
         catalogModel,
         catalogService,
         projectModel,
         projectService,
     }: MetricsExplorerArguments<T>) {
         super();
+        this.maxQueryLimit = lightdashConfig.query.maxLimit;
         this.catalogModel = catalogModel;
         this.catalogService = catalogService;
         this.projectModel = projectModel;
@@ -114,10 +120,10 @@ export class MetricsExplorerService<
                 },
             ],
             tableCalculations: [],
-            limit: 100,
+            limit: this.maxQueryLimit, // TODO: are we sure we want to limit this with the max query limit?
         };
 
-        const { rows: currentResult } =
+        const { rows: currentResults, fields } =
             await this.projectService.runExploreQuery(
                 user,
                 metricQuery,
@@ -126,9 +132,13 @@ export class MetricsExplorerService<
                 null,
             );
 
-        let comparisonResult: ResultRow[] | undefined;
+        let allFields = fields;
+
+        let comparisonResults: ResultRow[] | undefined;
         if (compare) {
             switch (compare.type) {
+                case MetricExplorerComparison.NONE:
+                    break;
                 case MetricExplorerComparison.PREVIOUS_PERIOD:
                     const previousPeriodMetricQuery: MetricQuery = {
                         ...metricQuery,
@@ -144,16 +154,19 @@ export class MetricsExplorerService<
                         },
                     };
 
-                    const { rows: previousPeriodResult } =
-                        await this.projectService.runExploreQuery(
-                            user,
-                            previousPeriodMetricQuery,
-                            projectUuid,
-                            exploreName,
-                            null,
-                        );
+                    const {
+                        rows: comparisonResultRows,
+                        fields: comparisonFields,
+                    } = await this.projectService.runExploreQuery(
+                        user,
+                        previousPeriodMetricQuery,
+                        projectUuid,
+                        exploreName,
+                        null,
+                    );
 
-                    comparisonResult = previousPeriodResult;
+                    comparisonResults = comparisonResultRows;
+                    allFields = { ...allFields, ...comparisonFields };
 
                     break;
                 case MetricExplorerComparison.DIFFERENT_METRIC:
@@ -167,6 +180,10 @@ export class MetricsExplorerService<
             }
         }
 
-        return { rows: currentResult, comparisonRows: comparisonResult };
+        return {
+            rows: currentResults,
+            comparisonRows: comparisonResults,
+            fields: allFields,
+        };
     }
 }

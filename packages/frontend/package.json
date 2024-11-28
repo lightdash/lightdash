@@ -92,6 +92,7 @@
         "react-use": "^17.3.2",
         "react-use-intercom": "^4.1.0",
         "react-vega": "^7.6.0",
+        "recharts": "^2.13.3",
         "rudder-sdk-js": "^2.8.0",
         "scheduler": "^0.23.0",
         "sql-formatter": "^15.4.2",
