@@ -1,26 +1,29 @@
+import type { CatalogField, CatalogMetricsTreeEdge } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import {
     addEdge,
     Background,
     ReactFlow,
     useEdgesState,
     useNodesState,
+    type Connection,
     type Edge,
     type Node,
 } from '@xyflow/react';
-import { useCallback, useMemo, type FC } from 'react';
-
-import type { CatalogField } from '@lightdash/common';
-import { Box } from '@mantine/core';
 import '@xyflow/react/dist/style.css';
+import { useCallback, useMemo, type FC } from 'react';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
-import { useMetricsTree } from '../../hooks/useMetricsTree';
+import {
+    useCreateMetricsTreeEdge,
+    useMetricsTree,
+} from '../../hooks/useMetricsTree';
 
 type Props = {
     metrics: CatalogField[];
 };
 
-function getNodeId(metric: Pick<CatalogField, 'tableName' | 'name'>) {
-    return `${metric.tableName}_${metric.name}`;
+function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
+    return `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`;
 }
 
 const MetricTree: FC<Props> = ({ metrics }) => {
@@ -29,10 +32,11 @@ const MetricTree: FC<Props> = ({ metrics }) => {
     );
 
     const { data: metricsTree } = useMetricsTree(projectUuid);
+    const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
 
     const initialNodes = useMemo<Node[]>(() => {
         return metrics.map((metric) => ({
-            id: getNodeId(metric),
+            id: metric.catalogSearchUuid,
             position: { x: 0, y: 0 },
             data: { label: metric.name },
         }));
@@ -57,9 +61,9 @@ const MetricTree: FC<Props> = ({ metrics }) => {
             );
 
             return edges.map((edge) => ({
-                id: `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`,
-                source: getNodeId(edge.source),
-                target: getNodeId(edge.target),
+                id: getEdgeId(edge),
+                source: edge.source.catalogSearchUuid,
+                target: edge.target.catalogSearchUuid,
             }));
         }
 
@@ -73,8 +77,17 @@ const MetricTree: FC<Props> = ({ metrics }) => {
         useEdgesState(initialEdges);
 
     const onConnect = useCallback(
-        (params: any) => setCurrentEdges((els) => addEdge(params, els)),
-        [setCurrentEdges],
+        (params: Connection) => {
+            setCurrentEdges((els) => addEdge(params, els));
+            if (projectUuid) {
+                void createMetricsTreeEdge({
+                    projectUuid,
+                    sourceCatalogSearchUuid: params.source,
+                    targetCatalogSearchUuid: params.target,
+                });
+            }
+        },
+        [setCurrentEdges, createMetricsTreeEdge, projectUuid],
     );
 
     return (
