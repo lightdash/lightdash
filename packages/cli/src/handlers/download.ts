@@ -11,7 +11,7 @@ import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 
-const DOWNLOAD_FOLDER = 'target';
+const DOWNLOAD_FOLDER = 'lightdash';
 export type DownloadHandlerOptions = {
     verbose: boolean;
 };
@@ -38,7 +38,7 @@ export const downloadHandler = async (
         ApiChartAsCodeListResponse['results']
     >({
         method: 'GET',
-        url: `/api/v1/projects/${projectId}/coder/charts`,
+        url: `/api/v1/projects/${projectId}/charts/code`,
         body: undefined,
     });
     console.info(`Downloading ${chartsAsCode.length} charts`);
@@ -116,7 +116,7 @@ export const uploadHandler = async (
             ApiChartAsCodeUpsertResponse['results']
         >({
             method: 'POST',
-            url: `/api/v1/projects/${projectId}/coder/chart`,
+            url: `/api/v1/projects/${projectId}/charts/${chart.slug}/code`,
             body: JSON.stringify(chart),
         });
         if (chartData.created) {

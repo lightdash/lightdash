@@ -973,6 +973,761 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "ApiCreateComment": {
+                "properties": {
+                    "results": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_": {
+                "properties": {
+                    "text": {
+                        "type": "string"
+                    },
+                    "replyTo": {
+                        "type": "string"
+                    },
+                    "mentions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "textHtml": {
+                        "type": "string"
+                    }
+                },
+                "required": ["text", "mentions", "textHtml"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Comment": {
+                "properties": {
+                    "mentions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "canRemove": {
+                        "type": "boolean"
+                    },
+                    "resolved": {
+                        "type": "boolean"
+                    },
+                    "replies": {
+                        "items": {
+                            "$ref": "#/components/schemas/Comment"
+                        },
+                        "type": "array"
+                    },
+                    "replyTo": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name"],
+                        "type": "object"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "textHtml": {
+                        "type": "string"
+                    },
+                    "text": {
+                        "type": "string"
+                    },
+                    "commentId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "mentions",
+                    "canRemove",
+                    "resolved",
+                    "user",
+                    "createdAt",
+                    "textHtml",
+                    "text",
+                    "commentId"
+                ],
+                "type": "object"
+            },
+            "ApiGetComments": {
+                "properties": {
+                    "results": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/Comment"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiResolveComment": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ApiCsvUrlResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "truncated": {
+                                "type": "boolean"
+                            },
+                            "status": {
+                                "type": "string"
+                            },
+                            "url": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["truncated", "status", "url"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "DashboardTileTypes": {
+                "enum": [
+                    "saved_chart",
+                    "sql_chart",
+                    "semantic_viewer_chart",
+                    "markdown",
+                    "loom"
+                ],
+                "type": "string"
+            },
+            "Required_CreateDashboardTileBase_": {
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes"
+                    },
+                    "x": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "y": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "h": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "w": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tabUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["uuid", "type", "x", "y", "h", "w"],
+                "type": "object",
+                "description": "Make all properties in T required"
+            },
+            "DashboardTileBase": {
+                "$ref": "#/components/schemas/Required_CreateDashboardTileBase_"
+            },
+            "DashboardTileTypes.SAVED_CHART": {
+                "enum": ["saved_chart"],
+                "type": "string"
+            },
+            "DashboardChartTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "lastVersionChartKind": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ChartKind"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "chartName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "belongsToDashboard": {
+                                "type": "boolean"
+                            },
+                            "savedChartUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["savedChartUuid"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardChartTileProperties"
+                    }
+                ]
+            },
+            "DashboardTileTypes.MARKDOWN": {
+                "enum": ["markdown"],
+                "type": "string"
+            },
+            "DashboardMarkdownTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "content": {
+                                "type": "string"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["content", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.MARKDOWN"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardMarkdownTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardMarkdownTileProperties"
+                    }
+                ]
+            },
+            "DashboardTileTypes.LOOM": {
+                "enum": ["loom"],
+                "type": "string"
+            },
+            "DashboardLoomTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "url": {
+                                "type": "string"
+                            },
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["url", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.LOOM"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardLoomTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardLoomTileProperties"
+                    }
+                ]
+            },
+            "DashboardTileTypes.SQL_CHART": {
+                "enum": ["sql_chart"],
+                "type": "string"
+            },
+            "DashboardSqlChartTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "chartName": {
+                                "type": "string"
+                            },
+                            "savedSqlUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["chartName", "savedSqlUuid"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.SQL_CHART"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardSqlChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSqlChartTileProperties"
+                    }
+                ]
+            },
+            "DashboardTileTypes.SEMANTIC_VIEWER_CHART": {
+                "enum": ["semantic_viewer_chart"],
+                "type": "string"
+            },
+            "DashboardSemanticViewerChartTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "chartName": {
+                                "type": "string"
+                            },
+                            "savedSemanticViewerChartUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "chartName",
+                            "savedSemanticViewerChartUuid"
+                        ],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.SEMANTIC_VIEWER_CHART"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardSemanticViewerChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTileProperties"
+                    }
+                ]
+            },
+            "DashboardTile": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardChartTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardMarkdownTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardLoomTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSqlChartTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTile"
+                    }
+                ]
+            },
+            "DashboardFieldTarget": {
+                "properties": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "fieldId"],
+                "type": "object"
+            },
+            "FilterRule_ConditionalOperator.T.V.any_": {
+                "properties": {
+                    "values": {
+                        "items": {},
+                        "type": "array"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ConditionalOperator"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "$ref": "#/components/schemas/DashboardFieldTarget"
+                    },
+                    "settings": {},
+                    "disabled": {
+                        "type": "boolean"
+                    },
+                    "required": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "Record_string.DashboardTileTarget_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DashboardFilterRule": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.T.V.any_"
+                    },
+                    {
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "tileTargets": {
+                                "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardFilters": {
+                "properties": {
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardFilterRule"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["tableCalculations", "metrics", "dimensions"],
+                "type": "object"
+            },
+            "UpdatedByUser": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid", "firstName", "lastName"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DashboardTab": {
+                "properties": {
+                    "order": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["order", "name", "uuid"],
+                "type": "object"
+            },
+            "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "dashboardVersionId": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTile"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "tabs": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTab"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "name",
+                    "uuid",
+                    "spaceName",
+                    "spaceUuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "pinnedListUuid",
+                    "slug",
+                    "dashboardVersionId",
+                    "updatedAt",
+                    "tiles",
+                    "filters",
+                    "views",
+                    "firstViewedAt",
+                    "pinnedListOrder",
+                    "tabs"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_Dashboard.isPrivate-or-access_": {
+                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DashboardDAO": {
+                "$ref": "#/components/schemas/Omit_Dashboard.isPrivate-or-access_"
+            },
+            "ApiPromoteDashboardResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DashboardDAO"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "PromotionAction": {
+                "enum": ["no changes", "create", "update", "delete"],
+                "type": "string"
+            },
+            "Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "isPrivate": {
+                        "type": "boolean"
+                    },
+                    "access": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboardCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "name",
+                    "uuid",
+                    "projectUuid",
+                    "organizationUuid",
+                    "pinnedListUuid",
+                    "slug",
+                    "isPrivate",
+                    "access",
+                    "pinnedListOrder",
+                    "chartCount",
+                    "dashboardCount"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_SpaceSummary.userAccess_": {
+                "$ref": "#/components/schemas/Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "PromotedSpace": {
+                "$ref": "#/components/schemas/Omit_SpaceSummary.userAccess_"
+            },
+            "PromotedDashboard": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardDAO"
+                    },
+                    {
+                        "properties": {
+                            "spaceSlug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["spaceSlug"],
+                        "type": "object"
+                    }
+                ]
+            },
             "FieldId": {
                 "type": "string"
             },
@@ -2211,952 +2966,6 @@
                     }
                 ]
             },
-            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-colorPalette-or-updatedAt_": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
-                    },
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object"
-                    },
-                    "colorPalette": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    }
-                },
-                "required": [
-                    "name",
-                    "dashboardUuid",
-                    "slug",
-                    "tableName",
-                    "metricQuery",
-                    "chartConfig",
-                    "tableConfig",
-                    "colorPalette",
-                    "updatedAt"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "ChartAsCode": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-colorPalette-or-updatedAt_"
-                    },
-                    {
-                        "properties": {
-                            "spaceSlug": {
-                                "type": "string"
-                            },
-                            "version": {
-                                "type": "number",
-                                "format": "double"
-                            }
-                        },
-                        "required": ["spaceSlug", "version"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ApiChartAsCodeListResponse": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/ChartAsCode"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiChartAsCodeUpsertResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "created": {
-                                "type": "boolean"
-                            },
-                            "chart": {
-                                "$ref": "#/components/schemas/ChartAsCode"
-                            }
-                        },
-                        "required": ["created", "chart"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery__": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig"
-                    },
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object"
-                    },
-                    "colorPalette": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "version": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "spaceSlug": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "name",
-                    "dashboardUuid",
-                    "slug",
-                    "tableName",
-                    "chartConfig",
-                    "tableConfig",
-                    "colorPalette",
-                    "updatedAt",
-                    "version",
-                    "spaceSlug"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_ChartAsCode.metricQuery_": {
-                "$ref": "#/components/schemas/Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "ApiCreateComment": {
-                "properties": {
-                    "results": {
-                        "type": "string"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "Pick_Comment.text-or-replyTo-or-mentions-or-textHtml_": {
-                "properties": {
-                    "text": {
-                        "type": "string"
-                    },
-                    "replyTo": {
-                        "type": "string"
-                    },
-                    "mentions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "textHtml": {
-                        "type": "string"
-                    }
-                },
-                "required": ["text", "mentions", "textHtml"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Comment": {
-                "properties": {
-                    "mentions": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "canRemove": {
-                        "type": "boolean"
-                    },
-                    "resolved": {
-                        "type": "boolean"
-                    },
-                    "replies": {
-                        "items": {
-                            "$ref": "#/components/schemas/Comment"
-                        },
-                        "type": "array"
-                    },
-                    "replyTo": {
-                        "type": "string"
-                    },
-                    "user": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name"],
-                        "type": "object"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "textHtml": {
-                        "type": "string"
-                    },
-                    "text": {
-                        "type": "string"
-                    },
-                    "commentId": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "mentions",
-                    "canRemove",
-                    "resolved",
-                    "user",
-                    "createdAt",
-                    "textHtml",
-                    "text",
-                    "commentId"
-                ],
-                "type": "object"
-            },
-            "ApiGetComments": {
-                "properties": {
-                    "results": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "items": {
-                                "$ref": "#/components/schemas/Comment"
-                            },
-                            "type": "array"
-                        },
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiResolveComment": {
-                "properties": {
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["status"],
-                "type": "object"
-            },
-            "ApiCsvUrlResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "truncated": {
-                                "type": "boolean"
-                            },
-                            "status": {
-                                "type": "string"
-                            },
-                            "url": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["truncated", "status", "url"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "DashboardTileTypes": {
-                "enum": [
-                    "saved_chart",
-                    "sql_chart",
-                    "semantic_viewer_chart",
-                    "markdown",
-                    "loom"
-                ],
-                "type": "string"
-            },
-            "Required_CreateDashboardTileBase_": {
-                "properties": {
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes"
-                    },
-                    "x": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "y": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "h": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "w": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tabUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["uuid", "type", "x", "y", "h", "w"],
-                "type": "object",
-                "description": "Make all properties in T required"
-            },
-            "DashboardTileBase": {
-                "$ref": "#/components/schemas/Required_CreateDashboardTileBase_"
-            },
-            "DashboardTileTypes.SAVED_CHART": {
-                "enum": ["saved_chart"],
-                "type": "string"
-            },
-            "DashboardChartTileProperties": {
-                "properties": {
-                    "properties": {
-                        "properties": {
-                            "lastVersionChartKind": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/ChartKind"
-                                    }
-                                ],
-                                "nullable": true
-                            },
-                            "chartName": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "belongsToDashboard": {
-                                "type": "boolean"
-                            },
-                            "savedChartUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "hideTitle": {
-                                "type": "boolean"
-                            },
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["savedChartUuid"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
-                    }
-                },
-                "required": ["properties", "type"],
-                "type": "object"
-            },
-            "DashboardChartTile": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardTileBase"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardChartTileProperties"
-                    }
-                ]
-            },
-            "DashboardTileTypes.MARKDOWN": {
-                "enum": ["markdown"],
-                "type": "string"
-            },
-            "DashboardMarkdownTileProperties": {
-                "properties": {
-                    "properties": {
-                        "properties": {
-                            "content": {
-                                "type": "string"
-                            },
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["content", "title"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes.MARKDOWN"
-                    }
-                },
-                "required": ["properties", "type"],
-                "type": "object"
-            },
-            "DashboardMarkdownTile": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardTileBase"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardMarkdownTileProperties"
-                    }
-                ]
-            },
-            "DashboardTileTypes.LOOM": {
-                "enum": ["loom"],
-                "type": "string"
-            },
-            "DashboardLoomTileProperties": {
-                "properties": {
-                    "properties": {
-                        "properties": {
-                            "url": {
-                                "type": "string"
-                            },
-                            "hideTitle": {
-                                "type": "boolean"
-                            },
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["url", "title"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes.LOOM"
-                    }
-                },
-                "required": ["properties", "type"],
-                "type": "object"
-            },
-            "DashboardLoomTile": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardTileBase"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardLoomTileProperties"
-                    }
-                ]
-            },
-            "DashboardTileTypes.SQL_CHART": {
-                "enum": ["sql_chart"],
-                "type": "string"
-            },
-            "DashboardSqlChartTileProperties": {
-                "properties": {
-                    "properties": {
-                        "properties": {
-                            "hideTitle": {
-                                "type": "boolean"
-                            },
-                            "chartName": {
-                                "type": "string"
-                            },
-                            "savedSqlUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["chartName", "savedSqlUuid"],
-                        "type": "object"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes.SQL_CHART"
-                    }
-                },
-                "required": ["properties", "type"],
-                "type": "object"
-            },
-            "DashboardSqlChartTile": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardTileBase"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardSqlChartTileProperties"
-                    }
-                ]
-            },
-            "DashboardTileTypes.SEMANTIC_VIEWER_CHART": {
-                "enum": ["semantic_viewer_chart"],
-                "type": "string"
-            },
-            "DashboardSemanticViewerChartTileProperties": {
-                "properties": {
-                    "properties": {
-                        "properties": {
-                            "hideTitle": {
-                                "type": "boolean"
-                            },
-                            "chartName": {
-                                "type": "string"
-                            },
-                            "savedSemanticViewerChartUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "title": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "chartName",
-                            "savedSemanticViewerChartUuid"
-                        ],
-                        "type": "object"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/DashboardTileTypes.SEMANTIC_VIEWER_CHART"
-                    }
-                },
-                "required": ["properties", "type"],
-                "type": "object"
-            },
-            "DashboardSemanticViewerChartTile": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardTileBase"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTileProperties"
-                    }
-                ]
-            },
-            "DashboardTile": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardChartTile"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardMarkdownTile"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardLoomTile"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardSqlChartTile"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardSemanticViewerChartTile"
-                    }
-                ]
-            },
-            "DashboardFieldTarget": {
-                "properties": {
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["tableName", "fieldId"],
-                "type": "object"
-            },
-            "FilterRule_ConditionalOperator.T.V.any_": {
-                "properties": {
-                    "values": {
-                        "items": {},
-                        "type": "array"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ConditionalOperator"
-                    },
-                    "id": {
-                        "type": "string"
-                    },
-                    "target": {
-                        "$ref": "#/components/schemas/DashboardFieldTarget"
-                    },
-                    "settings": {},
-                    "disabled": {
-                        "type": "boolean"
-                    },
-                    "required": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "Record_string.DashboardTileTarget_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DashboardFilterRule": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/FilterRule_ConditionalOperator.T.V.any_"
-                    },
-                    {
-                        "properties": {
-                            "label": {
-                                "type": "string"
-                            },
-                            "tileTargets": {
-                                "$ref": "#/components/schemas/Record_string.DashboardTileTarget_"
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
-            "DashboardFilters": {
-                "properties": {
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardFilterRule"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["tableCalculations", "metrics", "dimensions"],
-                "type": "object"
-            },
-            "UpdatedByUser": {
-                "properties": {
-                    "userUuid": {
-                        "type": "string"
-                    },
-                    "firstName": {
-                        "type": "string"
-                    },
-                    "lastName": {
-                        "type": "string"
-                    }
-                },
-                "required": ["userUuid", "firstName", "lastName"],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "DashboardTab": {
-                "properties": {
-                    "order": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["order", "name", "uuid"],
-                "type": "object"
-            },
-            "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "spaceName": {
-                        "type": "string"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "dashboardVersionId": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tiles": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardTile"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    },
-                    "updatedByUser": {
-                        "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "anyOf": [
-                            {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "tabs": {
-                        "items": {
-                            "$ref": "#/components/schemas/DashboardTab"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "name",
-                    "uuid",
-                    "spaceName",
-                    "spaceUuid",
-                    "projectUuid",
-                    "organizationUuid",
-                    "pinnedListUuid",
-                    "slug",
-                    "updatedAt",
-                    "dashboardVersionId",
-                    "tiles",
-                    "filters",
-                    "views",
-                    "firstViewedAt",
-                    "pinnedListOrder",
-                    "tabs"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_Dashboard.isPrivate-or-access_": {
-                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "DashboardDAO": {
-                "$ref": "#/components/schemas/Omit_Dashboard.isPrivate-or-access_"
-            },
-            "ApiPromoteDashboardResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DashboardDAO"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "PromotionAction": {
-                "enum": ["no changes", "create", "update", "delete"],
-                "type": "string"
-            },
-            "Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "pinnedListUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "isPrivate": {
-                        "type": "boolean"
-                    },
-                    "access": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "chartCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "dashboardCount": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": [
-                    "name",
-                    "uuid",
-                    "projectUuid",
-                    "organizationUuid",
-                    "pinnedListUuid",
-                    "slug",
-                    "isPrivate",
-                    "access",
-                    "pinnedListOrder",
-                    "chartCount",
-                    "dashboardCount"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_SpaceSummary.userAccess_": {
-                "$ref": "#/components/schemas/Pick_SpaceSummary.Exclude_keyofSpaceSummary.userAccess__",
-                "description": "Construct a type with the properties of T except for those in type K."
-            },
-            "PromotedSpace": {
-                "$ref": "#/components/schemas/Omit_SpaceSummary.userAccess_"
-            },
-            "PromotedDashboard": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/DashboardDAO"
-                    },
-                    {
-                        "properties": {
-                            "spaceSlug": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["spaceSlug"],
-                        "type": "object"
-                    }
-                ]
-            },
             "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-access__": {
                 "properties": {
                     "name": {
@@ -3195,11 +3004,35 @@
                     "slug": {
                         "type": "string"
                     },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/UpdatedByUser"
+                    },
+                    "pinnedListOrder": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "tableName": {
                         "type": "string"
                     },
                     "metricQuery": {
                         "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object"
                     },
                     "chartConfig": {
                         "$ref": "#/components/schemas/ChartConfig"
@@ -3221,30 +3054,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "updatedByUser": {
-                        "$ref": "#/components/schemas/UpdatedByUser"
-                    },
-                    "pinnedListOrder": {
-                        "type": "number",
-                        "format": "double",
-                        "nullable": true
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object"
                     }
                 },
                 "required": [
@@ -3258,13 +3067,13 @@
                     "dashboardUuid",
                     "dashboardName",
                     "slug",
+                    "updatedAt",
+                    "pinnedListOrder",
                     "tableName",
                     "metricQuery",
                     "chartConfig",
                     "tableConfig",
-                    "colorPalette",
-                    "updatedAt",
-                    "pinnedListOrder"
+                    "colorPalette"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -7318,6 +7127,197 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-colorPalette-or-updatedAt_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "colorPalette": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "name",
+                    "dashboardUuid",
+                    "slug",
+                    "updatedAt",
+                    "tableName",
+                    "metricQuery",
+                    "chartConfig",
+                    "tableConfig",
+                    "colorPalette"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ChartAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-colorPalette-or-updatedAt_"
+                    },
+                    {
+                        "properties": {
+                            "spaceSlug": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["spaceSlug", "version"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiChartAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChartAsCode"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiChartAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "created": {
+                                "type": "boolean"
+                            },
+                            "chart": {
+                                "$ref": "#/components/schemas/ChartAsCode"
+                            }
+                        },
+                        "required": ["created", "chart"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "colorPalette": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "spaceSlug": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "dashboardUuid",
+                    "slug",
+                    "updatedAt",
+                    "tableName",
+                    "chartConfig",
+                    "tableConfig",
+                    "colorPalette",
+                    "version",
+                    "spaceSlug"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_ChartAsCode.metricQuery_": {
+                "$ref": "#/components/schemas/Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery__",
+                "description": "Construct a type with the properties of T except for those in type K."
             },
             "CacheMetadata": {
                 "properties": {
@@ -15734,6 +15734,114 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/DbTagUpdate"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/charts/code": {
+            "get": {
+                "operationId": "getChartsAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiChartAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Charts as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/charts/{slug}/code": {
+            "post": {
+                "operationId": "upsertChartAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiChartAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Omit_ChartAsCode.metricQuery_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "metricQuery": {}
+                                        },
+                                        "required": ["metricQuery"],
+                                        "type": "object"
+                                    }
+                                ]
                             }
                         }
                     }

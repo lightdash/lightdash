@@ -122,6 +122,7 @@ export class CoderService extends BaseService {
     async upsertChart(
         user: SessionUser,
         projectUuid: string,
+        slug: string,
         chartAsCode: ChartAsCode,
     ) {
         // TODO handle permissions in spaces
@@ -131,7 +132,7 @@ export class CoderService extends BaseService {
             throw new ForbiddenError();
         }
         const [chart] = await this.savedChartModel.find({
-            slug: chartAsCode.slug,
+            slug,
         });
         if (chart === undefined) {
             // TODO create space if does not exist
