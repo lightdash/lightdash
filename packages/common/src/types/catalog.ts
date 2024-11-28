@@ -125,7 +125,7 @@ export type ApiGetMetricsTree = {
     };
 };
 
-export type ApiCreateMetricsTreeEdgePayload = {
+export type ApiMetricsTreeEdgePayload = {
     sourceMetricId: string;
     targetMetricId: string;
 };

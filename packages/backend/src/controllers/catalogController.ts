@@ -7,8 +7,8 @@ import {
     ApiGetMetricPeek,
     ApiMetricsCatalog,
     getItemId,
-    type ApiCreateMetricsTreeEdgePayload,
     type ApiGetMetricsTree,
+    type ApiMetricsTreeEdgePayload,
     type ApiSort,
     type ApiSuccessEmpty,
     type CatalogItemIcon,
@@ -345,7 +345,7 @@ export class CatalogController extends BaseController {
     @OperationId('createMetricsTreeEdge')
     async createMetricsTreeEdge(
         @Path() projectUuid: string,
-        @Body() body: ApiCreateMetricsTreeEdgePayload,
+        @Body() body: ApiMetricsTreeEdgePayload,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         await this.services

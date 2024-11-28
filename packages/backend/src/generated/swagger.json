@@ -1033,7 +1033,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiCreateMetricsTreeEdgePayload": {
+            "ApiMetricsTreeEdgePayload": {
                 "properties": {
                     "targetMetricId": {
                         "type": "string"
@@ -12481,7 +12481,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/ApiCreateMetricsTreeEdgePayload"
+                                "$ref": "#/components/schemas/ApiMetricsTreeEdgePayload"
                             }
                         }
                     }
