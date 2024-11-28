@@ -14,13 +14,13 @@ import {
     Radio,
     Stack,
     Text,
+    Tooltip,
     type ModalProps,
 } from '@mantine/core';
-import { IconCalendar, IconStack } from '@tabler/icons-react';
+import { IconCalendar, IconInfoCircle, IconStack } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { Hash } from '../../../svgs/metricsCatalog';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
@@ -94,12 +94,12 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         <Modal.Root
             opened={opened}
             onClose={handleClose}
-            yOffset={150}
+            yOffset={100}
             scrollAreaComponent={undefined}
-            size="80%"
+            size="auto"
         >
             <Modal.Overlay />
-            <Modal.Content sx={{ overflow: 'hidden' }} radius="md">
+            <Modal.Content sx={{ overflow: 'hidden' }} radius="lg" w="100%">
                 <LoadingOverlay
                     visible={
                         metricQuery.isLoading || metricResultsQuery.isLoading
@@ -107,19 +107,40 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                 />
                 <Modal.Header
                     sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.gray[4]}`,
+                        borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                        padding: `${theme.spacing.md} ${theme.spacing.lg}`,
                     })}
                 >
                     <Group spacing="xs">
-                        <Hash />
-                        <Text fw={500}>Metric Details</Text>
+                        <Text fw={600} fz="lg" color="dark.7">
+                            {metricQuery.data?.label}
+                        </Text>
+                        <Tooltip
+                            label={metricQuery.data?.description}
+                            disabled={!metricQuery.data?.description}
+                        >
+                            <MantineIcon
+                                color="dark.3"
+                                icon={IconInfoCircle}
+                                size={18}
+                            />
+                        </Tooltip>
                     </Group>
                     <Modal.CloseButton />
                 </Modal.Header>
 
-                <Modal.Body p={0}>
-                    <Flex align="stretch" gap={0}>
-                        <Stack p="md" bg="gray.0" w={360} spacing="sm">
+                <Modal.Body
+                    p={0}
+                    h="100%"
+                    sx={{ display: 'flex' }}
+                    miw={800}
+                    mih={600}
+                >
+                    <Stack p="xl" bg="#FDFDFD" h="100%" w={360} spacing="xl">
+                        <Stack w="100%" spacing="xs" align="flex-start">
+                            <Text fw={500} c="gray.7">
+                                Time filter
+                            </Text>
                             {metricQuery.isSuccess && (
                                 <MetricPeekDatePicker
                                     defaultTimeDimension={
@@ -127,20 +148,28 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                     }
                                 />
                             )}
+                        </Stack>
 
+                        <Divider color="gray.2" />
+
+                        <Stack w="100%" spacing="xs">
                             <Group position="apart">
                                 <Text fw={500} c="gray.7">
                                     Comparison
                                 </Text>
 
                                 <Button
-                                    variant="default"
+                                    variant="subtle"
                                     compact
+                                    color="dark"
                                     size="xs"
-                                    style={{
-                                        visibility: comparisonType
-                                            ? 'visible'
-                                            : 'hidden',
+                                    radius="md"
+                                    sx={{
+                                        visibility:
+                                            comparisonType ===
+                                            MetricExplorerComparison.NONE
+                                                ? 'hidden'
+                                                : 'visible',
                                     }}
                                     onClick={() =>
                                         setComparisonType(
@@ -180,10 +209,8 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                     ].map((comparison) => (
                                         <Paper
                                             key={comparison.type}
-                                            withBorder
-                                            radius="lg"
-                                            p="lg"
-                                            style={{ cursor: 'pointer' }}
+                                            p="md"
+                                            sx={{ cursor: 'pointer' }}
                                             onClick={() =>
                                                 setComparisonType(
                                                     comparison.type,
@@ -191,12 +218,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                             }
                                         >
                                             <Group align="start" noWrap>
-                                                <Paper
-                                                    p="xs"
-                                                    withBorder
-                                                    radius="md"
-                                                    shadow="md"
-                                                >
+                                                <Paper p="xs">
                                                     <MantineIcon
                                                         icon={comparison.icon}
                                                     />
@@ -210,13 +232,14 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                                         {comparison.label}
                                                     </Text>
 
-                                                    <Text color="gray.7">
+                                                    <Text color="gray.6">
                                                         {comparison.description}
                                                     </Text>
                                                 </Stack>
 
                                                 <Radio
                                                     value={comparison.type}
+                                                    size="xs"
                                                 />
                                             </Group>
                                         </Paper>
@@ -224,18 +247,18 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                 </Stack>
                             </Radio.Group>
                         </Stack>
+                    </Stack>
 
-                        <Divider orientation="vertical" />
+                    <Divider orientation="vertical" color="gray.2" />
 
-                        <Stack style={{ flexGrow: 1 }}>
-                            {metricQuery.isSuccess &&
-                                metricResultsQuery.isSuccess && (
-                                    <MetricsVisualization
-                                        metric={metricQuery.data}
-                                        data={metricResultsQuery.data}
-                                    />
-                                )}
-                        </Stack>
+                    <Flex mih={500} p="xxl" align="center" sx={{ flexGrow: 1 }}>
+                        {metricQuery.isSuccess &&
+                            metricResultsQuery.isSuccess && (
+                                <MetricsVisualization
+                                    metric={metricQuery.data}
+                                    data={metricResultsQuery.data}
+                                />
+                            )}
                     </Flex>
                 </Modal.Body>
             </Modal.Content>
