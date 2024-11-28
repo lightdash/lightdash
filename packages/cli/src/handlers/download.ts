@@ -92,7 +92,7 @@ export const uploadHandler = async (
     try {
         // Read all files from the lightdash directory
         const files = await fs.readdir(inputDir);
-        const jsonFiles = files.filter((file) => file.endsWith('.json'));
+        const jsonFiles = files.filter((file) => file.endsWith('.yml'));
 
         // Load each JSON file
         for (const file of jsonFiles) {
