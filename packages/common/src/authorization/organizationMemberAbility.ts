@@ -154,6 +154,11 @@ const applyOrganizationMemberStaticAbilities: Record<
                 },
             },
         });
+
+        can('manage', 'Space', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
+        });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             access: {

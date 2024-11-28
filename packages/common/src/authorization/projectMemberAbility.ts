@@ -127,6 +127,12 @@ export const projectMemberAbilities: Record<
         });
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
+            isPrivate: false,
+        });
+
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+
             access: {
                 $elemMatch: {
                     userUuid: member.userUuid,

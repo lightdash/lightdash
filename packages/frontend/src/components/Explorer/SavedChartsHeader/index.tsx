@@ -413,6 +413,10 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
             });
     };
 
+    const promoteDisabled = !(
+        project?.upstreamProjectUuid !== undefined && userCanPromoteChart
+    );
+
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
             <Modal
@@ -828,23 +832,15 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                     <Tooltip
                                         label={
                                             userCanPromoteChart
-                                                ? "You don't have permissions to promote this chart on the upstream project"
-                                                : 'You must enable first an upstream project in settings > Data ops'
+                                                ? 'You must enable first an upstream project in settings > Data ops'
+                                                : "You don't have permissions to promote this chart on the upstream project"
                                         }
-                                        disabled={
-                                            project?.upstreamProjectUuid !==
-                                                undefined ||
-                                            !userCanPromoteChart
-                                        }
+                                        disabled={!promoteDisabled}
                                         withinPortal
                                     >
                                         <div>
                                             <Menu.Item
-                                                disabled={
-                                                    project?.upstreamProjectUuid ===
-                                                        undefined ||
-                                                    !userCanPromoteChart
-                                                }
+                                                disabled={promoteDisabled}
                                                 icon={
                                                     <MantineIcon
                                                         icon={
