@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     CreateSavedChart,
+    ForbiddenError,
     NotFoundError,
     SavedChartDAO,
     SessionUser,
@@ -97,7 +98,9 @@ export class CoderService extends BaseService {
 
         // TODO handle permissions
         // Filter charts based on user permissions (from private spaces)
-
+        if (user.ability.cannot('manage', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
         // TODO
         // We need to get the charts and all the chart config
         // At the moment we are going to fetch them all in individual queries
@@ -121,8 +124,12 @@ export class CoderService extends BaseService {
         projectUuid: string,
         chartAsCode: ChartAsCode,
     ) {
-        // TODO handle permissions
+        // TODO handle permissions in spaces
+        const project = await this.projectModel.get(projectUuid);
 
+        if (user.ability.cannot('manage', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
         const [chart] = await this.savedChartModel.find({
             slug: chartAsCode.slug,
         });
