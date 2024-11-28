@@ -1,3 +1,10 @@
+## [0.1386.1](https://github.com/lightdash/lightdash/compare/0.1386.0...0.1386.1) (2024-11-28)
+
+
+### Bug Fixes
+
+* show only relevant date filters for year, month, etc.. ([#12627](https://github.com/lightdash/lightdash/issues/12627)) ([7e61a55](https://github.com/lightdash/lightdash/commit/7e61a550f0387b3765f2a28f6d2db2df28fa5bdd))
+
 # [0.1386.0](https://github.com/lightdash/lightdash/compare/0.1385.1...0.1386.0) (2024-11-28)
 
 
