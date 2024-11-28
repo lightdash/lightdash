@@ -11,6 +11,7 @@ import {
     type ApiSort,
     type ApiSuccessEmpty,
     type CatalogItemIcon,
+    type CatalogMetricsTreeEdge,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
@@ -337,4 +338,46 @@ export class CatalogController extends BaseController {
             results,
         };
     }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/metrics/tree/edges')
+    @OperationId('createMetricsTreeEdge')
+    async createMetricsTreeEdge(
+        @Path() projectUuid: string,
+        @Body() body: CatalogMetricsTreeEdge,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getCatalogService()
+            .createMetricsTreeEdge(req.user!, projectUuid, body);
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/metrics/tree/edges')
+    @OperationId('deleteMetricsTreeEdge')
+    async deleteMetricsTreeEdge(
+        @Path() projectUuid: string,
+        @Body() body: CatalogMetricsTreeEdge,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getCatalogService()
+            .deleteMetricsTreeEdge(req.user!, projectUuid, body);
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    // TODO: handle metrics tree node position
 }

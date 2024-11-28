@@ -26,6 +26,7 @@ import {
     type CatalogFieldMap,
     type CatalogItem,
     type CatalogItemWithTagUuids,
+    type CatalogMetricsTreeEdge,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -874,6 +875,27 @@ export class CatalogService<
     }
 
     getMetricsTree(user: SessionUser, projectUuid: string) {
+        // TODO: check permissions
         return this.catalogModel.getMetricsTree(projectUuid);
+    }
+
+    createMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        edge: CatalogMetricsTreeEdge,
+    ) {
+        // TODO: check if the edge is valid
+        // TODO: check permissions
+        return this.catalogModel.createMetricsTreeEdge(edge);
+    }
+
+    deleteMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        edge: CatalogMetricsTreeEdge,
+    ) {
+        // TODO: check if the edge is valid
+        // TODO: check permissions
+        return this.catalogModel.deleteMetricsTreeEdge(edge);
     }
 }

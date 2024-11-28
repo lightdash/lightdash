@@ -723,13 +723,23 @@ export class CatalogModel {
         };
     }
 
-    async createMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdge) {
-        return this.database(MetricsTreeEdgesTableName).insert(metricsTreeEdge);
+    async createMetricsTreeEdge(metricsTreeEdge: CatalogMetricsTreeEdge) {
+        return this.database(MetricsTreeEdgesTableName).insert({
+            source_catalog_search_uuid:
+                metricsTreeEdge.source.catalogSearchUuid,
+            target_catalog_search_uuid:
+                metricsTreeEdge.target.catalogSearchUuid,
+        });
     }
 
-    async deleteMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdge) {
+    async deleteMetricsTreeEdge(metricsTreeEdge: CatalogMetricsTreeEdge) {
         return this.database(MetricsTreeEdgesTableName)
-            .where(metricsTreeEdge)
+            .where({
+                source_catalog_search_uuid:
+                    metricsTreeEdge.source.catalogSearchUuid,
+                target_catalog_search_uuid:
+                    metricsTreeEdge.target.catalogSearchUuid,
+            })
             .delete();
     }
 }
