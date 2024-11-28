@@ -1,3 +1,10 @@
+# [0.1386.0](https://github.com/lightdash/lightdash/compare/0.1385.1...0.1386.0) (2024-11-28)
+
+
+### Features
+
+* charts as code cli ([#12617](https://github.com/lightdash/lightdash/issues/12617)) ([5984e77](https://github.com/lightdash/lightdash/commit/5984e77d5a9d49f967b0b8a89135a77a4f8a052c))
+
 ## [0.1385.1](https://github.com/lightdash/lightdash/compare/0.1385.0...0.1385.1) (2024-11-28)
 
 
