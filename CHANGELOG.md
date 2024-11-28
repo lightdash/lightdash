@@ -1,3 +1,10 @@
+# [0.1385.0](https://github.com/lightdash/lightdash/compare/0.1384.0...0.1385.0) (2024-11-28)
+
+
+### Features
+
+* bootstrap tree canvas ([#12632](https://github.com/lightdash/lightdash/issues/12632)) ([763bbf5](https://github.com/lightdash/lightdash/commit/763bbf5107274c204519f5165d010def8e9cb099))
+
 # [0.1384.0](https://github.com/lightdash/lightdash/compare/0.1383.0...0.1384.0) (2024-11-28)
 
 
