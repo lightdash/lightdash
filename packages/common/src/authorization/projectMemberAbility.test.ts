@@ -1298,7 +1298,7 @@ describe('Project member permissions', () => {
                         'manage',
                         subject('Space', { projectUuid, isPrivate: false }),
                     ),
-                ).toEqual(true);
+                ).toEqual(false);
                 expect(
                     ability.can(
                         'manage',

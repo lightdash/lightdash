@@ -125,10 +125,6 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
-        can('manage', 'Space', {
-            projectUuid: member.projectUuid,
-            isPrivate: false,
-        });
 
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
@@ -145,6 +141,10 @@ export const projectMemberAbilities: Record<
         projectMemberAbilities.interactive_viewer(member, { can });
         can('create', 'Space', {
             projectUuid: member.projectUuid,
+        });
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+            isPrivate: false,
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {
