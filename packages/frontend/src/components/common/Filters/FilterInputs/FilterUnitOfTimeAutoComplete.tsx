@@ -62,7 +62,7 @@ const getUnitOfTimeOptions = ({
 
 interface Props extends Omit<SelectProps, 'data' | 'onChange'> {
     isTimestamp: boolean;
-    unitOfTime: UnitOfTime | null;
+    unitOfTime?: UnitOfTime;
     minUnitOfTime?: UnitOfTime;
     showOptionsInPlural?: boolean;
     showCompletedOptions?: boolean;
@@ -80,7 +80,7 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
     onChange,
     ...rest
 }) => {
-    // Memoize options to prevent unnecessary re-renders
+    // compute the options
     const options = useMemo(
         () =>
             getUnitOfTimeOptions({
@@ -92,40 +92,38 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
         [isTimestamp, minUnitOfTime, showCompletedOptions, showOptionsInPlural],
     );
 
-    // Memoize option values
-    const optionValues = useMemo(() => options.map((o) => o.value), [options]);
+    // compute the current value
+    const selectValue = useMemo(() => {
+        // return the value if it's valid
+        if (unitOfTime) {
+            return `${unitOfTime}${completed ? '-completed' : ''}`;
+        }
+        // return the last option value if it's not valid
+        if (options.length > 0) {
+            return options[options.length - 1]?.value;
+        }
+        return '';
+    }, [unitOfTime, completed, options]);
 
-    const currentValue = unitOfTime
-        ? completed
-            ? `${unitOfTime}-completed`
-            : unitOfTime
-        : '';
-
-    // reset value only if it's no longer valid (e.g. options changed and the current value is no longer in the list)
+    // update the selected value if it's no longer valid
     useEffect(() => {
-        if (!optionValues.includes(currentValue)) {
-            // The current value is no longer valid
-            const firstOptionValue = options[0]?.value;
-            if (firstOptionValue) {
-                const [unitOfTimeValue, isCompleted] =
-                    firstOptionValue.split('-');
+        const optionValues = options.map((o) => o.value);
+        if (!optionValues.includes(selectValue)) {
+            if (options.length > 0) {
+                // if incvalid, set the last option value
+                const [newUnitOfTime, isCompleted] =
+                    options[options.length - 1].value.split('-');
                 onChange({
-                    unitOfTime: unitOfTimeValue as UnitOfTime,
+                    unitOfTime: newUnitOfTime as UnitOfTime,
                     completed: isCompleted === 'completed',
                 });
             } else {
-                // no options available, reset value
-                onChange({
-                    unitOfTime: UnitOfTime.days,
-                    completed: false,
-                });
+                console.warn(
+                    'No options available for FilterUnitOfTimeAutoComplete',
+                );
             }
         }
-    }, [currentValue, optionValues, onChange, options]);
-
-    const selectValue: string | null = optionValues.includes(currentValue)
-        ? currentValue
-        : options[0]?.value ?? null;
+    }, [selectValue, options, onChange]);
 
     return (
         <Select
