@@ -217,7 +217,17 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                             <Paper
                                                 key={comparison.type}
                                                 p="md"
-                                                sx={{ cursor: 'pointer' }}
+                                                sx={(theme) => ({
+                                                    cursor: 'pointer',
+                                                    '&[data-with-border="true"]':
+                                                        {
+                                                            border:
+                                                                comparisonType ===
+                                                                comparison.type
+                                                                    ? `1px solid ${theme.colors.indigo[5]}`
+                                                                    : 'initial',
+                                                        },
+                                                })}
                                                 onClick={() =>
                                                     setComparisonType(
                                                         comparison.type,
@@ -251,6 +261,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                                     <Radio
                                                         value={comparison.type}
                                                         size="xs"
+                                                        color="indigo"
                                                     />
                                                 </Group>
                                             </Paper>
