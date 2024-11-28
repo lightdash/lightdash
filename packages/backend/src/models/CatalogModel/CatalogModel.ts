@@ -697,28 +697,56 @@ export class CatalogModel {
         projectUuid: string,
     ): Promise<{ edges: CatalogMetricsTreeEdge[] }> {
         const edges = await this.database(MetricsTreeEdgesTableName)
-            .innerJoin(CatalogTableName, function joinCatalogSearch() {
-                this.on(
-                    `${MetricsTreeEdgesTableName}.source_catalog_search_uuid`,
-                    '=',
-                    `${CatalogTableName}.catalog_search_uuid`,
-                ).andOn(
-                    `${MetricsTreeEdgesTableName}.target_catalog_search_uuid`,
-                    '=',
-                    `${CatalogTableName}.catalog_search_uuid`,
-                );
+            .column({
+                source_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_catalog_search_uuid`,
+                target_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_catalog_search_uuid`,
+                source_name: 'source_catalog.name',
+                target_name: 'target_catalog.name',
+                source_explore_base_table: this.database.raw(
+                    `source_explore.explore->>'baseTable'`,
+                ),
+                target_explore_base_table: this.database.raw(
+                    `target_explore.explore->>'baseTable'`,
+                ),
             })
-            .where(`${CatalogTableName}.project_uuid`, projectUuid);
+            // Join for source catalog - this will be used to filter by the selected metrics
+            .innerJoin(
+                `${CatalogTableName} as source_catalog`,
+                `${MetricsTreeEdgesTableName}.source_catalog_search_uuid`,
+                'source_catalog.catalog_search_uuid',
+            )
+            // Join for target catalog - this will be used to filter by the selected metrics
+            .innerJoin(
+                `${CatalogTableName} as target_catalog`,
+                `${MetricsTreeEdgesTableName}.target_catalog_search_uuid`,
+                'target_catalog.catalog_search_uuid',
+            )
+            // Join for source explore - this will be used to filter by the selected metrics
+            .leftJoin(
+                `${CachedExploreTableName} as source_explore`,
+                'source_catalog.cached_explore_uuid',
+                'source_explore.cached_explore_uuid',
+            )
+            // Join for target explore - this will be used to filter by the selected metrics
+            .leftJoin(
+                `${CachedExploreTableName} as target_explore`,
+                'target_catalog.cached_explore_uuid',
+                'target_explore.cached_explore_uuid',
+            )
+            .where('source_catalog.project_uuid', projectUuid)
+            .andWhere('target_catalog.project_uuid', projectUuid);
 
         return {
             edges: edges.map((e) => ({
                 source: {
                     catalogSearchUuid: e.source_catalog_search_uuid,
-                    name: e.name,
+                    name: e.source_name,
+                    tableName: e.source_explore_base_table,
                 },
                 target: {
                     catalogSearchUuid: e.target_catalog_search_uuid,
-                    name: e.name,
+                    name: e.target_name,
+                    tableName: e.target_explore_base_table,
                 },
             })),
         };

@@ -95,8 +95,8 @@ export type CatalogTable = Pick<
 export type CatalogItem = CatalogField | CatalogTable;
 
 export type CatalogMetricsTreeEdge = {
-    source: Pick<CatalogField, 'catalogSearchUuid' | 'name'>;
-    target: Pick<CatalogField, 'catalogSearchUuid' | 'name'>;
+    source: Pick<CatalogField, 'catalogSearchUuid' | 'name' | 'tableName'>;
+    target: Pick<CatalogField, 'catalogSearchUuid' | 'name' | 'tableName'>;
 };
 
 export type ApiCatalogResults = CatalogItem[];
