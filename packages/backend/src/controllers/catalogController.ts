@@ -7,6 +7,7 @@ import {
     ApiGetMetricPeek,
     ApiMetricsCatalog,
     getItemId,
+    type ApiMetricsTree,
     type ApiSort,
     type ApiSuccessEmpty,
     type CatalogItemIcon,
@@ -314,6 +315,26 @@ export class CatalogController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/tree')
+    @OperationId('getMetricsTree')
+    async getMetricsTree(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiMetricsTree> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricsTree(req.user!, projectUuid);
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 }

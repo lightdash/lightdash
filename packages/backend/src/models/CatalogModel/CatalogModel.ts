@@ -14,6 +14,7 @@ import {
     type CatalogFieldWhere,
     type CatalogItem,
     type CatalogItemWithTagUuids,
+    type CatalogMetricsTreeEdge,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -28,9 +29,11 @@ import {
     CatalogTableName,
     CatalogTagsTableName,
     getDbCatalogColumnFromCatalogProperty,
+    MetricsTreeEdgesTableName,
     type DbCatalog,
     type DbCatalogIn,
     type DbCatalogTagsMigrateIn,
+    type DbMetricsTreeEdge,
 } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
 import { TagsTableName } from '../../database/entities/tags';
@@ -687,5 +690,46 @@ export class CatalogModel {
 
             await Promise.all(updatePromises);
         });
+    }
+
+    async getMetricsTree(
+        projectUuid: string,
+    ): Promise<{ edges: CatalogMetricsTreeEdge[] }> {
+        const edges = await this.database(MetricsTreeEdgesTableName)
+            .innerJoin(CatalogTableName, function joinCatalogSearch() {
+                this.on(
+                    `${MetricsTreeEdgesTableName}.source_catalog_search_uuid`,
+                    '=',
+                    `${CatalogTableName}.catalog_search_uuid`,
+                ).andOn(
+                    `${MetricsTreeEdgesTableName}.target_catalog_search_uuid`,
+                    '=',
+                    `${CatalogTableName}.catalog_search_uuid`,
+                );
+            })
+            .where(`${CatalogTableName}.project_uuid`, projectUuid);
+
+        return {
+            edges: edges.map((e) => ({
+                source: {
+                    catalogSearchUuid: e.source_catalog_search_uuid,
+                    name: e.name,
+                },
+                target: {
+                    catalogSearchUuid: e.target_catalog_search_uuid,
+                    name: e.name,
+                },
+            })),
+        };
+    }
+
+    async createMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdge) {
+        return this.database(MetricsTreeEdgesTableName).insert(metricsTreeEdge);
+    }
+
+    async deleteMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdge) {
+        return this.database(MetricsTreeEdgesTableName)
+            .where(metricsTreeEdge)
+            .delete();
     }
 }

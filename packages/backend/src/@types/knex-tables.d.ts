@@ -127,6 +127,8 @@ import {
     CatalogTableName,
     CatalogTagsTable,
     CatalogTagsTableName,
+    DbMetricsTreeEdge,
+    MetricsTreeEdgesTableName,
 } from '../database/entities/catalog';
 import {
     DashboardTileCommentsTable,
@@ -290,5 +292,6 @@ declare module 'knex/types/tables' {
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
+        [MetricsTreeEdgesTableName]: DbMetricsTreeEdge;
     }
 }

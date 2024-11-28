@@ -103,3 +103,15 @@ export type DbCatalogItemsMigrateIn = Pick<
 >;
 
 export const CatalogTagsTableName = 'catalog_search_tags';
+
+export type DbMetricsTreeEdge = {
+    source_catalog_search_uuid: string;
+    target_catalog_search_uuid: string;
+};
+
+export type DbMetricsTreeEdgeIn = Pick<
+    DbMetricsTreeEdge,
+    'source_catalog_search_uuid' | 'target_catalog_search_uuid'
+>;
+
+export const MetricsTreeEdgesTableName = 'metrics_tree_edges';

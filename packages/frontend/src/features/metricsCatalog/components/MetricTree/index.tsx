@@ -51,6 +51,8 @@ const MetricTree: FC<Props> = ({ metrics, nodes = [], edges = [] }) => {
     const [currentEdges, setCurrentEdges, onEdgesChange] =
         useEdgesState(metricEdges);
 
+    console.log('currentEdges', currentEdges);
+
     const onConnect = useCallback(
         (params: any) => setCurrentEdges((els) => addEdge(params, els)),
         [setCurrentEdges],

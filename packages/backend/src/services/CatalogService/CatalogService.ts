@@ -872,4 +872,8 @@ export class CatalogService<
             defaultTimeDimension,
         };
     }
+
+    getMetricsTree(user: SessionUser, projectUuid: string) {
+        return this.catalogModel.getMetricsTree(projectUuid);
+    }
 }

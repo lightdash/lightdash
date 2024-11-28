@@ -982,6 +982,54 @@
                 "required": ["status"],
                 "type": "object"
             },
+            "Pick_CatalogField.catalogSearchUuid-or-name_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "catalogSearchUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "catalogSearchUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CatalogMetricsTreeEdge": {
+                "properties": {
+                    "target": {
+                        "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name_"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name_"
+                    }
+                },
+                "required": ["target", "source"],
+                "type": "object"
+            },
+            "ApiMetricsTree": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "edges": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CatalogMetricsTreeEdge"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["edges"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -12126,6 +12174,45 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/tree": {
+            "get": {
+                "operationId": "getMetricsTree",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMetricsTree"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/comments/dashboards/{dashboardUuid}/{dashboardTileUuid}": {

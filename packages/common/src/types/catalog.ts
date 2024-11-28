@@ -94,6 +94,11 @@ export type CatalogTable = Pick<
 
 export type CatalogItem = CatalogField | CatalogTable;
 
+export type CatalogMetricsTreeEdge = {
+    source: Pick<CatalogField, 'catalogSearchUuid' | 'name'>;
+    target: Pick<CatalogField, 'catalogSearchUuid' | 'name'>;
+};
+
 export type ApiCatalogResults = CatalogItem[];
 
 export type ApiMetricsCatalogResults = CatalogField[];
@@ -109,6 +114,13 @@ export type MetricWithAssociatedTimeDimension = CompiledMetric &
 export type ApiGetMetricPeek = {
     status: 'ok';
     results: MetricWithAssociatedTimeDimension;
+};
+
+export type ApiMetricsTree = {
+    status: 'ok';
+    results: {
+        edges: CatalogMetricsTreeEdge[];
+    };
 };
 
 export type CatalogMetadata = {
