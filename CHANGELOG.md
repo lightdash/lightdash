@@ -1,3 +1,10 @@
+## [0.1386.2](https://github.com/lightdash/lightdash/compare/0.1386.1...0.1386.2) (2024-11-28)
+
+
+### Bug Fixes
+
+* space group permissions gets diplicated over on preview create ([#12642](https://github.com/lightdash/lightdash/issues/12642)) ([21da979](https://github.com/lightdash/lightdash/commit/21da97963554f718fcd67e8d8af074e66eeb38d0))
+
 ## [0.1386.1](https://github.com/lightdash/lightdash/compare/0.1386.0...0.1386.1) (2024-11-28)
 
 
