@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    ChartAsCode,
     CreateSavedChart,
+    currentVersion,
     ForbiddenError,
     NotFoundError,
     SavedChartDAO,
@@ -8,7 +10,6 @@ import {
     SpaceSummary,
     UpdatedByUser,
 } from '@lightdash/common';
-import { ChartAsCode, currentVersion } from '@lightdash/common/src/types/coder';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
