@@ -30,7 +30,7 @@ const MetricTree: FC<Props> = ({ metrics, nodes = [], edges = [] }) => {
         }
 
         return metrics.map((metric) => ({
-            id: metric.name,
+            id: `${metric.tableName}_${metric.name}`,
             position: { x: 0, y: 0 },
             data: { label: metric.name },
         }));
