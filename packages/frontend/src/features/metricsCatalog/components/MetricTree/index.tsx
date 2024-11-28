@@ -11,10 +11,11 @@ import {
     type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import {
     useCreateMetricsTreeEdge,
+    useDeleteMetricsTreeEdge,
     useMetricsTree,
 } from '../../hooks/useMetricsTree';
 
@@ -33,6 +34,7 @@ const MetricTree: FC<Props> = ({ metrics }) => {
 
     const { data: metricsTree } = useMetricsTree(projectUuid);
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
+    const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
 
     const initialNodes = useMemo<Node[]>(() => {
         return metrics.map((metric) => ({
@@ -76,11 +78,16 @@ const MetricTree: FC<Props> = ({ metrics }) => {
     const [currentEdges, setCurrentEdges, onEdgesChange] =
         useEdgesState(initialEdges);
 
-    const onConnect = useCallback(
-        (params: Connection) => {
+    // Set the current edges to the initial edges in the case that the request for metrics tree is slow
+    useEffect(() => {
+        setCurrentEdges(initialEdges);
+    }, [initialEdges, setCurrentEdges]);
+
+    const handleConnect = useCallback(
+        async (params: Connection) => {
             setCurrentEdges((els) => addEdge(params, els));
             if (projectUuid) {
-                void createMetricsTreeEdge({
+                await createMetricsTreeEdge({
                     projectUuid,
                     sourceCatalogSearchUuid: params.source,
                     targetCatalogSearchUuid: params.target,
@@ -88,6 +95,23 @@ const MetricTree: FC<Props> = ({ metrics }) => {
             }
         },
         [setCurrentEdges, createMetricsTreeEdge, projectUuid],
+    );
+
+    const handleEdgeDelete = useCallback(
+        async (edges: Edge[]) => {
+            if (projectUuid) {
+                const promises = edges.map((edge) => {
+                    return deleteMetricsTreeEdge({
+                        projectUuid,
+                        sourceCatalogSearchUuid: edge.source,
+                        targetCatalogSearchUuid: edge.target,
+                    });
+                });
+
+                await Promise.all(promises);
+            }
+        },
+        [deleteMetricsTreeEdge, projectUuid],
     );
 
     return (
@@ -99,7 +123,9 @@ const MetricTree: FC<Props> = ({ metrics }) => {
                 attributionPosition="top-right"
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
+                onConnect={handleConnect}
+                edgesReconnectable={false}
+                onEdgesDelete={handleEdgeDelete}
             >
                 <Background />
             </ReactFlow>

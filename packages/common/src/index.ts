@@ -114,6 +114,7 @@ import { type ValidationResponse } from './types/validation';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
+    type ApiGetMetricsTree,
     type ApiMetricsCatalog,
 } from './types/catalog';
 import {
@@ -706,7 +707,8 @@ type ApiResults =
     | ApiGroupListResponse['results']
     | ApiCreateTagResponse['results']
     | ApiChartAsCodeListResponse['results']
-    | ApiChartAsCodeUpsertResponse['results'];
+    | ApiChartAsCodeUpsertResponse['results']
+    | ApiGetMetricsTree['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';
