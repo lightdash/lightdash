@@ -16,6 +16,10 @@ export const getMantineThemeOverride = (overrides?: {
     // Without it things look a little darker than before.
     black: '#111418',
 
+    colors: {
+        offWhite: ['#FDFDFD'],
+    },
+
     spacing: {
         one: rem(1),
         two: rem(2),

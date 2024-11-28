@@ -131,121 +131,144 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                 <Modal.Body
                     p={0}
-                    h="100%"
-                    sx={{ display: 'flex' }}
+                    h="auto"
+                    sx={{ display: 'flex', flex: 1 }}
                     miw={800}
                     mih={600}
                 >
-                    <Stack p="xl" bg="#FDFDFD" h="100%" w={360} spacing="xl">
-                        <Stack w="100%" spacing="xs" align="flex-start">
-                            <Text fw={500} c="gray.7">
-                                Time filter
-                            </Text>
-                            {metricQuery.isSuccess && (
-                                <MetricPeekDatePicker
-                                    defaultTimeDimension={
-                                        metricQuery.data.defaultTimeDimension
-                                    }
-                                />
-                            )}
-                        </Stack>
-
-                        <Divider color="gray.2" />
-
-                        <Stack w="100%" spacing="xs">
-                            <Group position="apart">
-                                <Text fw={500} c="gray.7">
-                                    Comparison
-                                </Text>
-
-                                <Button
-                                    variant="subtle"
-                                    compact
-                                    color="dark"
-                                    size="xs"
-                                    radius="md"
-                                    sx={{
-                                        visibility:
-                                            comparisonType ===
-                                            MetricExplorerComparison.NONE
-                                                ? 'hidden'
-                                                : 'visible',
-                                    }}
-                                    onClick={() =>
-                                        setComparisonType(
-                                            MetricExplorerComparison.NONE,
-                                        )
-                                    }
-                                >
-                                    Clear
-                                </Button>
-                            </Group>
-
-                            <Radio.Group
-                                value={comparisonType}
-                                onChange={(value: MetricExplorerComparison) =>
-                                    setComparisonType(value)
-                                }
+                    <Stack p="xl" bg="offWhite.0" w={360}>
+                        <Stack spacing="xl">
+                            <Stack
+                                w="100%"
+                                spacing="xs"
+                                align="flex-start"
+                                sx={{ flexGrow: 1 }}
                             >
-                                <Stack spacing="sm">
-                                    {[
-                                        {
-                                            type: MetricExplorerComparison.PREVIOUS_PERIOD,
-                                            icon: IconCalendar,
-                                            label: 'Compare to previous period', // TODO: should have a label relative to the time granularity
-                                            description:
-                                                'Show data from the same period in the previous cycle', // TODO: should have a description relative to the time granularity
-                                        },
-                                        {
-                                            type: MetricExplorerComparison.DIFFERENT_METRIC,
-                                            icon: IconStack,
-                                            label: 'Compare to another metric',
-                                            description: `Compare ${
-                                                metricQuery.data?.label
-                                                    ? `"${metricQuery.data?.label}"`
-                                                    : 'this metric'
-                                            } to another metric`,
-                                        },
-                                    ].map((comparison) => (
-                                        <Paper
-                                            key={comparison.type}
-                                            p="md"
-                                            sx={{ cursor: 'pointer' }}
-                                            onClick={() =>
-                                                setComparisonType(
-                                                    comparison.type,
-                                                )
-                                            }
-                                        >
-                                            <Group align="start" noWrap>
-                                                <Paper p="xs">
-                                                    <MantineIcon
-                                                        icon={comparison.icon}
+                                <Text fw={500} c="gray.7">
+                                    Time filter
+                                </Text>
+                                {metricQuery.isSuccess && (
+                                    <MetricPeekDatePicker
+                                        defaultTimeDimension={
+                                            metricQuery.data
+                                                .defaultTimeDimension
+                                        }
+                                    />
+                                )}
+                            </Stack>
+
+                            <Divider color="gray.2" />
+
+                            <Stack w="100%" spacing="xs" sx={{ flexGrow: 1 }}>
+                                <Group position="apart">
+                                    <Text fw={500} c="gray.7">
+                                        Comparison
+                                    </Text>
+
+                                    <Button
+                                        variant="subtle"
+                                        compact
+                                        color="dark"
+                                        size="xs"
+                                        radius="md"
+                                        sx={{
+                                            visibility:
+                                                comparisonType ===
+                                                MetricExplorerComparison.NONE
+                                                    ? 'hidden'
+                                                    : 'visible',
+                                        }}
+                                        onClick={() =>
+                                            setComparisonType(
+                                                MetricExplorerComparison.NONE,
+                                            )
+                                        }
+                                    >
+                                        Clear
+                                    </Button>
+                                </Group>
+
+                                <Radio.Group
+                                    value={comparisonType}
+                                    onChange={(
+                                        value: MetricExplorerComparison,
+                                    ) => setComparisonType(value)}
+                                >
+                                    <Stack spacing="sm">
+                                        {[
+                                            {
+                                                type: MetricExplorerComparison.PREVIOUS_PERIOD,
+                                                icon: IconCalendar,
+                                                label: 'Compare to previous period', // TODO: should have a label relative to the time granularity
+                                                description:
+                                                    'Show data from the same period in the previous cycle', // TODO: should have a description relative to the time granularity
+                                            },
+                                            {
+                                                type: MetricExplorerComparison.DIFFERENT_METRIC,
+                                                icon: IconStack,
+                                                label: 'Compare to another metric',
+                                                description: `Compare ${
+                                                    metricQuery.data?.label
+                                                        ? `"${metricQuery.data?.label}"`
+                                                        : 'this metric'
+                                                } to another metric`,
+                                            },
+                                        ].map((comparison) => (
+                                            <Paper
+                                                key={comparison.type}
+                                                p="md"
+                                                sx={(theme) => ({
+                                                    cursor: 'pointer',
+                                                    '&[data-with-border="true"]':
+                                                        {
+                                                            border:
+                                                                comparisonType ===
+                                                                comparison.type
+                                                                    ? `1px solid ${theme.colors.indigo[5]}`
+                                                                    : 'initial',
+                                                        },
+                                                })}
+                                                onClick={() =>
+                                                    setComparisonType(
+                                                        comparison.type,
+                                                    )
+                                                }
+                                            >
+                                                <Group align="start" noWrap>
+                                                    <Paper p="xs">
+                                                        <MantineIcon
+                                                            icon={
+                                                                comparison.icon
+                                                            }
+                                                        />
+                                                    </Paper>
+
+                                                    <Stack spacing={4}>
+                                                        <Text
+                                                            color="dark.8"
+                                                            fw={500}
+                                                        >
+                                                            {comparison.label}
+                                                        </Text>
+
+                                                        <Text color="gray.6">
+                                                            {
+                                                                comparison.description
+                                                            }
+                                                        </Text>
+                                                    </Stack>
+
+                                                    <Radio
+                                                        value={comparison.type}
+                                                        size="xs"
+                                                        color="indigo"
                                                     />
-                                                </Paper>
-
-                                                <Stack spacing={4}>
-                                                    <Text
-                                                        color="dark.8"
-                                                        fw={500}
-                                                    >
-                                                        {comparison.label}
-                                                    </Text>
-
-                                                    <Text color="gray.6">
-                                                        {comparison.description}
-                                                    </Text>
-                                                </Stack>
-
-                                                <Radio
-                                                    value={comparison.type}
-                                                    size="xs"
-                                                />
-                                            </Group>
-                                        </Paper>
-                                    ))}
-                                </Stack>
-                            </Radio.Group>
+                                                </Group>
+                                            </Paper>
+                                        ))}
+                                    </Stack>
+                                </Radio.Group>
+                            </Stack>
                         </Stack>
                     </Stack>
 
