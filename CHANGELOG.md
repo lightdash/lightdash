@@ -1,3 +1,52 @@
+## [0.1386.3](https://github.com/lightdash/lightdash/compare/0.1386.2...0.1386.3) (2024-11-28)
+
+
+### Bug Fixes
+
+*  dependency coder ([#12645](https://github.com/lightdash/lightdash/issues/12645)) ([fc26cda](https://github.com/lightdash/lightdash/commit/fc26cdac7d97fba2b481f78f37bc849b4be281c5))
+
+## [0.1386.2](https://github.com/lightdash/lightdash/compare/0.1386.1...0.1386.2) (2024-11-28)
+
+
+### Bug Fixes
+
+* space group permissions gets diplicated over on preview create ([#12642](https://github.com/lightdash/lightdash/issues/12642)) ([21da979](https://github.com/lightdash/lightdash/commit/21da97963554f718fcd67e8d8af074e66eeb38d0))
+
+## [0.1386.1](https://github.com/lightdash/lightdash/compare/0.1386.0...0.1386.1) (2024-11-28)
+
+
+### Bug Fixes
+
+* show only relevant date filters for year, month, etc.. ([#12627](https://github.com/lightdash/lightdash/issues/12627)) ([7e61a55](https://github.com/lightdash/lightdash/commit/7e61a550f0387b3765f2a28f6d2db2df28fa5bdd))
+
+# [0.1386.0](https://github.com/lightdash/lightdash/compare/0.1385.1...0.1386.0) (2024-11-28)
+
+
+### Features
+
+* charts as code cli ([#12617](https://github.com/lightdash/lightdash/issues/12617)) ([5984e77](https://github.com/lightdash/lightdash/commit/5984e77d5a9d49f967b0b8a89135a77a4f8a052c))
+
+## [0.1385.1](https://github.com/lightdash/lightdash/compare/0.1385.0...0.1385.1) (2024-11-28)
+
+
+### Bug Fixes
+
+* promote content for developers ([#12631](https://github.com/lightdash/lightdash/issues/12631)) ([fb60627](https://github.com/lightdash/lightdash/commit/fb60627d03dc682dba0b036a99269dc6603bce51))
+
+# [0.1385.0](https://github.com/lightdash/lightdash/compare/0.1384.0...0.1385.0) (2024-11-28)
+
+
+### Features
+
+* bootstrap tree canvas ([#12632](https://github.com/lightdash/lightdash/issues/12632)) ([763bbf5](https://github.com/lightdash/lightdash/commit/763bbf5107274c204519f5165d010def8e9cb099))
+
+# [0.1384.0](https://github.com/lightdash/lightdash/compare/0.1383.0...0.1384.0) (2024-11-28)
+
+
+### Features
+
+* metrics explorer visualization ([#12630](https://github.com/lightdash/lightdash/issues/12630)) ([16182b8](https://github.com/lightdash/lightdash/commit/16182b83ab722d33edd421fc7b070a552fe23cf8))
+
 # [0.1383.0](https://github.com/lightdash/lightdash/compare/0.1382.0...0.1383.0) (2024-11-27)
 
 

@@ -940,17 +940,20 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "MetricWithAssociatedTimeDimension": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CompiledMetric"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Pick_CompiledTable.defaultTimeDimension_"
+                    }
+                ]
+            },
             "ApiGetMetricPeek": {
                 "properties": {
                     "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/CompiledMetric"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CompiledTable.defaultTimeDimension_"
-                            }
-                        ]
+                        "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
                     },
                     "status": {
                         "type": "string",
@@ -3958,8 +3961,19 @@
             "ResultRow": {
                 "$ref": "#/components/schemas/Record_string._value-ResultValue--__"
             },
+            "Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ItemsMap": {
+                "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
+            },
             "MetricsExplorerQueryResults": {
                 "properties": {
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap"
+                    },
                     "comparisonRows": {
                         "items": {
                             "$ref": "#/components/schemas/ResultRow"
@@ -3973,7 +3987,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["rows"],
+                "required": ["fields", "rows"],
                 "type": "object"
             },
             "ApiMetricsExplorerQueryResults": {
@@ -7167,6 +7181,193 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-colorPalette-or-updatedAt_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "colorPalette": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "name",
+                    "dashboardUuid",
+                    "slug",
+                    "updatedAt",
+                    "tableName",
+                    "metricQuery",
+                    "chartConfig",
+                    "tableConfig",
+                    "colorPalette"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ChartAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-colorPalette-or-updatedAt_"
+                    },
+                    {
+                        "properties": {
+                            "spaceSlug": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["spaceSlug", "version"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiChartAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ChartAsCode"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiChartAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "created": {
+                                "type": "boolean"
+                            },
+                            "chart": {
+                                "$ref": "#/components/schemas/ChartAsCode"
+                            }
+                        },
+                        "required": ["created", "chart"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "colorPalette": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "spaceSlug": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "name",
+                    "dashboardUuid",
+                    "slug",
+                    "updatedAt",
+                    "tableName",
+                    "tableConfig",
+                    "colorPalette",
+                    "version",
+                    "spaceSlug"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_ChartAsCode.metricQuery-or-chartConfig_": {
+                "$ref": "#/components/schemas/Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig__",
+                "description": "Construct a type with the properties of T except for those in type K."
             },
             "CacheMetadata": {
                 "properties": {
@@ -11338,7 +11539,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1380.2",
+        "version": "0.1384.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13430,9 +13631,9 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricsExplorerQuery": {
+        "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricExplorerQuery": {
             "post": {
-                "operationId": "runMetricsExplorerQuery",
+                "operationId": "runMetricExplorerQuery",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -15659,6 +15860,118 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/DbTagUpdate"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/charts/code": {
+            "get": {
+                "operationId": "getChartsAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiChartAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Charts as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/charts/{slug}/code": {
+            "post": {
+                "operationId": "upsertChartAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiChartAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Omit_ChartAsCode.metricQuery-or-chartConfig_"
+                                    },
+                                    {
+                                        "properties": {
+                                            "metricQuery": {},
+                                            "chartConfig": {}
+                                        },
+                                        "required": [
+                                            "metricQuery",
+                                            "chartConfig"
+                                        ],
+                                        "type": "object"
+                                    }
+                                ]
                             }
                         }
                     }

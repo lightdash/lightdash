@@ -1,6 +1,6 @@
-import { UnitOfTime } from '@lightdash/common';
+import { getUnitsOfTimeGreaterOrEqual, UnitOfTime } from '@lightdash/common';
 import { Select, type SelectProps } from '@mantine/core';
-import { type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 
 const getUnitOfTimeLabel = (
     unitOfTime: UnitOfTime,
@@ -14,17 +14,20 @@ const getUnitOfTimeLabel = (
 
 const getUnitOfTimeOptions = ({
     isTimestamp,
+    minUnitOfTime,
     showCompletedOptions,
     showOptionsInPlural,
 }: {
     isTimestamp: boolean;
+    minUnitOfTime?: UnitOfTime;
     showCompletedOptions: boolean;
     showOptionsInPlural: boolean;
 }) => {
     const dateIndex = Object.keys(UnitOfTime).indexOf(UnitOfTime.days);
 
-    // Filter unitTimes before Days if we are filtering Dates only
-    const unitsOfTime = isTimestamp
+    const unitsOfTime = minUnitOfTime
+        ? getUnitsOfTimeGreaterOrEqual(minUnitOfTime)
+        : isTimestamp
         ? Object.values(UnitOfTime)
         : Object.values(UnitOfTime).slice(dateIndex);
 
@@ -59,7 +62,8 @@ const getUnitOfTimeOptions = ({
 
 interface Props extends Omit<SelectProps, 'data' | 'onChange'> {
     isTimestamp: boolean;
-    unitOfTime: UnitOfTime | null;
+    unitOfTime?: UnitOfTime;
+    minUnitOfTime?: UnitOfTime;
     showOptionsInPlural?: boolean;
     showCompletedOptions?: boolean;
     completed: boolean;
@@ -69,33 +73,77 @@ interface Props extends Omit<SelectProps, 'data' | 'onChange'> {
 const FilterUnitOfTimeAutoComplete: FC<Props> = ({
     isTimestamp,
     unitOfTime,
+    minUnitOfTime,
     showOptionsInPlural = true,
     showCompletedOptions = true,
     completed,
     onChange,
     ...rest
-}) => (
-    <Select
-        searchable
-        placeholder="Select value"
-        size="xs"
-        {...rest}
-        value={completed ? `${unitOfTime}-completed` : unitOfTime}
-        data={getUnitOfTimeOptions({
-            isTimestamp,
-            showCompletedOptions,
-            showOptionsInPlural,
-        })}
-        onChange={(value) => {
-            if (value === null) return;
+}) => {
+    // compute the options
+    const options = useMemo(
+        () =>
+            getUnitOfTimeOptions({
+                isTimestamp,
+                minUnitOfTime,
+                showCompletedOptions,
+                showOptionsInPlural,
+            }),
+        [isTimestamp, minUnitOfTime, showCompletedOptions, showOptionsInPlural],
+    );
 
-            const [unitOfTimeValue, isCompleted] = value.split('-');
-            onChange({
-                unitOfTime: unitOfTimeValue as UnitOfTime,
-                completed: isCompleted === 'completed',
-            });
-        }}
-    />
-);
+    // compute the current value
+    const selectValue = useMemo(() => {
+        // return the value if it's valid
+        if (unitOfTime) {
+            return `${unitOfTime}${completed ? '-completed' : ''}`;
+        }
+        // return the last option value
+        if (options.length > 0) {
+            return options[options.length - 1]?.value;
+        }
+        return '';
+    }, [unitOfTime, completed, options]);
+
+    // update the selected value if it's no longer valid
+    useEffect(() => {
+        const optionValues = options.map((o) => o.value);
+        if (!optionValues.includes(selectValue)) {
+            if (options.length > 0) {
+                // if incvalid, set the last option value
+                const [newUnitOfTime, isCompleted] =
+                    options[options.length - 1].value.split('-');
+                onChange({
+                    unitOfTime: newUnitOfTime as UnitOfTime,
+                    completed: isCompleted === 'completed',
+                });
+            } else {
+                console.warn(
+                    'No options available for FilterUnitOfTimeAutoComplete',
+                );
+            }
+        }
+    }, [selectValue, options, onChange]);
+
+    return (
+        <Select
+            searchable
+            placeholder="Select value"
+            size="xs"
+            {...rest}
+            value={selectValue}
+            data={options}
+            onChange={(value) => {
+                if (value === null) return;
+
+                const [unitOfTimeValue, isCompleted] = value.split('-');
+                onChange({
+                    unitOfTime: unitOfTimeValue as UnitOfTime,
+                    completed: isCompleted === 'completed',
+                });
+            }}
+        />
+    );
+};
 
 export default FilterUnitOfTimeAutoComplete;

@@ -413,6 +413,10 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
             });
     };
 
+    const promoteDisabled = !(
+        project?.upstreamProjectUuid !== undefined && userCanPromoteChart
+    );
+
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
             <Modal
@@ -824,21 +828,19 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                         Version history
                                     </Menu.Item>
                                 )}
-                                {userCanPromoteChart && (
+                                {
                                     <Tooltip
-                                        label="You must enable first an upstram project in settings > Data ops"
-                                        disabled={
-                                            project?.upstreamProjectUuid !==
-                                            undefined
+                                        label={
+                                            userCanPromoteChart
+                                                ? 'You must enable first an upstream project in settings > Data ops'
+                                                : "You don't have permissions to promote this chart on the upstream project"
                                         }
+                                        disabled={!promoteDisabled}
                                         withinPortal
                                     >
                                         <div>
                                             <Menu.Item
-                                                disabled={
-                                                    project?.upstreamProjectUuid ===
-                                                    undefined
-                                                }
+                                                disabled={promoteDisabled}
                                                 icon={
                                                     <MantineIcon
                                                         icon={
@@ -847,16 +849,17 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                                     />
                                                 }
                                                 onClick={() => {
-                                                    getPromoteChartDiff(
-                                                        savedChart?.uuid,
-                                                    );
+                                                    if (savedChart)
+                                                        getPromoteChartDiff(
+                                                            savedChart?.uuid,
+                                                        );
                                                 }}
                                             >
                                                 Promote chart
                                             </Menu.Item>
                                         </div>
                                     </Tooltip>
-                                )}
+                                }
 
                                 <Menu.Divider />
                                 <Menu.Label>Integrations</Menu.Label>

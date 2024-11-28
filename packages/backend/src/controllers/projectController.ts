@@ -1,5 +1,7 @@
 import {
     ApiCalculateTotalResponse,
+    ApiChartAsCodeListResponse,
+    ApiChartAsCodeUpsertResponse,
     ApiChartListResponse,
     ApiChartSummaryListResponse,
     ApiCreateTagResponse,
@@ -12,6 +14,7 @@ import {
     ApiSqlQueryResults,
     ApiSuccessEmpty,
     CalculateTotalFromQuery,
+    ChartAsCode,
     CreateProjectMember,
     DbtExposure,
     isDuplicateDashboardParams,
@@ -809,6 +812,47 @@ export class ProjectController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /** Charts as code */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/charts/code')
+    @OperationId('getChartsAsCode')
+    async getChartsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiChartAsCodeListResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getCharts(req.user!, projectUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/charts/{slug}/code')
+    @OperationId('upsertChartAsCode')
+    async upsertChartAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body()
+        chart: Omit<ChartAsCode, 'metricQuery' | 'chartConfig'> & {
+            chartConfig: any;
+            metricQuery: any;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiChartAsCodeUpsertResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertChart(req.user!, projectUuid, slug, chart),
         };
     }
 }
