@@ -196,6 +196,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             values?: any[];
             tags?: Record<string, string>;
             timezone?: string;
+            limit?: number;
         },
     ): Promise<void> {
         let connection: Connection;
@@ -279,6 +280,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         streamCallback: (data: WarehouseResults) => void,
         options?: {
             values?: any[];
+            limit?: number;
         },
     ): Promise<void> {
         return new Promise<void>((resolve, reject) => {
@@ -306,18 +308,31 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                           )
                         : {};
 
+                    let rowCount = 0;
                     pipeline(
                         stmt.streamRows(),
                         new Transform({
                             objectMode: true,
                             transform(chunk, encoding, callback) {
+                                // if we have reached the limit, stop the stream
+                                if (
+                                    options?.limit &&
+                                    rowCount >= options.limit
+                                ) {
+                                    callback(null, null);
+                                    return;
+                                }
+                                rowCount += 1;
                                 callback(null, parseRow(chunk));
                             },
                         }),
                         new Writable({
                             objectMode: true,
                             write(chunk, encoding, callback) {
-                                streamCallback({ fields, rows: [chunk] });
+                                // send chunk if not null (i.e. not the end of the stream)
+                                if (chunk !== null) {
+                                    streamCallback({ fields, rows: [chunk] });
+                                }
                                 callback();
                             },
                         }),
