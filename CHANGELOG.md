@@ -1,3 +1,10 @@
+## [0.1386.3](https://github.com/lightdash/lightdash/compare/0.1386.2...0.1386.3) (2024-11-28)
+
+
+### Bug Fixes
+
+*  dependency coder ([#12645](https://github.com/lightdash/lightdash/issues/12645)) ([fc26cda](https://github.com/lightdash/lightdash/commit/fc26cdac7d97fba2b481f78f37bc849b4be281c5))
+
 ## [0.1386.2](https://github.com/lightdash/lightdash/compare/0.1386.1...0.1386.2) (2024-11-28)
 
 
