@@ -26,6 +26,7 @@ import {
     SqlRunnerPivotQueryPayload,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
+    type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -664,6 +665,7 @@ export class SchedulerClient {
             'compileProject',
             payload,
             now,
+            1,
         );
 
         await this.schedulerModel.logSchedulerJob({
@@ -684,6 +686,36 @@ export class SchedulerClient {
         return { jobId };
     }
 
+    async createProjectWithCompile(
+        payload: SchedulerCreateProjectWithCompilePayload,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            'createProjectWithCompile',
+            payload,
+            now,
+            1,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: 'createProjectWithCompile',
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.createdByUserUuid,
+                organizationUuid: payload.organizationUuid,
+                requestMethod: payload.requestMethod,
+                isPreview: payload.isPreview,
+            },
+        });
+
+        return { jobId };
+    }
+
     async testAndCompileProject(payload: CompileProjectPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();
@@ -692,6 +724,7 @@ export class SchedulerClient {
             'testAndCompileProject',
             payload,
             now,
+            1,
         );
 
         await this.schedulerModel.logSchedulerJob({

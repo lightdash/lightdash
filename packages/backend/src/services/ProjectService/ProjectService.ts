@@ -27,7 +27,6 @@ import {
     DashboardBasicDetails,
     DashboardFilters,
     DateGranularity,
-    dateGranularityToTimeFrameMap,
     DbtExposure,
     DbtExposureType,
     DbtProjectType,
@@ -43,7 +42,6 @@ import {
     FilterOperator,
     findFieldByIdInExplore,
     ForbiddenError,
-    formatDate,
     formatRows,
     getAggregatedField,
     getDashboardFilterRulesForTables,
@@ -51,7 +49,6 @@ import {
     getDimensions,
     getFieldQuoteChar,
     getFields,
-    getFirstDayOfQuarter,
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
@@ -64,7 +61,6 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterRule,
-    isOrFilterGroup,
     isUserWithOrg,
     ItemsMap,
     Job,
@@ -101,9 +97,7 @@ import {
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
-    TimeFrames,
     UnexpectedServerError,
-    updateFilterValueInFilters,
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
@@ -607,7 +601,7 @@ export class ProjectService extends BaseService {
         };
     }
 
-    async create(
+    async scheduleCreate(
         user: SessionUser,
         data: CreateProject,
         method: RequestMethod,
@@ -617,8 +611,6 @@ export class ProjectService extends BaseService {
         }
 
         await this.validateProjectCreationPermissions(user, data);
-
-        const createProject = await this._resolveWarehouseClientSshKeys(data);
 
         const job: CreateJob = {
             jobUuid: uuidv4(),
@@ -633,101 +625,124 @@ export class ProjectService extends BaseService {
             ],
         };
 
-        const doAsyncWork = async () => {
-            try {
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.RUNNING,
-                });
-                const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
-                    job.jobUuid,
-                    JobStepType.TESTING_ADAPTOR,
-                    async () =>
-                        ProjectService.testProjectAdapter(createProject, user),
-                );
-
-                const explores = await this.jobModel.tryJobStep(
-                    job.jobUuid,
-                    JobStepType.COMPILING,
-                    async () => {
-                        try {
-                            return await adapter.compileAllExplores();
-                        } finally {
-                            await adapter.destroy();
-                            await sshTunnel.disconnect();
-                        }
-                    },
-                );
-
-                const projectUuid = await this.jobModel.tryJobStep(
-                    job.jobUuid,
-                    JobStepType.CREATING_PROJECT,
-                    async () =>
-                        this.projectModel.create(
-                            user.userUuid,
-                            user.organizationUuid,
-                            createProject,
-                        ),
-                );
-
-                // Give admin user permissions to user who created this project even if he is an admin
-                if (user.email) {
-                    await this.projectModel.createProjectAccess(
-                        projectUuid,
-                        user.email,
-                        ProjectMemberRole.ADMIN,
-                    );
-                }
-
-                await this.saveExploresToCacheAndIndexCatalog(
-                    user.userUuid,
-                    projectUuid,
-                    explores,
-                );
-
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.DONE,
-                    jobResults: {
-                        projectUuid,
-                    },
-                });
-                this.analytics.track({
-                    event: 'project.created',
-                    userId: user.userUuid,
-                    properties: {
-                        projectName: createProject.name,
-                        projectId: projectUuid,
-                        projectType: createProject.dbtConnection.type,
-                        warehouseConnectionType:
-                            createProject.warehouseConnection.type,
-                        organizationId: user.organizationUuid,
-                        dbtConnectionType: createProject.dbtConnection.type,
-                        isPreview: createProject.type === ProjectType.PREVIEW,
-                        method,
-                    },
-                });
-            } catch (error) {
-                await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.ERROR,
-                });
-                throw error;
-            }
-        };
-
+        // create legacy job steps that UI expects
         await this.jobModel.create(job);
-        doAsyncWork().catch((e) => {
-            if (!(e instanceof LightdashError)) {
-                Sentry.captureException(e);
+        // schedule job
+        await this.schedulerClient.createProjectWithCompile({
+            createdByUserUuid: user.userUuid,
+            isPreview: data.type === ProjectType.PREVIEW,
+            organizationUuid: user.organizationUuid,
+            requestMethod: method,
+            jobUuid: job.jobUuid,
+            data,
+        });
+        return { jobUuid: job.jobUuid };
+    }
+
+    async _create(
+        user: SessionUser,
+        data: CreateProject,
+        jobUuid: string,
+        method: RequestMethod,
+    ): Promise<{ projectUuid: string }> {
+        try {
+            if (!isUserWithOrg(user)) {
+                throw new ForbiddenError('User is not part of an organization');
+            }
+            const createProject = await this._resolveWarehouseClientSshKeys(
+                data,
+            );
+            await this.jobModel.update(jobUuid, {
+                jobStatus: JobStatusType.RUNNING,
+            });
+            const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
+                jobUuid,
+                JobStepType.TESTING_ADAPTOR,
+                async () =>
+                    ProjectService.testProjectAdapter(createProject, user),
+            );
+
+            const explores = await this.jobModel.tryJobStep(
+                jobUuid,
+                JobStepType.COMPILING,
+                async () => {
+                    try {
+                        return await adapter.compileAllExplores();
+                    } finally {
+                        await adapter.destroy();
+                        await sshTunnel.disconnect();
+                    }
+                },
+            );
+
+            const projectUuid = await this.jobModel.tryJobStep(
+                jobUuid,
+                JobStepType.CREATING_PROJECT,
+                async () =>
+                    this.projectModel.create(
+                        user.userUuid,
+                        user.organizationUuid,
+                        createProject,
+                    ),
+            );
+
+            // Give admin user permissions to user who created this project even if he is an admin
+            if (user.email) {
+                await this.projectModel.createProjectAccess(
+                    projectUuid,
+                    user.email,
+                    ProjectMemberRole.ADMIN,
+                );
+            }
+
+            await this.saveExploresToCacheAndIndexCatalog(
+                user.userUuid,
+                projectUuid,
+                explores,
+            );
+
+            await this.jobModel.update(jobUuid, {
+                jobStatus: JobStatusType.DONE,
+                jobResults: {
+                    projectUuid,
+                },
+            });
+            this.analytics.track({
+                event: 'project.created',
+                userId: user.userUuid,
+                properties: {
+                    projectName: createProject.name,
+                    projectId: projectUuid,
+                    projectType: createProject.dbtConnection.type,
+                    warehouseConnectionType:
+                        createProject.warehouseConnection.type,
+                    organizationId: user.organizationUuid,
+                    dbtConnectionType: createProject.dbtConnection.type,
+                    isPreview: createProject.type === ProjectType.PREVIEW,
+                    method,
+                },
+            });
+
+            return { projectUuid };
+        } catch (error) {
+            await this._markJobAsFailed(jobUuid);
+            if (!(error instanceof LightdashError)) {
+                Sentry.captureException(error);
             }
             this.logger.error(
                 `Error running background job:${
-                    e instanceof Error ? e.stack : e
+                    error instanceof Error ? error.stack : error
                 }`,
             );
+            throw error;
+        }
+    }
+
+    async _markJobAsFailed(jobUuid: string) {
+        await this.jobModel.setPendingJobsToSkipped(jobUuid);
+        await this.jobModel.update(jobUuid, {
+            jobStatus: JobStatusType.ERROR,
         });
-        return {
-            jobUuid: job.jobUuid,
-        };
     }
 
     async setExplores(
@@ -1032,56 +1047,12 @@ export class ProjectService extends BaseService {
         return { adapter, sshTunnel };
     }
 
-    static updateMetricQueryWithGranularity(
-        updatedDimensions: string[],
-        metricQuery: MetricQuery,
-        granularity?: DateGranularity,
-    ): MetricQuery {
-        if (granularity && updatedDimensions.length > 0) {
-            const dimensionFilters = metricQuery.filters.dimensions;
-            if (!dimensionFilters) return metricQuery;
-
-            // These filters are updated by reference
-            updateFilterValueInFilters(
-                dimensionFilters,
-                (fieldId: string, filterValues: any[] | undefined) => {
-                    if (
-                        updatedDimensions.includes(fieldId) &&
-                        filterValues?.[0]
-                    ) {
-                        // Apply date granularity to filter value
-                        const filterValue = filterValues[0];
-                        const timeFrame =
-                            dateGranularityToTimeFrameMap[granularity];
-
-                        if (timeFrame === TimeFrames.QUARTER) {
-                            // Get first day of quarter using dayjs
-                            const newDate = getFirstDayOfQuarter(filterValue);
-                            return [newDate];
-                        }
-                        const newDate = formatDate(filterValue, timeFrame);
-                        return [newDate];
-                    }
-                    return filterValues;
-                },
-            );
-            return {
-                ...metricQuery,
-                filters: {
-                    ...metricQuery.filters,
-                    dimensions: dimensionFilters,
-                },
-            };
-        }
-        return metricQuery;
-    }
-
     static updateExploreWithGranularity(
         explore: Explore,
         metricQuery: MetricQuery,
         warehouseClient: WarehouseClient,
         granularity?: DateGranularity,
-    ): { explore: Explore; updatedDimensions: string[] } {
+    ): Explore {
         if (granularity) {
             const timeDimensionsMap: Record<string, CompiledDimension> =
                 Object.values(explore.tables).reduce<
@@ -1120,17 +1091,13 @@ export class ProjectService extends BaseService {
                         warehouseClient,
                         granularity,
                     );
-                const updatedExplore = replaceDimensionInExplore(
+                return replaceDimensionInExplore(
                     explore,
                     dimWithGranularityOverride,
                 );
-                return {
-                    explore: updatedExplore,
-                    updatedDimensions: [getItemId(dimToOverride)],
-                };
             }
         }
-        return { explore, updatedDimensions: [] };
+        return explore;
     }
 
     static async _compileQuery(
@@ -1142,23 +1109,16 @@ export class ProjectService extends BaseService {
         timezone: string,
         granularity?: DateGranularity,
     ): Promise<CompiledQuery> {
-        const { explore: exploreWithOverride, updatedDimensions } =
-            ProjectService.updateExploreWithGranularity(
-                explore,
-                metricQuery,
-                warehouseClient,
-                granularity,
-            );
+        const exploreWithOverride = ProjectService.updateExploreWithGranularity(
+            explore,
+            metricQuery,
+            warehouseClient,
+            granularity,
+        );
 
-        const metricWithOverride =
-            ProjectService.updateMetricQueryWithGranularity(
-                updatedDimensions,
-                metricQuery,
-                granularity,
-            );
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
-            metricQuery: metricWithOverride,
+            metricQuery,
             warehouseClient,
         });
 
@@ -2554,7 +2514,12 @@ export class ProjectService extends BaseService {
             },
         ];
         if (filters) {
-            autocompleteDimensionFilters.push(filters);
+            const filtersCompatibleWithExplore = filters.and.filter(
+                (filter) =>
+                    isFilterRule(filter) &&
+                    findFieldByIdInExplore(explore, filter.target.fieldId),
+            );
+            autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
         }
         const metricQuery: MetricQuery = {
             exploreName: explore.name,

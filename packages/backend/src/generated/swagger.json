@@ -940,17 +940,20 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "MetricWithAssociatedTimeDimension": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CompiledMetric"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Pick_CompiledTable.defaultTimeDimension_"
+                    }
+                ]
+            },
             "ApiGetMetricPeek": {
                 "properties": {
                     "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/CompiledMetric"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Pick_CompiledTable.defaultTimeDimension_"
-                            }
-                        ]
+                        "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
                     },
                     "status": {
                         "type": "string",
@@ -3949,6 +3952,57 @@
             },
             "UpdateDBProjectGroupAccess": {
                 "$ref": "#/components/schemas/Pick_DBProjectGroupAccess.role_"
+            },
+            "Record_string._value-ResultValue--__": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ResultRow": {
+                "$ref": "#/components/schemas/Record_string._value-ResultValue--__"
+            },
+            "Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ItemsMap": {
+                "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
+            },
+            "MetricsExplorerQueryResults": {
+                "properties": {
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap"
+                    },
+                    "comparisonRows": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultRow"
+                        },
+                        "type": "array"
+                    },
+                    "rows": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultRow"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["fields", "rows"],
+                "type": "object"
+            },
+            "ApiMetricsExplorerQueryResults": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MetricsExplorerQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "NotificationBase": {
                 "properties": {
@@ -7992,6 +8046,7 @@
                             "uploadGsheets",
                             "downloadCsv",
                             "uploadGsheetFromQuery",
+                            "createProjectWithCompile",
                             "compileProject",
                             "testAndCompileProject",
                             "validateProject",
@@ -11484,7 +11539,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1380.0",
+        "version": "0.1384.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -13569,6 +13624,81 @@
                         "in": "path",
                         "name": "projectUuid",
                         "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricExplorerQuery": {
+            "post": {
+                "operationId": "runMetricExplorerQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMetricsExplorerQueryResults"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Run a metrics explorer query",
+                "tags": ["Metrics Explorer", "Metrics", "Explorer"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The project UUID",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The explore name",
+                        "in": "path",
+                        "name": "explore",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The metric name",
+                        "in": "path",
+                        "name": "metric",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "compareToPreviousPeriod",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "compareToMetric",
+                        "required": false,
                         "schema": {
                             "type": "string"
                         }

@@ -221,6 +221,12 @@ You can remove the filter from a certain tile, or you can change which field the
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
+:::note
+
+Values for temporary and overriden saved filters are reverted when entering Dashboard edit mode.
+
+:::
+
 #### `Cross filtering` your dashboard using values in your tiles
 
 Cross-filtering lets you interact with one chart and apply that interaction as a filter to other charts in the dashboard. You can filter the dashboard using cross filtering by:
@@ -364,7 +370,7 @@ Rules for sharing dashboards with filters applied:
 - In view mode and when overriding a saved filter, you can only change the value and operator, so the field and tile configuration will remain the same.
 - In edit mode, when changing a saved filter (with an override present), once you save the changes (click "Apply"), the override for that filter will be removed.
 
-The same behaviour applies when exporting dashboards.
+The same behaviour applies when exporting dashboards or sending them to email or Slack in [scheduled deliveries](/guides/how-to-create-scheduled-deliveries).
 
 #### You can easily see which dashboard tiles have which filters applied to them
 
@@ -379,12 +385,45 @@ You can also hover over this to see **_which_** filters have been applied to tha
   style={{ display: 'block', margin: '0 auto 20px auto' }}
 />
 
-#### Dashboard filters _are added to_ the filters applied in a saved chart so `ALL` the conditions match
+#### Dashboard filters override filters applied in a saved chart
 
-For example, if I had a chart for Sales in Asia and I filtered to `country` **is equal to** `China`, `India`, `Japan`. Then, on my dashboard I added a filter `country` **is equal to** `India`. My saved chart's filter would still be included, and my new dashboard filter would be applied as well, so the tile in the dashboard would be filtered to include:
+For example, if I had a chart for Sales in Asia and I filtered to `country` **is** `China`, `India`, `Japan`. Then, on my dashboard I added a filter `country` **is** `India`. My saved chart's filter would be removed, and my new dashboard filter would be applied instead, so the tile in the dashboard would be filtered to: `country` **is** `India`.
 
-`country` **is equal to** `China`, `India`, `Japan` AND `country` **is equal to** `India`
+Here's another example using a date filter: If my original saved chart was filtered to only include orders completed on or after April 3rd, 2024. But, I add a date filter to my dashboard to include orders completed on or after August 1st, 2024, then the dashboard filter would override the saved chart filter and I'll end up with the chart filtered by orders completed on or after August 1st, 2022.
 
-So, the result? My tile would only include Sales where the `country = India`.
+**How charts work in this context:**
+
+- When you **Explore from here** from a dashboard, the chart will include the same filters you saw on the Dashboard version. Any filters overriden in the dahsboard will be overriden in the **Explore from here** view. Filters NOT overriden in the dashboad will be the same as they were in the original chart.
+- If you 'Edit' the chart instead of explore from here, you will see the original chart filters.
 
 Here's another example using a date filter: If my original saved chart was filtered to only include orders completed on or after April 3rd, 2022. But, I add a date filter to my dashboard to include orders completed on or after August 1st, 2022, then the dashboard filter would be added to the saved chart filter and I'll end up with the chart filtered by orders completed on or after August 1st, 2022.
+
+#### Dashboard filters autocomplete
+
+When determining possible values for a dashboard filter, the system will take into account all relevant filters, including those applied to fields from joined tables.
+
+Example with payments and orders models:
+
+```yaml
+- name: customers
+---
+- name: orders
+  meta:
+    joins:
+      - join: customers
+        sql_on: ${customers.customer_id} = ${orders.customer_id}
+---
+- name: payments
+  meta:
+    joins:
+      - join: orders
+        sql_on: ${orders.order_id} = ${payments.order_id}
+      - join: customers
+        sql_on: ${customers.customer_id} = ${orders.customer_id}
+```
+
+Following this example:
+
+- when filtering on a field from the `payments` model, the system will consider the filters applied to fields from the `payments`, `orders` and `customers` models
+- when filtering on a field from the `orders` model, the system will consider the filters applied to fields from the `orders` and `customers` models
+- when filtering on a field from the `customers` model, the system will consider the filters applied to fields from the `customers` model

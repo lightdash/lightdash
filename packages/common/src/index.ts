@@ -125,6 +125,7 @@ import {
     type ApiContentResponse,
 } from './types/content';
 import type { ApiGroupListResponse } from './types/groups';
+import type { ApiMetricsExplorerQueryResults } from './types/metricsExplorer';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiSemanticLayerClientInfo,
@@ -191,6 +192,7 @@ export * from './types/groups';
 export * from './types/job';
 export * from './types/knex-paginate';
 export * from './types/metricQuery';
+export * from './types/metricsExplorer';
 export * from './types/notifications';
 export * from './types/openIdIdentity';
 export * from './types/organization';
@@ -236,6 +238,7 @@ export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
+export * from './utils/metricsExplorer';
 export * from './utils/projectMemberRole';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
@@ -698,6 +701,7 @@ type ApiResults =
     | ApiCreateVirtualView['results']
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']
+    | ApiMetricsExplorerQueryResults['results']
     | ApiGroupListResponse['results']
     | ApiCreateTagResponse['results']
     | ApiChartAsCodeListResponse['results']
