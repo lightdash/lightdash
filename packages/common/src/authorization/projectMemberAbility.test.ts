@@ -614,7 +614,7 @@ describe('Project member permissions', () => {
                             isPrivate: false,
                         }),
                     ),
-                ).toEqual(false);
+                ).toEqual(true);
                 expect(
                     ability.can(
                         'view',
