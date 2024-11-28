@@ -122,6 +122,14 @@ export const MetricPeekDatePicker: FC<Props> = ({ defaultTimeDimension }) => {
                                 size="xs"
                                 withCellSpacing={false}
                                 styles={(theme) => ({
+                                    yearLevel: {
+                                        color: theme.colors.gray[7],
+                                        padding: theme.spacing.xs,
+                                    },
+                                    decadeLevel: {
+                                        color: theme.colors.gray[7],
+                                        padding: theme.spacing.xs,
+                                    },
                                     calendarHeaderControlIcon: {
                                         color: theme.colors.gray[5],
                                     },
