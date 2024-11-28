@@ -1,3 +1,10 @@
+# [0.1384.0](https://github.com/lightdash/lightdash/compare/0.1383.0...0.1384.0) (2024-11-28)
+
+
+### Features
+
+* metrics explorer visualization ([#12630](https://github.com/lightdash/lightdash/issues/12630)) ([16182b8](https://github.com/lightdash/lightdash/commit/16182b83ab722d33edd421fc7b070a552fe23cf8))
+
 # [0.1383.0](https://github.com/lightdash/lightdash/compare/0.1382.0...0.1383.0) (2024-11-27)
 
 
