@@ -85,19 +85,20 @@ const MetricTree: FC<Props> = ({ metrics }) => {
 
     const handleConnect = useCallback(
         async (params: Connection) => {
-            setCurrentEdges((els) => addEdge(params, els));
             if (projectUuid) {
                 await createMetricsTreeEdge({
                     projectUuid,
                     sourceCatalogSearchUuid: params.source,
                     targetCatalogSearchUuid: params.target,
                 });
+
+                setCurrentEdges((els) => addEdge(params, els));
             }
         },
         [setCurrentEdges, createMetricsTreeEdge, projectUuid],
     );
 
-    const handleEdgeDelete = useCallback(
+    const handleEdgesDelete = useCallback(
         async (edges: Edge[]) => {
             if (projectUuid) {
                 const promises = edges.map((edge) => {
@@ -125,7 +126,7 @@ const MetricTree: FC<Props> = ({ metrics }) => {
                 onEdgesChange={onEdgesChange}
                 onConnect={handleConnect}
                 edgesReconnectable={false}
-                onEdgesDelete={handleEdgeDelete}
+                onEdgesDelete={handleEdgesDelete}
             >
                 <Background />
             </ReactFlow>
