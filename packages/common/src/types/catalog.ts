@@ -116,11 +116,16 @@ export type ApiGetMetricPeek = {
     results: MetricWithAssociatedTimeDimension;
 };
 
-export type ApiMetricsTree = {
+export type ApiGetMetricsTree = {
     status: 'ok';
     results: {
         edges: CatalogMetricsTreeEdge[];
     };
+};
+
+export type ApiCreateMetricsTreeEdgePayload = {
+    sourceCatalogSearchUuid: string;
+    targetCatalogSearchUuid: string;
 };
 
 export type CatalogMetadata = {

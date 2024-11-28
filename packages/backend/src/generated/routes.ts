@@ -1017,7 +1017,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiMetricsTree: {
+    ApiGetMetricsTree: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -1042,29 +1042,14 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DbMetricsTreeEdge.source_catalog_search_uuid-or-target_catalog_search_uuid_':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    source_catalog_search_uuid: {
-                        dataType: 'string',
-                        required: true,
-                    },
-                    target_catalog_search_uuid: {
-                        dataType: 'string',
-                        required: true,
-                    },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DbMetricsTreeEdgeIn: {
+    ApiCreateMetricsTreeEdgePayload: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_DbMetricsTreeEdge.source_catalog_search_uuid-or-target_catalog_search_uuid_',
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                targetCatalogSearchUuid: { dataType: 'string', required: true },
+                sourceCatalogSearchUuid: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
@@ -11197,7 +11182,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'DbMetricsTreeEdgeIn',
+                    ref: 'ApiCreateMetricsTreeEdgePayload',
                 },
                 req: {
                     in: 'request',

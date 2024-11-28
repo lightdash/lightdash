@@ -7,7 +7,8 @@ import {
     ApiGetMetricPeek,
     ApiMetricsCatalog,
     getItemId,
-    type ApiMetricsTree,
+    type ApiCreateMetricsTreeEdgePayload,
+    type ApiGetMetricsTree,
     type ApiSort,
     type ApiSuccessEmpty,
     type CatalogItemIcon,
@@ -327,7 +328,7 @@ export class CatalogController extends BaseController {
     async getMetricsTree(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiMetricsTree> {
+    ): Promise<ApiGetMetricsTree> {
         this.setStatus(200);
 
         const results = await this.services
@@ -346,12 +347,15 @@ export class CatalogController extends BaseController {
     @OperationId('createMetricsTreeEdge')
     async createMetricsTreeEdge(
         @Path() projectUuid: string,
-        @Body() body: DbMetricsTreeEdgeIn,
+        @Body() body: ApiCreateMetricsTreeEdgePayload,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         await this.services
             .getCatalogService()
-            .createMetricsTreeEdge(req.user!, projectUuid, body);
+            .createMetricsTreeEdge(req.user!, projectUuid, {
+                source_catalog_search_uuid: body.sourceCatalogSearchUuid,
+                target_catalog_search_uuid: body.targetCatalogSearchUuid,
+            });
 
         this.setStatus(200);
         return {

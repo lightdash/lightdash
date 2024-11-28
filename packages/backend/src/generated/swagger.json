@@ -1007,7 +1007,7 @@
                 "required": ["target", "source"],
                 "type": "object"
             },
-            "ApiMetricsTree": {
+            "ApiGetMetricsTree": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -1030,24 +1030,20 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_DbMetricsTreeEdge.source_catalog_search_uuid-or-target_catalog_search_uuid_": {
+            "ApiCreateMetricsTreeEdgePayload": {
                 "properties": {
-                    "source_catalog_search_uuid": {
+                    "targetCatalogSearchUuid": {
                         "type": "string"
                     },
-                    "target_catalog_search_uuid": {
+                    "sourceCatalogSearchUuid": {
                         "type": "string"
                     }
                 },
                 "required": [
-                    "source_catalog_search_uuid",
-                    "target_catalog_search_uuid"
+                    "targetCatalogSearchUuid",
+                    "sourceCatalogSearchUuid"
                 ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "DbMetricsTreeEdgeIn": {
-                "$ref": "#/components/schemas/Pick_DbMetricsTreeEdge.source_catalog_search_uuid-or-target_catalog_search_uuid_"
+                "type": "object"
             },
             "ApiCreateComment": {
                 "properties": {
@@ -12204,7 +12200,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiMetricsTree"
+                                    "$ref": "#/components/schemas/ApiGetMetricsTree"
                                 }
                             }
                         }
@@ -12276,7 +12272,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/DbMetricsTreeEdgeIn"
+                                "$ref": "#/components/schemas/ApiCreateMetricsTreeEdgePayload"
                             }
                         }
                     }
