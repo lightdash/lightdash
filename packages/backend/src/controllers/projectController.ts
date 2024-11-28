@@ -840,7 +840,11 @@ export class ProjectController extends BaseController {
     async upsertChartAsCode(
         @Path() projectUuid: string,
         @Path() slug: string,
-        @Body() chart: Omit<ChartAsCode, 'metricQuery'> & { metricQuery: any },
+        @Body()
+        chart: Omit<ChartAsCode, 'metricQuery' | 'chartConfig'> & {
+            chartConfig: any;
+            metricQuery: any;
+        },
         @Request() req: express.Request,
     ): Promise<ApiChartAsCodeUpsertResponse> {
         this.setStatus(200);

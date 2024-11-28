@@ -6489,7 +6489,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery__': {
+    'Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6507,7 +6507,6 @@ const models: TsoaRoute.Models = {
                 slug: { dataType: 'string', required: true },
                 updatedAt: { dataType: 'datetime', required: true },
                 tableName: { dataType: 'string', required: true },
-                chartConfig: { ref: 'ChartConfig', required: true },
                 tableConfig: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -6531,10 +6530,10 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_ChartAsCode.metricQuery_': {
+    'Omit_ChartAsCode.metricQuery-or-chartConfig_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery__',
+            ref: 'Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig__',
             validators: {},
         },
     },
@@ -15604,11 +15603,15 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'intersection',
                     subSchemas: [
-                        { ref: 'Omit_ChartAsCode.metricQuery_' },
+                        { ref: 'Omit_ChartAsCode.metricQuery-or-chartConfig_' },
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
                                 metricQuery: {
+                                    dataType: 'any',
+                                    required: true,
+                                },
+                                chartConfig: {
                                     dataType: 'any',
                                     required: true,
                                 },
