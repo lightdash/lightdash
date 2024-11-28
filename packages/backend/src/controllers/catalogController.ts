@@ -12,7 +12,6 @@ import {
     type ApiSort,
     type ApiSuccessEmpty,
     type CatalogItemIcon,
-    type CatalogMetricsTreeEdge,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
@@ -32,7 +31,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import type { DbMetricsTreeEdgeIn } from '../database/entities/catalog';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
