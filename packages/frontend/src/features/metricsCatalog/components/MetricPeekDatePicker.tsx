@@ -48,6 +48,9 @@ export const MetricPeekDatePicker: FC<Props> = ({ defaultTimeDimension }) => {
                         onClick={() => handleOpen(!isOpen)}
                         size="xs"
                         leftIcon={<MantineIcon icon={IconCalendar} />}
+                        sx={(theme) => ({
+                            border: `1px solid ${theme.colors.gray[2]}`,
+                        })}
                     >
                         {buttonLabel}
                     </Button>
