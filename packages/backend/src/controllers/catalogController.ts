@@ -31,6 +31,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import type { DbMetricsTreeEdgeIn } from '../database/entities/catalog';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -345,7 +346,7 @@ export class CatalogController extends BaseController {
     @OperationId('createMetricsTreeEdge')
     async createMetricsTreeEdge(
         @Path() projectUuid: string,
-        @Body() body: CatalogMetricsTreeEdge,
+        @Body() body: DbMetricsTreeEdgeIn,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         await this.services
@@ -361,16 +362,22 @@ export class CatalogController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Delete('/metrics/tree/edges')
+    @Delete(
+        '/metrics/tree/edges/{sourceCatalogSearchUuid}/{targetCatalogSearchUuid}',
+    )
     @OperationId('deleteMetricsTreeEdge')
     async deleteMetricsTreeEdge(
         @Path() projectUuid: string,
-        @Body() body: CatalogMetricsTreeEdge,
+        @Path() sourceCatalogSearchUuid: string,
+        @Path() targetCatalogSearchUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         await this.services
             .getCatalogService()
-            .deleteMetricsTreeEdge(req.user!, projectUuid, body);
+            .deleteMetricsTreeEdge(req.user!, projectUuid, {
+                source_catalog_search_uuid: sourceCatalogSearchUuid,
+                target_catalog_search_uuid: targetCatalogSearchUuid,
+            });
 
         this.setStatus(200);
         return {

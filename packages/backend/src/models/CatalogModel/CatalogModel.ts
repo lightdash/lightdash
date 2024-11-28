@@ -34,6 +34,7 @@ import {
     type DbCatalogIn,
     type DbCatalogTagsMigrateIn,
     type DbMetricsTreeEdge,
+    type DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
 import { TagsTableName } from '../../database/entities/tags';
@@ -723,23 +724,13 @@ export class CatalogModel {
         };
     }
 
-    async createMetricsTreeEdge(metricsTreeEdge: CatalogMetricsTreeEdge) {
-        return this.database(MetricsTreeEdgesTableName).insert({
-            source_catalog_search_uuid:
-                metricsTreeEdge.source.catalogSearchUuid,
-            target_catalog_search_uuid:
-                metricsTreeEdge.target.catalogSearchUuid,
-        });
+    async createMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdgeIn) {
+        return this.database(MetricsTreeEdgesTableName).insert(metricsTreeEdge);
     }
 
-    async deleteMetricsTreeEdge(metricsTreeEdge: CatalogMetricsTreeEdge) {
+    async deleteMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdgeIn) {
         return this.database(MetricsTreeEdgesTableName)
-            .where({
-                source_catalog_search_uuid:
-                    metricsTreeEdge.source.catalogSearchUuid,
-                target_catalog_search_uuid:
-                    metricsTreeEdge.target.catalogSearchUuid,
-            })
+            .where(metricsTreeEdge)
             .delete();
     }
 }

@@ -33,7 +33,10 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
-import type { DbCatalogTagsMigrateIn } from '../../database/entities/catalog';
+import type {
+    DbCatalogTagsMigrateIn,
+    DbMetricsTreeEdgeIn,
+} from '../../database/entities/catalog';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -882,7 +885,7 @@ export class CatalogService<
     createMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
-        edge: CatalogMetricsTreeEdge,
+        edge: DbMetricsTreeEdgeIn,
     ) {
         // TODO: check if the edge is valid
         // TODO: check permissions
@@ -892,7 +895,7 @@ export class CatalogService<
     deleteMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
-        edge: CatalogMetricsTreeEdge,
+        edge: DbMetricsTreeEdgeIn,
     ) {
         // TODO: check if the edge is valid
         // TODO: check permissions

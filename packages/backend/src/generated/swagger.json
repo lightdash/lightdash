@@ -1030,6 +1030,25 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_DbMetricsTreeEdge.source_catalog_search_uuid-or-target_catalog_search_uuid_": {
+                "properties": {
+                    "source_catalog_search_uuid": {
+                        "type": "string"
+                    },
+                    "target_catalog_search_uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "source_catalog_search_uuid",
+                    "target_catalog_search_uuid"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DbMetricsTreeEdgeIn": {
+                "$ref": "#/components/schemas/Pick_DbMetricsTreeEdge.source_catalog_search_uuid-or-target_catalog_search_uuid_"
+            },
             "ApiCreateComment": {
                 "properties": {
                     "results": {
@@ -12257,12 +12276,14 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/CatalogMetricsTreeEdge"
+                                "$ref": "#/components/schemas/DbMetricsTreeEdgeIn"
                             }
                         }
                     }
                 }
-            },
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/tree/edges/{sourceCatalogSearchUuid}/{targetCatalogSearchUuid}": {
             "delete": {
                 "operationId": "deleteMetricsTreeEdge",
                 "responses": {
@@ -12297,18 +12318,24 @@
                         "schema": {
                             "type": "string"
                         }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CatalogMetricsTreeEdge"
-                            }
+                    },
+                    {
+                        "in": "path",
+                        "name": "sourceCatalogSearchUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "targetCatalogSearchUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
-                }
+                ]
             }
         },
         "/api/v1/comments/dashboards/{dashboardUuid}/{dashboardTileUuid}": {

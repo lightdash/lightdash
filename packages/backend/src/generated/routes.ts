@@ -1042,6 +1042,33 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DbMetricsTreeEdge.source_catalog_search_uuid-or-target_catalog_search_uuid_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    source_catalog_search_uuid: {
+                        dataType: 'string',
+                        required: true,
+                    },
+                    target_catalog_search_uuid: {
+                        dataType: 'string',
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbMetricsTreeEdgeIn: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_DbMetricsTreeEdge.source_catalog_search_uuid-or-target_catalog_search_uuid_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCreateComment: {
         dataType: 'refAlias',
         type: {
@@ -11170,7 +11197,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'CatalogMetricsTreeEdge',
+                    ref: 'DbMetricsTreeEdgeIn',
                 },
                 req: {
                     in: 'request',
@@ -11210,7 +11237,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.delete(
-        '/api/v1/projects/:projectUuid/dataCatalog/metrics/tree/edges',
+        '/api/v1/projects/:projectUuid/dataCatalog/metrics/tree/edges/:sourceCatalogSearchUuid/:targetCatalogSearchUuid',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
         ...fetchMiddlewares<RequestHandler>(
             CatalogController.prototype.deleteMetricsTreeEdge,
@@ -11228,11 +11255,17 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                body: {
-                    in: 'body',
-                    name: 'body',
+                sourceCatalogSearchUuid: {
+                    in: 'path',
+                    name: 'sourceCatalogSearchUuid',
                     required: true,
-                    ref: 'CatalogMetricsTreeEdge',
+                    dataType: 'string',
+                },
+                targetCatalogSearchUuid: {
+                    in: 'path',
+                    name: 'targetCatalogSearchUuid',
+                    required: true,
+                    dataType: 'string',
                 },
                 req: {
                     in: 'request',
