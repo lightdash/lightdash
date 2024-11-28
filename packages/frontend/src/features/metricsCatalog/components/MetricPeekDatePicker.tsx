@@ -59,6 +59,7 @@ export const MetricPeekDatePicker: FC<Props> = ({ defaultTimeDimension }) => {
                             },
                             label: {
                                 width: '100%',
+                                fontWeight: 500,
                             },
                         })}
                     >
