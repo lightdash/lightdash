@@ -5,9 +5,9 @@ import {
     type MetricExplorerDateRange,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     Divider,
-    Flex,
     Group,
     LoadingOverlay,
     Modal,
@@ -26,7 +26,7 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
 import { MetricPeekDatePicker } from './MetricPeekDatePicker';
-import MetricsVisualization from './MetricsVisualization';
+import MetricsVisualization from './visualization/MetricsVisualization';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
@@ -143,7 +143,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     miw={800}
                     mih={600}
                 >
-                    <Stack p="xl" bg="offWhite.0" w={360}>
+                    <Stack p="xl" bg="offWhite.0" miw={360}>
                         <Stack spacing="xl">
                             <Stack
                                 w="100%"
@@ -282,7 +282,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Flex mih={500} p="xxl" align="center" sx={{ flexGrow: 1 }}>
+                    <Box mih={500} w="100%" p="xxl">
                         {metricQuery.isSuccess &&
                             metricResultsQuery.isSuccess && (
                                 <MetricsVisualization
@@ -290,7 +290,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                     data={metricResultsQuery.data}
                                 />
                             )}
-                    </Flex>
+                    </Box>
                 </Modal.Body>
             </Modal.Content>
         </Modal.Root>
