@@ -1,4 +1,4 @@
-import type { SavedChart } from '..';
+import type { PromotionChanges, SavedChart } from '..';
 
 export const currentVersion = 1;
 // We want to only use properties that can be modified by the user
@@ -14,7 +14,6 @@ export type ChartAsCode = Pick<
     | 'tableConfig'
     | 'slug'
     | 'dashboardUuid'
-    | 'colorPalette'
     | 'updatedAt' // Not modifiable by user, but useful to know if it has been updated
 > & {
     version: number;
@@ -28,8 +27,5 @@ export type ApiChartAsCodeListResponse = {
 
 export type ApiChartAsCodeUpsertResponse = {
     status: 'ok';
-    results: {
-        chart: ChartAsCode;
-        created: boolean;
-    };
+    results: PromotionChanges;
 };

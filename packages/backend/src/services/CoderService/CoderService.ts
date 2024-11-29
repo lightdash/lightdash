@@ -5,6 +5,9 @@ import {
     currentVersion,
     ForbiddenError,
     NotFoundError,
+    PromotedChart,
+    PromotionAction,
+    PromotionChanges,
     SavedChartDAO,
     SessionUser,
     SpaceSummary,
@@ -18,6 +21,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
+import { PromoteService } from '../PromoteService/PromoteService';
 
 type CoderServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -27,6 +31,7 @@ type CoderServiceArguments = {
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
+    promoteService: PromoteService;
 };
 
 export class CoderService extends BaseService {
@@ -44,6 +49,8 @@ export class CoderService extends BaseService {
 
     schedulerClient: SchedulerClient;
 
+    promoteService: PromoteService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -52,6 +59,7 @@ export class CoderService extends BaseService {
         dashboardModel,
         spaceModel,
         schedulerClient,
+        promoteService,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -61,6 +69,7 @@ export class CoderService extends BaseService {
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
+        this.promoteService = promoteService;
     }
 
     private static transformChart(
@@ -82,7 +91,6 @@ export class CoderService extends BaseService {
             metricQuery: chart.metricQuery,
             chartConfig: chart.chartConfig,
             dashboardUuid: chart.dashboardUuid,
-            colorPalette: chart.colorPalette,
             slug: chart.slug,
             tableConfig: chart.tableConfig,
 
@@ -153,10 +161,13 @@ export class CoderService extends BaseService {
             slug,
             projectUuid,
         });
+
+        // If chart does not exist, we can't use promoteService,
+        // since it relies on information it is not available in ChartAsCode, and other uuids
         if (chart === undefined) {
-            // TODO create space if does not exist
+            // TODO create space if does not exist using PromoteService upsertSpaces
             console.info(
-                `Creating chart ${chartAsCode.name} on project ${projectUuid}`,
+                `Creating chart "${chartAsCode.name}" on project ${projectUuid}`,
             );
 
             const createChart: CreateSavedChart & {
@@ -171,37 +182,63 @@ export class CoderService extends BaseService {
                 user.userUuid,
                 createChart,
             );
-            const spaces = await this.spaceModel.find({
-                spaceUuids: [newChart.spaceUuid],
-            });
 
+            console.info(
+                `Finished creating chart "${chartAsCode.name}" on project ${projectUuid}`,
+            );
+            // TODO for charts within dashboards, we need to create the dashboard first, use promotion for that
+            const promotionChanges: PromotionChanges = {
+                charts: [
+                    {
+                        action: PromotionAction.CREATE,
+                        data: {
+                            ...newChart,
+                            spaceSlug: chartAsCode.spaceSlug,
+                            oldUuid: newChart.uuid,
+                        },
+                    },
+                ],
+                spaces: [], // TODO create space if does not exist using PromoteService upsertSpaces
+                dashboards: [],
+            };
             return {
-                chart: CoderService.transformChart(newChart, spaces),
-                created: true,
+                promotionChanges,
             };
         }
-        // update
         console.info(
-            `Updating chart ${chartAsCode.name} on project ${projectUuid}`,
+            `Updating chart "${chartAsCode.name}" on project ${projectUuid}`,
         );
 
-        // TODO update space or create if does not exist
-        await this.savedChartModel.update(chart.uuid, {
-            name: chartAsCode.name,
-            description: chartAsCode.description,
-        });
+        const { promotedChart, upstreamChart } =
+            await this.promoteService.getPromoteCharts(
+                user,
+                projectUuid, // We use the same projectUuid for both promoted and upstream
+                chart.uuid,
+            );
+        const updatedChart = {
+            ...promotedChart,
+            ...chartAsCode,
+        };
 
-        const updatedChart = await this.savedChartModel.createVersion(
-            chart.uuid,
-            chartAsCode,
+        let promotionChanges: PromotionChanges = PromoteService.getChartChanges(
+            updatedChart,
+            upstreamChart,
+        );
+        promotionChanges = await this.promoteService.upsertSpaces(
             user,
+            promotionChanges,
         );
-        const spaces = await this.spaceModel.find({
-            spaceUuids: [updatedChart.spaceUuid],
-        });
+        promotionChanges = await this.promoteService.upsertCharts(
+            user,
+            promotionChanges,
+        );
+
+        console.info(
+            `Finished updating chart "${chartAsCode.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
+        );
+
         return {
-            chart: CoderService.transformChart(updatedChart, spaces),
-            created: false,
+            promotionChanges,
         };
     }
 }

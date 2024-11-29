@@ -637,6 +637,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    promoteService: this.getPromoteService(),
                 }),
         );
     }
