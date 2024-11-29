@@ -7,6 +7,8 @@ export enum MetricExplorerComparison {
     DIFFERENT_METRIC = 'different_metric',
 }
 
+export type MetricExplorerDateRange = [Date | null, Date | null];
+
 export type MetricExplorerComparisonType =
     | { type: MetricExplorerComparison.NONE }
     | { type: MetricExplorerComparison.PREVIOUS_PERIOD }

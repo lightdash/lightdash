@@ -1,4 +1,7 @@
-import { type ApiGetMetricPeek } from '@lightdash/common';
+import {
+    type ApiGetMetricPeek,
+    type MetricExplorerDateRange,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -21,9 +24,13 @@ type Props = {
     defaultTimeDimension:
         | ApiGetMetricPeek['results']['defaultTimeDimension']
         | undefined;
+    onChange: (dateRange: MetricExplorerDateRange) => void;
 };
 
-export const MetricPeekDatePicker: FC<Props> = ({ defaultTimeDimension }) => {
+export const MetricPeekDatePicker: FC<Props> = ({
+    defaultTimeDimension,
+    onChange,
+}) => {
     const {
         isOpen,
         tempDateRange,
@@ -36,7 +43,7 @@ export const MetricPeekDatePicker: FC<Props> = ({ defaultTimeDimension }) => {
         handleApply,
         handlePresetSelect,
         handleDateRangeChange,
-    } = useDateRangePicker({ defaultTimeDimension });
+    } = useDateRangePicker({ defaultTimeDimension, onChange });
 
     return (
         <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
