@@ -9,6 +9,7 @@ import {
     type Connection,
     type Edge,
     type Node,
+    type NodeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
@@ -83,6 +84,20 @@ const MetricTree: FC<Props> = ({ metrics }) => {
         setCurrentEdges(initialEdges);
     }, [initialEdges, setCurrentEdges]);
 
+    const handleNodeChange = useCallback(
+        (changes: NodeChange<Node>[]) => {
+            const preventedChangeTypes: NodeChange<Node>['type'][] = [
+                'replace',
+                'remove',
+            ];
+            const changesToApply = changes.filter(
+                (c) => !preventedChangeTypes.includes(c.type),
+            );
+            onNodesChange(changesToApply);
+        },
+        [onNodesChange],
+    );
+
     const handleConnect = useCallback(
         async (params: Connection) => {
             if (projectUuid) {
@@ -122,7 +137,7 @@ const MetricTree: FC<Props> = ({ metrics }) => {
                 edges={currentEdges}
                 fitView
                 attributionPosition="top-right"
-                onNodesChange={onNodesChange}
+                onNodesChange={handleNodeChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={handleConnect}
                 edgesReconnectable={false}
