@@ -352,10 +352,7 @@ export class CatalogController extends BaseController {
     ): Promise<ApiSuccessEmpty> {
         await this.services
             .getCatalogService()
-            .createMetricsTreeEdge(req.user!, projectUuid, {
-                source_catalog_search_uuid: body.sourceCatalogSearchUuid,
-                target_catalog_search_uuid: body.targetCatalogSearchUuid,
-            });
+            .createMetricsTreeEdge(req.user!, projectUuid, body);
 
         this.setStatus(200);
         return {
@@ -366,21 +363,19 @@ export class CatalogController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Delete(
-        '/metrics/tree/edges/{sourceCatalogSearchUuid}/{targetCatalogSearchUuid}',
-    )
+    @Delete('/metrics/tree/edges/{sourceMetricId}/{targetMetricId}')
     @OperationId('deleteMetricsTreeEdge')
     async deleteMetricsTreeEdge(
         @Path() projectUuid: string,
-        @Path() sourceCatalogSearchUuid: string,
-        @Path() targetCatalogSearchUuid: string,
+        @Path() sourceMetricId: string,
+        @Path() targetMetricId: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         await this.services
             .getCatalogService()
             .deleteMetricsTreeEdge(req.user!, projectUuid, {
-                source_catalog_search_uuid: sourceCatalogSearchUuid,
-                target_catalog_search_uuid: targetCatalogSearchUuid,
+                sourceMetricId,
+                targetMetricId,
             });
 
         this.setStatus(200);

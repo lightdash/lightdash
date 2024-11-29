@@ -987,17 +987,21 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_': {
+    'Pick_CatalogField.name-or-tableName_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
-                catalogSearchUuid: { dataType: 'string', required: true },
                 tableName: { dataType: 'string', required: true },
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CatalogMetricsTreeNode: {
+        dataType: 'refAlias',
+        type: { ref: 'Pick_CatalogField.name-or-tableName_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CatalogMetricsTreeEdge: {
@@ -1005,14 +1009,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                target: {
-                    ref: 'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_',
-                    required: true,
-                },
-                source: {
-                    ref: 'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_',
-                    required: true,
-                },
+                target: { ref: 'CatalogMetricsTreeNode', required: true },
+                source: { ref: 'CatalogMetricsTreeNode', required: true },
             },
             validators: {},
         },
@@ -1048,8 +1046,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                targetCatalogSearchUuid: { dataType: 'string', required: true },
-                sourceCatalogSearchUuid: { dataType: 'string', required: true },
+                targetMetricId: { dataType: 'string', required: true },
+                sourceMetricId: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -11223,7 +11221,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.delete(
-        '/api/v1/projects/:projectUuid/dataCatalog/metrics/tree/edges/:sourceCatalogSearchUuid/:targetCatalogSearchUuid',
+        '/api/v1/projects/:projectUuid/dataCatalog/metrics/tree/edges/:sourceMetricId/:targetMetricId',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
         ...fetchMiddlewares<RequestHandler>(
             CatalogController.prototype.deleteMetricsTreeEdge,
@@ -11241,15 +11239,15 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                sourceCatalogSearchUuid: {
+                sourceMetricId: {
                     in: 'path',
-                    name: 'sourceCatalogSearchUuid',
+                    name: 'sourceMetricId',
                     required: true,
                     dataType: 'string',
                 },
-                targetCatalogSearchUuid: {
+                targetMetricId: {
                     in: 'path',
-                    name: 'targetCatalogSearchUuid',
+                    name: 'targetMetricId',
                     required: true,
                     dataType: 'string',
                 },

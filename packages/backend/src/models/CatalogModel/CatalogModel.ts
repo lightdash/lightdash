@@ -34,6 +34,7 @@ import {
     type DbCatalogIn,
     type DbCatalogTagsMigrateIn,
     type DbMetricsTreeEdge,
+    type DbMetricsTreeEdgeDelete,
     type DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
 import { CachedExploreTableName } from '../../database/entities/projects';
@@ -508,6 +509,18 @@ export class CatalogModel {
             .first();
     }
 
+    async getCatalogItemByName(
+        projectUuid: string,
+        metricName: string,
+        tableName: string,
+    ) {
+        return this.database(CatalogTableName)
+            .where(`${CatalogTableName}.name`, metricName)
+            .andWhere(`${CatalogTableName}.table_name`, tableName)
+            .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
+            .first();
+    }
+
     async tagCatalogItem(
         user: SessionUser,
         catalogSearchUuid: string,
@@ -696,67 +709,38 @@ export class CatalogModel {
     async getMetricsTree(
         projectUuid: string,
     ): Promise<{ edges: CatalogMetricsTreeEdge[] }> {
-        const edges = await this.database(MetricsTreeEdgesTableName)
-            .column({
-                source_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_catalog_search_uuid`,
-                target_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_catalog_search_uuid`,
-                source_name: 'source_catalog.name',
-                target_name: 'target_catalog.name',
-                source_explore_base_table: this.database.raw(
-                    `source_explore.explore->>'baseTable'`,
-                ),
-                target_explore_base_table: this.database.raw(
-                    `target_explore.explore->>'baseTable'`,
-                ),
-            })
-            // Join for source catalog - this will be used to filter by the selected metrics
-            .innerJoin(
-                `${CatalogTableName} as source_catalog`,
-                `${MetricsTreeEdgesTableName}.source_catalog_search_uuid`,
-                'source_catalog.catalog_search_uuid',
-            )
-            // Join for target catalog - this will be used to filter by the selected metrics
-            .innerJoin(
-                `${CatalogTableName} as target_catalog`,
-                `${MetricsTreeEdgesTableName}.target_catalog_search_uuid`,
-                'target_catalog.catalog_search_uuid',
-            )
-            // Join for source explore - this will be used to filter by the selected metrics
-            .leftJoin(
-                `${CachedExploreTableName} as source_explore`,
-                'source_catalog.cached_explore_uuid',
-                'source_explore.cached_explore_uuid',
-            )
-            // Join for target explore - this will be used to filter by the selected metrics
-            .leftJoin(
-                `${CachedExploreTableName} as target_explore`,
-                'target_catalog.cached_explore_uuid',
-                'target_explore.cached_explore_uuid',
-            )
-            .where('source_catalog.project_uuid', projectUuid)
-            .andWhere('target_catalog.project_uuid', projectUuid);
+        const edges = await this.database(MetricsTreeEdgesTableName).where(
+            'project_uuid',
+            projectUuid,
+        );
 
         return {
             edges: edges.map((e) => ({
                 source: {
-                    catalogSearchUuid: e.source_catalog_search_uuid,
-                    name: e.source_name,
-                    tableName: e.source_explore_base_table,
+                    name: e.source_metric_name,
+                    tableName: e.source_metric_table_name,
                 },
                 target: {
-                    catalogSearchUuid: e.target_catalog_search_uuid,
-                    name: e.target_name,
-                    tableName: e.target_explore_base_table,
+                    name: e.target_metric_name,
+                    tableName: e.target_metric_table_name,
                 },
             })),
         };
+    }
+
+    async getMetricsTreeEdge(
+        metricsTreeEdge: Omit<DbMetricsTreeEdgeIn, 'created_by_user_uuid'>,
+    ) {
+        return this.database(MetricsTreeEdgesTableName)
+            .where(metricsTreeEdge)
+            .first();
     }
 
     async createMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdgeIn) {
         return this.database(MetricsTreeEdgesTableName).insert(metricsTreeEdge);
     }
 
-    async deleteMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdgeIn) {
+    async deleteMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdgeDelete) {
         return this.database(MetricsTreeEdgesTableName)
             .where(metricsTreeEdge)
             .delete();

@@ -17,6 +17,7 @@ import {
     InlineErrorType,
     isExploreError,
     NotFoundError,
+    parseMetricsTreeNodeId,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -882,23 +883,72 @@ export class CatalogService<
         return this.catalogModel.getMetricsTree(projectUuid);
     }
 
-    createMetricsTreeEdge(
+    async createMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
-        edge: DbMetricsTreeEdgeIn,
+        {
+            sourceMetricId,
+            targetMetricId,
+        }: {
+            sourceMetricId: string;
+            targetMetricId: string;
+        },
     ) {
-        // TODO: check if the edge is valid
         // TODO: check permissions
-        return this.catalogModel.createMetricsTreeEdge(edge);
+        const edgeSource = parseMetricsTreeNodeId(sourceMetricId);
+        const edgeTarget = parseMetricsTreeNodeId(targetMetricId);
+
+        const sourceCatalogItem = await this.catalogModel.getCatalogItemByName(
+            projectUuid,
+            edgeSource.name,
+            edgeSource.tableName,
+        );
+
+        if (!sourceCatalogItem) {
+            throw new NotFoundError('Source metric not found');
+        }
+
+        const targetCatalogItem = await this.catalogModel.getCatalogItemByName(
+            projectUuid,
+            edgeTarget.name,
+            edgeTarget.tableName,
+        );
+
+        if (!targetCatalogItem) {
+            throw new NotFoundError('Target metric not found');
+        }
+
+        return this.catalogModel.createMetricsTreeEdge({
+            source_metric_name: edgeSource.name,
+            source_metric_table_name: edgeSource.tableName,
+            target_metric_name: edgeTarget.name,
+            target_metric_table_name: edgeTarget.tableName,
+            project_uuid: projectUuid,
+            created_by_user_uuid: user.userUuid,
+        });
     }
 
     deleteMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
-        edge: DbMetricsTreeEdgeIn,
+        {
+            sourceMetricId,
+            targetMetricId,
+        }: {
+            sourceMetricId: string;
+            targetMetricId: string;
+        },
     ) {
-        // TODO: check if the edge is valid
         // TODO: check permissions
-        return this.catalogModel.deleteMetricsTreeEdge(edge);
+        const edgeSource = parseMetricsTreeNodeId(sourceMetricId);
+        const edgeTarget = parseMetricsTreeNodeId(targetMetricId);
+
+        return this.catalogModel.deleteMetricsTreeEdge({
+            source_metric_name: edgeSource.name,
+            source_metric_table_name: edgeSource.tableName,
+            target_metric_name: edgeTarget.name,
+            target_metric_table_name: edgeTarget.tableName,
+            project_uuid: projectUuid,
+        });
     }
 }

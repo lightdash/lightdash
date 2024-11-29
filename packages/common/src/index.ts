@@ -229,6 +229,7 @@ export * from './types/warehouse';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
+export * from './utils/catalogMetricsTree';
 export * from './utils/conditionalFormatting';
 export * from './utils/convertToDbt';
 export * from './utils/dashboard';

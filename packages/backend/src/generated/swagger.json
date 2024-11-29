@@ -982,29 +982,29 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_": {
+            "Pick_CatalogField.name-or-tableName_": {
                 "properties": {
                     "name": {
-                        "type": "string"
-                    },
-                    "catalogSearchUuid": {
                         "type": "string"
                     },
                     "tableName": {
                         "type": "string"
                     }
                 },
-                "required": ["name", "catalogSearchUuid", "tableName"],
+                "required": ["name", "tableName"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CatalogMetricsTreeNode": {
+                "$ref": "#/components/schemas/Pick_CatalogField.name-or-tableName_"
             },
             "CatalogMetricsTreeEdge": {
                 "properties": {
                     "target": {
-                        "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_"
+                        "$ref": "#/components/schemas/CatalogMetricsTreeNode"
                     },
                     "source": {
-                        "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_"
+                        "$ref": "#/components/schemas/CatalogMetricsTreeNode"
                     }
                 },
                 "required": ["target", "source"],
@@ -1035,17 +1035,14 @@
             },
             "ApiCreateMetricsTreeEdgePayload": {
                 "properties": {
-                    "targetCatalogSearchUuid": {
+                    "targetMetricId": {
                         "type": "string"
                     },
-                    "sourceCatalogSearchUuid": {
+                    "sourceMetricId": {
                         "type": "string"
                     }
                 },
-                "required": [
-                    "targetCatalogSearchUuid",
-                    "sourceCatalogSearchUuid"
-                ],
+                "required": ["targetMetricId", "sourceMetricId"],
                 "type": "object"
             },
             "ApiCreateComment": {
@@ -12282,7 +12279,7 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/tree/edges/{sourceCatalogSearchUuid}/{targetCatalogSearchUuid}": {
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/tree/edges/{sourceMetricId}/{targetMetricId}": {
             "delete": {
                 "operationId": "deleteMetricsTreeEdge",
                 "responses": {
@@ -12320,7 +12317,7 @@
                     },
                     {
                         "in": "path",
-                        "name": "sourceCatalogSearchUuid",
+                        "name": "sourceMetricId",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -12328,7 +12325,7 @@
                     },
                     {
                         "in": "path",
-                        "name": "targetCatalogSearchUuid",
+                        "name": "targetMetricId",
                         "required": true,
                         "schema": {
                             "type": "string"
