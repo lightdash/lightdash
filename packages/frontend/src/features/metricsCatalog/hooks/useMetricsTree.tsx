@@ -50,7 +50,7 @@ const deleteMetricsTreeEdge = async (
     payload: ApiMetricsTreeEdgePayload & { projectUuid: string },
 ) => {
     return lightdashApi<ApiSuccessEmpty>({
-        url: `/projects/${payload.projectUuid}/dataCatalog/metrics/tree/edges/${payload.sourceCatalogSearchUuid}/${payload.targetCatalogSearchUuid}`,
+        url: `/projects/${payload.projectUuid}/dataCatalog/metrics/tree/edges/${payload.sourceMetricId}/${payload.targetMetricId}`,
         method: 'DELETE',
         body: undefined,
     });
