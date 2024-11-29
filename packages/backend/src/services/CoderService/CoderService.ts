@@ -3,6 +3,8 @@ import {
     ChartAsCode,
     CreateSavedChart,
     currentVersion,
+    DashboardAsCode,
+    DashboardDAO,
     ForbiddenError,
     NotFoundError,
     PromotedChart,
@@ -98,6 +100,72 @@ export class CoderService extends BaseService {
             version: currentVersion,
             downloadedAt: new Date(),
         };
+    }
+
+    private static transformDashboard(
+        dashboard: DashboardDAO,
+        spaceSummary: Pick<SpaceSummary, 'uuid' | 'slug'>[],
+    ): DashboardAsCode {
+        const spaceSlug = spaceSummary.find(
+            (space) => space.uuid === dashboard.spaceUuid,
+        )?.slug;
+        if (!spaceSlug) {
+            throw new NotFoundError(`Space ${dashboard.spaceUuid} not found`);
+        }
+
+        return {
+            name: dashboard.name,
+            description: dashboard.description,
+            updatedAt: dashboard.updatedAt,
+            tiles: dashboard.tiles,
+            filters: dashboard.filters,
+            tabs: dashboard.tabs,
+            slug: dashboard.slug,
+
+            spaceSlug,
+            version: currentVersion,
+            downloadedAt: new Date(),
+        };
+    }
+
+    async getDashboards(user: SessionUser, projectUuid: string) {
+        const project = await this.projectModel.get(projectUuid);
+        if (!project) {
+            throw new NotFoundError(`Project ${projectUuid} not found`);
+        }
+
+        // TODO allow more than just admins
+        // Filter dashboards based on user permissions (from private spaces)
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        // TODO
+        // We need to get the dashboards and all the dashboards config
+        // At the moment we are going to fetch them all in individual queries
+        // But in the future we should fetch them in a single query for optimization purposes
+        const dashboardSummaries = await this.dashboardModel.find({
+            projectUuid,
+        });
+
+        const dashboardPromises = dashboardSummaries.map((chart) =>
+            this.dashboardModel.getById(chart.uuid),
+        );
+        const dashboards = await Promise.all(dashboardPromises);
+
+        // get all spaces to map  spaceSlug
+        const spaceUuids = dashboards.map((dashboard) => dashboard.spaceUuid);
+        const spaces = await this.spaceModel.find({ spaceUuids });
+        return dashboards.map((dashboard) =>
+            CoderService.transformDashboard(dashboard, spaces),
+        );
     }
 
     async getCharts(user: SessionUser, projectUuid: string) {

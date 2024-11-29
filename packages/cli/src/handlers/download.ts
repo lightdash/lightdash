@@ -2,8 +2,10 @@
 import {
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
+    ApiDashboardAsCodeListResponse,
     AuthorizationError,
     ChartAsCode,
+    DashboardAsCode,
     PromotionAction,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
@@ -17,6 +19,31 @@ const DOWNLOAD_FOLDER = 'lightdash';
 export type DownloadHandlerOptions = {
     verbose: boolean;
 };
+
+const dumpIntoFiles = async (
+    folder: 'charts' | 'dashboards',
+    items: (ChartAsCode | DashboardAsCode)[],
+) => {
+    console.info(`Writting ${items.length} ${folder}`);
+
+    // Make directory
+    const outputDir = path.join(process.cwd(), DOWNLOAD_FOLDER, folder);
+    try {
+        await fs.mkdir(outputDir, { recursive: true });
+        console.info(`Creating new path for files on ${outputDir} `);
+    } catch (error) {
+        // Directory already exists
+    }
+
+    for (const item of items) {
+        const itemPath = path.join(outputDir, `${item.slug}.yml`);
+        const chartYml = yaml.dump(item, {
+            quotingType: '"',
+        });
+        await fs.writeFile(itemPath, chartYml);
+    }
+};
+
 export const downloadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
@@ -36,6 +63,8 @@ export const downloadHandler = async (
             'No project selected. Run lightdash config set-project',
         );
     }
+
+    // Download charts
     const chartsAsCode = await lightdashApi<
         ApiChartAsCodeListResponse['results']
     >({
@@ -43,25 +72,18 @@ export const downloadHandler = async (
         url: `/api/v1/projects/${projectId}/charts/code`,
         body: undefined,
     });
-    console.info(`Downloading ${chartsAsCode.length} charts`);
+    await dumpIntoFiles('charts', chartsAsCode);
 
-    const outputDir = path.join(process.cwd(), DOWNLOAD_FOLDER);
-    console.info(`Creating new path for files on ${outputDir} `);
+    // Download dashboards
+    const dashboardsAsCode = await lightdashApi<
+        ApiDashboardAsCodeListResponse['results']
+    >({
+        method: 'GET',
+        url: `/api/v1/projects/${projectId}/dashboards/code`,
+        body: undefined,
+    });
 
-    try {
-        await fs.mkdir(outputDir, { recursive: true });
-    } catch (error) {
-        // Directory already exists
-    }
-
-    for (const chart of chartsAsCode) {
-        const chartPath = path.join(outputDir, `${chart.slug}.yml`);
-        GlobalState.debug(`> Writing chart to ${chartPath}`);
-        const chartYml = yaml.dump(chart, {
-            quotingType: '"',
-        });
-        await fs.writeFile(chartPath, chartYml);
-    }
+    await dumpIntoFiles('dashboards', dashboardsAsCode);
 
     // TODO delete files if chart don't exist ?*/
 };

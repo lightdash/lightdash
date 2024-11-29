@@ -5,6 +5,7 @@ import {
     ApiChartListResponse,
     ApiChartSummaryListResponse,
     ApiCreateTagResponse,
+    ApiDashboardAsCodeListResponse,
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
@@ -830,6 +831,23 @@ export class ProjectController extends BaseController {
             results: await this.services
                 .getCoderService()
                 .getCharts(req.user!, projectUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/dashboards/code')
+    @OperationId('getDashboardsAsCode')
+    async getDashboardsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiDashboardAsCodeListResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getDashboards(req.user!, projectUuid),
         };
     }
 
