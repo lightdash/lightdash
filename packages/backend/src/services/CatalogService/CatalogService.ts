@@ -23,6 +23,7 @@ import {
     TablesConfiguration,
     TableSelectionType,
     UserAttributeValueMap,
+    type ApiMetricsTreeEdgePayload,
     type ApiSort,
     type CatalogFieldMap,
     type CatalogItem,
@@ -886,13 +887,7 @@ export class CatalogService<
     async createMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
-        {
-            sourceMetricId,
-            targetMetricId,
-        }: {
-            sourceMetricId: string;
-            targetMetricId: string;
-        },
+        { sourceMetricId, targetMetricId }: ApiMetricsTreeEdgePayload,
     ) {
         // TODO: check permissions
         const edgeSource = parseMetricsTreeNodeId(sourceMetricId);
@@ -931,13 +926,7 @@ export class CatalogService<
     deleteMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
-        {
-            sourceMetricId,
-            targetMetricId,
-        }: {
-            sourceMetricId: string;
-            targetMetricId: string;
-        },
+        { sourceMetricId, targetMetricId }: ApiMetricsTreeEdgePayload,
     ) {
         // TODO: check permissions
         const edgeSource = parseMetricsTreeNodeId(sourceMetricId);
