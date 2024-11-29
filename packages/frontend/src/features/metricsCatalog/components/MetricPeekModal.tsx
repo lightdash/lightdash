@@ -101,7 +101,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         <Modal.Root
             opened={opened}
             onClose={handleClose}
-            yOffset={100}
             scrollAreaComponent={undefined}
             size="auto"
         >
@@ -138,7 +137,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                 <Modal.Body
                     p={0}
-                    h="auto"
+                    h="80vh"
                     sx={{ display: 'flex', flex: 1 }}
                     miw={800}
                     mih={600}
