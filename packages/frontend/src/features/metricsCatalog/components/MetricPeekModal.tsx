@@ -83,8 +83,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         }
     }, [comparisonType, metricQuery.isSuccess, metricQuery.data]);
 
-    console.log({ dateRange });
-
     const metricResultsQuery = useRunMetricExplorerQuery({
         projectUuid,
         exploreName: tableName,
