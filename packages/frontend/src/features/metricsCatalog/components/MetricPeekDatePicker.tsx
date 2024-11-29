@@ -122,6 +122,14 @@ export const MetricPeekDatePicker: FC<Props> = ({ defaultTimeDimension }) => {
                                 size="xs"
                                 withCellSpacing={false}
                                 styles={(theme) => ({
+                                    yearLevel: {
+                                        color: theme.colors.gray[7],
+                                        padding: theme.spacing.xs,
+                                    },
+                                    decadeLevel: {
+                                        color: theme.colors.gray[7],
+                                        padding: theme.spacing.xs,
+                                    },
                                     calendarHeaderControlIcon: {
                                         color: theme.colors.gray[5],
                                     },
@@ -145,11 +153,11 @@ export const MetricPeekDatePicker: FC<Props> = ({ defaultTimeDimension }) => {
                                             },
                                         '&[data-in-range]': {
                                             backgroundColor:
-                                                theme.colors.gray[0],
+                                                theme.colors.gray[1],
                                         },
                                         '&[data-in-range]:hover': {
                                             backgroundColor:
-                                                theme.colors.gray[0],
+                                                theme.colors.gray[1],
                                         },
                                         '&[data-selected]': {
                                             backgroundColor:

@@ -225,7 +225,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                                                 comparisonType ===
                                                                 comparison.type
                                                                     ? `1px solid ${theme.colors.indigo[5]}`
-                                                                    : 'initial',
+                                                                    : `1px solid ${theme.colors.gray[2]}`,
                                                         },
                                                 })}
                                                 onClick={() =>
