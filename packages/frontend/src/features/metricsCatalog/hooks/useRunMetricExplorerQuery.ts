@@ -13,13 +13,13 @@ type RunMetricExplorerQueryArgs = {
     projectUuid: string;
     exploreName: string;
     metricName: string;
+    dateRange: MetricExplorerDateRange;
     comparison: MetricExplorerComparisonType;
-    dateRange?: MetricExplorerDateRange;
 };
 
 const getUrlParams = (
+    dateRange: MetricExplorerDateRange,
     comparison: MetricExplorerComparisonType,
-    dateRange?: MetricExplorerDateRange,
 ) => {
     const params = new URLSearchParams();
 
@@ -39,8 +39,8 @@ const getUrlParams = (
 
     // Add date range params
     if (dateRange) {
-        if (dateRange[0]) params.append('startDate', dateRange[0].toString());
-        if (dateRange[1]) params.append('endDate', dateRange[1].toString());
+        params.append('startDate', dateRange[0].toString());
+        params.append('endDate', dateRange[1].toString());
     }
 
     return params.toString();
@@ -53,7 +53,7 @@ const postRunMetricExplorerQuery = async ({
     comparison,
     dateRange,
 }: RunMetricExplorerQueryArgs) => {
-    const queryString = getUrlParams(comparison, dateRange);
+    const queryString = getUrlParams(dateRange, comparison);
 
     return lightdashApi<ApiMetricsExplorerQueryResults['results']>({
         url: `/projects/${projectUuid}/metricsExplorer/${exploreName}/${metricName}/runMetricExplorerQuery${
@@ -77,9 +77,9 @@ export const useRunMetricExplorerQuery = ({
             projectUuid,
             exploreName,
             metricName,
-            comparison?.type ?? 'none',
-            dateRange?.[0] ?? 'none',
-            dateRange?.[1] ?? 'none',
+            dateRange?.[0] ?? null,
+            dateRange?.[1] ?? null,
+            comparison?.type ?? null,
         ],
         queryFn: () =>
             postRunMetricExplorerQuery({
@@ -87,8 +87,13 @@ export const useRunMetricExplorerQuery = ({
                 exploreName: exploreName!,
                 metricName: metricName!,
                 comparison: comparison!,
-                dateRange,
+                dateRange: dateRange!,
             }),
-        enabled: !!projectUuid && !!exploreName && !!metricName && !!comparison,
+        enabled:
+            !!projectUuid &&
+            !!exploreName &&
+            !!metricName &&
+            !!comparison &&
+            !!dateRange,
     });
 };

@@ -14101,6 +14101,22 @@
                     },
                     {
                         "in": "query",
+                        "name": "startDate",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endDate",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "compareToPreviousPeriod",
                         "required": false,
                         "schema": {
@@ -14110,22 +14126,6 @@
                     {
                         "in": "query",
                         "name": "compareToMetric",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "startDate",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "endDate",
                         "required": false,
                         "schema": {
                             "type": "string"

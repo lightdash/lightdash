@@ -13378,6 +13378,18 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
+                startDate: {
+                    in: 'query',
+                    name: 'startDate',
+                    required: true,
+                    dataType: 'string',
+                },
+                endDate: {
+                    in: 'query',
+                    name: 'endDate',
+                    required: true,
+                    dataType: 'string',
+                },
                 compareToPreviousPeriod: {
                     in: 'query',
                     name: 'compareToPreviousPeriod',
@@ -13388,12 +13400,6 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'compareToMetric',
                     dataType: 'string',
                 },
-                startDate: {
-                    in: 'query',
-                    name: 'startDate',
-                    dataType: 'string',
-                },
-                endDate: { in: 'query', name: 'endDate', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

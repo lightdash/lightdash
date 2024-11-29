@@ -1,5 +1,8 @@
 import {
-    isMetric,
+    getItemId,
+    getMetricExplorerDataPoints,
+    getMetricExplorerDataPointsWithCompare,
+    isDimension,
     type MetricsExplorerQueryResults,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
@@ -29,7 +32,7 @@ import {
     YAxis,
 } from 'recharts';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { FORMATS, type TimeSeriesData } from './types';
+import { FORMATS } from './types';
 import { useChartZoom } from './useChartZoom';
 
 const tickFormatter = (date: Date) => {
@@ -60,40 +63,31 @@ type Props = {
 const MetricsVisualization: FC<Props> = ({ metric, data }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
-    const defaultTimeDimension = metric.defaultTimeDimension;
+    const timeSeriesData = useMemo(() => {
+        const dimensionFieldName = metric.defaultTimeDimension?.field;
+        const dimensionId =
+            dimensionFieldName &&
+            getItemId({ name: dimensionFieldName, table: metric.table });
+        if (!dimensionId || !data.fields[dimensionId]) return null; // TODO: non-ideal state
+        if (!data.rows) return null;
 
-    const timeDimensionFieldId = Object.entries(data.fields).find(
-        ([_, field]) => 'timeInterval' in field,
-    )?.[0];
+        const dimension = data.fields[dimensionId];
+        if (!isDimension(dimension)) return null; // TODO: non-ideal state
 
-    const metricFieldId = Object.entries(data.fields).find(([_, field]) =>
-        isMetric(field),
-    )?.[0];
+        console.log({
+            r: data.rows,
+            c: data.comparisonRows,
+        });
 
-    const timeSeriesData: TimeSeriesData[] | null = useMemo(() => {
-        // TODO: Currently we hide the visualization if the default time dimension is not present. Address this differently.
-        if (!defaultTimeDimension) return null;
-
-        if (!timeDimensionFieldId || !metricFieldId) return null;
-        // TODO: zipping with index is not a smart idea.
-        return data.rows.map((row, index) => ({
-            date: new Date(String(row[timeDimensionFieldId].value.raw)),
-            metric: row[metricFieldId].value.raw,
-            ...(data.comparisonRows
-                ? {
-                      compareMetric:
-                          data.comparisonRows[index]?.[metricFieldId]?.value
-                              .raw,
-                  }
-                : {}),
-        }));
-    }, [
-        defaultTimeDimension,
-        timeDimensionFieldId,
-        metricFieldId,
-        data.rows,
-        data.comparisonRows,
-    ]);
+        return data.comparisonRows
+            ? getMetricExplorerDataPointsWithCompare(
+                  dimension,
+                  metric,
+                  data.rows,
+                  data.comparisonRows,
+              )
+            : getMetricExplorerDataPoints(dimension, metric, data.rows);
+    }, [data.comparisonRows, data.fields, data.rows, metric]);
 
     const {
         zoomState,
