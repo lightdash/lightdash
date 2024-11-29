@@ -1410,6 +1410,27 @@ export class ProjectModel {
                           .returning('*')
                     : [];
 
+            const spaceGroupAccesses = await trx('space_group_access').whereIn(
+                'space_uuid',
+                spaceUuids,
+            );
+
+            Logger.info(
+                `Duplicating ${spaceGroupAccesses.length} space group accesses on ${previewProjectUuid}`,
+            );
+
+            const newSpaceGroupAccesses =
+                spaceGroupAccesses.length > 0
+                    ? await trx('space_group_access')
+                          .insert(
+                              spaceGroupAccesses.map((d) => ({
+                                  ...d,
+                                  space_uuid: getNewSpaceUuid(d.space_uuid),
+                              })),
+                          )
+                          .returning('*')
+                    : [];
+
             // .dP"Y8    db    Yb    dP 888888 8888b.      .dP"Y8  dP"Yb  88
             // `Ybo."   dPYb    Yb  dP  88__    8I  Yb     `Ybo." dP   Yb 88
             // o.`Y8b  dP__Yb    YbdP   88""    8I  dY     o.`Y8b Yb b dP 88  .o

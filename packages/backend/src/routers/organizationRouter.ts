@@ -21,7 +21,7 @@ organizationRouter.post(
     async (req, res, next) =>
         req.services
             .getProjectService()
-            .create(
+            .scheduleCreate(
                 req.user!,
                 req.body,
                 getRequestMethod(req.header(LightdashRequestMethodHeader)),

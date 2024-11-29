@@ -32,6 +32,28 @@ export const unitOfTimeFormat: Record<UnitOfTime, string> = {
     years: 'YYYY',
 };
 
+export const getUnitsOfTimeGreaterOrEqual = (
+    unit: UnitOfTime,
+): UnitOfTime[] => {
+    const unitsInOrder: UnitOfTime[] = [
+        UnitOfTime.milliseconds,
+        UnitOfTime.seconds,
+        UnitOfTime.minutes,
+        UnitOfTime.hours,
+        UnitOfTime.days,
+        UnitOfTime.weeks,
+        UnitOfTime.months,
+        UnitOfTime.quarters,
+        UnitOfTime.years,
+    ];
+    const index = unitsInOrder.indexOf(unit);
+    if (index === -1) {
+        // return the original array if the unit is not found
+        return unitsInOrder;
+    }
+    return unitsInOrder.slice(index);
+};
+
 export type FieldTarget = {
     fieldId: string;
 };
@@ -213,41 +235,6 @@ export const updateFieldIdInFilters = (
         } else if (isAndFilterGroup(filterGroup)) {
             filterGroup.and.forEach((item) =>
                 updateFieldIdInFilterGroupItem(item, previousName, newName),
-            );
-        }
-    }
-};
-
-export const updateFilterValueInFilters = (
-    filterGroup: FilterGroup | undefined,
-    valueChange: (
-        fieldId: string,
-        oldValue: any[] | undefined,
-    ) => any[] | undefined,
-): void => {
-    const updateFilterValueInFilterGroupItem = (
-        filterGroupItem: FilterGroupItem,
-    ): void => {
-        if (isFilterGroup(filterGroupItem)) {
-            // eslint-disable-next-line @typescript-eslint/no-use-before-define
-            updateFilterValueInFilters(filterGroupItem, valueChange);
-        } else {
-            // eslint-disable-next-line no-param-reassign
-            filterGroupItem.values = valueChange(
-                filterGroupItem.target.fieldId,
-                filterGroupItem.values,
-            );
-        }
-    };
-
-    if (filterGroup) {
-        if (isOrFilterGroup(filterGroup)) {
-            filterGroup.or.forEach((item) =>
-                updateFilterValueInFilterGroupItem(item),
-            );
-        } else if (isAndFilterGroup(filterGroup)) {
-            filterGroup.and.forEach((item) =>
-                updateFilterValueInFilterGroupItem(item),
             );
         }
     }

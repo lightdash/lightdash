@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine/core';
+import { MantineProvider, type MantineTheme } from '@mantine/core';
 import { type FC } from 'react';
 import { Provider } from 'react-redux';
 import Page from '../components/common/Page/Page';
@@ -33,6 +33,18 @@ const MetricsCatalog: FC = () => {
                                 withinPortal: true,
                                 radius: 'md',
                                 shadow: 'sm',
+                            },
+                        },
+                        Paper: {
+                            defaultProps: {
+                                radius: 'md',
+                                shadow: 'subtle',
+                                withBorder: true,
+                                sx: (theme: MantineTheme) => ({
+                                    '&[data-with-border]': {
+                                        border: `1px solid ${theme.colors.gray[2]}`,
+                                    },
+                                }),
                             },
                         },
                     },

@@ -18,7 +18,7 @@ import {
     Tooltip,
     type SelectProps,
 } from '@mantine/core';
-import { forwardRef, useCallback, useMemo } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react';
 import FieldIcon from '../Filters/FieldIcon';
 
 interface ItemComponentProps extends React.ComponentPropsWithoutRef<'div'> {
@@ -77,6 +77,7 @@ type FieldSelectProps<T extends Item = Item> = Omit<
     onClosed?: () => void;
     hasGrouping?: boolean;
     baseTable?: string;
+    focusOnRender?: boolean;
 };
 
 const getLabel = (item: Item, hasGrouping: boolean) => {
@@ -93,8 +94,21 @@ const FieldSelect = <T extends Item = Item>({
     inactiveItemIds = [],
     hasGrouping = false,
     baseTable,
+    focusOnRender = false,
     ...rest
 }: FieldSelectProps<T>): JSX.Element => {
+    const inputRef = useRef<HTMLInputElement | null>(null); // Input ref for focus handling
+    useEffect(() => {
+        if (focusOnRender) {
+            // focus on the input after the component has rendered by throwing it to the end of the event loop first
+            setTimeout(() => {
+                if (inputRef.current) {
+                    inputRef.current.focus();
+                }
+            }, 1);
+        }
+    }, [focusOnRender]);
+
     const [tableLabelMap, sortedItems] = useMemo(() => {
         const map = new Map<string, string>();
 
@@ -203,6 +217,7 @@ const FieldSelect = <T extends Item = Item>({
 
     return (
         <Select
+            ref={inputRef}
             w="100%"
             searchable
             styles={{

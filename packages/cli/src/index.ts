@@ -6,6 +6,7 @@ import { compileHandler } from './handlers/compile';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
 import { deployHandler } from './handlers/deploy';
+import { downloadHandler, uploadHandler } from './handlers/download';
 import { generateHandler } from './handlers/generate';
 import { generateExposuresHandler } from './handlers/generateExposures';
 import { login } from './handlers/login';
@@ -419,6 +420,17 @@ program
     )
     .option('--verbose', undefined, false)
     .action(stopPreviewHandler);
+
+program
+    .command('download')
+    .description('Downloads charts and dashboards as code')
+    .option('--verbose', undefined, false)
+    .action(downloadHandler);
+program
+    .command('upload')
+    .description('Uploads charts and dashboards as code')
+    .option('--verbose', undefined, false)
+    .action(uploadHandler);
 
 program
     .command('deploy')

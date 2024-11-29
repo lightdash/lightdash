@@ -44,7 +44,10 @@ import { errorHandler } from './errors';
 import { RegisterRoutes } from './generated/routes';
 import apiSpec from './generated/swagger.json';
 import Logger from './logging/logger';
-import { expressWinstonMiddleware } from './logging/winston';
+import {
+    expressWinstonMiddleware,
+    expressWinstonPreResponseMiddleware,
+} from './logging/winston';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
 import { apiV1Router } from './routers/apiV1Router';
@@ -418,7 +421,8 @@ export default class App {
         expressApp.use(passport.initialize());
         expressApp.use(passport.session());
 
-        expressApp.use(expressWinstonMiddleware);
+        expressApp.use(expressWinstonPreResponseMiddleware); // log request before response is sent
+        expressApp.use(expressWinstonMiddleware); // log request + response
 
         expressApp.get('/', (req, res) => {
             res.sendFile(

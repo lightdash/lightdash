@@ -5,6 +5,7 @@ import { ModelRepository } from '../models/ModelRepository';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
+import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
 import { CsvService } from './CsvService/CsvService';
@@ -15,6 +16,7 @@ import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
+import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
@@ -69,11 +71,13 @@ interface ServiceManifest {
     userService: UserService;
     validationService: ValidationService;
     catalogService: CatalogService;
+    metricsExplorerService: MetricsExplorerService;
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
     semanticLayerService: SemanticLayerService;
     savedSemanticViewerChartService: SavedSemanticViewerChartService;
+    coderService: CoderService;
 
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -621,6 +625,22 @@ export class ServiceRepository
         );
     }
 
+    public getCoderService(): CoderService {
+        return this.getService(
+            'coderService',
+            () =>
+                new CoderService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
+                    projectModel: this.models.getProjectModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    spaceModel: this.models.getSpaceModel(),
+                    schedulerClient: this.clients.getSchedulerClient(),
+                }),
+        );
+    }
+
     public getCatalogService(): CatalogService {
         return this.getService(
             'catalogService',
@@ -634,6 +654,20 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     tagsModel: this.models.getTagsModel(),
+                }),
+        );
+    }
+
+    public getMetricsExplorerService(): MetricsExplorerService {
+        return this.getService(
+            'metricsExplorerService',
+            () =>
+                new MetricsExplorerService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    catalogModel: this.models.getCatalogModel(),
+                    projectService: this.getProjectService(),
+                    catalogService: this.getCatalogService(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }

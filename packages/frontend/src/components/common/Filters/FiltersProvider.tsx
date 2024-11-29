@@ -69,9 +69,7 @@ export const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
                     (dimensionFilterRule) => {
                         const isNotSelectedFilter =
                             dimensionFilterRule.id !== filterId;
-                        const hasSameTable =
-                            dimensionFilterRule.target.tableName === item.table;
-                        return isNotSelectedFilter && hasSameTable;
+                        return isNotSelectedFilter;
                     },
                 ),
             };

@@ -1,22 +1,15 @@
 import {
-    assertUnreachable,
     ChartType,
-    ConditionalOperator,
     CustomDimensionType,
     DateGranularity,
     DimensionType,
     getItemId,
+    getMetricExplorerDefaultGrainFilters,
     isCartesianChartConfig,
-    TimeFrames,
-    UnitOfTime,
-    type CompiledDimension,
     type CreateSavedChartVersion,
     type CustomBinDimension,
     type CustomDimension,
-    type DateFilterSettings,
     type Explore,
-    type FieldTarget,
-    type FilterRule,
     type MetricQuery,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
@@ -52,168 +45,6 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
     },
 };
 
-const getFieldIdForDateDimension = (fieldId: string, timeframe: TimeFrames) => {
-    switch (timeframe) {
-        case TimeFrames.DAY:
-            return `${fieldId}_day`;
-        case TimeFrames.WEEK:
-            return `${fieldId}_week`;
-        case TimeFrames.MONTH:
-            return `${fieldId}_month`;
-        case TimeFrames.YEAR:
-            return `${fieldId}_year`;
-        case TimeFrames.RAW:
-        case TimeFrames.QUARTER:
-        case TimeFrames.HOUR:
-        case TimeFrames.MINUTE:
-        case TimeFrames.SECOND:
-        case TimeFrames.MILLISECOND:
-        case TimeFrames.DAY_OF_WEEK_INDEX:
-        case TimeFrames.DAY_OF_MONTH_NUM:
-        case TimeFrames.DAY_OF_YEAR_NUM:
-        case TimeFrames.WEEK_NUM:
-        case TimeFrames.MONTH_NUM:
-        case TimeFrames.QUARTER_NUM:
-        case TimeFrames.YEAR_NUM:
-        case TimeFrames.DAY_OF_WEEK_NAME:
-        case TimeFrames.MONTH_NAME:
-        case TimeFrames.QUARTER_NAME:
-        case TimeFrames.HOUR_OF_DAY_NUM:
-        case TimeFrames.MINUTE_OF_HOUR_NUM:
-            throw new Error(
-                `Timeframe "${timeframe}" is not supported for default time filter`,
-            );
-        default:
-            return assertUnreachable(
-                timeframe,
-                `Unknown time interval: "${timeframe}"`,
-            );
-    }
-};
-
-// Time grain Year: -> past 5 years (i.e. 5 completed years + this uncompleted year)
-// Time grain Month -> past 12 months (i.e. 12 completed months + this uncompleted month)
-// Time grain Week -> past 12 weeks (i.e. 12 completed weeks + this uncompleted week)
-// Time grain Day -> past 30 days (i.e. 30 completed days + this uncompleted day)
-const getRelevantFilterForDimension = (
-    dimension: CompiledDimension | undefined,
-):
-    | FilterRule<
-          ConditionalOperator,
-          FieldTarget,
-          unknown,
-          DateFilterSettings
-      >[]
-    | undefined => {
-    if (!dimension || !dimension.timeInterval) return;
-
-    switch (dimension.timeInterval) {
-        case TimeFrames.DAY:
-            return [
-                {
-                    id: uuidv4(),
-                    target: { fieldId: getItemId(dimension) },
-                    operator: ConditionalOperator.IN_THE_PAST,
-                    values: [29], // 30 days ago - current day
-                    settings: {
-                        unitOfTime: UnitOfTime.days,
-                        completed: true,
-                    },
-                },
-                {
-                    id: uuidv4(),
-                    target: { fieldId: getItemId(dimension) },
-                    operator: ConditionalOperator.IN_THE_CURRENT,
-                    values: [],
-                    settings: { unitOfTime: UnitOfTime.days },
-                },
-            ];
-        case TimeFrames.WEEK:
-            return [
-                {
-                    id: uuidv4(),
-                    target: { fieldId: getItemId(dimension) },
-                    operator: ConditionalOperator.IN_THE_PAST,
-                    values: [11], // 12 weeks ago - current week
-                    settings: {
-                        unitOfTime: UnitOfTime.weeks,
-                        completed: true,
-                    },
-                },
-                {
-                    id: uuidv4(),
-                    target: { fieldId: getItemId(dimension) },
-                    operator: ConditionalOperator.IN_THE_CURRENT,
-                    values: [],
-                    settings: { unitOfTime: UnitOfTime.weeks },
-                },
-            ];
-        case TimeFrames.MONTH:
-            return [
-                {
-                    id: uuidv4(),
-                    target: { fieldId: getItemId(dimension) },
-                    operator: ConditionalOperator.IN_THE_PAST,
-                    values: [11], // 12 months ago - current month
-                    settings: {
-                        unitOfTime: UnitOfTime.months,
-                        completed: true,
-                    },
-                },
-                {
-                    id: uuidv4(),
-                    target: { fieldId: getItemId(dimension) },
-                    operator: ConditionalOperator.IN_THE_CURRENT,
-                    values: [],
-                    settings: { unitOfTime: UnitOfTime.months },
-                },
-            ];
-        case TimeFrames.YEAR:
-            return [
-                {
-                    id: uuidv4(),
-                    target: { fieldId: getItemId(dimension) },
-                    operator: ConditionalOperator.IN_THE_PAST,
-                    values: [4], // 5 years ago - current year
-                    settings: { unitOfTime: UnitOfTime.years, completed: true },
-                },
-                {
-                    id: uuidv4(),
-                    target: { fieldId: getItemId(dimension) },
-                    operator: ConditionalOperator.IN_THE_CURRENT,
-                    values: [],
-                    settings: { unitOfTime: UnitOfTime.years },
-                },
-            ];
-        case TimeFrames.RAW:
-        case TimeFrames.QUARTER:
-        case TimeFrames.HOUR:
-        case TimeFrames.MINUTE:
-        case TimeFrames.SECOND:
-        case TimeFrames.MILLISECOND:
-        case TimeFrames.DAY_OF_WEEK_INDEX:
-        case TimeFrames.DAY_OF_MONTH_NUM:
-        case TimeFrames.DAY_OF_YEAR_NUM:
-        case TimeFrames.WEEK_NUM:
-        case TimeFrames.MONTH_NUM:
-        case TimeFrames.QUARTER_NUM:
-        case TimeFrames.YEAR_NUM:
-        case TimeFrames.DAY_OF_WEEK_NAME:
-        case TimeFrames.MONTH_NAME:
-        case TimeFrames.QUARTER_NAME:
-        case TimeFrames.HOUR_OF_DAY_NUM:
-        case TimeFrames.MINUTE_OF_HOUR_NUM:
-            throw new Error(
-                `Timeframe "${dimension.timeInterval}" is not supported for default time filter`,
-            );
-        default:
-            return assertUnreachable(
-                dimension.timeInterval,
-                `Unknown time interval: "${dimension.timeInterval}"`,
-            );
-    }
-};
-
 const getDefaultTimeDimension = (
     metric: Record<'name' | 'tableName', string>,
     explore: Explore,
@@ -228,10 +59,8 @@ const getDefaultTimeDimension = (
         explore.tables[explore.baseTable].defaultTimeDimension;
     if (!defaultTimeDimension) return;
 
-    const dimensionName = getFieldIdForDateDimension(
-        defaultTimeDimension.field,
-        defaultTimeDimension.interval,
-    );
+    const dimensionName = defaultTimeDimension.field;
+
     const dimensionId = getItemId({
         name: dimensionName,
         table: metric.tableName,
@@ -249,8 +78,13 @@ export const createMetricPreviewUnsavedChartVersion = (
     explore: Explore,
 ): CreateSavedChartVersion => {
     const defaultTimeDimension = getDefaultTimeDimension(metric, explore);
-    const defaultTimeFilters =
-        getRelevantFilterForDimension(defaultTimeDimension);
+    const defaultTimeFilters = defaultTimeDimension
+        ? getMetricExplorerDefaultGrainFilters(
+              metric.tableName,
+              defaultTimeDimension.name,
+              defaultTimeDimension.timeInterval,
+          )
+        : [];
 
     let chartConfig = DEFAULT_EMPTY_EXPLORE_CONFIG.chartConfig;
 

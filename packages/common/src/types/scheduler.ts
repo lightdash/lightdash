@@ -1,3 +1,4 @@
+import { type CreateProject } from '../index';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule } from './filter';
@@ -46,6 +47,7 @@ export type SchedulerLog = {
         | 'uploadGsheets'
         | 'downloadCsv'
         | 'uploadGsheetFromQuery'
+        | 'createProjectWithCompile'
         | 'compileProject'
         | 'testAndCompileProject'
         | 'validateProject'
@@ -405,6 +407,15 @@ export type ApiCsvUrlResponse = {
         status: string;
         truncated: boolean;
     };
+};
+
+export type SchedulerCreateProjectWithCompilePayload = {
+    createdByUserUuid: string;
+    organizationUuid: string;
+    requestMethod: string;
+    isPreview: boolean;
+    data: CreateProject;
+    jobUuid: string;
 };
 
 export type CompileProjectPayload = {

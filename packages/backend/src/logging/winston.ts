@@ -1,4 +1,4 @@
-import { SessionUser } from '@lightdash/common';
+import { LightdashMode, SessionUser } from '@lightdash/common';
 import { getActiveSpan } from '@sentry/node';
 import * as express from 'express';
 import * as expressWinston from 'express-winston';
@@ -139,6 +139,7 @@ export const expressWinstonMiddleware: express.RequestHandler =
         dynamicMeta: (req, res) => ({
             userUuid: req.user?.userUuid,
             organizationUuid: req.user?.organizationUuid,
+            includesResponse: true,
         }),
         requestWhitelist: ['url', 'headers', 'method'],
         responseWhitelist: ['statusCode'],
@@ -149,3 +150,26 @@ export const expressWinstonMiddleware: express.RequestHandler =
             'accept-encoding',
         ],
     });
+
+// Logs the request before the response is sent
+export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
+    req,
+    _res,
+    next,
+) => {
+    if (lightdashConfig.mode !== LightdashMode.DEV) {
+        winstonLogger.log({
+            level: 'http',
+            message: `${req.method} ${req.url}`,
+            req: {
+                method: req.method,
+                url: req.url,
+                headers: req.headers,
+            },
+            includesResponse: false,
+            userUuid: req.user?.userUuid,
+            organizationUuid: req.user?.organizationUuid,
+        });
+    }
+    next();
+};

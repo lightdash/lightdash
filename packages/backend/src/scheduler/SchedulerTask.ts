@@ -34,6 +34,7 @@ import {
     QueryExecutionContext,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
+    SchedulerCreateProjectWithCompilePayload,
     SchedulerFilterRule,
     SchedulerFormat,
     SchedulerJobStatus,
@@ -728,6 +729,58 @@ export default class SchedulerTask {
                     error: e.message,
                 },
             });
+            throw e;
+        }
+    }
+
+    protected async createProjectWithCompile(
+        jobId: string,
+        scheduledTime: Date,
+        payload: SchedulerCreateProjectWithCompilePayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: 'createProjectWithCompile',
+                jobId,
+                scheduledTime,
+            };
+
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                payload.createdByUserUuid,
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: { createdByUserUuid: payload.createdByUserUuid },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            const projectCreationResult = await this.projectService._create(
+                user,
+                payload.data,
+                payload.jobUuid,
+                getRequestMethod(payload.requestMethod),
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    projectUuid: projectCreationResult.projectUuid,
+                },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    error: e,
+                },
+            });
+            // Update legacy job
+            await this.projectService._markJobAsFailed(payload.jobUuid);
             throw e;
         }
     }

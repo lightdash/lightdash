@@ -117,10 +117,15 @@ import {
     type ApiMetricsCatalog,
 } from './types/catalog';
 import {
+    type ApiChartAsCodeListResponse,
+    type ApiChartAsCodeUpsertResponse,
+} from './types/coder';
+import {
     type ApiChartContentResponse,
     type ApiContentResponse,
 } from './types/content';
 import type { ApiGroupListResponse } from './types/groups';
+import type { ApiMetricsExplorerQueryResults } from './types/metricsExplorer';
 import { type ApiPromotionChangesResponse } from './types/promotion';
 import {
     type ApiSemanticLayerClientInfo,
@@ -164,6 +169,7 @@ export * from './types/api/sort';
 export * from './types/api/success';
 export * from './types/api/uuid';
 export * from './types/catalog';
+export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/conditionalRule';
@@ -186,6 +192,7 @@ export * from './types/groups';
 export * from './types/job';
 export * from './types/knex-paginate';
 export * from './types/metricQuery';
+export * from './types/metricsExplorer';
 export * from './types/notifications';
 export * from './types/openIdIdentity';
 export * from './types/organization';
@@ -231,6 +238,7 @@ export * from './utils/filters';
 export * from './utils/formatting';
 export * from './utils/github';
 export * from './utils/item';
+export * from './utils/metricsExplorer';
 export * from './utils/projectMemberRole';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
@@ -693,8 +701,11 @@ type ApiResults =
     | ApiCreateVirtualView['results']
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']
+    | ApiMetricsExplorerQueryResults['results']
     | ApiGroupListResponse['results']
-    | ApiCreateTagResponse['results'];
+    | ApiCreateTagResponse['results']
+    | ApiChartAsCodeListResponse['results']
+    | ApiChartAsCodeUpsertResponse['results'];
 
 export type ApiResponse<T extends ApiResults = ApiResults> = {
     status: 'ok';

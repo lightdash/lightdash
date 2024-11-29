@@ -103,9 +103,12 @@ export type ApiMetricsCatalog = {
     results: KnexPaginatedData<ApiMetricsCatalogResults>;
 };
 
+export type MetricWithAssociatedTimeDimension = CompiledMetric &
+    Pick<CompiledTable, 'defaultTimeDimension'>;
+
 export type ApiGetMetricPeek = {
     status: 'ok';
-    results: CompiledMetric & Pick<CompiledTable, 'defaultTimeDimension'>;
+    results: MetricWithAssociatedTimeDimension;
 };
 
 export type CatalogMetadata = {

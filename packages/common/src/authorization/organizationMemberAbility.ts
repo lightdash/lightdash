@@ -154,6 +154,7 @@ const applyOrganizationMemberStaticAbilities: Record<
                 },
             },
         });
+
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             access: {
@@ -167,6 +168,10 @@ const applyOrganizationMemberStaticAbilities: Record<
     editor(member, { can }) {
         applyOrganizationMemberStaticAbilities.interactive_viewer(member, {
             can,
+        });
+        can('manage', 'Space', {
+            organizationUuid: member.organizationUuid,
+            isPrivate: false,
         });
         can('create', 'Space', {
             organizationUuid: member.organizationUuid,
@@ -230,6 +235,7 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
             type: ProjectType.PREVIEW,
         });
+
         can('delete', 'Project', {
             organizationUuid: member.organizationUuid,
             type: ProjectType.PREVIEW,

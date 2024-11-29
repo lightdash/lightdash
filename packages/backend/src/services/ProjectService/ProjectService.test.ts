@@ -1,4 +1,5 @@
 import {
+    ConditionalOperator,
     defineUserAbility,
     NotFoundError,
     OrganizationMemberRole,
@@ -54,6 +55,13 @@ import {
     validExplore,
 } from './ProjectService.mock';
 
+jest.mock('@lightdash/warehouses', () => ({
+    SshTunnel: jest.fn(() => ({
+        connect: jest.fn(() => ({})),
+        disconnect: jest.fn(),
+    })),
+}));
+
 const projectModel = {
     getWithSensitiveFields: jest.fn(async () => projectWithSensitiveFields),
     get: jest.fn(async () => projectWithSensitiveFields),
@@ -73,6 +81,7 @@ const projectModel = {
         ...warehouseClientMock,
         runQuery: jest.fn(async () => resultsWith1Row),
     })),
+    findExploreByTableName: jest.fn(async () => validExplore),
 };
 const onboardingModel = {
     getByOrganizationUuid: jest.fn(async () => ({
@@ -324,6 +333,100 @@ describe('ProjectService', () => {
                 // @ts-ignore
                 service.metricQueryWithLimit(metricWithDimension, null).limit,
             ).toEqual(50000);
+        });
+    });
+    describe('searchFieldUniqueValues', () => {
+        const replaceWhitespace = (str: string) =>
+            str.replace(/\s+/g, ' ').trim();
+        afterEach(() => {
+            jest.clearAllMocks();
+        });
+        test('should query unique values', async () => {
+            const runQueryMock = jest.fn(
+                async (_sql: string) => resultsWith1Row,
+            );
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            }));
+            await service.searchFieldUniqueValues(
+                user,
+                projectUuid,
+                'a',
+                'a_dim1',
+                '',
+                10,
+                undefined,
+            );
+            expect(runQueryMock).toHaveBeenCalledTimes(1);
+            expect(replaceWhitespace(runQueryMock.mock.calls[0][0])).toEqual(
+                replaceWhitespace(`SELECT AS "a_dim1"
+                                   FROM test.table AS "a"
+                                   WHERE (( LOWER() LIKE LOWER('%%') ))
+                                   GROUP BY 1
+                                   ORDER BY "a_dim1" 
+                                   LIMIT 10`),
+            );
+        });
+        test('should query unique values with valid filters', async () => {
+            const runQueryMock = jest.fn(
+                async (_sql: string) => resultsWith1Row,
+            );
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            }));
+            await service.searchFieldUniqueValues(
+                user,
+                projectUuid,
+                'a',
+                'a_dim1',
+                '',
+                10,
+                {
+                    id: '1',
+                    and: [
+                        {
+                            id: 'valid',
+                            operator: ConditionalOperator.EQUALS,
+                            values: ['test'],
+                            target: {
+                                fieldId: 'a_dim1',
+                            },
+                        },
+                        {
+                            id: 'valid_joined',
+                            operator: ConditionalOperator.EQUALS,
+                            values: ['test'],
+                            target: {
+                                fieldId: 'b_dim1',
+                            },
+                        },
+                        {
+                            id: 'invalid',
+                            operator: ConditionalOperator.EQUALS,
+                            values: ['test'],
+                            target: {
+                                fieldId: 'c_dim1',
+                            },
+                        },
+                    ],
+                },
+            );
+            expect(runQueryMock).toHaveBeenCalledTimes(1);
+            expect(replaceWhitespace(runQueryMock.mock.calls[0][0])).toEqual(
+                replaceWhitespace(`SELECT AS "a_dim1" 
+                                        FROM test.table AS "a" 
+                                        LEFT OUTER JOIN public.b AS "b" ON ("a".dim1) = ("b".dim1) 
+                                        WHERE (( LOWER() LIKE LOWER('%%') ) AND ( () IN ('test') ) AND ( () IN ('test') )) 
+                                        GROUP BY 1 
+                                        ORDER BY "a_dim1" 
+                                        LIMIT 10`),
+            );
         });
     });
 });

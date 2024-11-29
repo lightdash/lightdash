@@ -204,6 +204,7 @@ export class PromoteService extends BaseService {
                     subject('Space', {
                         organizationUuid,
                         projectUuid: upstreamContent.projectUuid,
+                        isPrivate: upstreamContent.space.isPrivate,
                         access: upstreamContent.access,
                     }),
                 )
