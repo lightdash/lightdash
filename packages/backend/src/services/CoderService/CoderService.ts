@@ -151,6 +151,7 @@ export class CoderService extends BaseService {
         }
         const [chart] = await this.savedChartModel.find({
             slug,
+            projectUuid,
         });
         if (chart === undefined) {
             // TODO create space if does not exist
