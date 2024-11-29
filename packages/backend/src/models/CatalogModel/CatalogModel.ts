@@ -236,11 +236,9 @@ export class CatalogModel {
                     tableSelectionType === TableSelectionType.WITH_NAMES
                 ) {
                     // For table names, we check if the baseTable matches any of the required names
-                    void this.whereRaw(
-                        `
-                        (explore->>'baseTable')::text = ANY(?)
-                    `,
-                        [value ?? []],
+                    void this.whereIn(
+                        `${CatalogTableName}.table_name`,
+                        value ?? [],
                     );
                 }
             })
@@ -556,10 +554,8 @@ export class CatalogModel {
                 `${CatalogTableName}.name`,
                 `${CatalogTableName}.type`,
                 `${CatalogTableName}.field_type`,
+                `${CatalogTableName}.table_name`,
                 {
-                    explore_base_table: this.database.raw(
-                        `${CachedExploreTableName}.explore->>'baseTable'`,
-                    ),
                     catalog_tag_uuids: this.database.raw(`
                     COALESCE(
                         JSON_AGG(
@@ -607,7 +603,6 @@ export class CatalogModel {
             );
 
         const itemsWithTags: (DbCatalog & {
-            explore_base_table: string;
             catalog_tag_uuids: {
                 tagUuid: string;
                 createdByUserUuid: string | null;
@@ -622,7 +617,7 @@ export class CatalogModel {
             name: i.name,
             type: i.type,
             fieldType: i.field_type,
-            exploreBaseTable: i.explore_base_table,
+            exploreBaseTable: i.table_name,
             catalogTags: i.catalog_tag_uuids,
         }));
     }
@@ -646,11 +641,7 @@ export class CatalogModel {
                 `${CatalogTableName}.type`,
                 `${CatalogTableName}.field_type`,
                 `${CatalogTableName}.icon`,
-                {
-                    explore_base_table: this.database.raw(
-                        `${CachedExploreTableName}.explore->>'baseTable'`,
-                    ),
-                },
+                `${CatalogTableName}.table_name`,
             )
             .leftJoin(
                 CachedExploreTableName,
@@ -671,9 +662,7 @@ export class CatalogModel {
                 `explore_base_table`,
             );
 
-        const itemsWithIcons: (DbCatalog & {
-            explore_base_table: string;
-        })[] = await query;
+        const itemsWithIcons: DbCatalog[] = await query;
 
         return itemsWithIcons.map<CatalogItemsWithIcons>((i) => ({
             catalogSearchUuid: i.catalog_search_uuid,
@@ -682,7 +671,7 @@ export class CatalogModel {
             name: i.name,
             type: i.type,
             fieldType: i.field_type,
-            exploreBaseTable: i.explore_base_table,
+            exploreBaseTable: i.table_name,
             icon: i.icon,
         }));
     }
