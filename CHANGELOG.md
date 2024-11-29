@@ -1,3 +1,10 @@
+## [0.1386.4](https://github.com/lightdash/lightdash/compare/0.1386.3...0.1386.4) (2024-11-29)
+
+
+### Bug Fixes
+
+* filter project on charts as code ([#12652](https://github.com/lightdash/lightdash/issues/12652)) ([b48cc8f](https://github.com/lightdash/lightdash/commit/b48cc8fcf4e122bde79e4f2dd899f9fed37e2d10))
+
 ## [0.1386.3](https://github.com/lightdash/lightdash/compare/0.1386.2...0.1386.3) (2024-11-28)
 
 
