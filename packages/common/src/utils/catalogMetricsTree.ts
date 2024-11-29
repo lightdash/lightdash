@@ -1,13 +1,13 @@
 import type { CatalogMetricsTreeNode } from '../types/catalog';
 
 export function getMetricsTreeNodeId(field: CatalogMetricsTreeNode) {
-    return `${field.name}_${field.tableName}`;
+    return `${field.tableName}::${field.name}`;
 }
 
 export function parseMetricsTreeNodeId(id: string): CatalogMetricsTreeNode {
-    const [name, tableName] = id.split('_');
+    const [tableName, name] = id.split('::');
 
-    if (!name || !tableName) {
+    if (!tableName || !name) {
         throw new Error('Invalid metrics tree node id');
     }
 
