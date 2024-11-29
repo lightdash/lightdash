@@ -96,6 +96,7 @@ export class CoderService extends BaseService {
 
             spaceSlug,
             version: currentVersion,
+            downloadedAt: new Date(),
         };
     }
 
@@ -175,8 +176,10 @@ export class CoderService extends BaseService {
                 slug: string;
             } = {
                 ...chartAsCode,
+                dashboardUuid: undefined, // TODO for charts within dashboards, we need to create the dashboard first, use promotion for that
                 updatedByUser: user,
             };
+
             const newChart = await this.savedChartModel.create(
                 projectUuid,
                 user.userUuid,
@@ -186,7 +189,6 @@ export class CoderService extends BaseService {
             console.info(
                 `Finished creating chart "${chartAsCode.name}" on project ${projectUuid}`,
             );
-            // TODO for charts within dashboards, we need to create the dashboard first, use promotion for that
             const promotionChanges: PromotionChanges = {
                 charts: [
                     {
@@ -201,9 +203,7 @@ export class CoderService extends BaseService {
                 spaces: [], // TODO create space if does not exist using PromoteService upsertSpaces
                 dashboards: [],
             };
-            return {
-                promotionChanges,
-            };
+            return promotionChanges;
         }
         console.info(
             `Updating chart "${chartAsCode.name}" on project ${projectUuid}`,
@@ -217,7 +217,10 @@ export class CoderService extends BaseService {
             );
         const updatedChart = {
             ...promotedChart,
-            ...chartAsCode,
+            chart: {
+                ...promotedChart.chart,
+                ...chartAsCode,
+            },
         };
 
         let promotionChanges: PromotionChanges = PromoteService.getChartChanges(
@@ -237,8 +240,6 @@ export class CoderService extends BaseService {
             `Finished updating chart "${chartAsCode.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
         );
 
-        return {
-            promotionChanges,
-        };
+        return promotionChanges;
     }
 }

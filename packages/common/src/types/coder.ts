@@ -18,6 +18,7 @@ export type ChartAsCode = Pick<
 > & {
     version: number;
     spaceSlug: string; // Charts within dashboards will be pointing to spaceSlug of the dashboard by design
+    downloadedAt?: Date; // Not modifiable by user, but useful to know if it has been updated
 };
 
 export type ApiChartAsCodeListResponse = {
