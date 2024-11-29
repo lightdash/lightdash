@@ -281,7 +281,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Box mih={500} w="100%" p="xxl">
+                    <Box mih={500} w="100%" pt="sm" px="md">
                         {metricQuery.isSuccess &&
                             metricResultsQuery.isSuccess && (
                                 <MetricsVisualization

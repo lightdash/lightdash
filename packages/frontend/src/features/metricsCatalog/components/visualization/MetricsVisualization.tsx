@@ -3,7 +3,7 @@ import {
     type MetricsExplorerQueryResults,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
-import { Button, Group, Stack, useMantineTheme } from '@mantine/core';
+import { Button, Group, Stack, Text, useMantineTheme } from '@mantine/core';
 import { IconZoomReset } from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
 import {
@@ -19,7 +19,6 @@ import dayjs from 'dayjs';
 import { useEffect, useMemo, type FC } from 'react';
 import {
     CartesianGrid,
-    Label,
     Legend,
     Line,
     LineChart,
@@ -142,8 +141,8 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
     if (!timeSeriesData) return null;
 
     return (
-        <Stack spacing="md" w="100%" h="100%" sx={{ flexGrow: 1 }}>
-            <Group position="right" px="md">
+        <Stack spacing={0} w="100%" h="100%" sx={{ flexGrow: 1 }}>
+            <Group position="right">
                 <Button
                     variant="subtle"
                     color="gray"
@@ -169,22 +168,20 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                         horizontal
                         vertical={false}
                         stroke={colors.gray[2]}
+                        strokeDasharray="4 3"
                     />
 
-                    <YAxis axisLine={false} tickLine={false} fontSize={11}>
-                        <Label
-                            angle={-90}
-                            position="insideLeft"
-                            value={metric.label}
-                            fill={colors.gray[7]}
-                            style={{ textAnchor: 'middle' }}
-                        />
-                    </YAxis>
+                    <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        fontSize={11}
+                        width={4}
+                    />
 
                     <XAxis
                         dataKey="date"
                         {...xAxisConfig}
-                        axisLine={false}
+                        axisLine={{ stroke: colors.gray[2] }}
                         tickLine={false}
                         fontSize={11}
                     />
@@ -207,9 +204,10 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                         name={metric.label}
                         type="monotone"
                         dataKey="metric"
-                        stroke={colors.indigo[7]}
-                        strokeWidth={2}
+                        stroke={colors.indigo[6]}
+                        strokeWidth={1.6}
                         dot={false}
+                        legendType="plainline"
                     />
 
                     {data.comparisonRows && (
@@ -217,14 +215,21 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                             name={`${metric.label} (comparison)`}
                             type="monotone"
                             dataKey="compareMetric"
-                            stroke={colors.teal[7]}
+                            stroke={colors.indigo[4]}
                             strokeDasharray={'3 3'}
-                            strokeWidth={2}
+                            strokeWidth={1.3}
                             dot={false}
+                            legendType="plainline"
                         />
                     )}
 
-                    <Legend />
+                    <Legend
+                        formatter={(value) => (
+                            <Text span c="dark.5" size={14} fw={400}>
+                                {value}
+                            </Text>
+                        )}
+                    />
 
                     {zoomState.refAreaLeft && zoomState.refAreaRight && (
                         <ReferenceArea
