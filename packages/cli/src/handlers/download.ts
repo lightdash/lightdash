@@ -24,16 +24,12 @@ const dumpIntoFiles = async (
     folder: 'charts' | 'dashboards',
     items: (ChartAsCode | DashboardAsCode)[],
 ) => {
-    console.info(`Writting ${items.length} ${folder}`);
-
-    // Make directory
     const outputDir = path.join(process.cwd(), DOWNLOAD_FOLDER, folder);
-    try {
-        await fs.mkdir(outputDir, { recursive: true });
-        console.info(`Creating new path for files on ${outputDir} `);
-    } catch (error) {
-        // Directory already exists
-    }
+
+    console.info(`Writting ${items.length} ${folder} into ${outputDir}`);
+    // Make directory
+    const created = await fs.mkdir(outputDir, { recursive: true });
+    if (created) console.info(`Creating new folder: ${outputDir} `);
 
     for (const item of items) {
         const itemPath = path.join(outputDir, `${item.slug}.yml`);
@@ -65,6 +61,7 @@ export const downloadHandler = async (
     }
 
     // Download charts
+    GlobalState.debug('Downloading charts');
     const chartsAsCode = await lightdashApi<
         ApiChartAsCodeListResponse['results']
     >({
@@ -75,6 +72,7 @@ export const downloadHandler = async (
     await dumpIntoFiles('charts', chartsAsCode);
 
     // Download dashboards
+    GlobalState.debug('Downloading dashboards');
     const dashboardsAsCode = await lightdashApi<
         ApiDashboardAsCodeListResponse['results']
     >({
