@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { type CategoricalChartFunc } from 'recharts/types/chart/generateCategoricalChart';
 import { type TimeSeriesData } from './types';
 
@@ -81,22 +81,32 @@ export const useChartZoom = ({ data }: UseChartZoomProps): ChartZoom => {
         });
     }, [data, zoomState.refAreaLeft, zoomState.refAreaRight]);
 
-    const resetZoom = () => {
+    const resetZoom = useCallback(() => {
         setZoomState({
             refAreaLeft: null,
             refAreaRight: null,
             zoomedData: null,
         });
-    };
+    }, []);
 
-    return {
-        zoomState,
-        handlers: {
+    const handlers = useMemo(
+        () => ({
             handleMouseDown,
             handleMouseMove,
             handleMouseUp,
             resetZoom,
-        },
-        activeData: zoomState.zoomedData || data,
-    };
+        }),
+        [handleMouseDown, handleMouseMove, handleMouseUp, resetZoom],
+    );
+
+    const result = useMemo(
+        () => ({
+            zoomState,
+            handlers,
+            activeData: zoomState.zoomedData || data,
+        }),
+        [zoomState, handlers, data],
+    );
+
+    return result;
 };

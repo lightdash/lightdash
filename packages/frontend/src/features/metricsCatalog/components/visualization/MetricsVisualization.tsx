@@ -16,7 +16,7 @@ import {
     timeYear,
 } from 'd3-time';
 import dayjs from 'dayjs';
-import { useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import {
     CartesianGrid,
     Label,
@@ -103,9 +103,22 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
         metric.name,
     ]);
 
-    const { zoomState, handlers, activeData } = useChartZoom({
+    const {
+        zoomState,
+        handlers: {
+            handleMouseDown,
+            handleMouseMove,
+            handleMouseUp,
+            resetZoom,
+        },
+        activeData,
+    } = useChartZoom({
         data: timeSeriesData || [],
     });
+
+    useEffect(() => {
+        resetZoom();
+    }, [data.comparisonRows, resetZoom]);
 
     const xAxisConfig = useMemo(() => {
         if (!timeSeriesData) return null;
@@ -138,7 +151,7 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                     radius="md"
                     disabled={!zoomState.zoomedData}
                     leftIcon={<MantineIcon icon={IconZoomReset} />}
-                    onClick={handlers.resetZoom}
+                    onClick={resetZoom}
                 >
                     Reset zoom
                 </Button>
@@ -148,9 +161,9 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                 <LineChart
                     data={activeData}
                     margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
-                    onMouseDown={handlers.handleMouseDown}
-                    onMouseMove={handlers.handleMouseMove}
-                    onMouseUp={handlers.handleMouseUp}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
                 >
                     <CartesianGrid
                         horizontal
