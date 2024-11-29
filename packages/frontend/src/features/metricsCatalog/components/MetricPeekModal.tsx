@@ -101,7 +101,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         <Modal.Root
             opened={opened}
             onClose={handleClose}
-            yOffset={100}
             scrollAreaComponent={undefined}
             size="auto"
         >
@@ -138,7 +137,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                 <Modal.Body
                     p={0}
-                    h="auto"
+                    h="80vh"
                     sx={{ display: 'flex', flex: 1 }}
                     miw={800}
                     mih={600}
@@ -282,7 +281,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Box mih={500} w="100%" p="xxl">
+                    <Box mih={500} w="100%" pt="sm" px="md">
                         {metricQuery.isSuccess &&
                             metricResultsQuery.isSuccess && (
                                 <MetricsVisualization
