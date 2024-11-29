@@ -6,6 +6,7 @@ import {
     type FieldTarget,
     type FilterRule,
 } from '../types/filter';
+import type { MetricExplorerDateRange } from '../types/metricsExplorer';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { getItemId } from './item';
@@ -17,25 +18,13 @@ type DateFilter = FilterRule<
     DateFilterSettings
 >;
 
-type UnimplementedTimeframe =
-    | TimeFrames.RAW
-    | TimeFrames.QUARTER
-    | TimeFrames.HOUR
-    | TimeFrames.MINUTE
-    | TimeFrames.SECOND
-    | TimeFrames.MILLISECOND
-    | TimeFrames.DAY_OF_WEEK_INDEX
-    | TimeFrames.DAY_OF_MONTH_NUM
-    | TimeFrames.DAY_OF_YEAR_NUM
-    | TimeFrames.WEEK_NUM
-    | TimeFrames.MONTH_NUM
-    | TimeFrames.QUARTER_NUM
-    | TimeFrames.YEAR_NUM
-    | TimeFrames.DAY_OF_WEEK_NAME
-    | TimeFrames.MONTH_NAME
-    | TimeFrames.QUARTER_NAME
-    | TimeFrames.HOUR_OF_DAY_NUM
-    | TimeFrames.MINUTE_OF_HOUR_NUM;
+type ImpelemntedTimeframe =
+    | TimeFrames.DAY
+    | TimeFrames.WEEK
+    | TimeFrames.MONTH
+    | TimeFrames.YEAR;
+
+type UnimplementedTimeframe = Exclude<TimeFrames, ImpelemntedTimeframe>;
 
 const assertUnimplementedTimeframe = (
     timeframe: UnimplementedTimeframe,
@@ -70,18 +59,40 @@ const assertUnimplementedTimeframe = (
     }
 };
 
+export const getFieldIdForDateDimension = (
+    fieldId: string,
+    timeframe: TimeFrames,
+) => {
+    switch (timeframe) {
+        case TimeFrames.DAY:
+            return `${fieldId}_day`;
+        case TimeFrames.WEEK:
+            return `${fieldId}_week`;
+        case TimeFrames.MONTH:
+            return `${fieldId}_month`;
+        case TimeFrames.YEAR:
+            return `${fieldId}_year`;
+        default:
+            return assertUnimplementedTimeframe(timeframe);
+    }
+};
+
 // Time grain Year: -> past 5 years (i.e. 5 completed years + this uncompleted year)
 // Time grain Month -> past 12 months (i.e. 12 completed months + this uncompleted month)
 // Time grain Week -> past 12 weeks (i.e. 12 completed weeks + this uncompleted week)
 // Time grain Day -> past 30 days (i.e. 30 completed days + this uncompleted day)
-export const getMetricExplorerDimensionCurrentFilters = (
+export const getMetricExplorerDefaultGrainFilters = (
     exploreName: string,
     dimensionName: string,
     timeInterval: TimeFrames | undefined,
 ): DateFilter[] => {
+    const fieldWithGrain = timeInterval
+        ? getFieldIdForDateDimension(dimensionName, timeInterval)
+        : dimensionName;
+
     const targetFieldId = getItemId({
         table: exploreName,
-        name: dimensionName,
+        name: fieldWithGrain,
     });
 
     if (!timeInterval) {
@@ -291,20 +302,51 @@ export const getMetricExplorerDimensionPreviousFilters = (
     }
 };
 
-export const getFieldIdForDateDimension = (
-    fieldId: string,
-    timeframe: TimeFrames,
-) => {
-    switch (timeframe) {
-        case TimeFrames.DAY:
-            return `${fieldId}_day`;
-        case TimeFrames.WEEK:
-            return `${fieldId}_week`;
-        case TimeFrames.MONTH:
-            return `${fieldId}_month`;
-        case TimeFrames.YEAR:
-            return `${fieldId}_year`;
-        default:
-            return assertUnimplementedTimeframe(timeframe);
+// Time grain Year: -> past 5 years (i.e. 5 completed years + this uncompleted year)
+// Time grain Month -> past 12 months (i.e. 12 completed months + this uncompleted month)
+// Time grain Week -> past 12 weeks (i.e. 12 completed weeks + this uncompleted week)
+// Time grain Day -> past 30 days (i.e. 30 completed days + this uncompleted day)
+const getGrainForDateRange = (
+    dateRange: [Date, Date],
+): ImpelemntedTimeframe => {
+    const diff = dateRange[1].getTime() - dateRange[0].getTime();
+    const days = diff / (1000 * 60 * 60 * 24);
+
+    if (days <= 31) {
+        return TimeFrames.DAY;
     }
+    if (days <= 7 * 12) {
+        return TimeFrames.WEEK;
+    }
+    if (days <= 366) {
+        return TimeFrames.MONTH;
+    }
+
+    return TimeFrames.YEAR;
+};
+
+export const getMetricExplorerDateRangeFilters = (
+    exploreName: string,
+    dimensionName: string,
+    [startDate, endDate]: MetricExplorerDateRange,
+): DateFilter[] => {
+    if (!startDate || !endDate) {
+        return [];
+    }
+
+    const defaultGrain = getGrainForDateRange([startDate, endDate]);
+
+    const targetFieldId = getItemId({
+        table: exploreName,
+        name: getFieldIdForDateDimension(dimensionName, defaultGrain),
+    });
+
+    return [
+        {
+            id: uuidv4(),
+            target: { fieldId: targetFieldId },
+            operator: ConditionalOperator.IN_BETWEEN,
+            values: [startDate, endDate],
+        },
+    ];
 };

@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     MetricExplorerComparison,
     type MetricExplorerComparisonType,
+    type MetricExplorerDateRange,
 } from '@lightdash/common';
 import {
     Button,
@@ -34,21 +35,26 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         (state) => state.metricsCatalog.projectUuid,
     );
 
-    const history = useHistory();
-
-    const [comparisonType, setComparisonType] =
-        useState<MetricExplorerComparison>(MetricExplorerComparison.NONE);
-
     const { tableName, metricName } = useParams<{
         tableName: string;
         metricName: string;
     }>();
+
+    const history = useHistory();
+
+    const [comparisonType, setComparisonType] =
+        useState<MetricExplorerComparison>(MetricExplorerComparison.NONE);
 
     const metricQuery = useMetric({
         projectUuid,
         tableName,
         metricName,
     });
+
+    const [dateRange, setDateRange] = useState<MetricExplorerDateRange>([
+        null,
+        null,
+    ]);
 
     const comparisonParams = useMemo(():
         | MetricExplorerComparisonType
@@ -77,11 +83,14 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         }
     }, [comparisonType, metricQuery.isSuccess, metricQuery.data]);
 
+    console.log({ dateRange });
+
     const metricResultsQuery = useRunMetricExplorerQuery({
         projectUuid,
         exploreName: tableName,
         metricName,
         comparison: comparisonParams,
+        dateRange,
     });
 
     const handleClose = useCallback(() => {
@@ -153,6 +162,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                             metricQuery.data
                                                 .defaultTimeDimension
                                         }
+                                        onChange={setDateRange}
                                     />
                                 )}
                             </Stack>

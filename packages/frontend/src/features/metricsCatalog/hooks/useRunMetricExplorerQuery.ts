@@ -4,6 +4,7 @@ import {
     type ApiError,
     type ApiMetricsExplorerQueryResults,
     type MetricExplorerComparisonType,
+    type MetricExplorerDateRange,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -13,22 +14,36 @@ type RunMetricExplorerQueryArgs = {
     exploreName: string;
     metricName: string;
     comparison: MetricExplorerComparisonType;
+    dateRange?: MetricExplorerDateRange;
 };
 
-const getUrlParams = (comparison: MetricExplorerComparisonType) => {
+const getUrlParams = (
+    comparison: MetricExplorerComparisonType,
+    dateRange?: MetricExplorerDateRange,
+) => {
     const params = new URLSearchParams();
+
+    // Add comparison params
     switch (comparison.type) {
         case MetricExplorerComparison.NONE:
-            return undefined;
+            break;
         case MetricExplorerComparison.PREVIOUS_PERIOD:
             params.append('compareToPreviousPeriod', 'true');
-            return params.toString();
+            break;
         case MetricExplorerComparison.DIFFERENT_METRIC:
             params.append('compareToMetric', comparison.metricName);
-            return params.toString();
+            break;
         default:
             return assertUnreachable(comparison, `Unknown comparison type`);
     }
+
+    // Add date range params
+    if (dateRange) {
+        if (dateRange[0]) params.append('startDate', dateRange[0].toString());
+        if (dateRange[1]) params.append('endDate', dateRange[1].toString());
+    }
+
+    return params.toString();
 };
 
 const postRunMetricExplorerQuery = async ({
@@ -36,8 +51,9 @@ const postRunMetricExplorerQuery = async ({
     exploreName,
     metricName,
     comparison,
+    dateRange,
 }: RunMetricExplorerQueryArgs) => {
-    const queryString = getUrlParams(comparison);
+    const queryString = getUrlParams(comparison, dateRange);
 
     return lightdashApi<ApiMetricsExplorerQueryResults['results']>({
         url: `/projects/${projectUuid}/metricsExplorer/${exploreName}/${metricName}/runMetricExplorerQuery${
@@ -53,6 +69,7 @@ export const useRunMetricExplorerQuery = ({
     exploreName,
     metricName,
     comparison,
+    dateRange,
 }: Partial<RunMetricExplorerQueryArgs>) => {
     return useQuery<ApiMetricsExplorerQueryResults['results'], ApiError>({
         queryKey: [
@@ -61,6 +78,8 @@ export const useRunMetricExplorerQuery = ({
             exploreName,
             metricName,
             comparison?.type ?? 'none',
+            dateRange?.[0] ?? 'none',
+            dateRange?.[1] ?? 'none',
         ],
         queryFn: () =>
             postRunMetricExplorerQuery({
@@ -68,6 +87,7 @@ export const useRunMetricExplorerQuery = ({
                 exploreName: exploreName!,
                 metricName: metricName!,
                 comparison: comparison!,
+                dateRange,
             }),
         enabled: !!projectUuid && !!exploreName && !!metricName && !!comparison,
     });
