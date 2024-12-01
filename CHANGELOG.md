@@ -1,3 +1,18 @@
+# [0.1387.0](https://github.com/lightdash/lightdash/compare/0.1386.4...0.1387.0) (2024-11-29)
+
+
+### Features
+
+* metrics explorer filters ([#12654](https://github.com/lightdash/lightdash/issues/12654)) ([2d89448](https://github.com/lightdash/lightdash/commit/2d8944823998b8b9d1fb3706d006422df17af628))
+* show tooltip on hover of metric peek viz ([#12655](https://github.com/lightdash/lightdash/issues/12655)) ([7986b83](https://github.com/lightdash/lightdash/commit/7986b83fd22c39c62e0f5d463e0745744ca29e31))
+
+## [0.1386.4](https://github.com/lightdash/lightdash/compare/0.1386.3...0.1386.4) (2024-11-29)
+
+
+### Bug Fixes
+
+* filter project on charts as code ([#12652](https://github.com/lightdash/lightdash/issues/12652)) ([b48cc8f](https://github.com/lightdash/lightdash/commit/b48cc8fcf4e122bde79e4f2dd899f9fed37e2d10))
+
 ## [0.1386.3](https://github.com/lightdash/lightdash/compare/0.1386.2...0.1386.3) (2024-11-28)
 
 

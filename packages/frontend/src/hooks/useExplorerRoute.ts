@@ -3,9 +3,8 @@ import {
     CustomDimensionType,
     DateGranularity,
     DimensionType,
-    getFieldIdForDateDimension,
     getItemId,
-    getMetricExplorerDimensionCurrentFilters,
+    getMetricExplorerDefaultGrainFilters,
     isCartesianChartConfig,
     type CreateSavedChartVersion,
     type CustomBinDimension,
@@ -60,10 +59,8 @@ const getDefaultTimeDimension = (
         explore.tables[explore.baseTable].defaultTimeDimension;
     if (!defaultTimeDimension) return;
 
-    const dimensionName = getFieldIdForDateDimension(
-        defaultTimeDimension.field,
-        defaultTimeDimension.interval,
-    );
+    const dimensionName = defaultTimeDimension.field;
+
     const dimensionId = getItemId({
         name: dimensionName,
         table: metric.tableName,
@@ -82,7 +79,7 @@ export const createMetricPreviewUnsavedChartVersion = (
 ): CreateSavedChartVersion => {
     const defaultTimeDimension = getDefaultTimeDimension(metric, explore);
     const defaultTimeFilters = defaultTimeDimension
-        ? getMetricExplorerDimensionCurrentFilters(
+        ? getMetricExplorerDefaultGrainFilters(
               metric.tableName,
               defaultTimeDimension.name,
               defaultTimeDimension.timeInterval,

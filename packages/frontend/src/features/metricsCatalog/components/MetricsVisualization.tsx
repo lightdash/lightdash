@@ -23,6 +23,7 @@ import {
     Line,
     LineChart,
     ResponsiveContainer,
+    Tooltip as RechartsTooltip,
     XAxis,
     YAxis,
 } from 'recharts';
@@ -64,7 +65,7 @@ type Props = {
 };
 
 const MetricsVisualization: FC<Props> = ({ metric, data }) => {
-    const { colors } = useMantineTheme();
+    const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
     const timeDimension = metric.defaultTimeDimension;
 
@@ -159,6 +160,20 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                     axisLine={false}
                     tickLine={false}
                     fontSize={11}
+                />
+
+                <RechartsTooltip
+                    formatter={(value) => [value, metric.label]}
+                    labelFormatter={(label) =>
+                        dayjs(label).format('MMM D, YYYY')
+                    }
+                    contentStyle={{
+                        fontSize: fontSizes.xs,
+                        backgroundColor: colors.offWhite[0],
+                        borderRadius: radius.md,
+                        border: `1px solid ${colors.gray[2]}`,
+                        boxShadow: shadows.sm,
+                    }}
                 />
 
                 <Line
