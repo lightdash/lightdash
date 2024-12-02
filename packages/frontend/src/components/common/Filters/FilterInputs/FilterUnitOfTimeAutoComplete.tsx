@@ -80,55 +80,57 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
     onChange,
     ...rest
 }) => {
-    // compute the standard options
-    const standardOptions = useMemo(
-        () =>
-            getUnitOfTimeOptions({
-                isTimestamp,
-                minUnitOfTime,
-                showCompletedOptions,
-                showOptionsInPlural,
-            }),
-        [isTimestamp, minUnitOfTime, showCompletedOptions, showOptionsInPlural],
-    );
+    const { options, selectValue } = useMemo(() => {
+        const standardOptions = getUnitOfTimeOptions({
+            isTimestamp,
+            minUnitOfTime,
+            showCompletedOptions,
+            showOptionsInPlural,
+        });
 
-    // compute all options including the current value if it's not in standard options
-    const options = useMemo(() => {
-        const currentValue = unitOfTime
-            ? `${unitOfTime}${completed ? '-completed' : ''}`
-            : '';
+        // for a fresh filter (no unitOfTime), just return standard options
+        if (!unitOfTime) {
+            return {
+                options: standardOptions,
+                selectValue: '',
+            };
+        }
+
+        // compute current value for existing filter
+        const currentValue = `${unitOfTime}${completed ? '-completed' : ''}`;
+
+        // check if current value exists in standard options
         const currentValueExists = standardOptions.some(
             (option) => option.value === currentValue,
         );
-        // if the current value is not in the standard options, add it
-        if (currentValue && !currentValueExists && unitOfTime) {
-            return [
-                ...standardOptions,
-                {
-                    label: getUnitOfTimeLabel(
-                        unitOfTime,
-                        showOptionsInPlural,
-                        completed,
-                    ),
-                    value: currentValue,
-                },
-            ];
-        }
-        return standardOptions;
-    }, [standardOptions, unitOfTime, completed, showOptionsInPlural]);
 
-    // compute the current value
-    const selectValue = useMemo(() => {
-        // return the value if it's valid
-        if (unitOfTime) {
-            return `${unitOfTime}${completed ? '-completed' : ''}`;
-        }
-        // return the last option value
-        if (options.length > 0) {
-            return options[options.length - 1]?.value;
-        }
-        return '';
-    }, [unitOfTime, completed, options]);
+        // add current value to options if it doesn't exist
+        const finalOptions = !currentValueExists
+            ? [
+                  ...standardOptions,
+                  {
+                      label: getUnitOfTimeLabel(
+                          unitOfTime,
+                          showOptionsInPlural,
+                          completed,
+                      ),
+                      value: currentValue,
+                  },
+              ]
+            : standardOptions;
+
+        return {
+            options: finalOptions,
+            selectValue: currentValue,
+        };
+    }, [
+        isTimestamp,
+        minUnitOfTime,
+        showCompletedOptions,
+        showOptionsInPlural,
+        unitOfTime,
+        completed,
+    ]);
 
     return (
         <Select

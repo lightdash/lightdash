@@ -147,6 +147,31 @@ export const getFilterTypeFromItem = (item: FilterableField): FilterType => {
     }
 };
 
+export const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
+    switch (timeframe) {
+        case TimeFrames.MILLISECOND:
+            return UnitOfTime.milliseconds;
+        case TimeFrames.SECOND:
+            return UnitOfTime.seconds;
+        case TimeFrames.MINUTE:
+            return UnitOfTime.minutes;
+        case TimeFrames.HOUR:
+            return UnitOfTime.hours;
+        case TimeFrames.DAY:
+            return UnitOfTime.days;
+        case TimeFrames.WEEK:
+            return UnitOfTime.weeks;
+        case TimeFrames.MONTH:
+            return UnitOfTime.months;
+        case TimeFrames.QUARTER:
+            return UnitOfTime.quarters;
+        case TimeFrames.YEAR:
+            return UnitOfTime.years;
+        default:
+            return undefined;
+    }
+};
+
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
@@ -180,10 +205,13 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                         value === undefined || typeof value !== 'number'
                             ? 1
                             : value;
-
+                    const defaultUnitOfTime =
+                        isDimension(field) && field.timeInterval
+                            ? timeframeToUnitOfTime(field.timeInterval)
+                            : UnitOfTime.days;
                     filterRuleDefaults.values = [numberValue];
                     filterRuleDefaults.settings = {
-                        unitOfTime: UnitOfTime.days,
+                        unitOfTime: defaultUnitOfTime,
                         completed: false,
                     } as DateFilterRule['settings'];
                 } else if (isTimestamp) {
