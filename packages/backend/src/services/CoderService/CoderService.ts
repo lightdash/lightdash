@@ -288,6 +288,8 @@ export class CoderService extends BaseService {
             chart: {
                 ...promotedChart.chart,
                 ...chartAsCode,
+                projectUuid,
+                organizationUuid: project.organizationUuid,
             },
         };
 
@@ -306,6 +308,141 @@ export class CoderService extends BaseService {
 
         console.info(
             `Finished updating chart "${chartAsCode.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
+        );
+
+        return promotionChanges;
+    }
+
+    async upsertDashboard(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        dashboardAsCode: DashboardAsCode,
+    ): Promise<PromotionChanges> {
+        // TODO handle permissions in spaces
+        // TODO allow more than just admins
+
+        const project = await this.projectModel.get(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('Project', {
+                    projectUuid: project.projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const [dashboardSummary] = await this.dashboardModel.find({
+            slug,
+            projectUuid,
+        });
+
+        // If chart does not exist, we can't use promoteService,
+        // since it relies on information it is not available in ChartAsCode, and other uuids
+        if (dashboardSummary === undefined) {
+            const space = await this.spaceModel.find({
+                slug: dashboardAsCode.spaceSlug,
+                projectUuid,
+            });
+
+            // TODO upsert space if does not exist using promote service
+            if (!space) {
+                throw new NotFoundError(
+                    `Space ${dashboardAsCode.spaceSlug} not found`,
+                );
+            }
+
+            const newDashboard = await this.dashboardModel.create(
+                space[0].uuid,
+                {
+                    ...dashboardAsCode,
+                },
+                user,
+                projectUuid,
+            );
+
+            return {
+                dashboards: [
+                    {
+                        action: PromotionAction.CREATE,
+                        data: {
+                            ...newDashboard,
+                            spaceSlug: dashboardAsCode.spaceSlug,
+                        },
+                    },
+                ],
+                charts: [],
+                spaces: [],
+            };
+        }
+        // Use promote service to update existing dashboard
+
+        const dashboard = await this.dashboardModel.getById(
+            dashboardSummary.uuid,
+        );
+
+        console.info(
+            `Updating dashboard "${dashboard.name}" on project ${projectUuid}`,
+        );
+
+        const { promotedDashboard, upstreamDashboard } =
+            await this.promoteService.getPromotedDashboard(
+                user,
+                {
+                    ...dashboard,
+                    ...dashboardAsCode,
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                },
+                projectUuid, // We use the same projectUuid for both promoted and upstream
+            );
+
+        PromoteService.checkPromoteDashboardPermissions(
+            user,
+            promotedDashboard,
+            upstreamDashboard,
+        );
+
+        // TODO Check permissions for all chart tiles
+        // eslint-disable-next-line prefer-const
+        let [promotionChanges, promotedCharts] =
+            // TODO Right now dashboards on promote service always update dashboards
+            // See isDashboardUpdated for more details
+            await this.promoteService.getPromotionDashboardChanges(
+                user,
+                promotedDashboard,
+                upstreamDashboard,
+            );
+        promotionChanges = await this.promoteService.upsertSpaces(
+            user,
+            promotionChanges,
+        );
+
+        // We first create the dashboard if needed, with empty tiles
+        // Because we need the dashboardUuid to update the charts within the dashboard
+        promotionChanges = await this.promoteService.getOrCreateDashboard(
+            user,
+            promotionChanges,
+        );
+
+        // Update or create charts
+        // and return the list of dashboard.tiles updates with the new chart uuids
+        promotionChanges = await this.promoteService.upsertCharts(
+            user,
+            promotionChanges,
+            promotionChanges.dashboards[0].data.uuid,
+        );
+
+        promotionChanges = await this.promoteService.updateDashboard(
+            user,
+            promotionChanges,
+        );
+
+        console.info(
+            `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,
         );
 
         return promotionChanges;
