@@ -4,6 +4,7 @@ import {
     ApiChartAsCodeUpsertResponse,
     AuthorizationError,
     ChartAsCode,
+    PromotionAction,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
@@ -88,7 +89,7 @@ export const uploadHandler = async (
     const inputDir = path.join(process.cwd(), DOWNLOAD_FOLDER);
     console.info(`Reading charts from ${inputDir}`);
 
-    const charts: ChartAsCode[] = [];
+    const charts: (ChartAsCode & { needsUpdating: boolean })[] = [];
     try {
         // Read all files from the lightdash directory
         const files = await fs.readdir(inputDir);
@@ -99,7 +100,25 @@ export const uploadHandler = async (
             const filePath = path.join(inputDir, file);
             const fileContent = await fs.readFile(filePath, 'utf-8');
             const chart = yaml.load(fileContent) as ChartAsCode;
-            charts.push(chart);
+
+            const fileUpdatedAt = (await fs.stat(filePath)).mtime;
+            // We override the updatedAt to the file's updatedAt
+            // in case there were some changes made locally
+            // do not override if the file was just created
+            const downloadedAt = chart.downloadedAt
+                ? new Date(chart.downloadedAt)
+                : undefined;
+            const needsUpdating =
+                downloadedAt &&
+                Math.abs(fileUpdatedAt.getTime() - downloadedAt.getTime()) >
+                    30000;
+
+            const locallyUpdatedChart = {
+                ...chart,
+                updatedAt: needsUpdating ? fileUpdatedAt : chart.updatedAt, // Force the update by changing updatedAt , which is what promotion is going to compare
+                needsUpdating: needsUpdating ?? true, // if downloadAt is not set, we force the update
+            };
+            charts.push(locallyUpdatedChart);
         }
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -114,8 +133,20 @@ export const uploadHandler = async (
 
     let created = 0;
     let updated = 0;
+    let deleted = 0;
+    let skipped = 0;
+    let spacesCreated = 0;
+    let spacesUpdated = 0;
     try {
         for (const chart of charts) {
+            if (!chart.needsUpdating) {
+                GlobalState.debug(
+                    `Skipping chart "${chart.slug}" with no local changes`,
+                );
+                skipped += 1;
+                // eslint-disable-next-line no-continue
+                continue;
+            }
             GlobalState.debug(`Upserting chart ${chart.slug}`);
             const chartData = await lightdashApi<
                 ApiChartAsCodeUpsertResponse['results']
@@ -124,12 +155,38 @@ export const uploadHandler = async (
                 url: `/api/v1/projects/${projectId}/charts/${chart.slug}/code`,
                 body: JSON.stringify(chart),
             });
-            if (chartData.created) {
-                created += 1;
-                GlobalState.debug(`Created chart: ${chart.name}`);
-            } else {
-                updated += 1;
-                GlobalState.debug(`Updated chart: ${chart.name}`);
+
+            GlobalState.debug(
+                `Chart "${chart.name}": ${chartData.charts[0].action}`,
+            );
+            switch (chartData.spaces[0].action) {
+                case PromotionAction.CREATE:
+                    spacesCreated += 1;
+                    break;
+                case PromotionAction.UPDATE:
+                    spacesUpdated += 1;
+                    break;
+                default:
+                // ignore the rest
+            }
+            switch (chartData.charts[0].action) {
+                case PromotionAction.CREATE:
+                    created += 1;
+                    break;
+                case PromotionAction.UPDATE:
+                    updated += 1;
+                    break;
+                case PromotionAction.DELETE:
+                    deleted += 1;
+                    break;
+                case PromotionAction.NO_CHANGES:
+                    skipped += 1;
+                    break;
+                default:
+                    GlobalState.debug(
+                        `Unknown action: ${chartData.charts[0].action}`,
+                    );
+                    break;
             }
         }
     } catch (error) {
@@ -137,4 +194,9 @@ export const uploadHandler = async (
     }
     console.info(`Total charts created: ${created} `);
     console.info(`Total charts updated: ${updated} `);
+    console.info(`Total charts skipped: ${skipped} `);
+    if (deleted > 0) console.info(`Total charts deleted: ${deleted} `); // We should not delete charts from the CLI
+
+    console.info(`Total spaces created: ${spacesCreated} `);
+    console.info(`Total spaces updated: ${spacesUpdated} `);
 };

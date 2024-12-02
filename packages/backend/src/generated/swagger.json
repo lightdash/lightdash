@@ -7182,7 +7182,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-colorPalette-or-updatedAt_": {
+            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-updatedAt_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -7221,12 +7221,6 @@
                         },
                         "required": ["columnOrder"],
                         "type": "object"
-                    },
-                    "colorPalette": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
                     }
                 },
                 "required": [
@@ -7237,8 +7231,7 @@
                     "tableName",
                     "metricQuery",
                     "chartConfig",
-                    "tableConfig",
-                    "colorPalette"
+                    "tableConfig"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -7246,10 +7239,14 @@
             "ChartAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-colorPalette-or-updatedAt_"
+                        "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-updatedAt_"
                     },
                     {
                         "properties": {
+                            "downloadedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
                             "spaceSlug": {
                                 "type": "string"
                             },
@@ -7283,16 +7280,7 @@
             "ApiChartAsCodeUpsertResponse": {
                 "properties": {
                     "results": {
-                        "properties": {
-                            "created": {
-                                "type": "boolean"
-                            },
-                            "chart": {
-                                "$ref": "#/components/schemas/ChartAsCode"
-                            }
-                        },
-                        "required": ["created", "chart"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/PromotionChanges"
                     },
                     "status": {
                         "type": "string",
@@ -7337,18 +7325,16 @@
                         "required": ["columnOrder"],
                         "type": "object"
                     },
-                    "colorPalette": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "version": {
                         "type": "number",
                         "format": "double"
                     },
                     "spaceSlug": {
                         "type": "string"
+                    },
+                    "downloadedAt": {
+                        "type": "string",
+                        "format": "date-time"
                     }
                 },
                 "required": [
@@ -7358,7 +7344,6 @@
                     "updatedAt",
                     "tableName",
                     "tableConfig",
-                    "colorPalette",
                     "version",
                     "spaceSlug"
                 ],
