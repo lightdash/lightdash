@@ -1,5 +1,5 @@
 import {
-    getItemId,
+    isMetric,
     type MetricsExplorerQueryResults,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
@@ -67,47 +67,39 @@ type Props = {
 const MetricsVisualization: FC<Props> = ({ metric, data }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
-    const timeDimension = metric.defaultTimeDimension;
+    const defaultTimeDimension = metric.defaultTimeDimension;
+
+    const timeDimensionFieldId = Object.entries(data.fields).find(
+        ([_, field]) => 'timeInterval' in field,
+    )?.[0];
+
+    const metricFieldId = Object.entries(data.fields).find(([_, field]) =>
+        isMetric(field),
+    )?.[0];
 
     const timeSeriesData = useMemo(() => {
-        if (!timeDimension) return null;
+        // TODO: Currently we hide the visualization if the default time dimension is not present. Address this differently.
+        if (!defaultTimeDimension) return null;
 
+        if (!timeDimensionFieldId || !metricFieldId) return null;
         // TODO: zipping with index is not a smart idea.
         return data.rows.map((row, index) => ({
-            date: new Date(
-                String(
-                    row[
-                        getItemId({
-                            table: metric.table,
-                            name: timeDimension.field,
-                        })
-                    ].value.raw,
-                ),
-            ),
-            metric: row[
-                getItemId({
-                    table: metric.table,
-                    name: metric.name,
-                })
-            ].value.raw,
+            date: new Date(String(row[timeDimensionFieldId].value.raw)),
+            metric: row[metricFieldId].value.raw,
             ...(data.comparisonRows
                 ? {
                       compareMetric:
-                          data.comparisonRows[index][
-                              getItemId({
-                                  table: metric.table,
-                                  name: metric.name,
-                              })
-                          ]?.value.raw,
+                          data.comparisonRows[index]?.[metricFieldId]?.value
+                              .raw,
                   }
                 : {}),
         }));
     }, [
-        timeDimension,
+        defaultTimeDimension,
+        timeDimensionFieldId,
+        metricFieldId,
         data.rows,
         data.comparisonRows,
-        metric.table,
-        metric.name,
     ]);
 
     const xAxisArgs = useMemo(() => {
