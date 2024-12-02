@@ -924,49 +924,76 @@ export class ProjectModel {
             'ProjectModel.findExploreByTableName',
             {},
             async (span) => {
-                // check individually cached explore
-                let exploreCache = await this.database(CachedExploreTableName)
-                    .columns({
-                        explore: 'explore',
-                        baseMatch: this.database.raw(
-                            "? = explore->>'baseTable'",
-                            [tableName],
-                        ),
-                    })
-                    .select()
-                    .whereRaw('? = ANY(table_names)', tableName)
+                const exploreCache = await this.database(CachedExploreTableName)
+                    .select('explore')
+                    .where('name', tableName)
                     .andWhere('project_uuid', projectUuid)
-                    .orderBy('baseMatch', 'desc')
                     .first();
-
                 span.setAttribute(
                     'foundIndividualExploreCache',
                     !!exploreCache,
                 );
-                if (!exploreCache) {
-                    // fallback: check all cached explores
-                    // try finding explore via base table name
-                    exploreCache = await this.getExploreQueryBuilder(
-                        projectUuid,
-                    ).andWhereRaw("explore->>'baseTable' = ?", [tableName]);
-
-                    if (!exploreCache) {
-                        // try finding explore via joined table alias
-                        // Note: there is an edge case where we return the wrong explore because join table aliases are not unique
-                        exploreCache = await this.getExploreQueryBuilder(
-                            projectUuid,
-                        ).andWhereRaw(
-                            "(explore->>'tables')::json->? IS NOT NULL",
-                            [tableName],
-                        );
-                    }
-                }
-
                 return exploreCache
                     ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
                           exploreCache.explore,
                       )
                     : undefined;
+            },
+        );
+    }
+
+    // Returns explore based on the join original name rather than the explore with the join.
+    async findJoinAliasExplore(
+        projectUuid: string,
+        joinAliasName: string,
+    ): Promise<Explore | ExploreError | undefined> {
+        return wrapSentryTransaction(
+            'ProjectModel.findExploreFromJoinAlias',
+            {},
+            async (span) => {
+                const exploreWithJoinAlias = await this.database(
+                    CachedExploreTableName,
+                )
+                    .columns({
+                        explore: 'explore',
+                        baseMatch: this.database.raw(
+                            "? = explore->>'baseTable'",
+                            [joinAliasName],
+                        ),
+                    })
+                    .select<{
+                        explore: Explore | ExploreError;
+                        baseMatch: boolean;
+                    }>()
+                    .whereRaw('? = ANY(table_names)', joinAliasName)
+                    .andWhere('project_uuid', projectUuid)
+                    .orderBy('baseMatch', 'desc')
+                    .first();
+                if (exploreWithJoinAlias) {
+                    const originalTableName =
+                        exploreWithJoinAlias.explore.tables?.[joinAliasName]
+                            .originalName;
+                    if (originalTableName) {
+                        const exploreCache = await this.database(
+                            CachedExploreTableName,
+                        )
+                            .select('explore')
+                            .where('name', originalTableName)
+                            .andWhere('project_uuid', projectUuid)
+                            .first();
+                        span.setAttribute(
+                            'foundExploreCacheViaJoinAlias',
+                            !!exploreCache,
+                        );
+                        return exploreCache
+                            ? ProjectModel.convertMetricFiltersFieldIdsToFieldRef(
+                                  exploreCache.explore,
+                              )
+                            : undefined;
+                    }
+                }
+
+                return undefined;
             },
         );
     }
