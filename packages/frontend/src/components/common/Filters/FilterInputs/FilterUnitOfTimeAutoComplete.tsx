@@ -1,4 +1,4 @@
-import { getUnitsOfTimeGreaterOrEqual, UnitOfTime } from '@lightdash/common';
+import { UnitOfTime } from '@lightdash/common';
 import { Select, type SelectProps } from '@mantine/core';
 import { useEffect, useMemo, type FC } from 'react';
 
@@ -13,7 +13,7 @@ const getUnitOfTimeLabel = (
 };
 
 const getUnitOfTimeOptions = ({
-    isTimestamp,
+    // isTimestamp, // UNCOMMENT THIS LINE to allow for limiting the options to relevant units of time
     minUnitOfTime,
     showCompletedOptions,
     showOptionsInPlural,
@@ -26,9 +26,10 @@ const getUnitOfTimeOptions = ({
     const dateIndex = Object.keys(UnitOfTime).indexOf(UnitOfTime.days);
 
     const unitsOfTime = minUnitOfTime
-        ? getUnitsOfTimeGreaterOrEqual(minUnitOfTime)
-        : isTimestamp
-        ? Object.values(UnitOfTime)
+        ? // UNCOMMENT THIS LINE to allow for limiting the options to relevant units of time
+          // ? getUnitsOfTimeGreaterOrEqual(minUnitOfTime)
+          // : isTimestamp
+          Object.values(UnitOfTime)
         : Object.values(UnitOfTime).slice(dateIndex);
 
     return unitsOfTime
