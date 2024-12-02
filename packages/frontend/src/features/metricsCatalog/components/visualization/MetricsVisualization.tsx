@@ -110,7 +110,7 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
 
     useEffect(() => {
         resetZoom();
-    }, [data.comparisonRows, resetZoom]);
+    }, [data, resetZoom]);
 
     const xAxisConfig = useMemo(() => {
         if (!timeSeriesData) return null;
