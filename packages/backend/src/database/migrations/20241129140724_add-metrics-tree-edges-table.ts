@@ -33,7 +33,7 @@ export async function up(knex: Knex): Promise<void> {
                 .inTable(CATALOG_SEARCH_TABLE)
                 .onDelete('CASCADE');
 
-            // Primary key remains the same
+            // Adding composite primary key
             table.primary([
                 'source_metric_name',
                 'source_metric_table_name',
@@ -42,6 +42,7 @@ export async function up(knex: Knex): Promise<void> {
                 'project_uuid',
             ]);
 
+            // Adding created_at and created_by_user_uuid columns
             table
                 .timestamp('created_at', { useTz: false })
                 .notNullable()
