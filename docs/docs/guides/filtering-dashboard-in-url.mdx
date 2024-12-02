@@ -8,7 +8,7 @@ For example, you might have a sales dashbaord that shows your most profitable Pa
 
 ## Example of dashboard URL Filtering
 
-Here's a quick walk through video that shows what it looks like once it's complete: 
+Here's a quick walk through video that shows what it looks like once it's complete:
 
 <div
   style={{
@@ -35,7 +35,7 @@ Here's a quick walk through video that shows what it looks like once it's comple
 
 ## Setting up dashboard URL filtering
 
-This is the process for setting it up: 
+This is the process for setting it up:
 
 <div
   style={{
@@ -59,11 +59,11 @@ This is the process for setting it up:
     }}
   ></iframe>
 </div>
-Steps:  
+Steps:{' '}
 
-1. Open the dashboard you want to dynamically filter.  
-2. Add a value to the filter you want to filter dynamically.  
-3. Copy the URL shown after applying the filter. It should look something like the image below.  
+1. Open the dashboard you want to dynamically filter.
+2. Add a value to the filter you want to filter dynamically.
+3. Copy the URL shown after applying the filter. It should look something like the image below.
 
 <img
   src={DashboardURLFilter}
@@ -78,6 +78,5 @@ You'll notice there's a `?filters=` key in the URL. Everything after that is a J
 
 :::
 
-4. Replace the filter value that you chose in step 2 with `${ value.formatted | url_encode }` to make it dynamic. In the example the value is `Plant+Paradise` (highlighted in the image). 
-5. Paste that URL into the YAML file for the model you're working in. See an [example in our demo project here](https://github.com/lightdash/lightdash-demo-data-gardening/blob/5632406cb5b43fdf066a2086142dc3e86a41e947/dbt/models/dbt_orders.yml#L31-L32). 
-
+4. Replace the filter value that you chose in step 2 with `${ value.formatted | url_encode }` to make it dynamic. In the example the value is `Plant+Paradise` (highlighted in the image).
+5. Paste that URL into the YAML file for the model you're working in. See an [example in our demo project here](https://github.com/lightdash/lightdash-demo-data-gardening/blob/5632406cb5b43fdf066a2086142dc3e86a41e947/dbt/models/dbt_orders.yml#L31-L32).

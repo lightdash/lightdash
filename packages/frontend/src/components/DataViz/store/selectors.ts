@@ -216,9 +216,66 @@ const getXAxisField = createSelector(
     }),
 );
 
+const getXAxisLabel = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) =>
+        chartState?.display?.xAxis?.label ||
+        chartState?.fieldConfig?.x?.reference,
+);
+
 const getYAxisFields = createSelector(
     [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
     (chartState) => chartState?.fieldConfig?.y,
+);
+
+const getLeftYAxisFields = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) =>
+        (chartState?.fieldConfig?.y || []).filter((field) => {
+            const series = chartState?.display?.series?.[field.reference];
+            return series?.whichYAxis !== 1;
+        }) || [],
+);
+
+const getRightYAxisFields = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) =>
+        (chartState?.fieldConfig?.y || []).filter((field) => {
+            const series = chartState?.display?.series?.[field.reference];
+            return series?.whichYAxis === 1;
+        }) || [],
+);
+
+const getYAxisLabels = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => {
+        // For each series, check if there is a display label, otherwise use
+        // reference, then check whether its left or right
+        const { leftSeriesLabels, rightSeriesLabels } = (
+            chartState?.fieldConfig?.y || []
+        ).reduce<{ leftSeriesLabels: string[]; rightSeriesLabels: string[] }>(
+            (acc, field) => {
+                const series = chartState?.display?.series?.[field.reference];
+                const label =
+                    chartState?.display?.yAxis?.[series?.yAxisIndex ?? 0]
+                        ?.label ?? field.reference;
+                if (series?.whichYAxis === 1) {
+                    acc.rightSeriesLabels.push(label);
+                } else {
+                    acc.leftSeriesLabels.push(label);
+                }
+                return acc;
+            },
+            { leftSeriesLabels: [], rightSeriesLabels: [] },
+        );
+
+        const leftLabel =
+            chartState?.display?.yAxis?.[0]?.label ?? leftSeriesLabels[0];
+        const rightLabel =
+            chartState?.display?.yAxis?.[1]?.label ?? rightSeriesLabels[0];
+
+        return [leftLabel, rightLabel];
+    },
 );
 
 const getGroupByField = createSelector(
@@ -240,7 +297,11 @@ export const cartesianChartSelectors = {
     getIndexLayoutOptions,
     getValuesLayoutOptions,
     getXAxisField,
+    getXAxisLabel,
     getYAxisFields,
+    getLeftYAxisFields,
+    getRightYAxisFields,
+    getYAxisLabels,
     getGroupByField,
     getPivotLayoutOptions,
     getErrors,
