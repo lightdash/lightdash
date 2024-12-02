@@ -1,3 +1,10 @@
+## [0.1387.1](https://github.com/lightdash/lightdash/compare/0.1387.0...0.1387.1) (2024-12-02)
+
+
+### Bug Fixes
+
+* Promote chart as code ([#12660](https://github.com/lightdash/lightdash/issues/12660)) ([728ba85](https://github.com/lightdash/lightdash/commit/728ba8505fb8d05fd8bef214e2099317ec166cc7))
+
 # [0.1387.0](https://github.com/lightdash/lightdash/compare/0.1386.4...0.1387.0) (2024-11-29)
 
 
