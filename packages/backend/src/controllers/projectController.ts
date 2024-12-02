@@ -899,7 +899,10 @@ export class ProjectController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getCoderService()
-                .upsertDashboard(req.user!, projectUuid, slug, dashboard),
+                .upsertDashboard(req.user!, projectUuid, slug, {
+                    ...dashboard,
+                    description: dashboard.description ?? undefined,
+                }),
         };
     }
 }
