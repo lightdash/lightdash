@@ -202,6 +202,9 @@ models:
               type: sum
               format: usd
               round: 2
+              default_time_dimension:
+                field: order_date
+                interval: DAY
             total_completed_order_amount:
               type: sum
               format: usd
