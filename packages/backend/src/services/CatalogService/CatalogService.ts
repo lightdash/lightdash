@@ -884,10 +884,10 @@ export class CatalogService<
     async getMetricsTree(
         user: SessionUser,
         projectUuid: string,
+        // Using metricIds instead of filters and searching metrics because we might want to have the ability to select specific metrics rather than filter by catalog tags
         metricIds: string[],
     ) {
         // TODO: check permissions
-
         if (metricIds.length > MAX_METRICS_TREE_NODE_COUNT) {
             throw new ParameterError(
                 `Cannot get more than ${MAX_METRICS_TREE_NODE_COUNT} metrics in the metrics tree`,
