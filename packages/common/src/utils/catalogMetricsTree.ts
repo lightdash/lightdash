@@ -1,5 +1,7 @@
 import type { CatalogMetricsTreeNode } from '../types/catalog';
 
+export const MAX_METRICS_TREE_NODE_COUNT = 30;
+
 export function getMetricsTreeNodeId(field: CatalogMetricsTreeNode) {
     return `${field.tableName}::${field.name}`;
 }
