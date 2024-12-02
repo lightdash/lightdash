@@ -14,6 +14,7 @@ import {
     IconArrowUp,
 } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
+import { ReactFlowProvider } from '@xyflow/react';
 import {
     MantineReactTable,
     useMantineReactTable,
@@ -449,7 +450,9 @@ export const MetricsTable = () => {
                         <Divider color="gray.2" />
                     </Box>
                     <Box w="100%" h="calc(100dvh - 350px)">
-                        <MetricTree metrics={flatData} />
+                        <ReactFlowProvider>
+                            <MetricTree metrics={flatData} />
+                        </ReactFlowProvider>
                     </Box>
                 </Paper>
             );
