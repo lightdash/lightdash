@@ -1,6 +1,6 @@
-import { UnitOfTime } from '@lightdash/common';
+import { getUnitsOfTimeGreaterOrEqual, UnitOfTime } from '@lightdash/common';
 import { Select, type SelectProps } from '@mantine/core';
-import { useEffect, useMemo, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 
 const getUnitOfTimeLabel = (
     unitOfTime: UnitOfTime,
@@ -13,7 +13,7 @@ const getUnitOfTimeLabel = (
 };
 
 const getUnitOfTimeOptions = ({
-    // isTimestamp, // UNCOMMENT THIS LINE to allow for limiting the options to relevant units of time
+    isTimestamp,
     minUnitOfTime,
     showCompletedOptions,
     showOptionsInPlural,
@@ -26,10 +26,9 @@ const getUnitOfTimeOptions = ({
     const dateIndex = Object.keys(UnitOfTime).indexOf(UnitOfTime.days);
 
     const unitsOfTime = minUnitOfTime
-        ? // UNCOMMENT THIS LINE to allow for limiting the options to relevant units of time
-          // ? getUnitsOfTimeGreaterOrEqual(minUnitOfTime)
-          // : isTimestamp
-          Object.values(UnitOfTime)
+        ? getUnitsOfTimeGreaterOrEqual(minUnitOfTime)
+        : isTimestamp
+        ? Object.values(UnitOfTime)
         : Object.values(UnitOfTime).slice(dateIndex);
 
     return unitsOfTime
@@ -81,8 +80,8 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
     onChange,
     ...rest
 }) => {
-    // compute the options
-    const options = useMemo(
+    // compute the standard options
+    const standardOptions = useMemo(
         () =>
             getUnitOfTimeOptions({
                 isTimestamp,
@@ -92,6 +91,31 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
             }),
         [isTimestamp, minUnitOfTime, showCompletedOptions, showOptionsInPlural],
     );
+
+    // compute all options including the current value if it's not in standard options
+    const options = useMemo(() => {
+        const currentValue = unitOfTime
+            ? `${unitOfTime}${completed ? '-completed' : ''}`
+            : '';
+        const currentValueExists = standardOptions.some(
+            (option) => option.value === currentValue,
+        );
+        // if the current value is not in the standard options, add it
+        if (currentValue && !currentValueExists && unitOfTime) {
+            return [
+                ...standardOptions,
+                {
+                    label: getUnitOfTimeLabel(
+                        unitOfTime,
+                        showOptionsInPlural,
+                        completed,
+                    ),
+                    value: currentValue,
+                },
+            ];
+        }
+        return standardOptions;
+    }, [standardOptions, unitOfTime, completed, showOptionsInPlural]);
 
     // compute the current value
     const selectValue = useMemo(() => {
@@ -105,26 +129,6 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
         }
         return '';
     }, [unitOfTime, completed, options]);
-
-    // update the selected value if it's no longer valid
-    useEffect(() => {
-        const optionValues = options.map((o) => o.value);
-        if (!optionValues.includes(selectValue)) {
-            if (options.length > 0) {
-                // if incvalid, set the last option value
-                const [newUnitOfTime, isCompleted] =
-                    options[options.length - 1].value.split('-');
-                onChange({
-                    unitOfTime: newUnitOfTime as UnitOfTime,
-                    completed: isCompleted === 'completed',
-                });
-            } else {
-                console.warn(
-                    'No options available for FilterUnitOfTimeAutoComplete',
-                );
-            }
-        }
-    }, [selectValue, options, onChange]);
 
     return (
         <Select
