@@ -27,6 +27,7 @@ import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
 import { MetricPeekDatePicker } from './MetricPeekDatePicker';
 import MetricsVisualization from './MetricsVisualization';
+import { MetricsVisualizationEmptyState } from './MetricsVisualizationEmptyState';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
@@ -90,6 +91,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         comparison: comparisonParams,
         dateRange,
     });
+
+    const hasData = metricQuery.isSuccess && metricResultsQuery.isSuccess;
+    const doesNotHaveData =
+        hasData && metricResultsQuery.data.rows.length === 0;
 
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
@@ -283,13 +288,16 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     <Divider orientation="vertical" color="gray.2" />
 
                     <Flex mih={500} p="xxl" align="center" sx={{ flexGrow: 1 }}>
-                        {metricQuery.isSuccess &&
-                            metricResultsQuery.isSuccess && (
+                        {doesNotHaveData ? (
+                            <MetricsVisualizationEmptyState />
+                        ) : (
+                            hasData && (
                                 <MetricsVisualization
                                     metric={metricQuery.data}
                                     data={metricResultsQuery.data}
                                 />
-                            )}
+                            )
+                        )}
                     </Flex>
                 </Modal.Body>
             </Modal.Content>
