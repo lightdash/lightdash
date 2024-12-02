@@ -1,4 +1,8 @@
-import { FeatureFlags, type CatalogField } from '@lightdash/common';
+import {
+    FeatureFlags,
+    MAX_METRICS_TREE_NODE_COUNT,
+    type CatalogField,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -15,7 +19,6 @@ import {
     Tooltip,
     type GroupProps,
 } from '@mantine/core';
-import { useListState } from '@mantine/hooks';
 import {
     IconList,
     IconSearch,
@@ -26,15 +29,9 @@ import {
 import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
-import { useTracking } from '../../../providers/TrackingProvider';
 import { TotalMetricsDot } from '../../../svgs/metricsCatalog';
-import { EventName } from '../../../types/Events';
-import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
+import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useProjectTags } from '../hooks/useProjectTags';
-import {
-    clearCategoryFilters,
-    setCategoryFilters,
-} from '../store/metricsCatalogSlice';
 import { CatalogCategory } from './CatalogCategory';
 
 export enum MetricCatalogView {
@@ -42,29 +39,19 @@ export enum MetricCatalogView {
     TREE = 'tree',
 }
 
-type Props = GroupProps & {
-    search: string | undefined;
-    setSearch: (search: string) => void;
-    totalResults: number;
-    showCategoriesFilter?: boolean;
-    onMetricCatalogViewChange?: (view: MetricCatalogView) => void;
-    metricCatalogView: MetricCatalogView;
+type CategoriesFilterProps = {
+    selectedCategories: CatalogField['categories'][number]['tagUuid'][];
+    setSelectedCategories: (
+        categories: CatalogField['categories'][number]['tagUuid'][],
+    ) => void;
 };
 
-const CategoriesFilter = () => {
-    const { track } = useTracking();
-    const dispatch = useAppDispatch();
-    // Tracks selected categories while the popover is open - when the user closes the popover, the selected categories are set in the redux store,
-    // which triggers a new search
-    const [selectedCategories, selectedCategoriesHandlers] = useListState<
-        CatalogField['categories'][number]['tagUuid']
-    >([]);
-
+const CategoriesFilter: FC<CategoriesFilterProps> = ({
+    selectedCategories,
+    setSelectedCategories,
+}) => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
-    );
-    const organizationUuid = useAppSelector(
-        (state) => state.metricsCatalog.organizationUuid,
     );
 
     // Categories are just tags
@@ -82,28 +69,6 @@ const CategoriesFilter = () => {
                 .join(', '),
         [categories, selectedCategories],
     );
-
-    useEffect(() => {
-        dispatch(setCategoryFilters(selectedCategories));
-
-        // Track when categories are applied as filters
-        if (selectedCategories.length > 0 && categories) {
-            track({
-                name: EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                },
-            });
-        }
-    }, [
-        dispatch,
-        selectedCategories,
-        categories,
-        track,
-        projectUuid,
-        organizationUuid,
-    ]);
 
     return (
         <Group spacing="two">
@@ -203,13 +168,17 @@ const CategoriesFilter = () => {
                                                 category.tagUuid,
                                             )
                                         ) {
-                                            selectedCategoriesHandlers.filter(
-                                                (c) => c !== category.tagUuid,
+                                            setSelectedCategories(
+                                                selectedCategories.filter(
+                                                    (c) =>
+                                                        c !== category.tagUuid,
+                                                ),
                                             );
                                         } else {
-                                            selectedCategoriesHandlers.append(
+                                            setSelectedCategories([
+                                                ...selectedCategories,
                                                 category.tagUuid,
-                                            );
+                                            ]);
                                         }
                                     }}
                                 />
@@ -224,8 +193,7 @@ const CategoriesFilter = () => {
                         size="xs"
                         color="gray.5"
                         onClick={() => {
-                            selectedCategoriesHandlers.setState([]);
-                            dispatch(clearCategoryFilters());
+                            setSelectedCategories([]);
                         }}
                     >
                         <MantineIcon icon={IconX} />
@@ -236,11 +204,26 @@ const CategoriesFilter = () => {
     );
 };
 
-export const MetricsTableTopToolbar: FC<Props> = memo(
+type MetricsTableTopToolbarProps = GroupProps & {
+    search: string | undefined;
+    setSearch: (search: string) => void;
+    selectedCategories: CatalogField['categories'][number]['tagUuid'][];
+    setSelectedCategories: (
+        categories: CatalogField['categories'][number]['tagUuid'][],
+    ) => void;
+    totalResults: number;
+    showCategoriesFilter?: boolean;
+    onMetricCatalogViewChange?: (view: MetricCatalogView) => void;
+    metricCatalogView: MetricCatalogView;
+};
+
+export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
     ({
         search,
         setSearch,
         totalResults,
+        selectedCategories,
+        setSelectedCategories,
         showCategoriesFilter,
         onMetricCatalogViewChange,
         metricCatalogView,
@@ -251,6 +234,17 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
         const isMetricTreesEnabled = useFeatureFlagEnabled(
             FeatureFlags.MetricTrees,
         );
+
+        const isValidMetricsTree =
+            totalResults > 0 && totalResults <= MAX_METRICS_TREE_NODE_COUNT;
+
+        // If the metrics tree is not valid, set the view to list
+        // can happen when changing filters while in tree view
+        useEffect(() => {
+            if (!isValidMetricsTree) {
+                onMetricCatalogViewChange?.(MetricCatalogView.LIST);
+            }
+        }, [isValidMetricsTree, onMetricCatalogViewChange]);
 
         return (
             <Group {...props}>
@@ -323,7 +317,12 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                             }}
                         />
                     )}
-                    {showCategoriesFilter && <CategoriesFilter />}
+                    {showCategoriesFilter && (
+                        <CategoriesFilter
+                            selectedCategories={selectedCategories}
+                            setSelectedCategories={setSelectedCategories}
+                        />
+                    )}
                 </Group>
                 <Group spacing="xs">
                     <Badge
@@ -352,52 +351,64 @@ export const MetricsTableTopToolbar: FC<Props> = memo(
                                     borderColor: '#DEE2E6',
                                 }}
                             />
-                            <SegmentedControl
-                                size="xs"
-                                value={metricCatalogView}
-                                styles={(theme) => ({
-                                    // TODO: Take care of padding
-                                    root: {
-                                        borderRadius: theme.radius.md,
-                                        gap: theme.spacing.two,
-                                    },
-                                    indicator: {
-                                        borderRadius: theme.radius.md,
-                                        border: `1px solid ${theme.colors.gray[2]}`,
-                                        backgroundColor: 'white',
-                                        boxShadow: theme.shadows.subtle,
-                                    },
-                                })}
-                                data={[
-                                    {
-                                        label: (
-                                            <Center>
-                                                <MantineIcon
-                                                    icon={IconList}
-                                                    size="md"
-                                                />
-                                            </Center>
-                                        ),
-                                        value: MetricCatalogView.LIST,
-                                    },
-                                    {
-                                        label: (
-                                            <Center>
-                                                <MantineIcon
-                                                    icon={IconSitemap}
-                                                    size="md"
-                                                />
-                                            </Center>
-                                        ),
-                                        value: MetricCatalogView.TREE,
-                                    },
-                                ]}
-                                onChange={(value) => {
-                                    onMetricCatalogViewChange?.(
-                                        value as MetricCatalogView,
-                                    );
-                                }}
-                            />
+                            <Tooltip
+                                withinPortal
+                                variant="xs"
+                                label={
+                                    totalResults > 0
+                                        ? `You can only select up to ${MAX_METRICS_TREE_NODE_COUNT} metrics for the metrics tree`
+                                        : 'There are no metrics to display in the metrics tree'
+                                }
+                                disabled={isValidMetricsTree}
+                            >
+                                <SegmentedControl
+                                    size="xs"
+                                    value={metricCatalogView}
+                                    styles={(theme) => ({
+                                        // TODO: Take care of padding
+                                        root: {
+                                            borderRadius: theme.radius.md,
+                                            gap: theme.spacing.two,
+                                        },
+                                        indicator: {
+                                            borderRadius: theme.radius.md,
+                                            border: `1px solid ${theme.colors.gray[2]}`,
+                                            backgroundColor: 'white',
+                                            boxShadow: theme.shadows.subtle,
+                                        },
+                                    })}
+                                    data={[
+                                        {
+                                            label: (
+                                                <Center>
+                                                    <MantineIcon
+                                                        icon={IconList}
+                                                        size="md"
+                                                    />
+                                                </Center>
+                                            ),
+                                            value: MetricCatalogView.LIST,
+                                        },
+                                        {
+                                            label: (
+                                                <Center>
+                                                    <MantineIcon
+                                                        icon={IconSitemap}
+                                                        size="md"
+                                                    />
+                                                </Center>
+                                            ),
+                                            value: MetricCatalogView.TREE,
+                                            disabled: !isValidMetricsTree,
+                                        },
+                                    ]}
+                                    onChange={(value) => {
+                                        onMetricCatalogViewChange?.(
+                                            value as MetricCatalogView,
+                                        );
+                                    }}
+                                />
+                            </Tooltip>
                         </>
                     )}
                 </Group>

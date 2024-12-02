@@ -4,22 +4,40 @@ import type {
     ApiMetricsTreeEdgePayload,
     ApiSuccessEmpty,
 } from '@lightdash/common';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
-const getMetricsTree = async (projectUuid: string | undefined) => {
+const getMetricsTree = async (
+    projectUuid: string | undefined,
+    metricIds: string[],
+) => {
+    const queryParams = metricIds.length
+        ? `?${new URLSearchParams(
+              metricIds.map((metricId) => ['metricIds', metricId]),
+          ).toString()}`
+        : '';
+
     return lightdashApi<ApiGetMetricsTree['results']>({
-        url: `/projects/${projectUuid}/dataCatalog/metrics/tree`,
+        url: `/projects/${projectUuid}/dataCatalog/metrics/tree${queryParams}`,
         method: 'GET',
         body: undefined,
     });
 };
 
-export const useMetricsTree = (projectUuid: string | undefined) => {
+export const useMetricsTree = (
+    projectUuid: string | undefined,
+    metricIds: string[],
+    options?: UseQueryOptions<ApiGetMetricsTree['results'], ApiError>,
+) => {
     return useQuery<ApiGetMetricsTree['results'], ApiError>({
-        queryKey: ['metrics-tree', projectUuid],
-        queryFn: () => getMetricsTree(projectUuid),
+        queryKey: ['metrics-tree', projectUuid, metricIds],
+        queryFn: () => getMetricsTree(projectUuid, metricIds),
         enabled: !!projectUuid,
+        ...options,
     });
 };
 

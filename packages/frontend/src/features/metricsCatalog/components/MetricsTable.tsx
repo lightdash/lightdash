@@ -30,8 +30,11 @@ import {
     type UIEvent,
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
+import { setCategoryFilters } from '../store/metricsCatalogSlice';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import {
     MetricCatalogView,
@@ -40,14 +43,19 @@ import {
 import MetricTree from './MetricTree';
 
 export const MetricsTable = () => {
+    const { track } = useTracking();
+    const dispatch = useAppDispatch();
     const theme = useMantineTheme();
+
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
+    );
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
     );
     const categoryFilters = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
     );
-
     const canManageTags = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageTags,
     );
@@ -158,6 +166,21 @@ export const MetricsTable = () => {
 
     const handleViewChange = (view: MetricCatalogView) => {
         setMetricCatalogView(view);
+    };
+
+    const handleSetCategoryFilters = (selectedCategories: string[]) => {
+        dispatch(setCategoryFilters(selectedCategories));
+
+        // Track when categories are applied as filters
+        if (selectedCategories.length > 0 && selectedCategories) {
+            track({
+                name: EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                },
+            });
+        }
     };
 
     // Reusable paper props to avoid duplicate when rendering tree view
@@ -342,6 +365,8 @@ export const MetricsTable = () => {
                     search={search}
                     setSearch={setSearch}
                     totalResults={totalResults}
+                    selectedCategories={categoryFilters}
+                    setSelectedCategories={handleSetCategoryFilters}
                     position="apart"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
@@ -438,6 +463,8 @@ export const MetricsTable = () => {
                             search={search}
                             setSearch={setSearch}
                             totalResults={totalResults}
+                            selectedCategories={categoryFilters}
+                            setSelectedCategories={handleSetCategoryFilters}
                             position="apart"
                             p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                             showCategoriesFilter={

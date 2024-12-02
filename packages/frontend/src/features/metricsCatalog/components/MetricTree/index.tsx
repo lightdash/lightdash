@@ -1,5 +1,6 @@
 import {
     getMetricsTreeNodeId,
+    MAX_METRICS_TREE_NODE_COUNT,
     type CatalogField,
     type CatalogMetricsTreeEdge,
 } from '@lightdash/common';
@@ -39,7 +40,21 @@ const MetricTree: FC<Props> = ({ metrics }) => {
         (state) => state.metricsCatalog.projectUuid,
     );
 
-    const { data: metricsTree } = useMetricsTree(projectUuid);
+    const selectedMetricIds = useMemo(() => {
+        return metrics.map((metric) => getMetricsTreeNodeId(metric));
+    }, [metrics]);
+
+    const { data: metricsTree } = useMetricsTree(
+        projectUuid,
+        selectedMetricIds,
+        {
+            enabled:
+                !!projectUuid &&
+                metrics.length > 0 &&
+                metrics.length <= MAX_METRICS_TREE_NODE_COUNT,
+        },
+    );
+
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
     const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
 
@@ -79,7 +94,7 @@ const MetricTree: FC<Props> = ({ metrics }) => {
         return [];
     }, [metrics, metricsTree]);
 
-    const [currentNodes, _setCurrentNodes, onNodesChange] =
+    const [currentNodes, setCurrentNodes, onNodesChange] =
         useNodesState(initialNodes);
 
     const [currentEdges, setCurrentEdges, onEdgesChange] =
@@ -89,6 +104,11 @@ const MetricTree: FC<Props> = ({ metrics }) => {
     useEffect(() => {
         setCurrentEdges(initialEdges);
     }, [initialEdges, setCurrentEdges]);
+
+    // Set the current nodes to the initial nodes in case the filters change
+    useEffect(() => {
+        setCurrentNodes(initialNodes);
+    }, [initialNodes, setCurrentNodes]);
 
     const handleNodeChange = useCallback(
         (changes: NodeChange<Node>[]) => {
