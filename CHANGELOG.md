@@ -1,3 +1,15 @@
+# [0.1389.0](https://github.com/lightdash/lightdash/compare/0.1388.0...0.1389.0) (2024-12-02)
+
+
+### Bug Fixes
+
+* respect time interval defined by default ([#12672](https://github.com/lightdash/lightdash/issues/12672)) ([082c44a](https://github.com/lightdash/lightdash/commit/082c44a928582ddd78903bc250a4dd1b50140205))
+
+
+### Features
+
+* show empty state if no data in range ([#12677](https://github.com/lightdash/lightdash/issues/12677)) ([b308123](https://github.com/lightdash/lightdash/commit/b308123b9fc0e7970c388c571b225c2bfa2153c5))
+
 # [0.1388.0](https://github.com/lightdash/lightdash/compare/0.1387.1...0.1388.0) (2024-12-02)
 
 
