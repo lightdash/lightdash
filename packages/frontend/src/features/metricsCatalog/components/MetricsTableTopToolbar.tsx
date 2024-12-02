@@ -282,7 +282,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             type="search"
                             variant="default"
                             placeholder="Search by name or description"
-                            value={search}
+                            value={search ?? ''}
                             icon={
                                 <MantineIcon
                                     size="md"
