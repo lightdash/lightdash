@@ -1,3 +1,17 @@
+# [0.1388.0](https://github.com/lightdash/lightdash/compare/0.1387.1...0.1388.0) (2024-12-02)
+
+
+### Features
+
+* I would like to be able to have 2 series one on the left and one on the right axis ([#12608](https://github.com/lightdash/lightdash/issues/12608)) ([a843ad8](https://github.com/lightdash/lightdash/commit/a843ad8a26dbb1c6bab00f8e54c339df0dea1e04))
+
+## [0.1387.1](https://github.com/lightdash/lightdash/compare/0.1387.0...0.1387.1) (2024-12-02)
+
+
+### Bug Fixes
+
+* Promote chart as code ([#12660](https://github.com/lightdash/lightdash/issues/12660)) ([728ba85](https://github.com/lightdash/lightdash/commit/728ba8505fb8d05fd8bef214e2099317ec166cc7))
+
 # [0.1387.0](https://github.com/lightdash/lightdash/compare/0.1386.4...0.1387.0) (2024-11-29)
 
 

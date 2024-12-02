@@ -131,7 +131,7 @@ export class PromoteService extends BaseService {
         });
     }
 
-    private async getPromoteCharts(
+    async getPromoteCharts(
         user: SessionUser,
         upstreamProjectUuid: string,
         chartUuid: string,

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     ForbiddenError,
+    getFieldIdForDateDimension,
     getItemId,
     getMetricExplorerDateRangeFilters,
     getMetricExplorerDefaultGrainFilters,
@@ -92,14 +93,17 @@ export class MetricsExplorerService<
             );
         }
 
+        const timeDimension = getItemId({
+            table: metric.table,
+            name: getFieldIdForDateDimension(
+                metric.defaultTimeDimension.field,
+                metric.defaultTimeDimension.interval,
+            ),
+        });
+
         const metricQuery: MetricQuery = {
             exploreName,
-            dimensions: [
-                getItemId({
-                    table: metric.table,
-                    name: metric.defaultTimeDimension.field,
-                }),
-            ],
+            dimensions: [timeDimension],
             metrics: [getItemId(metric)],
             filters: {
                 dimensions: dateRange
@@ -122,10 +126,7 @@ export class MetricsExplorerService<
             },
             sorts: [
                 {
-                    fieldId: getItemId({
-                        table: metric.table,
-                        name: metric.defaultTimeDimension.field,
-                    }),
+                    fieldId: timeDimension,
                     descending: false,
                 },
             ],

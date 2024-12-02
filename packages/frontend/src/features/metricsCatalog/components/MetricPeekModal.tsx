@@ -26,6 +26,7 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
 import { MetricPeekDatePicker } from './MetricPeekDatePicker';
+import { MetricsVisualizationEmptyState } from './MetricsVisualizationEmptyState';
 import MetricsVisualization from './visualization/MetricsVisualization';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
@@ -90,6 +91,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         comparison: comparisonParams,
         dateRange,
     });
+
+    const hasData = metricQuery.isSuccess && metricResultsQuery.isSuccess;
+    const doesNotHaveData =
+        hasData && metricResultsQuery.data.rows.length === 0;
 
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
@@ -282,13 +287,16 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     <Divider orientation="vertical" color="gray.2" />
 
                     <Box mih={500} w="100%" pt="sm" px="md">
-                        {metricQuery.isSuccess &&
-                            metricResultsQuery.isSuccess && (
+                        {doesNotHaveData ? (
+                            <MetricsVisualizationEmptyState />
+                        ) : (
+                            hasData && (
                                 <MetricsVisualization
                                     metric={metricQuery.data}
                                     data={metricResultsQuery.data}
                                 />
-                            )}
+                            )
+                        )}
                     </Box>
                 </Modal.Body>
             </Modal.Content>

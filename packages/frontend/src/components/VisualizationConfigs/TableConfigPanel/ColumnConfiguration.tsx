@@ -92,7 +92,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
                 withinPortal
                 label={
                     isPivotingDimension
-                        ? "Can't hide pivot dimensions"
+                        ? 'Cannot hide dimensions when pivoting'
                         : disableHidingDimensions
                         ? 'Cannot hide dimensions when pivoting'
                         : isColumnVisible(fieldId)
