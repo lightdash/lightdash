@@ -599,7 +599,7 @@ export class CatalogModel {
                 `${CatalogTableName}.name`,
                 `${CatalogTableName}.type`,
                 `${CatalogTableName}.field_type`,
-                `explore_base_table`,
+                `${CatalogTableName}.table_name`,
             );
 
         const itemsWithTags: (DbCatalog & {
@@ -659,7 +659,7 @@ export class CatalogModel {
                 `${CatalogTableName}.name`,
                 `${CatalogTableName}.type`,
                 `${CatalogTableName}.field_type`,
-                `explore_base_table`,
+                `${CatalogTableName}.table_name`,
             );
 
         const itemsWithIcons: DbCatalog[] = await query;
