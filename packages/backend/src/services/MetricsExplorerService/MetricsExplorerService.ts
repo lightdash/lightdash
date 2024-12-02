@@ -3,10 +3,12 @@ import {
     assertUnreachable,
     ForbiddenError,
     getItemId,
-    getMetricExplorerDimensionCurrentFilters,
+    getMetricExplorerDateRangeFilters,
+    getMetricExplorerDefaultGrainFilters,
     getMetricExplorerDimensionPreviousFilters,
     MetricExplorerComparison,
     MetricExplorerComparisonType,
+    type MetricExplorerDateRange,
     type MetricQuery,
     type MetricsExplorerQueryResults,
     type ResultRow,
@@ -62,6 +64,7 @@ export class MetricsExplorerService<
         exploreName: string,
         metricName: string,
         compare: MetricExplorerComparisonType | undefined,
+        dateRange: MetricExplorerDateRange | undefined,
     ): Promise<MetricsExplorerQueryResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -89,12 +92,6 @@ export class MetricsExplorerService<
             );
         }
 
-        const filters = getMetricExplorerDimensionCurrentFilters(
-            exploreName,
-            metric.defaultTimeDimension.field,
-            metric.defaultTimeDimension.interval,
-        );
-
         const metricQuery: MetricQuery = {
             exploreName,
             dimensions: [
@@ -105,10 +102,23 @@ export class MetricsExplorerService<
             ],
             metrics: [getItemId(metric)],
             filters: {
-                dimensions: {
-                    id: uuidv4(),
-                    or: filters,
-                },
+                dimensions: dateRange
+                    ? {
+                          id: uuidv4(),
+                          and: getMetricExplorerDateRangeFilters(
+                              exploreName,
+                              metric.defaultTimeDimension.field,
+                              dateRange,
+                          ),
+                      }
+                    : {
+                          id: uuidv4(),
+                          or: getMetricExplorerDefaultGrainFilters(
+                              exploreName,
+                              metric.defaultTimeDimension.field,
+                              metric.defaultTimeDimension.interval,
+                          ),
+                      },
             },
             sorts: [
                 {
@@ -140,17 +150,38 @@ export class MetricsExplorerService<
                 case MetricExplorerComparison.NONE:
                     break;
                 case MetricExplorerComparison.PREVIOUS_PERIOD:
+                    const previousDateRange: [Date, Date] | undefined =
+                        dateRange && dateRange[0] && dateRange[1]
+                            ? [
+                                  new Date(
+                                      dateRange[0].getTime() -
+                                          (dateRange[1].getTime() -
+                                              dateRange[0].getTime()),
+                                  ),
+                                  dateRange[0],
+                              ]
+                            : undefined;
+
                     const previousPeriodMetricQuery: MetricQuery = {
                         ...metricQuery,
                         filters: {
-                            dimensions: {
-                                id: uuidv4(),
-                                and: getMetricExplorerDimensionPreviousFilters(
-                                    exploreName,
-                                    metric.defaultTimeDimension.field,
-                                    metric.defaultTimeDimension.interval,
-                                ),
-                            },
+                            dimensions: previousDateRange
+                                ? {
+                                      id: uuidv4(),
+                                      and: getMetricExplorerDateRangeFilters(
+                                          exploreName,
+                                          metric.defaultTimeDimension.field,
+                                          previousDateRange,
+                                      ),
+                                  }
+                                : {
+                                      id: uuidv4(),
+                                      and: getMetricExplorerDimensionPreviousFilters(
+                                          exploreName,
+                                          metric.defaultTimeDimension.field,
+                                          metric.defaultTimeDimension.interval,
+                                      ),
+                                  },
                         },
                     };
 

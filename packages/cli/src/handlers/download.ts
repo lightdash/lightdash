@@ -29,7 +29,7 @@ const dumpIntoFiles = async (
     console.info(`Writting ${items.length} ${folder} into ${outputDir}`);
     // Make directory
     const created = await fs.mkdir(outputDir, { recursive: true });
-    if (created) console.info(`Creating new folder: ${outputDir} `);
+    if (created) console.info(`Created new folder: ${outputDir} `);
 
     for (const item of items) {
         const itemPath = path.join(outputDir, `${item.slug}.yml`);

@@ -1,9 +1,6 @@
-import { TimeFrames } from '@lightdash/common';
+import { TimeFrames, type MetricExplorerDateRange } from '@lightdash/common';
 import dayjs from 'dayjs';
-import {
-    type DateRange,
-    type DateRangePreset,
-} from '../hooks/useDateRangePicker';
+import { type DateRangePreset } from '../hooks/useDateRangePicker';
 
 const DATE_FORMAT = 'MMM D, YYYY';
 export const formatDate = (date: Date | null): string | undefined => {
@@ -97,7 +94,7 @@ export const getDateRangePresets = (): DateRangePreset[] => {
  */
 export const getDefaultDateRangeFromInterval = (
     timeInterval: TimeFrames | undefined,
-): DateRange => {
+): MetricExplorerDateRange => {
     if (!timeInterval) {
         return [null, null];
     }
