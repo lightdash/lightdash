@@ -8,12 +8,14 @@ import {
     type PivotChartLayout,
 } from '@lightdash/common';
 import { Group, SegmentedControl, Stack, Text, TextInput } from '@mantine/core';
+import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector,
 } from '../../../features/sqlRunner/store/hooks';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { type BarChartActionsType } from '../store/barChartSlice';
@@ -26,7 +28,7 @@ type ConfigurableSeries = {
     reference: PivotChartLayout['y'][number]['reference'];
 } & Pick<
     NonNullable<CartesianChartDisplay['series']>[number],
-    'format' | 'label' | 'color' | 'type' | 'valueLabelPosition'
+    'format' | 'label' | 'color' | 'type' | 'valueLabelPosition' | 'whichYAxis'
 >;
 
 export const CartesianChartSeries = ({
@@ -58,6 +60,7 @@ export const CartesianChartSeries = ({
             const seriesColor = foundSeries?.color;
             const seriesType = foundSeries?.type;
             const seriesValueLabelPosition = foundSeries?.valueLabelPosition;
+            const seriesWhichYAxis = foundSeries?.whichYAxis;
             return {
                 reference: f.reference,
                 format: seriesFormat,
@@ -67,6 +70,7 @@ export const CartesianChartSeries = ({
                 color: seriesColor ?? colors[index],
                 type: seriesType,
                 valueLabelPosition: seriesValueLabelPosition,
+                whichYAxis: seriesWhichYAxis,
             };
         });
     }, [colors, currentConfig?.display?.series, currentConfig?.fieldConfig?.y]);
@@ -109,7 +113,14 @@ export const CartesianChartSeries = ({
             )}
             {series.map(
                 (
-                    { reference, label, color, type, valueLabelPosition },
+                    {
+                        reference,
+                        label,
+                        color,
+                        type,
+                        whichYAxis,
+                        valueLabelPosition,
+                    },
                     index,
                 ) => (
                     <Stack key={reference} spacing="xs">
@@ -176,6 +187,49 @@ export const CartesianChartSeries = ({
                                             }),
                                         );
                                     }}
+                                />
+                            </Config.Group>
+                            <Config.Group>
+                                <Config.Label>Y Axis</Config.Label>
+                                <SegmentedControl
+                                    sx={{ alignSelf: 'center' }}
+                                    radius="md"
+                                    data={[
+                                        {
+                                            value: 'left',
+                                            label: (
+                                                <Group spacing="xs" noWrap>
+                                                    <MantineIcon
+                                                        icon={IconAlignLeft}
+                                                    />
+                                                    <Text>Left</Text>
+                                                </Group>
+                                            ),
+                                        },
+                                        {
+                                            value: 'right',
+                                            label: (
+                                                <Group spacing="xs" noWrap>
+                                                    <Text>Right</Text>
+                                                    <MantineIcon
+                                                        icon={IconAlignRight}
+                                                    />
+                                                </Group>
+                                            ),
+                                        },
+                                    ]}
+                                    value={whichYAxis === 1 ? 'right' : 'left'}
+                                    onChange={(value) =>
+                                        dispatch(
+                                            actions.setSeriesYAxis({
+                                                index,
+                                                // whichYAxis is an index, but this input uses string values
+                                                whichYAxis:
+                                                    value === 'left' ? 0 : 1,
+                                                reference,
+                                            }),
+                                        )
+                                    }
                                 />
                             </Config.Group>
 

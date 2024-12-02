@@ -176,7 +176,6 @@ export const cartesianChartConfigSlice = createSlice({
             if (!display) display = {};
 
             display.yAxis = display.yAxis || [];
-            display.yAxis = display.yAxis || [];
 
             const { index, label } = action.payload;
             if (display.yAxis[index] === undefined) {
@@ -203,28 +202,6 @@ export const cartesianChartConfigSlice = createSlice({
                 yAxisIndex: action.payload.index,
                 label: action.payload.label,
             };
-        },
-
-        setYAxisPosition: (
-            { display },
-            action: PayloadAction<{
-                index: number;
-                position: string | undefined;
-            }>,
-        ) => {
-            if (!display) display = {};
-
-            display.yAxis = display.yAxis || [];
-            display.yAxis = display.yAxis || [];
-
-            const { index, position } = action.payload;
-            if (display.yAxis[index] === undefined) {
-                display.yAxis[index] = {
-                    position,
-                };
-            } else {
-                display.yAxis[index].position = position;
-            }
         },
 
         addYAxisField: (state) => {
@@ -337,7 +314,7 @@ export const cartesianChartConfigSlice = createSlice({
 
         setYAxisFormat: (
             { fieldConfig, display },
-            action: PayloadAction<{ format: string }>,
+            action: PayloadAction<{ format: string; index: number }>,
         ) => {
             if (!fieldConfig) return;
             display = display || {};
@@ -346,28 +323,17 @@ export const cartesianChartConfigSlice = createSlice({
                 ? action.payload.format
                 : undefined;
 
-            display.yAxis = display.yAxis || [];
+            display.yAxis = display.yAxis || [
+                { format: undefined },
+                { format: undefined },
+            ];
 
-            if (display.yAxis.length === 0) {
-                display.yAxis.push({ format: validFormat });
-            } else {
-                display.yAxis[0].format = validFormat;
-            }
-
-            // Update the format for series with yAxisIndex 0
-            if (display.series) {
-                Object.values(display.series).forEach((series) => {
-                    if (series.yAxisIndex === 0) {
-                        series.format = validFormat;
-                    }
-                });
-            } else if (fieldConfig?.y[0].reference) {
-                display.series = {
-                    [fieldConfig?.y[0].reference]: {
-                        format: validFormat,
-                        yAxisIndex: 0,
-                    },
+            if (!display.yAxis[action.payload.index]) {
+                display.yAxis[action.payload.index] = {
+                    format: validFormat,
                 };
+            } else {
+                display.yAxis[action.payload.index].format = validFormat;
             }
         },
         setSeriesFormat: (
@@ -420,6 +386,27 @@ export const cartesianChartConfigSlice = createSlice({
                 ...display.series[reference],
                 yAxisIndex: index,
                 type,
+            };
+        },
+        setSeriesYAxis: (
+            { display },
+            action: PayloadAction<{
+                index: number;
+                whichYAxis: NonNullable<
+                    CartesianChartDisplay['series']
+                >[number]['whichYAxis'];
+                reference: string;
+            }>,
+        ) => {
+            if (!display) return;
+            display = display || {};
+            display.series = display.series || {};
+
+            const { index, whichYAxis, reference } = action.payload;
+            display.series[reference] = {
+                ...display.series[reference],
+                yAxisIndex: index,
+                whichYAxis,
             };
         },
         setSeriesColor: (

@@ -5,9 +5,9 @@ import {
     type MetricExplorerDateRange,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     Divider,
-    Flex,
     Group,
     LoadingOverlay,
     Modal,
@@ -26,7 +26,8 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
 import { MetricPeekDatePicker } from './MetricPeekDatePicker';
-import MetricsVisualization from './MetricsVisualization';
+import { MetricsVisualizationEmptyState } from './MetricsVisualizationEmptyState';
+import MetricsVisualization from './visualization/MetricsVisualization';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
@@ -91,6 +92,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         dateRange,
     });
 
+    const hasData = metricQuery.isSuccess && metricResultsQuery.isSuccess;
+    const doesNotHaveData =
+        hasData && metricResultsQuery.data.rows.length === 0;
+
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
         setComparisonType(MetricExplorerComparison.NONE);
@@ -101,7 +106,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         <Modal.Root
             opened={opened}
             onClose={handleClose}
-            yOffset={100}
             scrollAreaComponent={undefined}
             size="auto"
         >
@@ -138,12 +142,12 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                 <Modal.Body
                     p={0}
-                    h="auto"
+                    h="80vh"
                     sx={{ display: 'flex', flex: 1 }}
                     miw={800}
                     mih={600}
                 >
-                    <Stack p="xl" bg="offWhite.0" w={360}>
+                    <Stack p="xl" bg="offWhite.0" miw={360}>
                         <Stack spacing="xl">
                             <Stack
                                 w="100%"
@@ -282,15 +286,18 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Flex mih={500} p="xxl" align="center" sx={{ flexGrow: 1 }}>
-                        {metricQuery.isSuccess &&
-                            metricResultsQuery.isSuccess && (
+                    <Box mih={500} w="100%" pt="sm" px="md">
+                        {doesNotHaveData ? (
+                            <MetricsVisualizationEmptyState />
+                        ) : (
+                            hasData && (
                                 <MetricsVisualization
                                     metric={metricQuery.data}
                                     data={metricResultsQuery.data}
                                 />
-                            )}
-                    </Flex>
+                            )
+                        )}
+                    </Box>
                 </Modal.Body>
             </Modal.Content>
         </Modal.Root>
