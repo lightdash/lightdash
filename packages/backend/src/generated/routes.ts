@@ -6472,7 +6472,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-colorPalette-or-updatedAt_':
+    'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-updatedAt_':
         {
             dataType: 'refAlias',
             type: {
@@ -6504,11 +6504,6 @@ const models: TsoaRoute.Models = {
                         },
                         required: true,
                     },
-                    colorPalette: {
-                        dataType: 'array',
-                        array: { dataType: 'string' },
-                        required: true,
-                    },
                 },
                 validators: {},
             },
@@ -6520,11 +6515,12 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-colorPalette-or-updatedAt_',
+                    ref: 'Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-slug-or-dashboardUuid-or-updatedAt_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        downloadedAt: { dataType: 'datetime' },
                         spaceSlug: { dataType: 'string', required: true },
                         version: { dataType: 'double', required: true },
                     },
@@ -6555,14 +6551,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        created: { dataType: 'boolean', required: true },
-                        chart: { ref: 'ChartAsCode', required: true },
-                    },
-                    required: true,
-                },
+                results: { ref: 'PromotionChanges', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -6598,13 +6587,9 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
-                colorPalette: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
                 version: { dataType: 'double', required: true },
                 spaceSlug: { dataType: 'string', required: true },
+                downloadedAt: { dataType: 'datetime' },
             },
             validators: {},
         },
@@ -12960,6 +12945,12 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'compareToMetric',
                     dataType: 'string',
                 },
+                startDate: {
+                    in: 'query',
+                    name: 'startDate',
+                    dataType: 'string',
+                },
+                endDate: { in: 'query', name: 'endDate', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

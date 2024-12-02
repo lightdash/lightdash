@@ -1,4 +1,7 @@
-import { type ApiGetMetricPeek } from '@lightdash/common';
+import {
+    type ApiGetMetricPeek,
+    type MetricExplorerDateRange,
+} from '@lightdash/common';
 import { useMemo, useState } from 'react';
 import {
     formatDate,
@@ -6,7 +9,7 @@ import {
     getDefaultDateRangeFromInterval,
 } from '../utils/metricPeekDate';
 
-export type DateRange = [Date | null, Date | null];
+type DateRange = MetricExplorerDateRange;
 
 export interface DateRangePreset {
     label: string;

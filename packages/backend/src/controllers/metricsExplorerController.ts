@@ -3,6 +3,7 @@ import {
     MetricExplorerComparison,
     type ApiMetricsExplorerQueryResults,
     type MetricExplorerComparisonType,
+    type MetricExplorerDateRange,
 } from '@lightdash/common';
 import {
     Middlewares,
@@ -42,6 +43,8 @@ export class MetricsExplorerController extends BaseController {
         @Request() req: express.Request,
         @Query() compareToPreviousPeriod?: boolean,
         @Query() compareToMetric?: string,
+        @Query() startDate?: string,
+        @Query() endDate?: string,
     ): Promise<ApiMetricsExplorerQueryResults> {
         this.setStatus(200);
 
@@ -58,6 +61,11 @@ export class MetricsExplorerController extends BaseController {
             };
         }
 
+        let dateRange: MetricExplorerDateRange | undefined;
+        if (startDate && endDate) {
+            dateRange = [new Date(startDate), new Date(endDate)];
+        }
+
         const results = await this.services
             .getMetricsExplorerService()
             .runMetricExplorerQuery(
@@ -66,6 +74,7 @@ export class MetricsExplorerController extends BaseController {
                 explore,
                 metric,
                 compare,
+                dateRange,
             );
 
         return {
