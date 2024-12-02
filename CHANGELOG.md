@@ -1,3 +1,10 @@
+## [0.1390.1](https://github.com/lightdash/lightdash/compare/0.1390.0...0.1390.1) (2024-12-02)
+
+
+### Bug Fixes
+
+* allow existing values within granular date filter ([#12674](https://github.com/lightdash/lightdash/issues/12674)) ([a54f09d](https://github.com/lightdash/lightdash/commit/a54f09d9be5dbcd82c9a62a30d2c629722204da6))
+
 # [0.1390.0](https://github.com/lightdash/lightdash/compare/0.1389.0...0.1390.0) (2024-12-02)
 
 
