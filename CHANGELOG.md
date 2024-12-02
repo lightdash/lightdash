@@ -1,3 +1,10 @@
+# [0.1390.0](https://github.com/lightdash/lightdash/compare/0.1389.0...0.1390.0) (2024-12-02)
+
+
+### Features
+
+* add data zoom to metric visualization ([#12662](https://github.com/lightdash/lightdash/issues/12662)) ([051b9de](https://github.com/lightdash/lightdash/commit/051b9de0f1c8c06d7482014ef6f71f2ec16951ee))
+
 # [0.1389.0](https://github.com/lightdash/lightdash/compare/0.1388.0...0.1389.0) (2024-12-02)
 
 
