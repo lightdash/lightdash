@@ -690,7 +690,26 @@ models:
 
 ## Format
 
-You can use the `format` parameter to have your metrics show in a particular format in Lightdash. These are the options:
+You can use the `format` parameter to have your metrics show in a particular format in Lightdash. 
+
+
+```yaml
+version: 2
+
+models:
+  - name: sales_stats
+    columns:
+      - name: revenue
+        description: 'Total estimated revenue in GBP based on forecasting done by the finance team.'
+        meta:
+          metrics:
+            total_revenue:
+              label: 'Total revenue GBP'
+              type: SUM
+              format: 'gbp'
+```
+
+These are the options:
 
 | Option  | Description                                                                         | Raw value  | Displayed value |
 | ------- | ----------------------------------------------------------------------------------- | ---------- | --------------- |
