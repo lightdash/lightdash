@@ -12,9 +12,17 @@ export type MetricExplorerPartialDateRange = [Date | null, Date | null];
 export type MetricExplorerDateRange = [Date, Date];
 
 export type MetricExplorerComparisonType =
-    | { type: MetricExplorerComparison.NONE }
-    | { type: MetricExplorerComparison.PREVIOUS_PERIOD }
-    | { type: MetricExplorerComparison.DIFFERENT_METRIC; metricName: string };
+    | {
+          type: MetricExplorerComparison.NONE;
+      }
+    | {
+          type: MetricExplorerComparison.PREVIOUS_PERIOD;
+      }
+    | {
+          type: MetricExplorerComparison.DIFFERENT_METRIC;
+          metricTable: string;
+          metricName: string;
+      };
 
 export type MetricExploreDataPoint = {
     date: Date;

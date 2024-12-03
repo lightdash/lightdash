@@ -14331,7 +14331,15 @@
                     },
                     {
                         "in": "query",
-                        "name": "compareToMetric",
+                        "name": "compareToMetricTableName",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "compareToMetricMetricName",
                         "required": false,
                         "schema": {
                             "type": "string"

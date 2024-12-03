@@ -13538,9 +13538,14 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'compareToPreviousPeriod',
                     dataType: 'boolean',
                 },
-                compareToMetric: {
+                compareToMetricTableName: {
                     in: 'query',
-                    name: 'compareToMetric',
+                    name: 'compareToMetricTableName',
+                    dataType: 'string',
+                },
+                compareToMetricMetricName: {
+                    in: 'query',
+                    name: 'compareToMetricMetricName',
                     dataType: 'string',
                 },
                 body: {

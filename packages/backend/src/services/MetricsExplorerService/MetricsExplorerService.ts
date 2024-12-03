@@ -183,7 +183,71 @@ export class MetricsExplorerService<
 
                     break;
                 case MetricExplorerComparison.DIFFERENT_METRIC:
-                    throw new Error('Not implemented');
+                    const differentMetric = await this.catalogService.getMetric(
+                        user,
+                        projectUuid,
+                        compare.metricTable,
+                        compare.metricName,
+                    );
+
+                    const differentMetricTimeDimension =
+                        differentMetric.defaultTimeDimension;
+                    if (!differentMetricTimeDimension) {
+                        // TODO: this will be implemented in a future PR
+                        throw new Error(`NOT IMPLEMENTED`);
+                    }
+
+                    const differentMetricDimensionGrain = dateRange
+                        ? getGrainForDateRange(dateRange)
+                        : differentMetricTimeDimension.interval;
+
+                    const differentMetricTimeDimensionId = getItemId({
+                        table: differentMetric.table,
+                        name: getFieldIdForDateDimension(
+                            defaultTimeDimension.field,
+                            differentMetricDimensionGrain,
+                        ),
+                    });
+
+                    const differentMetricQuery: MetricQuery = {
+                        exploreName: compare.metricTable,
+                        metrics: [getItemId(differentMetric)],
+                        dimensions: [differentMetricTimeDimensionId],
+                        filters: {
+                            dimensions: {
+                                id: uuidv4(),
+                                and: getMetricExplorerDateRangeFilters(
+                                    compare.metricTable,
+                                    differentMetricTimeDimension.field,
+                                    dateRange,
+                                ),
+                            },
+                        },
+                        sorts: [
+                            {
+                                fieldId: differentMetricTimeDimensionId,
+                                descending: false,
+                            },
+                        ],
+                        tableCalculations: [],
+                        limit: this.maxQueryLimit, // TODO: are we sure we want to limit this with the max query limit?
+                    };
+
+                    const {
+                        rows: differentMetricResultRows,
+                        fields: differentMetricFields,
+                    } = await this.projectService.runExploreQuery(
+                        user,
+                        differentMetricQuery,
+                        projectUuid,
+                        compare.metricTable,
+                        null,
+                    );
+
+                    comparisonResults = differentMetricResultRows;
+                    allFields = { ...allFields, ...differentMetricFields };
+
+                    break;
                 default:
                     assertUnreachable(
                         compare,

@@ -56,11 +56,23 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
     const [comparisonType, setComparisonType] =
         useState<MetricExplorerComparison>(MetricExplorerComparison.NONE);
-    const comparisonParams = useMemo(():
-        | MetricExplorerComparisonType
-        | undefined => {
-        if (!metricQuery.isSuccess) return undefined;
 
+    const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
+        null,
+    );
+
+    useEffect(() => {
+        if (!metricQuery.isSuccess || dateRange) return;
+
+        const defaultTimeDimension = metricQuery.data.defaultTimeDimension;
+        if (!defaultTimeDimension) return;
+
+        setDateRange(
+            getDefaultDateRangeFromInterval(defaultTimeDimension.interval),
+        );
+    }, [metricQuery.isSuccess, metricQuery.data, dateRange]);
+
+    const comparisonParams = useMemo((): MetricExplorerComparisonType => {
         switch (comparisonType) {
             case MetricExplorerComparison.NONE:
                 return {
@@ -73,7 +85,9 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
             case MetricExplorerComparison.DIFFERENT_METRIC:
                 return {
                     type: MetricExplorerComparison.DIFFERENT_METRIC,
-                    metricName: metricQuery.data.name,
+                    // TODO: this is hardcoded for now, should be a dropdown in the UI
+                    metricTable: 'orders',
+                    metricName: 'total_non_completed_order_amount',
                 };
             default:
                 return assertUnreachable(
@@ -81,14 +95,11 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     `Unknown comparison type: ${comparisonType}`,
                 );
         }
-    }, [comparisonType, metricQuery.isSuccess, metricQuery.data]);
+    }, [comparisonType]);
 
     const [timeDimensionOverride, setTimeDimensionOverride] = useState<
         TimeDimensionConfig | undefined
     >();
-    const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
-        null,
-    );
 
     const metricResultsQuery = useRunMetricExplorerQuery({
         projectUuid,
@@ -383,6 +394,8 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                         ) : (
                             hasData && (
                                 <MetricsVisualization
+                                    comparison={comparisonParams}
+                                    dateRange={dateRange ?? undefined}
                                     data={metricResultsQuery.data}
                                 />
                             )
