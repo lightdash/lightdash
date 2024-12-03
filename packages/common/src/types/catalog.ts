@@ -114,7 +114,11 @@ export type ApiMetricsCatalog = {
 };
 
 export type MetricWithAssociatedTimeDimension = CompiledMetric &
-    Pick<CompiledTable, 'defaultTimeDimension'>;
+    Pick<CompiledTable, 'defaultTimeDimension'> & {
+        availableTimeDimensions?: (CompiledDimension & {
+            type: DimensionType.DATE | DimensionType.TIMESTAMP;
+        })[];
+    };
 
 export type ApiGetMetricPeek = {
     status: 'ok';
