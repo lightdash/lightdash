@@ -286,19 +286,18 @@ export class CatalogService<
         prevCatalogItemsWithTags: CatalogItemWithTagUuids[],
     ) {
         // Get all catalog items so we can match them with the previous catalog items
-        const currentCatalogItems = await this.catalogModel.getCatalogItems(
-            projectUuid,
-        );
+        const currentCatalogItems =
+            await this.catalogModel.getCatalogItemsSummary(projectUuid);
 
         const catalogTagsMigrateIn: DbCatalogTagsMigrateIn[] =
             currentCatalogItems.flatMap(
                 ({
-                    project_uuid: currentProjectUuid,
+                    projectUuid: currentProjectUuid,
                     name: currentName,
-                    table_name: currentExploreBaseTable,
-                    field_type: currentFieldType,
+                    tableName: currentTableName,
+                    fieldType: currentFieldType,
                     type: currentType,
-                    catalog_search_uuid: currentCatalogSearchUuid,
+                    catalogSearchUuid: currentCatalogSearchUuid,
                 }) => {
                     // Just a safeguard, this should never happen since the getTaggedCatalogItems query is scoped to the project
                     if (projectUuid !== currentProjectUuid) {
@@ -308,13 +307,13 @@ export class CatalogService<
                     const prevCatalogItem = prevCatalogItemsWithTags.find(
                         ({
                             name: prevName,
-                            exploreBaseTable: prevExploreBaseTable,
+                            tableName: prevTableName,
                             fieldType: prevFieldType,
                             type: prevType,
                             projectUuid: prevProjectUuid,
                         }) =>
                             prevName === currentName &&
-                            prevExploreBaseTable === currentExploreBaseTable &&
+                            prevTableName === currentTableName &&
                             prevFieldType === currentFieldType &&
                             prevType === currentType &&
                             prevProjectUuid === currentProjectUuid,
@@ -348,18 +347,17 @@ export class CatalogService<
         prevCatalogItemsWithIcons: CatalogItemsWithIcons[],
     ) {
         // Get all catalog items so we can match them with the previous catalog items
-        const currentCatalogItems = await this.catalogModel.getCatalogItems(
-            projectUuid,
-        );
+        const currentCatalogItems =
+            await this.catalogModel.getCatalogItemsSummary(projectUuid);
 
         const iconMigrationUpdates = currentCatalogItems.flatMap(
             ({
-                project_uuid: currentProjectUuid,
+                projectUuid: currentProjectUuid,
                 name: currentName,
-                table_name: currentExploreBaseTable,
-                field_type: currentFieldType,
+                tableName: currentExploreBaseTable,
+                fieldType: currentFieldType,
                 type: currentType,
-                catalog_search_uuid: currentCatalogSearchUuid,
+                catalogSearchUuid: currentCatalogSearchUuid,
             }) => {
                 // Just a safeguard, this should never happen since the getCatalogItems query is scoped to the project
                 if (projectUuid !== currentProjectUuid) {
@@ -369,7 +367,7 @@ export class CatalogService<
                 const prevCatalogItem = prevCatalogItemsWithIcons.find(
                     ({
                         name: prevName,
-                        exploreBaseTable: prevExploreBaseTable,
+                        tableName: prevExploreBaseTable,
                         fieldType: prevFieldType,
                         type: prevType,
                         projectUuid: prevProjectUuid,
@@ -402,22 +400,21 @@ export class CatalogService<
         prevMetricTreeEdges: CatalogMetricsTreeEdge[],
     ) {
         // reusing catalog items with tags although we don't need the tags, but trying to avoid creating another function here
-        const currentCatalogItems = await this.catalogModel.getCatalogItems(
-            projectUuid,
-        );
+        const currentCatalogItems =
+            await this.catalogModel.getCatalogItemsSummary(projectUuid);
 
         const metricEdgesMigrateIn: DbMetricsTreeEdgeIn[] = prevMetricTreeEdges
             .filter((edge): edge is CatalogMetricsTreeEdge => {
                 const sourceCatalogItem = currentCatalogItems.find(
                     (catalogItem) =>
                         catalogItem.name === edge.source.name &&
-                        catalogItem.table_name === edge.source.tableName,
+                        catalogItem.tableName === edge.source.tableName,
                 );
 
                 const targetCatalogItem = currentCatalogItems.find(
                     (catalogItem) =>
                         catalogItem.name === edge.target.name &&
-                        catalogItem.table_name === edge.target.tableName,
+                        catalogItem.tableName === edge.target.tableName,
                 );
 
                 return Boolean(sourceCatalogItem) && Boolean(targetCatalogItem);
@@ -432,7 +429,7 @@ export class CatalogService<
                 created_at: edge.createdAt,
             }));
 
-        return this.catalogModel.migrateMetricTreeEdges(metricEdgesMigrateIn);
+        return this.catalogModel.migrateMetricsTreeEdges(metricEdgesMigrateIn);
     }
 
     async getCatalog(

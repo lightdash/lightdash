@@ -13,6 +13,7 @@ import {
     type CatalogFieldMap,
     type CatalogFieldWhere,
     type CatalogItem,
+    type CatalogItemSummary,
     type CatalogItemWithTagUuids,
     type CatalogMetricsTreeEdge,
     type CatalogMetricsTreeNode,
@@ -541,10 +542,22 @@ export class CatalogModel {
             .delete();
     }
 
-    async getCatalogItems(projectUuid: string) {
-        return this.database(CatalogTableName)
+    async getCatalogItemsSummary(
+        projectUuid: string,
+    ): Promise<CatalogItemSummary[]> {
+        const catalogItems = await this.database(CatalogTableName)
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
             .select('*');
+
+        return catalogItems.map<CatalogItemSummary>((i) => ({
+            catalogSearchUuid: i.catalog_search_uuid,
+            cachedExploreUuid: i.cached_explore_uuid,
+            projectUuid: i.project_uuid,
+            name: i.name,
+            type: i.type,
+            tableName: i.table_name,
+            fieldType: i.field_type,
+        }));
     }
 
     async getCatalogItemsWithTags(
@@ -624,7 +637,7 @@ export class CatalogModel {
             name: i.name,
             type: i.type,
             fieldType: i.field_type,
-            exploreBaseTable: i.table_name,
+            tableName: i.table_name,
             catalogTags: i.catalog_tag_uuids,
         }));
     }
@@ -678,7 +691,7 @@ export class CatalogModel {
             name: i.name,
             type: i.type,
             fieldType: i.field_type,
-            exploreBaseTable: i.table_name,
+            tableName: i.table_name,
             icon: i.icon,
         }));
     }
@@ -762,14 +775,6 @@ export class CatalogModel {
         }));
     }
 
-    async getMetricsTreeEdge(
-        metricsTreeEdge: Omit<DbMetricsTreeEdgeIn, 'created_by_user_uuid'>,
-    ) {
-        return this.database(MetricsTreeEdgesTableName)
-            .where(metricsTreeEdge)
-            .first();
-    }
-
     async createMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdgeIn) {
         return this.database(MetricsTreeEdgesTableName).insert(metricsTreeEdge);
     }
@@ -780,7 +785,7 @@ export class CatalogModel {
             .delete();
     }
 
-    async migrateMetricTreeEdges(
+    async migrateMetricsTreeEdges(
         metricTreeEdgesMigrateIn: DbMetricsTreeEdgeIn[],
     ) {
         return this.database.batchInsert(
