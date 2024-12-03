@@ -87,7 +87,7 @@ type DbSavedChartDetails = {
     last_name: string;
     pinned_list_uuid: string;
     dashboard_uuid: string | null;
-    timezone: TimeZone | undefined;
+    timezone: TimeZone | null;
 };
 
 const createSavedChartVersionFields = async (
@@ -191,11 +191,11 @@ const createSavedChartVersion = async (
                 filters: JSON.stringify(filters),
                 explore_name: tableName,
                 saved_query_id: savedChartId,
-                pivot_dimensions: pivotConfig ? pivotConfig.columns : undefined,
+                pivot_dimensions: pivotConfig ? pivotConfig.columns : null,
                 chart_type: chartConfig.type,
                 chart_config: chartConfig.config,
-                updated_by_user_uuid: updatedByUser?.userUuid,
-                timezone,
+                updated_by_user_uuid: updatedByUser?.userUuid || null,
+                timezone: timezone || null,
             })
             .returning('*');
         await createSavedChartVersionFields(
@@ -966,7 +966,7 @@ export class SavedChartModel {
                                 dimensionType: cd.dimension_type,
                             })),
                         ],
-                        timezone: savedQuery.timezone,
+                        timezone: savedQuery.timezone || undefined,
                     },
                     chartConfig,
                     tableConfig: {
