@@ -291,7 +291,7 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
                 edgesReconnectable={false}
                 onEdgesDelete={handleEdgesDelete}
             >
-                <Panel position="top-right">
+                <Panel position="bottom-left">
                     <button onClick={() => onLayout()}>Clean up</button>
                 </Panel>
                 <Background />
