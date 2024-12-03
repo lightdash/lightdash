@@ -13,6 +13,7 @@ import {
     CompiledDimension,
     CompiledMetric,
     CompiledTable,
+    DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
     DimensionType,
     Explore,
     ExploreError,
@@ -891,12 +892,16 @@ export class CatalogService<
         // Priority 3: Use the only time dimension if there's exactly one
         if (table?.dimensions) {
             const timeDimensions = Object.values(table.dimensions).filter(
-                (dim) => dim.type === 'date' || dim.type === 'timestamp',
+                (dim) =>
+                    (dim.type === DimensionType.DATE ||
+                        dim.type === DimensionType.TIMESTAMP) &&
+                    !!dim.isIntervalBase &&
+                    !dim.hidden,
             );
             if (timeDimensions.length === 1) {
                 return {
                     field: timeDimensions[0].name,
-                    interval: TimeFrames.MONTH, // TODO: Should this be dynamic?
+                    interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
                 };
             }
         }
@@ -918,7 +923,8 @@ export class CatalogService<
                 } =>
                     (dim.type === DimensionType.DATE ||
                         dim.type === DimensionType.TIMESTAMP) &&
-                    !!dim.isIntervalBase,
+                    !!dim.isIntervalBase &&
+                    !dim.hidden,
             ),
         );
     }
