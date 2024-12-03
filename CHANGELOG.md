@@ -1,3 +1,10 @@
+# [0.1395.0](https://github.com/lightdash/lightdash/compare/0.1394.0...0.1395.0) (2024-12-03)
+
+
+### Features
+
+* limit metric node count ([#12682](https://github.com/lightdash/lightdash/issues/12682)) ([541480a](https://github.com/lightdash/lightdash/commit/541480ab71cc85a26ad8e885568bb0b1e4ea327b))
+
 # [0.1394.0](https://github.com/lightdash/lightdash/compare/0.1393.0...0.1394.0) (2024-12-03)
 
 
