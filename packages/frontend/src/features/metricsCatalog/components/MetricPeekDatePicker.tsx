@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
 import { IconCalendar, IconChevronDown } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useDateRangePicker } from '../hooks/useDateRangePicker';
 
@@ -25,11 +25,13 @@ type Props = {
         | ApiGetMetricPeek['results']['defaultTimeDimension']
         | undefined;
     onChange: (dateRange: MetricExplorerDateRange) => void;
+    rightSection?: ReactNode;
 };
 
 export const MetricPeekDatePicker: FC<Props> = ({
     defaultTimeDimension,
     onChange,
+    rightSection,
 }) => {
     const {
         isOpen,
@@ -63,6 +65,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
                         styles={(theme) => ({
                             root: {
                                 border: `1px solid ${theme.colors.gray[2]}`,
+                                boxShadow: theme.shadows.subtle,
                             },
                             label: {
                                 width: '100%',
@@ -78,10 +81,14 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                 />
                                 {buttonLabel}
                             </Group>
-                            <MantineIcon
-                                color="dark.3"
-                                icon={IconChevronDown}
-                            />
+                            {rightSection ? (
+                                rightSection
+                            ) : (
+                                <MantineIcon
+                                    color="dark.3"
+                                    icon={IconChevronDown}
+                                />
+                            )}
                         </Group>
                     </Button>
                 </Tooltip>
