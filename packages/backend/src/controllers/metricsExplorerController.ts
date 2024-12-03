@@ -1,11 +1,13 @@
 import {
     ApiErrorPayload,
     MetricExplorerComparison,
+    TimeDimensionConfig,
     type ApiMetricsExplorerQueryResults,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
 } from '@lightdash/common';
 import {
+    Body,
     Middlewares,
     OperationId,
     Path,
@@ -45,6 +47,10 @@ export class MetricsExplorerController extends BaseController {
         @Query() endDate: string,
         @Query() compareToPreviousPeriod?: boolean,
         @Query() compareToMetric?: string,
+        @Body()
+        body?: {
+            timeDimensionOverride?: TimeDimensionConfig;
+        },
     ): Promise<ApiMetricsExplorerQueryResults> {
         this.setStatus(200);
 
@@ -79,6 +85,7 @@ export class MetricsExplorerController extends BaseController {
                 metric,
                 dateRange,
                 compare,
+                body?.timeDimensionOverride,
             );
 
         return {
