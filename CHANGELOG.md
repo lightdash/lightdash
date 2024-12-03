@@ -1,3 +1,10 @@
+## [0.1395.1](https://github.com/lightdash/lightdash/compare/0.1395.0...0.1395.1) (2024-12-03)
+
+
+### Bug Fixes
+
+* check email status if user is authenticated ([#12695](https://github.com/lightdash/lightdash/issues/12695)) ([f231930](https://github.com/lightdash/lightdash/commit/f231930b6a8a53f1299d80b2b8093c4c2c563566))
+
 # [0.1395.0](https://github.com/lightdash/lightdash/compare/0.1394.0...0.1395.0) (2024-12-03)
 
 
