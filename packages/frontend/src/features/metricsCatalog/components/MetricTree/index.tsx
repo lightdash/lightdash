@@ -1,5 +1,6 @@
 import {
     getMetricsTreeNodeId,
+    MAX_METRICS_TREE_NODE_COUNT,
     type CatalogField,
     type CatalogMetricsTreeEdge,
 } from '@lightdash/common';
@@ -17,6 +18,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
+import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import {
     useCreateMetricsTreeEdge,
@@ -39,7 +41,21 @@ const MetricTree: FC<Props> = ({ metrics }) => {
         (state) => state.metricsCatalog.projectUuid,
     );
 
-    const { data: metricsTree } = useMetricsTree(projectUuid);
+    const selectedMetricIds = useMemo(() => {
+        return metrics.map((metric) => getMetricsTreeNodeId(metric));
+    }, [metrics]);
+
+    const isValidMetricsTree =
+        metrics.length > 0 && metrics.length <= MAX_METRICS_TREE_NODE_COUNT;
+
+    const { data: metricsTree } = useMetricsTree(
+        projectUuid,
+        selectedMetricIds,
+        {
+            enabled: !!projectUuid && isValidMetricsTree,
+        },
+    );
+
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
     const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
 
@@ -79,7 +95,7 @@ const MetricTree: FC<Props> = ({ metrics }) => {
         return [];
     }, [metrics, metricsTree]);
 
-    const [currentNodes, _setCurrentNodes, onNodesChange] =
+    const [currentNodes, setCurrentNodes, onNodesChange] =
         useNodesState(initialNodes);
 
     const [currentEdges, setCurrentEdges, onEdgesChange] =
@@ -89,6 +105,11 @@ const MetricTree: FC<Props> = ({ metrics }) => {
     useEffect(() => {
         setCurrentEdges(initialEdges);
     }, [initialEdges, setCurrentEdges]);
+
+    // Set the current nodes to the initial nodes in case the filters change
+    useEffect(() => {
+        setCurrentNodes(initialNodes);
+    }, [initialNodes, setCurrentNodes]);
 
     const handleNodeChange = useCallback(
         (changes: NodeChange<Node>[]) => {
@@ -138,19 +159,26 @@ const MetricTree: FC<Props> = ({ metrics }) => {
 
     return (
         <Box h="100%">
-            <ReactFlow
-                nodes={currentNodes}
-                edges={currentEdges}
-                fitView
-                attributionPosition="top-right"
-                onNodesChange={handleNodeChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={handleConnect}
-                edgesReconnectable={false}
-                onEdgesDelete={handleEdgesDelete}
-            >
-                <Background />
-            </ReactFlow>
+            {isValidMetricsTree ? (
+                <ReactFlow
+                    nodes={currentNodes}
+                    edges={currentEdges}
+                    fitView
+                    attributionPosition="top-right"
+                    onNodesChange={handleNodeChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={handleConnect}
+                    edgesReconnectable={false}
+                    onEdgesDelete={handleEdgesDelete}
+                >
+                    <Background />
+                </ReactFlow>
+            ) : (
+                <SuboptimalState
+                    title="Metrics tree not available"
+                    description="Please narrow your search to display up to 30 metrics"
+                />
+            )}
         </Box>
     );
 };

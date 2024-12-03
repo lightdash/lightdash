@@ -16,7 +16,9 @@ import {
     hasIntersection,
     InlineErrorType,
     isExploreError,
+    MAX_METRICS_TREE_NODE_COUNT,
     NotFoundError,
+    ParameterError,
     parseMetricsTreeNodeId,
     SessionUser,
     SummaryExplore,
@@ -879,9 +881,23 @@ export class CatalogService<
         };
     }
 
-    getMetricsTree(user: SessionUser, projectUuid: string) {
+    async getMetricsTree(
+        user: SessionUser,
+        projectUuid: string,
+        // Using metricIds instead of filters and searching metrics because we might want to have the ability to select specific metrics rather than filter by catalog tags
+        metricIds: string[],
+    ) {
         // TODO: check permissions
-        return this.catalogModel.getMetricsTree(projectUuid);
+        if (metricIds.length > MAX_METRICS_TREE_NODE_COUNT) {
+            throw new ParameterError(
+                `Cannot get more than ${MAX_METRICS_TREE_NODE_COUNT} metrics in the metrics tree`,
+            );
+        }
+
+        return this.catalogModel.getMetricsTree(
+            projectUuid,
+            metricIds.map((id) => parseMetricsTreeNodeId(id)),
+        );
     }
 
     async createMetricsTreeEdge(

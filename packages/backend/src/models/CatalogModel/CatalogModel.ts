@@ -15,6 +15,7 @@ import {
     type CatalogItem,
     type CatalogItemWithTagUuids,
     type CatalogMetricsTreeEdge,
+    type CatalogMetricsTreeNode,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -697,11 +698,23 @@ export class CatalogModel {
 
     async getMetricsTree(
         projectUuid: string,
+        metricNodes: CatalogMetricsTreeNode[],
     ): Promise<{ edges: CatalogMetricsTreeEdge[] }> {
-        const edges = await this.database(MetricsTreeEdgesTableName).where(
-            'project_uuid',
-            projectUuid,
-        );
+        const metricNodeEntries = metricNodes.map((n) => [n.name, n.tableName]);
+        const edges = await this.database(MetricsTreeEdgesTableName)
+            .where('project_uuid', projectUuid)
+            .andWhere(function sourceNodeWhere() {
+                void this.whereIn(
+                    ['source_metric_name', 'source_metric_table_name'],
+                    metricNodeEntries,
+                );
+            })
+            .andWhere(function targetNodeWhere() {
+                void this.whereIn(
+                    ['target_metric_name', 'target_metric_table_name'],
+                    metricNodeEntries,
+                );
+            });
 
         return {
             edges: edges.map((e) => ({
