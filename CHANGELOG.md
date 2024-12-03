@@ -1,3 +1,10 @@
+# [0.1392.0](https://github.com/lightdash/lightdash/compare/0.1391.0...0.1392.0) (2024-12-03)
+
+
+### Features
+
+* Dashboards as code ([#12664](https://github.com/lightdash/lightdash/issues/12664)) ([551f608](https://github.com/lightdash/lightdash/commit/551f608eb8d8b56fee8359aa2ae3cae17c784564))
+
 # [0.1391.0](https://github.com/lightdash/lightdash/compare/0.1390.1...0.1391.0) (2024-12-03)
 
 
