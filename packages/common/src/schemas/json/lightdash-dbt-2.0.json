@@ -134,6 +134,7 @@
                                                 "type": "boolean"
                                             },
                                             "round": {
+                                                "description": "Rounds the metric to the specified number of decimal places",
                                                 "type": "number",
                                                 "minimum": 0
                                             },
@@ -160,6 +161,30 @@
                                                     "minLength": 1
                                                 },
                                                 "maxItems": 3
+                                            },
+                                            "default_time_dimension": {
+                                                "type": "object",
+                                                "description": "Specifies the default time dimension field and interval to use for time-based analysis on this metric. If specified, both field and interval are required. If there is already a default time dimension set in the model, this will override it.",
+                                                "properties": {
+                                                    "field": {
+                                                        "type": "string",
+                                                        "description": "The name of the field to use as the default time dimension"
+                                                    },
+                                                    "interval": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "DAY",
+                                                            "WEEK",
+                                                            "MONTH",
+                                                            "YEAR"
+                                                        ],
+                                                        "description": "The default time interval to use when analyzing this time dimension"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "field",
+                                                    "interval"
+                                                ]
                                             }
                                         },
                                         "required": ["type", "sql"]
@@ -303,6 +328,30 @@
                                                                 "minLength": 1
                                                             },
                                                             "maxItems": 3
+                                                        },
+                                                        "default_time_dimension": {
+                                                            "type": "object",
+                                                            "description": "Specifies the default time dimension field and interval to use for time-based analysis on this metric. If specified, both field and interval are required. If there is already a default time dimension set in the model, this will override it.",
+                                                            "properties": {
+                                                                "field": {
+                                                                    "type": "string",
+                                                                    "description": "The name of the field to use as the default time dimension"
+                                                                },
+                                                                "interval": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "DAY",
+                                                                        "WEEK",
+                                                                        "MONTH",
+                                                                        "YEAR"
+                                                                    ],
+                                                                    "description": "The default time interval to use when analyzing this time dimension"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "field",
+                                                                "interval"
+                                                            ]
                                                         }
                                                     },
                                                     "required": ["type"]
@@ -552,6 +601,27 @@
                                     "percent",
                                     "id"
                                 ]
+                            },
+                            "default_time_dimension": {
+                                "type": "object",
+                                "description": "Specifies the default time dimension field and interval to use for time-based analysis on this metric. If specified, both field and interval are required. If there is already a default time dimension set in the model, this will override it.",
+                                "properties": {
+                                    "field": {
+                                        "type": "string",
+                                        "description": "The name of the field to use as the default time dimension"
+                                    },
+                                    "interval": {
+                                        "type": "string",
+                                        "enum": [
+                                            "DAY",
+                                            "WEEK",
+                                            "MONTH",
+                                            "YEAR"
+                                        ],
+                                        "description": "The default time interval to use when analyzing this time dimension"
+                                    }
+                                },
+                                "required": ["field", "interval"]
                             }
                         }
                     }

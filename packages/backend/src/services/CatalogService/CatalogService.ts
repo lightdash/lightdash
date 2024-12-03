@@ -855,11 +855,13 @@ export class CatalogService<
 
         const filteredExplore = getFilteredExplore(explore, userAttributes);
 
-        const defaultTimeDimension =
-            filteredExplore?.tables?.[tableName]?.defaultTimeDimension;
-
         const metric =
             filteredExplore?.tables?.[tableName]?.metrics?.[metricName];
+
+        // Get the default time dimension from the metric, or the explore if not set on the metric
+        const defaultTimeDimension =
+            metric.defaultTimeDimension ??
+            filteredExplore?.tables?.[tableName]?.defaultTimeDimension;
 
         if (!metric) {
             throw new NotFoundError('Metric not found');

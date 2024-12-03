@@ -810,6 +810,18 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DefaultTimeDimension: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                interval: { ref: 'TimeFrames', required: true },
+                field: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SourcePosition: {
         dataType: 'refAlias',
         type: {
@@ -908,6 +920,7 @@ const models: TsoaRoute.Models = {
             requiredAttributes: {
                 ref: 'Record_string.string-or-string-Array_',
             },
+            defaultTimeDimension: { ref: 'DefaultTimeDimension' },
             compiledSql: { dataType: 'string', required: true },
             tablesReferences: {
                 dataType: 'union',
@@ -929,13 +942,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                defaultTimeDimension: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        interval: { ref: 'TimeFrames', required: true },
-                        field: { dataType: 'string', required: true },
-                    },
-                },
+                defaultTimeDimension: { ref: 'DefaultTimeDimension' },
             },
             validators: {},
         },
@@ -3017,13 +3024,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                defaultTimeDimension: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        interval: { ref: 'TimeFrames', required: true },
-                        field: { dataType: 'string', required: true },
-                    },
-                },
+                defaultTimeDimension: { ref: 'DefaultTimeDimension' },
                 groupDetails: { ref: 'Record_string.GroupType_' },
                 requiredAttributes: {
                     ref: 'Record_string.string-or-string-Array_',
@@ -7976,6 +7977,7 @@ const models: TsoaRoute.Models = {
                     additionalProperties: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            whichYAxis: { dataType: 'double' },
                             valueLabelPosition: {
                                 ref: 'ValueLabelPositionOptions',
                             },

@@ -505,18 +505,25 @@ export class CartesianChartDataModel {
 
         const xAxisReference = transformedData.indexColumn?.reference;
 
+        const leftYAxisSeriesReferences: string[] = [];
+        const rightYAxisSeriesReferences: string[] = [];
+
         const series = transformedData.valuesColumns.map(
             (seriesColumn, index) => {
                 const seriesDisplay = Object.values(display?.series || {}).find(
                     (s) => s.yAxisIndex === index,
                 );
 
-                const seriesFormat =
-                    seriesDisplay?.format ?? display?.yAxis?.[0]?.format; // TODO: don't always use the first y-axis format once there are multiple y-axes;
                 const seriesColor = seriesDisplay?.color;
                 const seriesValueLabelPosition =
                     seriesDisplay?.valueLabelPosition;
                 const seriesType = seriesDisplay?.type ?? defaultSeriesType;
+
+                // Any value other than 1 is considered the left axis.
+                const whichYAxis = seriesDisplay?.whichYAxis === 1 ? 1 : 0;
+                const seriesFormat =
+                    seriesDisplay?.format ??
+                    display?.yAxis?.[whichYAxis]?.format;
 
                 const singleYAxisLabel =
                     // NOTE: When there's only one y-axis left, set the label on the series as well
@@ -525,6 +532,12 @@ export class CartesianChartDataModel {
                         ? display.yAxis[0].label
                         : undefined;
                 const seriesLabel = singleYAxisLabel ?? seriesDisplay?.label;
+
+                if (whichYAxis === 1) {
+                    rightYAxisSeriesReferences.push(seriesColumn);
+                } else {
+                    leftYAxisSeriesReferences.push(seriesColumn);
+                }
 
                 return {
                     dimensions: [xAxisReference, seriesColumn],
@@ -543,10 +556,9 @@ export class CartesianChartDataModel {
                         x: xAxisReference,
                         y: seriesColumn,
                     },
-                    yAxisIndex:
-                        (display?.series &&
-                            display.series[seriesColumn]?.yAxisIndex) ||
-                        0,
+                    // NOTE: this yAxisIndex is the echarts option, NOT the yAxisIndex
+                    // we had been storing in the display object.
+                    yAxisIndex: whichYAxis,
                     tooltip: {
                         valueFormatter: seriesFormat
                             ? CartesianChartDataModel.getTooltipFormatter(
@@ -628,12 +640,10 @@ export class CartesianChartDataModel {
                     type: 'value',
                     position: display?.yAxis?.[0]?.position || 'left',
                     name:
-                        (display?.yAxis && display.yAxis[0]?.label) ||
-                        friendlyName(
-                            transformedData.valuesColumns.length === 1
-                                ? transformedData.valuesColumns[0]
-                                : '',
-                        ),
+                        leftYAxisSeriesReferences.length > 0
+                            ? display?.yAxis?.[0]?.label ||
+                              friendlyName(leftYAxisSeriesReferences[0])
+                            : '',
                     nameLocation: 'center',
                     nameGap: 50,
                     nameRotate: 90,
@@ -646,6 +656,31 @@ export class CartesianChartDataModel {
                                   formatter:
                                       CartesianChartDataModel.getTooltipFormatter(
                                           display?.yAxis?.[0].format,
+                                      ),
+                              },
+                          }
+                        : {}),
+                },
+                {
+                    type: 'value',
+                    position: 'right',
+                    name:
+                        rightYAxisSeriesReferences.length > 0
+                            ? display?.yAxis?.[1]?.label ||
+                              friendlyName(rightYAxisSeriesReferences[0])
+                            : '',
+                    nameLocation: 'center',
+                    nameGap: 50,
+                    nameRotate: -90,
+                    nameTextStyle: {
+                        fontWeight: 'bold',
+                    },
+                    ...(display?.yAxis?.[1]?.format
+                        ? {
+                              axisLabel: {
+                                  formatter:
+                                      CartesianChartDataModel.getTooltipFormatter(
+                                          display?.yAxis?.[1].format,
                                       ),
                               },
                           }
@@ -684,14 +719,19 @@ export type CartesianChartDisplay = {
     }[];
     series?: {
         [key: string]: {
-            // Label maps to 'name' in ECharts
+            // 'label' maps to 'name' in ECharts
             label?: string;
             format?: Format;
+            // NOTE: this is the yAxisIndex in the display object, NOT the
+            // eCharts yAxisIndex. It shouldn't be used to refer to a y-axis, but
+            // the series index in the yAxis array.
             yAxisIndex?: number;
             color?: string;
             type?: CartesianSeriesType.LINE | CartesianSeriesType.BAR;
             // Value labels maps to 'label' in ECharts
             valueLabelPosition?: ValueLabelPositionOptions;
+            // whichAxis maps to the yAxis index in Echarts.
+            whichYAxis?: number;
         };
     };
     legend?: {
