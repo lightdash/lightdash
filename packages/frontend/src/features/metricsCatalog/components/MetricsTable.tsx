@@ -1,4 +1,9 @@
-import { assertUnreachable, type CatalogItem } from '@lightdash/common';
+import {
+    assertUnreachable,
+    getMetricsTreeNodeId,
+    MAX_METRICS_TREE_NODE_COUNT,
+    type CatalogItem,
+} from '@lightdash/common';
 import {
     Box,
     Divider,
@@ -31,10 +36,12 @@ import {
     type UIEvent,
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
+import { useMetricsTree } from '../hooks/useMetricsTree';
 import { setCategoryFilters } from '../store/metricsCatalogSlice';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import {
@@ -103,6 +110,23 @@ export const MetricsTable = () => {
     const flatData = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data],
+    );
+
+    // Fetch metric tree data
+    const selectedMetricTreeIds = useMemo(() => {
+        return flatData.map((metric) => getMetricsTreeNodeId(metric));
+    }, [flatData]);
+
+    const isValidMetricsTree =
+        selectedMetricTreeIds.length > 0 &&
+        selectedMetricTreeIds.length <= MAX_METRICS_TREE_NODE_COUNT;
+
+    const { data: metricsTree } = useMetricsTree(
+        projectUuid,
+        selectedMetricTreeIds,
+        {
+            enabled: !!projectUuid && isValidMetricsTree,
+        },
     );
 
     const dataHasCategories = useMemo(() => {
@@ -478,7 +502,18 @@ export const MetricsTable = () => {
                     </Box>
                     <Box w="100%" h="calc(100dvh - 350px)">
                         <ReactFlowProvider>
-                            <MetricTree metrics={flatData} />
+                            {isValidMetricsTree && metricsTree && (
+                                <MetricTree
+                                    metrics={flatData}
+                                    metricsTree={metricsTree}
+                                />
+                            )}
+                            {!isValidMetricsTree && (
+                                <SuboptimalState
+                                    title="Metrics tree not available"
+                                    description="Please narrow your search to display up to 30 metrics"
+                                />
+                            )}
                         </ReactFlowProvider>
                     </Box>
                 </Paper>
