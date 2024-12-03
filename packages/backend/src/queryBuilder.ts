@@ -342,7 +342,8 @@ const extractOuterLimitFromSQL = (sql: string): number | undefined => {
     // replace strings with placeholders
     const { sqlWithoutStrings } = replaceStringsWithPlaceholders(s);
     // search for limit clauses
-    const limitClauseRegex = /\blimit\b\s+(\d+)(?:\s+offset\s+\d+)?/gi;
+    const limitClauseRegex =
+        /\blimit\b\s+(\d+)(?:\s+offset\s+\d+)?\s*(?:;|\s*$)/gi;
     const matches = [...sqlWithoutStrings.matchAll(limitClauseRegex)];
     if (matches.length > 0) {
         const lastMatch = matches[matches.length - 1];
@@ -352,29 +353,30 @@ const extractOuterLimitFromSQL = (sql: string): number | undefined => {
     return undefined;
 };
 
-// Remove comments and limit clauses from SQL
-const removeCommentsAndLimits = (sql: string): string => {
+// Remove the outermost limit clause from SQL
+const removeCommentsAndOuterLimit = (sql: string): string => {
     let s = sql.trim();
     // remove comments
     s = removeComments(s);
     // replace strings with placeholders
     const { sqlWithoutStrings, placeholders } =
         replaceStringsWithPlaceholders(s);
-    // remove limit clauses without removing preceding whitespace
-    const limitClauseRegex = /(\blimit\b\s+\d+(\s+offset\s+\d+)?\s*;?)/gi;
-    let sqlWithoutLimits = sqlWithoutStrings.replace(limitClauseRegex, ' ');
-    // remove semicolons outside of strings
-    sqlWithoutLimits = sqlWithoutLimits.replace(/;/g, '');
+    // remove only the outermost limit clause
+    const limitClauseRegex =
+        /(\blimit\b\s+\d+(\s+offset\s+\d+)?\s*(?:;|\s*)?)$/i;
+    let sqlWithoutLimit = sqlWithoutStrings.replace(limitClauseRegex, '');
+    // remove all semicolons
+    sqlWithoutLimit = sqlWithoutLimit.replace(/;/g, '');
     // restore strings
     let sqlRestored = restoreStringsFromPlaceholders(
-        sqlWithoutLimits,
+        sqlWithoutLimit,
         placeholders,
     );
     // normalize multiple spaces to a single space
     sqlRestored = sqlRestored.replace(/\s+/g, ' ');
-    // remove excess whitespace
-    const sqlTrimmed = sqlRestored.trim();
-    return sqlTrimmed;
+    // remove any trailing semicolons, including those preceded by whitespace
+    sqlRestored = sqlRestored.replace(/\s*;+\s*$/g, '').trim();
+    return sqlRestored;
 };
 
 // Apply a limit to a SQL query if the existing limit is less than the provided limit
@@ -385,15 +387,17 @@ export const applyLimitToSqlQuery = ({
     sqlQuery: string;
     limit: number | undefined;
 }): string => {
+    // do nothing if limit is undefined
     if (limit === undefined) return sqlQuery;
+    // get any existing outer limit from the SQL query
     const existingLimit = extractOuterLimitFromSQL(sqlQuery);
-    if (existingLimit !== undefined && existingLimit <= limit) {
-        // existing limit is less than or equal to the provided limit
-        return sqlQuery;
-    }
-    // remove existing limits and apply the new limit
-    const sqlWithoutCommentsAndLimits = removeCommentsAndLimits(sqlQuery);
-    return `WITH user_sql AS (\n${sqlWithoutCommentsAndLimits}\n) select * from user_sql limit ${limit}`;
+    // append the limit if there is no existing limit or the existing limit is less than the provided limit
+    const limitToAppend =
+        existingLimit !== undefined ? Math.min(existingLimit, limit) : limit;
+    // remove comments and limit clauses from the SQL query
+    const sqlWithoutCommentsAndLimits = removeCommentsAndOuterLimit(sqlQuery);
+    // append the limit to the SQL query
+    return `${sqlWithoutCommentsAndLimits} LIMIT ${limitToAppend}`;
 };
 
 export const getCustomSqlDimensionSql = ({
