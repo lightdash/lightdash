@@ -5,6 +5,8 @@ import {
     ApiChartListResponse,
     ApiChartSummaryListResponse,
     ApiCreateTagResponse,
+    ApiDashboardAsCodeListResponse,
+    ApiDashboardAsCodeUpsertResponse,
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
@@ -16,6 +18,7 @@ import {
     CalculateTotalFromQuery,
     ChartAsCode,
     CreateProjectMember,
+    DashboardAsCode,
     DbtExposure,
     isDuplicateDashboardParams,
     ParameterError,
@@ -835,6 +838,23 @@ export class ProjectController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/dashboards/code')
+    @OperationId('getDashboardsAsCode')
+    async getDashboardsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiDashboardAsCodeListResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getDashboards(req.user!, projectUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/charts/{slug}/code')
     @OperationId('upsertChartAsCode')
     async upsertChartAsCode(
@@ -853,6 +873,36 @@ export class ProjectController extends BaseController {
             results: await this.services
                 .getCoderService()
                 .upsertChart(req.user!, projectUuid, slug, chart),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/dashboards/{slug}/code')
+    @OperationId('upsertDashboardAsCode')
+    async upsertDashboardAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body()
+        dashboard: Omit<
+            DashboardAsCode,
+            'filters' | 'tiles' | 'description'
+        > & {
+            filters: any;
+            tiles: any;
+            description?: string | null; // Allow both undefined and null
+        }, // Simplify filter type for tsoa
+        @Request() req: express.Request,
+    ): Promise<ApiDashboardAsCodeUpsertResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertDashboard(req.user!, projectUuid, slug, {
+                    ...dashboard,
+                    description: dashboard.description ?? undefined,
+                }),
         };
     }
 }

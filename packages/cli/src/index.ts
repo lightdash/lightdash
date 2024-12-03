@@ -430,6 +430,11 @@ program
     .command('upload')
     .description('Uploads charts and dashboards as code')
     .option('--verbose', undefined, false)
+    .option(
+        '--force',
+        'Force upload even if local files have not changed, use this when you want to upload files to a new project',
+        false,
+    )
     .action(uploadHandler);
 
 program
