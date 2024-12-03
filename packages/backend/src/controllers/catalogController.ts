@@ -7,12 +7,11 @@ import {
     ApiGetMetricPeek,
     ApiMetricsCatalog,
     getItemId,
-    type ApiCreateMetricsTreeEdgePayload,
     type ApiGetMetricsTree,
+    type ApiMetricsTreeEdgePayload,
     type ApiSort,
     type ApiSuccessEmpty,
     type CatalogItemIcon,
-    type CatalogMetricsTreeEdge,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
@@ -32,7 +31,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import type { DbMetricsTreeEdgeIn } from '../database/entities/catalog';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -347,7 +345,7 @@ export class CatalogController extends BaseController {
     @OperationId('createMetricsTreeEdge')
     async createMetricsTreeEdge(
         @Path() projectUuid: string,
-        @Body() body: ApiCreateMetricsTreeEdgePayload,
+        @Body() body: ApiMetricsTreeEdgePayload,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         await this.services

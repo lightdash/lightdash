@@ -1041,7 +1041,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiCreateMetricsTreeEdgePayload: {
+    ApiMetricsTreeEdgePayload: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -11363,7 +11363,7 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'body',
                     name: 'body',
                     required: true,
-                    ref: 'ApiCreateMetricsTreeEdgePayload',
+                    ref: 'ApiMetricsTreeEdgePayload',
                 },
                 req: {
                     in: 'request',
