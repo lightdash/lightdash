@@ -99,6 +99,9 @@ export type CatalogMetricsTreeNode = Pick<CatalogField, 'name' | 'tableName'>;
 export type CatalogMetricsTreeEdge = {
     source: CatalogMetricsTreeNode;
     target: CatalogMetricsTreeNode;
+    createdAt: Date;
+    createdByUserUuid: string | null;
+    projectUuid: string;
 };
 
 export type ApiCatalogResults = CatalogItem[];
@@ -230,6 +233,7 @@ export type SchedulerIndexCatalogJobPayload = {
     userUuid: string;
     prevCatalogItemsWithTags: CatalogItemWithTagUuids[];
     prevCatalogItemsWithIcons: CatalogItemsWithIcons[];
+    prevMetricTreeEdges: CatalogMetricsTreeEdge[];
 };
 
 export type CatalogFieldWhere = {

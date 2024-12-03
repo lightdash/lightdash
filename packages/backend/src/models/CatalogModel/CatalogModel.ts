@@ -541,6 +541,12 @@ export class CatalogModel {
             .delete();
     }
 
+    async getCatalogItems(projectUuid: string) {
+        return this.database(CatalogTableName)
+            .where(`${CatalogTableName}.project_uuid`, projectUuid)
+            .select('*');
+    }
+
     async getCatalogItemsWithTags(
         projectUuid: string,
         opts?: { onlyTagged?: boolean },
@@ -726,8 +732,34 @@ export class CatalogModel {
                     name: e.target_metric_name,
                     tableName: e.target_metric_table_name,
                 },
+                createdAt: e.created_at,
+                createdByUserUuid: e.created_by_user_uuid,
+                projectUuid: e.project_uuid,
             })),
         };
+    }
+
+    async getAllMetricsTreeEdges(
+        projectUuid: string,
+    ): Promise<CatalogMetricsTreeEdge[]> {
+        const edges = await this.database(MetricsTreeEdgesTableName).where(
+            'project_uuid',
+            projectUuid,
+        );
+
+        return edges.map((e) => ({
+            source: {
+                name: e.source_metric_name,
+                tableName: e.source_metric_table_name,
+            },
+            target: {
+                name: e.target_metric_name,
+                tableName: e.target_metric_table_name,
+            },
+            createdAt: e.created_at,
+            createdByUserUuid: e.created_by_user_uuid,
+            projectUuid: e.project_uuid,
+        }));
     }
 
     async getMetricsTreeEdge(
@@ -746,5 +778,14 @@ export class CatalogModel {
         return this.database(MetricsTreeEdgesTableName)
             .where(metricsTreeEdge)
             .delete();
+    }
+
+    async migrateMetricTreeEdges(
+        metricTreeEdgesMigrateIn: DbMetricsTreeEdgeIn[],
+    ) {
+        return this.database.batchInsert(
+            MetricsTreeEdgesTableName,
+            metricTreeEdgesMigrateIn,
+        );
     }
 }

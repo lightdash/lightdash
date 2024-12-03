@@ -39,6 +39,7 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type {
     DbCatalogTagsMigrateIn,
+    DbMetricsTreeEdge,
     DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -285,18 +286,19 @@ export class CatalogService<
         prevCatalogItemsWithTags: CatalogItemWithTagUuids[],
     ) {
         // Get all catalog items so we can match them with the previous catalog items
-        const currentCatalogItems =
-            await this.catalogModel.getCatalogItemsWithTags(projectUuid);
+        const currentCatalogItems = await this.catalogModel.getCatalogItems(
+            projectUuid,
+        );
 
         const catalogTagsMigrateIn: DbCatalogTagsMigrateIn[] =
             currentCatalogItems.flatMap(
                 ({
-                    projectUuid: currentProjectUuid,
+                    project_uuid: currentProjectUuid,
                     name: currentName,
-                    exploreBaseTable: currentExploreBaseTable,
-                    fieldType: currentFieldType,
+                    table_name: currentExploreBaseTable,
+                    field_type: currentFieldType,
                     type: currentType,
-                    catalogSearchUuid: currentCatalogSearchUuid,
+                    catalog_search_uuid: currentCatalogSearchUuid,
                 }) => {
                     // Just a safeguard, this should never happen since the getTaggedCatalogItems query is scoped to the project
                     if (projectUuid !== currentProjectUuid) {
@@ -346,17 +348,18 @@ export class CatalogService<
         prevCatalogItemsWithIcons: CatalogItemsWithIcons[],
     ) {
         // Get all catalog items so we can match them with the previous catalog items
-        const currentCatalogItems =
-            await this.catalogModel.getCatalogItemsWithTags(projectUuid);
+        const currentCatalogItems = await this.catalogModel.getCatalogItems(
+            projectUuid,
+        );
 
         const iconMigrationUpdates = currentCatalogItems.flatMap(
             ({
-                projectUuid: currentProjectUuid,
+                project_uuid: currentProjectUuid,
                 name: currentName,
-                exploreBaseTable: currentExploreBaseTable,
-                fieldType: currentFieldType,
+                table_name: currentExploreBaseTable,
+                field_type: currentFieldType,
                 type: currentType,
-                catalogSearchUuid: currentCatalogSearchUuid,
+                catalog_search_uuid: currentCatalogSearchUuid,
             }) => {
                 // Just a safeguard, this should never happen since the getCatalogItems query is scoped to the project
                 if (projectUuid !== currentProjectUuid) {
@@ -392,6 +395,44 @@ export class CatalogService<
         );
 
         await this.catalogModel.updateCatalogItemIcon(iconMigrationUpdates);
+    }
+
+    async migrateMetricsTreeEdges(
+        projectUuid: string,
+        prevMetricTreeEdges: CatalogMetricsTreeEdge[],
+    ) {
+        // reusing catalog items with tags although we don't need the tags, but trying to avoid creating another function here
+        const currentCatalogItems = await this.catalogModel.getCatalogItems(
+            projectUuid,
+        );
+
+        const metricEdgesMigrateIn: DbMetricsTreeEdgeIn[] = prevMetricTreeEdges
+            .filter((edge): edge is CatalogMetricsTreeEdge => {
+                const sourceCatalogItem = currentCatalogItems.find(
+                    (catalogItem) =>
+                        catalogItem.name === edge.source.name &&
+                        catalogItem.table_name === edge.source.tableName,
+                );
+
+                const targetCatalogItem = currentCatalogItems.find(
+                    (catalogItem) =>
+                        catalogItem.name === edge.target.name &&
+                        catalogItem.table_name === edge.target.tableName,
+                );
+
+                return Boolean(sourceCatalogItem) && Boolean(targetCatalogItem);
+            })
+            .map((edge) => ({
+                source_metric_name: edge.source.name,
+                source_metric_table_name: edge.source.tableName,
+                target_metric_name: edge.target.name,
+                target_metric_table_name: edge.target.tableName,
+                project_uuid: edge.projectUuid,
+                created_by_user_uuid: edge.createdByUserUuid,
+                created_at: edge.createdAt,
+            }));
+
+        return this.catalogModel.migrateMetricTreeEdges(metricEdgesMigrateIn);
     }
 
     async getCatalog(
