@@ -109,7 +109,7 @@ const getNodeLayout = (
             data: { label: 'Unconnected nodes' },
             position: { x: left - mainPadding, y: top - mainPadding },
             style: {
-                backgroundColor: 'rgba(255, 0, 255, 0.2)',
+                backgroundColor: '#d8c2fa',
                 height: bottom - top + mainPadding * 2,
                 width: right - left + mainPadding * 2,
                 pointerEvents: 'none' as const,
