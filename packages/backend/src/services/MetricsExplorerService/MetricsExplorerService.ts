@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     ForbiddenError,
     getFieldIdForDateDimension,
+    getGrainForDateRange,
     getItemId,
     getMetricExplorerDateRangeFilters,
     MetricExplorerComparison,
@@ -86,17 +87,22 @@ export class MetricsExplorerService<
             metricName,
         );
 
-        if (!metric.defaultTimeDimension) {
+        const { defaultTimeDimension } = metric;
+        if (!defaultTimeDimension) {
             throw new Error(
                 `Metric ${metricName} does not have a default time dimension`,
             );
         }
 
+        const dimensionGrain = dateRange
+            ? getGrainForDateRange(dateRange)
+            : defaultTimeDimension.interval;
+
         const timeDimension = getItemId({
             table: metric.table,
             name: getFieldIdForDateDimension(
-                metric.defaultTimeDimension.field,
-                metric.defaultTimeDimension.interval,
+                defaultTimeDimension.field,
+                dimensionGrain,
             ),
         });
 
@@ -109,7 +115,7 @@ export class MetricsExplorerService<
                     id: uuidv4(),
                     and: getMetricExplorerDateRangeFilters(
                         exploreName,
-                        metric.defaultTimeDimension.field,
+                        defaultTimeDimension.field,
                         dateRange,
                     ),
                 },
@@ -153,7 +159,7 @@ export class MetricsExplorerService<
                                 id: uuidv4(),
                                 and: getMetricExplorerDateRangeFilters(
                                     exploreName,
-                                    metric.defaultTimeDimension.field,
+                                    defaultTimeDimension.field,
                                     previousDateRange,
                                 ),
                             },

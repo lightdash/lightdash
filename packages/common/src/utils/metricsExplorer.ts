@@ -11,7 +11,6 @@ import {
 } from '../types/filter';
 import type {
     MetricExploreDataPoint,
-    MetricExploreDataPointWithCompare,
     MetricExplorerDateRange,
 } from '../types/metricsExplorer';
 import type { ResultRow } from '../types/results';
@@ -95,26 +94,27 @@ export const oneYearForward = (date: Date) =>
         .set('year', dayjs(date).get('year') + 1)
         .toDate();
 
-// Time grain Year: -> past 5 years (i.e. 5 completed years + this uncompleted year)
-// Time grain Month -> past 12 months (i.e. 12 completed months + this uncompleted month)
-// Time grain Week -> past 12 weeks (i.e. 12 completed weeks + this uncompleted week)
-// Time grain Day -> past 30 days (i.e. 30 completed days + this uncompleted day)
-const getGrainForDateRange = (
+// TODO: refine the time grain for each time frame
+//   Time grain Year: -> past 5 years (i.e. 5 completed years + this uncompleted year)
+//   Time grain Month -> past 12 months (i.e. 12 completed months + this uncompleted month)
+//   Time grain Week -> past 12 weeks (i.e. 12 completed weeks + this uncompleted week)
+//   Time grain Day -> past 30 days (i.e. 30 completed days + this uncompleted day)
+// above sample is taken from the spec but the implementation is different for practical reasons for visualization
+export const getGrainForDateRange = (
     dateRange: [Date, Date],
 ): ImpelemntedTimeframe => {
     const diff = dateRange[1].getTime() - dateRange[0].getTime();
     const days = diff / (1000 * 60 * 60 * 24);
 
-    if (days <= 31) {
+    if (days <= 31 * 3) {
         return TimeFrames.DAY;
     }
     if (days <= 7 * 12) {
         return TimeFrames.WEEK;
     }
-    if (days <= 366) {
+    if (days <= 31 * 12) {
         return TimeFrames.MONTH;
     }
-
     return TimeFrames.YEAR;
 };
 
@@ -154,6 +154,7 @@ export const getMetricExplorerDataPoints = (
     return Object.keys(groupByMetricRows).map((date) => ({
         date: new Date(date),
         metric: groupByMetricRows[date]?.[0]?.[metricId]?.value.raw ?? null,
+        compareMetric: null,
     }));
 };
 
@@ -163,7 +164,7 @@ export const getMetricExplorerDataPointsWithCompare = (
     metricRows: ResultRow[],
     compareMetricRows: ResultRow[],
     offsetFunction: (date: Date) => Date = oneYearForward,
-): Array<MetricExploreDataPointWithCompare> => {
+): Array<MetricExploreDataPoint> => {
     const dimensionId = getItemId(dimension);
     const metricId = getItemId(metric);
 

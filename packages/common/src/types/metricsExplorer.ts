@@ -15,8 +15,9 @@ export type MetricExplorerComparisonType =
     | { type: MetricExplorerComparison.PREVIOUS_PERIOD }
     | { type: MetricExplorerComparison.DIFFERENT_METRIC; metricName: string };
 
-export type MetricExploreDataPoint = { date: Date; metric: unknown };
-export type MetricExploreDataPointWithCompare = MetricExploreDataPoint & {
+export type MetricExploreDataPoint = {
+    date: Date;
+    metric: unknown;
     compareMetric: unknown;
 };
 
