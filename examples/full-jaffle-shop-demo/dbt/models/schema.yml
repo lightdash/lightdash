@@ -264,7 +264,7 @@ models:
         description: This is a unique identifier for a payment
         meta:
           metrics:
-            unique_payment_count_lol:
+            unique_payment_count:
               type: count_distinct
               description: count of all payments
       - name: order_id
