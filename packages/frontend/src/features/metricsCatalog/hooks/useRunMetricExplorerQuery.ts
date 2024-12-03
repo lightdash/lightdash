@@ -5,6 +5,7 @@ import {
     type ApiMetricsExplorerQueryResults,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
+    type TimeDimensionConfig,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -15,6 +16,7 @@ type RunMetricExplorerQueryArgs = {
     metricName: string;
     dateRange: MetricExplorerDateRange;
     comparison: MetricExplorerComparisonType;
+    timeDimensionOverride?: TimeDimensionConfig;
 };
 
 const getUrlParams = (
@@ -52,6 +54,7 @@ const postRunMetricExplorerQuery = async ({
     metricName,
     comparison,
     dateRange,
+    timeDimensionOverride,
 }: RunMetricExplorerQueryArgs) => {
     const queryString = getUrlParams(dateRange, comparison);
 
@@ -60,7 +63,11 @@ const postRunMetricExplorerQuery = async ({
             queryString ? `?${queryString}` : ''
         }`,
         method: 'POST',
-        body: undefined,
+        body: timeDimensionOverride
+            ? JSON.stringify({
+                  timeDimensionOverride,
+              })
+            : undefined,
     });
 };
 
@@ -70,6 +77,7 @@ export const useRunMetricExplorerQuery = ({
     metricName,
     comparison,
     dateRange,
+    timeDimensionOverride,
 }: Partial<RunMetricExplorerQueryArgs>) => {
     return useQuery<ApiMetricsExplorerQueryResults['results'], ApiError>({
         queryKey: [
@@ -80,6 +88,7 @@ export const useRunMetricExplorerQuery = ({
             dateRange?.[0],
             dateRange?.[1],
             comparison?.type,
+            timeDimensionOverride,
         ],
         queryFn: () =>
             postRunMetricExplorerQuery({
@@ -88,6 +97,7 @@ export const useRunMetricExplorerQuery = ({
                 metricName: metricName!,
                 comparison: comparison!,
                 dateRange: dateRange!,
+                timeDimensionOverride,
             }),
         enabled:
             !!projectUuid &&
