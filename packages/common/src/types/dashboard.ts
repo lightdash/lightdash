@@ -62,7 +62,7 @@ export type DashboardSqlChartTileProperties = {
         savedSqlUuid: string | null;
         chartName: string;
         hideTitle?: boolean;
-        chartSlug: string;
+        chartSlug?: string;
     };
 };
 
@@ -73,7 +73,7 @@ export type DashboardSemanticViewerChartTileProperties = {
         savedSemanticViewerChartUuid: string | null;
         chartName: string;
         hideTitle?: boolean;
-        chartSlug: string;
+        chartSlug?: string;
     };
 };
 
