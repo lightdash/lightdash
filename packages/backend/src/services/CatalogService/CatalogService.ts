@@ -10,6 +10,10 @@ import {
     CatalogTable,
     CatalogType,
     ChartSummary,
+    CompiledDimension,
+    CompiledMetric,
+    CompiledTable,
+    DimensionType,
     Explore,
     ExploreError,
     ForbiddenError,
@@ -17,6 +21,7 @@ import {
     InlineErrorType,
     isExploreError,
     MAX_METRICS_TREE_NODE_COUNT,
+    MetricWithAssociatedTimeDimension,
     NotFoundError,
     ParameterError,
     parseMetricsTreeNodeId,
@@ -24,6 +29,7 @@ import {
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
+    TimeFrames,
     UserAttributeValueMap,
     type ApiMetricsTreeEdgePayload,
     type ApiSort,
@@ -868,12 +874,61 @@ export class CatalogService<
         ]);
     }
 
+    private static getDefaultTimeDimension(
+        metric: CompiledMetric,
+        table?: CompiledTable,
+    ) {
+        // Priority 1: Use metric-level default time dimension if defined in yml
+        if (metric.defaultTimeDimension) {
+            return metric.defaultTimeDimension;
+        }
+
+        // Priority 2: Use model-level default time dimension if defined in yml
+        if (table?.defaultTimeDimension) {
+            return table.defaultTimeDimension;
+        }
+
+        // Priority 3: Use the only time dimension if there's exactly one
+        if (table?.dimensions) {
+            const timeDimensions = Object.values(table.dimensions).filter(
+                (dim) => dim.type === 'date' || dim.type === 'timestamp',
+            );
+            if (timeDimensions.length === 1) {
+                return {
+                    field: timeDimensions[0].name,
+                    interval: TimeFrames.MONTH, // TODO: Should this be dynamic?
+                };
+            }
+        }
+
+        return undefined;
+    }
+
+    private static getAvailableTimeDimensionsFromTables(
+        tables: Record<string, CompiledTable>,
+    ): (CompiledDimension & {
+        type: DimensionType.DATE | DimensionType.TIMESTAMP;
+    })[] {
+        return Object.values(tables).flatMap((table) =>
+            Object.values(table.dimensions).filter(
+                (
+                    dim,
+                ): dim is CompiledDimension & {
+                    type: DimensionType.DATE | DimensionType.TIMESTAMP;
+                } =>
+                    (dim.type === DimensionType.DATE ||
+                        dim.type === DimensionType.TIMESTAMP) &&
+                    !!dim.isIntervalBase,
+            ),
+        );
+    }
+
     async getMetric(
         user: SessionUser,
         projectUuid: string,
         tableName: string,
         metricName: string,
-    ) {
+    ): Promise<MetricWithAssociatedTimeDimension> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -902,22 +957,37 @@ export class CatalogService<
         }
 
         const filteredExplore = getFilteredExplore(explore, userAttributes);
-
-        const metric =
-            filteredExplore?.tables?.[tableName]?.metrics?.[metricName];
-
-        // Get the default time dimension from the metric, or the explore if not set on the metric
-        const defaultTimeDimension =
-            metric.defaultTimeDimension ??
-            filteredExplore?.tables?.[tableName]?.defaultTimeDimension;
+        const tables = filteredExplore?.tables;
+        const metric = tables?.[tableName]?.metrics?.[metricName];
+        const metricBaseTable = tables?.[metric?.table];
 
         if (!metric) {
             throw new NotFoundError('Metric not found');
         }
 
+        const defaultTimeDimension = CatalogService.getDefaultTimeDimension(
+            metric,
+            metricBaseTable,
+        );
+
+        let availableTimeDimensions:
+            | ReturnType<
+                  typeof CatalogService.getAvailableTimeDimensionsFromTables
+              >
+            | undefined;
+
+        // If no default time dimension is defined, we can use the available time dimensions so the user can see what time dimensions are available
+        if (!defaultTimeDimension) {
+            availableTimeDimensions =
+                CatalogService.getAvailableTimeDimensionsFromTables(tables);
+        }
+
         return {
             ...metric,
             defaultTimeDimension,
+            ...(availableTimeDimensions && availableTimeDimensions.length > 0
+                ? { availableTimeDimensions }
+                : {}),
         };
     }
 
