@@ -1,3 +1,10 @@
+# [0.1396.0](https://github.com/lightdash/lightdash/compare/0.1395.1...0.1396.0) (2024-12-03)
+
+
+### Features
+
+* add best effort migration of edges ([#12698](https://github.com/lightdash/lightdash/issues/12698)) ([b53960d](https://github.com/lightdash/lightdash/commit/b53960d80d3008ab77e7dbd9594260e78351ac7e))
+
 ## [0.1395.1](https://github.com/lightdash/lightdash/compare/0.1395.0...0.1395.1) (2024-12-03)
 
 

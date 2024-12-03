@@ -13,6 +13,7 @@ import {
     type CatalogFieldMap,
     type CatalogFieldWhere,
     type CatalogItem,
+    type CatalogItemSummary,
     type CatalogItemWithTagUuids,
     type CatalogMetricsTreeEdge,
     type CatalogMetricsTreeNode,
@@ -541,6 +542,24 @@ export class CatalogModel {
             .delete();
     }
 
+    async getCatalogItemsSummary(
+        projectUuid: string,
+    ): Promise<CatalogItemSummary[]> {
+        const catalogItems = await this.database(CatalogTableName)
+            .where(`${CatalogTableName}.project_uuid`, projectUuid)
+            .select('*');
+
+        return catalogItems.map<CatalogItemSummary>((i) => ({
+            catalogSearchUuid: i.catalog_search_uuid,
+            cachedExploreUuid: i.cached_explore_uuid,
+            projectUuid: i.project_uuid,
+            name: i.name,
+            type: i.type,
+            tableName: i.table_name,
+            fieldType: i.field_type,
+        }));
+    }
+
     async getCatalogItemsWithTags(
         projectUuid: string,
         opts?: { onlyTagged?: boolean },
@@ -618,7 +637,7 @@ export class CatalogModel {
             name: i.name,
             type: i.type,
             fieldType: i.field_type,
-            exploreBaseTable: i.table_name,
+            tableName: i.table_name,
             catalogTags: i.catalog_tag_uuids,
         }));
     }
@@ -672,7 +691,7 @@ export class CatalogModel {
             name: i.name,
             type: i.type,
             fieldType: i.field_type,
-            exploreBaseTable: i.table_name,
+            tableName: i.table_name,
             icon: i.icon,
         }));
     }
@@ -726,16 +745,34 @@ export class CatalogModel {
                     name: e.target_metric_name,
                     tableName: e.target_metric_table_name,
                 },
+                createdAt: e.created_at,
+                createdByUserUuid: e.created_by_user_uuid,
+                projectUuid: e.project_uuid,
             })),
         };
     }
 
-    async getMetricsTreeEdge(
-        metricsTreeEdge: Omit<DbMetricsTreeEdgeIn, 'created_by_user_uuid'>,
-    ) {
-        return this.database(MetricsTreeEdgesTableName)
-            .where(metricsTreeEdge)
-            .first();
+    async getAllMetricsTreeEdges(
+        projectUuid: string,
+    ): Promise<CatalogMetricsTreeEdge[]> {
+        const edges = await this.database(MetricsTreeEdgesTableName).where(
+            'project_uuid',
+            projectUuid,
+        );
+
+        return edges.map((e) => ({
+            source: {
+                name: e.source_metric_name,
+                tableName: e.source_metric_table_name,
+            },
+            target: {
+                name: e.target_metric_name,
+                tableName: e.target_metric_table_name,
+            },
+            createdAt: e.created_at,
+            createdByUserUuid: e.created_by_user_uuid,
+            projectUuid: e.project_uuid,
+        }));
     }
 
     async createMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdgeIn) {
@@ -746,5 +783,14 @@ export class CatalogModel {
         return this.database(MetricsTreeEdgesTableName)
             .where(metricsTreeEdge)
             .delete();
+    }
+
+    async migrateMetricsTreeEdges(
+        metricTreeEdgesMigrateIn: DbMetricsTreeEdgeIn[],
+    ) {
+        return this.database.batchInsert(
+            MetricsTreeEdgesTableName,
+            metricTreeEdgesMigrateIn,
+        );
     }
 }
