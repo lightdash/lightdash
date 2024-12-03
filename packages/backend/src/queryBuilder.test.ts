@@ -993,7 +993,7 @@ describe('Time frame sorting', () => {
 });
 
 describe('applyLimitToSqlQuery', () => {
-    // strip out formatting so we just test content
+    // strip out white space formatting so we just test content
     const normalizeSQL = (sql: string) => sql.replace(/\s+/g, ' ').trim();
 
     it('should return the original query if limit is undefined', () => {
@@ -1056,10 +1056,9 @@ describe('applyLimitToSqlQuery', () => {
         `;
         const limit = 20;
 
-        const expectedQuery = `WITH user_sql AS (\n            WITH subquery AS (\n                SELECT * FROM orders\n            )\n            SELECT * FROM subquery\n        ) select * from user_sql limit ${limit}`;
+        const expectedQuery = `WITH user_sql AS (\n        WITH subquery AS (\n            SELECT * FROM orders\n        )\n        SELECT * FROM subquery\n    ) select * from user_sql limit ${limit}`;
 
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
-        console.log(result);
 
         expect(normalizeSQL(result)).toBe(normalizeSQL(expectedQuery));
     });
@@ -1070,7 +1069,10 @@ describe('applyLimitToSqlQuery', () => {
         `;
         const limit = 10;
 
-        const expectedQuery = `WITH user_sql AS (\n${sqlQuery.trim()}\n) select * from user_sql limit ${limit}`;
+        // adjust the expected query to exclude the semicolon
+        const expectedQuery = `WITH user_sql AS (\n${sqlQuery
+            .trim()
+            .replace(/;$/, '')}\n) select * from user_sql limit ${limit}`;
 
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
@@ -1085,7 +1087,7 @@ describe('applyLimitToSqlQuery', () => {
         `;
         const limit = 5;
 
-        const expectedQuery = `WITH user_sql AS (\n            SELECT * FROM users\n        ) select * from user_sql limit ${limit}`;
+        const expectedQuery = `WITH user_sql AS (\n        SELECT * FROM users\n    ) select * from user_sql limit ${limit}`;
 
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
@@ -1098,7 +1100,7 @@ describe('applyLimitToSqlQuery', () => {
         `;
         const limit = 20;
 
-        const expectedQuery = `WITH user_sql AS (\n            SELECT * FROM users\n        ) select * from user_sql limit ${limit}`;
+        const expectedQuery = `WITH user_sql AS (\n        SELECT * FROM users\n    ) select * from user_sql limit ${limit}`;
 
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
@@ -1111,7 +1113,10 @@ describe('applyLimitToSqlQuery', () => {
         `;
         const limit = 10;
 
-        const expectedQuery = `WITH user_sql AS (\n${sqlQuery.trim()}\n) select * from user_sql limit ${limit}`;
+        // Adjust the expected query to exclude the semicolon
+        const expectedQuery = `WITH user_sql AS (\n${sqlQuery
+            .trim()
+            .replace(/;$/, '')}\n) select * from user_sql limit ${limit}`;
 
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
@@ -1125,8 +1130,20 @@ describe('applyLimitToSqlQuery', () => {
         `;
         const limit = 15;
 
-        // Since comments are removed, adjust the expected query
+        // since comments and semicolons are removed, adjust the expected query
         const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(normalizeSQL(result)).toBe(normalizeSQL(expectedQuery));
+    });
+
+    it('should not remove semicolons inside strings', () => {
+        const sqlQuery = `SELECT * FROM users WHERE name = 'John;Doe';`;
+        const limit = 10;
+
+        // sdjust the expected query to exclude the semicolon at the end
+        const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users WHERE name = 'John;Doe'\n) select * from user_sql limit ${limit}`;
 
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 

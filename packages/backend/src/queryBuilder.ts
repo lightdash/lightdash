@@ -319,8 +319,10 @@ const removeCommentsAndLimits = (sql: string): string => {
     // remove LIMIT clauses without removing preceding whitespace
     const limitClauseRegex = /(\bLIMIT\b\s+\d+(\s+OFFSET\s+\d+)?\s*;?)/gi;
     const sqlWithoutLimits = sqlWithoutStrings.replace(limitClauseRegex, ' ');
+    // remove semicolons outside of strings
+    const sqlWithoutSemicolons = sqlWithoutLimits.replace(/;/g, '');
     // restore strings
-    const sqlRestored = sqlWithoutLimits.replace(
+    const sqlRestored = sqlWithoutSemicolons.replace(
         /__STRING_PLACEHOLDER_(\d+)__/g,
         (_, p1) => placeholders[Number(p1)],
     );
