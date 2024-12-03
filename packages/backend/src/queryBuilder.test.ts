@@ -1125,19 +1125,6 @@ describe('applyLimitToSqlQuery', () => {
         expect(result).toBe(expectedQuery);
     });
 
-    it('should handle queries with LIMIT and OFFSET', () => {
-        const sqlQuery = `
-            SELECT * FROM users LIMIT 20 OFFSET 5;
-        `;
-        const limit = 10;
-
-        const result = applyLimitToSqlQuery({ sqlQuery, limit });
-
-        const expectedQuery = 'SELECT * FROM users LIMIT 10';
-
-        expect(result).toBe(expectedQuery);
-    });
-
     it('should handle queries with LIMIT in strings', () => {
         const sqlQuery = `
             SELECT * FROM users WHERE name = 'LIMIT 10';
@@ -1189,6 +1176,119 @@ describe('applyLimitToSqlQuery', () => {
 
         const expectedQuery =
             'WITH subquery AS ( SELECT * FROM orders LIMIT 10 ) SELECT * FROM subquery LIMIT 15';
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should handle queries with LIMIT and OFFSET', () => {
+        const sqlQuery = `
+            SELECT * FROM users LIMIT 20 OFFSET 5;
+        `;
+        const limit = 10;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery = 'SELECT * FROM users LIMIT 10 OFFSET 5';
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should handle queries with OFFSET without a LIMIT', () => {
+        const sqlQuery = `
+            SELECT * FROM users OFFSET 10;
+        `;
+        const limit = 10;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery = 'SELECT * FROM users OFFSET 10 LIMIT 10';
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should adjust the LIMIT but retain the original OFFSET', () => {
+        const sqlQuery = `
+            SELECT * FROM users LIMIT 15 OFFSET 5;
+        `;
+        const limit = 10;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery = 'SELECT * FROM users LIMIT 10 OFFSET 5';
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should retain OFFSET when no LIMIT is provided', () => {
+        const sqlQuery = `
+            SELECT * FROM users OFFSET 20;
+        `;
+        const limit = undefined;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery = 'SELECT * FROM users OFFSET 20';
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should handle queries with OFFSET in subqueries', () => {
+        const sqlQuery = `
+            WITH subquery AS (
+                SELECT * FROM orders OFFSET 5
+            )
+            SELECT * FROM subquery LIMIT 20 OFFSET 10;
+        `;
+        const limit = 15;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery =
+            'WITH subquery AS ( SELECT * FROM orders OFFSET 5 ) SELECT * FROM subquery LIMIT 15 OFFSET 10';
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should handle queries with both LIMIT and OFFSET in strings', () => {
+        const sqlQuery = `
+            SELECT * FROM users WHERE name = 'LIMIT 10 OFFSET 5';
+        `;
+        const limit = 10;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery = `SELECT * FROM users WHERE name = 'LIMIT 10 OFFSET 5' LIMIT 10`;
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should correctly handle OFFSET when LIMIT and OFFSET are in comments', () => {
+        const sqlQuery = `
+            -- This is a comment with LIMIT 10 OFFSET 5
+            SELECT * FROM users; /* Another comment LIMIT 20 OFFSET 10 */
+        `;
+        const limit = 15;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery = 'SELECT * FROM users LIMIT 15';
+
+        expect(result).toBe(expectedQuery);
+    });
+
+    it('should strip semicolons and correctly handle LIMIT and OFFSET in subqueries', () => {
+        const sqlQuery = `
+            WITH subquery AS (
+                SELECT * FROM orders LIMIT 10 OFFSET 5;
+            )
+            SELECT * FROM subquery LIMIT 25 OFFSET 10;
+        `;
+        const limit = 20;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        const expectedQuery =
+            'WITH subquery AS ( SELECT * FROM orders LIMIT 10 OFFSET 5 ) SELECT * FROM subquery LIMIT 20 OFFSET 10';
 
         expect(result).toBe(expectedQuery);
     });

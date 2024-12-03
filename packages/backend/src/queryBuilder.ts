@@ -298,7 +298,6 @@ export const sortDayOfWeekName = (
         END
     )${descending ? ' DESC' : ''}`;
 };
-
 // Remove comments and limit clauses from SQL
 const removeComments = (sql: string): string => {
     let s = sql.trim();
@@ -334,37 +333,56 @@ const restoreStringsFromPlaceholders = (
         (_, p1) => placeholders[Number(p1)],
     );
 
-// Extract the outer limit clause from a SQL query
-const extractOuterLimitFromSQL = (sql: string): number | undefined => {
+interface LimitOffsetClause {
+    limit: number;
+    offset?: number;
+}
+
+// Extract the outer limit and offset clauses from a SQL query
+const extractOuterLimitOffsetFromSQL = (
+    sql: string,
+): LimitOffsetClause | undefined => {
     let s = sql.trim();
     // remove comments
     s = removeComments(s);
     // replace strings with placeholders
     const { sqlWithoutStrings } = replaceStringsWithPlaceholders(s);
-    // search for limit clauses
-    const limitClauseRegex =
-        /\blimit\b\s+(\d+)(?:\s+offset\s+\d+)?\s*(?:;|\s*$)/gi;
-    const matches = [...sqlWithoutStrings.matchAll(limitClauseRegex)];
+    // match both LIMIT and optional OFFSET in any order
+    const limitOffsetRegex =
+        /\b(?:(?:limit\s+(\d+)(?:\s+offset\s+(\d+))?)|(?:offset\s+(\d+)\s+limit\s+(\d+)))\s*(?:;|\s*$)/gi;
+    const matches = [...sqlWithoutStrings.matchAll(limitOffsetRegex)];
     if (matches.length > 0) {
         const lastMatch = matches[matches.length - 1];
-        const limitNum = parseInt(lastMatch[1], 10);
-        return limitNum;
+        // If LIMIT comes first
+        if (lastMatch[1] !== undefined) {
+            return {
+                limit: parseInt(lastMatch[1], 10),
+                offset: lastMatch[2] ? parseInt(lastMatch[2], 10) : undefined,
+            };
+        }
+        // If OFFSET comes first
+        if (lastMatch[3] !== undefined) {
+            return {
+                limit: parseInt(lastMatch[4], 10),
+                offset: parseInt(lastMatch[3], 10),
+            };
+        }
     }
     return undefined;
 };
 
-// Remove the outermost limit clause from SQL
-const removeCommentsAndOuterLimit = (sql: string): string => {
+// Remove the outermost limit and offset clauses from SQL
+const removeCommentsAndOuterLimitOffset = (sql: string): string => {
     let s = sql.trim();
     // remove comments
     s = removeComments(s);
     // replace strings with placeholders
     const { sqlWithoutStrings, placeholders } =
         replaceStringsWithPlaceholders(s);
-    // remove only the outermost limit clause
-    const limitClauseRegex =
-        /(\blimit\b\s+\d+(\s+offset\s+\d+)?\s*(?:;|\s*)?)$/i;
-    let sqlWithoutLimit = sqlWithoutStrings.replace(limitClauseRegex, '');
+    // remove either "LIMIT x OFFSET y" or "OFFSET y LIMIT x" at the end of the query
+    const limitOffsetRegex =
+        /(\b(?:(?:limit\s+\d+(?:\s+offset\s+\d+)?)|(?:offset\s+\d+\s+limit\s+\d+))\s*(?:;|\s*)?)$/i;
+    let sqlWithoutLimit = sqlWithoutStrings.replace(limitOffsetRegex, '');
     // remove all semicolons
     sqlWithoutLimit = sqlWithoutLimit.replace(/;/g, '');
     // restore strings
@@ -379,7 +397,7 @@ const removeCommentsAndOuterLimit = (sql: string): string => {
     return sqlRestored;
 };
 
-// Apply a limit to a SQL query if the existing limit is less than the provided limit
+// Apply a limit (and optional offset) to a SQL query
 export const applyLimitToSqlQuery = ({
     sqlQuery,
     limit,
@@ -388,16 +406,28 @@ export const applyLimitToSqlQuery = ({
     limit: number | undefined;
 }): string => {
     // do nothing if limit is undefined
-    if (limit === undefined) return sqlQuery;
-    // get any existing outer limit from the SQL query
-    const existingLimit = extractOuterLimitFromSQL(sqlQuery);
-    // append the limit if there is no existing limit or the existing limit is less than the provided limit
+    if (limit === undefined) {
+        // strip any trailing semicolons and comments
+        let sql = sqlQuery.replace(/;+\s*$/g, '').trim();
+        sql = removeComments(sql);
+        return sql.trim();
+    }
+    // get any existing outer limit and offset from the SQL query
+    const existingLimitOffset = extractOuterLimitOffsetFromSQL(sqlQuery);
+    // calculate the new limit
     const limitToAppend =
-        existingLimit !== undefined ? Math.min(existingLimit, limit) : limit;
-    // remove comments and limit clauses from the SQL query
-    const sqlWithoutCommentsAndLimits = removeCommentsAndOuterLimit(sqlQuery);
-    // append the limit to the SQL query
-    return `${sqlWithoutCommentsAndLimits} LIMIT ${limitToAppend}`;
+        existingLimitOffset?.limit !== undefined
+            ? Math.min(existingLimitOffset.limit, limit)
+            : limit;
+    // remove comments and limit/offset clauses from the SQL query
+    const sqlWithoutCommentsAndLimits =
+        removeCommentsAndOuterLimitOffset(sqlQuery);
+    // append the limit and offset (if any) to the SQL query
+    let result = `${sqlWithoutCommentsAndLimits} LIMIT ${limitToAppend}`;
+    if (existingLimitOffset?.offset !== undefined) {
+        result += ` OFFSET ${existingLimitOffset.offset}`;
+    }
+    return result;
 };
 
 export const getCustomSqlDimensionSql = ({
