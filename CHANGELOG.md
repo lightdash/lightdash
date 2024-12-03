@@ -1,3 +1,10 @@
+# [0.1394.0](https://github.com/lightdash/lightdash/compare/0.1393.0...0.1394.0) (2024-12-03)
+
+
+### Features
+
+* metric trees frontend save edges ([#12643](https://github.com/lightdash/lightdash/issues/12643)) ([7d00b47](https://github.com/lightdash/lightdash/commit/7d00b47df05d9ff2afda616dc9c54bea89dee673))
+
 # [0.1393.0](https://github.com/lightdash/lightdash/compare/0.1392.0...0.1393.0) (2024-12-03)
 
 
