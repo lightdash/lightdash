@@ -14,7 +14,7 @@ import type {
     MetricExplorerDateRange,
 } from '../types/metricsExplorer';
 import type { ResultRow } from '../types/results';
-import { TimeFrames } from '../types/timeFrames';
+import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { getItemId } from './item';
 
@@ -234,4 +234,28 @@ export const getDefaultDateRangeFromInterval = (
         default:
             return assertUnimplementedTimeframe(timeInterval);
     }
+};
+
+/**
+ * Default time interval to use when no time interval is provided.
+ * For example, when there is no default time dimension defined for a metric or table.
+ */
+export const DEFAULT_METRICS_EXPLORER_TIME_INTERVAL = TimeFrames.MONTH;
+
+export type TimeDimensionConfig = DefaultTimeDimension & { table: string };
+
+export const getFirstAvailableTimeDimension = (
+    metric: MetricWithAssociatedTimeDimension,
+): TimeDimensionConfig | undefined => {
+    if (
+        metric.availableTimeDimensions &&
+        metric.availableTimeDimensions.length > 0
+    ) {
+        return {
+            table: metric.availableTimeDimensions[0].table,
+            field: metric.availableTimeDimensions[0].name,
+            interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+        };
+    }
+    return undefined;
 };

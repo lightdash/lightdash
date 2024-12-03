@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
+    CompiledMetric,
     ForbiddenError,
     getFieldIdForDateDimension,
     getGrainForDateRange,
@@ -66,6 +67,7 @@ export class MetricsExplorerService<
         metricName: string,
         dateRange: MetricExplorerDateRange,
         compare: MetricExplorerComparisonType | undefined,
+        timeDimensionOverride: TimeDimensionConfig | undefined,
     ): Promise<MetricsExplorerQueryResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -88,20 +90,25 @@ export class MetricsExplorerService<
         );
 
         const { defaultTimeDimension } = metric;
-        if (!defaultTimeDimension) {
+
+        const timeDimensionConfig =
+            timeDimensionOverride ??
+            MetricsExplorerService.getTimeDimensionConfig(metric);
+
+        if (!timeDimensionConfig) {
             throw new Error(
-                `Metric ${metricName} does not have a default time dimension`,
+                `Metric ${metricName} does not have a valid time dimension`,
             );
         }
 
         const dimensionGrain = dateRange
             ? getGrainForDateRange(dateRange)
-            : defaultTimeDimension.interval;
+            : timeDimensionConfig.interval;
 
         const timeDimension = getItemId({
-            table: metric.table,
+            table: timeDimensionConfig.table,
             name: getFieldIdForDateDimension(
-                defaultTimeDimension.field,
+                timeDimensionConfig.field,
                 dimensionGrain,
             ),
         });
@@ -114,8 +121,8 @@ export class MetricsExplorerService<
                 dimensions: {
                     id: uuidv4(),
                     and: getMetricExplorerDateRangeFilters(
-                        exploreName,
-                        defaultTimeDimension.field,
+                        timeDimensionConfig.table,
+                        timeDimensionConfig.field,
                         dateRange,
                     ),
                 },
@@ -158,8 +165,8 @@ export class MetricsExplorerService<
                             dimensions: {
                                 id: uuidv4(),
                                 and: getMetricExplorerDateRangeFilters(
-                                    exploreName,
-                                    defaultTimeDimension.field,
+                                    timeDimensionConfig.table,
+                                    timeDimensionConfig.field,
                                     previousDateRange,
                                 ),
                             },
@@ -196,6 +203,38 @@ export class MetricsExplorerService<
             rows: currentResults,
             comparisonRows: comparisonResults,
             fields: allFields,
+        };
+    }
+
+    /**
+     * Helper method to determine the correct time dimension configuration
+     * It covers the case where the metric has a default time dimension
+     * and the case where the metric has available time dimensions (could be multiple and from different tables that are joined)
+     */
+    private static getTimeDimensionConfig(
+        metric: CompiledMetric,
+    ): TimeDimensionConfig | undefined {
+        if (metric.defaultTimeDimension) {
+            // Use the metric's table when default time dimension is specified
+            return {
+                table: metric.table,
+                field: metric.defaultTimeDimension.field,
+                interval: metric.defaultTimeDimension.interval,
+            };
+        }
+
+        // Fall back to the first available time dimension
+        const firstAvailableTimeDimension =
+            getFirstAvailableTimeDimension(metric);
+        if (!firstAvailableTimeDimension) {
+            return undefined;
+        }
+
+        // Use the dimension's own table in case it's joined
+        return {
+            table: firstAvailableTimeDimension.table,
+            field: firstAvailableTimeDimension.field,
+            interval: firstAvailableTimeDimension.interval,
         };
     }
 }
