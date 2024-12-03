@@ -4,8 +4,13 @@ import {
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
+    DashboardChartTileProperties,
     DashboardDAO,
+    DashboardTile,
+    DashboardTileTypes,
+    DashboardTileWithoutUuids,
     ForbiddenError,
+    friendlyName,
     NotFoundError,
     PromotedChart,
     PromotionAction,
@@ -113,11 +118,33 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Space ${dashboard.spaceUuid} not found`);
         }
 
+        const tilesWithoutUuids: DashboardTileWithoutUuids[] =
+            dashboard.tiles.map((tile) => {
+                const tileWithoutUuid: DashboardTileWithoutUuids = {
+                    ...tile,
+                    properties: { ...tile.properties },
+                };
+
+                if ('savedChartUuid' in tileWithoutUuid.properties) {
+                    delete tileWithoutUuid.properties.savedChartUuid;
+                }
+                if ('savedSqlUuid' in tileWithoutUuid.properties) {
+                    delete tileWithoutUuid.properties.savedSqlUuid;
+                }
+                if (
+                    'savedSemanticViewerChartUuid' in tileWithoutUuid.properties
+                ) {
+                    delete tileWithoutUuid.properties
+                        .savedSemanticViewerChartUuid;
+                }
+                return tileWithoutUuid;
+            });
+
         return {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.updatedAt,
-            tiles: dashboard.tiles,
+            tiles: tilesWithoutUuids,
             filters: dashboard.filters,
             tabs: dashboard.tabs,
             slug: dashboard.slug,
@@ -126,6 +153,51 @@ export class CoderService extends BaseService {
             version: currentVersion,
             downloadedAt: new Date(),
         };
+    }
+
+    async convertTileWithSlugsToUuids(
+        projectUuid: string,
+        tiles: DashboardTileWithoutUuids[],
+    ): Promise<DashboardTile[]> {
+        const isChartTile = (
+            tile: DashboardTileWithoutUuids,
+        ): tile is DashboardTileWithoutUuids & {
+            properties: { chartSlug: string };
+        } =>
+            tile.type === DashboardTileTypes.SAVED_CHART ||
+            tile.type === DashboardTileTypes.SQL_CHART ||
+            tile.type === DashboardTileTypes.SEMANTIC_VIEWER_CHART;
+
+        const chartSlugs: string[] = tiles.reduce<string[]>(
+            (acc, tile) =>
+                isChartTile(tile) ? [...acc, tile.properties.chartSlug] : acc,
+            [],
+        );
+        const charts = await this.savedChartModel.find({
+            slugs: chartSlugs,
+            projectUuid,
+        });
+
+        return tiles.map((tile) => {
+            if (isChartTile(tile)) {
+                const savedChart = charts.find(
+                    (chart) => chart.slug === tile.properties.chartSlug,
+                );
+                if (!savedChart) {
+                    throw new NotFoundError(
+                        `Chart with slug ${tile.properties.chartSlug} not found`,
+                    );
+                }
+                return {
+                    ...tile,
+                    properties: {
+                        ...tile.properties,
+                        savedChartUuid: savedChart.uuid,
+                    },
+                } as DashboardTile;
+            }
+            return tile as DashboardTile;
+        });
     }
 
     async getDashboards(user: SessionUser, projectUuid: string) {
@@ -242,10 +314,12 @@ export class CoderService extends BaseService {
             const createChart: CreateSavedChart & {
                 updatedByUser: UpdatedByUser;
                 slug: string;
+                forceSlug: boolean;
             } = {
                 ...chartAsCode,
                 dashboardUuid: undefined, // TODO for charts within dashboards, we need to create the dashboard first, use promotion for that
                 updatedByUser: user,
+                forceSlug: true, // do not generate a new unique slug, use the one from chart as code , at this point we know it is going to be unique on this project
             };
 
             const newChart = await this.savedChartModel.create(
@@ -343,22 +417,36 @@ export class CoderService extends BaseService {
         // If chart does not exist, we can't use promoteService,
         // since it relies on information it is not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
-            const space = await this.spaceModel.find({
-                slug: dashboardAsCode.spaceSlug,
-                projectUuid,
-            });
+            let [space]: Pick<SpaceSummary, 'uuid'>[] =
+                await this.spaceModel.find({
+                    slug: dashboardAsCode.spaceSlug,
+                    projectUuid,
+                });
 
-            // TODO upsert space if does not exist using promote service
             if (!space) {
-                throw new NotFoundError(
-                    `Space ${dashboardAsCode.spaceSlug} not found`,
+                console.info(
+                    `Creating new public space with slug ${dashboardAsCode.spaceSlug}`,
+                );
+                space = await this.spaceModel.createSpace(
+                    projectUuid,
+                    friendlyName(dashboardAsCode.spaceSlug),
+                    user.userId,
+                    false,
+                    dashboardAsCode.spaceSlug,
+                    true, // forceSameSlug
                 );
             }
 
+            const tilesWithUuids = await this.convertTileWithSlugsToUuids(
+                projectUuid,
+                dashboardAsCode.tiles,
+            );
             const newDashboard = await this.dashboardModel.create(
-                space[0].uuid,
+                space.uuid,
                 {
                     ...dashboardAsCode,
+                    tiles: tilesWithUuids,
+                    forceSlug: true,
                 },
                 user,
                 projectUuid,
@@ -388,18 +476,25 @@ export class CoderService extends BaseService {
             `Updating dashboard "${dashboard.name}" on project ${projectUuid}`,
         );
 
+        const tilesWithUuids = await this.convertTileWithSlugsToUuids(
+            projectUuid,
+            dashboardAsCode.tiles,
+        );
+        const dashboardWithUuids = {
+            ...dashboardAsCode,
+            tiles: tilesWithUuids,
+        };
         const { promotedDashboard, upstreamDashboard } =
             await this.promoteService.getPromotedDashboard(
                 user,
                 {
                     ...dashboard,
-                    ...dashboardAsCode,
+                    ...dashboardWithUuids,
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                 },
                 projectUuid, // We use the same projectUuid for both promoted and upstream
             );
-
         PromoteService.checkPromoteDashboardPermissions(
             user,
             promotedDashboard,

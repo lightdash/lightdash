@@ -20,6 +20,7 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 const DOWNLOAD_FOLDER = 'lightdash';
 export type DownloadHandlerOptions = {
     verbose: boolean;
+    force: boolean;
 };
 
 const dumpIntoFiles = async (
@@ -164,10 +165,16 @@ const storeUploadChanges = (
 
     const updatedChanges: Record<string, number> = {
         ...changes,
-        ...getPromoteChanges('spaces'),
-        ...getPromoteChanges('charts'),
-        ...getPromoteChanges('dashboards'),
     };
+
+    ['spaces', 'charts', 'dashboards'].forEach((resource) => {
+        const resourceChanges = getPromoteChanges(
+            resource as 'spaces' | 'charts' | 'dashboards',
+        );
+        Object.entries(resourceChanges).forEach(([key, value]) => {
+            updatedChanges[key] = (updatedChanges[key] ?? 0) + value;
+        });
+    });
 
     return updatedChanges;
 };
@@ -181,6 +188,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     type: 'charts' | 'dashboards',
     projectId: string,
     changes: Record<string, number>,
+    force: boolean,
 ) => {
     const items = await readCodeFiles<T>(type);
 
@@ -188,7 +196,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     for (const item of items) {
         // If a chart fails to update, we keep updating the rest
         try {
-            if (!item.needsUpdating) {
+            if (!force && !item.needsUpdating) {
                 GlobalState.debug(
                     `Skipping ${type} "${item.slug}" with no local changes`,
                 );
@@ -225,7 +233,6 @@ export const uploadHandler = async (
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
-
     const config = await getConfig();
     if (!config.context?.apiKey || !config.context.serverUrl) {
         throw new AuthorizationError(
@@ -242,11 +249,17 @@ export const uploadHandler = async (
 
     let changes: Record<string, number> = {};
 
-    changes = await upsertResources<ChartAsCode>('charts', projectId, changes);
+    changes = await upsertResources<ChartAsCode>(
+        'charts',
+        projectId,
+        changes,
+        options.force,
+    );
     changes = await upsertResources<DashboardAsCode>(
         'dashboards',
         projectId,
         changes,
+        options.force,
     );
 
     logUploadChanges(changes);

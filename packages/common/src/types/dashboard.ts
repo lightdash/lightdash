@@ -51,6 +51,7 @@ export type DashboardChartTileProperties = {
         belongsToDashboard?: boolean; // this should be required and not part of the "create" types, but we need to fix tech debt first. Open ticket https://github.com/lightdash/lightdash/issues/6450
         chartName?: string | null;
         lastVersionChartKind?: ChartKind | null;
+        chartSlug: string;
     };
 };
 
@@ -61,6 +62,7 @@ export type DashboardSqlChartTileProperties = {
         savedSqlUuid: string | null;
         chartName: string;
         hideTitle?: boolean;
+        chartSlug: string;
     };
 };
 
@@ -71,6 +73,7 @@ export type DashboardSemanticViewerChartTileProperties = {
         savedSemanticViewerChartUuid: string | null;
         chartName: string;
         hideTitle?: boolean;
+        chartSlug: string;
     };
 };
 

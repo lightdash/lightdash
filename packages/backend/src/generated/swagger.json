@@ -1181,6 +1181,9 @@
                 "properties": {
                     "properties": {
                         "properties": {
+                            "chartSlug": {
+                                "type": "string"
+                            },
                             "lastVersionChartKind": {
                                 "allOf": [
                                     {
@@ -1207,7 +1210,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["savedChartUuid"],
+                        "required": ["chartSlug", "savedChartUuid"],
                         "type": "object"
                     },
                     "type": {

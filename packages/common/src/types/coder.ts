@@ -1,4 +1,9 @@
-import type { Dashboard, PromotionChanges, SavedChart } from '..';
+import type {
+    Dashboard,
+    DashboardTile,
+    PromotionChanges,
+    SavedChart,
+} from '..';
 
 export const currentVersion = 1;
 // We want to only use properties that can be modified by the user
@@ -31,10 +36,18 @@ export type ApiChartAsCodeUpsertResponse = {
     results: PromotionChanges;
 };
 
+export type DashboardTileWithoutUuids = Omit<DashboardTile, 'properties'> & {
+    properties: Omit<
+        DashboardTile['properties'],
+        'savedChartUuid' | 'savedSqlUuid' | 'savedSemanticViewerChartUuid'
+    >;
+};
+
 export type DashboardAsCode = Pick<
     Dashboard,
-    'name' | 'description' | 'updatedAt' | 'tiles' | 'filters' | 'tabs' | 'slug'
+    'name' | 'description' | 'updatedAt' | 'filters' | 'tabs' | 'slug'
 > & {
+    tiles: DashboardTileWithoutUuids[];
     version: number;
     spaceSlug: string;
     downloadedAt?: Date;
