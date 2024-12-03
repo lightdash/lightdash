@@ -3,6 +3,7 @@ import {
     CustomDimensionType,
     DateGranularity,
     getDefaultDateRangeFromInterval,
+    getFieldIdForDateDimension,
     getItemId,
     getMetricExplorerDateRangeFilters,
     isCartesianChartConfig,
@@ -80,7 +81,6 @@ export const createMetricPreviewUnsavedChartVersion = (
             exploreName: metric.table,
             dimensions: defaultTimeDimension
                 ? [
-                      [
                       getItemId({
                           table: metric.table,
                           name: getFieldIdForDateDimension(
@@ -88,7 +88,6 @@ export const createMetricPreviewUnsavedChartVersion = (
                               defaultTimeDimension.interval,
                           ),
                       }),
-                  ]
                   ]
                 : [],
             metrics: [
