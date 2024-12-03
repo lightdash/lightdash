@@ -1,3 +1,17 @@
+## [0.1396.2](https://github.com/lightdash/lightdash/compare/0.1396.1...0.1396.2) (2024-12-03)
+
+
+### Bug Fixes
+
+* **dashboards:** autocomplete for joined tables using alias ([#12688](https://github.com/lightdash/lightdash/issues/12688)) ([d33ad35](https://github.com/lightdash/lightdash/commit/d33ad3571c15c6b973d7955a64d0886dd74f5ed0))
+
+## [0.1396.1](https://github.com/lightdash/lightdash/compare/0.1396.0...0.1396.1) (2024-12-03)
+
+
+### Bug Fixes
+
+* saved chart with null timezone ([#12696](https://github.com/lightdash/lightdash/issues/12696)) ([815804b](https://github.com/lightdash/lightdash/commit/815804b69b1ecdd1fbe79eceb8422424435be02a))
+
 # [0.1396.0](https://github.com/lightdash/lightdash/compare/0.1395.1...0.1396.0) (2024-12-03)
 
 

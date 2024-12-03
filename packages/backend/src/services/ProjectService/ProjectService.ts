@@ -2464,7 +2464,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         table: string,
-        fieldId: string,
+        initialFieldId: string,
         search: string,
         limit: number,
         filters: AndFilterGroup | undefined,
@@ -2488,13 +2488,26 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const explore = await this.projectModel.findExploreByTableName(
+        let explore = await this.projectModel.findExploreByTableName(
             projectUuid,
             table,
         );
+        let fieldId = initialFieldId;
+        if (!explore) {
+            // fallback: find explore by join alias and replace fieldId
+            explore = await this.projectModel.findJoinAliasExplore(
+                projectUuid,
+                table,
+            );
+            if (explore && !isExploreError(explore)) {
+                fieldId = initialFieldId.replace(table, explore.baseTable);
+            }
+        }
 
-        if (!explore || isExploreError(explore)) {
-            throw new NotExistsError(`Explore does not exist or has errors`);
+        if (!explore) {
+            throw new NotExistsError(`Explore ${table} does not exist`);
+        } else if (isExploreError(explore)) {
+            throw new NotExistsError(`Explore ${table} has errors`);
         }
 
         const field = findFieldByIdInExplore(explore, fieldId);
@@ -2522,7 +2535,10 @@ export class ProjectService extends BaseService {
             const filtersCompatibleWithExplore = filters.and.filter(
                 (filter) =>
                     isFilterRule(filter) &&
-                    findFieldByIdInExplore(explore, filter.target.fieldId),
+                    findFieldByIdInExplore(
+                        explore as Explore,
+                        filter.target.fieldId,
+                    ),
             );
             autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
         }
