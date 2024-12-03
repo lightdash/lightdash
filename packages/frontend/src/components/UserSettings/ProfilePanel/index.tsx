@@ -61,7 +61,9 @@ const ProfilePanel: FC = () => {
     }, [userData]);
 
     const isEmailServerConfigured = health.data?.hasEmailClient;
-    const { data, isInitialLoading: statusLoading } = useEmailStatus();
+    const { data, isInitialLoading: statusLoading } = useEmailStatus(
+        !!health.data?.isAuthenticated,
+    );
     const {
         mutate: sendVerificationEmail,
         error: sendVerificationEmailError,
