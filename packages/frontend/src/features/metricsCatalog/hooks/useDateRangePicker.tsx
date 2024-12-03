@@ -1,4 +1,5 @@
 import {
+    DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
     getDefaultDateRangeFromInterval,
     type ApiGetMetricPeek,
     type MetricExplorerDateRange,
@@ -34,9 +35,10 @@ export const useDateRangePicker = ({
     const [isOpen, setIsOpen] = useState(false);
 
     const [dateRange, setDateRange] = useState<DateRange>(
-        defaultTimeDimension?.interval
-            ? getDefaultDateRangeFromInterval(defaultTimeDimension.interval)
-            : [null, null],
+        getDefaultDateRangeFromInterval(
+            defaultTimeDimension?.interval ??
+                DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+        ),
     );
     const [tempDateRange, setTempDateRange] = useState<DateRange>(dateRange);
 
