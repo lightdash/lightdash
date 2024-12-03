@@ -27,7 +27,7 @@ const verifyOTPQuery = async (code: string) => {
     });
 };
 
-export const useEmailStatus = (enabled = true) =>
+export const useEmailStatus = (enabled: boolean) =>
     useQuery<EmailStatusExpiring, ApiError>({
         queryKey: ['email_status'],
         queryFn: () => getEmailStatusQuery(),

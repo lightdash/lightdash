@@ -1000,6 +1000,17 @@
             },
             "CatalogMetricsTreeEdge": {
                 "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
                     "target": {
                         "$ref": "#/components/schemas/CatalogMetricsTreeNode"
                     },
@@ -1007,7 +1018,13 @@
                         "$ref": "#/components/schemas/CatalogMetricsTreeNode"
                     }
                 },
-                "required": ["target", "source"],
+                "required": [
+                    "projectUuid",
+                    "createdByUserUuid",
+                    "createdAt",
+                    "target",
+                    "source"
+                ],
                 "type": "object"
             },
             "ApiGetMetricsTree": {
@@ -11797,7 +11814,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1391.0",
+        "version": "0.1395.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -12434,6 +12451,17 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "metricIds",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 ]

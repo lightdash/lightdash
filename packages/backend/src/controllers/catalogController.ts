@@ -326,12 +326,13 @@ export class CatalogController extends BaseController {
     async getMetricsTree(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() metricIds: string[],
     ): Promise<ApiGetMetricsTree> {
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getMetricsTree(req.user!, projectUuid);
+            .getMetricsTree(req.user!, projectUuid, metricIds);
 
         return {
             status: 'ok',

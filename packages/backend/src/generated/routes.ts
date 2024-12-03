@@ -1009,6 +1009,16 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                projectUuid: { dataType: 'string', required: true },
+                createdByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                createdAt: { dataType: 'datetime', required: true },
                 target: { ref: 'CatalogMetricsTreeNode', required: true },
                 source: { ref: 'CatalogMetricsTreeNode', required: true },
             },
@@ -11308,6 +11318,13 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'req',
                     required: true,
                     dataType: 'object',
+                },
+                metricIds: {
+                    in: 'query',
+                    name: 'metricIds',
+                    required: true,
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                 },
             };
 
