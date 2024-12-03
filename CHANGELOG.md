@@ -1,3 +1,10 @@
+## [0.1396.1](https://github.com/lightdash/lightdash/compare/0.1396.0...0.1396.1) (2024-12-03)
+
+
+### Bug Fixes
+
+* saved chart with null timezone ([#12696](https://github.com/lightdash/lightdash/issues/12696)) ([815804b](https://github.com/lightdash/lightdash/commit/815804b69b1ecdd1fbe79eceb8422424435be02a))
+
 # [0.1396.0](https://github.com/lightdash/lightdash/compare/0.1395.1...0.1396.0) (2024-12-03)
 
 
