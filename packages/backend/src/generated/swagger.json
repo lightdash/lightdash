@@ -946,6 +946,144 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "FieldType.DIMENSION": {
+                "enum": ["dimension"],
+                "type": "string"
+            },
+            "DimensionType": {
+                "enum": ["string", "number", "timestamp", "date", "boolean"],
+                "type": "string"
+            },
+            "Record_string.string_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "CompiledDimension": {
+                "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType.DIMENSION"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
+                    "tableLabel": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/Source"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "format": {
+                        "$ref": "#/components/schemas/Format"
+                    },
+                    "groupLabel": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "urls": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldUrl"
+                        },
+                        "type": "array"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "group": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "timeIntervalBaseDimensionName": {
+                        "type": "string"
+                    },
+                    "isAdditionalDimension": {
+                        "type": "boolean"
+                    },
+                    "colors": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "isIntervalBase": {
+                        "type": "boolean"
+                    },
+                    "compiledSql": {
+                        "type": "string"
+                    },
+                    "tablesReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "tablesRequiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.Record_string.string-or-string-Array__"
+                    }
+                },
+                "required": [
+                    "fieldType",
+                    "type",
+                    "name",
+                    "label",
+                    "table",
+                    "tableLabel",
+                    "sql",
+                    "hidden",
+                    "compiledSql"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DimensionType.DATE": {
+                "enum": ["date"],
+                "type": "string"
+            },
+            "DimensionType.TIMESTAMP": {
+                "enum": ["timestamp"],
+                "type": "string"
+            },
             "MetricWithAssociatedTimeDimension": {
                 "allOf": [
                     {
@@ -953,6 +1091,37 @@
                     },
                     {
                         "$ref": "#/components/schemas/Pick_CompiledTable.defaultTimeDimension_"
+                    },
+                    {
+                        "properties": {
+                            "availableTimeDimensions": {
+                                "items": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/CompiledDimension"
+                                        },
+                                        {
+                                            "properties": {
+                                                "type": {
+                                                    "anyOf": [
+                                                        {
+                                                            "$ref": "#/components/schemas/DimensionType.DATE"
+                                                        },
+                                                        {
+                                                            "$ref": "#/components/schemas/DimensionType.TIMESTAMP"
+                                                        }
+                                                    ]
+                                                }
+                                            },
+                                            "required": ["type"],
+                                            "type": "object"
+                                        }
+                                    ]
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "type": "object"
                     }
                 ]
             },
@@ -2107,10 +2276,6 @@
                 "enum": ["sql"],
                 "type": "string"
             },
-            "DimensionType": {
-                "enum": ["string", "number", "timestamp", "date", "boolean"],
-                "type": "string"
-            },
             "CustomSqlDimension": {
                 "properties": {
                     "id": {
@@ -2720,11 +2885,6 @@
                 "type": "string",
                 "enum": ["hidden", "inside", "outside"],
                 "nullable": false
-            },
-            "Record_string.string_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "Record_string.Partial_PieChartValueOptions__": {
                 "properties": {},
@@ -4089,6 +4249,22 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "TimeDimensionConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DefaultTimeDimension"
+                    },
+                    {
+                        "properties": {
+                            "table": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["table"],
+                        "type": "object"
+                    }
+                ]
             },
             "NotificationBase": {
                 "properties": {
@@ -14148,7 +14324,22 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "timeDimensionOverride": {
+                                        "$ref": "#/components/schemas/TimeDimensionConfig"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/notifications": {
