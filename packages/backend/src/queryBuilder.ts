@@ -299,40 +299,85 @@ export const sortDayOfWeekName = (
     )${descending ? ' DESC' : ''}`;
 };
 
-const removeCommentsAndLimits = (sql: string): string => {
+// Remove comments and limit clauses from SQL
+const removeComments = (sql: string): string => {
     let s = sql.trim();
     // remove single-line comments
     s = s.replace(/--.*$/gm, '');
     // remove multi-line comments
     s = s.replace(/\/\*[\s\S]*?\*\//g, '');
-    // match strings
+    return s;
+};
+
+// Replace strings with placeholders and return the placeholders
+const replaceStringsWithPlaceholders = (
+    sql: string,
+): { sqlWithoutStrings: string; placeholders: string[] } => {
     const stringRegex = /('([^'\\]|\\.)*')|("([^"\\]|\\.)*")/gm;
-    // placeholder tokens for strings
     const placeholders: string[] = [];
     let index = 0;
-    // replace strings with placeholders
-    const sqlWithoutStrings = s.replace(stringRegex, (match) => {
+    const sqlWithoutStrings = sql.replace(stringRegex, (match) => {
         placeholders.push(match);
         // eslint-disable-next-line no-plusplus
-        return `__STRING_PLACEHOLDER_${index++}__`;
+        return `__string_placeholder_${index++}__`;
     });
-    // remove LIMIT clauses without removing preceding whitespace
-    const limitClauseRegex = /(\bLIMIT\b\s+\d+(\s+OFFSET\s+\d+)?\s*;?)/gi;
-    const sqlWithoutLimits = sqlWithoutStrings.replace(limitClauseRegex, ' ');
-    // remove semicolons outside of strings
-    const sqlWithoutSemicolons = sqlWithoutLimits.replace(/;/g, '');
-    // restore strings
-    const sqlRestored = sqlWithoutSemicolons.replace(
-        /__STRING_PLACEHOLDER_(\d+)__/g,
+    return { sqlWithoutStrings, placeholders };
+};
+
+// Restore strings from placeholders
+const restoreStringsFromPlaceholders = (
+    sql: string,
+    placeholders: string[],
+): string =>
+    sql.replace(
+        /__string_placeholder_(\d+)__/g,
         (_, p1) => placeholders[Number(p1)],
     );
+
+// Extract the outer limit clause from a SQL query
+const extractOuterLimitFromSQL = (sql: string): number | undefined => {
+    let s = sql.trim();
+    // remove comments
+    s = removeComments(s);
+    // replace strings with placeholders
+    const { sqlWithoutStrings } = replaceStringsWithPlaceholders(s);
+    // search for limit clauses
+    const limitClauseRegex = /\blimit\b\s+(\d+)(?:\s+offset\s+\d+)?/gi;
+    const matches = [...sqlWithoutStrings.matchAll(limitClauseRegex)];
+    if (matches.length > 0) {
+        const lastMatch = matches[matches.length - 1];
+        const limitNum = parseInt(lastMatch[1], 10);
+        return limitNum;
+    }
+    return undefined;
+};
+
+// Remove comments and limit clauses from SQL
+const removeCommentsAndLimits = (sql: string): string => {
+    let s = sql.trim();
+    // remove comments
+    s = removeComments(s);
+    // replace strings with placeholders
+    const { sqlWithoutStrings, placeholders } =
+        replaceStringsWithPlaceholders(s);
+    // remove limit clauses without removing preceding whitespace
+    const limitClauseRegex = /(\blimit\b\s+\d+(\s+offset\s+\d+)?\s*;?)/gi;
+    let sqlWithoutLimits = sqlWithoutStrings.replace(limitClauseRegex, ' ');
+    // remove semicolons outside of strings
+    sqlWithoutLimits = sqlWithoutLimits.replace(/;/g, '');
+    // restore strings
+    let sqlRestored = restoreStringsFromPlaceholders(
+        sqlWithoutLimits,
+        placeholders,
+    );
     // normalize multiple spaces to a single space
-    const sqlCleaned = sqlRestored.replace(/\s+/g, ' ');
+    sqlRestored = sqlRestored.replace(/\s+/g, ' ');
     // remove excess whitespace
-    const sqlTrimmed = sqlCleaned.trim();
+    const sqlTrimmed = sqlRestored.trim();
     return sqlTrimmed;
 };
 
+// Apply a limit to a SQL query if the existing limit is less than the provided limit
 export const applyLimitToSqlQuery = ({
     sqlQuery,
     limit,
@@ -341,6 +386,12 @@ export const applyLimitToSqlQuery = ({
     limit: number | undefined;
 }): string => {
     if (limit === undefined) return sqlQuery;
+    const existingLimit = extractOuterLimitFromSQL(sqlQuery);
+    if (existingLimit !== undefined && existingLimit <= limit) {
+        // existing limit is less than or equal to the provided limit
+        return sqlQuery;
+    }
+    // remove existing limits and apply the new limit
     const sqlWithoutCommentsAndLimits = removeCommentsAndLimits(sqlQuery);
     return `WITH user_sql AS (\n${sqlWithoutCommentsAndLimits}\n) select * from user_sql limit ${limit}`;
 };

@@ -993,7 +993,7 @@ describe('Time frame sorting', () => {
 });
 
 describe('applyLimitToSqlQuery', () => {
-    // strip out white space formatting so we just test content
+    // Strip out formatting so we just test content
     const normalizeSQL = (sql: string) => sql.replace(/\s+/g, ' ').trim();
 
     it('should return the original query if limit is undefined', () => {
@@ -1005,8 +1005,26 @@ describe('applyLimitToSqlQuery', () => {
         expect(result).toBe(sqlQuery);
     });
 
-    it('should return a query with a limit applied when limit is provided', () => {
-        const sqlQuery = 'SELECT * FROM users';
+    it('should return the original query if existing limit is less than the provided limit', () => {
+        const sqlQuery = 'SELECT * FROM users LIMIT 5;';
+        const limit = 10;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(result).toBe(sqlQuery);
+    });
+
+    it('should return the original query if existing limit is equal to the provided limit', () => {
+        const sqlQuery = 'SELECT * FROM users LIMIT 10;';
+        const limit = 10;
+
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
+
+        expect(result).toBe(sqlQuery);
+    });
+
+    it('should apply new limit if existing limit is greater than the provided limit', () => {
+        const sqlQuery = 'SELECT * FROM users LIMIT 20;';
         const limit = 10;
 
         const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
@@ -1015,17 +1033,9 @@ describe('applyLimitToSqlQuery', () => {
         expect(normalizeSQL(result)).toBe(normalizeSQL(expectedQuery));
     });
 
-    it('should strip semicolon from the end of the query', () => {
+    it('should apply limit if there is no existing limit', () => {
         const sqlQuery = 'SELECT * FROM users;';
         const limit = 10;
-        const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
-        const result = applyLimitToSqlQuery({ sqlQuery, limit });
-        expect(normalizeSQL(result)).toBe(normalizeSQL(expectedQuery));
-    });
-
-    it('should return a query with a limit of 0 applied correctly', () => {
-        const sqlQuery = 'SELECT * FROM users';
-        const limit = 0;
 
         const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
@@ -1047,7 +1057,7 @@ describe('applyLimitToSqlQuery', () => {
         expect(normalizeSQL(result)).toBe(normalizeSQL(expectedQuery));
     });
 
-    it('should remove LIMIT clauses from the query and subqueries', () => {
+    it('should keep existing limit when it is less than the provided limit, even in subqueries', () => {
         const sqlQuery = `
             WITH subquery AS (
                 SELECT * FROM orders LIMIT 5
@@ -1056,8 +1066,22 @@ describe('applyLimitToSqlQuery', () => {
         `;
         const limit = 20;
 
-        const expectedQuery = `WITH user_sql AS (\n        WITH subquery AS (\n            SELECT * FROM orders\n        )\n        SELECT * FROM subquery\n    ) select * from user_sql limit ${limit}`;
+        // existing outer limit is 10 (less than 20), so return original query
+        const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
+        expect(result).toBe(sqlQuery);
+    });
+
+    it('should apply new limit when existing limit is greater than the provided limit, even in subqueries', () => {
+        const sqlQuery = `
+            WITH subquery AS (
+                SELECT * FROM orders LIMIT 5
+            )
+            SELECT * FROM subquery LIMIT 25;
+        `;
+        const limit = 20;
+
+        const expectedQuery = `WITH user_sql AS (\nWITH subquery AS (\nSELECT * FROM orders\n)\nSELECT * FROM subquery\n) select * from user_sql limit ${limit}`;
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
         expect(normalizeSQL(result)).toBe(normalizeSQL(expectedQuery));
@@ -1087,7 +1111,8 @@ describe('applyLimitToSqlQuery', () => {
         `;
         const limit = 5;
 
-        const expectedQuery = `WITH user_sql AS (\n        SELECT * FROM users\n    ) select * from user_sql limit ${limit}`;
+        // existing limit is 10, which is greater than provided limit 5
+        const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users\n) select * from user_sql limit ${limit}`;
 
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
@@ -1100,11 +1125,10 @@ describe('applyLimitToSqlQuery', () => {
         `;
         const limit = 20;
 
-        const expectedQuery = `WITH user_sql AS (\n        SELECT * FROM users\n    ) select * from user_sql limit ${limit}`;
-
+        // existing limit is 10, which is less than provided limit 20
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
 
-        expect(normalizeSQL(result)).toBe(normalizeSQL(expectedQuery));
+        expect(result).toBe(sqlQuery);
     });
 
     it('should handle queries with LIMIT in strings', () => {
@@ -1142,7 +1166,7 @@ describe('applyLimitToSqlQuery', () => {
         const sqlQuery = `SELECT * FROM users WHERE name = 'John;Doe';`;
         const limit = 10;
 
-        // sdjust the expected query to exclude the semicolon at the end
+        // adjust the expected query to exclude the semicolon at the end
         const expectedQuery = `WITH user_sql AS (\nSELECT * FROM users WHERE name = 'John;Doe'\n) select * from user_sql limit ${limit}`;
 
         const result = applyLimitToSqlQuery({ sqlQuery, limit });
