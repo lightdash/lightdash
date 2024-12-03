@@ -504,8 +504,12 @@ export class ProjectService extends BaseService {
             await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
                 onlyTagged: true, // We only need the tagged catalog items
             });
+
         const prevCatalogItemsWithIcons =
             await this.catalogModel.getCatalogItemsWithIcons(projectUuid);
+
+        const prevMetricTreeEdges =
+            await this.catalogModel.getAllMetricsTreeEdges(projectUuid);
 
         await this.projectModel.saveExploresToCache(projectUuid, explores);
 
@@ -515,6 +519,7 @@ export class ProjectService extends BaseService {
             userUuid,
             prevCatalogItemsWithTags,
             prevCatalogItemsWithIcons,
+            prevMetricTreeEdges,
         });
     }
 
