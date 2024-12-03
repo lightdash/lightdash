@@ -16,23 +16,31 @@ import {
     hasIntersection,
     InlineErrorType,
     isExploreError,
+    MAX_METRICS_TREE_NODE_COUNT,
     NotFoundError,
+    ParameterError,
+    parseMetricsTreeNodeId,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
     UserAttributeValueMap,
+    type ApiMetricsTreeEdgePayload,
     type ApiSort,
     type CatalogFieldMap,
     type CatalogItem,
     type CatalogItemWithTagUuids,
+    type CatalogMetricsTreeEdge,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
-import type { DbCatalogTagsMigrateIn } from '../../database/entities/catalog';
+import type {
+    DbCatalogTagsMigrateIn,
+    DbMetricsTreeEdgeIn,
+} from '../../database/entities/catalog';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -855,11 +863,13 @@ export class CatalogService<
 
         const filteredExplore = getFilteredExplore(explore, userAttributes);
 
-        const defaultTimeDimension =
-            filteredExplore?.tables?.[tableName]?.defaultTimeDimension;
-
         const metric =
             filteredExplore?.tables?.[tableName]?.metrics?.[metricName];
+
+        // Get the default time dimension from the metric, or the explore if not set on the metric
+        const defaultTimeDimension =
+            metric.defaultTimeDimension ??
+            filteredExplore?.tables?.[tableName]?.defaultTimeDimension;
 
         if (!metric) {
             throw new NotFoundError('Metric not found');
@@ -869,5 +879,81 @@ export class CatalogService<
             ...metric,
             defaultTimeDimension,
         };
+    }
+
+    async getMetricsTree(
+        user: SessionUser,
+        projectUuid: string,
+        // Using metricIds instead of filters and searching metrics because we might want to have the ability to select specific metrics rather than filter by catalog tags
+        metricIds: string[],
+    ) {
+        // TODO: check permissions
+        if (metricIds.length > MAX_METRICS_TREE_NODE_COUNT) {
+            throw new ParameterError(
+                `Cannot get more than ${MAX_METRICS_TREE_NODE_COUNT} metrics in the metrics tree`,
+            );
+        }
+
+        return this.catalogModel.getMetricsTree(
+            projectUuid,
+            metricIds.map((id) => parseMetricsTreeNodeId(id)),
+        );
+    }
+
+    async createMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        { sourceMetricId, targetMetricId }: ApiMetricsTreeEdgePayload,
+    ) {
+        // TODO: check permissions
+        const edgeSource = parseMetricsTreeNodeId(sourceMetricId);
+        const edgeTarget = parseMetricsTreeNodeId(targetMetricId);
+
+        const sourceCatalogItem = await this.catalogModel.getCatalogItemByName(
+            projectUuid,
+            edgeSource.name,
+            edgeSource.tableName,
+        );
+
+        if (!sourceCatalogItem) {
+            throw new NotFoundError('Source metric not found');
+        }
+
+        const targetCatalogItem = await this.catalogModel.getCatalogItemByName(
+            projectUuid,
+            edgeTarget.name,
+            edgeTarget.tableName,
+        );
+
+        if (!targetCatalogItem) {
+            throw new NotFoundError('Target metric not found');
+        }
+
+        return this.catalogModel.createMetricsTreeEdge({
+            source_metric_name: edgeSource.name,
+            source_metric_table_name: edgeSource.tableName,
+            target_metric_name: edgeTarget.name,
+            target_metric_table_name: edgeTarget.tableName,
+            project_uuid: projectUuid,
+            created_by_user_uuid: user.userUuid,
+        });
+    }
+
+    deleteMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        { sourceMetricId, targetMetricId }: ApiMetricsTreeEdgePayload,
+    ) {
+        // TODO: check permissions
+        const edgeSource = parseMetricsTreeNodeId(sourceMetricId);
+        const edgeTarget = parseMetricsTreeNodeId(targetMetricId);
+
+        return this.catalogModel.deleteMetricsTreeEdge({
+            source_metric_name: edgeSource.name,
+            source_metric_table_name: edgeSource.tableName,
+            target_metric_name: edgeTarget.name,
+            target_metric_table_name: edgeTarget.tableName,
+            project_uuid: projectUuid,
+        });
     }
 }

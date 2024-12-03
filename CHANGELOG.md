@@ -1,3 +1,45 @@
+## [0.1395.1](https://github.com/lightdash/lightdash/compare/0.1395.0...0.1395.1) (2024-12-03)
+
+
+### Bug Fixes
+
+* check email status if user is authenticated ([#12695](https://github.com/lightdash/lightdash/issues/12695)) ([f231930](https://github.com/lightdash/lightdash/commit/f231930b6a8a53f1299d80b2b8093c4c2c563566))
+
+# [0.1395.0](https://github.com/lightdash/lightdash/compare/0.1394.0...0.1395.0) (2024-12-03)
+
+
+### Features
+
+* limit metric node count ([#12682](https://github.com/lightdash/lightdash/issues/12682)) ([541480a](https://github.com/lightdash/lightdash/commit/541480ab71cc85a26ad8e885568bb0b1e4ea327b))
+
+# [0.1394.0](https://github.com/lightdash/lightdash/compare/0.1393.0...0.1394.0) (2024-12-03)
+
+
+### Features
+
+* metric trees frontend save edges ([#12643](https://github.com/lightdash/lightdash/issues/12643)) ([7d00b47](https://github.com/lightdash/lightdash/commit/7d00b47df05d9ff2afda616dc9c54bea89dee673))
+
+# [0.1393.0](https://github.com/lightdash/lightdash/compare/0.1392.0...0.1393.0) (2024-12-03)
+
+
+### Features
+
+* metric trees backend ([#12639](https://github.com/lightdash/lightdash/issues/12639)) ([327d5cc](https://github.com/lightdash/lightdash/commit/327d5ccf901201d6c6e2d005c8d5a6866516ca61))
+
+# [0.1392.0](https://github.com/lightdash/lightdash/compare/0.1391.0...0.1392.0) (2024-12-03)
+
+
+### Features
+
+* Dashboards as code ([#12664](https://github.com/lightdash/lightdash/issues/12664)) ([551f608](https://github.com/lightdash/lightdash/commit/551f608eb8d8b56fee8359aa2ae3cae17c784564))
+
+# [0.1391.0](https://github.com/lightdash/lightdash/compare/0.1390.1...0.1391.0) (2024-12-03)
+
+
+### Features
+
+* allow default time dimension on a metric-level ([#12686](https://github.com/lightdash/lightdash/issues/12686)) ([91c26e8](https://github.com/lightdash/lightdash/commit/91c26e8a4fb95af29ac7f6a337bf3561781b5c35))
+
 ## [0.1390.1](https://github.com/lightdash/lightdash/compare/0.1390.0...0.1390.1) (2024-12-02)
 
 

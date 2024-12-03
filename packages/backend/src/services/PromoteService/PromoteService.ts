@@ -331,7 +331,7 @@ export class PromoteService extends BaseService {
         PromoteService.checkPromoteSpacePermissions(user, upstreamChart);
     }
 
-    private static checkPromoteDashboardPermissions(
+    static checkPromoteDashboardPermissions(
         user: SessionUser,
         promotedDashboard: PromotedDashboard,
         upstreamDashboard: UpstreamDashboard,
@@ -778,7 +778,7 @@ export class PromoteService extends BaseService {
         };
     }
 
-    private async updateDashboard(
+    async updateDashboard(
         user: SessionUser,
         promotionChanges: PromotionChanges,
     ): Promise<PromotionChanges> {

@@ -62,3 +62,12 @@ POST http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/
 
 ### Untag field
 DELETE http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/CATALOG_SEARCH_UUID/tags/TAG_UUID
+
+### Metrics tree
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/metrics/tree
+
+### Create metrics tree edge
+POST http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/metrics/tree/edges
+
+### Delete metrics tree edge
+DELETE http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/metrics/tree/edges/SOURCE_CATALOG_SEARCH_UUID/TARGET_CATALOG_SEARCH_UUID

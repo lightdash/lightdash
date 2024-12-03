@@ -53,7 +53,9 @@ const VerificationSuccess: FC<{
 
 const VerifyEmailPage: FC = () => {
     const { health } = useApp();
-    const { data, isInitialLoading: statusLoading } = useEmailStatus();
+    const { data, isInitialLoading: statusLoading } = useEmailStatus(
+        !!health.data?.isAuthenticated,
+    );
     const { show: showIntercom } = useIntercom();
     const history = useHistory();
 

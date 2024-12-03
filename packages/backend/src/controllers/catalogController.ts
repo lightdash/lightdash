@@ -7,6 +7,8 @@ import {
     ApiGetMetricPeek,
     ApiMetricsCatalog,
     getItemId,
+    type ApiGetMetricsTree,
+    type ApiMetricsTreeEdgePayload,
     type ApiSort,
     type ApiSuccessEmpty,
     type CatalogItemIcon,
@@ -316,4 +318,71 @@ export class CatalogController extends BaseController {
             results: undefined,
         };
     }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/tree')
+    @OperationId('getMetricsTree')
+    async getMetricsTree(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() metricIds: string[],
+    ): Promise<ApiGetMetricsTree> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricsTree(req.user!, projectUuid, metricIds);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/metrics/tree/edges')
+    @OperationId('createMetricsTreeEdge')
+    async createMetricsTreeEdge(
+        @Path() projectUuid: string,
+        @Body() body: ApiMetricsTreeEdgePayload,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getCatalogService()
+            .createMetricsTreeEdge(req.user!, projectUuid, body);
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/metrics/tree/edges/{sourceMetricId}/{targetMetricId}')
+    @OperationId('deleteMetricsTreeEdge')
+    async deleteMetricsTreeEdge(
+        @Path() projectUuid: string,
+        @Path() sourceMetricId: string,
+        @Path() targetMetricId: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        await this.services
+            .getCatalogService()
+            .deleteMetricsTreeEdge(req.user!, projectUuid, {
+                sourceMetricId,
+                targetMetricId,
+            });
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    // TODO: handle metrics tree node position
 }

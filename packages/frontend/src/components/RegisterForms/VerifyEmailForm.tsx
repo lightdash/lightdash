@@ -24,7 +24,9 @@ const VerifyEmailForm: FC<{ isLoading?: boolean }> = ({ isLoading }) => {
     const { health, user } = useApp();
     const { mutate: verifyCode, isLoading: verificationLoading } =
         useVerifyEmail();
-    const { data, isInitialLoading: statusLoading } = useEmailStatus();
+    const { data, isInitialLoading: statusLoading } = useEmailStatus(
+        !!health.data?.isAuthenticated,
+    );
     const { mutate: sendVerificationEmail, isLoading: emailLoading } =
         useOneTimePassword();
     const form = useForm<{ code: string }>({
