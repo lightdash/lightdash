@@ -18,6 +18,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
+import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import {
     useCreateMetricsTreeEdge,
@@ -44,14 +45,14 @@ const MetricTree: FC<Props> = ({ metrics }) => {
         return metrics.map((metric) => getMetricsTreeNodeId(metric));
     }, [metrics]);
 
+    const isValidMetricsTree =
+        metrics.length > 0 && metrics.length <= MAX_METRICS_TREE_NODE_COUNT;
+
     const { data: metricsTree } = useMetricsTree(
         projectUuid,
         selectedMetricIds,
         {
-            enabled:
-                !!projectUuid &&
-                metrics.length > 0 &&
-                metrics.length <= MAX_METRICS_TREE_NODE_COUNT,
+            enabled: !!projectUuid && isValidMetricsTree,
         },
     );
 
@@ -158,19 +159,26 @@ const MetricTree: FC<Props> = ({ metrics }) => {
 
     return (
         <Box h="100%">
-            <ReactFlow
-                nodes={currentNodes}
-                edges={currentEdges}
-                fitView
-                attributionPosition="top-right"
-                onNodesChange={handleNodeChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={handleConnect}
-                edgesReconnectable={false}
-                onEdgesDelete={handleEdgesDelete}
-            >
-                <Background />
-            </ReactFlow>
+            {isValidMetricsTree ? (
+                <ReactFlow
+                    nodes={currentNodes}
+                    edges={currentEdges}
+                    fitView
+                    attributionPosition="top-right"
+                    onNodesChange={handleNodeChange}
+                    onEdgesChange={onEdgesChange}
+                    onConnect={handleConnect}
+                    edgesReconnectable={false}
+                    onEdgesDelete={handleEdgesDelete}
+                >
+                    <Background />
+                </ReactFlow>
+            ) : (
+                <SuboptimalState
+                    title="Metrics tree not available"
+                    description="Please narrow your search to display up to 30 metrics"
+                />
+            )}
         </Box>
     );
 };

@@ -26,7 +26,7 @@ import {
     IconTag,
     IconX,
 } from '@tabler/icons-react';
-import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { TotalMetricsDot } from '../../../svgs/metricsCatalog';
@@ -237,14 +237,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
 
         const isValidMetricsTree =
             totalResults > 0 && totalResults <= MAX_METRICS_TREE_NODE_COUNT;
-
-        // If the metrics tree is not valid, set the view to list
-        // can happen when changing filters while in tree view
-        useEffect(() => {
-            if (!isValidMetricsTree) {
-                onMetricCatalogViewChange?.(MetricCatalogView.LIST);
-            }
-        }, [isValidMetricsTree, onMetricCatalogViewChange]);
 
         return (
             <Group {...props}>
