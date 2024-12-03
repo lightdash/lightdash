@@ -1,3 +1,10 @@
+# [0.1391.0](https://github.com/lightdash/lightdash/compare/0.1390.1...0.1391.0) (2024-12-03)
+
+
+### Features
+
+* allow default time dimension on a metric-level ([#12686](https://github.com/lightdash/lightdash/issues/12686)) ([91c26e8](https://github.com/lightdash/lightdash/commit/91c26e8a4fb95af29ac7f6a337bf3561781b5c35))
+
 ## [0.1390.1](https://github.com/lightdash/lightdash/compare/0.1390.0...0.1390.1) (2024-12-02)
 
 
