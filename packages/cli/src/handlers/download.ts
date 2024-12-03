@@ -42,7 +42,7 @@ const dumpIntoFiles = async (
     }
 };
 
-const downloadFiles = async <T extends ChartAsCode | DashboardAsCode>(
+const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
     folder: 'charts' | 'dashboards',
 ): Promise<(T & { needsUpdating: boolean })[]> => {
     const inputDir = path.join(process.cwd(), DOWNLOAD_FOLDER, folder);
@@ -182,7 +182,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     projectId: string,
     changes: Record<string, number>,
 ) => {
-    const items = await downloadFiles<T>(type);
+    const items = await readCodeFiles<T>(type);
 
     console.info(`Found ${items.length} ${type} files`);
     for (const item of items) {

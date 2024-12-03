@@ -409,27 +409,24 @@ export class CoderService extends BaseService {
         // TODO Check permissions for all chart tiles
         // eslint-disable-next-line prefer-const
         let [promotionChanges, promotedCharts] =
-            // TODO Right now dashboards on promote service always update dashboards
-            // See isDashboardUpdated for more details
             await this.promoteService.getPromotionDashboardChanges(
                 user,
                 promotedDashboard,
                 upstreamDashboard,
             );
+
+        // TODO Right now dashboards on promote service always update dashboards
+        // See isDashboardUpdated for more details
+
         promotionChanges = await this.promoteService.upsertSpaces(
             user,
             promotionChanges,
         );
 
-        // We first create the dashboard if needed, with empty tiles
-        // Because we need the dashboardUuid to update the charts within the dashboard
         promotionChanges = await this.promoteService.getOrCreateDashboard(
             user,
             promotionChanges,
         );
-
-        // Update or create charts
-        // and return the list of dashboard.tiles updates with the new chart uuids
         promotionChanges = await this.promoteService.upsertCharts(
             user,
             promotionChanges,
