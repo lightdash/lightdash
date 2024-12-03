@@ -20,7 +20,7 @@ import {
 } from './field';
 import { parseFilters } from './filterGrammar';
 import { type OrderFieldsByStrategy } from './table';
-import { type TimeFrames } from './timeFrames';
+import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
@@ -145,6 +145,7 @@ export type DbtColumnLightdashMetric = {
     show_underlying_values?: string[];
     filters?: { [key: string]: any }[];
     percentile?: number;
+    default_time_dimension?: DefaultTimeDimension;
 } & DbtLightdashFieldTags;
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
@@ -459,6 +460,14 @@ export const convertModelMetric = ({
                       : [metric.tags],
               }
             : {}),
+        ...(metric.default_time_dimension
+            ? {
+                  defaultTimeDimension: {
+                      field: metric.default_time_dimension.field,
+                      interval: metric.default_time_dimension.interval,
+                  },
+              }
+            : {}),
     };
 };
 type ConvertColumnMetricArgs = Omit<ConvertModelMetricArgs, 'metric'> & {
@@ -497,6 +506,14 @@ export const convertColumnMetric = ({
             ? getItemId({ table: modelName, name: dimensionName })
             : undefined,
         requiredAttributes,
+        ...(metric.default_time_dimension
+            ? {
+                  defaultTimeDimension: {
+                      field: metric.default_time_dimension.field,
+                      interval: metric.default_time_dimension.interval,
+                  },
+              }
+            : {}),
     });
 
 export enum DbtManifestVersion {
