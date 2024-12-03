@@ -810,6 +810,18 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DefaultTimeDimension: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                interval: { ref: 'TimeFrames', required: true },
+                field: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SourcePosition: {
         dataType: 'refAlias',
         type: {
@@ -908,6 +920,7 @@ const models: TsoaRoute.Models = {
             requiredAttributes: {
                 ref: 'Record_string.string-or-string-Array_',
             },
+            defaultTimeDimension: { ref: 'DefaultTimeDimension' },
             compiledSql: { dataType: 'string', required: true },
             tablesReferences: {
                 dataType: 'union',
@@ -929,13 +942,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                defaultTimeDimension: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        interval: { ref: 'TimeFrames', required: true },
-                        field: { dataType: 'string', required: true },
-                    },
-                },
+                defaultTimeDimension: { ref: 'DefaultTimeDimension' },
             },
             validators: {},
         },
@@ -1161,7 +1168,7 @@ const models: TsoaRoute.Models = {
                 properties: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        chartSlug: { dataType: 'string', required: true },
+                        chartSlug: { dataType: 'string' },
                         lastVersionChartKind: {
                             dataType: 'union',
                             subSchemas: [
@@ -1294,6 +1301,7 @@ const models: TsoaRoute.Models = {
                 properties: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        chartSlug: { dataType: 'string' },
                         hideTitle: { dataType: 'boolean' },
                         chartName: { dataType: 'string', required: true },
                         savedSqlUuid: {
@@ -1339,6 +1347,7 @@ const models: TsoaRoute.Models = {
                 properties: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        chartSlug: { dataType: 'string' },
                         hideTitle: { dataType: 'boolean' },
                         chartName: { dataType: 'string', required: true },
                         savedSemanticViewerChartUuid: {
@@ -3018,13 +3027,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                defaultTimeDimension: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        interval: { ref: 'TimeFrames', required: true },
-                        field: { dataType: 'string', required: true },
-                    },
-                },
+                defaultTimeDimension: { ref: 'DefaultTimeDimension' },
                 groupDetails: { ref: 'Record_string.GroupType_' },
                 requiredAttributes: {
                     ref: 'Record_string.string-or-string-Array_',
@@ -6547,7 +6550,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Dashboard.name-or-description-or-updatedAt-or-tiles-or-filters-or-tabs-or-slug_':
+    'Pick_Dashboard.name-or-description-or-updatedAt-or-filters-or-tabs-or-slug_':
         {
             dataType: 'refAlias',
             type: {
@@ -6557,11 +6560,6 @@ const models: TsoaRoute.Models = {
                     description: { dataType: 'string' },
                     slug: { dataType: 'string', required: true },
                     updatedAt: { dataType: 'datetime', required: true },
-                    tiles: {
-                        dataType: 'array',
-                        array: { dataType: 'refAlias', ref: 'DashboardTile' },
-                        required: true,
-                    },
                     filters: { ref: 'DashboardFilters', required: true },
                     tabs: {
                         dataType: 'array',
@@ -6573,13 +6571,84 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DashboardTile.Exclude_keyofDashboardTile.properties__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'DashboardTileTypes', required: true },
+                uuid: { dataType: 'string' },
+                x: { dataType: 'double', required: true },
+                y: { dataType: 'double', required: true },
+                h: { dataType: 'double', required: true },
+                w: { dataType: 'double', required: true },
+                tabUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DashboardTile.properties_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_DashboardTile.Exclude_keyofDashboardTile.properties__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DashboardTile-at-properties.Exclude_keyofDashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: { title: { dataType: 'string' } },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid_':
+        {
+            dataType: 'refAlias',
+            type: {
+                ref: 'Pick_DashboardTile-at-properties.Exclude_keyofDashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid__',
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardTileWithoutUuids: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_DashboardTile.properties_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        properties: {
+                            ref: 'Omit_DashboardTile-at-properties.savedChartUuid-or-savedSqlUuid-or-savedSemanticViewerChartUuid_',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardAsCode: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_Dashboard.name-or-description-or-updatedAt-or-tiles-or-filters-or-tabs-or-slug_',
+                    ref: 'Pick_Dashboard.name-or-description-or-updatedAt-or-filters-or-tabs-or-slug_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -6587,6 +6656,14 @@ const models: TsoaRoute.Models = {
                         downloadedAt: { dataType: 'datetime' },
                         spaceSlug: { dataType: 'string', required: true },
                         version: { dataType: 'double', required: true },
+                        tiles: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'DashboardTileWithoutUuids',
+                            },
+                            required: true,
+                        },
                     },
                 },
             ],
@@ -8082,6 +8159,7 @@ const models: TsoaRoute.Models = {
                     additionalProperties: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            whichYAxis: { dataType: 'double' },
                             valueLabelPosition: {
                                 ref: 'ValueLabelPositionOptions',
                             },

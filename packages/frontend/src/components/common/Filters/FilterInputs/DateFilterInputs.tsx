@@ -7,7 +7,7 @@ import {
     isFilterRule,
     parseDate,
     TimeFrames,
-    UnitOfTime,
+    timeframeToUnitOfTime,
     type ConditionalRule,
     type DateFilterRule,
 } from '@lightdash/common';
@@ -45,31 +45,6 @@ const DateFilterInputs = <T extends ConditionalRule = DateFilterRule>(
         operator: rule.operator,
         disabled: rule.disabled && !rule.values,
     });
-
-    const timeframeToUnitOfTime = (timeframe: TimeFrames) => {
-        switch (timeframe) {
-            case TimeFrames.MILLISECOND:
-                return UnitOfTime.milliseconds;
-            case TimeFrames.SECOND:
-                return UnitOfTime.seconds;
-            case TimeFrames.MINUTE:
-                return UnitOfTime.minutes;
-            case TimeFrames.HOUR:
-                return UnitOfTime.hours;
-            case TimeFrames.DAY:
-                return UnitOfTime.days;
-            case TimeFrames.WEEK:
-                return UnitOfTime.weeks;
-            case TimeFrames.MONTH:
-                return UnitOfTime.months;
-            case TimeFrames.QUARTER:
-                return UnitOfTime.quarters;
-            case TimeFrames.YEAR:
-                return UnitOfTime.years;
-            default:
-                return undefined;
-        }
-    };
 
     switch (rule.operator) {
         case FilterOperator.EQUALS:

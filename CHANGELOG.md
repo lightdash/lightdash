@@ -1,3 +1,50 @@
+# [0.1391.0](https://github.com/lightdash/lightdash/compare/0.1390.1...0.1391.0) (2024-12-03)
+
+
+### Features
+
+* allow default time dimension on a metric-level ([#12686](https://github.com/lightdash/lightdash/issues/12686)) ([91c26e8](https://github.com/lightdash/lightdash/commit/91c26e8a4fb95af29ac7f6a337bf3561781b5c35))
+
+## [0.1390.1](https://github.com/lightdash/lightdash/compare/0.1390.0...0.1390.1) (2024-12-02)
+
+
+### Bug Fixes
+
+* allow existing values within granular date filter ([#12674](https://github.com/lightdash/lightdash/issues/12674)) ([a54f09d](https://github.com/lightdash/lightdash/commit/a54f09d9be5dbcd82c9a62a30d2c629722204da6))
+
+# [0.1390.0](https://github.com/lightdash/lightdash/compare/0.1389.0...0.1390.0) (2024-12-02)
+
+
+### Features
+
+* add data zoom to metric visualization ([#12662](https://github.com/lightdash/lightdash/issues/12662)) ([051b9de](https://github.com/lightdash/lightdash/commit/051b9de0f1c8c06d7482014ef6f71f2ec16951ee))
+
+# [0.1389.0](https://github.com/lightdash/lightdash/compare/0.1388.0...0.1389.0) (2024-12-02)
+
+
+### Bug Fixes
+
+* respect time interval defined by default ([#12672](https://github.com/lightdash/lightdash/issues/12672)) ([082c44a](https://github.com/lightdash/lightdash/commit/082c44a928582ddd78903bc250a4dd1b50140205))
+
+
+### Features
+
+* show empty state if no data in range ([#12677](https://github.com/lightdash/lightdash/issues/12677)) ([b308123](https://github.com/lightdash/lightdash/commit/b308123b9fc0e7970c388c571b225c2bfa2153c5))
+
+# [0.1388.0](https://github.com/lightdash/lightdash/compare/0.1387.1...0.1388.0) (2024-12-02)
+
+
+### Features
+
+* I would like to be able to have 2 series one on the left and one on the right axis ([#12608](https://github.com/lightdash/lightdash/issues/12608)) ([a843ad8](https://github.com/lightdash/lightdash/commit/a843ad8a26dbb1c6bab00f8e54c339df0dea1e04))
+
+## [0.1387.1](https://github.com/lightdash/lightdash/compare/0.1387.0...0.1387.1) (2024-12-02)
+
+
+### Bug Fixes
+
+* Promote chart as code ([#12660](https://github.com/lightdash/lightdash/issues/12660)) ([728ba85](https://github.com/lightdash/lightdash/commit/728ba8505fb8d05fd8bef214e2099317ec166cc7))
+
 # [0.1387.0](https://github.com/lightdash/lightdash/compare/0.1386.4...0.1387.0) (2024-11-29)
 
 
