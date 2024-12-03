@@ -7257,12 +7257,12 @@
                     "slug": {
                         "type": "string"
                     },
+                    "tableName": {
+                        "type": "string"
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "tableName": {
-                        "type": "string"
                     },
                     "metricQuery": {
                         "$ref": "#/components/schemas/MetricQuery"
@@ -7287,8 +7287,8 @@
                     "name",
                     "dashboardUuid",
                     "slug",
-                    "updatedAt",
                     "tableName",
+                    "updatedAt",
                     "metricQuery",
                     "chartConfig",
                     "tableConfig"
@@ -7366,12 +7366,12 @@
                     "slug": {
                         "type": "string"
                     },
+                    "tableName": {
+                        "type": "string"
+                    },
                     "updatedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "tableName": {
-                        "type": "string"
                     },
                     "tableConfig": {
                         "properties": {
@@ -7401,8 +7401,8 @@
                     "name",
                     "dashboardUuid",
                     "slug",
-                    "updatedAt",
                     "tableName",
+                    "updatedAt",
                     "tableConfig",
                     "version",
                     "spaceSlug"

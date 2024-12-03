@@ -6556,8 +6556,8 @@ const models: TsoaRoute.Models = {
                         required: true,
                     },
                     slug: { dataType: 'string', required: true },
-                    updatedAt: { dataType: 'datetime', required: true },
                     tableName: { dataType: 'string', required: true },
+                    updatedAt: { dataType: 'datetime', required: true },
                     metricQuery: { ref: 'MetricQuery', required: true },
                     chartConfig: { ref: 'ChartConfig', required: true },
                     tableConfig: {
@@ -6641,8 +6641,8 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 slug: { dataType: 'string', required: true },
-                updatedAt: { dataType: 'datetime', required: true },
                 tableName: { dataType: 'string', required: true },
+                updatedAt: { dataType: 'datetime', required: true },
                 tableConfig: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
