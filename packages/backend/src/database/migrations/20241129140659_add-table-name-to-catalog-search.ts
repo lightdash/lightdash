@@ -20,6 +20,8 @@ export async function up(knex: Knex): Promise<void> {
     // make table_name not nullable and add unique constraint
     await knex.schema.alterTable(CATALOG_SEARCH_TABLE, (table) => {
         table.text('table_name').notNullable().alter();
+
+        // this index was created incorrectly, has to be fixed in 20241203175631_fix-catalog-search-index.ts and changed in this migration
         table.unique(['table_name', 'name', 'project_uuid', 'type']);
     });
 }
