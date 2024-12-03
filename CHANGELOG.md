@@ -1,3 +1,10 @@
+## [0.1396.3](https://github.com/lightdash/lightdash/compare/0.1396.2...0.1396.3) (2024-12-03)
+
+
+### Bug Fixes
+
+* migrations catalog search ([#12702](https://github.com/lightdash/lightdash/issues/12702)) ([bbc9f47](https://github.com/lightdash/lightdash/commit/bbc9f47a30994ad8c9afbd6252ee622024ac0b21))
+
 ## [0.1396.2](https://github.com/lightdash/lightdash/compare/0.1396.1...0.1396.2) (2024-12-03)
 
 
