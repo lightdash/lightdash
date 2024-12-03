@@ -1,3 +1,10 @@
+# [0.1393.0](https://github.com/lightdash/lightdash/compare/0.1392.0...0.1393.0) (2024-12-03)
+
+
+### Features
+
+* metric trees backend ([#12639](https://github.com/lightdash/lightdash/issues/12639)) ([327d5cc](https://github.com/lightdash/lightdash/commit/327d5ccf901201d6c6e2d005c8d5a6866516ca61))
+
 # [0.1392.0](https://github.com/lightdash/lightdash/compare/0.1391.0...0.1392.0) (2024-12-03)
 
 
