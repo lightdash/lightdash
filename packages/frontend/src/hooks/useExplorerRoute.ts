@@ -80,10 +80,15 @@ export const createMetricPreviewUnsavedChartVersion = (
             exploreName: metric.table,
             dimensions: defaultTimeDimension
                 ? [
+                      [
                       getItemId({
-                          name: defaultTimeDimension.field,
                           table: metric.table,
+                          name: getFieldIdForDateDimension(
+                              defaultTimeDimension.field,
+                              defaultTimeDimension.interval,
+                          ),
                       }),
+                  ]
                   ]
                 : [],
             metrics: [
