@@ -94,6 +94,13 @@ export type CatalogTable = Pick<
 
 export type CatalogItem = CatalogField | CatalogTable;
 
+export type CatalogMetricsTreeNode = Pick<CatalogField, 'name' | 'tableName'>;
+
+export type CatalogMetricsTreeEdge = {
+    source: CatalogMetricsTreeNode;
+    target: CatalogMetricsTreeNode;
+};
+
 export type ApiCatalogResults = CatalogItem[];
 
 export type ApiMetricsCatalogResults = CatalogField[];
@@ -109,6 +116,18 @@ export type MetricWithAssociatedTimeDimension = CompiledMetric &
 export type ApiGetMetricPeek = {
     status: 'ok';
     results: MetricWithAssociatedTimeDimension;
+};
+
+export type ApiGetMetricsTree = {
+    status: 'ok';
+    results: {
+        edges: CatalogMetricsTreeEdge[];
+    };
+};
+
+export type ApiCreateMetricsTreeEdgePayload = {
+    sourceMetricId: string;
+    targetMetricId: string;
 };
 
 export type CatalogMetadata = {

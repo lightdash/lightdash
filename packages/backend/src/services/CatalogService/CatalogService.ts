@@ -17,6 +17,7 @@ import {
     InlineErrorType,
     isExploreError,
     NotFoundError,
+    parseMetricsTreeNodeId,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -26,13 +27,17 @@ import {
     type CatalogFieldMap,
     type CatalogItem,
     type CatalogItemWithTagUuids,
+    type CatalogMetricsTreeEdge,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
-import type { DbCatalogTagsMigrateIn } from '../../database/entities/catalog';
+import type {
+    DbCatalogTagsMigrateIn,
+    DbMetricsTreeEdgeIn,
+} from '../../database/entities/catalog';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -871,5 +876,79 @@ export class CatalogService<
             ...metric,
             defaultTimeDimension,
         };
+    }
+
+    getMetricsTree(user: SessionUser, projectUuid: string) {
+        // TODO: check permissions
+        return this.catalogModel.getMetricsTree(projectUuid);
+    }
+
+    async createMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            sourceMetricId,
+            targetMetricId,
+        }: {
+            sourceMetricId: string;
+            targetMetricId: string;
+        },
+    ) {
+        // TODO: check permissions
+        const edgeSource = parseMetricsTreeNodeId(sourceMetricId);
+        const edgeTarget = parseMetricsTreeNodeId(targetMetricId);
+
+        const sourceCatalogItem = await this.catalogModel.getCatalogItemByName(
+            projectUuid,
+            edgeSource.name,
+            edgeSource.tableName,
+        );
+
+        if (!sourceCatalogItem) {
+            throw new NotFoundError('Source metric not found');
+        }
+
+        const targetCatalogItem = await this.catalogModel.getCatalogItemByName(
+            projectUuid,
+            edgeTarget.name,
+            edgeTarget.tableName,
+        );
+
+        if (!targetCatalogItem) {
+            throw new NotFoundError('Target metric not found');
+        }
+
+        return this.catalogModel.createMetricsTreeEdge({
+            source_metric_name: edgeSource.name,
+            source_metric_table_name: edgeSource.tableName,
+            target_metric_name: edgeTarget.name,
+            target_metric_table_name: edgeTarget.tableName,
+            project_uuid: projectUuid,
+            created_by_user_uuid: user.userUuid,
+        });
+    }
+
+    deleteMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            sourceMetricId,
+            targetMetricId,
+        }: {
+            sourceMetricId: string;
+            targetMetricId: string;
+        },
+    ) {
+        // TODO: check permissions
+        const edgeSource = parseMetricsTreeNodeId(sourceMetricId);
+        const edgeTarget = parseMetricsTreeNodeId(targetMetricId);
+
+        return this.catalogModel.deleteMetricsTreeEdge({
+            source_metric_name: edgeSource.name,
+            source_metric_table_name: edgeSource.tableName,
+            target_metric_name: edgeTarget.name,
+            target_metric_table_name: edgeTarget.tableName,
+            project_uuid: projectUuid,
+        });
     }
 }

@@ -1,0 +1,31 @@
+import { Knex } from 'knex';
+
+const CATALOG_SEARCH_TABLE = 'catalog_search';
+const CACHED_EXPLORE_TABLE = 'cached_explore';
+
+export async function up(knex: Knex): Promise<void> {
+    // setting to nullable to allow for migration of existing data
+    await knex.schema.alterTable(CATALOG_SEARCH_TABLE, (table) => {
+        table.text('table_name').nullable();
+    });
+
+    // backfill table_name with data from cached_explore
+    await knex.raw(`
+        UPDATE ${CATALOG_SEARCH_TABLE}
+        SET table_name = ${CACHED_EXPLORE_TABLE}.explore->>'baseTable'
+        FROM ${CACHED_EXPLORE_TABLE}
+        WHERE ${CACHED_EXPLORE_TABLE}.cached_explore_uuid = ${CATALOG_SEARCH_TABLE}.cached_explore_uuid
+    `);
+
+    // make table_name not nullable and add unique constraint
+    await knex.schema.alterTable(CATALOG_SEARCH_TABLE, (table) => {
+        table.text('table_name').notNullable().alter();
+        table.unique(['table_name', 'name', 'project_uuid']);
+    });
+}
+
+export async function down(knex: Knex): Promise<void> {
+    await knex.schema.alterTable(CATALOG_SEARCH_TABLE, (table) => {
+        table.dropColumn('table_name');
+    });
+}

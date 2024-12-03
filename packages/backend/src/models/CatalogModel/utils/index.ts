@@ -30,6 +30,7 @@ export const convertExploresToCatalog = (
                 type: CatalogType.Table,
                 required_attributes: baseTable.requiredAttributes ?? {}, // ! Initializing as {} so it is not NULL in the database which means it can't be accessed
                 chart_usage: null, // Tables don't have chart usage
+                table_name: explore.baseTable,
             };
 
             const dimensionsAndMetrics = [
@@ -58,6 +59,7 @@ export const convertExploresToCatalog = (
                         baseTable.requiredAttributes ??
                         {}, // ! Initializing as {} so it is not NULL in the database which means it can't be accessed
                     chart_usage: 0, // Fields are initialized with 0 chart usage
+                    table_name: explore.baseTable,
                 };
             });
 
