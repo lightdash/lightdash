@@ -33,6 +33,19 @@ export async function up(knex: Knex): Promise<void> {
                 .inTable(CATALOG_SEARCH_TABLE)
                 .onDelete('CASCADE');
 
+            // Adding indexes for foreign key lookups
+            table.index([
+                'source_metric_name',
+                'source_metric_table_name',
+                'project_uuid',
+            ]);
+
+            table.index([
+                'target_metric_name',
+                'target_metric_table_name',
+                'project_uuid',
+            ]);
+
             // Adding composite primary key
             table.primary([
                 'source_metric_name',
