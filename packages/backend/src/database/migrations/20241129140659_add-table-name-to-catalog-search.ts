@@ -20,12 +20,13 @@ export async function up(knex: Knex): Promise<void> {
     // make table_name not nullable and add unique constraint
     await knex.schema.alterTable(CATALOG_SEARCH_TABLE, (table) => {
         table.text('table_name').notNullable().alter();
-        table.unique(['table_name', 'name', 'project_uuid']);
+        table.unique(['table_name', 'name', 'project_uuid', 'type']);
     });
 }
 
 export async function down(knex: Knex): Promise<void> {
     await knex.schema.alterTable(CATALOG_SEARCH_TABLE, (table) => {
+        table.dropUnique(['table_name', 'name', 'project_uuid', 'type']);
         table.dropColumn('table_name');
     });
 }
