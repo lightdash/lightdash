@@ -299,6 +299,38 @@ export const sortDayOfWeekName = (
     )${descending ? ' DESC' : ''}`;
 };
 
+const removeCommentsAndLimits = (sql: string): string => {
+    let s = sql.trim();
+    // remove single-line comments
+    s = s.replace(/--.*$/gm, '');
+    // remove multi-line comments
+    s = s.replace(/\/\*[\s\S]*?\*\//g, '');
+    // match strings
+    const stringRegex = /('([^'\\]|\\.)*')|("([^"\\]|\\.)*")/gm;
+    // placeholder tokens for strings
+    const placeholders: string[] = [];
+    let index = 0;
+    // replace strings with placeholders
+    const sqlWithoutStrings = s.replace(stringRegex, (match) => {
+        placeholders.push(match);
+        // eslint-disable-next-line no-plusplus
+        return `__STRING_PLACEHOLDER_${index++}__`;
+    });
+    // remove LIMIT clauses without removing preceding whitespace
+    const limitClauseRegex = /(\bLIMIT\b\s+\d+(\s+OFFSET\s+\d+)?\s*;?)/gi;
+    const sqlWithoutLimits = sqlWithoutStrings.replace(limitClauseRegex, ' ');
+    // restore strings
+    const sqlRestored = sqlWithoutLimits.replace(
+        /__STRING_PLACEHOLDER_(\d+)__/g,
+        (_, p1) => placeholders[Number(p1)],
+    );
+    // normalize multiple spaces to a single space
+    const sqlCleaned = sqlRestored.replace(/\s+/g, ' ');
+    // remove excess whitespace
+    const sqlTrimmed = sqlCleaned.trim();
+    return sqlTrimmed;
+};
+
 export const applyLimitToSqlQuery = ({
     sqlQuery,
     limit,
@@ -307,10 +339,8 @@ export const applyLimitToSqlQuery = ({
     limit: number | undefined;
 }): string => {
     if (limit === undefined) return sqlQuery;
-    return `WITH user_sql AS (\n${sqlQuery.replace(
-        /;\s*$/,
-        '',
-    )}\n) select * from user_sql limit ${limit}`;
+    const sqlWithoutCommentsAndLimits = removeCommentsAndLimits(sqlQuery);
+    return `WITH user_sql AS (\n${sqlWithoutCommentsAndLimits}\n) select * from user_sql limit ${limit}`;
 };
 
 export const getCustomSqlDimensionSql = ({
