@@ -110,8 +110,10 @@ export const CatalogTagsTableName = 'catalog_search_tags';
 export type DbMetricsTreeEdge = {
     source_metric_name: string;
     source_metric_table_name: string;
+    source_metric_type: CatalogType.Field;
     target_metric_name: string;
     target_metric_table_name: string;
+    target_metric_type: CatalogType.Field;
     project_uuid: string;
     created_at: Date;
     created_by_user_uuid: string | null;
@@ -121,8 +123,10 @@ export type DbMetricsTreeEdgeIn = Pick<
     DbMetricsTreeEdge,
     | 'source_metric_name'
     | 'source_metric_table_name'
+    | 'source_metric_type'
     | 'target_metric_name'
     | 'target_metric_table_name'
+    | 'target_metric_type'
     | 'project_uuid'
     | 'created_by_user_uuid'
 >;

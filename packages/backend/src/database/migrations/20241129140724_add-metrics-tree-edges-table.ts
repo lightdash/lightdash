@@ -8,8 +8,10 @@ export async function up(knex: Knex): Promise<void> {
         await knex.schema.createTable(METRICS_TREE_EDGES_TABLE, (table) => {
             table.string('source_metric_name').notNullable();
             table.string('source_metric_table_name').notNullable();
+            table.string('source_metric_type').notNullable();
             table.string('target_metric_name').notNullable();
             table.string('target_metric_table_name').notNullable();
+            table.string('target_metric_type').notNullable();
             table.uuid('project_uuid').notNullable();
 
             // Create composite foreign keys
@@ -17,9 +19,10 @@ export async function up(knex: Knex): Promise<void> {
                 .foreign([
                     'source_metric_name',
                     'source_metric_table_name',
+                    'source_metric_type',
                     'project_uuid',
                 ])
-                .references(['name', 'table_name', 'project_uuid'])
+                .references(['name', 'table_name', 'type', 'project_uuid'])
                 .inTable(CATALOG_SEARCH_TABLE)
                 .onDelete('CASCADE');
 
@@ -27,9 +30,10 @@ export async function up(knex: Knex): Promise<void> {
                 .foreign([
                     'target_metric_name',
                     'target_metric_table_name',
+                    'target_metric_type',
                     'project_uuid',
                 ])
-                .references(['name', 'table_name', 'project_uuid'])
+                .references(['name', 'table_name', 'type', 'project_uuid'])
                 .inTable(CATALOG_SEARCH_TABLE)
                 .onDelete('CASCADE');
 
@@ -37,12 +41,14 @@ export async function up(knex: Knex): Promise<void> {
             table.index([
                 'source_metric_name',
                 'source_metric_table_name',
+                'source_metric_type',
                 'project_uuid',
             ]);
 
             table.index([
                 'target_metric_name',
                 'target_metric_table_name',
+                'target_metric_type',
                 'project_uuid',
             ]);
 
@@ -50,8 +56,10 @@ export async function up(knex: Knex): Promise<void> {
             table.primary([
                 'source_metric_name',
                 'source_metric_table_name',
+                'source_metric_type',
                 'target_metric_name',
                 'target_metric_table_name',
+                'target_metric_type',
                 'project_uuid',
             ]);
 

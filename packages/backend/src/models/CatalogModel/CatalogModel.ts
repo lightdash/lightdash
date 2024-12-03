@@ -513,10 +513,12 @@ export class CatalogModel {
         projectUuid: string,
         metricName: string,
         tableName: string,
+        type: CatalogType,
     ) {
         return this.database(CatalogTableName)
             .where(`${CatalogTableName}.name`, metricName)
             .andWhere(`${CatalogTableName}.table_name`, tableName)
+            .andWhere(`${CatalogTableName}.type`, type)
             .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
             .first();
     }

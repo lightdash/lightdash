@@ -422,8 +422,10 @@ export class CatalogService<
             .map((edge) => ({
                 source_metric_name: edge.source.name,
                 source_metric_table_name: edge.source.tableName,
+                source_metric_type: CatalogType.Field,
                 target_metric_name: edge.target.name,
                 target_metric_table_name: edge.target.tableName,
+                target_metric_type: CatalogType.Field,
                 project_uuid: edge.projectUuid,
                 created_by_user_uuid: edge.createdByUserUuid,
                 created_at: edge.createdAt,
@@ -951,6 +953,7 @@ export class CatalogService<
             projectUuid,
             edgeSource.name,
             edgeSource.tableName,
+            CatalogType.Field,
         );
 
         if (!sourceCatalogItem) {
@@ -961,6 +964,7 @@ export class CatalogService<
             projectUuid,
             edgeTarget.name,
             edgeTarget.tableName,
+            CatalogType.Field,
         );
 
         if (!targetCatalogItem) {
@@ -970,8 +974,10 @@ export class CatalogService<
         return this.catalogModel.createMetricsTreeEdge({
             source_metric_name: edgeSource.name,
             source_metric_table_name: edgeSource.tableName,
+            source_metric_type: CatalogType.Field,
             target_metric_name: edgeTarget.name,
             target_metric_table_name: edgeTarget.tableName,
+            target_metric_type: CatalogType.Field,
             project_uuid: projectUuid,
             created_by_user_uuid: user.userUuid,
         });
