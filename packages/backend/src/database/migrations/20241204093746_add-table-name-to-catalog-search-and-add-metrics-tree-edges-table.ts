@@ -26,14 +26,14 @@ export async function up(knex: Knex): Promise<void> {
     // create metrics_tree_edges table
     await knex.schema.createTable(METRICS_TREE_EDGES_TABLE, (table) => {
         table
-            .string('source_metric_catalog_search_uuid')
+            .uuid('source_metric_catalog_search_uuid')
             .notNullable()
             .references('catalog_search_uuid')
             .inTable(CATALOG_SEARCH_TABLE)
             .onDelete('CASCADE')
             .index();
         table
-            .string('target_metric_catalog_search_uuid')
+            .uuid('target_metric_catalog_search_uuid')
             .notNullable()
             .references('catalog_search_uuid')
             .inTable(CATALOG_SEARCH_TABLE)
