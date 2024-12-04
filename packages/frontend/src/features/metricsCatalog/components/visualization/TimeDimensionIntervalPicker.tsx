@@ -1,11 +1,11 @@
 import { TimeFrames, type TimeDimensionConfig } from '@lightdash/common';
 import { Select, useMantineTheme } from '@mantine/core';
-import { type Dispatch, type FC, type SetStateAction } from 'react';
+import { type FC } from 'react';
 import { usePillSelectStyles } from '../../../../components/DataViz/hooks/usePillSelectStyles';
 
 type Props = {
     dimension: TimeDimensionConfig;
-    onChange: Dispatch<SetStateAction<TimeDimensionConfig | undefined>>;
+    onChange: (timeDimensionOverride: TimeDimensionConfig) => void;
 };
 
 export const TimeDimensionIntervalPicker: FC<Props> = ({
@@ -43,11 +43,11 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
             }}
             onChange={(value: TimeFrames) => {
                 if (!value) return;
-                onChange((prev) => ({
+                onChange({
                     interval: value,
-                    field: prev?.field ?? dimension.field,
+                    field: dimension.field,
                     table: dimension.table,
-                }));
+                });
             }}
             withinPortal
             classNames={{

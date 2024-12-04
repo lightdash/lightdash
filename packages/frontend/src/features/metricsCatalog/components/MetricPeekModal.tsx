@@ -6,6 +6,7 @@ import {
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
     type TimeDimensionConfig,
+    type TimeFrames,
 } from '@lightdash/common';
 import {
     Box,
@@ -165,14 +166,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         onClose();
     }, [history, onClose, projectUuid]);
 
-    const handleTimeIntervalChange = useCallback(() => {
-        if (!timeDimensionOverride?.interval) return;
-        // if the time dimension override is different from the time dimension base field,
-        // we need to reset the date range to the default range for the new interval
-        setDateRange(
-            getDefaultDateRangeFromInterval(timeDimensionOverride.interval),
-        );
-    }, [timeDimensionOverride?.interval]);
+    const handleTimeIntervalChange = useCallback((timeInterval: TimeFrames) => {
+        // Always reset the date range to the default range for the new interval
+        setDateRange(getDefaultDateRangeFromInterval(timeInterval));
+    }, []);
 
     return (
         <Modal.Root
