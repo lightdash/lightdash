@@ -13,11 +13,11 @@ import { lightdashApi } from '../../../api';
 
 const getMetricsTree = async (
     projectUuid: string | undefined,
-    metricIds: string[],
+    metricUuids: string[],
 ) => {
-    const queryParams = metricIds.length
+    const queryParams = metricUuids.length
         ? `?${new URLSearchParams(
-              metricIds.map((metricId) => ['metricIds', metricId]),
+              metricUuids.map((metricUuid) => ['metricUuids', metricUuid]),
           ).toString()}`
         : '';
 
@@ -30,12 +30,12 @@ const getMetricsTree = async (
 
 export const useMetricsTree = (
     projectUuid: string | undefined,
-    metricIds: string[],
+    metricUuids: string[],
     options?: UseQueryOptions<ApiGetMetricsTree['results'], ApiError>,
 ) => {
     return useQuery<ApiGetMetricsTree['results'], ApiError>({
-        queryKey: ['metrics-tree', projectUuid, metricIds],
-        queryFn: () => getMetricsTree(projectUuid, metricIds),
+        queryKey: ['metrics-tree', projectUuid, metricUuids],
+        queryFn: () => getMetricsTree(projectUuid, metricUuids),
         enabled: !!projectUuid,
         ...options,
     });
@@ -68,7 +68,7 @@ const deleteMetricsTreeEdge = async (
     payload: ApiMetricsTreeEdgePayload & { projectUuid: string },
 ) => {
     return lightdashApi<ApiSuccessEmpty>({
-        url: `/projects/${payload.projectUuid}/dataCatalog/metrics/tree/edges/${payload.sourceMetricId}/${payload.targetMetricId}`,
+        url: `/projects/${payload.projectUuid}/dataCatalog/metrics/tree/edges/${payload.sourceCatalogSearchUuid}/${payload.targetCatalogSearchUuid}`,
         method: 'DELETE',
         body: undefined,
     });

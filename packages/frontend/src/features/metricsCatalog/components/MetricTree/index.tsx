@@ -1,6 +1,5 @@
 import Dagre from '@dagrejs/dagre';
 import {
-    getMetricsTreeNodeId,
     type CatalogField,
     type CatalogMetricsTreeEdge,
 } from '@lightdash/common';
@@ -35,9 +34,7 @@ type Props = {
 };
 
 function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
-    const sourceId = getMetricsTreeNodeId(edge.source);
-    const targetId = getMetricsTreeNodeId(edge.target);
-    return `${sourceId}_${targetId}`;
+    return `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`;
 }
 
 const getNodeGroups = (nodes: Node[], edges: Edge[]) => {
@@ -156,7 +153,7 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
 
     const initialNodes = useMemo<Node[]>(() => {
         return metrics.map((metric) => ({
-            id: getMetricsTreeNodeId(metric),
+            id: metric.catalogSearchUuid,
             position: { x: 0, y: 0 },
             data: { label: metric.name },
         }));
@@ -170,20 +167,20 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
                 (edge) =>
                     metrics.some(
                         (metric) =>
-                            getMetricsTreeNodeId(metric) ===
-                            getMetricsTreeNodeId(edge.source),
+                            metric.catalogSearchUuid ===
+                            edge.source.catalogSearchUuid,
                     ) &&
                     metrics.some(
                         (metric) =>
-                            getMetricsTreeNodeId(metric) ===
-                            getMetricsTreeNodeId(edge.target),
+                            metric.catalogSearchUuid ===
+                            edge.target.catalogSearchUuid,
                     ),
             );
 
             return edges.map((edge) => ({
                 id: getEdgeId(edge),
-                source: getMetricsTreeNodeId(edge.source),
-                target: getMetricsTreeNodeId(edge.target),
+                source: edge.source.catalogSearchUuid,
+                target: edge.target.catalogSearchUuid,
             }));
         }
 
@@ -215,8 +212,8 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
             if (projectUuid) {
                 await createMetricsTreeEdge({
                     projectUuid,
-                    sourceMetricId: params.source,
-                    targetMetricId: params.target,
+                    sourceCatalogSearchUuid: params.source,
+                    targetCatalogSearchUuid: params.target,
                 });
 
                 setCurrentEdges((els) => addEdge(params, els));
@@ -231,8 +228,8 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
                 const promises = edges.map((edge) => {
                     return deleteMetricsTreeEdge({
                         projectUuid,
-                        sourceMetricId: edge.source,
-                        targetMetricId: edge.target,
+                        sourceCatalogSearchUuid: edge.source,
+                        targetCatalogSearchUuid: edge.target,
                     });
                 });
 

@@ -94,7 +94,10 @@ export type CatalogTable = Pick<
 
 export type CatalogItem = CatalogField | CatalogTable;
 
-export type CatalogMetricsTreeNode = Pick<CatalogField, 'name' | 'tableName'>;
+export type CatalogMetricsTreeNode = Pick<
+    CatalogField,
+    'catalogSearchUuid' | 'name' | 'tableName'
+>;
 
 export type CatalogMetricsTreeEdge = {
     source: CatalogMetricsTreeNode;
@@ -129,8 +132,8 @@ export type ApiGetMetricsTree = {
 };
 
 export type ApiMetricsTreeEdgePayload = {
-    sourceMetricId: string;
-    targetMetricId: string;
+    sourceCatalogSearchUuid: string;
+    targetCatalogSearchUuid: string;
 };
 
 export type CatalogMetadata = {
