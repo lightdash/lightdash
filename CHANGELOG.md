@@ -1,3 +1,10 @@
+# [0.1398.0](https://github.com/lightdash/lightdash/compare/0.1397.2...0.1398.0) (2024-12-04)
+
+
+### Features
+
+* render metric visualization even if no default & config ([#12701](https://github.com/lightdash/lightdash/issues/12701)) ([ea1ea44](https://github.com/lightdash/lightdash/commit/ea1ea44030981d111fd4fc2a307c6e8ed376480f))
+
 ## [0.1397.2](https://github.com/lightdash/lightdash/compare/0.1397.1...0.1397.2) (2024-12-04)
 
 
