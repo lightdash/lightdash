@@ -121,18 +121,37 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
             };
         }, [metricResultsQuery.data?.fields]);
 
-    useEffect(() => {
-        const timeDimension =
-            timeDimensionOverride ?? metricQuery.data?.timeDimension;
+    useEffect(
+        function setInitialDateRange() {
+            if (metricQuery.isSuccess && !dateRange) {
+                const timeDimension = metricQuery.data?.timeDimension;
+                if (timeDimension) {
+                    setDateRange(
+                        getDefaultDateRangeFromInterval(timeDimension.interval),
+                    );
+                }
+            }
+        },
+        [metricQuery.isSuccess, metricQuery.data, dateRange],
+    );
 
-        if (!timeDimension) return;
-
-        if (timeDimension.interval !== timeDimensionBaseField?.interval) {
-            setDateRange(
-                getDefaultDateRangeFromInterval(timeDimension.interval),
-            );
-        }
-    }, [timeDimensionOverride, metricQuery.data, timeDimensionBaseField]);
+    useEffect(
+        function handleTimeDimensionChange() {
+            if (
+                timeDimensionOverride &&
+                timeDimensionOverride.interval !==
+                    timeDimensionBaseField?.interval &&
+                !dateRange
+            ) {
+                setDateRange(
+                    getDefaultDateRangeFromInterval(
+                        timeDimensionOverride.interval,
+                    ),
+                );
+            }
+        },
+        [timeDimensionOverride, timeDimensionBaseField, dateRange],
+    );
 
     const hasData = metricQuery.isSuccess && metricResultsQuery.isSuccess;
     const doesNotHaveData =
@@ -145,6 +164,15 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         setTimeDimensionOverride(undefined);
         onClose();
     }, [history, onClose, projectUuid]);
+
+    const handleTimeIntervalChange = useCallback(() => {
+        if (!timeDimensionOverride?.interval) return;
+        // if the time dimension override is different from the time dimension base field,
+        // we need to reset the date range to the default range for the new interval
+        setDateRange(
+            getDefaultDateRangeFromInterval(timeDimensionOverride.interval),
+        );
+    }, [timeDimensionOverride?.interval]);
 
     return (
         <Modal.Root
@@ -237,21 +265,31 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                 <Text fw={500} c="gray.7">
                                     Time filter
                                 </Text>
-                                {metricQuery.isSuccess && dateRange && (
-                                    <MetricPeekDatePicker
-                                        dateRange={dateRange}
-                                        onChange={setDateRange}
-                                        showTimeDimensionIntervalPicker={
-                                            !!timeDimensionBaseField
-                                        }
-                                        timeDimensionBaseField={
-                                            timeDimensionBaseField
-                                        }
-                                        setTimeDimensionOverride={
-                                            setTimeDimensionOverride
-                                        }
-                                    />
-                                )}
+                                {metricQuery.isSuccess &&
+                                    dateRange &&
+                                    metricResultsQuery.data?.metric
+                                        .timeDimension?.interval && (
+                                        <MetricPeekDatePicker
+                                            dateRange={dateRange}
+                                            onChange={setDateRange}
+                                            showTimeDimensionIntervalPicker={
+                                                !!timeDimensionBaseField
+                                            }
+                                            timeDimensionBaseField={
+                                                timeDimensionBaseField
+                                            }
+                                            setTimeDimensionOverride={
+                                                setTimeDimensionOverride
+                                            }
+                                            timeInterval={
+                                                metricResultsQuery.data.metric
+                                                    .timeDimension.interval
+                                            }
+                                            onTimeIntervalChange={
+                                                handleTimeIntervalChange
+                                            }
+                                        />
+                                    )}
                             </Stack>
 
                             <Divider color="gray.2" />
