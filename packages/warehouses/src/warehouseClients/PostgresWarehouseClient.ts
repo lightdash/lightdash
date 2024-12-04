@@ -24,7 +24,7 @@ const POSTGRES_CA_BUNDLES = [
 ];
 
 types.setTypeParser(types.builtins.NUMERIC, (value) => parseFloat(value));
-types.setTypeParser(types.builtins.INT8, (value) => parseInt(value, 10));
+types.setTypeParser(types.builtins.INT8, BigInt);
 
 export enum PostgresTypes {
     INTEGER = 'integer',
