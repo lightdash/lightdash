@@ -192,10 +192,12 @@ export class MetricsExplorerService<
                     );
 
                     const differentMetricTimeDimension =
-                        differentMetric.defaultTimeDimension;
+                        differentMetric.timeDimension;
+
                     if (!differentMetricTimeDimension) {
-                        // TODO: this will be implemented in a future PR
-                        throw new Error(`NOT IMPLEMENTED`);
+                        throw new Error(
+                            `Comparison metric should always have an associated time dimension`,
+                        );
                     }
 
                     const differentMetricDimensionGrain = dateRange
