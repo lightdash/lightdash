@@ -383,8 +383,8 @@ const removeCommentsAndOuterLimitOffset = (sql: string): string => {
     const limitOffsetRegex =
         /(\b(?:(?:limit\s+\d+(?:\s+offset\s+\d+)?)|(?:offset\s+\d+\s+limit\s+\d+))\s*(?:;|\s*)?)$/i;
     let sqlWithoutLimit = sqlWithoutStrings.replace(limitOffsetRegex, '');
-    // remove all semicolons
-    sqlWithoutLimit = sqlWithoutLimit.replace(/;/g, '');
+    // remove semicolon from the end of the query
+    sqlWithoutLimit = sqlWithoutLimit.trim().replace(/;+$/g, '');
     // restore strings
     let sqlRestored = restoreStringsFromPlaceholders(
         sqlWithoutLimit,
@@ -408,7 +408,7 @@ export const applyLimitToSqlQuery = ({
     // do nothing if limit is undefined
     if (limit === undefined) {
         // strip any trailing semicolons and comments
-        let sql = sqlQuery.replace(/;+\s*$/g, '').trim();
+        let sql = sqlQuery.trim().replace(/;+$/g, '');
         sql = removeComments(sql);
         return sql.trim();
     }
