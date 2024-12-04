@@ -3,7 +3,13 @@ import { groupBy, mapKeys } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import type { MetricWithAssociatedTimeDimension } from '../types/catalog';
 import { ConditionalOperator } from '../types/conditionalRule';
+import { type CompiledTable } from '../types/explore';
 import type { Dimension } from '../types/field';
+import {
+    DimensionType,
+    type CompiledDimension,
+    type CompiledMetric,
+} from '../types/field';
 import {
     type DateFilterSettings,
     type FieldTarget,
@@ -259,3 +265,87 @@ export const getFirstAvailableTimeDimension = (
     }
     return undefined;
 };
+
+/**
+ * Helper method to determine the correct time dimension configuration
+ * It covers the case where the metric has a default time dimension
+ * and the case where the metric has available time dimensions (could be multiple and from different tables that are joined)
+ */
+export const getTimeDimensionConfig = (
+    metric: CompiledMetric,
+): TimeDimensionConfig | undefined => {
+    if (metric.defaultTimeDimension) {
+        // Use the metric's table when default time dimension is specified
+        return {
+            table: metric.table,
+            field: metric.defaultTimeDimension.field,
+            interval: metric.defaultTimeDimension.interval,
+        };
+    }
+
+    // Fall back to the first available time dimension
+    const firstAvailableTimeDimension = getFirstAvailableTimeDimension(metric);
+    if (!firstAvailableTimeDimension) {
+        return undefined;
+    }
+
+    // Use the dimension's own table in case it's joined
+    return {
+        table: firstAvailableTimeDimension.table,
+        field: firstAvailableTimeDimension.field,
+        interval: firstAvailableTimeDimension.interval,
+    };
+};
+
+export const getDefaultTimeDimension = (
+    metric: CompiledMetric,
+    table?: CompiledTable,
+): DefaultTimeDimension | undefined => {
+    // Priority 1: Use metric-level default time dimension if defined in yml
+    if (metric.defaultTimeDimension) {
+        return metric.defaultTimeDimension;
+    }
+
+    // Priority 2: Use model-level default time dimension if defined in yml
+    if (table?.defaultTimeDimension) {
+        return table.defaultTimeDimension;
+    }
+
+    // Priority 3: Use the only time dimension if there's exactly one
+    if (table?.dimensions) {
+        const timeDimensions = Object.values(table.dimensions).filter(
+            (dim) =>
+                (dim.type === DimensionType.DATE ||
+                    dim.type === DimensionType.TIMESTAMP) &&
+                !!dim.isIntervalBase &&
+                !dim.hidden,
+        );
+        if (timeDimensions.length === 1) {
+            return {
+                field: timeDimensions[0].name,
+                interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+            };
+        }
+    }
+
+    return undefined;
+};
+
+export const getAvailableTimeDimensionsFromTables = (
+    tables: Record<string, CompiledTable>,
+): (CompiledDimension & {
+    type: DimensionType.DATE | DimensionType.TIMESTAMP;
+})[] =>
+    Object.values(tables).flatMap((table) =>
+        Object.values(table.dimensions).filter(
+            (
+                dim,
+            ): dim is CompiledDimension & {
+                type: DimensionType.DATE | DimensionType.TIMESTAMP;
+            } =>
+                (dim.type === DimensionType.DATE ||
+                    dim.type === DimensionType.TIMESTAMP) &&
+                !!dim.isIntervalBase &&
+                !dim.hidden,
+        ),
+    );

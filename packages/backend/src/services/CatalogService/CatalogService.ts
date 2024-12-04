@@ -18,6 +18,8 @@ import {
     Explore,
     ExploreError,
     ForbiddenError,
+    getAvailableTimeDimensionsFromTables,
+    getDefaultTimeDimension,
     hasIntersection,
     InlineErrorType,
     isExploreError,
@@ -875,60 +877,6 @@ export class CatalogService<
         ]);
     }
 
-    private static getDefaultTimeDimension(
-        metric: CompiledMetric,
-        table?: CompiledTable,
-    ) {
-        // Priority 1: Use metric-level default time dimension if defined in yml
-        if (metric.defaultTimeDimension) {
-            return metric.defaultTimeDimension;
-        }
-
-        // Priority 2: Use model-level default time dimension if defined in yml
-        if (table?.defaultTimeDimension) {
-            return table.defaultTimeDimension;
-        }
-
-        // Priority 3: Use the only time dimension if there's exactly one
-        if (table?.dimensions) {
-            const timeDimensions = Object.values(table.dimensions).filter(
-                (dim) =>
-                    (dim.type === DimensionType.DATE ||
-                        dim.type === DimensionType.TIMESTAMP) &&
-                    !!dim.isIntervalBase &&
-                    !dim.hidden,
-            );
-            if (timeDimensions.length === 1) {
-                return {
-                    field: timeDimensions[0].name,
-                    interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
-                };
-            }
-        }
-
-        return undefined;
-    }
-
-    private static getAvailableTimeDimensionsFromTables(
-        tables: Record<string, CompiledTable>,
-    ): (CompiledDimension & {
-        type: DimensionType.DATE | DimensionType.TIMESTAMP;
-    })[] {
-        return Object.values(tables).flatMap((table) =>
-            Object.values(table.dimensions).filter(
-                (
-                    dim,
-                ): dim is CompiledDimension & {
-                    type: DimensionType.DATE | DimensionType.TIMESTAMP;
-                } =>
-                    (dim.type === DimensionType.DATE ||
-                        dim.type === DimensionType.TIMESTAMP) &&
-                    !!dim.isIntervalBase &&
-                    !dim.hidden,
-            ),
-        );
-    }
-
     async getMetric(
         user: SessionUser,
         projectUuid: string,
@@ -971,21 +919,19 @@ export class CatalogService<
             throw new NotFoundError('Metric not found');
         }
 
-        const defaultTimeDimension = CatalogService.getDefaultTimeDimension(
+        const defaultTimeDimension = getDefaultTimeDimension(
             metric,
             metricBaseTable,
         );
 
         let availableTimeDimensions:
-            | ReturnType<
-                  typeof CatalogService.getAvailableTimeDimensionsFromTables
-              >
+            | ReturnType<typeof getAvailableTimeDimensionsFromTables>
             | undefined;
 
         // If no default time dimension is defined, we can use the available time dimensions so the user can see what time dimensions are available
         if (!defaultTimeDimension) {
             availableTimeDimensions =
-                CatalogService.getAvailableTimeDimensionsFromTables(tables);
+                getAvailableTimeDimensionsFromTables(tables);
         }
 
         return {

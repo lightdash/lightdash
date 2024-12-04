@@ -1,12 +1,12 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    CompiledMetric,
     ForbiddenError,
     getFieldIdForDateDimension,
     getGrainForDateRange,
     getItemId,
     getMetricExplorerDateRangeFilters,
+    getTimeDimensionConfig,
     MetricExplorerComparison,
     MetricExplorerComparisonType,
     oneYearBack,
@@ -15,6 +15,7 @@ import {
     type MetricsExplorerQueryResults,
     type ResultRow,
     type SessionUser,
+    type TimeDimensionConfig,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -92,8 +93,7 @@ export class MetricsExplorerService<
         const { defaultTimeDimension } = metric;
 
         const timeDimensionConfig =
-            timeDimensionOverride ??
-            MetricsExplorerService.getTimeDimensionConfig(metric);
+            timeDimensionOverride ?? getTimeDimensionConfig(metric);
 
         if (!timeDimensionConfig) {
             throw new Error(
@@ -203,38 +203,6 @@ export class MetricsExplorerService<
             rows: currentResults,
             comparisonRows: comparisonResults,
             fields: allFields,
-        };
-    }
-
-    /**
-     * Helper method to determine the correct time dimension configuration
-     * It covers the case where the metric has a default time dimension
-     * and the case where the metric has available time dimensions (could be multiple and from different tables that are joined)
-     */
-    private static getTimeDimensionConfig(
-        metric: CompiledMetric,
-    ): TimeDimensionConfig | undefined {
-        if (metric.defaultTimeDimension) {
-            // Use the metric's table when default time dimension is specified
-            return {
-                table: metric.table,
-                field: metric.defaultTimeDimension.field,
-                interval: metric.defaultTimeDimension.interval,
-            };
-        }
-
-        // Fall back to the first available time dimension
-        const firstAvailableTimeDimension =
-            getFirstAvailableTimeDimension(metric);
-        if (!firstAvailableTimeDimension) {
-            return undefined;
-        }
-
-        // Use the dimension's own table in case it's joined
-        return {
-            table: firstAvailableTimeDimension.table,
-            field: firstAvailableTimeDimension.field,
-            interval: firstAvailableTimeDimension.interval,
         };
     }
 }
