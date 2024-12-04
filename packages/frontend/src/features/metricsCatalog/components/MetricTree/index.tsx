@@ -15,6 +15,7 @@ import {
     useReactFlow,
     type Connection,
     type Edge,
+    type EdgeChange,
     type Node,
     type NodeChange,
     type NodeTypes,
@@ -40,6 +41,10 @@ type Props = {
         edges: CatalogMetricsTreeEdge[];
     };
 };
+
+enum STATIC_NODE_TYPES {
+    UNCONNECTED = 'UNCONNECTED',
+}
 
 function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
     return `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`;
@@ -136,7 +141,7 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
 
     const groups = [
         {
-            id: 'unconnected',
+            id: STATIC_NODE_TYPES.UNCONNECTED,
             data: { label: 'Unconnected nodes' },
             position: { x: left - mainPadding, y: top - mainPadding },
             style: {
@@ -281,6 +286,54 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
             });
         }
     }, [layoutReady, fitView]);
+
+    useEffect(() => {
+        const addNodeChanges: NodeChange<Node>[] = initialNodes
+            .filter((node) => !currentNodes.some((n) => n.id === node.id))
+            .map((node) => ({
+                id: node.id,
+                type: 'add',
+                item: node,
+            }));
+
+        const removeNodeChanges: NodeChange<Node>[] = currentNodes
+            .filter(
+                (node) =>
+                    node.id !== STATIC_NODE_TYPES.UNCONNECTED &&
+                    !initialNodes.some((n) => n.id === node.id),
+            )
+            .map((node) => ({
+                id: node.id,
+                type: 'remove',
+            }));
+
+        if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
+            onNodesChange([...addNodeChanges, ...removeNodeChanges]);
+            setLayoutReady(false);
+        }
+    }, [initialNodes, currentNodes, onNodesChange]);
+
+    useEffect(() => {
+        const addEdgeChanges: EdgeChange<Edge>[] = initialEdges
+            .filter((edge) => !currentEdges.some((e) => e.id === edge.id))
+            .map((edge) => ({
+                id: edge.id,
+                type: 'add',
+                item: edge,
+            }));
+
+        const removeEdgeChanges: EdgeChange<Edge>[] = currentEdges
+            .filter((edge) => !initialEdges.some((e) => e.id === edge.id))
+            .map((edge) => ({
+                id: edge.id,
+                type: 'remove',
+            }));
+
+        if (addEdgeChanges.length > 0 || removeEdgeChanges.length > 0) {
+            onEdgesChange([...addEdgeChanges, ...removeEdgeChanges]);
+            setLayoutReady(false);
+        }
+    }, [initialEdges, currentEdges, onEdgesChange]);
 
     return (
         <Box h="100%">
