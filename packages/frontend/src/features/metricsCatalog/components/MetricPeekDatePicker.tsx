@@ -1,6 +1,6 @@
 import {
-    type ApiGetMetricPeek,
     type MetricExplorerDateRange,
+    type TimeDimensionConfig,
 } from '@lightdash/common';
 import {
     Box,
@@ -16,22 +16,27 @@ import {
 } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
 import { IconCalendar, IconChevronDown } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useDateRangePicker } from '../hooks/useDateRangePicker';
+import { TimeDimensionIntervalPicker } from './visualization/TimeDimensionIntervalPicker';
 
 type Props = {
-    defaultTimeDimension:
-        | ApiGetMetricPeek['results']['defaultTimeDimension']
-        | undefined;
+    dateRange: MetricExplorerDateRange;
     onChange: (dateRange: MetricExplorerDateRange) => void;
-    rightSection?: ReactNode;
+    showTimeDimensionIntervalPicker: boolean;
+    timeDimensionBaseField: TimeDimensionConfig | undefined;
+    setTimeDimensionOverride: Dispatch<
+        SetStateAction<TimeDimensionConfig | undefined>
+    >;
 };
 
 export const MetricPeekDatePicker: FC<Props> = ({
-    defaultTimeDimension,
+    dateRange,
     onChange,
-    rightSection,
+    showTimeDimensionIntervalPicker,
+    timeDimensionBaseField,
+    setTimeDimensionOverride,
 }) => {
     const {
         isOpen,
@@ -45,7 +50,8 @@ export const MetricPeekDatePicker: FC<Props> = ({
         handleApply,
         handlePresetSelect,
         handleDateRangeChange,
-    } = useDateRangePicker({ defaultTimeDimension, onChange });
+        reset,
+    } = useDateRangePicker({ value: dateRange, onChange });
 
     return (
         <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
@@ -81,8 +87,15 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                 />
                                 {buttonLabel}
                             </Group>
-                            {rightSection ? (
-                                rightSection
+                            {showTimeDimensionIntervalPicker &&
+                            timeDimensionBaseField ? (
+                                <TimeDimensionIntervalPicker
+                                    dimension={timeDimensionBaseField}
+                                    onChange={(value) => {
+                                        setTimeDimensionOverride(value);
+                                        reset();
+                                    }}
+                                />
                             ) : (
                                 <MantineIcon
                                     color="dark.3"
