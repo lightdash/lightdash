@@ -498,7 +498,6 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
     ) {
-        console.log('saveExploresToCacheAndIndexCatalog');
         // We delete the explores when saving to cache which cascades to the catalog
         // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag) and icons
         const prevCatalogItemsWithTags =
@@ -506,21 +505,13 @@ export class ProjectService extends BaseService {
                 onlyTagged: true, // We only need the tagged catalog items
             });
 
-        console.log('prevCatalogItemsWithTags', prevCatalogItemsWithTags);
-
         const prevCatalogItemsWithIcons =
             await this.catalogModel.getCatalogItemsWithIcons(projectUuid);
-
-        console.log('prevCatalogItemsWithIcons', prevCatalogItemsWithIcons);
 
         const prevMetricTreeEdges =
             await this.catalogModel.getAllMetricsTreeEdges(projectUuid);
 
-        console.log('prevMetricTreeEdges', prevMetricTreeEdges);
-
         await this.projectModel.saveExploresToCache(projectUuid, explores);
-
-        console.log('explores', explores);
 
         await this.schedulerClient.indexCatalog({
             projectUuid,
@@ -530,8 +521,6 @@ export class ProjectService extends BaseService {
             prevCatalogItemsWithIcons,
             prevMetricTreeEdges,
         });
-
-        console.log('done');
     }
 
     async getProject(projectUuid: string, user: SessionUser): Promise<Project> {
