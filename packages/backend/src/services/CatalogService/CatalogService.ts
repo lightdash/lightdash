@@ -10,14 +10,18 @@ import {
     CatalogTable,
     CatalogType,
     ChartSummary,
+    DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
     Explore,
     ExploreError,
     FieldType,
     ForbiddenError,
+    getAvailableTimeDimensionsFromTables,
+    getDefaultTimeDimension,
     hasIntersection,
     InlineErrorType,
     isExploreError,
     MAX_METRICS_TREE_NODE_COUNT,
+    MetricWithAssociatedTimeDimension,
     NotFoundError,
     ParameterError,
     SessionUser,
@@ -879,7 +883,7 @@ export class CatalogService<
         projectUuid: string,
         tableName: string,
         metricName: string,
-    ) {
+    ): Promise<MetricWithAssociatedTimeDimension> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -908,22 +912,64 @@ export class CatalogService<
         }
 
         const filteredExplore = getFilteredExplore(explore, userAttributes);
-
-        const metric =
-            filteredExplore?.tables?.[tableName]?.metrics?.[metricName];
-
-        // Get the default time dimension from the metric, or the explore if not set on the metric
-        const defaultTimeDimension =
-            metric.defaultTimeDimension ??
-            filteredExplore?.tables?.[tableName]?.defaultTimeDimension;
+        const tables = filteredExplore?.tables;
+        const metric = tables?.[tableName]?.metrics?.[metricName];
+        const metricBaseTable = tables?.[metric?.table];
 
         if (!metric) {
             throw new NotFoundError('Metric not found');
         }
 
+        const defaultTimeDimension = getDefaultTimeDimension(
+            metric,
+            metricBaseTable,
+        );
+
+        let availableTimeDimensions:
+            | ReturnType<typeof getAvailableTimeDimensionsFromTables>
+            | undefined;
+
+        // If no default time dimension is defined, we can use the available time dimensions so the user can see what time dimensions are available
+        if (!defaultTimeDimension) {
+            availableTimeDimensions =
+                getAvailableTimeDimensionsFromTables(tables);
+        }
+
+        let timeDimension:
+            | MetricWithAssociatedTimeDimension['timeDimension']
+            | undefined;
+
+        if (defaultTimeDimension) {
+            timeDimension = {
+                field: defaultTimeDimension.field,
+                interval: defaultTimeDimension.interval,
+                table: metric.table,
+            };
+        } else if (
+            availableTimeDimensions &&
+            availableTimeDimensions.length > 0
+        ) {
+            const firstAvailableTimeDimension = availableTimeDimensions[0];
+
+            if (!firstAvailableTimeDimension.isIntervalBase) {
+                throw new Error(
+                    'The first available time dimension is not an interval base dimension',
+                );
+            }
+
+            timeDimension = {
+                field: firstAvailableTimeDimension.name,
+                interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+                table: firstAvailableTimeDimension.table,
+            };
+        }
+
         return {
             ...metric,
-            defaultTimeDimension,
+            ...(availableTimeDimensions && availableTimeDimensions.length > 0
+                ? { availableTimeDimensions }
+                : {}),
+            timeDimension,
         };
     }
 

@@ -1,3 +1,4 @@
+import { type MetricWithAssociatedTimeDimension } from './catalog';
 import type { ItemsMap } from './field';
 import type { ResultRow } from './results';
 
@@ -22,6 +23,7 @@ export type MetricExploreDataPoint = {
 };
 
 export type MetricsExplorerQueryResults = {
+    metric: MetricWithAssociatedTimeDimension;
     rows: ResultRow[];
     comparisonRows: ResultRow[] | undefined;
     fields: ItemsMap;

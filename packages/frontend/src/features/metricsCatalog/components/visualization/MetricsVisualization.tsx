@@ -1,13 +1,10 @@
 import {
     getFieldIdForDateDimension,
-    getGrainForDateRange,
     getItemId,
     getMetricExplorerDataPoints,
     getMetricExplorerDataPointsWithCompare,
     isDimension,
-    type MetricExplorerDateRange,
     type MetricsExplorerQueryResults,
-    type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, useMantineTheme } from '@mantine/core';
 import { IconZoomReset } from '@tabler/icons-react';
@@ -59,31 +56,27 @@ const tickFormatter = (date: Date) => {
 };
 
 type Props = {
-    dateRange: MetricExplorerDateRange | undefined;
-    metric: MetricWithAssociatedTimeDimension;
     data: MetricsExplorerQueryResults;
 };
 
-const MetricsVisualization: FC<Props> = ({ metric, data, dateRange }) => {
+const MetricsVisualization: FC<Props> = ({ data }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
     const timeSeriesData = useMemo(() => {
-        const defaultTimeDimension = metric.defaultTimeDimension;
-        if (!defaultTimeDimension) return null;
+        const timeDimension = data.metric.timeDimension;
 
-        const dimensionGrain = dateRange
-            ? getGrainForDateRange(dateRange)
-            : defaultTimeDimension.interval;
+        if (!timeDimension) return null;
 
         const dimensionId = getFieldIdForDateDimension(
             getItemId({
-                name: defaultTimeDimension.field,
-                table: metric.table,
+                name: timeDimension.field,
+                table: timeDimension.table,
             }),
-            dimensionGrain,
+            timeDimension.interval,
         );
 
         if (!dimensionId || !data.fields[dimensionId]) return null;
+
         if (!data.rows) return null;
 
         const dimension = data.fields[dimensionId];
@@ -92,11 +85,11 @@ const MetricsVisualization: FC<Props> = ({ metric, data, dateRange }) => {
         const rawData = !!data.comparisonRows
             ? getMetricExplorerDataPointsWithCompare(
                   dimension,
-                  metric,
+                  data.metric,
                   data.rows,
                   data.comparisonRows,
               )
-            : getMetricExplorerDataPoints(dimension, metric, data.rows);
+            : getMetricExplorerDataPoints(dimension, data.metric, data.rows);
 
         return rawData
             .map((row) => ({
@@ -104,7 +97,7 @@ const MetricsVisualization: FC<Props> = ({ metric, data, dateRange }) => {
                 dateValue: row.date.valueOf(),
             }))
             .sort((a, b) => a.dateValue - b.dateValue);
-    }, [data.comparisonRows, data.fields, data.rows, dateRange, metric]);
+    }, [data.comparisonRows, data.fields, data.metric, data.rows]);
 
     const {
         zoomState,
@@ -190,7 +183,7 @@ const MetricsVisualization: FC<Props> = ({ metric, data, dateRange }) => {
                     />
 
                     <RechartsTooltip
-                        formatter={(value) => [value, metric.label]}
+                        formatter={(value) => [value, data.metric.label]}
                         labelFormatter={(label) =>
                             dayjs(label).format('MMM D, YYYY')
                         }
@@ -204,7 +197,7 @@ const MetricsVisualization: FC<Props> = ({ metric, data, dateRange }) => {
                     />
 
                     <Line
-                        name={metric.label}
+                        name={data.metric.label}
                         type="monotone"
                         dataKey="metric"
                         stroke={colors.indigo[6]}
@@ -215,7 +208,7 @@ const MetricsVisualization: FC<Props> = ({ metric, data, dateRange }) => {
 
                     {data.comparisonRows && (
                         <Line
-                            name={`${metric.label} (comparison)`}
+                            name={`${data.metric.label} (comparison)`}
                             type="monotone"
                             dataKey="compareMetric"
                             stroke={colors.indigo[4]}

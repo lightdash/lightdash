@@ -3,7 +3,6 @@ import {
     assertUnreachable,
     ForbiddenError,
     getFieldIdForDateDimension,
-    getGrainForDateRange,
     getItemId,
     getMetricExplorerDateRangeFilters,
     MetricExplorerComparison,
@@ -14,6 +13,7 @@ import {
     type MetricsExplorerQueryResults,
     type ResultRow,
     type SessionUser,
+    type TimeDimensionConfig,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -66,6 +66,7 @@ export class MetricsExplorerService<
         metricName: string,
         dateRange: MetricExplorerDateRange,
         compare: MetricExplorerComparisonType | undefined,
+        timeDimensionOverride: TimeDimensionConfig | undefined,
     ): Promise<MetricsExplorerQueryResults> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -87,21 +88,21 @@ export class MetricsExplorerService<
             metricName,
         );
 
-        const { defaultTimeDimension } = metric;
-        if (!defaultTimeDimension) {
+        const timeDimensionConfig =
+            timeDimensionOverride ?? metric.timeDimension;
+
+        if (!timeDimensionConfig) {
             throw new Error(
-                `Metric ${metricName} does not have a default time dimension`,
+                `Metric ${metricName} does not have a valid time dimension`,
             );
         }
 
-        const dimensionGrain = dateRange
-            ? getGrainForDateRange(dateRange)
-            : defaultTimeDimension.interval;
+        const dimensionGrain = timeDimensionConfig.interval;
 
         const timeDimension = getItemId({
-            table: metric.table,
+            table: timeDimensionConfig.table,
             name: getFieldIdForDateDimension(
-                defaultTimeDimension.field,
+                timeDimensionConfig.field,
                 dimensionGrain,
             ),
         });
@@ -114,8 +115,8 @@ export class MetricsExplorerService<
                 dimensions: {
                     id: uuidv4(),
                     and: getMetricExplorerDateRangeFilters(
-                        exploreName,
-                        defaultTimeDimension.field,
+                        timeDimensionConfig.table,
+                        timeDimensionConfig.field,
                         dateRange,
                     ),
                 },
@@ -158,8 +159,8 @@ export class MetricsExplorerService<
                             dimensions: {
                                 id: uuidv4(),
                                 and: getMetricExplorerDateRangeFilters(
-                                    exploreName,
-                                    defaultTimeDimension.field,
+                                    timeDimensionConfig.table,
+                                    timeDimensionConfig.field,
                                     previousDateRange,
                                 ),
                             },
@@ -196,6 +197,7 @@ export class MetricsExplorerService<
             rows: currentResults,
             comparisonRows: comparisonResults,
             fields: allFields,
+            metric: { ...metric, timeDimension: timeDimensionConfig },
         };
     }
 }

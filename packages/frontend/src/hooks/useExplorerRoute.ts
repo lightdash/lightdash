@@ -49,23 +49,21 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
 export const createMetricPreviewUnsavedChartVersion = (
     metric: MetricWithAssociatedTimeDimension,
 ): CreateSavedChartVersion => {
-    const defaultTimeDimension = metric.defaultTimeDimension;
+    const timeDimension = metric.timeDimension;
 
     const defaultTimeFilters =
-        defaultTimeDimension && defaultTimeDimension.interval
+        timeDimension && timeDimension.interval
             ? getMetricExplorerDateRangeFilters(
-                  metric.table,
-                  defaultTimeDimension.field,
-                  getDefaultDateRangeFromInterval(
-                      defaultTimeDimension.interval,
-                  ),
+                  timeDimension.table,
+                  timeDimension.field,
+                  getDefaultDateRangeFromInterval(timeDimension.interval),
               )
             : [];
 
     let chartConfig = DEFAULT_EMPTY_EXPLORE_CONFIG.chartConfig;
 
     // If there is no default time dimension, we want to default to a big number chart because there is no time dimension to plot a chart
-    if (!defaultTimeDimension) {
+    if (!timeDimension) {
         chartConfig = {
             type: ChartType.BIG_NUMBER,
             config: {},
@@ -79,13 +77,13 @@ export const createMetricPreviewUnsavedChartVersion = (
         metricQuery: {
             ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
             exploreName: metric.table,
-            dimensions: defaultTimeDimension
+            dimensions: timeDimension
                 ? [
                       getItemId({
-                          table: metric.table,
+                          table: timeDimension.table,
                           name: getFieldIdForDateDimension(
-                              defaultTimeDimension.field,
-                              defaultTimeDimension.interval,
+                              timeDimension.field,
+                              timeDimension.interval,
                           ),
                       }),
                   ]

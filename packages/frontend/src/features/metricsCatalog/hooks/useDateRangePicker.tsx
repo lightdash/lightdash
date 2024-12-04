@@ -1,10 +1,8 @@
 import {
-    getDefaultDateRangeFromInterval,
-    type ApiGetMetricPeek,
     type MetricExplorerDateRange,
     type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatDate, getDateRangePresets } from '../utils/metricPeekDate';
 
 type DateRange = MetricExplorerPartialDateRange;
@@ -16,7 +14,7 @@ export interface DateRangePreset {
 }
 
 interface UseDateRangePickerProps {
-    defaultTimeDimension?: ApiGetMetricPeek['results']['defaultTimeDimension'];
+    value: MetricExplorerDateRange;
     onChange?: (range: MetricExplorerDateRange) => void;
 }
 
@@ -27,23 +25,24 @@ interface UseDateRangePickerProps {
  * (used when the user is selecting a preset, but has not applied it yet)
  */
 export const useDateRangePicker = ({
-    defaultTimeDimension,
+    value,
     onChange,
 }: UseDateRangePickerProps) => {
     const presets = getDateRangePresets();
     const [isOpen, setIsOpen] = useState(false);
 
-    const [dateRange, setDateRange] = useState<DateRange>(
-        defaultTimeDimension?.interval
-            ? getDefaultDateRangeFromInterval(defaultTimeDimension.interval)
-            : [null, null],
-    );
+    const [dateRange, setDateRange] = useState<DateRange>(value);
+
     const [tempDateRange, setTempDateRange] = useState<DateRange>(dateRange);
 
     const [selectedPreset, setSelectedPreset] =
         useState<DateRangePreset | null>(null);
     const [tempSelectedPreset, setTempSelectedPreset] =
         useState<DateRangePreset | null>(null);
+
+    useEffect(() => {
+        setDateRange(value);
+    }, [value]);
 
     const buttonLabel =
         selectedPreset?.label ||
@@ -85,6 +84,11 @@ export const useDateRangePicker = ({
         setTempSelectedPreset(null);
     };
 
+    const reset = () => {
+        setDateRange(value);
+        setSelectedPreset(null);
+    };
+
     return {
         isOpen,
         tempDateRange,
@@ -97,5 +101,6 @@ export const useDateRangePicker = ({
         handleApply,
         handlePresetSelect,
         handleDateRangeChange,
+        reset,
     };
 };
