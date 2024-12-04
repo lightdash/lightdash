@@ -61,17 +61,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         null,
     );
 
-    useEffect(() => {
-        if (!metricQuery.isSuccess || dateRange) return;
-
-        const defaultTimeDimension = metricQuery.data.defaultTimeDimension;
-        if (!defaultTimeDimension) return;
-
-        setDateRange(
-            getDefaultDateRangeFromInterval(defaultTimeDimension.interval),
-        );
-    }, [metricQuery.isSuccess, metricQuery.data, dateRange]);
-
     const comparisonParams = useMemo((): MetricExplorerComparisonType => {
         switch (comparisonType) {
             case MetricExplorerComparison.NONE:
