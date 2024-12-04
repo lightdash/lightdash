@@ -54,7 +54,7 @@ export const createMetricPreviewUnsavedChartVersion = (
     const defaultTimeFilters =
         timeDimension && timeDimension.interval
             ? getMetricExplorerDateRangeFilters(
-                  metric.table,
+                  timeDimension.table,
                   timeDimension.field,
                   getDefaultDateRangeFromInterval(timeDimension.interval),
               )
@@ -80,7 +80,7 @@ export const createMetricPreviewUnsavedChartVersion = (
             dimensions: timeDimension
                 ? [
                       getItemId({
-                          table: metric.table,
+                          table: timeDimension.table,
                           name: getFieldIdForDateDimension(
                               timeDimension.field,
                               timeDimension.interval,
