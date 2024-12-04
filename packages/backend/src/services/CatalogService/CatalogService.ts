@@ -942,12 +942,7 @@ export class CatalogService<
             availableTimeDimensions &&
             availableTimeDimensions.length > 0
         ) {
-            console.log({ availableTimeDimensions });
             const firstAvailableTimeDimension = availableTimeDimensions[0];
-
-            console.log({
-                firstAvailableTimeDimension,
-            });
 
             if (!firstAvailableTimeDimension.isIntervalBase) {
                 throw new Error(

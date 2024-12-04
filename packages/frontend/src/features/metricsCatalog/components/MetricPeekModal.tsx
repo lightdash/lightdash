@@ -90,8 +90,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         null,
     );
 
-    console.log({ dateRange });
-
     const metricResultsQuery = useRunMetricExplorerQuery({
         projectUuid,
         exploreName: tableName,
