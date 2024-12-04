@@ -110,6 +110,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
         setComparisonType(MetricExplorerComparison.NONE);
+        setDateRange(null);
         onClose();
     }, [history, onClose, projectUuid]);
 
