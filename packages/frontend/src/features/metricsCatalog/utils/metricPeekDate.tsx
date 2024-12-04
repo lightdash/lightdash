@@ -1,4 +1,3 @@
-import { TimeFrames, type MetricExplorerDateRange } from '@lightdash/common';
 import dayjs from 'dayjs';
 import { type DateRangePreset } from '../hooks/useDateRangePicker';
 
@@ -81,52 +80,4 @@ export const getDateRangePresets = (): DateRangePreset[] => {
     ];
 
     return presets;
-};
-
-/**
- * Get the date range for a given time interval, based on the current date and the time interval
- * Time grain Year: -> past 5 years (i.e. 5 completed years + this uncompleted year)
- * Time grain Month -> past 12 months (i.e. 12 completed months + this uncompleted month)
- * Time grain Week -> past 12 weeks (i.e. 12 completed weeks + this uncompleted week)
- * Time grain Day -> past 30 days (i.e. 30 completed days + this uncompleted day)
- * @param timeInterval - The time interval
- * @returns The date range
- */
-export const getDefaultDateRangeFromInterval = (
-    timeInterval: TimeFrames | undefined,
-): MetricExplorerDateRange => {
-    if (!timeInterval) {
-        return [null, null];
-    }
-
-    const now = dayjs();
-
-    switch (timeInterval) {
-        case TimeFrames.DAY:
-            // Past 30 days (29 completed days + current day)
-            return [
-                now.subtract(29, 'day').startOf('day').toDate(),
-                now.toDate(),
-            ];
-        case TimeFrames.WEEK:
-            // Past 12 weeks (11 completed weeks + current week)
-            return [
-                now.subtract(11, 'week').startOf('week').toDate(),
-                now.toDate(),
-            ];
-        case TimeFrames.MONTH:
-            // Past 12 months (11 completed months + current month)
-            return [
-                now.subtract(11, 'month').startOf('month').toDate(),
-                now.toDate(),
-            ];
-        case TimeFrames.YEAR:
-            // Past 5 years (4 completed years + current year)
-            return [
-                now.subtract(4, 'year').startOf('year').toDate(),
-                now.toDate(),
-            ];
-        default:
-            return [null, null];
-    }
 };

@@ -1,11 +1,4 @@
-import { type ResultValue } from '@lightdash/common';
 import dayjs from 'dayjs';
-
-export type TimeSeriesData = {
-    date: Date;
-    metric: ResultValue['raw'];
-    compareMetric?: ResultValue['raw'];
-};
 
 export const FORMATS = {
     millisecond: (date: Date) => dayjs(date).format('HH:mm:ss.SSS'),

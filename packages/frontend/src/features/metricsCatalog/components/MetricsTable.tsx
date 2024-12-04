@@ -1,4 +1,8 @@
-import { assertUnreachable, type CatalogItem } from '@lightdash/common';
+import {
+    assertUnreachable,
+    MAX_METRICS_TREE_NODE_COUNT,
+    type CatalogItem,
+} from '@lightdash/common';
 import {
     Box,
     Divider,
@@ -14,6 +18,7 @@ import {
     IconArrowUp,
 } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
+import { ReactFlowProvider } from '@xyflow/react';
 import {
     MantineReactTable,
     useMantineReactTable,
@@ -30,8 +35,13 @@ import {
     type UIEvent,
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import { useAppSelector } from '../../sqlRunner/store/hooks';
+import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { useTracking } from '../../../providers/TrackingProvider';
+import { EventName } from '../../../types/Events';
+import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricsCatalog } from '../hooks/useMetricsCatalog';
+import { useMetricsTree } from '../hooks/useMetricsTree';
+import { setCategoryFilters } from '../store/metricsCatalogSlice';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import {
     MetricCatalogView,
@@ -40,14 +50,19 @@ import {
 import MetricTree from './MetricTree';
 
 export const MetricsTable = () => {
+    const { track } = useTracking();
+    const dispatch = useAppDispatch();
     const theme = useMantineTheme();
+
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
+    );
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
     );
     const categoryFilters = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
     );
-
     const canManageTags = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageTags,
     );
@@ -94,6 +109,23 @@ export const MetricsTable = () => {
     const flatData = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data],
+    );
+
+    // Fetch metric tree data
+    const selectedMetricUuids = useMemo(() => {
+        return flatData.map((metric) => metric.catalogSearchUuid);
+    }, [flatData]);
+
+    const isValidMetricsTree =
+        selectedMetricUuids.length > 0 &&
+        selectedMetricUuids.length <= MAX_METRICS_TREE_NODE_COUNT;
+
+    const { data: metricsTree } = useMetricsTree(
+        projectUuid,
+        selectedMetricUuids,
+        {
+            enabled: !!projectUuid && isValidMetricsTree,
+        },
     );
 
     const dataHasCategories = useMemo(() => {
@@ -158,6 +190,21 @@ export const MetricsTable = () => {
 
     const handleViewChange = (view: MetricCatalogView) => {
         setMetricCatalogView(view);
+    };
+
+    const handleSetCategoryFilters = (selectedCategories: string[]) => {
+        dispatch(setCategoryFilters(selectedCategories));
+
+        // Track when categories are applied as filters
+        if (selectedCategories.length > 0 && selectedCategories) {
+            track({
+                name: EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                },
+            });
+        }
     };
 
     // Reusable paper props to avoid duplicate when rendering tree view
@@ -342,6 +389,8 @@ export const MetricsTable = () => {
                     search={search}
                     setSearch={setSearch}
                     totalResults={totalResults}
+                    selectedCategories={categoryFilters}
+                    setSelectedCategories={handleSetCategoryFilters}
                     position="apart"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
@@ -438,6 +487,8 @@ export const MetricsTable = () => {
                             search={search}
                             setSearch={setSearch}
                             totalResults={totalResults}
+                            selectedCategories={categoryFilters}
+                            setSelectedCategories={handleSetCategoryFilters}
                             position="apart"
                             p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                             showCategoriesFilter={
@@ -449,7 +500,20 @@ export const MetricsTable = () => {
                         <Divider color="gray.2" />
                     </Box>
                     <Box w="100%" h="calc(100dvh - 350px)">
-                        <MetricTree metrics={flatData} />
+                        <ReactFlowProvider>
+                            {isValidMetricsTree && metricsTree && (
+                                <MetricTree
+                                    metrics={flatData}
+                                    metricsTree={metricsTree}
+                                />
+                            )}
+                            {!isValidMetricsTree && (
+                                <SuboptimalState
+                                    title="Metrics tree not available"
+                                    description="Please narrow your search to display up to 30 metrics"
+                                />
+                            )}
+                        </ReactFlowProvider>
                     </Box>
                 </Paper>
             );

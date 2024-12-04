@@ -1,27 +1,27 @@
+import type { MetricExploreDataPoint } from '@lightdash/common';
 import { useCallback, useMemo, useState } from 'react';
 import { type CategoricalChartFunc } from 'recharts/types/chart/generateCategoricalChart';
-import { type TimeSeriesData } from './types';
 
-interface ZoomState {
-    refAreaLeft: number | null;
-    refAreaRight: number | null;
-    zoomedData: TimeSeriesData[] | null;
-}
+type UseChartZoomArgs<T extends MetricExploreDataPoint> = {
+    data: T[];
+};
 
-interface UseChartZoomProps {
-    data: TimeSeriesData[];
-}
-
-interface ChartZoom {
-    zoomState: ZoomState;
+type ChartZoom<T extends MetricExploreDataPoint> = {
+    zoomState: ZoomState<T>;
     handlers: {
         handleMouseDown: CategoricalChartFunc;
         handleMouseMove: CategoricalChartFunc;
         handleMouseUp: CategoricalChartFunc;
         resetZoom: () => void;
     };
-    activeData: TimeSeriesData[];
-}
+    activeData: T[];
+};
+
+type ZoomState<T extends MetricExploreDataPoint> = {
+    refAreaLeft: number | null;
+    refAreaRight: number | null;
+    zoomedData: T[] | null;
+};
 
 /**
  * Hook to handle zooming on the chart using the recharts library
@@ -29,8 +29,10 @@ interface ChartZoom {
  * @param data - The data to zoom on
  * @returns The zoom state and handlers
  */
-export const useChartZoom = ({ data }: UseChartZoomProps): ChartZoom => {
-    const [zoomState, setZoomState] = useState<ZoomState>({
+export const useChartZoom = <T extends MetricExploreDataPoint>({
+    data,
+}: UseChartZoomArgs<T>): ChartZoom<T> => {
+    const [zoomState, setZoomState] = useState<ZoomState<T>>({
         refAreaLeft: null,
         refAreaRight: null,
         zoomedData: null,

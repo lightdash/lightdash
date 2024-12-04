@@ -1,0 +1,1 @@
+export const MAX_METRICS_TREE_NODE_COUNT = 30;

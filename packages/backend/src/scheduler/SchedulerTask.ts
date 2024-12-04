@@ -2079,6 +2079,11 @@ export default class SchedulerTask {
                     payload.prevCatalogItemsWithIcons,
                 );
 
+                await this.catalogService.migrateMetricsTreeEdges(
+                    payload.projectUuid,
+                    payload.prevMetricTreeEdges,
+                );
+
                 await this.catalogService.setChartUsages(
                     payload.projectUuid,
                     catalogFieldMap,

@@ -87,7 +87,7 @@ type DbSavedChartDetails = {
     last_name: string;
     pinned_list_uuid: string;
     dashboard_uuid: string | null;
-    timezone: TimeZone | undefined;
+    timezone: TimeZone | null;
 };
 
 const createSavedChartVersionFields = async (
@@ -191,11 +191,11 @@ const createSavedChartVersion = async (
                 filters: JSON.stringify(filters),
                 explore_name: tableName,
                 saved_query_id: savedChartId,
-                pivot_dimensions: pivotConfig ? pivotConfig.columns : undefined,
+                pivot_dimensions: pivotConfig ? pivotConfig.columns : null,
                 chart_type: chartConfig.type,
                 chart_config: chartConfig.config,
-                updated_by_user_uuid: updatedByUser?.userUuid,
-                timezone,
+                updated_by_user_uuid: updatedByUser?.userUuid || null,
+                timezone: timezone || null,
             })
             .returning('*');
         await createSavedChartVersionFields(
@@ -327,7 +327,12 @@ export const createSavedChart = async (
         spaceUuid,
         dashboardUuid,
         slug,
-    }: CreateSavedChart & { updatedByUser: UpdatedByUser; slug: string },
+        forceSlug,
+    }: CreateSavedChart & {
+        updatedByUser: UpdatedByUser;
+        slug: string;
+        forceSlug?: boolean;
+    },
 ): Promise<string> =>
     db.transaction(async (trx) => {
         let chart: InsertChart;
@@ -338,7 +343,9 @@ export const createSavedChart = async (
                 getChartKind(chartConfig.type, chartConfig.config) ||
                 ChartKind.VERTICAL_BAR,
             last_version_updated_by_user_uuid: userUuid,
-            slug: await generateUniqueSlug(trx, SavedChartsTableName, slug),
+            slug: forceSlug
+                ? slug
+                : await generateUniqueSlug(trx, SavedChartsTableName, slug),
         };
         if (dashboardUuid) {
             chart = {
@@ -526,7 +533,11 @@ export class SavedChartModel {
     async create(
         projectUuid: string,
         userUuid: string,
-        data: CreateSavedChart & { updatedByUser: UpdatedByUser; slug: string },
+        data: CreateSavedChart & {
+            updatedByUser: UpdatedByUser;
+            slug: string;
+            forceSlug?: boolean;
+        },
     ): Promise<SavedChartDAO> {
         const newSavedChartUuid = await createSavedChart(
             this.database,
@@ -966,7 +977,7 @@ export class SavedChartModel {
                                 dimensionType: cd.dimension_type,
                             })),
                         ],
-                        timezone: savedQuery.timezone,
+                        timezone: savedQuery.timezone || undefined,
                     },
                     chartConfig,
                     tableConfig: {
@@ -1151,6 +1162,7 @@ export class SavedChartModel {
         projectUuid?: string;
         spaceUuids?: string[];
         slug?: string;
+        slugs?: string[];
         exploreName?: string;
         excludeChartsSavedInDashboard?: boolean;
     }): Promise<(ChartSummary & { updatedAt: Date })[]> {
@@ -1228,6 +1240,9 @@ export class SavedChartModel {
                 }
                 if (filters.slug) {
                     void query.where('saved_queries.slug', filters.slug);
+                }
+                if (filters.slugs) {
+                    void query.whereIn('saved_queries.slug', filters.slugs);
                 }
                 if (filters.exploreName) {
                     // TODO: Explore name is not an index in saved_queries_versions

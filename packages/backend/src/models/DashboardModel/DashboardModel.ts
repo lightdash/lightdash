@@ -732,6 +732,7 @@ export class DashboardModel {
                     name: string | null;
                     last_version_chart_kind: string | null;
                     tab_uuid: string;
+                    chart_slug: string;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -748,6 +749,13 @@ export class DashboardModel {
                         ${SavedSqlTableName}.name,
                         ${SavedSemanticViewerChartsTableName}.name
                     ) AS name`,
+                ),
+                this.database.raw(
+                    ` COALESCE(
+                        ${SavedChartsTableName}.slug,
+                        ${SavedSqlTableName}.slug,
+                        ${SavedSemanticViewerChartsTableName}.slug
+                    ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
@@ -905,6 +913,7 @@ export class DashboardModel {
                     name,
                     last_version_chart_kind,
                     tab_uuid,
+                    chart_slug,
                 }) => {
                     const base: Omit<
                         DashboardDAO['tiles'][number],
@@ -922,7 +931,6 @@ export class DashboardModel {
                         title: title ?? '',
                         hideTitle: hide_title ?? false,
                     };
-
                     switch (type) {
                         case DashboardTileTypes.SAVED_CHART:
                             return <DashboardChartTile>{
@@ -933,6 +941,7 @@ export class DashboardModel {
                                     savedChartUuid: saved_query_uuid,
                                     belongsToDashboard: belongs_to_dashboard,
                                     chartName: name,
+                                    chartSlug: chart_slug,
                                     lastVersionChartKind:
                                         last_version_chart_kind,
                                 },
@@ -963,6 +972,7 @@ export class DashboardModel {
                                     ...commonProperties,
                                     chartName: name,
                                     savedSqlUuid: saved_sql_uuid,
+                                    chartSlug: chart_slug,
                                 },
                             };
                         case DashboardTileTypes.SEMANTIC_VIEWER_CHART:
@@ -974,6 +984,7 @@ export class DashboardModel {
                                     chartName: name,
                                     savedSemanticViewerChartUuid:
                                         saved_semantic_viewer_chart_uuid,
+                                    chartSlug: chart_slug,
                                 },
                             };
                         default: {
@@ -1015,7 +1026,7 @@ export class DashboardModel {
 
     async create(
         spaceUuid: string,
-        dashboard: CreateDashboard & { slug: string },
+        dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
     ): Promise<DashboardDAO> {
@@ -1033,10 +1044,12 @@ export class DashboardModel {
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
-                    slug: await DashboardModel.generateUniqueSlug(
-                        trx,
-                        dashboard.slug,
-                    ),
+                    slug: dashboard.forceSlug
+                        ? dashboard.slug
+                        : await DashboardModel.generateUniqueSlug(
+                              trx,
+                              dashboard.slug,
+                          ),
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
 

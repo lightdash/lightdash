@@ -10,29 +10,41 @@ import {
     CatalogTable,
     CatalogType,
     ChartSummary,
+    DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
     Explore,
     ExploreError,
+    FieldType,
     ForbiddenError,
+    getAvailableTimeDimensionsFromTables,
+    getDefaultTimeDimension,
     hasIntersection,
     InlineErrorType,
     isExploreError,
+    MAX_METRICS_TREE_NODE_COUNT,
+    MetricWithAssociatedTimeDimension,
     NotFoundError,
+    ParameterError,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
     UserAttributeValueMap,
+    type ApiMetricsTreeEdgePayload,
     type ApiSort,
     type CatalogFieldMap,
     type CatalogItem,
     type CatalogItemWithTagUuids,
+    type CatalogMetricsTreeEdge,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
-import type { DbCatalogTagsMigrateIn } from '../../database/entities/catalog';
+import type {
+    DbCatalogTagsMigrateIn,
+    DbMetricsTreeEdgeIn,
+} from '../../database/entities/catalog';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -278,14 +290,14 @@ export class CatalogService<
     ) {
         // Get all catalog items so we can match them with the previous catalog items
         const currentCatalogItems =
-            await this.catalogModel.getCatalogItemsWithTags(projectUuid);
+            await this.catalogModel.getCatalogItemsSummary(projectUuid);
 
         const catalogTagsMigrateIn: DbCatalogTagsMigrateIn[] =
             currentCatalogItems.flatMap(
                 ({
                     projectUuid: currentProjectUuid,
                     name: currentName,
-                    exploreBaseTable: currentExploreBaseTable,
+                    tableName: currentTableName,
                     fieldType: currentFieldType,
                     type: currentType,
                     catalogSearchUuid: currentCatalogSearchUuid,
@@ -298,13 +310,13 @@ export class CatalogService<
                     const prevCatalogItem = prevCatalogItemsWithTags.find(
                         ({
                             name: prevName,
-                            exploreBaseTable: prevExploreBaseTable,
+                            tableName: prevTableName,
                             fieldType: prevFieldType,
                             type: prevType,
                             projectUuid: prevProjectUuid,
                         }) =>
                             prevName === currentName &&
-                            prevExploreBaseTable === currentExploreBaseTable &&
+                            prevTableName === currentTableName &&
                             prevFieldType === currentFieldType &&
                             prevType === currentType &&
                             prevProjectUuid === currentProjectUuid,
@@ -339,13 +351,13 @@ export class CatalogService<
     ) {
         // Get all catalog items so we can match them with the previous catalog items
         const currentCatalogItems =
-            await this.catalogModel.getCatalogItemsWithTags(projectUuid);
+            await this.catalogModel.getCatalogItemsSummary(projectUuid);
 
         const iconMigrationUpdates = currentCatalogItems.flatMap(
             ({
                 projectUuid: currentProjectUuid,
                 name: currentName,
-                exploreBaseTable: currentExploreBaseTable,
+                tableName: currentExploreBaseTable,
                 fieldType: currentFieldType,
                 type: currentType,
                 catalogSearchUuid: currentCatalogSearchUuid,
@@ -358,7 +370,7 @@ export class CatalogService<
                 const prevCatalogItem = prevCatalogItemsWithIcons.find(
                     ({
                         name: prevName,
-                        exploreBaseTable: prevExploreBaseTable,
+                        tableName: prevExploreBaseTable,
                         fieldType: prevFieldType,
                         type: prevType,
                         projectUuid: prevProjectUuid,
@@ -384,6 +396,52 @@ export class CatalogService<
         );
 
         await this.catalogModel.updateCatalogItemIcon(iconMigrationUpdates);
+    }
+
+    async migrateMetricsTreeEdges(
+        projectUuid: string,
+        prevMetricTreeEdges: CatalogMetricsTreeEdge[],
+    ) {
+        // reusing catalog items with tags although we don't need the tags, but trying to avoid creating another function here
+        const currentCatalogItems =
+            await this.catalogModel.getCatalogItemsSummary(projectUuid);
+
+        const metricEdgesMigrateIn: DbMetricsTreeEdgeIn[] =
+            prevMetricTreeEdges.reduce<DbMetricsTreeEdgeIn[]>((acc, edge) => {
+                const sourceCatalogItem = currentCatalogItems.find(
+                    (catalogItem) =>
+                        catalogItem.name === edge.source.name &&
+                        catalogItem.tableName === edge.source.tableName &&
+                        catalogItem.type === CatalogType.Field &&
+                        catalogItem.fieldType === FieldType.METRIC,
+                );
+
+                const targetCatalogItem = currentCatalogItems.find(
+                    (catalogItem) =>
+                        catalogItem.name === edge.target.name &&
+                        catalogItem.tableName === edge.target.tableName &&
+                        catalogItem.type === CatalogType.Field &&
+                        catalogItem.fieldType === FieldType.METRIC,
+                );
+
+                if (sourceCatalogItem && targetCatalogItem) {
+                    return [
+                        ...acc,
+                        {
+                            source_metric_catalog_search_uuid:
+                                sourceCatalogItem.catalogSearchUuid,
+                            target_metric_catalog_search_uuid:
+                                targetCatalogItem.catalogSearchUuid,
+                            created_by_user_uuid: edge.createdByUserUuid,
+                            created_at: edge.createdAt,
+                        },
+                    ];
+                }
+
+                return acc;
+            }, []);
+
+        return this.catalogModel.migrateMetricsTreeEdges(metricEdgesMigrateIn);
     }
 
     async getCatalog(
@@ -825,7 +883,7 @@ export class CatalogService<
         projectUuid: string,
         tableName: string,
         metricName: string,
-    ) {
+    ): Promise<MetricWithAssociatedTimeDimension> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -854,22 +912,134 @@ export class CatalogService<
         }
 
         const filteredExplore = getFilteredExplore(explore, userAttributes);
-
-        const metric =
-            filteredExplore?.tables?.[tableName]?.metrics?.[metricName];
-
-        // Get the default time dimension from the metric, or the explore if not set on the metric
-        const defaultTimeDimension =
-            metric.defaultTimeDimension ??
-            filteredExplore?.tables?.[tableName]?.defaultTimeDimension;
+        const tables = filteredExplore?.tables;
+        const metric = tables?.[tableName]?.metrics?.[metricName];
+        const metricBaseTable = tables?.[metric?.table];
 
         if (!metric) {
             throw new NotFoundError('Metric not found');
         }
 
+        const defaultTimeDimension = getDefaultTimeDimension(
+            metric,
+            metricBaseTable,
+        );
+
+        let availableTimeDimensions:
+            | ReturnType<typeof getAvailableTimeDimensionsFromTables>
+            | undefined;
+
+        // If no default time dimension is defined, we can use the available time dimensions so the user can see what time dimensions are available
+        if (!defaultTimeDimension) {
+            availableTimeDimensions =
+                getAvailableTimeDimensionsFromTables(tables);
+        }
+
+        let timeDimension:
+            | MetricWithAssociatedTimeDimension['timeDimension']
+            | undefined;
+
+        if (defaultTimeDimension) {
+            timeDimension = {
+                field: defaultTimeDimension.field,
+                interval: defaultTimeDimension.interval,
+                table: metric.table,
+            };
+        } else if (
+            availableTimeDimensions &&
+            availableTimeDimensions.length > 0
+        ) {
+            const firstAvailableTimeDimension = availableTimeDimensions[0];
+
+            if (!firstAvailableTimeDimension.isIntervalBase) {
+                throw new Error(
+                    'The first available time dimension is not an interval base dimension',
+                );
+            }
+
+            timeDimension = {
+                field: firstAvailableTimeDimension.name,
+                interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+                table: firstAvailableTimeDimension.table,
+            };
+        }
+
         return {
             ...metric,
-            defaultTimeDimension,
+            ...(availableTimeDimensions && availableTimeDimensions.length > 0
+                ? { availableTimeDimensions }
+                : {}),
+            timeDimension,
         };
+    }
+
+    async getMetricsTree(
+        user: SessionUser,
+        projectUuid: string,
+        metricUuids: string[],
+    ) {
+        // TODO: check permissions
+        if (metricUuids.length > MAX_METRICS_TREE_NODE_COUNT) {
+            throw new ParameterError(
+                `Cannot get more than ${MAX_METRICS_TREE_NODE_COUNT} metrics in the metrics tree`,
+            );
+        }
+
+        return this.catalogModel.getMetricsTree(projectUuid, metricUuids);
+    }
+
+    async createMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            sourceCatalogSearchUuid,
+            targetCatalogSearchUuid,
+        }: ApiMetricsTreeEdgePayload,
+    ) {
+        // TODO: check permissions
+        const sourceCatalogItem = await this.catalogModel.getCatalogItem(
+            sourceCatalogSearchUuid,
+        );
+
+        if (sourceCatalogItem?.field_type !== FieldType.METRIC) {
+            throw new ParameterError('Source metric is not a valid metric');
+        }
+
+        if (!sourceCatalogItem) {
+            throw new NotFoundError('Source metric not found');
+        }
+
+        const targetCatalogItem = await this.catalogModel.getCatalogItem(
+            targetCatalogSearchUuid,
+        );
+
+        if (!targetCatalogItem) {
+            throw new NotFoundError('Target metric not found');
+        }
+
+        if (targetCatalogItem?.field_type !== FieldType.METRIC) {
+            throw new ParameterError('Target metric is not a valid metric');
+        }
+
+        return this.catalogModel.createMetricsTreeEdge({
+            source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
+            target_metric_catalog_search_uuid: targetCatalogSearchUuid,
+            created_by_user_uuid: user.userUuid,
+        });
+    }
+
+    deleteMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            sourceCatalogSearchUuid,
+            targetCatalogSearchUuid,
+        }: ApiMetricsTreeEdgePayload,
+    ) {
+        // TODO: check permissions
+        return this.catalogModel.deleteMetricsTreeEdge({
+            source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
+            target_metric_catalog_search_uuid: targetCatalogSearchUuid,
+        });
     }
 }

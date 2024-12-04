@@ -1,6 +1,6 @@
 import {
-    type ApiGetMetricPeek,
     type MetricExplorerDateRange,
+    type TimeDimensionConfig,
 } from '@lightdash/common';
 import {
     Box,
@@ -16,20 +16,27 @@ import {
 } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
 import { IconCalendar, IconChevronDown } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type Dispatch, type FC, type SetStateAction } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useDateRangePicker } from '../hooks/useDateRangePicker';
+import { TimeDimensionIntervalPicker } from './visualization/TimeDimensionIntervalPicker';
 
 type Props = {
-    defaultTimeDimension:
-        | ApiGetMetricPeek['results']['defaultTimeDimension']
-        | undefined;
+    dateRange: MetricExplorerDateRange;
     onChange: (dateRange: MetricExplorerDateRange) => void;
+    showTimeDimensionIntervalPicker: boolean;
+    timeDimensionBaseField: TimeDimensionConfig | undefined;
+    setTimeDimensionOverride: Dispatch<
+        SetStateAction<TimeDimensionConfig | undefined>
+    >;
 };
 
 export const MetricPeekDatePicker: FC<Props> = ({
-    defaultTimeDimension,
+    dateRange,
     onChange,
+    showTimeDimensionIntervalPicker,
+    timeDimensionBaseField,
+    setTimeDimensionOverride,
 }) => {
     const {
         isOpen,
@@ -43,7 +50,8 @@ export const MetricPeekDatePicker: FC<Props> = ({
         handleApply,
         handlePresetSelect,
         handleDateRangeChange,
-    } = useDateRangePicker({ defaultTimeDimension, onChange });
+        reset,
+    } = useDateRangePicker({ value: dateRange, onChange });
 
     return (
         <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
@@ -63,6 +71,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
                         styles={(theme) => ({
                             root: {
                                 border: `1px solid ${theme.colors.gray[2]}`,
+                                boxShadow: theme.shadows.subtle,
                             },
                             label: {
                                 width: '100%',
@@ -78,10 +87,21 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                 />
                                 {buttonLabel}
                             </Group>
-                            <MantineIcon
-                                color="dark.3"
-                                icon={IconChevronDown}
-                            />
+                            {showTimeDimensionIntervalPicker &&
+                            timeDimensionBaseField ? (
+                                <TimeDimensionIntervalPicker
+                                    dimension={timeDimensionBaseField}
+                                    onChange={(value) => {
+                                        setTimeDimensionOverride(value);
+                                        reset();
+                                    }}
+                                />
+                            ) : (
+                                <MantineIcon
+                                    color="dark.3"
+                                    icon={IconChevronDown}
+                                />
+                            )}
                         </Group>
                     </Button>
                 </Tooltip>

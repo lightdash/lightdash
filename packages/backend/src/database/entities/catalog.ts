@@ -19,6 +19,7 @@ export type DbCatalog = {
     required_attributes: Record<string, string | string[]> | null;
     chart_usage: number | null;
     icon: CatalogItemIcon | null;
+    table_name: string;
 };
 
 export type DbCatalogIn = Pick<
@@ -31,12 +32,14 @@ export type DbCatalogIn = Pick<
     | 'field_type'
     | 'required_attributes'
     | 'chart_usage'
+    | 'table_name'
 >;
 export type DbCatalogRemove = Pick<DbCatalog, 'project_uuid' | 'name'>;
 export type DbCatalogUpdate =
     | Pick<DbCatalog, 'embedding_vector'>
     | Pick<DbCatalog, 'chart_usage'>
-    | Pick<DbCatalog, 'icon'>;
+    | Pick<DbCatalog, 'icon'>
+    | Pick<DbCatalog, 'table_name'>;
 export type CatalogTable = Knex.CompositeTableType<
     DbCatalog,
     DbCatalogIn,
@@ -103,3 +106,29 @@ export type DbCatalogItemsMigrateIn = Pick<
 >;
 
 export const CatalogTagsTableName = 'catalog_search_tags';
+
+export type DbMetricsTreeEdge = {
+    source_metric_catalog_search_uuid: string;
+    target_metric_catalog_search_uuid: string;
+    created_at: Date;
+    created_by_user_uuid: string | null;
+};
+
+export type DbMetricsTreeEdgeIn = Pick<
+    DbMetricsTreeEdge,
+    | 'source_metric_catalog_search_uuid'
+    | 'target_metric_catalog_search_uuid'
+    | 'created_by_user_uuid'
+>;
+
+export type DbMetricsTreeEdgeDelete = Pick<
+    DbMetricsTreeEdge,
+    'source_metric_catalog_search_uuid' | 'target_metric_catalog_search_uuid'
+>;
+
+export type MetricsTreeEdgesTable = Knex.CompositeTableType<
+    DbMetricsTreeEdge,
+    DbMetricsTreeEdgeIn
+>;
+
+export const MetricsTreeEdgesTableName = 'metrics_tree_edges';

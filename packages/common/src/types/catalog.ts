@@ -1,7 +1,6 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     type CompiledExploreJoin,
-    type CompiledTable,
     type Explore,
     type ExploreError,
     type InlineError,
@@ -94,6 +93,19 @@ export type CatalogTable = Pick<
 
 export type CatalogItem = CatalogField | CatalogTable;
 
+export type CatalogMetricsTreeNode = Pick<
+    CatalogField,
+    'catalogSearchUuid' | 'name' | 'tableName'
+>;
+
+export type CatalogMetricsTreeEdge = {
+    source: CatalogMetricsTreeNode;
+    target: CatalogMetricsTreeNode;
+    createdAt: Date;
+    createdByUserUuid: string | null;
+    projectUuid: string;
+};
+
 export type ApiCatalogResults = CatalogItem[];
 
 export type ApiMetricsCatalogResults = CatalogField[];
@@ -103,12 +115,30 @@ export type ApiMetricsCatalog = {
     results: KnexPaginatedData<ApiMetricsCatalogResults>;
 };
 
-export type MetricWithAssociatedTimeDimension = CompiledMetric &
-    Pick<CompiledTable, 'defaultTimeDimension'>;
+export type MetricWithAssociatedTimeDimension = CompiledMetric & {
+    timeDimension:
+        | (CompiledMetric['defaultTimeDimension'] & { table: string })
+        | undefined;
+    availableTimeDimensions?: (CompiledDimension & {
+        type: DimensionType.DATE | DimensionType.TIMESTAMP;
+    })[];
+};
 
 export type ApiGetMetricPeek = {
     status: 'ok';
     results: MetricWithAssociatedTimeDimension;
+};
+
+export type ApiGetMetricsTree = {
+    status: 'ok';
+    results: {
+        edges: CatalogMetricsTreeEdge[];
+    };
+};
+
+export type ApiMetricsTreeEdgePayload = {
+    sourceCatalogSearchUuid: string;
+    targetCatalogSearchUuid: string;
 };
 
 export type CatalogMetadata = {
@@ -181,14 +211,17 @@ export type CatalogFieldMap = {
     };
 };
 
-export type CatalogItemWithTagUuids = Pick<
+export type CatalogItemSummary = Pick<
     CatalogItem,
     'catalogSearchUuid' | 'name' | 'type'
 > & {
-    cachedExploreUuid: string;
     projectUuid: string;
-    fieldType?: string; // This comes from db, so it is string, this type is mostly used to compare when migrating tags
-    exploreBaseTable: string;
+    cachedExploreUuid: string;
+    tableName: string;
+    fieldType: string | undefined;
+};
+
+export type CatalogItemWithTagUuids = CatalogItemSummary & {
     catalogTags: {
         tagUuid: string;
         createdByUserUuid: string | null;
@@ -196,14 +229,8 @@ export type CatalogItemWithTagUuids = Pick<
     }[];
 };
 
-export type CatalogItemsWithIcons = Pick<
-    CatalogItem,
-    'catalogSearchUuid' | 'icon' | 'name' | 'type'
-> &
-    Pick<
-        CatalogItemWithTagUuids,
-        'cachedExploreUuid' | 'projectUuid' | 'fieldType' | 'exploreBaseTable'
-    >;
+export type CatalogItemsWithIcons = CatalogItemSummary &
+    Pick<CatalogItem, 'icon'>;
 
 export type SchedulerIndexCatalogJobPayload = {
     projectUuid: string;
@@ -211,6 +238,7 @@ export type SchedulerIndexCatalogJobPayload = {
     userUuid: string;
     prevCatalogItemsWithTags: CatalogItemWithTagUuids[];
     prevCatalogItemsWithIcons: CatalogItemsWithIcons[];
+    prevMetricTreeEdges: CatalogMetricsTreeEdge[];
 };
 
 export type CatalogFieldWhere = {

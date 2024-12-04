@@ -1,8 +1,11 @@
 import {
     assertUnreachable,
+    getDefaultDateRangeFromInterval,
+    isDimension,
     MetricExplorerComparison,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
+    type TimeDimensionConfig,
 } from '@lightdash/common';
 import {
     Box,
@@ -13,13 +16,14 @@ import {
     Modal,
     Paper,
     Radio,
+    Skeleton,
     Stack,
     Text,
     Tooltip,
     type ModalProps,
 } from '@mantine/core';
 import { IconCalendar, IconInfoCircle, IconStack } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
@@ -28,6 +32,7 @@ import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
 import { MetricPeekDatePicker } from './MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from './MetricsVisualizationEmptyState';
 import MetricsVisualization from './visualization/MetricsVisualization';
+import { TimeDimensionPicker } from './visualization/TimeDimensionPicker';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
@@ -43,20 +48,14 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
     const history = useHistory();
 
-    const [comparisonType, setComparisonType] =
-        useState<MetricExplorerComparison>(MetricExplorerComparison.NONE);
-
     const metricQuery = useMetric({
         projectUuid,
         tableName,
         metricName,
     });
 
-    const [dateRange, setDateRange] = useState<MetricExplorerDateRange>([
-        null,
-        null,
-    ]);
-
+    const [comparisonType, setComparisonType] =
+        useState<MetricExplorerComparison>(MetricExplorerComparison.NONE);
     const comparisonParams = useMemo(():
         | MetricExplorerComparisonType
         | undefined => {
@@ -84,13 +83,56 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         }
     }, [comparisonType, metricQuery.isSuccess, metricQuery.data]);
 
+    const [timeDimensionOverride, setTimeDimensionOverride] = useState<
+        TimeDimensionConfig | undefined
+    >();
+    const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
+        null,
+    );
+
     const metricResultsQuery = useRunMetricExplorerQuery({
         projectUuid,
         exploreName: tableName,
         metricName,
+        dateRange: dateRange ?? undefined,
         comparison: comparisonParams,
-        dateRange,
+        timeDimensionOverride,
     });
+
+    const timeDimensionBaseField: TimeDimensionConfig | undefined =
+        useMemo(() => {
+            const timeDimensionField = Object.entries(
+                metricResultsQuery.data?.fields ?? {},
+            ).find(
+                ([_, field]) => 'timeInterval' in field && isDimension(field),
+            )?.[1];
+
+            if (
+                !isDimension(timeDimensionField) ||
+                !timeDimensionField.timeInterval ||
+                !timeDimensionField.timeIntervalBaseDimensionName
+            )
+                return undefined;
+
+            return {
+                field: timeDimensionField.timeIntervalBaseDimensionName,
+                interval: timeDimensionField.timeInterval,
+                table: timeDimensionField.table,
+            };
+        }, [metricResultsQuery.data?.fields]);
+
+    useEffect(() => {
+        const timeDimension =
+            timeDimensionOverride ?? metricQuery.data?.timeDimension;
+
+        if (!timeDimension) return;
+
+        if (timeDimension.interval !== timeDimensionBaseField?.interval) {
+            setDateRange(
+                getDefaultDateRangeFromInterval(timeDimension.interval),
+            );
+        }
+    }, [timeDimensionOverride, metricQuery.data, timeDimensionBaseField]);
 
     const hasData = metricQuery.isSuccess && metricResultsQuery.isSuccess;
     const doesNotHaveData =
@@ -99,6 +141,8 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
         setComparisonType(MetricExplorerComparison.NONE);
+        setDateRange(null);
+        setTimeDimensionOverride(undefined);
         onClose();
     }, [history, onClose, projectUuid]);
 
@@ -149,6 +193,41 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                 >
                     <Stack p="xl" bg="offWhite.0" miw={360}>
                         <Stack spacing="xl">
+                            {metricQuery.data?.availableTimeDimensions && (
+                                <Stack
+                                    w="100%"
+                                    spacing="xs"
+                                    align="flex-start"
+                                    sx={{ flexGrow: 1 }}
+                                >
+                                    <Text fw={500} c="gray.7">
+                                        X-axis
+                                    </Text>
+                                    {metricQuery.isSuccess &&
+                                    timeDimensionBaseField ? (
+                                        <TimeDimensionPicker
+                                            fields={
+                                                metricQuery.data
+                                                    .availableTimeDimensions
+                                            }
+                                            dimension={timeDimensionBaseField}
+                                            onChange={setTimeDimensionOverride}
+                                        />
+                                    ) : (
+                                        <Skeleton w="100%" h={40} />
+                                    )}
+                                </Stack>
+                            )}
+
+                            <Divider
+                                display={
+                                    metricQuery.data?.availableTimeDimensions
+                                        ? 'block'
+                                        : 'none'
+                                }
+                                color="gray.2"
+                            />
+
                             <Stack
                                 w="100%"
                                 spacing="xs"
@@ -158,13 +237,19 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                 <Text fw={500} c="gray.7">
                                     Time filter
                                 </Text>
-                                {metricQuery.isSuccess && (
+                                {metricQuery.isSuccess && dateRange && (
                                     <MetricPeekDatePicker
-                                        defaultTimeDimension={
-                                            metricQuery.data
-                                                .defaultTimeDimension
-                                        }
+                                        dateRange={dateRange}
                                         onChange={setDateRange}
+                                        showTimeDimensionIntervalPicker={
+                                            !!timeDimensionBaseField
+                                        }
+                                        timeDimensionBaseField={
+                                            timeDimensionBaseField
+                                        }
+                                        setTimeDimensionOverride={
+                                            setTimeDimensionOverride
+                                        }
                                     />
                                 )}
                             </Stack>
@@ -286,13 +371,18 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Box mih={500} w="100%" pt="sm" px="md">
+                    <Box
+                        mih={500}
+                        w="100%"
+                        pt="sm"
+                        pb={doesNotHaveData ? 'md' : undefined}
+                        px="md"
+                    >
                         {doesNotHaveData ? (
                             <MetricsVisualizationEmptyState />
                         ) : (
                             hasData && (
                                 <MetricsVisualization
-                                    metric={metricQuery.data}
                                     data={metricResultsQuery.data}
                                 />
                             )

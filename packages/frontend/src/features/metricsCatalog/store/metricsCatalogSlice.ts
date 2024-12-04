@@ -84,9 +84,6 @@ export const metricsCatalogSlice = createSlice({
         ) => {
             state.categoryFilters = action.payload;
         },
-        clearCategoryFilters: (state) => {
-            state.categoryFilters = [];
-        },
         setAbility: (
             state,
             action: PayloadAction<{
@@ -123,7 +120,6 @@ export const {
     setActiveMetric,
     setProjectUuid,
     setCategoryFilters,
-    clearCategoryFilters,
     setOrganizationUuid,
     setAbility,
     setCategoryPopoverIsClosing,
