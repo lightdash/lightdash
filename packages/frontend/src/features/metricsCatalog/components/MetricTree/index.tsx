@@ -17,6 +17,7 @@ import {
     type Edge,
     type Node,
     type NodeChange,
+    type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
@@ -25,6 +26,13 @@ import {
     useCreateMetricsTreeEdge,
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
+import MetricTreeConnectedNode from './MetricTreeConnectedNode';
+import MetricTreeUnconnectedNode from './MetricTreeUnconnectedNode';
+
+const nodeTypes: NodeTypes = {
+    connected: MetricTreeConnectedNode,
+    free: MetricTreeUnconnectedNode,
+};
 
 type Props = {
     metrics: CatalogField[];
@@ -70,8 +78,9 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
     connectedNodes.forEach((node) =>
         treeGraph.setNode(node.id, {
             ...node,
-            width: node.measured?.width ?? 0,
-            height: node.measured?.height ?? 0,
+            // TODO: node sizes are hardcoded. We need to do more to have them be dynamic
+            width: 200,
+            height: 110,
         }),
     );
 
@@ -82,7 +91,7 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
         const position = treeGraph.node(node.id);
         const x = position.x - (node.measured?.width ?? 0) / 2;
         const y = position.y - (node.measured?.height ?? 0) / 2;
-        return { ...node, position: { x, y } };
+        return { ...node, type: 'connected', position: { x, y } };
     });
 
     // Main padding
@@ -96,8 +105,9 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
 
     // Draw the unconnected grid
     const free = freeNodes.map((node, index) => {
-        const nodeWidth = node?.measured?.width ?? 0;
-        const nodeHeight = node?.measured?.height ?? 0;
+        // TODO: node sizes are hardcoded. We need to do more to have them be dynamic
+        const nodeWidth = 170;
+        const nodeHeight = 38;
 
         // TODO: this is an arbitrary offset that looks ok with the
         // basic setup. Placement of the grid will probably need to be
@@ -116,7 +126,12 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
         bottom = Math.max(bottom, y + nodeHeight);
         right = Math.max(right, x + nodeWidth);
 
-        return { ...node, position: { x, y }, id: `${node.id}` };
+        return {
+            ...node,
+            type: 'free',
+            position: { x, y },
+            id: `${node.id}`,
+        };
     });
 
     const groups = [
@@ -126,9 +141,11 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
             position: { x: left - mainPadding, y: top - mainPadding },
             style: {
                 backgroundColor: '#d8c2fa',
+                opacity: 0.75,
                 height: bottom - top + mainPadding * 2,
                 width: right - left + mainPadding * 2,
                 pointerEvents: 'none' as const,
+                border: '1px solid #ccc',
             },
             type: 'group',
         },
@@ -240,40 +257,30 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
     );
 
     const onLayout = useCallback(() => {
-        if (!nodesInitialized || !metricsTree) {
-            return;
-        }
         const layout = getNodeLayout(currentNodes, currentEdges);
 
         setCurrentNodes([...layout.nodes]);
         setCurrentEdges([...layout.edges]);
 
         setLayoutReady(true);
-    }, [
-        nodesInitialized,
-        metricsTree,
-        currentNodes,
-        currentEdges,
-        setCurrentNodes,
-        setCurrentEdges,
-    ]);
+    }, [currentNodes, currentEdges, setCurrentNodes, setCurrentEdges]);
 
     // Runs layout when the nodes are initialized
     useEffect(() => {
-        if (!metricsTree || !nodesInitialized || layoutReady) {
+        if (!nodesInitialized || layoutReady) {
             return;
         }
         onLayout();
-    }, [onLayout, layoutReady, nodesInitialized, metricsTree, fitView]);
+    }, [onLayout, layoutReady, nodesInitialized, fitView]);
 
     // Fits the view when the layout is ready
     useEffect(() => {
-        if (nodesInitialized && layoutReady) {
+        if (layoutReady) {
             window.requestAnimationFrame(async () => {
                 await fitView();
             });
         }
-    }, [layoutReady, fitView, nodesInitialized]);
+    }, [layoutReady, fitView]);
 
     return (
         <Box h="100%">
@@ -287,6 +294,7 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
                 onConnect={handleConnect}
                 edgesReconnectable={false}
                 onEdgesDelete={handleEdgesDelete}
+                nodeTypes={nodeTypes}
             >
                 <Panel position="bottom-left">
                     <button onClick={() => onLayout()}>Clean up</button>
