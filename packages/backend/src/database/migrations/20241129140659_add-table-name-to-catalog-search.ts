@@ -3,6 +3,8 @@ import { Knex } from 'knex';
 const CATALOG_SEARCH_TABLE = 'catalog_search';
 const CACHED_EXPLORE_TABLE = 'cached_explore';
 
+// Explanation for commented code in: 20241203205321_delete_incorrect_catalog_changes_if_exist.ts
+
 export async function up(knex: Knex): Promise<void> {
     // setting to nullable to allow for migration of existing data
     // await knex.schema.alterTable(CATALOG_SEARCH_TABLE, (table) => {

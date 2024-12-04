@@ -3,6 +3,8 @@ import { Knex } from 'knex';
 const CATALOG_SEARCH_TABLE = 'catalog_search';
 const METRICS_TREE_EDGES_TABLE = 'metrics_tree_edges';
 
+// Explanation for commented code in: 20241203205321_delete_incorrect_catalog_changes_if_exist.ts
+
 export async function up(knex: Knex): Promise<void> {
     // const wrongCatalogSearchUniqueIndexExists = await knex.raw(`
     //     SELECT 1
