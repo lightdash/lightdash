@@ -937,15 +937,85 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CompiledTable.defaultTimeDimension_': {
+    'FieldType.DIMENSION': {
+        dataType: 'refEnum',
+        enums: ['dimension'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DimensionType: {
+        dataType: 'refEnum',
+        enums: ['string', 'number', 'timestamp', 'date', 'boolean'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                defaultTimeDimension: { ref: 'DefaultTimeDimension' },
-            },
+            nestedProperties: {},
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CompiledDimension: {
+        dataType: 'refObject',
+        properties: {
+            fieldType: { ref: 'FieldType.DIMENSION', required: true },
+            type: { ref: 'DimensionType', required: true },
+            name: { dataType: 'string', required: true },
+            label: { dataType: 'string', required: true },
+            table: { dataType: 'string', required: true },
+            tableLabel: { dataType: 'string', required: true },
+            sql: { dataType: 'string', required: true },
+            description: { dataType: 'string' },
+            source: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Source' }, { dataType: 'undefined' }],
+            },
+            hidden: { dataType: 'boolean', required: true },
+            compact: { ref: 'CompactOrAlias' },
+            round: { dataType: 'double' },
+            format: { ref: 'Format' },
+            groupLabel: { dataType: 'string' },
+            groups: { dataType: 'array', array: { dataType: 'string' } },
+            urls: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'FieldUrl' },
+            },
+            index: { dataType: 'double' },
+            tags: { dataType: 'array', array: { dataType: 'string' } },
+            group: { dataType: 'string' },
+            requiredAttributes: {
+                ref: 'Record_string.string-or-string-Array_',
+            },
+            timeInterval: { ref: 'TimeFrames' },
+            timeIntervalBaseDimensionName: { dataType: 'string' },
+            isAdditionalDimension: { dataType: 'boolean' },
+            colors: { ref: 'Record_string.string_' },
+            isIntervalBase: { dataType: 'boolean' },
+            compiledSql: { dataType: 'string', required: true },
+            tablesReferences: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'array', array: { dataType: 'string' } },
+                    { dataType: 'undefined' },
+                ],
+                required: true,
+            },
+            tablesRequiredAttributes: {
+                ref: 'Record_string.Record_string.string-or-string-Array__',
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DimensionType.DATE': {
+        dataType: 'refEnum',
+        enums: ['date'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DimensionType.TIMESTAMP': {
+        dataType: 'refEnum',
+        enums: ['timestamp'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricWithAssociatedTimeDimension: {
@@ -954,7 +1024,59 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 { ref: 'CompiledMetric' },
-                { ref: 'Pick_CompiledTable.defaultTimeDimension_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        availableTimeDimensions: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'intersection',
+                                subSchemas: [
+                                    { ref: 'CompiledDimension' },
+                                    {
+                                        dataType: 'nestedObjectLiteral',
+                                        nestedProperties: {
+                                            type: {
+                                                dataType: 'union',
+                                                subSchemas: [
+                                                    {
+                                                        ref: 'DimensionType.DATE',
+                                                    },
+                                                    {
+                                                        ref: 'DimensionType.TIMESTAMP',
+                                                    },
+                                                ],
+                                                required: true,
+                                            },
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                        timeDimension: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'intersection',
+                                    subSchemas: [
+                                        { ref: 'DefaultTimeDimension' },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                table: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                    ],
+                                },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
             ],
             validators: {},
         },
@@ -987,12 +1109,13 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CatalogField.name-or-tableName_': {
+    'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 name: { dataType: 'string', required: true },
+                catalogSearchUuid: { dataType: 'string', required: true },
                 tableName: { dataType: 'string', required: true },
             },
             validators: {},
@@ -1001,7 +1124,10 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CatalogMetricsTreeNode: {
         dataType: 'refAlias',
-        type: { ref: 'Pick_CatalogField.name-or-tableName_', validators: {} },
+        type: {
+            ref: 'Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_',
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CatalogMetricsTreeEdge: {
@@ -1056,8 +1182,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                targetMetricId: { dataType: 'string', required: true },
-                sourceMetricId: { dataType: 'string', required: true },
+                targetCatalogSearchUuid: { dataType: 'string', required: true },
+                sourceCatalogSearchUuid: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -1964,11 +2090,6 @@ const models: TsoaRoute.Models = {
         enums: ['sql'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DimensionType: {
-        dataType: 'refEnum',
-        enums: ['string', 'number', 'timestamp', 'date', 'boolean'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CustomSqlDimension: {
         dataType: 'refObject',
         properties: {
@@ -2499,15 +2620,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'enum',
             enums: ['hidden', 'inside', 'outside'],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
             validators: {},
         },
     },
@@ -3702,6 +3814,10 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'ResultRow' },
                     required: true,
                 },
+                metric: {
+                    ref: 'MetricWithAssociatedTimeDimension',
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -3715,6 +3831,23 @@ const models: TsoaRoute.Models = {
                 results: { ref: 'MetricsExplorerQueryResults', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    TimeDimensionConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DefaultTimeDimension' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        table: { dataType: 'string', required: true },
+                    },
+                },
+            ],
             validators: {},
         },
     },
@@ -11319,9 +11452,9 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
-                metricIds: {
+                metricUuids: {
                     in: 'query',
-                    name: 'metricIds',
+                    name: 'metricUuids',
                     required: true,
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -11420,7 +11553,7 @@ export function RegisterRoutes(app: express.Router) {
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.delete(
-        '/api/v1/projects/:projectUuid/dataCatalog/metrics/tree/edges/:sourceMetricId/:targetMetricId',
+        '/api/v1/projects/:projectUuid/dataCatalog/metrics/tree/edges/:sourceCatalogSearchUuid/:targetCatalogSearchUuid',
         ...fetchMiddlewares<RequestHandler>(CatalogController),
         ...fetchMiddlewares<RequestHandler>(
             CatalogController.prototype.deleteMetricsTreeEdge,
@@ -11438,15 +11571,15 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'string',
                 },
-                sourceMetricId: {
+                sourceCatalogSearchUuid: {
                     in: 'path',
-                    name: 'sourceMetricId',
+                    name: 'sourceCatalogSearchUuid',
                     required: true,
                     dataType: 'string',
                 },
-                targetMetricId: {
+                targetCatalogSearchUuid: {
                     in: 'path',
-                    name: 'targetMetricId',
+                    name: 'targetCatalogSearchUuid',
                     required: true,
                     dataType: 'string',
                 },
@@ -13388,6 +13521,18 @@ export function RegisterRoutes(app: express.Router) {
                     required: true,
                     dataType: 'object',
                 },
+                startDate: {
+                    in: 'query',
+                    name: 'startDate',
+                    required: true,
+                    dataType: 'string',
+                },
+                endDate: {
+                    in: 'query',
+                    name: 'endDate',
+                    required: true,
+                    dataType: 'string',
+                },
                 compareToPreviousPeriod: {
                     in: 'query',
                     name: 'compareToPreviousPeriod',
@@ -13398,12 +13543,14 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'compareToMetric',
                     dataType: 'string',
                 },
-                startDate: {
-                    in: 'query',
-                    name: 'startDate',
-                    dataType: 'string',
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        timeDimensionOverride: { ref: 'TimeDimensionConfig' },
+                    },
                 },
-                endDate: { in: 'query', name: 'endDate', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

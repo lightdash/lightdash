@@ -1,15 +1,11 @@
 import {
-    type ApiGetMetricPeek,
     type MetricExplorerDateRange,
+    type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
-import { useMemo, useState } from 'react';
-import {
-    formatDate,
-    getDateRangePresets,
-    getDefaultDateRangeFromInterval,
-} from '../utils/metricPeekDate';
+import { useEffect, useMemo, useState } from 'react';
+import { formatDate, getDateRangePresets } from '../utils/metricPeekDate';
 
-type DateRange = MetricExplorerDateRange;
+type DateRange = MetricExplorerPartialDateRange;
 
 export interface DateRangePreset {
     label: string;
@@ -18,8 +14,8 @@ export interface DateRangePreset {
 }
 
 interface UseDateRangePickerProps {
-    defaultTimeDimension?: ApiGetMetricPeek['results']['defaultTimeDimension'];
-    onChange?: (range: DateRange) => void;
+    value: MetricExplorerDateRange;
+    onChange?: (range: MetricExplorerDateRange) => void;
 }
 
 /**
@@ -29,21 +25,24 @@ interface UseDateRangePickerProps {
  * (used when the user is selecting a preset, but has not applied it yet)
  */
 export const useDateRangePicker = ({
-    defaultTimeDimension,
+    value,
     onChange,
 }: UseDateRangePickerProps) => {
     const presets = getDateRangePresets();
     const [isOpen, setIsOpen] = useState(false);
 
-    const [dateRange, setDateRange] = useState<DateRange>(
-        getDefaultDateRangeFromInterval(defaultTimeDimension?.interval),
-    );
+    const [dateRange, setDateRange] = useState<DateRange>(value);
+
     const [tempDateRange, setTempDateRange] = useState<DateRange>(dateRange);
 
     const [selectedPreset, setSelectedPreset] =
         useState<DateRangePreset | null>(null);
     const [tempSelectedPreset, setTempSelectedPreset] =
         useState<DateRangePreset | null>(null);
+
+    useEffect(() => {
+        setDateRange(value);
+    }, [value]);
 
     const buttonLabel =
         selectedPreset?.label ||
@@ -68,7 +67,9 @@ export const useDateRangePicker = ({
     const handleApply = () => {
         setDateRange(tempDateRange);
         setSelectedPreset(tempSelectedPreset);
-        onChange?.(tempDateRange);
+        if (onChange && tempDateRange[0] && tempDateRange[1]) {
+            onChange([tempDateRange[0], tempDateRange[1]]);
+        }
         setIsOpen(false);
     };
 
@@ -83,6 +84,11 @@ export const useDateRangePicker = ({
         setTempSelectedPreset(null);
     };
 
+    const reset = () => {
+        setDateRange(value);
+        setSelectedPreset(null);
+    };
+
     return {
         isOpen,
         tempDateRange,
@@ -95,5 +101,6 @@ export const useDateRangePicker = ({
         handleApply,
         handlePresetSelect,
         handleDateRangeChange,
+        reset,
     };
 };

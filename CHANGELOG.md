@@ -1,3 +1,31 @@
+# [0.1398.0](https://github.com/lightdash/lightdash/compare/0.1397.2...0.1398.0) (2024-12-04)
+
+
+### Features
+
+* render metric visualization even if no default & config ([#12701](https://github.com/lightdash/lightdash/issues/12701)) ([ea1ea44](https://github.com/lightdash/lightdash/commit/ea1ea44030981d111fd4fc2a307c6e8ed376480f))
+
+## [0.1397.2](https://github.com/lightdash/lightdash/compare/0.1397.1...0.1397.2) (2024-12-04)
+
+
+### Bug Fixes
+
+* big numbers in Postgres ([#12710](https://github.com/lightdash/lightdash/issues/12710)) ([9ac78a1](https://github.com/lightdash/lightdash/commit/9ac78a198789c92e39d1f5cd5457ed7ca364487a))
+
+## [0.1397.1](https://github.com/lightdash/lightdash/compare/0.1397.0...0.1397.1) (2024-12-04)
+
+
+### Bug Fixes
+
+* catalog edges migrations ([#12705](https://github.com/lightdash/lightdash/issues/12705)) ([dbf1c4e](https://github.com/lightdash/lightdash/commit/dbf1c4e2895e747a2f44185e7cc9944d908c61e5))
+
+# [0.1397.0](https://github.com/lightdash/lightdash/compare/0.1396.3...0.1397.0) (2024-12-04)
+
+
+### Features
+
+* metrics explorer filter improvements ([#12663](https://github.com/lightdash/lightdash/issues/12663)) ([94197a2](https://github.com/lightdash/lightdash/commit/94197a277d17f76510f3945659aa3eaf2b4f11c6))
+
 ## [0.1396.3](https://github.com/lightdash/lightdash/compare/0.1396.2...0.1396.3) (2024-12-03)
 
 

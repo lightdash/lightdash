@@ -1,7 +1,6 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     type CompiledExploreJoin,
-    type CompiledTable,
     type Explore,
     type ExploreError,
     type InlineError,
@@ -94,7 +93,10 @@ export type CatalogTable = Pick<
 
 export type CatalogItem = CatalogField | CatalogTable;
 
-export type CatalogMetricsTreeNode = Pick<CatalogField, 'name' | 'tableName'>;
+export type CatalogMetricsTreeNode = Pick<
+    CatalogField,
+    'catalogSearchUuid' | 'name' | 'tableName'
+>;
 
 export type CatalogMetricsTreeEdge = {
     source: CatalogMetricsTreeNode;
@@ -113,8 +115,14 @@ export type ApiMetricsCatalog = {
     results: KnexPaginatedData<ApiMetricsCatalogResults>;
 };
 
-export type MetricWithAssociatedTimeDimension = CompiledMetric &
-    Pick<CompiledTable, 'defaultTimeDimension'>;
+export type MetricWithAssociatedTimeDimension = CompiledMetric & {
+    timeDimension:
+        | (CompiledMetric['defaultTimeDimension'] & { table: string })
+        | undefined;
+    availableTimeDimensions?: (CompiledDimension & {
+        type: DimensionType.DATE | DimensionType.TIMESTAMP;
+    })[];
+};
 
 export type ApiGetMetricPeek = {
     status: 'ok';
@@ -129,8 +137,8 @@ export type ApiGetMetricsTree = {
 };
 
 export type ApiMetricsTreeEdgePayload = {
-    sourceMetricId: string;
-    targetMetricId: string;
+    sourceCatalogSearchUuid: string;
+    targetCatalogSearchUuid: string;
 };
 
 export type CatalogMetadata = {

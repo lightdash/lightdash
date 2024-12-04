@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    getMetricsTreeNodeId,
     MAX_METRICS_TREE_NODE_COUNT,
     type CatalogItem,
 } from '@lightdash/common';
@@ -113,17 +112,17 @@ export const MetricsTable = () => {
     );
 
     // Fetch metric tree data
-    const selectedMetricTreeIds = useMemo(() => {
-        return flatData.map((metric) => getMetricsTreeNodeId(metric));
+    const selectedMetricUuids = useMemo(() => {
+        return flatData.map((metric) => metric.catalogSearchUuid);
     }, [flatData]);
 
     const isValidMetricsTree =
-        selectedMetricTreeIds.length > 0 &&
-        selectedMetricTreeIds.length <= MAX_METRICS_TREE_NODE_COUNT;
+        selectedMetricUuids.length > 0 &&
+        selectedMetricUuids.length <= MAX_METRICS_TREE_NODE_COUNT;
 
     const { data: metricsTree } = useMetricsTree(
         projectUuid,
-        selectedMetricTreeIds,
+        selectedMetricUuids,
         {
             enabled: !!projectUuid && isValidMetricsTree,
         },

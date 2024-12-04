@@ -326,13 +326,13 @@ export class CatalogController extends BaseController {
     async getMetricsTree(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-        @Query() metricIds: string[],
+        @Query() metricUuids: string[],
     ): Promise<ApiGetMetricsTree> {
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getMetricsTree(req.user!, projectUuid, metricIds);
+            .getMetricsTree(req.user!, projectUuid, metricUuids);
 
         return {
             status: 'ok',
@@ -362,19 +362,21 @@ export class CatalogController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Delete('/metrics/tree/edges/{sourceMetricId}/{targetMetricId}')
+    @Delete(
+        '/metrics/tree/edges/{sourceCatalogSearchUuid}/{targetCatalogSearchUuid}',
+    )
     @OperationId('deleteMetricsTreeEdge')
     async deleteMetricsTreeEdge(
         @Path() projectUuid: string,
-        @Path() sourceMetricId: string,
-        @Path() targetMetricId: string,
+        @Path() sourceCatalogSearchUuid: string,
+        @Path() targetCatalogSearchUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         await this.services
             .getCatalogService()
             .deleteMetricsTreeEdge(req.user!, projectUuid, {
-                sourceMetricId,
-                targetMetricId,
+                sourceCatalogSearchUuid,
+                targetCatalogSearchUuid,
             });
 
         this.setStatus(200);
