@@ -179,8 +179,7 @@ export const useDateRangePicker = ({
                             const endDate = dates[1]
                                 ? dayjs(dates[1]).endOf('month').toDate()
                                 : null;
-                            console.log('startDate', startDate);
-                            console.log('endDate', endDate);
+
                             handleDateRangeChange([startDate, endDate]);
                         },
                         numberOfColumns: 2,

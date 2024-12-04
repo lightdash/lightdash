@@ -232,12 +232,13 @@ export const getDateRangePresets = (
                 {
                     label: 'Past 3 months',
                     getValue: () => [
-                        today.subtract(3, 'month').toDate(),
+                        today.subtract(3, 'month').startOf('month').toDate(),
                         now.toDate(),
                     ],
                     getTooltipLabel: () =>
                         `${today
                             .subtract(3, 'month')
+                            .startOf('month')
                             .format('MMM D, YYYY')} - ${now.format(
                             'MMM D, YYYY',
                         )}`,
@@ -245,12 +246,13 @@ export const getDateRangePresets = (
                 {
                     label: 'Past 6 months',
                     getValue: () => [
-                        today.subtract(6, 'month').toDate(),
+                        today.subtract(6, 'month').startOf('month').toDate(),
                         now.toDate(),
                     ],
                     getTooltipLabel: () =>
                         `${today
                             .subtract(6, 'month')
+                            .startOf('month')
                             .format('MMM D, YYYY')} - ${now.format(
                             'MMM D, YYYY',
                         )}`,
@@ -258,12 +260,13 @@ export const getDateRangePresets = (
                 {
                     label: 'Past 12 months',
                     getValue: () => [
-                        today.subtract(12, 'month').toDate(),
+                        today.subtract(12, 'month').startOf('month').toDate(),
                         now.toDate(),
                     ],
                     getTooltipLabel: () =>
                         `${today
                             .subtract(12, 'month')
+                            .startOf('month')
                             .format('MMM D, YYYY')} - ${now.format(
                             'MMM D, YYYY',
                         )}`,
@@ -271,12 +274,13 @@ export const getDateRangePresets = (
                 {
                     label: 'Past 5 years',
                     getValue: () => [
-                        today.subtract(5, 'year').toDate(),
+                        today.subtract(5, 'year').startOf('year').toDate(),
                         now.toDate(),
                     ],
                     getTooltipLabel: () =>
                         `${today
                             .subtract(5, 'year')
+                            .startOf('year')
                             .format('MMM D, YYYY')} - ${now.format(
                             'MMM D, YYYY',
                         )}`,
@@ -312,12 +316,13 @@ export const getDateRangePresets = (
                 {
                     label: 'Past 1 year',
                     getValue: () => [
-                        today.subtract(1, 'year').toDate(),
+                        today.subtract(1, 'year').startOf('year').toDate(),
                         now.toDate(),
                     ],
                     getTooltipLabel: () =>
                         `${today
                             .subtract(1, 'year')
+                            .startOf('year')
                             .format('MMM D, YYYY')} - ${now.format(
                             'MMM D, YYYY',
                         )}`,
@@ -325,12 +330,13 @@ export const getDateRangePresets = (
                 {
                     label: 'Past 5 years',
                     getValue: () => [
-                        today.subtract(5, 'year').toDate(),
+                        today.subtract(5, 'year').startOf('year').toDate(),
                         now.toDate(),
                     ],
                     getTooltipLabel: () =>
                         `${today
                             .subtract(5, 'year')
+                            .startOf('year')
                             .format('MMM D, YYYY')} - ${now.format(
                             'MMM D, YYYY',
                         )}`,
