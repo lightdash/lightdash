@@ -1,3 +1,10 @@
+## [0.1397.2](https://github.com/lightdash/lightdash/compare/0.1397.1...0.1397.2) (2024-12-04)
+
+
+### Bug Fixes
+
+* big numbers in Postgres ([#12710](https://github.com/lightdash/lightdash/issues/12710)) ([9ac78a1](https://github.com/lightdash/lightdash/commit/9ac78a198789c92e39d1f5cd5457ed7ca364487a))
+
 ## [0.1397.1](https://github.com/lightdash/lightdash/compare/0.1397.0...0.1397.1) (2024-12-04)
 
 
