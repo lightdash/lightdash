@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     ForbiddenError,
     getFieldIdForDateDimension,
+    getGrainForDateRange,
     getItemId,
     getMetricExplorerDateRangeFilters,
     MetricExplorerComparison,
@@ -204,7 +205,7 @@ export class MetricsExplorerService<
                     const differentMetricTimeDimensionId = getItemId({
                         table: differentMetric.table,
                         name: getFieldIdForDateDimension(
-                            defaultTimeDimension.field,
+                            timeDimensionConfig.field,
                             differentMetricDimensionGrain,
                         ),
                     });
