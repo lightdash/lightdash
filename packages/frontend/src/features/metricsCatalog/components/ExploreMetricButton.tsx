@@ -2,7 +2,6 @@ import { type CatalogField } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
 import { useCallback, useEffect, useState } from 'react';
-import { useExplore } from '../../../hooks/useExplore';
 import {
     createMetricPreviewUnsavedChartVersion,
     getExplorerUrlFromCreateSavedChartVersion,
@@ -10,6 +9,7 @@ import {
 import { useTracking } from '../../../providers/TrackingProvider';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useMetric } from '../hooks/useMetricsCatalog';
 
 type Props = {
     row: MRT_Row<CatalogField>;
@@ -27,27 +27,35 @@ export const ExploreMetricButton = ({ row }: Props) => {
     const [currentTableName, setCurrentTableName] = useState<string>();
     const { track } = useTracking();
 
-    const { data: explore, isFetching } = useExplore(currentTableName);
+    const metricQuery = useMetric({
+        projectUuid,
+        tableName: row.original.tableName,
+        metricName: row.original.name,
+    });
 
     useEffect(() => {
-        if (!!currentTableName && explore && projectUuid) {
-            const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
-                row.original,
-                explore,
-            );
+        if (!projectUuid || !metricQuery.isSuccess) return;
 
-            const { pathname, search } =
-                getExplorerUrlFromCreateSavedChartVersion(
-                    projectUuid,
-                    unsavedChartVersion,
-                );
+        const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
+            metricQuery.data,
+        );
 
-            const url = new URL(pathname, window.location.origin);
-            url.search = new URLSearchParams(search).toString();
+        const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
+            projectUuid,
+            unsavedChartVersion,
+        );
 
-            setExploreUrl(url.href);
-        }
-    }, [currentTableName, explore, projectUuid, row.original]);
+        const url = new URL(pathname, window.location.origin);
+        url.search = new URLSearchParams(search).toString();
+
+        setExploreUrl(url.href);
+    }, [
+        currentTableName,
+        metricQuery.data,
+        metricQuery.isSuccess,
+        projectUuid,
+        row.original,
+    ]);
 
     useEffect(() => {
         if (shouldOpenInNewTab && exploreUrl) {
@@ -93,7 +101,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
                 bg="linear-gradient(180deg, #202B37 0%, #151C24 100%)"
                 radius="md"
                 onClick={handleExploreClick}
-                loading={isFetching}
+                loading={metricQuery.isFetching}
                 py="xxs"
                 px={10}
                 h={28}

@@ -1,5 +1,11 @@
 import {
-    isMetric,
+    getFieldIdForDateDimension,
+    getGrainForDateRange,
+    getItemId,
+    getMetricExplorerDataPoints,
+    getMetricExplorerDataPointsWithCompare,
+    isDimension,
+    type MetricExplorerDateRange,
     type MetricsExplorerQueryResults,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
@@ -29,7 +35,7 @@ import {
     YAxis,
 } from 'recharts';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { FORMATS, type TimeSeriesData } from './types';
+import { FORMATS } from './types';
 import { useChartZoom } from './useChartZoom';
 
 const tickFormatter = (date: Date) => {
@@ -53,47 +59,52 @@ const tickFormatter = (date: Date) => {
 };
 
 type Props = {
+    dateRange: MetricExplorerDateRange | undefined;
     metric: MetricWithAssociatedTimeDimension;
     data: MetricsExplorerQueryResults;
 };
 
-const MetricsVisualization: FC<Props> = ({ metric, data }) => {
+const MetricsVisualization: FC<Props> = ({ metric, data, dateRange }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
-    const defaultTimeDimension = metric.defaultTimeDimension;
-
-    const timeDimensionFieldId = Object.entries(data.fields).find(
-        ([_, field]) => 'timeInterval' in field,
-    )?.[0];
-
-    const metricFieldId = Object.entries(data.fields).find(([_, field]) =>
-        isMetric(field),
-    )?.[0];
-
-    const timeSeriesData: TimeSeriesData[] | null = useMemo(() => {
-        // TODO: Currently we hide the visualization if the default time dimension is not present. Address this differently.
+    const timeSeriesData = useMemo(() => {
+        const defaultTimeDimension = metric.defaultTimeDimension;
         if (!defaultTimeDimension) return null;
 
-        if (!timeDimensionFieldId || !metricFieldId) return null;
-        // TODO: zipping with index is not a smart idea.
-        return data.rows.map((row, index) => ({
-            date: new Date(String(row[timeDimensionFieldId].value.raw)),
-            metric: row[metricFieldId].value.raw,
-            ...(data.comparisonRows
-                ? {
-                      compareMetric:
-                          data.comparisonRows[index]?.[metricFieldId]?.value
-                              .raw,
-                  }
-                : {}),
-        }));
-    }, [
-        defaultTimeDimension,
-        timeDimensionFieldId,
-        metricFieldId,
-        data.rows,
-        data.comparisonRows,
-    ]);
+        const dimensionGrain = dateRange
+            ? getGrainForDateRange(dateRange)
+            : defaultTimeDimension.interval;
+
+        const dimensionId = getFieldIdForDateDimension(
+            getItemId({
+                name: defaultTimeDimension.field,
+                table: metric.table,
+            }),
+            dimensionGrain,
+        );
+
+        if (!dimensionId || !data.fields[dimensionId]) return null;
+        if (!data.rows) return null;
+
+        const dimension = data.fields[dimensionId];
+        if (!isDimension(dimension)) return null;
+
+        const rawData = !!data.comparisonRows
+            ? getMetricExplorerDataPointsWithCompare(
+                  dimension,
+                  metric,
+                  data.rows,
+                  data.comparisonRows,
+              )
+            : getMetricExplorerDataPoints(dimension, metric, data.rows);
+
+        return rawData
+            .map((row) => ({
+                ...row,
+                dateValue: row.date.valueOf(),
+            }))
+            .sort((a, b) => a.dateValue - b.dateValue);
+    }, [data.comparisonRows, data.fields, data.rows, dateRange, metric]);
 
     const {
         zoomState,
@@ -105,7 +116,7 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
         },
         activeData,
     } = useChartZoom({
-        data: timeSeriesData || [],
+        data: timeSeriesData ?? [],
     });
 
     useEffect(() => {
@@ -115,11 +126,10 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
     const xAxisConfig = useMemo(() => {
         if (!timeSeriesData) return null;
 
-        const timeValues = activeData.map((row) => row.date);
-        const numericValues = timeValues.map((time) => time.valueOf());
+        const timeValues = activeData.map((row) => row.dateValue);
         const timeScale = scaleTime().domain([
-            Math.min(...numericValues),
-            Math.max(...numericValues),
+            Math.min(...timeValues),
+            Math.max(...timeValues),
         ]);
 
         return {
@@ -172,7 +182,7 @@ const MetricsVisualization: FC<Props> = ({ metric, data }) => {
                     />
 
                     <XAxis
-                        dataKey="date"
+                        dataKey="dateValue"
                         {...xAxisConfig}
                         axisLine={{ stroke: colors.gray[2] }}
                         tickLine={false}

@@ -41,10 +41,10 @@ export class MetricsExplorerController extends BaseController {
         @Path() explore: string,
         @Path() metric: string,
         @Request() req: express.Request,
+        @Query() startDate: string,
+        @Query() endDate: string,
         @Query() compareToPreviousPeriod?: boolean,
         @Query() compareToMetric?: string,
-        @Query() startDate?: string,
-        @Query() endDate?: string,
     ): Promise<ApiMetricsExplorerQueryResults> {
         this.setStatus(200);
 
@@ -61,10 +61,14 @@ export class MetricsExplorerController extends BaseController {
             };
         }
 
-        let dateRange: MetricExplorerDateRange | undefined;
-        if (startDate && endDate) {
-            dateRange = [new Date(startDate), new Date(endDate)];
+        if (!startDate || !endDate) {
+            throw new Error('startDate and endDate are required');
         }
+
+        const dateRange: MetricExplorerDateRange = [
+            new Date(startDate),
+            new Date(endDate),
+        ];
 
         const results = await this.services
             .getMetricsExplorerService()
@@ -73,8 +77,8 @@ export class MetricsExplorerController extends BaseController {
                 projectUuid,
                 explore,
                 metric,
-                compare,
                 dateRange,
+                compare,
             );
 
         return {

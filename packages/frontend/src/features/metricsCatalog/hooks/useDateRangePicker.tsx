@@ -1,15 +1,13 @@
 import {
+    getDefaultDateRangeFromInterval,
     type ApiGetMetricPeek,
     type MetricExplorerDateRange,
+    type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
 import { useMemo, useState } from 'react';
-import {
-    formatDate,
-    getDateRangePresets,
-    getDefaultDateRangeFromInterval,
-} from '../utils/metricPeekDate';
+import { formatDate, getDateRangePresets } from '../utils/metricPeekDate';
 
-type DateRange = MetricExplorerDateRange;
+type DateRange = MetricExplorerPartialDateRange;
 
 export interface DateRangePreset {
     label: string;
@@ -19,7 +17,7 @@ export interface DateRangePreset {
 
 interface UseDateRangePickerProps {
     defaultTimeDimension?: ApiGetMetricPeek['results']['defaultTimeDimension'];
-    onChange?: (range: DateRange) => void;
+    onChange?: (range: MetricExplorerDateRange) => void;
 }
 
 /**
@@ -36,7 +34,9 @@ export const useDateRangePicker = ({
     const [isOpen, setIsOpen] = useState(false);
 
     const [dateRange, setDateRange] = useState<DateRange>(
-        getDefaultDateRangeFromInterval(defaultTimeDimension?.interval),
+        defaultTimeDimension?.interval
+            ? getDefaultDateRangeFromInterval(defaultTimeDimension.interval)
+            : [null, null],
     );
     const [tempDateRange, setTempDateRange] = useState<DateRange>(dateRange);
 
@@ -68,7 +68,9 @@ export const useDateRangePicker = ({
     const handleApply = () => {
         setDateRange(tempDateRange);
         setSelectedPreset(tempSelectedPreset);
-        onChange?.(tempDateRange);
+        if (onChange && tempDateRange[0] && tempDateRange[1]) {
+            onChange([tempDateRange[0], tempDateRange[1]]);
+        }
         setIsOpen(false);
     };
 

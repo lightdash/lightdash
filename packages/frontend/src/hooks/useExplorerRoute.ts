@@ -2,15 +2,16 @@ import {
     ChartType,
     CustomDimensionType,
     DateGranularity,
-    DimensionType,
+    getDefaultDateRangeFromInterval,
+    getFieldIdForDateDimension,
     getItemId,
-    getMetricExplorerDefaultGrainFilters,
+    getMetricExplorerDateRangeFilters,
     isCartesianChartConfig,
     type CreateSavedChartVersion,
     type CustomBinDimension,
     type CustomDimension,
-    type Explore,
     type MetricQuery,
+    type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
 import { useEffect, useMemo } from 'react';
 import { useHistory, useLocation, useParams } from 'react-router-dom';
@@ -45,46 +46,21 @@ export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
     },
 };
 
-const getDefaultTimeDimension = (
-    metric: Record<'name' | 'tableName', string>,
-    explore: Explore,
-) => {
-    const dateDimensions = Object.values(
-        explore.tables[metric.tableName].dimensions,
-    ).filter((dim) =>
-        [DimensionType.DATE, DimensionType.TIMESTAMP].includes(dim.type),
-    );
-
-    const defaultTimeDimension =
-        explore.tables[explore.baseTable].defaultTimeDimension;
-    if (!defaultTimeDimension) return;
-
-    const dimensionName = defaultTimeDimension.field;
-
-    const dimensionId = getItemId({
-        name: dimensionName,
-        table: metric.tableName,
-    });
-
-    const match = dateDimensions.find(
-        (dimension) => getItemId(dimension) === dimensionId,
-    );
-
-    return match;
-};
-
 export const createMetricPreviewUnsavedChartVersion = (
-    metric: Record<'name' | 'tableName', string>,
-    explore: Explore,
+    metric: MetricWithAssociatedTimeDimension,
 ): CreateSavedChartVersion => {
-    const defaultTimeDimension = getDefaultTimeDimension(metric, explore);
-    const defaultTimeFilters = defaultTimeDimension
-        ? getMetricExplorerDefaultGrainFilters(
-              metric.tableName,
-              defaultTimeDimension.name,
-              defaultTimeDimension.timeInterval,
-          )
-        : [];
+    const defaultTimeDimension = metric.defaultTimeDimension;
+
+    const defaultTimeFilters =
+        defaultTimeDimension && defaultTimeDimension.interval
+            ? getMetricExplorerDateRangeFilters(
+                  metric.table,
+                  defaultTimeDimension.field,
+                  getDefaultDateRangeFromInterval(
+                      defaultTimeDimension.interval,
+                  ),
+              )
+            : [];
 
     let chartConfig = DEFAULT_EMPTY_EXPLORE_CONFIG.chartConfig;
 
@@ -98,18 +74,26 @@ export const createMetricPreviewUnsavedChartVersion = (
 
     return {
         ...DEFAULT_EMPTY_EXPLORE_CONFIG,
-        tableName: metric.tableName,
+        tableName: metric.table,
         chartConfig,
         metricQuery: {
             ...DEFAULT_EMPTY_EXPLORE_CONFIG.metricQuery,
-            exploreName: metric.tableName,
+            exploreName: metric.table,
             dimensions: defaultTimeDimension
-                ? [getItemId(defaultTimeDimension)]
+                ? [
+                      getItemId({
+                          table: metric.table,
+                          name: getFieldIdForDateDimension(
+                              defaultTimeDimension.field,
+                              defaultTimeDimension.interval,
+                          ),
+                      }),
+                  ]
                 : [],
             metrics: [
                 getItemId({
                     name: metric.name,
-                    table: metric.tableName,
+                    table: metric.table,
                 }),
             ],
             ...(defaultTimeFilters

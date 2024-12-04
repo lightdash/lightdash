@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getDefaultDateRangeFromInterval,
     MetricExplorerComparison,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
@@ -19,7 +20,7 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { IconCalendar, IconInfoCircle, IconStack } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
@@ -52,10 +53,20 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         metricName,
     });
 
-    const [dateRange, setDateRange] = useState<MetricExplorerDateRange>([
+    const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
         null,
-        null,
-    ]);
+    );
+
+    useEffect(() => {
+        if (!metricQuery.isSuccess || dateRange) return;
+
+        const defaultTimeDimension = metricQuery.data.defaultTimeDimension;
+        if (!defaultTimeDimension) return;
+
+        setDateRange(
+            getDefaultDateRangeFromInterval(defaultTimeDimension.interval),
+        );
+    }, [metricQuery.isSuccess, metricQuery.data, dateRange]);
 
     const comparisonParams = useMemo(():
         | MetricExplorerComparisonType
@@ -88,8 +99,8 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         projectUuid,
         exploreName: tableName,
         metricName,
+        dateRange: dateRange ?? undefined,
         comparison: comparisonParams,
-        dateRange,
     });
 
     const hasData = metricQuery.isSuccess && metricResultsQuery.isSuccess;
@@ -99,6 +110,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
         setComparisonType(MetricExplorerComparison.NONE);
+        setDateRange(null);
         onClose();
     }, [history, onClose, projectUuid]);
 
@@ -292,6 +304,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                         ) : (
                             hasData && (
                                 <MetricsVisualization
+                                    dateRange={dateRange ?? undefined}
                                     metric={metricQuery.data}
                                     data={metricResultsQuery.data}
                                 />
