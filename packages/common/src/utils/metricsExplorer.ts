@@ -266,37 +266,6 @@ export const getFirstAvailableTimeDimension = (
     return undefined;
 };
 
-/**
- * Helper method to determine the correct time dimension configuration
- * It covers the case where the metric has a default time dimension
- * and the case where the metric has available time dimensions (could be multiple and from different tables that are joined)
- */
-export const getTimeDimensionConfig = (
-    metric: CompiledMetric,
-): TimeDimensionConfig | undefined => {
-    if (metric.defaultTimeDimension) {
-        // Use the metric's table when default time dimension is specified
-        return {
-            table: metric.table,
-            field: metric.defaultTimeDimension.field,
-            interval: metric.defaultTimeDimension.interval,
-        };
-    }
-
-    // Fall back to the first available time dimension
-    const firstAvailableTimeDimension = getFirstAvailableTimeDimension(metric);
-    if (!firstAvailableTimeDimension) {
-        return undefined;
-    }
-
-    // Use the dimension's own table in case it's joined
-    return {
-        table: firstAvailableTimeDimension.table,
-        field: firstAvailableTimeDimension.field,
-        interval: firstAvailableTimeDimension.interval,
-    };
-};
-
 export const getDefaultTimeDimension = (
     metric: CompiledMetric,
     table?: CompiledTable,

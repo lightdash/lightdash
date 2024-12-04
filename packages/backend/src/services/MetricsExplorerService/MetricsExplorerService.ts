@@ -3,10 +3,8 @@ import {
     assertUnreachable,
     ForbiddenError,
     getFieldIdForDateDimension,
-    getGrainForDateRange,
     getItemId,
     getMetricExplorerDateRangeFilters,
-    getTimeDimensionConfig,
     MetricExplorerComparison,
     MetricExplorerComparisonType,
     oneYearBack,
@@ -90,10 +88,8 @@ export class MetricsExplorerService<
             metricName,
         );
 
-        const { defaultTimeDimension } = metric;
-
         const timeDimensionConfig =
-            timeDimensionOverride ?? getTimeDimensionConfig(metric);
+            timeDimensionOverride ?? metric.timeDimension;
 
         if (!timeDimensionConfig) {
             throw new Error(
@@ -101,9 +97,7 @@ export class MetricsExplorerService<
             );
         }
 
-        const dimensionGrain = dateRange
-            ? getGrainForDateRange(dateRange)
-            : timeDimensionConfig.interval;
+        const dimensionGrain = timeDimensionConfig.interval;
 
         const timeDimension = getItemId({
             table: timeDimensionConfig.table,
@@ -203,6 +197,7 @@ export class MetricsExplorerService<
             rows: currentResults,
             comparisonRows: comparisonResults,
             fields: allFields,
+            metric: { ...metric, timeDimension: timeDimensionConfig },
         };
     }
 }

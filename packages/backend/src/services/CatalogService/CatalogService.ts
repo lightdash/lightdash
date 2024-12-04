@@ -10,11 +10,7 @@ import {
     CatalogTable,
     CatalogType,
     ChartSummary,
-    CompiledDimension,
-    CompiledMetric,
-    CompiledTable,
     DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
-    DimensionType,
     Explore,
     ExploreError,
     ForbiddenError,
@@ -32,7 +28,6 @@ import {
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
-    TimeFrames,
     UserAttributeValueMap,
     type ApiMetricsTreeEdgePayload,
     type ApiSort,
@@ -48,7 +43,6 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type {
     DbCatalogTagsMigrateIn,
-    DbMetricsTreeEdge,
     DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -934,12 +928,46 @@ export class CatalogService<
                 getAvailableTimeDimensionsFromTables(tables);
         }
 
+        let timeDimension:
+            | MetricWithAssociatedTimeDimension['timeDimension']
+            | undefined;
+
+        if (defaultTimeDimension) {
+            timeDimension = {
+                field: defaultTimeDimension.field,
+                interval: defaultTimeDimension.interval,
+                table: metric.table,
+            };
+        } else if (
+            availableTimeDimensions &&
+            availableTimeDimensions.length > 0
+        ) {
+            console.log({ availableTimeDimensions });
+            const firstAvailableTimeDimension = availableTimeDimensions[0];
+
+            console.log({
+                firstAvailableTimeDimension,
+            });
+
+            if (!firstAvailableTimeDimension.isIntervalBase) {
+                throw new Error(
+                    'The first available time dimension is not an interval base dimension',
+                );
+            }
+
+            timeDimension = {
+                field: firstAvailableTimeDimension.name,
+                interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+                table: firstAvailableTimeDimension.table,
+            };
+        }
+
         return {
             ...metric,
-            defaultTimeDimension,
             ...(availableTimeDimensions && availableTimeDimensions.length > 0
                 ? { availableTimeDimensions }
                 : {}),
+            timeDimension,
         };
     }
 

@@ -32,7 +32,6 @@ import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
 import { MetricPeekDatePicker } from './MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from './MetricsVisualizationEmptyState';
 import MetricsVisualization from './visualization/MetricsVisualization';
-import { TimeDimensionIntervalPicker } from './visualization/TimeDimensionIntervalPicker';
 import { TimeDimensionPicker } from './visualization/TimeDimensionPicker';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
@@ -54,21 +53,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         tableName,
         metricName,
     });
-
-    const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
-        null,
-    );
-
-    useEffect(() => {
-        if (!metricQuery.isSuccess || dateRange) return;
-
-        const defaultTimeDimension = metricQuery.data.defaultTimeDimension;
-        if (!defaultTimeDimension) return;
-
-        setDateRange(
-            getDefaultDateRangeFromInterval(defaultTimeDimension.interval),
-        );
-    }, [metricQuery.isSuccess, metricQuery.data, dateRange]);
 
     const [comparisonType, setComparisonType] =
         useState<MetricExplorerComparison>(MetricExplorerComparison.NONE);
@@ -102,6 +86,12 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
     const [timeDimensionOverride, setTimeDimensionOverride] = useState<
         TimeDimensionConfig | undefined
     >();
+    const [dateRange, setDateRange] = useState<MetricExplorerDateRange | null>(
+        null,
+    );
+
+    console.log({ dateRange });
+
     const metricResultsQuery = useRunMetricExplorerQuery({
         projectUuid,
         exploreName: tableName,
@@ -132,6 +122,19 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                 table: timeDimensionField.table,
             };
         }, [metricResultsQuery.data?.fields]);
+
+    useEffect(() => {
+        const timeDimension =
+            timeDimensionOverride ?? metricQuery.data?.timeDimension;
+
+        if (!timeDimension) return;
+
+        if (timeDimension.interval !== timeDimensionBaseField?.interval) {
+            setDateRange(
+                getDefaultDateRangeFromInterval(timeDimension.interval),
+            );
+        }
+    }, [timeDimensionOverride, metricQuery.data, timeDimensionBaseField]);
 
     const hasData = metricQuery.isSuccess && metricResultsQuery.isSuccess;
     const doesNotHaveData =
@@ -236,24 +239,18 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                 <Text fw={500} c="gray.7">
                                     Time filter
                                 </Text>
-                                {metricQuery.isSuccess && (
+                                {metricQuery.isSuccess && dateRange && (
                                     <MetricPeekDatePicker
-                                        defaultTimeDimension={
-                                            metricQuery.data
-                                                .defaultTimeDimension
-                                        }
+                                        dateRange={dateRange}
                                         onChange={setDateRange}
-                                        rightSection={
-                                            timeDimensionBaseField && (
-                                                <TimeDimensionIntervalPicker
-                                                    dimension={
-                                                        timeDimensionBaseField
-                                                    }
-                                                    onChange={
-                                                        setTimeDimensionOverride
-                                                    }
-                                                />
-                                            )
+                                        showTimeDimensionIntervalPicker={
+                                            !!timeDimensionBaseField
+                                        }
+                                        timeDimensionBaseField={
+                                            timeDimensionBaseField
+                                        }
+                                        setTimeDimensionOverride={
+                                            setTimeDimensionOverride
                                         }
                                     />
                                 )}
@@ -388,8 +385,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                         ) : (
                             hasData && (
                                 <MetricsVisualization
-                                    dateRange={dateRange ?? undefined}
-                                    metric={metricQuery.data}
                                     data={metricResultsQuery.data}
                                 />
                             )

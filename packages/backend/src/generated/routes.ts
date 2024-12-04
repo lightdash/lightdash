@@ -937,17 +937,6 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CompiledTable.defaultTimeDimension_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                defaultTimeDimension: { ref: 'DefaultTimeDimension' },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'FieldType.DIMENSION': {
         dataType: 'refEnum',
         enums: ['dimension'],
@@ -1035,7 +1024,6 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 { ref: 'CompiledMetric' },
-                { ref: 'Pick_CompiledTable.defaultTimeDimension_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -1064,6 +1052,28 @@ const models: TsoaRoute.Models = {
                                     },
                                 ],
                             },
+                        },
+                        timeDimension: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'intersection',
+                                    subSchemas: [
+                                        { ref: 'DefaultTimeDimension' },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                table: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                    ],
+                                },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
                         },
                     },
                 },
@@ -3798,6 +3808,10 @@ const models: TsoaRoute.Models = {
                 rows: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'ResultRow' },
+                    required: true,
+                },
+                metric: {
+                    ref: 'MetricWithAssociatedTimeDimension',
                     required: true,
                 },
             },
@@ -13524,6 +13538,14 @@ export function RegisterRoutes(app: express.Router) {
                     in: 'query',
                     name: 'compareToMetric',
                     dataType: 'string',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        timeDimensionOverride: { ref: 'TimeDimensionConfig' },
+                    },
                 },
             };
 

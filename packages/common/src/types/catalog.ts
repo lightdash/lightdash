@@ -1,7 +1,6 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     type CompiledExploreJoin,
-    type CompiledTable,
     type Explore,
     type ExploreError,
     type InlineError,
@@ -113,12 +112,14 @@ export type ApiMetricsCatalog = {
     results: KnexPaginatedData<ApiMetricsCatalogResults>;
 };
 
-export type MetricWithAssociatedTimeDimension = CompiledMetric &
-    Pick<CompiledTable, 'defaultTimeDimension'> & {
-        availableTimeDimensions?: (CompiledDimension & {
-            type: DimensionType.DATE | DimensionType.TIMESTAMP;
-        })[];
-    };
+export type MetricWithAssociatedTimeDimension = CompiledMetric & {
+    timeDimension:
+        | (CompiledMetric['defaultTimeDimension'] & { table: string })
+        | undefined;
+    availableTimeDimensions?: (CompiledDimension & {
+        type: DimensionType.DATE | DimensionType.TIMESTAMP;
+    })[];
+};
 
 export type ApiGetMetricPeek = {
     status: 'ok';
