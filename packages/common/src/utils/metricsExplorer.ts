@@ -15,9 +15,11 @@ import {
     type FieldTarget,
     type FilterRule,
 } from '../types/filter';
-import type {
-    MetricExploreDataPoint,
-    MetricExplorerDateRange,
+import {
+    MetricExplorerComparison,
+    type MetricExploreDataPoint,
+    type MetricExplorerComparisonType,
+    type MetricExplorerDateRange,
 } from '../types/metricsExplorer';
 import type { ResultRow } from '../types/results';
 import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
@@ -169,8 +171,12 @@ export const getMetricExplorerDataPointsWithCompare = (
     metric: MetricWithAssociatedTimeDimension,
     metricRows: ResultRow[],
     compareMetricRows: ResultRow[],
-    offsetFunction: (date: Date) => Date = oneYearForward,
+    comparison: MetricExplorerComparisonType,
 ): Array<MetricExploreDataPoint> => {
+    if (comparison.type === MetricExplorerComparison.NONE) {
+        throw new Error('Comparison type is required');
+    }
+
     const dimensionId = getItemId(dimension);
     const metricId = getItemId(metric);
 
@@ -185,7 +191,10 @@ export const getMetricExplorerDataPointsWithCompare = (
 
     const offsetGroupByCompareMetricRows = mapKeys(
         groupByCompareMetricRows,
-        (_, date) => offsetFunction(new Date(date)).toString(),
+        (_, date) =>
+            comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD
+                ? oneYearForward(new Date(date)).toString()
+                : date,
     );
 
     const dates = new Set([
@@ -193,12 +202,20 @@ export const getMetricExplorerDataPointsWithCompare = (
         ...Object.keys(offsetGroupByCompareMetricRows),
     ]);
 
+    const compareMetricId =
+        comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD
+            ? metricId
+            : getItemId({
+                  table: comparison.metricTable,
+                  name: comparison.metricName,
+              });
+
     return Array.from(dates).map((date) => ({
         date: new Date(date),
         metric: groupByMetricRows[date]?.[0]?.[metricId]?.value.raw ?? null,
         compareMetric:
-            offsetGroupByCompareMetricRows[date]?.[0]?.[metricId]?.value.raw ??
-            null,
+            offsetGroupByCompareMetricRows[date]?.[0]?.[compareMetricId]?.value
+                .raw ?? null,
     }));
 };
 

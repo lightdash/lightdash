@@ -33,7 +33,8 @@ const getUrlParams = (
             params.append('compareToPreviousPeriod', 'true');
             break;
         case MetricExplorerComparison.DIFFERENT_METRIC:
-            params.append('compareToMetric', comparison.metricName);
+            params.append('compareToMetricTableName', comparison.metricTable);
+            params.append('compareToMetricMetricName', comparison.metricName);
             break;
         default:
             return assertUnreachable(comparison, `Unknown comparison type`);

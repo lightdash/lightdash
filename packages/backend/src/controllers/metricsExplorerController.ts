@@ -46,7 +46,8 @@ export class MetricsExplorerController extends BaseController {
         @Query() startDate: string,
         @Query() endDate: string,
         @Query() compareToPreviousPeriod?: boolean,
-        @Query() compareToMetric?: string,
+        @Query() compareToMetricTableName?: string,
+        @Query() compareToMetricMetricName?: string,
         @Body()
         body?: {
             timeDimensionOverride?: TimeDimensionConfig;
@@ -60,10 +61,11 @@ export class MetricsExplorerController extends BaseController {
                 type: MetricExplorerComparison.PREVIOUS_PERIOD,
             };
         }
-        if (compareToMetric) {
+        if (compareToMetricTableName && compareToMetricMetricName) {
             compare = {
                 type: MetricExplorerComparison.DIFFERENT_METRIC,
-                metricName: compareToMetric,
+                metricTable: compareToMetricTableName,
+                metricName: compareToMetricMetricName,
             };
         }
 

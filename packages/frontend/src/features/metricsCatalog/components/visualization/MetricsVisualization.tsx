@@ -4,6 +4,8 @@ import {
     getMetricExplorerDataPoints,
     getMetricExplorerDataPointsWithCompare,
     isDimension,
+    type MetricExplorerComparisonType,
+    type MetricExplorerDateRange,
     type MetricsExplorerQueryResults,
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, useMantineTheme } from '@mantine/core';
@@ -57,9 +59,11 @@ const tickFormatter = (date: Date) => {
 
 type Props = {
     data: MetricsExplorerQueryResults;
+    dateRange: MetricExplorerDateRange | undefined;
+    comparison: MetricExplorerComparisonType;
 };
 
-const MetricsVisualization: FC<Props> = ({ data }) => {
+const MetricsVisualization: FC<Props> = ({ data, comparison }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
     const timeSeriesData = useMemo(() => {
@@ -88,6 +92,7 @@ const MetricsVisualization: FC<Props> = ({ data }) => {
                   data.metric,
                   data.rows,
                   data.comparisonRows,
+                  comparison,
               )
             : getMetricExplorerDataPoints(dimension, data.metric, data.rows);
 
@@ -97,7 +102,7 @@ const MetricsVisualization: FC<Props> = ({ data }) => {
                 dateValue: row.date.valueOf(),
             }))
             .sort((a, b) => a.dateValue - b.dateValue);
-    }, [data.comparisonRows, data.fields, data.metric, data.rows]);
+    }, [comparison, data.comparisonRows, data.fields, data.metric, data.rows]);
 
     const {
         zoomState,
