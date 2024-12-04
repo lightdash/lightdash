@@ -78,8 +78,9 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
     connectedNodes.forEach((node) =>
         treeGraph.setNode(node.id, {
             ...node,
-            width: node.measured?.width ?? 0,
-            height: node.measured?.height ?? 0,
+            // TODO: node sizes are hardcoded. We need to do more to have them be dynamic
+            width: 200,
+            height: 110,
         }),
     );
 
@@ -104,8 +105,9 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
 
     // Draw the unconnected grid
     const free = freeNodes.map((node, index) => {
-        const nodeWidth = node?.measured?.width ?? 0;
-        const nodeHeight = node?.measured?.height ?? 0;
+        // TODO: node sizes are hardcoded. We need to do more to have them be dynamic
+        const nodeWidth = 170;
+        const nodeHeight = 38;
 
         // TODO: this is an arbitrary offset that looks ok with the
         // basic setup. Placement of the grid will probably need to be
@@ -273,17 +275,12 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
 
     // Fits the view when the layout is ready
     useEffect(() => {
-        if (nodesInitialized && layoutReady) {
+        if (layoutReady) {
             window.requestAnimationFrame(async () => {
-                // TODO: this second call to onLayout shouldnt be here,
-                // but it was one way I found to make sure layout happens
-                // after nodes are initialized. We could improve this.
-                onLayout();
-                setLayoutReady(false);
                 await fitView();
             });
         }
-    }, [layoutReady, fitView, nodesInitialized, onLayout]);
+    }, [layoutReady, fitView]);
 
     return (
         <Box h="100%">
