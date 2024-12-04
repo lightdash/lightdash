@@ -1,3 +1,10 @@
+## [0.1397.1](https://github.com/lightdash/lightdash/compare/0.1397.0...0.1397.1) (2024-12-04)
+
+
+### Bug Fixes
+
+* catalog edges migrations ([#12705](https://github.com/lightdash/lightdash/issues/12705)) ([dbf1c4e](https://github.com/lightdash/lightdash/commit/dbf1c4e2895e747a2f44185e7cc9944d908c61e5))
+
 # [0.1397.0](https://github.com/lightdash/lightdash/compare/0.1396.3...0.1397.0) (2024-12-04)
 
 
