@@ -982,21 +982,24 @@
                 "required": ["status"],
                 "type": "object"
             },
-            "Pick_CatalogField.name-or-tableName_": {
+            "Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "catalogSearchUuid": {
                         "type": "string"
                     },
                     "tableName": {
                         "type": "string"
                     }
                 },
-                "required": ["name", "tableName"],
+                "required": ["name", "catalogSearchUuid", "tableName"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CatalogMetricsTreeNode": {
-                "$ref": "#/components/schemas/Pick_CatalogField.name-or-tableName_"
+                "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_"
             },
             "CatalogMetricsTreeEdge": {
                 "properties": {
@@ -1052,14 +1055,17 @@
             },
             "ApiMetricsTreeEdgePayload": {
                 "properties": {
-                    "targetMetricId": {
+                    "targetCatalogSearchUuid": {
                         "type": "string"
                     },
-                    "sourceMetricId": {
+                    "sourceCatalogSearchUuid": {
                         "type": "string"
                     }
                 },
-                "required": ["targetMetricId", "sourceMetricId"],
+                "required": [
+                    "targetCatalogSearchUuid",
+                    "sourceCatalogSearchUuid"
+                ],
                 "type": "object"
             },
             "ApiCreateComment": {
@@ -11814,7 +11820,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1395.0",
+        "version": "0.1396.3",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -12455,7 +12461,7 @@
                     },
                     {
                         "in": "query",
-                        "name": "metricIds",
+                        "name": "metricUuids",
                         "required": true,
                         "schema": {
                             "type": "array",
@@ -12516,7 +12522,7 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/tree/edges/{sourceMetricId}/{targetMetricId}": {
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/tree/edges/{sourceCatalogSearchUuid}/{targetCatalogSearchUuid}": {
             "delete": {
                 "operationId": "deleteMetricsTreeEdge",
                 "responses": {
@@ -12554,7 +12560,7 @@
                     },
                     {
                         "in": "path",
-                        "name": "sourceMetricId",
+                        "name": "sourceCatalogSearchUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -12562,7 +12568,7 @@
                     },
                     {
                         "in": "path",
-                        "name": "targetMetricId",
+                        "name": "targetCatalogSearchUuid",
                         "required": true,
                         "schema": {
                             "type": "string"

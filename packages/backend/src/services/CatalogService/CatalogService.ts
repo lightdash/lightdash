@@ -12,6 +12,7 @@ import {
     ChartSummary,
     Explore,
     ExploreError,
+    FieldType,
     ForbiddenError,
     hasIntersection,
     InlineErrorType,
@@ -19,7 +20,6 @@ import {
     MAX_METRICS_TREE_NODE_COUNT,
     NotFoundError,
     ParameterError,
-    parseMetricsTreeNodeId,
     SessionUser,
     SummaryExplore,
     TablesConfiguration,
@@ -39,7 +39,6 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type {
     DbCatalogTagsMigrateIn,
-    DbMetricsTreeEdge,
     DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -403,33 +402,40 @@ export class CatalogService<
         const currentCatalogItems =
             await this.catalogModel.getCatalogItemsSummary(projectUuid);
 
-        const metricEdgesMigrateIn: DbMetricsTreeEdgeIn[] = prevMetricTreeEdges
-            .filter((edge): edge is CatalogMetricsTreeEdge => {
+        const metricEdgesMigrateIn: DbMetricsTreeEdgeIn[] =
+            prevMetricTreeEdges.reduce<DbMetricsTreeEdgeIn[]>((acc, edge) => {
                 const sourceCatalogItem = currentCatalogItems.find(
                     (catalogItem) =>
                         catalogItem.name === edge.source.name &&
-                        catalogItem.tableName === edge.source.tableName,
+                        catalogItem.tableName === edge.source.tableName &&
+                        catalogItem.type === CatalogType.Field &&
+                        catalogItem.fieldType === FieldType.METRIC,
                 );
 
                 const targetCatalogItem = currentCatalogItems.find(
                     (catalogItem) =>
                         catalogItem.name === edge.target.name &&
-                        catalogItem.tableName === edge.target.tableName,
+                        catalogItem.tableName === edge.target.tableName &&
+                        catalogItem.type === CatalogType.Field &&
+                        catalogItem.fieldType === FieldType.METRIC,
                 );
 
-                return Boolean(sourceCatalogItem) && Boolean(targetCatalogItem);
-            })
-            .map((edge) => ({
-                source_metric_name: edge.source.name,
-                source_metric_table_name: edge.source.tableName,
-                source_metric_type: CatalogType.Field,
-                target_metric_name: edge.target.name,
-                target_metric_table_name: edge.target.tableName,
-                target_metric_type: CatalogType.Field,
-                project_uuid: edge.projectUuid,
-                created_by_user_uuid: edge.createdByUserUuid,
-                created_at: edge.createdAt,
-            }));
+                if (sourceCatalogItem && targetCatalogItem) {
+                    return [
+                        ...acc,
+                        {
+                            source_metric_catalog_search_uuid:
+                                sourceCatalogItem.catalogSearchUuid,
+                            target_metric_catalog_search_uuid:
+                                targetCatalogItem.catalogSearchUuid,
+                            created_by_user_uuid: edge.createdByUserUuid,
+                            created_at: edge.createdAt,
+                        },
+                    ];
+                }
+
+                return acc;
+            }, []);
 
         return this.catalogModel.migrateMetricsTreeEdges(metricEdgesMigrateIn);
     }
@@ -924,61 +930,54 @@ export class CatalogService<
     async getMetricsTree(
         user: SessionUser,
         projectUuid: string,
-        // Using metricIds instead of filters and searching metrics because we might want to have the ability to select specific metrics rather than filter by catalog tags
-        metricIds: string[],
+        metricUuids: string[],
     ) {
         // TODO: check permissions
-        if (metricIds.length > MAX_METRICS_TREE_NODE_COUNT) {
+        if (metricUuids.length > MAX_METRICS_TREE_NODE_COUNT) {
             throw new ParameterError(
                 `Cannot get more than ${MAX_METRICS_TREE_NODE_COUNT} metrics in the metrics tree`,
             );
         }
 
-        return this.catalogModel.getMetricsTree(
-            projectUuid,
-            metricIds.map((id) => parseMetricsTreeNodeId(id)),
-        );
+        return this.catalogModel.getMetricsTree(projectUuid, metricUuids);
     }
 
     async createMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
-        { sourceMetricId, targetMetricId }: ApiMetricsTreeEdgePayload,
+        {
+            sourceCatalogSearchUuid,
+            targetCatalogSearchUuid,
+        }: ApiMetricsTreeEdgePayload,
     ) {
         // TODO: check permissions
-        const edgeSource = parseMetricsTreeNodeId(sourceMetricId);
-        const edgeTarget = parseMetricsTreeNodeId(targetMetricId);
-
-        const sourceCatalogItem = await this.catalogModel.getCatalogItemByName(
-            projectUuid,
-            edgeSource.name,
-            edgeSource.tableName,
-            CatalogType.Field,
+        const sourceCatalogItem = await this.catalogModel.getCatalogItem(
+            sourceCatalogSearchUuid,
         );
+
+        if (sourceCatalogItem?.field_type !== FieldType.METRIC) {
+            throw new ParameterError('Source metric is not a valid metric');
+        }
 
         if (!sourceCatalogItem) {
             throw new NotFoundError('Source metric not found');
         }
 
-        const targetCatalogItem = await this.catalogModel.getCatalogItemByName(
-            projectUuid,
-            edgeTarget.name,
-            edgeTarget.tableName,
-            CatalogType.Field,
+        const targetCatalogItem = await this.catalogModel.getCatalogItem(
+            targetCatalogSearchUuid,
         );
 
         if (!targetCatalogItem) {
             throw new NotFoundError('Target metric not found');
         }
 
+        if (targetCatalogItem?.field_type !== FieldType.METRIC) {
+            throw new ParameterError('Target metric is not a valid metric');
+        }
+
         return this.catalogModel.createMetricsTreeEdge({
-            source_metric_name: edgeSource.name,
-            source_metric_table_name: edgeSource.tableName,
-            source_metric_type: CatalogType.Field,
-            target_metric_name: edgeTarget.name,
-            target_metric_table_name: edgeTarget.tableName,
-            target_metric_type: CatalogType.Field,
-            project_uuid: projectUuid,
+            source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
+            target_metric_catalog_search_uuid: targetCatalogSearchUuid,
             created_by_user_uuid: user.userUuid,
         });
     }
@@ -986,18 +985,15 @@ export class CatalogService<
     deleteMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
-        { sourceMetricId, targetMetricId }: ApiMetricsTreeEdgePayload,
+        {
+            sourceCatalogSearchUuid,
+            targetCatalogSearchUuid,
+        }: ApiMetricsTreeEdgePayload,
     ) {
         // TODO: check permissions
-        const edgeSource = parseMetricsTreeNodeId(sourceMetricId);
-        const edgeTarget = parseMetricsTreeNodeId(targetMetricId);
-
         return this.catalogModel.deleteMetricsTreeEdge({
-            source_metric_name: edgeSource.name,
-            source_metric_table_name: edgeSource.tableName,
-            target_metric_name: edgeTarget.name,
-            target_metric_table_name: edgeTarget.tableName,
-            project_uuid: projectUuid,
+            source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
+            target_metric_catalog_search_uuid: targetCatalogSearchUuid,
         });
     }
 }

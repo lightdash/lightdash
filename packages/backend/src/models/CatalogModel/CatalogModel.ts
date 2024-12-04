@@ -35,7 +35,6 @@ import {
     type DbCatalog,
     type DbCatalogIn,
     type DbCatalogTagsMigrateIn,
-    type DbMetricsTreeEdge,
     type DbMetricsTreeEdgeDelete,
     type DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
@@ -719,37 +718,50 @@ export class CatalogModel {
 
     async getMetricsTree(
         projectUuid: string,
-        metricNodes: CatalogMetricsTreeNode[],
+        metricUuids: string[],
     ): Promise<{ edges: CatalogMetricsTreeEdge[] }> {
-        const metricNodeEntries = metricNodes.map((n) => [n.name, n.tableName]);
         const edges = await this.database(MetricsTreeEdgesTableName)
             .where('project_uuid', projectUuid)
+            .join(
+                { source_metric: CatalogTableName },
+                `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                `source_metric.catalog_search_uuid`,
+            )
+            .join(
+                { target_metric: CatalogTableName },
+                `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                `target_metric.catalog_search_uuid`,
+            )
             .andWhere(function sourceNodeWhere() {
                 void this.whereIn(
-                    ['source_metric_name', 'source_metric_table_name'],
-                    metricNodeEntries,
+                    'source_metric_catalog_search_uuid',
+                    metricUuids,
                 );
             })
             .andWhere(function targetNodeWhere() {
                 void this.whereIn(
-                    ['target_metric_name', 'target_metric_table_name'],
-                    metricNodeEntries,
+                    'target_metric_catalog_search_uuid',
+                    metricUuids,
                 );
             });
+
+        console.log(edges);
 
         return {
             edges: edges.map((e) => ({
                 source: {
+                    catalogSearchUuid: e.source_metric_catalog_search_uuid,
                     name: e.source_metric_name,
                     tableName: e.source_metric_table_name,
                 },
                 target: {
+                    catalogSearchUuid: e.target_metric_catalog_search_uuid,
                     name: e.target_metric_name,
                     tableName: e.target_metric_table_name,
                 },
                 createdAt: e.created_at,
                 createdByUserUuid: e.created_by_user_uuid,
-                projectUuid: e.project_uuid,
+                projectUuid,
             })),
         };
     }
@@ -757,17 +769,27 @@ export class CatalogModel {
     async getAllMetricsTreeEdges(
         projectUuid: string,
     ): Promise<CatalogMetricsTreeEdge[]> {
-        const edges = await this.database(MetricsTreeEdgesTableName).where(
-            'project_uuid',
-            projectUuid,
-        );
+        const edges = await this.database(MetricsTreeEdgesTableName)
+            .where('project_uuid', projectUuid)
+            .innerJoin(
+                { source_metric: CatalogTableName },
+                `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                `source_metric.catalog_search_uuid`,
+            )
+            .innerJoin(
+                { target_metric: CatalogTableName },
+                `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                `target_metric.catalog_search_uuid`,
+            );
 
         return edges.map((e) => ({
             source: {
+                catalogSearchUuid: e.source_metric_catalog_search_uuid,
                 name: e.source_metric_name,
                 tableName: e.source_metric_table_name,
             },
             target: {
+                catalogSearchUuid: e.target_metric_catalog_search_uuid,
                 name: e.target_metric_name,
                 tableName: e.target_metric_table_name,
             },
