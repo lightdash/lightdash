@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     ForbiddenError,
     getFieldIdForDateDimension,
+    getGrainForDateRange,
     getItemId,
     getMetricExplorerDateRangeFilters,
     MetricExplorerComparison,
@@ -183,7 +184,73 @@ export class MetricsExplorerService<
 
                     break;
                 case MetricExplorerComparison.DIFFERENT_METRIC:
-                    throw new Error('Not implemented');
+                    const differentMetric = await this.catalogService.getMetric(
+                        user,
+                        projectUuid,
+                        compare.metricTable,
+                        compare.metricName,
+                    );
+
+                    const differentMetricTimeDimension =
+                        differentMetric.timeDimension;
+
+                    if (!differentMetricTimeDimension) {
+                        throw new Error(
+                            `Comparison metric should always have an associated time dimension`,
+                        );
+                    }
+
+                    const differentMetricDimensionGrain = dateRange
+                        ? getGrainForDateRange(dateRange)
+                        : differentMetricTimeDimension.interval;
+
+                    const differentMetricTimeDimensionId = getItemId({
+                        table: differentMetric.table,
+                        name: getFieldIdForDateDimension(
+                            timeDimensionConfig.field,
+                            differentMetricDimensionGrain,
+                        ),
+                    });
+
+                    const differentMetricQuery: MetricQuery = {
+                        exploreName: compare.metricTable,
+                        metrics: [getItemId(differentMetric)],
+                        dimensions: [differentMetricTimeDimensionId],
+                        filters: {
+                            dimensions: {
+                                id: uuidv4(),
+                                and: getMetricExplorerDateRangeFilters(
+                                    compare.metricTable,
+                                    differentMetricTimeDimension.field,
+                                    dateRange,
+                                ),
+                            },
+                        },
+                        sorts: [
+                            {
+                                fieldId: differentMetricTimeDimensionId,
+                                descending: false,
+                            },
+                        ],
+                        tableCalculations: [],
+                        limit: this.maxQueryLimit, // TODO: are we sure we want to limit this with the max query limit?
+                    };
+
+                    const {
+                        rows: differentMetricResultRows,
+                        fields: differentMetricFields,
+                    } = await this.projectService.runExploreQuery(
+                        user,
+                        differentMetricQuery,
+                        projectUuid,
+                        compare.metricTable,
+                        null,
+                    );
+
+                    comparisonResults = differentMetricResultRows;
+                    allFields = { ...allFields, ...differentMetricFields };
+
+                    break;
                 default:
                     assertUnreachable(
                         compare,
