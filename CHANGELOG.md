@@ -1,3 +1,10 @@
+# [0.1397.0](https://github.com/lightdash/lightdash/compare/0.1396.3...0.1397.0) (2024-12-04)
+
+
+### Features
+
+* metrics explorer filter improvements ([#12663](https://github.com/lightdash/lightdash/issues/12663)) ([94197a2](https://github.com/lightdash/lightdash/commit/94197a277d17f76510f3945659aa3eaf2b4f11c6))
+
 ## [0.1396.3](https://github.com/lightdash/lightdash/compare/0.1396.2...0.1396.3) (2024-12-03)
 
 
