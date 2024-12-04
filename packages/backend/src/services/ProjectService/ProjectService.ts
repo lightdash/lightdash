@@ -97,6 +97,7 @@ import {
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
+    TimeFrames,
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
@@ -1088,6 +1089,23 @@ export class ProjectService extends BaseService {
                     dimToOverride.timeInterval && baseDimensionId
                         ? timeDimensionsMap[baseDimensionId]
                         : dimToOverride;
+
+                // special handling for year granularity -- fixes issue where year granularity is not preserved on single-year data
+                // see: https://github.com/lightdash/lightdash/issues/12671
+                if (granularity === DateGranularity.YEAR) {
+                    // force year granularity to preserve single-year data
+                    const dimWithYearGranularity: CompiledDimension = {
+                        ...baseTimeDimension,
+                        timeInterval: TimeFrames.YEAR,
+                        name: `${baseTimeDimension.name}_year`,
+                        label: `${baseTimeDimension.label} (Year)`,
+                    };
+                    return replaceDimensionInExplore(
+                        explore,
+                        dimWithYearGranularity,
+                    );
+                }
+
                 const dimWithGranularityOverride =
                     createDimensionWithGranularity(
                         dimToOverride.name,
