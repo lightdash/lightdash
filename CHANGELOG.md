@@ -1,3 +1,29 @@
+# [0.1400.0](https://github.com/lightdash/lightdash/compare/0.1399.3...0.1400.0) (2024-12-05)
+
+
+### Bug Fixes
+
+* track node and edge changes ([#12727](https://github.com/lightdash/lightdash/issues/12727)) ([21c4d4d](https://github.com/lightdash/lightdash/commit/21c4d4db8bd41df3f87687a214c30d9f38ed74fd))
+
+
+### Features
+
+* add permission checks and validation for trees backend ([#12747](https://github.com/lightdash/lightdash/issues/12747)) ([a15c2df](https://github.com/lightdash/lightdash/commit/a15c2df4ccd39b53d0ac1c0054a0f0affab90d7c))
+
+## [0.1399.3](https://github.com/lightdash/lightdash/compare/0.1399.2...0.1399.3) (2024-12-05)
+
+
+### Bug Fixes
+
+* stringify BigInt in scheduler worker ([#12738](https://github.com/lightdash/lightdash/issues/12738)) ([7ad97f4](https://github.com/lightdash/lightdash/commit/7ad97f42e866d4d28e9c0dd4f07d2089e3ae3623))
+
+## [0.1399.2](https://github.com/lightdash/lightdash/compare/0.1399.1...0.1399.2) (2024-12-05)
+
+
+### Bug Fixes
+
+* only enable metric query on click of explore ([#12732](https://github.com/lightdash/lightdash/issues/12732)) ([65a8913](https://github.com/lightdash/lightdash/commit/65a8913f9eeed02d5329d9d1ee3b782c14c86771))
+
 ## [0.1399.1](https://github.com/lightdash/lightdash/compare/0.1399.0...0.1399.1) (2024-12-04)
 
 

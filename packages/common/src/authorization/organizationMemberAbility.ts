@@ -85,6 +85,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'Tags', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'MetricsTree', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.viewer(member, { can });
@@ -193,6 +196,9 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Tags', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'MetricsTree', {
             organizationUuid: member.organizationUuid,
         });
     },

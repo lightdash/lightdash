@@ -42,6 +42,7 @@ import {
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type {
+    DbCatalog,
     DbCatalogTagsMigrateIn,
     DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
@@ -978,7 +979,19 @@ export class CatalogService<
         projectUuid: string,
         metricUuids: string[],
     ) {
-        // TODO: check permissions
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         if (metricUuids.length > MAX_METRICS_TREE_NODE_COUNT) {
             throw new ParameterError(
                 `Cannot get more than ${MAX_METRICS_TREE_NODE_COUNT} metrics in the metrics tree`,
@@ -988,38 +1001,72 @@ export class CatalogService<
         return this.catalogModel.getMetricsTree(projectUuid, metricUuids);
     }
 
-    async createMetricsTreeEdge(
-        user: SessionUser,
+    private async validateMetricsTreeEdge(
         projectUuid: string,
-        {
-            sourceCatalogSearchUuid,
-            targetCatalogSearchUuid,
-        }: ApiMetricsTreeEdgePayload,
+        edgePayload: ApiMetricsTreeEdgePayload,
     ) {
-        // TODO: check permissions
+        const { sourceCatalogSearchUuid, targetCatalogSearchUuid } =
+            edgePayload;
+
         const sourceCatalogItem = await this.catalogModel.getCatalogItem(
             sourceCatalogSearchUuid,
         );
-
-        if (sourceCatalogItem?.field_type !== FieldType.METRIC) {
-            throw new ParameterError('Source metric is not a valid metric');
-        }
-
-        if (!sourceCatalogItem) {
-            throw new NotFoundError('Source metric not found');
-        }
 
         const targetCatalogItem = await this.catalogModel.getCatalogItem(
             targetCatalogSearchUuid,
         );
 
+        if (!sourceCatalogItem) {
+            throw new NotFoundError('Source metric not found');
+        }
+
+        if (sourceCatalogItem.field_type !== FieldType.METRIC) {
+            throw new ParameterError('Source metric is not a valid metric');
+        }
+
+        if (sourceCatalogItem.project_uuid !== projectUuid) {
+            throw new ForbiddenError(
+                'Source metric is not in the same project',
+            );
+        }
+
         if (!targetCatalogItem) {
             throw new NotFoundError('Target metric not found');
         }
 
-        if (targetCatalogItem?.field_type !== FieldType.METRIC) {
+        if (targetCatalogItem.field_type !== FieldType.METRIC) {
             throw new ParameterError('Target metric is not a valid metric');
         }
+
+        if (targetCatalogItem.project_uuid !== projectUuid) {
+            throw new ForbiddenError(
+                'Target metric is not in the same project',
+            );
+        }
+    }
+
+    async createMetricsTreeEdge(
+        user: SessionUser,
+        projectUuid: string,
+        edgePayload: ApiMetricsTreeEdgePayload,
+    ) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { sourceCatalogSearchUuid, targetCatalogSearchUuid } =
+            edgePayload;
+
+        await this.validateMetricsTreeEdge(projectUuid, edgePayload);
 
         return this.catalogModel.createMetricsTreeEdge({
             source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
@@ -1028,15 +1075,29 @@ export class CatalogService<
         });
     }
 
-    deleteMetricsTreeEdge(
+    async deleteMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
-        {
-            sourceCatalogSearchUuid,
-            targetCatalogSearchUuid,
-        }: ApiMetricsTreeEdgePayload,
+        edgePayload: ApiMetricsTreeEdgePayload,
     ) {
-        // TODO: check permissions
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { sourceCatalogSearchUuid, targetCatalogSearchUuid } =
+            edgePayload;
+
+        await this.validateMetricsTreeEdge(projectUuid, edgePayload);
+
         return this.catalogModel.deleteMetricsTreeEdge({
             source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
             target_metric_catalog_search_uuid: targetCatalogSearchUuid,
