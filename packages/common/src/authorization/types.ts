@@ -48,6 +48,7 @@ type Subject =
     | 'VirtualView'
     | 'Tags'
     | 'PersonalAccessToken'
+    | 'MetricsTree'
     | 'all';
 
 type PossibleAbilities = [
