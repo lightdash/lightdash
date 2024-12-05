@@ -655,26 +655,29 @@ const SavedChartsHeader: FC<SavedChartsHeaderProps> = ({
                                         </Menu.Item>
                                     )}
 
-                                {!chartBelongsToDashboard && userCanPinChart && (
-                                    <Menu.Item
-                                        component="button"
-                                        role="menuitem"
-                                        icon={
-                                            isPinned ? (
-                                                <MantineIcon
-                                                    icon={IconPinnedOff}
-                                                />
-                                            ) : (
-                                                <MantineIcon icon={IconPin} />
-                                            )
-                                        }
-                                        onClick={onTogglePin}
-                                    >
-                                        {isPinned
-                                            ? 'Unpin from homepage'
-                                            : 'Pin to homepage'}
-                                    </Menu.Item>
-                                )}
+                                {!chartBelongsToDashboard &&
+                                    userCanPinChart && (
+                                        <Menu.Item
+                                            component="button"
+                                            role="menuitem"
+                                            icon={
+                                                isPinned ? (
+                                                    <MantineIcon
+                                                        icon={IconPinnedOff}
+                                                    />
+                                                ) : (
+                                                    <MantineIcon
+                                                        icon={IconPin}
+                                                    />
+                                                )
+                                            }
+                                            onClick={onTogglePin}
+                                        >
+                                            {isPinned
+                                                ? 'Unpin from homepage'
+                                                : 'Pin to homepage'}
+                                        </Menu.Item>
+                                    )}
 
                                 {userCanManageChart &&
                                     !chartBelongsToDashboard && (
