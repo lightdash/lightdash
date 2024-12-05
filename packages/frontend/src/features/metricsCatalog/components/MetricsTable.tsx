@@ -505,7 +505,7 @@ export const MetricsTable = () => {
                                 <MetricTree
                                     metrics={flatData}
                                     edges={metricsTree?.edges ?? []}
-                                    viewOnly={canManageMetricsTree}
+                                    viewOnly={!canManageMetricsTree}
                                 />
                             ) : (
                                 <SuboptimalState
