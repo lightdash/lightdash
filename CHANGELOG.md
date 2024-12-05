@@ -1,3 +1,10 @@
+## [0.1399.2](https://github.com/lightdash/lightdash/compare/0.1399.1...0.1399.2) (2024-12-05)
+
+
+### Bug Fixes
+
+* only enable metric query on click of explore ([#12732](https://github.com/lightdash/lightdash/issues/12732)) ([65a8913](https://github.com/lightdash/lightdash/commit/65a8913f9eeed02d5329d9d1ee3b782c14c86771))
+
 ## [0.1399.1](https://github.com/lightdash/lightdash/compare/0.1399.0...0.1399.1) (2024-12-04)
 
 
