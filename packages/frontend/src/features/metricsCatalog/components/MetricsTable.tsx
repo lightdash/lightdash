@@ -63,8 +63,8 @@ export const MetricsTable = () => {
     const categoryFilters = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
     );
-    const canManageTags = useAppSelector(
-        (state) => state.metricsCatalog.abilities.canManageTags,
+    const { canManageTags, canManageMetricsTree } = useAppSelector(
+        (state) => state.metricsCatalog.abilities,
     );
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -505,6 +505,7 @@ export const MetricsTable = () => {
                                 <MetricTree
                                     metrics={flatData}
                                     edges={metricsTree?.edges ?? []}
+                                    viewOnly={!canManageMetricsTree}
                                 />
                             ) : (
                                 <SuboptimalState

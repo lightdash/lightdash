@@ -167,11 +167,17 @@ export const MetricsCatalogPanel = () => {
                     'Explore',
                 );
 
+                const canManageMetricsTree = user.data.ability.can(
+                    'manage',
+                    'MetricsTree',
+                );
+
                 dispatch(
                     setAbility({
                         canManageTags,
                         canRefreshCatalog,
                         canManageExplore,
+                        canManageMetricsTree,
                     }),
                 );
             }
