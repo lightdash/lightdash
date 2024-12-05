@@ -15,7 +15,6 @@ import {
     useReactFlow,
     type Connection,
     type Edge,
-    type EdgeChange,
     type Node,
     type NodeChange,
     type NodeTypes,
@@ -37,9 +36,7 @@ const nodeTypes: NodeTypes = {
 
 type Props = {
     metrics: CatalogField[];
-    metricsTree: {
-        edges: CatalogMetricsTreeEdge[];
-    };
+    edges: CatalogMetricsTreeEdge[];
 };
 
 enum STATIC_NODE_TYPES {
@@ -162,7 +159,7 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
     };
 };
 
-const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
+const MetricTree: FC<Props> = ({ metrics, edges }) => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -172,8 +169,6 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
     const { fitView } = useReactFlow();
     const nodesInitialized = useNodesInitialized();
     const [layoutReady, setLayoutReady] = useState(false);
-    const [edgesChangedInReactFlow, setEdgesChangedInReactFlow] =
-        useState(false);
 
     const initialNodes = useMemo<Node[]>(() => {
         return metrics.map((metric) => ({
@@ -186,8 +181,8 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
     const initialEdges = useMemo<Edge[]>(() => {
         // If there are saved edges, use them
         // Only use edges where both source and target are in the metrics array
-        if (metricsTree) {
-            const edges = metricsTree.edges.filter(
+        if (edges) {
+            const filteredEdges = edges.filter(
                 (edge) =>
                     metrics.some(
                         (metric) =>
@@ -201,7 +196,7 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
                     ),
             );
 
-            return edges.map((edge) => ({
+            return filteredEdges.map((edge) => ({
                 id: getEdgeId(edge),
                 source: edge.source.catalogSearchUuid,
                 target: edge.target.catalogSearchUuid,
@@ -209,7 +204,7 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
         }
 
         return [];
-    }, [metrics, metricsTree]);
+    }, [edges, metrics]);
 
     const [currentNodes, setCurrentNodes, onNodesChange] =
         useNodesState(initialNodes);
@@ -241,16 +236,15 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
                 });
 
                 setCurrentEdges((els) => addEdge(params, els));
-                setEdgesChangedInReactFlow(true);
             }
         },
         [projectUuid, createMetricsTreeEdge, setCurrentEdges],
     );
 
     const handleEdgesDelete = useCallback(
-        async (edges: Edge[]) => {
+        async (edgesToDelete: Edge[]) => {
             if (projectUuid) {
-                const promises = edges.map((edge) => {
+                const promises = edgesToDelete.map((edge) => {
                     return deleteMetricsTreeEdge({
                         projectUuid,
                         sourceCatalogSearchUuid: edge.source,
@@ -259,7 +253,6 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
                 });
 
                 await Promise.all(promises);
-                setEdgesChangedInReactFlow(true);
             }
         },
         [deleteMetricsTreeEdge, projectUuid],
@@ -317,31 +310,6 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
             setLayoutReady(false);
         }
     }, [initialNodes, currentNodes, onNodesChange]);
-
-    useEffect(() => {
-        const addEdgeChanges: EdgeChange<Edge>[] = initialEdges
-            .filter((edge) => !currentEdges.some((e) => e.id === edge.id))
-            .map((edge) => ({
-                id: edge.id,
-                type: 'add',
-                item: edge,
-            }));
-
-        const removeEdgeChanges: EdgeChange<Edge>[] = currentEdges
-            .filter((edge) => !initialEdges.some((e) => e.id === edge.id))
-            .map((edge) => ({
-                id: edge.id,
-                type: 'remove',
-            }));
-
-        if (
-            (addEdgeChanges.length > 0 || removeEdgeChanges.length > 0) &&
-            !edgesChangedInReactFlow
-        ) {
-            onEdgesChange([...addEdgeChanges, ...removeEdgeChanges]);
-            setLayoutReady(false);
-        }
-    }, [initialEdges, currentEdges, onEdgesChange, edgesChangedInReactFlow]);
 
     return (
         <Box h="100%">
