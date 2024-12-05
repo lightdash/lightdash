@@ -277,7 +277,8 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     targetCatalogSearchUuid: params.target,
                 });
 
-                const edgeNodesTypeChanges: NodeChange<MetricTreeConnectedNodeData>[] = [];
+                const edgeNodesTypeChanges: NodeChange<MetricTreeConnectedNodeData>[] =
+                    [];
                 const sourceNode = findNodeById(params.source);
                 const targetNode = findNodeById(params.target);
 
@@ -331,7 +332,8 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
                 const removedEdgeNodesTypeChanges: NodeChange<MetricTreeConnectedNodeData>[] =
                     edgesToDelete.flatMap((edge) => {
-                        const changes: NodeChange<MetricTreeConnectedNodeData>[] = [];
+                        const changes: NodeChange<MetricTreeConnectedNodeData>[] =
+                            [];
                         const sourceNode = findNodeById(edge.source);
                         const targetNode = findNodeById(edge.target);
                         const sourceNodeEdges = getNodeEdges(edge.source);
@@ -404,26 +406,24 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     useEffect(() => {
         const addNodeChanges: NodeChange<MetricTreeConnectedNodeData>[] =
             initialNodes
+                .filter((node) => !currentNodes.some((n) => n.id === node.id))
+                .map((node) => ({
+                    id: node.id,
+                    type: 'add',
+                    item: node,
+                }));
+
+        const removeNodeChanges: NodeChange<MetricTreeConnectedNodeData>[] =
+            currentNodes
                 .filter(
                     (node) =>
-                        !currentNodes.some((n) => n.id === node.id),
+                        node.id !== STATIC_NODE_TYPES.UNCONNECTED &&
+                        !initialNodes.some((n) => n.id === node.id),
                 )
                 .map((node) => ({
-                id: node.id,
-                type: 'add',
-                item: node,
-            }));
-
-        const removeNodeChanges: NodeChange<MetricTreeConnectedNodeData>[] = currentNodes
-            .filter(
-                (node) =>
-                    node.id !== STATIC_NODE_TYPES.UNCONNECTED &&
-                    !initialNodes.some((n) => n.id === node.id),
-            )
-            .map((node) => ({
-                id: node.id,
-                type: 'remove',
-            }));
+                    id: node.id,
+                    type: 'remove',
+                }));
 
         if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
             onNodesChange([...addNodeChanges, ...removeNodeChanges]);
