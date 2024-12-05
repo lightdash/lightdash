@@ -1,7 +1,8 @@
 import { TimeFrames, type TimeDimensionConfig } from '@lightdash/common';
-import { Select, useMantineTheme } from '@mantine/core';
+import { Select } from '@mantine/core';
+import { IconChevronDown } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { usePillSelectStyles } from '../../../../components/DataViz/hooks/usePillSelectStyles';
+import MantineIcon from '../../../../components/common/MantineIcon';
 
 type Props = {
     dimension: TimeDimensionConfig;
@@ -12,35 +13,31 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
     dimension,
     onChange,
 }) => {
-    const theme = useMantineTheme();
-    const { classes } = usePillSelectStyles({
-        backgroundColor: theme.colors.indigo[0],
-        textColor: theme.colors.indigo[4],
-    });
     return (
         <Select
+            w={90}
+            size="xs"
+            radius="md"
+            color="gray"
             data={[
                 {
                     value: TimeFrames.DAY,
-                    label: 'Day',
+                    label: 'Daily',
                 },
                 {
                     value: TimeFrames.WEEK,
-                    label: 'Week',
+                    label: 'Weekly',
                 },
                 {
                     value: TimeFrames.MONTH,
-                    label: 'Month',
+                    label: 'Monthly',
                 },
                 {
                     value: TimeFrames.YEAR,
-                    label: 'Year',
+                    label: 'Yearly',
                 },
             ]}
             value={dimension?.interval}
-            onClick={(event) => {
-                event.stopPropagation();
-            }}
             onChange={(value: TimeFrames) => {
                 if (!value) return;
                 onChange({
@@ -50,21 +47,36 @@ export const TimeDimensionIntervalPicker: FC<Props> = ({
                 });
             }}
             withinPortal
-            classNames={{
-                item: classes.item,
-                dropdown: classes.dropdown,
-                input: classes.input,
-                rightSection: classes.rightSection,
-            }}
-            styles={{
-                root: {
-                    fontWeight: 500,
-                    fontSize: theme.fontSizes.xs,
-                },
+            rightSection={
+                <MantineIcon color="dark.2" icon={IconChevronDown} size={12} />
+            }
+            styles={(theme) => ({
                 input: {
-                    width: '50px',
+                    fontWeight: 500,
+                    paddingRight: 4,
+
+                    borderColor: theme.colors.gray[2],
+                    borderRadius: theme.radius.md,
+                    boxShadow: theme.shadows.subtle,
+                    '&:hover': {
+                        backgroundColor: theme.colors.gray[0],
+                    },
                 },
-            }}
+                rightSection: { pointerEvents: 'none' },
+                item: {
+                    '&[data-selected="true"]': {
+                        color: theme.colors.gray[7],
+                        fontWeight: 500,
+                        backgroundColor: theme.colors.gray[2],
+                    },
+                    '&[data-selected="true"]:hover': {
+                        backgroundColor: theme.colors.gray[3],
+                    },
+                    '&:hover': {
+                        backgroundColor: theme.colors.gray[1],
+                    },
+                },
+            })}
         />
     );
 };
