@@ -42,7 +42,6 @@ import {
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type {
-    DbCatalog,
     DbCatalogTagsMigrateIn,
     DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
@@ -254,6 +253,56 @@ export class CatalogService<
         );
     }
 
+    private async getFilteredExplores(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+    ) {
+        const explores = await this.projectModel.getExploresFromCache(
+            projectUuid,
+        );
+
+        if (!explores) return [];
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        // We keep errors in the list of explores
+        const filteredExplores = explores.reduce<(Explore | ExploreError)[]>(
+            (acc, explore) => {
+                if (isExploreError(explore)) {
+                    // If no dimensions found, we don't show the explore error
+                    if (
+                        explore.errors.every(
+                            (error) =>
+                                error.type ===
+                                InlineErrorType.NO_DIMENSIONS_FOUND,
+                        )
+                    )
+                        return acc;
+
+                    return [...acc, explore];
+                }
+                if (
+                    !doesExploreMatchRequiredAttributes(explore, userAttributes)
+                ) {
+                    return acc;
+                }
+                const filteredExplore = getFilteredExplore(
+                    explore,
+                    userAttributes,
+                );
+                return [...acc, filteredExplore];
+            },
+            [],
+        );
+
+        return filteredExplores;
+    }
+
     async indexCatalog(
         projectUuid: string,
         explores: (Explore | ExploreError)[],
@@ -462,51 +511,17 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const explores = await this.projectModel.getExploresFromCache(
+        const filteredExplores = await this.getFilteredExplores(
+            user,
+            organizationUuid,
             projectUuid,
         );
-
-        if (!explores) {
-            return {
-                data: [],
-            };
-        }
 
         const userAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid,
                 userUuid: user.userUuid,
             });
-
-        // We keep errors in the list of explores
-        const filteredExplores = explores.reduce<(Explore | ExploreError)[]>(
-            (acc, explore) => {
-                if (isExploreError(explore)) {
-                    // If no dimensions found, we don't show the explore error
-                    if (
-                        explore.errors.every(
-                            (error) =>
-                                error.type ===
-                                InlineErrorType.NO_DIMENSIONS_FOUND,
-                        )
-                    )
-                        return acc;
-
-                    return [...acc, explore];
-                }
-                if (
-                    !doesExploreMatchRequiredAttributes(explore, userAttributes)
-                ) {
-                    return acc;
-                }
-                const filteredExplore = getFilteredExplore(
-                    explore,
-                    userAttributes,
-                );
-                return [...acc, filteredExplore];
-            },
-            [],
-        );
 
         if (catalogSearch.searchQuery) {
             // On search we don't show explore errors, because they are not indexed
@@ -1073,6 +1088,50 @@ export class CatalogService<
             target_metric_catalog_search_uuid: targetCatalogSearchUuid,
             created_by_user_uuid: user.userUuid,
         });
+    }
+
+    async getAllCatalogMetricsWithTimeDimensions(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<MetricWithAssociatedTimeDimension[]> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const allCatalogMetrics = await this.catalogModel.getAllMetricFields(
+            projectUuid,
+            userAttributes,
+        );
+
+        const allTableMetricPromises = allCatalogMetrics.map((catalogMetrics) =>
+            this.getMetric(
+                user,
+                projectUuid,
+                catalogMetrics.table_name,
+                catalogMetrics.name,
+            ),
+        );
+
+        const allMetrics = await Promise.all(allTableMetricPromises);
+        const metricsWithTimeDimension = allMetrics.filter(
+            (metric) => !!metric.timeDimension,
+        );
+
+        return metricsWithTimeDimension;
     }
 
     async deleteMetricsTreeEdge(

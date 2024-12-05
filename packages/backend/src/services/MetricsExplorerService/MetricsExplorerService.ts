@@ -69,6 +69,8 @@ export class MetricsExplorerService<
         compare: MetricExplorerComparisonType | undefined,
         timeDimensionOverride: TimeDimensionConfig | undefined,
     ): Promise<MetricsExplorerQueryResults> {
+        console.log({ compare, timeDimensionOverride });
+
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -131,6 +133,10 @@ export class MetricsExplorerService<
             tableCalculations: [],
             limit: this.maxQueryLimit, // TODO: are we sure we want to limit this with the max query limit?
         };
+
+        console.log('----------------');
+        console.log(JSON.stringify({ metricQuery }, null, 2));
+        console.log('----------------');
 
         const { rows: currentResults, fields } =
             await this.projectService.runExploreQuery(
@@ -204,10 +210,10 @@ export class MetricsExplorerService<
                         ? getGrainForDateRange(dateRange)
                         : differentMetricTimeDimension.interval;
 
-                    const differentMetricTimeDimensionId = getItemId({
-                        table: differentMetric.table,
+                    const differentDimensionId = getItemId({
+                        table: differentMetricTimeDimension.table,
                         name: getFieldIdForDateDimension(
-                            timeDimensionConfig.field,
+                            differentMetricTimeDimension.field,
                             differentMetricDimensionGrain,
                         ),
                     });
@@ -215,12 +221,12 @@ export class MetricsExplorerService<
                     const differentMetricQuery: MetricQuery = {
                         exploreName: compare.metricTable,
                         metrics: [getItemId(differentMetric)],
-                        dimensions: [differentMetricTimeDimensionId],
+                        dimensions: [differentDimensionId],
                         filters: {
                             dimensions: {
                                 id: uuidv4(),
                                 and: getMetricExplorerDateRangeFilters(
-                                    compare.metricTable,
+                                    differentMetricTimeDimension.table,
                                     differentMetricTimeDimension.field,
                                     dateRange,
                                 ),
@@ -228,7 +234,7 @@ export class MetricsExplorerService<
                         },
                         sorts: [
                             {
-                                fieldId: differentMetricTimeDimensionId,
+                                fieldId: differentDimensionId,
                                 descending: false,
                             },
                         ],

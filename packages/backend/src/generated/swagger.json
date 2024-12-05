@@ -1143,6 +1143,23 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiMetricsWithAssociatedTimeDimensionResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiSuccessEmpty": {
                 "properties": {
                     "results": {},
@@ -4275,6 +4292,55 @@
                             }
                         },
                         "required": ["table"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "MetricExplorerComparison.NONE": {
+                "enum": ["none"],
+                "type": "string"
+            },
+            "MetricExplorerComparison.PREVIOUS_PERIOD": {
+                "enum": ["previous_period"],
+                "type": "string"
+            },
+            "MetricExplorerComparison.DIFFERENT_METRIC": {
+                "enum": ["different_metric"],
+                "type": "string"
+            },
+            "MetricExplorerComparisonType": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/MetricExplorerComparison.NONE"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "$ref": "#/components/schemas/MetricExplorerComparison.PREVIOUS_PERIOD"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "metricName": {
+                                "type": "string"
+                            },
+                            "metricTable": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/MetricExplorerComparison.DIFFERENT_METRIC"
+                            }
+                        },
+                        "required": ["metricName", "metricTable", "type"],
                         "type": "object"
                     }
                 ]
@@ -12003,7 +12069,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1396.3",
+        "version": "0.1398.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -12421,6 +12487,46 @@
                     {
                         "in": "path",
                         "name": "metricName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics-with-time-dimensions": {
+            "get": {
+                "operationId": "getMetricsWithTimeDimensions",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMetricsWithAssociatedTimeDimensionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get metrics with time dimensions",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -14320,30 +14426,6 @@
                         "schema": {
                             "type": "string"
                         }
-                    },
-                    {
-                        "in": "query",
-                        "name": "compareToPreviousPeriod",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "compareToMetricTableName",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "compareToMetricMetricName",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
                     }
                 ],
                 "requestBody": {
@@ -14352,10 +14434,14 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "comparison": {
+                                        "$ref": "#/components/schemas/MetricExplorerComparisonType"
+                                    },
                                     "timeDimensionOverride": {
                                         "$ref": "#/components/schemas/TimeDimensionConfig"
                                     }
                                 },
+                                "required": ["comparison"],
                                 "type": "object"
                             }
                         }
