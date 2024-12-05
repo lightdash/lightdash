@@ -85,5 +85,6 @@ export const useRunMetricExplorerQuery = ({
             !!metricName &&
             !!comparison &&
             !!dateRange,
+        keepPreviousData: true,
     });
 };
