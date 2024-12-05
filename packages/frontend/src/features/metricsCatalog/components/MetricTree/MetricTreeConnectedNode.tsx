@@ -13,7 +13,7 @@ export type MetricTreeConnectedNodeData = Node<{
 
 const MetricTreeConnectedNode: React.FC<
     NodeProps<MetricTreeConnectedNodeData>
-> = ({ data }) => {
+> = ({ data, isConnectable }) => {
     //TODO: fetch real data for these
     const title = useMemo(() => friendlyName(data.label), [data.label]);
     const value = useMemo(() => Math.floor(Math.random() * 1001), []);
@@ -32,7 +32,7 @@ const MetricTreeConnectedNode: React.FC<
             <Handle
                 type="target"
                 position={Position.Top}
-                hidden={!data.isEdgeTarget}
+                hidden={!isConnectable && !data.isEdgeTarget}
             />
             <Stack spacing="xxs" key={data.label}>
                 <Group>
@@ -65,7 +65,7 @@ const MetricTreeConnectedNode: React.FC<
             <Handle
                 type="source"
                 position={Position.Bottom}
-                hidden={!data.isEdgeSource}
+                hidden={!isConnectable && !data.isEdgeSource}
             />
         </div>
     );
