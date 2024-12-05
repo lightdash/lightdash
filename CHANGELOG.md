@@ -1,3 +1,10 @@
+## [0.1400.1](https://github.com/lightdash/lightdash/compare/0.1400.0...0.1400.1) (2024-12-05)
+
+
+### Bug Fixes
+
+* dont open url if shouldFetch is falsy ([#12750](https://github.com/lightdash/lightdash/issues/12750)) ([68c80e0](https://github.com/lightdash/lightdash/commit/68c80e0184a4794455c43cd1a9fef746ab768460))
+
 # [0.1400.0](https://github.com/lightdash/lightdash/compare/0.1399.3...0.1400.0) (2024-12-05)
 
 
