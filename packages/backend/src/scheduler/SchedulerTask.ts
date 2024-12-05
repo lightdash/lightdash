@@ -13,6 +13,7 @@ import {
     getHiddenTableFields,
     getHumanReadableCronExpression,
     getItemMap,
+    getPivotConfig,
     getRequestMethod,
     getSchedulerUuid,
     GsheetsNotificationPayload,
@@ -1632,18 +1633,43 @@ export default class SchedulerTask {
                     undefined,
                     reportUrl,
                 );
+                const pivotConfig = getPivotConfig(chart);
+                if (
+                    pivotConfig &&
+                    isTableChartConfig(chart.chartConfig.config)
+                ) {
+                    // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
+                    // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+                    const formattedRows = formatRows(rows, itemMap);
 
-                await this.googleDriveClient.appendToSheet(
-                    refreshToken,
-                    gdriveId,
-                    rows,
-                    itemMap,
-                    showTableNames,
-                    undefined,
-                    chart.tableConfig.columnOrder,
-                    customLabels,
-                    getHiddenTableFields(chart.chartConfig),
-                );
+                    const pivotedResults = pivotResultsAsCsv(
+                        pivotConfig,
+                        formattedRows,
+                        itemMap,
+                        chart.metricQuery,
+                        customLabels,
+                        false, // onlyRaw
+                        this.lightdashConfig.pivotTable.maxColumnLimit,
+                    );
+
+                    await this.googleDriveClient.appendCsvToSheet(
+                        refreshToken,
+                        gdriveId,
+                        pivotedResults,
+                    );
+                } else {
+                    await this.googleDriveClient.appendToSheet(
+                        refreshToken,
+                        gdriveId,
+                        rows,
+                        itemMap,
+                        showTableNames,
+                        undefined,
+                        chart.tableConfig.columnOrder,
+                        customLabels,
+                        getHiddenTableFields(chart.chartConfig),
+                    );
+                }
             } else if (dashboardUuid) {
                 const dashboard = await this.dashboardService.getById(
                     user,
@@ -1746,18 +1772,44 @@ export default class SchedulerTask {
                                 gdriveId,
                                 chartNames[chartUuid] || chartUuid,
                             );
+                        const pivotConfig = getPivotConfig(chart);
+                        if (
+                            pivotConfig &&
+                            isTableChartConfig(chart.chartConfig.config)
+                        ) {
+                            // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
+                            // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+                            const formattedRows = formatRows(rows, itemMap);
 
-                        await this.googleDriveClient.appendToSheet(
-                            refreshToken,
-                            gdriveId,
-                            rows,
-                            itemMap,
-                            showTableNames,
-                            tabName,
-                            chart.tableConfig.columnOrder,
-                            customLabels,
-                            getHiddenTableFields(chart.chartConfig),
-                        );
+                            const pivotedResults = pivotResultsAsCsv(
+                                pivotConfig,
+                                formattedRows,
+                                itemMap,
+                                chart.metricQuery,
+                                customLabels,
+                                false, // onlyRaw
+                                this.lightdashConfig.pivotTable.maxColumnLimit,
+                            );
+
+                            await this.googleDriveClient.appendCsvToSheet(
+                                refreshToken,
+                                gdriveId,
+                                pivotedResults,
+                                tabName,
+                            );
+                        } else {
+                            await this.googleDriveClient.appendToSheet(
+                                refreshToken,
+                                gdriveId,
+                                rows,
+                                itemMap,
+                                showTableNames,
+                                tabName,
+                                chart.tableConfig.columnOrder,
+                                customLabels,
+                                getHiddenTableFields(chart.chartConfig),
+                            );
+                        }
                     }, Promise.resolve())
                     .catch((error) => {
                         Logger.debug('Error processing charts:', error);
