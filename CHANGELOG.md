@@ -1,3 +1,10 @@
+# [0.1402.0](https://github.com/lightdash/lightdash/compare/0.1401.0...0.1402.0) (2024-12-05)
+
+
+### Features
+
+* tune date zoom when metric-exploring ([#12728](https://github.com/lightdash/lightdash/issues/12728)) ([df21153](https://github.com/lightdash/lightdash/commit/df21153e86f98d1291eb0b2c54c35da03dc2619f))
+
 # [0.1401.0](https://github.com/lightdash/lightdash/compare/0.1400.1...0.1401.0) (2024-12-05)
 
 
