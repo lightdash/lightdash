@@ -9,6 +9,7 @@ import {
     getHiddenTableFields,
     getItemId,
     getItemMap,
+    getPivotConfig,
     getVisibleFields,
     hasCustomDimension,
     isChartTile,
@@ -158,6 +159,7 @@ const ExportGoogleSheet: FC<{ savedChart: SavedChart; disabled?: boolean }> = ({
                 savedChart.chartConfig.config,
             ),
             hiddenFields: getHiddenTableFields(savedChart.chartConfig),
+            pivotConfig: getPivotConfig(savedChart),
         });
     };
 

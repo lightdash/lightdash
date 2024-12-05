@@ -1,4 +1,5 @@
 import { type MetricQueryResponse } from './metricQuery';
+import { type PivotConfig } from './pivot';
 
 export type ApiGdriveAccessTokenResponse = {
     status: 'ok';
@@ -16,6 +17,7 @@ export type UploadMetricGsheet = {
     columnOrder: string[];
     customLabels?: CustomLabel;
     hiddenFields?: string[];
+    pivotConfig?: PivotConfig;
 };
 
 export type UploadMetricGsheetPayload = UploadMetricGsheet & {
