@@ -17,6 +17,7 @@ type DateRange = MetricExplorerPartialDateRange;
 
 export interface DateRangePreset {
     label: string;
+    controlLabel: string;
     getValue: () => DateRange;
 }
 
