@@ -110,6 +110,11 @@ export default class SchedulerApp {
 
     public async start() {
         this.prometheusMetrics.start();
+        // @ts-ignore
+        // eslint-disable-next-line no-extend-native, func-names
+        BigInt.prototype.toJSON = function () {
+            return this.toString();
+        };
         await this.initSentry();
         const worker = await this.initWorker();
         this.prometheusMetrics.monitorQueues(this.clients.getSchedulerClient());
