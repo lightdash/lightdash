@@ -1,5 +1,5 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button, Text, Tooltip } from '@mantine/core';
+import { Button, Tooltip } from '@mantine/core';
 import { type MRT_Row } from 'mantine-react-table';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -33,6 +33,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
     });
 
     useEffect(() => {
+        if (!shouldFetch) return;
         if (!projectUuid || !metricQuery.isSuccess) return;
 
         const unsavedChartVersion = createMetricPreviewUnsavedChartVersion(
@@ -50,7 +51,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
         window.open(url.href, '_blank');
 
         setShouldFetch(false); // Reset the fetch trigger
-    }, [metricQuery.data, metricQuery.isSuccess, projectUuid]);
+    }, [metricQuery.data, metricQuery.isSuccess, projectUuid, shouldFetch]);
 
     const handleExploreClick = useCallback(() => {
         track({
@@ -88,14 +89,14 @@ export const ExploreMetricButton = ({ row }: Props) => {
                 py="xxs"
                 px={10}
                 h={28}
+                fz="sm"
+                fw={500}
                 sx={{
                     border: `1px solid #414E62`,
                     boxShadow: '0px 0px 0px 1px #151C24',
                 }}
             >
-                <Text fz="sm" fw={500}>
-                    Explore
-                </Text>
+                Explore
             </Button>
         </Tooltip>
     );
