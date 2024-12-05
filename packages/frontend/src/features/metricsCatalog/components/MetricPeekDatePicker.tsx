@@ -45,7 +45,6 @@ export const MetricPeekDatePicker: FC<Props> = ({
 }) => {
     const {
         isOpen,
-        selectedPreset,
         tempSelectedPreset,
         presets,
         buttonLabel,
@@ -60,11 +59,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
     return (
         <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
             <Popover.Target>
-                <Tooltip
-                    label={
-                        selectedPreset?.getTooltipLabel() ?? 'Select date range'
-                    }
-                >
+                <Tooltip label={'Select date range'}>
                     <Button
                         variant="default"
                         radius="md"

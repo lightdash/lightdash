@@ -17,7 +17,6 @@ type DateRange = MetricExplorerPartialDateRange;
 export interface DateRangePreset {
     label: string;
     getValue: () => DateRange;
-    getTooltipLabel: () => string;
 }
 
 interface UseDateRangePickerProps {
