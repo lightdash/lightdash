@@ -501,13 +501,12 @@ export const MetricsTable = () => {
                     </Box>
                     <Box w="100%" h="calc(100dvh - 350px)">
                         <ReactFlowProvider>
-                            {isValidMetricsTree && metricsTree && (
+                            {isValidMetricsTree ? (
                                 <MetricTree
                                     metrics={flatData}
-                                    metricsTree={metricsTree}
+                                    edges={metricsTree?.edges ?? []}
                                 />
-                            )}
-                            {!isValidMetricsTree && (
+                            ) : (
                                 <SuboptimalState
                                     title="Metrics tree not available"
                                     description="Please narrow your search to display up to 30 metrics"
