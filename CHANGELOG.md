@@ -1,3 +1,10 @@
+# [0.1401.0](https://github.com/lightdash/lightdash/compare/0.1400.1...0.1401.0) (2024-12-05)
+
+
+### Features
+
+* add view mode ([#12749](https://github.com/lightdash/lightdash/issues/12749)) ([84b79ca](https://github.com/lightdash/lightdash/commit/84b79ca76398e577a76317aaa05628852a082b1d))
+
 ## [0.1400.1](https://github.com/lightdash/lightdash/compare/0.1400.0...0.1400.1) (2024-12-05)
 
 
