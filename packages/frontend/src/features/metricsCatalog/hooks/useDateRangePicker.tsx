@@ -1,4 +1,5 @@
 import {
+    assertUnimplementedTimeframe,
     TimeFrames,
     type MetricExplorerDateRange,
     type MetricExplorerPartialDateRange,
@@ -54,7 +55,8 @@ type CalendarVisualizationType =
     | DayPickerConfig
     | WeekPickerConfig
     | MonthPickerConfig
-    | YearPickerConfig;
+    | YearPickerConfig
+    | undefined;
 
 /**
  * Hook to handle the date range picker for the metric peek
@@ -274,7 +276,6 @@ export const useDateRangePicker = ({
                     },
                 } satisfies WeekPickerConfig;
             case TimeFrames.DAY:
-            default:
                 return {
                     type: TimeFrames.DAY,
                     props: {
@@ -284,6 +285,8 @@ export const useDateRangePicker = ({
                         numberOfColumns: 2,
                     },
                 } satisfies DayPickerConfig;
+            default:
+                assertUnimplementedTimeframe(timeInterval);
         }
     }, [timeInterval, tempDateRange, handleDateRangeChange, initialWeek]);
 

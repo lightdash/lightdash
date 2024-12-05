@@ -141,7 +141,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
                     <Divider orientation="vertical" color="gray.2" />
                     <Stack spacing={0}>
                         <Box px="xs">
-                            {calendarConfig.type === TimeFrames.YEAR ? (
+                            {calendarConfig?.type === TimeFrames.YEAR ? (
                                 <YearPicker
                                     {...calendarConfig.props}
                                     mih={180}
@@ -173,7 +173,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                         },
                                     })}
                                 />
-                            ) : calendarConfig.type === TimeFrames.MONTH ? (
+                            ) : calendarConfig?.type === TimeFrames.MONTH ? (
                                 <MonthPicker
                                     {...calendarConfig.props}
                                     mih={180}
@@ -206,7 +206,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                 />
                             ) : (
                                 <DatePicker
-                                    {...calendarConfig.props}
+                                    {...calendarConfig?.props}
                                     mih={225}
                                     color="dark"
                                     size="xs"
