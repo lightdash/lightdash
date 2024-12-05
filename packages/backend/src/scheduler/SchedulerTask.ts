@@ -1149,7 +1149,7 @@ export default class SchedulerTask {
                     itemMap,
                     payload.metricQuery,
                     payload.customLabels,
-                    false, // onlyRaw
+                    true, // onlyRaw
                     this.lightdashConfig.pivotTable.maxColumnLimit,
                 );
 
@@ -1648,7 +1648,7 @@ export default class SchedulerTask {
                         itemMap,
                         chart.metricQuery,
                         customLabels,
-                        false, // onlyRaw
+                        true, // onlyRaw
                         this.lightdashConfig.pivotTable.maxColumnLimit,
                     );
 
@@ -1787,7 +1787,7 @@ export default class SchedulerTask {
                                 itemMap,
                                 chart.metricQuery,
                                 customLabels,
-                                false, // onlyRaw
+                                true, // onlyRaw
                                 this.lightdashConfig.pivotTable.maxColumnLimit,
                             );
 
