@@ -237,22 +237,22 @@ export const getDefaultDateRangeFromInterval = (
     switch (timeInterval) {
         case TimeFrames.DAY:
             return [
-                now.subtract(30, 'day').startOf('day').toDate(),
+                now.subtract(29, 'day').startOf('day').toDate(),
                 now.toDate(),
             ];
         case TimeFrames.WEEK:
             return [
-                now.subtract(12, 'week').startOf('week').toDate(),
+                now.subtract(11, 'week').startOf('week').toDate(),
                 now.toDate(),
             ];
         case TimeFrames.MONTH:
             return [
-                now.subtract(12, 'month').startOf('month').toDate(),
+                now.subtract(11, 'month').startOf('month').toDate(),
                 now.toDate(),
             ];
         case TimeFrames.YEAR:
             return [
-                now.subtract(5, 'year').startOf('year').toDate(),
+                now.subtract(4, 'year').startOf('year').toDate(),
                 now.toDate(),
             ];
         default:
