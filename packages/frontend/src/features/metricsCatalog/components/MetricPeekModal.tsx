@@ -34,8 +34,6 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
-import { MetricPeekDatePicker } from './MetricPeekDatePicker';
-import { MetricsVisualizationEmptyState } from './MetricsVisualizationEmptyState';
 import MetricsVisualization from './visualization/MetricsVisualization';
 import { TimeDimensionPicker } from './visualization/TimeDimensionPicker';
 
@@ -191,8 +189,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
     );
 
     const hasData = metricQuery.isSuccess && metricResultsQuery.isSuccess;
-    const doesNotHaveData =
-        hasData && metricResultsQuery.data.rows.length === 0;
 
     const handleClose = useCallback(() => {
         history.push(`/projects/${projectUuid}/metrics`);
@@ -289,44 +285,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                 }
                                 color="gray.2"
                             />
-
-                            <Stack
-                                w="100%"
-                                spacing="xs"
-                                align="flex-start"
-                                sx={{ flexGrow: 1 }}
-                            >
-                                <Text fw={500} c="gray.7">
-                                    Time filter
-                                </Text>
-                                {metricQuery.isSuccess &&
-                                    dateRange &&
-                                    metricResultsQuery.data?.metric
-                                        .timeDimension?.interval && (
-                                        <MetricPeekDatePicker
-                                            dateRange={dateRange}
-                                            onChange={setDateRange}
-                                            showTimeDimensionIntervalPicker={
-                                                !!timeDimensionBaseField
-                                            }
-                                            timeDimensionBaseField={
-                                                timeDimensionBaseField
-                                            }
-                                            setTimeDimensionOverride={
-                                                setTimeDimensionOverride
-                                            }
-                                            timeInterval={
-                                                metricResultsQuery.data.metric
-                                                    .timeDimension.interval
-                                            }
-                                            onTimeIntervalChange={
-                                                handleTimeIntervalChange
-                                            }
-                                        />
-                                    )}
-                            </Stack>
-
-                            <Divider color="gray.2" />
 
                             <Stack w="100%" spacing="xs" sx={{ flexGrow: 1 }}>
                                 <Group position="apart">
@@ -475,23 +433,25 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Box
-                        mih={500}
-                        w="100%"
-                        pt="sm"
-                        pb={doesNotHaveData ? 'md' : undefined}
-                        px="md"
-                    >
-                        {doesNotHaveData ? (
-                            <MetricsVisualizationEmptyState />
-                        ) : (
-                            hasData && (
-                                <MetricsVisualization
-                                    comparison={comparisonParams}
-                                    dateRange={dateRange ?? undefined}
-                                    results={metricResultsQuery.data}
-                                />
-                            )
+                    <Box mih={500} w="100%" pt="sm" px="md">
+                        {hasData && (
+                            <MetricsVisualization
+                                comparison={comparisonParams}
+                                dateRange={dateRange ?? undefined}
+                                results={metricResultsQuery.data}
+                                onDateRangeChange={setDateRange}
+                                showTimeDimensionIntervalPicker={
+                                    !!timeDimensionBaseField
+                                }
+                                timeDimensionBaseField={
+                                    timeDimensionBaseField ??
+                                    ({} as TimeDimensionConfig)
+                                }
+                                setTimeDimensionOverride={
+                                    setTimeDimensionOverride
+                                }
+                                onTimeIntervalChange={handleTimeIntervalChange}
+                            />
                         )}
                     </Box>
                 </Modal.Body>
