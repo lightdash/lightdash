@@ -12,6 +12,7 @@ import {
     type MetricExplorerDateRange,
     type MetricQuery,
     type MetricsExplorerQueryResults,
+    type MetricWithAssociatedTimeDimension,
     type ResultRow,
     type SessionUser,
     type TimeDimensionConfig,
@@ -144,6 +145,8 @@ export class MetricsExplorerService<
         let allFields = fields;
 
         let comparisonResults: ResultRow[] | undefined;
+        let compareMetric: MetricWithAssociatedTimeDimension | undefined;
+
         if (compare) {
             switch (compare.type) {
                 case MetricExplorerComparison.NONE:
@@ -184,44 +187,43 @@ export class MetricsExplorerService<
 
                     break;
                 case MetricExplorerComparison.DIFFERENT_METRIC:
-                    const differentMetric = await this.catalogService.getMetric(
+                    compareMetric = await this.catalogService.getMetric(
                         user,
                         projectUuid,
                         compare.metricTable,
                         compare.metricName,
                     );
 
-                    const differentMetricTimeDimension =
-                        differentMetric.timeDimension;
+                    const compareTimeDimension = compareMetric.timeDimension;
 
-                    if (!differentMetricTimeDimension) {
+                    if (!compareTimeDimension) {
                         throw new Error(
                             `Comparison metric should always have an associated time dimension`,
                         );
                     }
 
-                    const differentMetricDimensionGrain = dateRange
+                    const compareMetricDimensionGrain = dateRange
                         ? getGrainForDateRange(dateRange)
-                        : differentMetricTimeDimension.interval;
+                        : compareTimeDimension.interval;
 
                     const differentDimensionId = getItemId({
-                        table: differentMetricTimeDimension.table,
+                        table: compareTimeDimension.table,
                         name: getFieldIdForDateDimension(
-                            differentMetricTimeDimension.field,
-                            differentMetricDimensionGrain,
+                            compareTimeDimension.field,
+                            compareMetricDimensionGrain,
                         ),
                     });
 
                     const differentMetricQuery: MetricQuery = {
                         exploreName: compare.metricTable,
-                        metrics: [getItemId(differentMetric)],
+                        metrics: [getItemId(compareMetric)],
                         dimensions: [differentDimensionId],
                         filters: {
                             dimensions: {
                                 id: uuidv4(),
                                 and: getMetricExplorerDateRangeFilters(
-                                    differentMetricTimeDimension.table,
-                                    differentMetricTimeDimension.field,
+                                    compareTimeDimension.table,
+                                    compareTimeDimension.field,
                                     dateRange,
                                 ),
                             },
@@ -265,6 +267,7 @@ export class MetricsExplorerService<
             comparisonRows: comparisonResults,
             fields: allFields,
             metric: { ...metric, timeDimension: timeDimensionConfig },
+            comparisonMetric: compareMetric,
         };
     }
 }

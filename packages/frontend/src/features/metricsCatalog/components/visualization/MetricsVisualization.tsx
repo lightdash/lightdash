@@ -69,8 +69,9 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
     const dataPoints = useMemo(() => {
-        const timeDimension = results.metric.timeDimension;
+        if (!results.rows) return null;
 
+        const timeDimension = results.metric.timeDimension;
         if (!timeDimension) return null;
 
         const dimensionId = getFieldIdForDateDimension(
@@ -81,12 +82,8 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
             timeDimension.interval,
         );
 
-        if (!dimensionId || !results.fields[dimensionId]) return null;
-
-        if (!results.rows) return null;
-
         const dimension = results.fields[dimensionId];
-        if (!isDimension(dimension)) return null;
+        if (!dimension || !isDimension(dimension)) return null;
 
         switch (comparison.type) {
             case MetricExplorerComparison.NONE:
@@ -117,17 +114,30 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
                     );
                 }
 
-                const compareDimension =
-                    results.fields[
-                        getFieldIdForDateDimension(
-                            getItemId({
-                                name: timeDimension.field,
-                                table: timeDimension.table,
-                            }),
-                            timeDimension.interval,
-                        )
-                    ];
+                if (!results.comparisonMetric) {
+                    throw new Error(
+                        `Comparison metric not found for comparison type ${comparison.type}`,
+                    );
+                }
 
+                const compareMetric = results.comparisonMetric;
+                const compareTimeDimension = compareMetric.timeDimension;
+
+                if (!compareTimeDimension) {
+                    throw new Error(
+                        `Comparison metric should always have an associated time dimension`,
+                    );
+                }
+
+                const compareDimensionId = getFieldIdForDateDimension(
+                    getItemId({
+                        name: compareTimeDimension.field,
+                        table: compareTimeDimension.table,
+                    }),
+                    timeDimension.interval,
+                );
+
+                const compareDimension = results.fields[compareDimensionId];
                 if (!compareDimension || !isDimension(compareDimension)) {
                     throw new Error(
                         `Comparison dimension not found for comparison type ${comparison.type}`,
@@ -145,13 +155,7 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
             default:
                 return assertUnreachable(comparison, `Unknown comparison type`);
         }
-    }, [
-        comparison,
-        results.comparisonRows,
-        results.fields,
-        results.metric,
-        results.rows,
-    ]);
+    }, [comparison, results]);
 
     const data = useMemo(() => {
         if (!dataPoints) return [];
@@ -262,7 +266,7 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
                         dataKey="metric"
                         stroke={colors.indigo[6]}
                         strokeWidth={1.6}
-                        dot={false}
+                        dot
                         legendType="plainline"
                     />
 
@@ -274,7 +278,7 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
                             stroke={colors.indigo[4]}
                             strokeDasharray={'3 3'}
                             strokeWidth={1.3}
-                            dot={false}
+                            dot
                             legendType="plainline"
                         />
                     )}
