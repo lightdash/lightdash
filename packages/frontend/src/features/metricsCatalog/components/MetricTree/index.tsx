@@ -172,6 +172,8 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
     const { fitView } = useReactFlow();
     const nodesInitialized = useNodesInitialized();
     const [layoutReady, setLayoutReady] = useState(false);
+    const [edgesChangedInReactFlow, setEdgesChangedInReactFlow] =
+        useState(false);
 
     const initialNodes = useMemo<Node[]>(() => {
         return metrics.map((metric) => ({
@@ -239,9 +241,10 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
                 });
 
                 setCurrentEdges((els) => addEdge(params, els));
+                setEdgesChangedInReactFlow(true);
             }
         },
-        [setCurrentEdges, createMetricsTreeEdge, projectUuid],
+        [projectUuid, createMetricsTreeEdge, setCurrentEdges],
     );
 
     const handleEdgesDelete = useCallback(
@@ -256,6 +259,7 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
                 });
 
                 await Promise.all(promises);
+                setEdgesChangedInReactFlow(true);
             }
         },
         [deleteMetricsTreeEdge, projectUuid],
@@ -275,6 +279,7 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
         if (!nodesInitialized || layoutReady) {
             return;
         }
+
         onLayout();
     }, [onLayout, layoutReady, nodesInitialized, fitView]);
 
@@ -329,11 +334,14 @@ const MetricTree: FC<Props> = ({ metrics, metricsTree }) => {
                 type: 'remove',
             }));
 
-        if (addEdgeChanges.length > 0 || removeEdgeChanges.length > 0) {
+        if (
+            (addEdgeChanges.length > 0 || removeEdgeChanges.length > 0) &&
+            !edgesChangedInReactFlow
+        ) {
             onEdgesChange([...addEdgeChanges, ...removeEdgeChanges]);
             setLayoutReady(false);
         }
-    }, [initialEdges, currentEdges, onEdgesChange]);
+    }, [initialEdges, currentEdges, onEdgesChange, edgesChangedInReactFlow]);
 
     return (
         <Box h="100%">
