@@ -88,17 +88,20 @@ const CreateProject: FC = () => {
                                     />
                                 )}
 
-                                {warehouse && method === ConnectMethod.MANUAL && (
-                                    <ConnectManually
-                                        isCreatingFirstProject={
-                                            isCreatingFirstProject
-                                        }
-                                        selectedWarehouse={warehouse}
-                                        onBack={() => {
-                                            history.replace('/createProject');
-                                        }}
-                                    />
-                                )}
+                                {warehouse &&
+                                    method === ConnectMethod.MANUAL && (
+                                        <ConnectManually
+                                            isCreatingFirstProject={
+                                                isCreatingFirstProject
+                                            }
+                                            selectedWarehouse={warehouse}
+                                            onBack={() => {
+                                                history.replace(
+                                                    '/createProject',
+                                                );
+                                            }}
+                                        />
+                                    )}
                             </>
                         )}
                     </>

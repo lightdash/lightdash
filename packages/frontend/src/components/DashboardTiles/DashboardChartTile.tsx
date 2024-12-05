@@ -894,21 +894,22 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             />
                                         )}
 
-                                    {chart.dashboardUuid && userCanManageChart && (
-                                        <Menu.Item
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconFolders}
-                                                />
-                                            }
-                                            onClick={() =>
-                                                setIsMovingChart(true)
-                                            }
-                                            disabled={isEditMode}
-                                        >
-                                            Move to space
-                                        </Menu.Item>
-                                    )}
+                                    {chart.dashboardUuid &&
+                                        userCanManageChart && (
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={IconFolders}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    setIsMovingChart(true)
+                                                }
+                                                disabled={isEditMode}
+                                            >
+                                                Move to space
+                                            </Menu.Item>
+                                        )}
                                 </Box>
                             </Tooltip>
                             {userCanManageChart && isEditMode && (
