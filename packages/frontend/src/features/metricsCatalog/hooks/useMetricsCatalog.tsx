@@ -126,7 +126,8 @@ export const useMetric = ({
     projectUuid,
     tableName,
     metricName,
-}: UseMetricOptions) => {
+    enabled = true,
+}: UseMetricOptions & { enabled: boolean }) => {
     return useQuery<ApiGetMetricPeek['results'], ApiError>({
         queryKey: ['metric', projectUuid, tableName, metricName],
         queryFn: () =>
@@ -135,6 +136,6 @@ export const useMetric = ({
                 tableName: tableName!,
                 metricName: metricName!,
             }),
-        enabled: !!projectUuid && !!tableName && !!metricName,
+        enabled: enabled && !!projectUuid && !!tableName && !!metricName,
     });
 };
