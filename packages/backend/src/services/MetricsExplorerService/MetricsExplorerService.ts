@@ -69,8 +69,6 @@ export class MetricsExplorerService<
         compare: MetricExplorerComparisonType | undefined,
         timeDimensionOverride: TimeDimensionConfig | undefined,
     ): Promise<MetricsExplorerQueryResults> {
-        console.log({ compare, timeDimensionOverride });
-
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -133,10 +131,6 @@ export class MetricsExplorerService<
             tableCalculations: [],
             limit: this.maxQueryLimit, // TODO: are we sure we want to limit this with the max query limit?
         };
-
-        console.log('----------------');
-        console.log(JSON.stringify({ metricQuery }, null, 2));
-        console.log('----------------');
 
         const { rows: currentResults, fields } =
             await this.projectService.runExploreQuery(

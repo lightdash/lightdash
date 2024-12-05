@@ -1,9 +1,11 @@
 import {
+    assertUnreachable,
     getFieldIdForDateDimension,
     getItemId,
     getMetricExplorerDataPoints,
     getMetricExplorerDataPointsWithCompare,
     isDimension,
+    MetricExplorerComparison,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
     type MetricsExplorerQueryResults,
@@ -58,16 +60,16 @@ const tickFormatter = (date: Date) => {
 };
 
 type Props = {
-    data: MetricsExplorerQueryResults;
+    results: MetricsExplorerQueryResults;
     dateRange: MetricExplorerDateRange | undefined;
     comparison: MetricExplorerComparisonType;
 };
 
-const MetricsVisualization: FC<Props> = ({ data, comparison }) => {
+const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
-    const timeSeriesData = useMemo(() => {
-        const timeDimension = data.metric.timeDimension;
+    const dataPoints = useMemo(() => {
+        const timeDimension = results.metric.timeDimension;
 
         if (!timeDimension) return null;
 
@@ -79,30 +81,85 @@ const MetricsVisualization: FC<Props> = ({ data, comparison }) => {
             timeDimension.interval,
         );
 
-        if (!dimensionId || !data.fields[dimensionId]) return null;
+        if (!dimensionId || !results.fields[dimensionId]) return null;
 
-        if (!data.rows) return null;
+        if (!results.rows) return null;
 
-        const dimension = data.fields[dimensionId];
+        const dimension = results.fields[dimensionId];
         if (!isDimension(dimension)) return null;
 
-        const rawData = !!data.comparisonRows
-            ? getMetricExplorerDataPointsWithCompare(
-                  dimension,
-                  data.metric,
-                  data.rows,
-                  data.comparisonRows,
-                  comparison,
-              )
-            : getMetricExplorerDataPoints(dimension, data.metric, data.rows);
+        switch (comparison.type) {
+            case MetricExplorerComparison.NONE:
+                return getMetricExplorerDataPoints(
+                    dimension,
+                    results.metric,
+                    results.rows,
+                );
+            case MetricExplorerComparison.PREVIOUS_PERIOD:
+                if (!results.comparisonRows) {
+                    throw new Error(
+                        `Comparison rows are required for comparison type ${comparison.type}`,
+                    );
+                }
 
-        return rawData
-            .map((row) => ({
-                ...row,
-                dateValue: row.date.valueOf(),
-            }))
+                return getMetricExplorerDataPointsWithCompare(
+                    dimension,
+                    dimension,
+                    results.metric,
+                    results.rows,
+                    results.comparisonRows,
+                    comparison,
+                );
+            case MetricExplorerComparison.DIFFERENT_METRIC:
+                if (!results.comparisonRows) {
+                    throw new Error(
+                        `Comparison rows are required for comparison type ${comparison.type}`,
+                    );
+                }
+
+                const compareDimension =
+                    results.fields[
+                        getFieldIdForDateDimension(
+                            getItemId({
+                                name: timeDimension.field,
+                                table: timeDimension.table,
+                            }),
+                            timeDimension.interval,
+                        )
+                    ];
+
+                if (!compareDimension || !isDimension(compareDimension)) {
+                    throw new Error(
+                        `Comparison dimension not found for comparison type ${comparison.type}`,
+                    );
+                }
+
+                return getMetricExplorerDataPointsWithCompare(
+                    dimension,
+                    compareDimension,
+                    results.metric,
+                    results.rows,
+                    results.comparisonRows,
+                    comparison,
+                );
+            default:
+                return assertUnreachable(comparison, `Unknown comparison type`);
+        }
+    }, [
+        comparison,
+        results.comparisonRows,
+        results.fields,
+        results.metric,
+        results.rows,
+    ]);
+
+    const data = useMemo(() => {
+        if (!dataPoints) return [];
+
+        return dataPoints
+            .map((row) => ({ ...row, dateValue: row.date.valueOf() }))
             .sort((a, b) => a.dateValue - b.dateValue);
-    }, [comparison, data.comparisonRows, data.fields, data.metric, data.rows]);
+    }, [dataPoints]);
 
     const {
         zoomState,
@@ -113,16 +170,14 @@ const MetricsVisualization: FC<Props> = ({ data, comparison }) => {
             resetZoom,
         },
         activeData,
-    } = useChartZoom({
-        data: timeSeriesData ?? [],
-    });
+    } = useChartZoom({ data });
 
     useEffect(() => {
         resetZoom();
     }, [data, resetZoom]);
 
     const xAxisConfig = useMemo(() => {
-        if (!timeSeriesData) return null;
+        if (!data) return null;
 
         const timeValues = activeData.map((row) => row.dateValue);
         const timeScale = scaleTime().domain([
@@ -137,9 +192,9 @@ const MetricsVisualization: FC<Props> = ({ data, comparison }) => {
             ticks: timeScale.ticks(5).map((date) => date.valueOf()),
             tickFormatter,
         };
-    }, [timeSeriesData, activeData]);
+    }, [data, activeData]);
 
-    if (!timeSeriesData) return null;
+    if (!data) return null;
 
     return (
         <Stack spacing={0} w="100%" h="100%" sx={{ flexGrow: 1 }}>
@@ -188,7 +243,7 @@ const MetricsVisualization: FC<Props> = ({ data, comparison }) => {
                     />
 
                     <RechartsTooltip
-                        formatter={(value) => [value, data.metric.label]}
+                        formatter={(value) => [value, results.metric.label]}
                         labelFormatter={(label) =>
                             dayjs(label).format('MMM D, YYYY')
                         }
@@ -202,7 +257,7 @@ const MetricsVisualization: FC<Props> = ({ data, comparison }) => {
                     />
 
                     <Line
-                        name={data.metric.label}
+                        name={results.metric.label}
                         type="monotone"
                         dataKey="metric"
                         stroke={colors.indigo[6]}
@@ -211,9 +266,9 @@ const MetricsVisualization: FC<Props> = ({ data, comparison }) => {
                         legendType="plainline"
                     />
 
-                    {data.comparisonRows && (
+                    {results.comparisonRows && (
                         <Line
-                            name={`${data.metric.label} (comparison)`}
+                            name={`${results.metric.label} (comparison)`}
                             type="monotone"
                             dataKey="compareMetric"
                             stroke={colors.indigo[4]}

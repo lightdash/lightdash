@@ -152,6 +152,8 @@ export const getMetricExplorerDataPoints = (
     metric: MetricWithAssociatedTimeDimension,
     metricRows: ResultRow[],
 ): Array<MetricExploreDataPoint> => {
+    console.log({ metric, dimension });
+
     const dimensionId = getItemId(dimension);
     const metricId = getItemId(metric);
 
@@ -168,6 +170,7 @@ export const getMetricExplorerDataPoints = (
 
 export const getMetricExplorerDataPointsWithCompare = (
     dimension: Dimension,
+    compareDimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
     metricRows: ResultRow[],
     compareMetricRows: ResultRow[],
@@ -177,16 +180,16 @@ export const getMetricExplorerDataPointsWithCompare = (
         throw new Error('Comparison type is required');
     }
 
-    const dimensionId = getItemId(dimension);
     const metricId = getItemId(metric);
 
-    const mapDateField = (row: ResultRow) =>
-        new Date(String(row[dimensionId].value.raw)).toString();
+    const dimensionId = getItemId(dimension);
+    const compareDimensionId = getItemId(compareDimension);
 
-    const groupByMetricRows = groupBy(metricRows, (row) => mapDateField(row));
-
+    const groupByMetricRows = groupBy(metricRows, (row) =>
+        new Date(String(row[dimensionId].value.raw)).toString(),
+    );
     const groupByCompareMetricRows = groupBy(compareMetricRows, (row) =>
-        mapDateField(row),
+        new Date(String(row[compareDimensionId].value.raw)).toString(),
     );
 
     const offsetGroupByCompareMetricRows = mapKeys(

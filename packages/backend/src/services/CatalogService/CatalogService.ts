@@ -1112,19 +1112,21 @@ export class CatalogService<
                 userUuid: user.userUuid,
             });
 
-        const allCatalogMetrics = await this.catalogModel.getAllMetricFields(
+        const allCatalogMetrics = await this.catalogModel.search({
             projectUuid,
             userAttributes,
-        );
-
-        const allTableMetricPromises = allCatalogMetrics.map((catalogMetrics) =>
-            this.getMetric(
-                user,
+            catalogSearch: {
+                type: CatalogType.Field,
+                filter: CatalogFilter.Metrics,
+            },
+            tablesConfiguration: await this.projectModel.getTablesConfiguration(
                 projectUuid,
-                catalogMetrics.table_name,
-                catalogMetrics.name,
             ),
-        );
+        });
+
+        const allTableMetricPromises = allCatalogMetrics.data
+            .filter((c): c is CatalogField => c.type === CatalogType.Field)
+            .map((c) => this.getMetric(user, projectUuid, c.tableName, c.name));
 
         const allMetrics = await Promise.all(allTableMetricPromises);
         const metricsWithTimeDimension = allMetrics.filter(

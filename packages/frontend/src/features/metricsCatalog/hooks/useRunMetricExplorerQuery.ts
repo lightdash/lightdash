@@ -65,8 +65,9 @@ export const useRunMetricExplorerQuery = ({
             projectUuid,
             exploreName,
             metricName,
-            dateRange,
-            comparison,
+            dateRange?.[0],
+            dateRange?.[1],
+            comparison?.type,
             timeDimensionOverride,
         ],
         queryFn: () =>

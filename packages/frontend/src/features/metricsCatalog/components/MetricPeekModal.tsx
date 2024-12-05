@@ -199,6 +199,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         setComparisonType(MetricExplorerComparison.NONE);
         setDateRange(null);
         setTimeDimensionOverride(undefined);
+        setSelectedMetric(null);
         onClose();
     }, [history, onClose, projectUuid]);
 
@@ -488,7 +489,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                 <MetricsVisualization
                                     comparison={comparisonParams}
                                     dateRange={dateRange ?? undefined}
-                                    data={metricResultsQuery.data}
+                                    results={metricResultsQuery.data}
                                 />
                             )
                         )}
