@@ -3536,11 +3536,42 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PivotConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                rowTotals: { dataType: 'boolean' },
+                columnTotals: { dataType: 'boolean' },
+                summableMetricFieldIds: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                hiddenMetricFieldIds: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                columnOrder: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                metricsAsRows: { dataType: 'boolean', required: true },
+                pivotDimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UploadMetricGsheet: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                pivotConfig: { ref: 'PivotConfig' },
                 hiddenFields: {
                     dataType: 'array',
                     array: { dataType: 'string' },
