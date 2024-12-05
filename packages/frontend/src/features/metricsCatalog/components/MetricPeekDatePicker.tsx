@@ -64,12 +64,19 @@ export const MetricPeekDatePicker: FC<Props> = ({
             label: matchingPresetLabel ? (
                 'Custom'
             ) : (
-                <Text size="xs" c="dark.9">
-                    Custom:{' '}
-                    <Text size="xs" c="gray.7" span>
-                        {buttonLabel}
+                <UnstyledButton
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpen(true);
+                    }}
+                >
+                    <Text size="sm" fw={500} c="dark.8">
+                        Custom:{' '}
+                        <Text size="sm" fw={500} c="gray.6" span>
+                            {buttonLabel}
+                        </Text>
                     </Text>
-                </Text>
+                </UnstyledButton>
             ),
             value: 'custom',
         },
@@ -96,7 +103,13 @@ export const MetricPeekDatePicker: FC<Props> = ({
                         radius="md"
                         size="xs"
                         data={customWithPresets}
-                        value={isOpen ? 'custom' : matchingPresetLabel}
+                        value={
+                            isOpen ||
+                            !timeDimensionBaseField ||
+                            !matchingPresetLabel
+                                ? 'custom'
+                                : matchingPresetLabel
+                        }
                         onChange={(value) => {
                             if (value === 'custom') {
                                 handleOpen(true);
