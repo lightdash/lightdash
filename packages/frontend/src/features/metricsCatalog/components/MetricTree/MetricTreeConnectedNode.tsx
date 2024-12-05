@@ -5,8 +5,10 @@ import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 
-type MetricTreeConnectedNodeData = Node<{
+export type MetricTreeConnectedNodeData = Node<{
     label: string;
+    isEdgeTarget?: boolean;
+    isEdgeSource?: boolean;
 }>;
 
 const MetricTreeConnectedNode: React.FC<
@@ -27,7 +29,11 @@ const MetricTreeConnectedNode: React.FC<
                 backgroundColor: '#fff',
             }}
         >
-            <Handle type="target" position={Position.Top} />
+            <Handle
+                type="target"
+                position={Position.Top}
+                hidden={!data.isEdgeTarget}
+            />
             <Stack spacing="xxs" key={data.label}>
                 <Group>
                     <Text size="sm" c="dimmed">
@@ -56,7 +62,11 @@ const MetricTreeConnectedNode: React.FC<
                     {compareString}
                 </Text>
             </Stack>
-            <Handle type="source" position={Position.Bottom} />
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                hidden={!data.isEdgeSource}
+            />
         </div>
     );
 };

@@ -26,7 +26,9 @@ import {
     useCreateMetricsTreeEdge,
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
-import MetricTreeConnectedNode from './MetricTreeConnectedNode';
+import MetricTreeConnectedNode, {
+    type MetricTreeConnectedNodeData,
+} from './MetricTreeConnectedNode';
 import MetricTreeUnconnectedNode from './MetricTreeUnconnectedNode';
 
 enum MetricTreeNodeType {
@@ -42,6 +44,7 @@ const metricTreeNodeTypes: NodeTypes = {
 type Props = {
     metrics: CatalogField[];
     edges: CatalogMetricsTreeEdge[];
+    viewOnly?: boolean;
 };
 
 enum STATIC_NODE_TYPES {
@@ -52,7 +55,7 @@ function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
     return `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`;
 }
 
-const getNodeGroups = (nodes: Node[], edges: Edge[]) => {
+const getNodeGroups = (nodes: MetricTreeConnectedNodeData[], edges: Edge[]) => {
     const connectedNodeIds = new Set();
 
     edges.forEach((edge) => {
@@ -73,7 +76,11 @@ const getNodeGroups = (nodes: Node[], edges: Edge[]) => {
     };
 };
 
-const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
+const getNodeLayout = (
+    nodes: MetricTreeConnectedNodeData[],
+    edges: Edge[],
+    _options?: {},
+): { nodes: MetricTreeConnectedNodeData[]; edges: Edge[] } => {
     const { connectedNodes, freeNodes } = getNodeGroups(nodes, edges);
 
     const treeGraph = new Dagre.graphlib.Graph().setDefaultEdgeLabel(
@@ -94,7 +101,7 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
     Dagre.layout(treeGraph);
 
     // Draw the connected tree
-    const tree = connectedNodes.map((node) => {
+    const tree = connectedNodes.map<MetricTreeConnectedNodeData>((node) => {
         const position = treeGraph.node(node.id);
         const x = position.x - (node.measured?.width ?? 0) / 2;
         const y = position.y - (node.measured?.height ?? 0) / 2;
@@ -111,7 +118,7 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
     let right = -Infinity;
 
     // Draw the unconnected grid
-    const free = freeNodes.map((node, index) => {
+    const free = freeNodes.map<MetricTreeConnectedNodeData>((node, index) => {
         // TODO: node sizes are hardcoded. We need to do more to have them be dynamic
         const nodeWidth = 170;
         const nodeHeight = 38;
@@ -156,7 +163,7 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
             },
             type: 'group',
         },
-    ];
+    ] satisfies MetricTreeConnectedNodeData[];
 
     return {
         nodes: [...groups, ...tree, ...free],
@@ -164,7 +171,7 @@ const getNodeLayout = (nodes: Node[], edges: Edge[], _options?: {}) => {
     };
 };
 
-const MetricTree: FC<Props> = ({ metrics, edges }) => {
+const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -174,14 +181,6 @@ const MetricTree: FC<Props> = ({ metrics, edges }) => {
     const { fitView } = useReactFlow();
     const nodesInitialized = useNodesInitialized();
     const [layoutReady, setLayoutReady] = useState(false);
-
-    const initialNodes = useMemo<Node[]>(() => {
-        return metrics.map((metric) => ({
-            id: metric.catalogSearchUuid,
-            position: { x: 0, y: 0 },
-            data: { label: metric.name },
-        }));
-    }, [metrics]);
 
     const initialEdges = useMemo<Edge[]>(() => {
         // If there are saved edges, use them
@@ -211,6 +210,27 @@ const MetricTree: FC<Props> = ({ metrics, edges }) => {
         return [];
     }, [edges, metrics]);
 
+    const initialNodes = useMemo<MetricTreeConnectedNodeData[]>(() => {
+        return metrics.map((metric) => {
+            const isEdgeTarget = initialEdges.some(
+                (edge) => edge.target === metric.catalogSearchUuid,
+            );
+            const isEdgeSource = initialEdges.some(
+                (edge) => edge.source === metric.catalogSearchUuid,
+            );
+
+            return {
+                id: metric.catalogSearchUuid,
+                position: { x: 0, y: 0 },
+                data: {
+                    label: metric.name,
+                    isEdgeTarget,
+                    isEdgeSource,
+                },
+            };
+        });
+    }, [metrics, initialEdges]);
+
     const [currentNodes, setCurrentNodes, onNodesChange] =
         useNodesState(initialNodes);
 
@@ -234,7 +254,7 @@ const MetricTree: FC<Props> = ({ metrics, edges }) => {
     );
 
     const handleNodeChange = useCallback(
-        (changes: NodeChange<Node>[]) => {
+        (changes: NodeChange<MetricTreeConnectedNodeData>[]) => {
             const preventedChangeTypes: NodeChange<Node>['type'][] = [
                 'replace',
                 'remove',
@@ -242,6 +262,7 @@ const MetricTree: FC<Props> = ({ metrics, edges }) => {
             const changesToApply = changes.filter(
                 (c) => !preventedChangeTypes.includes(c.type),
             );
+
             onNodesChange(changesToApply);
         },
         [onNodesChange],
@@ -256,7 +277,7 @@ const MetricTree: FC<Props> = ({ metrics, edges }) => {
                     targetCatalogSearchUuid: params.target,
                 });
 
-                const edgeNodesTypeChanges: NodeChange<Node>[] = [];
+                const edgeNodesTypeChanges: NodeChange<MetricTreeConnectedNodeData>[] = [];
                 const sourceNode = findNodeById(params.source);
                 const targetNode = findNodeById(params.target);
 
@@ -308,9 +329,9 @@ const MetricTree: FC<Props> = ({ metrics, edges }) => {
 
                 await Promise.all(promises);
 
-                const removedEdgeNodesTypeChanges: NodeChange<Node>[] =
+                const removedEdgeNodesTypeChanges: NodeChange<MetricTreeConnectedNodeData>[] =
                     edgesToDelete.flatMap((edge) => {
-                        const changes: NodeChange<Node>[] = [];
+                        const changes: NodeChange<MetricTreeConnectedNodeData>[] = [];
                         const sourceNode = findNodeById(edge.source);
                         const targetNode = findNodeById(edge.target);
                         const sourceNodeEdges = getNodeEdges(edge.source);
@@ -356,8 +377,8 @@ const MetricTree: FC<Props> = ({ metrics, edges }) => {
     const onLayout = useCallback(() => {
         const layout = getNodeLayout(currentNodes, currentEdges);
 
-        setCurrentNodes([...layout.nodes]);
-        setCurrentEdges([...layout.edges]);
+        setCurrentNodes(layout.nodes);
+        setCurrentEdges(layout.edges);
 
         setLayoutReady(true);
     }, [currentNodes, currentEdges, setCurrentNodes, setCurrentEdges]);
@@ -381,15 +402,19 @@ const MetricTree: FC<Props> = ({ metrics, edges }) => {
     }, [layoutReady, fitView]);
 
     useEffect(() => {
-        const addNodeChanges: NodeChange<Node>[] = initialNodes
-            .filter((node) => !currentNodes.some((n) => n.id === node.id))
-            .map((node) => ({
+        const addNodeChanges: NodeChange<MetricTreeConnectedNodeData>[] =
+            initialNodes
+                .filter(
+                    (node) =>
+                        !currentNodes.some((n) => n.id === node.id),
+                )
+                .map((node) => ({
                 id: node.id,
                 type: 'add',
                 item: node,
             }));
 
-        const removeNodeChanges: NodeChange<Node>[] = currentNodes
+        const removeNodeChanges: NodeChange<MetricTreeConnectedNodeData>[] = currentNodes
             .filter(
                 (node) =>
                     node.id !== STATIC_NODE_TYPES.UNCONNECTED &&
@@ -419,11 +444,16 @@ const MetricTree: FC<Props> = ({ metrics, edges }) => {
                 edgesReconnectable={false}
                 onEdgesDelete={handleEdgesDelete}
                 nodeTypes={metricTreeNodeTypes}
+                nodesConnectable={!viewOnly}
+                nodesDraggable={!viewOnly}
+                elementsSelectable={!viewOnly}
             >
-                <Panel position="bottom-left">
-                    <button onClick={() => onLayout()}>Clean up</button>
-                </Panel>
-                <Background />
+                {!viewOnly && (
+                    <Panel position="bottom-left">
+                        <button onClick={() => onLayout()}>Clean up</button>
+                    </Panel>
+                )}
+                {!viewOnly && <Background />}
             </ReactFlow>
         </Box>
     );
