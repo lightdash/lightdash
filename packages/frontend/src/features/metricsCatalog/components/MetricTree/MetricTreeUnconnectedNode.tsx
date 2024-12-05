@@ -9,7 +9,7 @@ type MetricTreeUnconnectedNodeData = Node<{
 
 const MetricTreeUnconnectedNode: React.FC<
     NodeProps<MetricTreeUnconnectedNodeData>
-> = ({ data }) => {
+> = ({ data, isConnectable }) => {
     //TODO: fetch real data for these
     const title = useMemo(() => friendlyName(data.label), [data.label]);
 
@@ -24,7 +24,11 @@ const MetricTreeUnconnectedNode: React.FC<
                 height: '38px',
             }}
         >
-            <Handle type="target" position={Position.Top} />
+            <Handle
+                type="target"
+                position={Position.Top}
+                hidden={!isConnectable}
+            />
             <Stack key={data.label}>
                 <Group>
                     <Text size="xs" c="dimmed" truncate>
@@ -32,7 +36,11 @@ const MetricTreeUnconnectedNode: React.FC<
                     </Text>
                 </Group>
             </Stack>
-            <Handle type="source" position={Position.Bottom} />
+            <Handle
+                type="source"
+                position={Position.Bottom}
+                hidden={!isConnectable}
+            />
         </div>
     );
 };
