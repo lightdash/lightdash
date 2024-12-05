@@ -41,7 +41,7 @@ type ImpelemntedTimeframe =
 
 type UnimplementedTimeframe = Exclude<TimeFrames, ImpelemntedTimeframe>;
 
-const assertUnimplementedTimeframe = (
+export const assertUnimplementedTimeframe = (
     timeframe: UnimplementedTimeframe,
 ): never => {
     switch (timeframe) {
