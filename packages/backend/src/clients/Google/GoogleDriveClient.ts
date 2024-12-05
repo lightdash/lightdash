@@ -266,12 +266,6 @@ export class GoogleDriveClient {
             throw new Error('Google Drive is not enabled');
         }
 
-        const auth = await this.getCredentials(refreshToken);
-        const sheets = google.sheets({ version: 'v4', auth });
-
-        // Clear first sheet before writting
-        await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
-
         if (csvContent.length === 0) {
             Logger.info('No data to write to the sheet');
             return;
@@ -293,10 +287,6 @@ export class GoogleDriveClient {
             return id;
         });
 
-        Logger.info(
-            `Writing ${csvContent.length} rows and ${sortedFieldIds.length} columns to Google sheets`,
-        );
-
         const values = csvContent.map((row) =>
             sortedFieldIds.map((fieldId) => {
                 const item = itemMap[fieldId];
@@ -306,12 +296,46 @@ export class GoogleDriveClient {
             }),
         );
 
+        await this.appendCsvToSheet(
+            refreshToken,
+            fileId,
+            [csvHeader, ...values],
+            tabName,
+        );
+    }
+
+    async appendCsvToSheet(
+        refreshToken: string,
+        fileId: string,
+
+        results: string[][],
+        tabName?: string,
+    ) {
+        if (!this.isEnabled) {
+            throw new Error('Google Drive is not enabled');
+        }
+
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        // Clear first sheet before writting
+        await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
+
+        if (results.length === 0) {
+            Logger.info('No data to write to the sheet');
+            return;
+        }
+
+        Logger.info(
+            `Writing ${results.length} rows and ${results[0].length} columns to Google sheets`,
+        );
+
         await sheets.spreadsheets.values.update({
             spreadsheetId: fileId,
             range: tabName ? `${tabName}!A1` : 'A1',
             valueInputOption: 'RAW',
             requestBody: {
-                values: [csvHeader, ...values],
+                values: results,
             },
         });
     }

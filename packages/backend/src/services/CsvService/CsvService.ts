@@ -30,18 +30,13 @@ import {
     ItemsMap,
     MetricQuery,
     MissingConfigError,
-    ParameterError,
     PivotConfig,
-    pivotQueryResults,
     pivotResultsAsCsv,
     QueryExecutionContext,
-    SavedChart,
-    SavedChartDAO,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
     SessionUser,
-    TableChartConfig,
 } from '@lightdash/common';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';

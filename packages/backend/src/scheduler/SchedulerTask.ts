@@ -7,6 +7,7 @@ import {
     DownloadCsvPayload,
     EmailNotificationPayload,
     FieldReferenceError,
+    formatRows,
     friendlyName,
     getCustomLabelsFromTableConfig,
     getHiddenTableFields,
@@ -31,6 +32,7 @@ import {
     NotificationFrequency,
     NotificationPayloadBase,
     operatorActionValue,
+    pivotResultsAsCsv,
     QueryExecutionContext,
     ScheduledDeliveryPayload,
     SchedulerAndTargets,
@@ -1135,17 +1137,40 @@ export default class SchedulerTask {
                 payload.metricQuery.additionalMetrics,
                 payload.metricQuery.tableCalculations,
             );
-            await this.googleDriveClient.appendToSheet(
-                refreshToken,
-                spreadsheetId,
-                rows,
-                itemMap,
-                payload.showTableNames,
-                undefined, // tabName
-                payload.columnOrder,
-                payload.customLabels,
-                payload.hiddenFields,
-            );
+            if (payload.pivotConfig) {
+                // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
+                // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
+                const formattedRows = formatRows(rows, itemMap);
+
+                const pivotedResults = pivotResultsAsCsv(
+                    payload.pivotConfig,
+                    formattedRows,
+                    itemMap,
+                    payload.metricQuery,
+                    payload.customLabels,
+                    false, // onlyRaw
+                    this.lightdashConfig.pivotTable.maxColumnLimit,
+                );
+
+                await this.googleDriveClient.appendCsvToSheet(
+                    refreshToken,
+                    spreadsheetId,
+                    pivotedResults,
+                );
+            } else {
+                await this.googleDriveClient.appendToSheet(
+                    refreshToken,
+                    spreadsheetId,
+                    rows,
+                    itemMap,
+                    payload.showTableNames,
+                    undefined, // tabName
+                    payload.columnOrder,
+                    payload.customLabels,
+                    payload.hiddenFields,
+                );
+            }
+
             const truncated = this.csvService.couldBeTruncated(rows);
 
             await this.schedulerService.logSchedulerJob({
