@@ -1,3 +1,15 @@
+# [0.1400.0](https://github.com/lightdash/lightdash/compare/0.1399.3...0.1400.0) (2024-12-05)
+
+
+### Bug Fixes
+
+* track node and edge changes ([#12727](https://github.com/lightdash/lightdash/issues/12727)) ([21c4d4d](https://github.com/lightdash/lightdash/commit/21c4d4db8bd41df3f87687a214c30d9f38ed74fd))
+
+
+### Features
+
+* add permission checks and validation for trees backend ([#12747](https://github.com/lightdash/lightdash/issues/12747)) ([a15c2df](https://github.com/lightdash/lightdash/commit/a15c2df4ccd39b53d0ac1c0054a0f0affab90d7c))
+
 ## [0.1399.3](https://github.com/lightdash/lightdash/compare/0.1399.2...0.1399.3) (2024-12-05)
 
 
