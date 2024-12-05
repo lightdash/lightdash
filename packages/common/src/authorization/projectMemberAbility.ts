@@ -59,6 +59,9 @@ export const projectMemberAbilities: Record<
         can('view', 'Tags', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'MetricsTree', {
+            projectUuid: member.projectUuid,
+        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
@@ -163,6 +166,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'Tags', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'MetricsTree', {
             projectUuid: member.projectUuid,
         });
     },
