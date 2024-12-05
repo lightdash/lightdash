@@ -2,8 +2,8 @@ import {
     ChartType,
     ECHARTS_DEFAULT_COLORS,
     getHiddenTableFields,
+    getPivotConfig,
     NotFoundError,
-    type PivotConfig,
 } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
@@ -146,19 +146,6 @@ const VisualizationCard: FC<{
         customLabels?: Record<string, string>,
     ) => {
         if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
-            const pivotGsheetConfig: PivotConfig | undefined =
-                unsavedChartVersion.chartConfig.type === ChartType.TABLE &&
-                pivotConfig !== undefined
-                    ? {
-                          pivotDimensions: pivotConfig.columns,
-                          metricsAsRows: false,
-                          hiddenMetricFieldIds: getHiddenTableFields(
-                              unsavedChartVersion.chartConfig,
-                          ),
-                          columnOrder:
-                              unsavedChartVersion.tableConfig.columnOrder,
-                      }
-                    : undefined;
             const gsheetResponse = await uploadGsheet({
                 projectUuid,
                 exploreId: explore?.name,
@@ -169,7 +156,7 @@ const VisualizationCard: FC<{
                 hiddenFields: getHiddenTableFields(
                     unsavedChartVersion.chartConfig,
                 ),
-                pivotConfig: pivotGsheetConfig,
+                pivotConfig: getPivotConfig(unsavedChartVersion),
             });
             return gsheetResponse;
         }
