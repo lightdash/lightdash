@@ -16,21 +16,20 @@ type Props = {
 };
 
 export const ExploreMetricButton = ({ row }: Props) => {
-    const [exploreUrl, setExploreUrl] = useState<string>();
-    const [shouldOpenInNewTab, setShouldOpenInNewTab] = useState(false);
+    const [shouldFetch, setShouldFetch] = useState(false);
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
     const organizationUuid = useAppSelector(
         (state) => state.metricsCatalog.organizationUuid,
     );
-    const [currentTableName, setCurrentTableName] = useState<string>();
     const { track } = useTracking();
 
     const metricQuery = useMetric({
         projectUuid,
         tableName: row.original.tableName,
         metricName: row.original.name,
+        enabled: shouldFetch,
     });
 
     useEffect(() => {
@@ -48,21 +47,10 @@ export const ExploreMetricButton = ({ row }: Props) => {
         const url = new URL(pathname, window.location.origin);
         url.search = new URLSearchParams(search).toString();
 
-        setExploreUrl(url.href);
-    }, [
-        currentTableName,
-        metricQuery.data,
-        metricQuery.isSuccess,
-        projectUuid,
-        row.original,
-    ]);
+        window.open(url.href, '_blank');
 
-    useEffect(() => {
-        if (shouldOpenInNewTab && exploreUrl) {
-            window.open(exploreUrl, '_blank');
-            setShouldOpenInNewTab(false);
-        }
-    }, [exploreUrl, shouldOpenInNewTab]);
+        setShouldFetch(false); // Reset the fetch trigger
+    }, [metricQuery.data, metricQuery.isSuccess, projectUuid]);
 
     const handleExploreClick = useCallback(() => {
         track({
@@ -75,14 +63,9 @@ export const ExploreMetricButton = ({ row }: Props) => {
             },
         });
 
-        if (exploreUrl) {
-            window.open(exploreUrl, '_blank');
-        } else {
-            setShouldOpenInNewTab(true);
-            setCurrentTableName(row.original.tableName);
-        }
+        // Trigger the fetch
+        setShouldFetch(true);
     }, [
-        exploreUrl,
         organizationUuid,
         projectUuid,
         row.original.name,
