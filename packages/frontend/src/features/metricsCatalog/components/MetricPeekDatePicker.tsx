@@ -100,8 +100,8 @@ export const MetricPeekDatePicker: FC<Props> = ({
             <Popover.Target>
                 <Group position="apart" w="fill-available">
                     <SegmentedControl
-                        radius="md"
                         size="xs"
+                        h={32}
                         data={customWithPresets}
                         value={
                             isOpen ||
@@ -128,17 +128,21 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                 }
                             }
                         }}
-                        transitionDuration={500}
+                        transitionDuration={300}
                         transitionTimingFunction="linear"
                         styles={(theme) => ({
                             root: {
                                 border: `1px solid ${theme.colors.gray[2]}`,
+                                borderRadius: theme.radius.md,
                                 backgroundColor: theme.colors.gray[0],
+                                alignItems: 'center',
                             },
                             label: {
                                 fontSize: theme.fontSizes.sm,
                                 color: theme.colors.gray[6],
                                 fontWeight: 500,
+                                paddingLeft: theme.spacing.sm,
+                                paddingRight: theme.spacing.sm,
                                 '&[data-active]': {
                                     color: theme.colors.dark[7],
                                 },
@@ -147,6 +151,12 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                 '&:not(:first-of-type)': {
                                     borderLeft: 'none',
                                 },
+                            },
+                            indicator: {
+                                boxShadow: theme.shadows.subtle,
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                                borderRadius: theme.radius.md,
+                                top: 4,
                             },
                         })}
                     />
