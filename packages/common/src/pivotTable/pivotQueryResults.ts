@@ -772,6 +772,7 @@ export const pivotResultsAsCsv = (
     customLabels: Record<string, string> | undefined,
     onlyRaw: boolean,
     maxColumnLimit: number,
+    undefinedCharacter: string = '',
 ) => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
@@ -799,7 +800,7 @@ export const pivotResultsAsCsv = (
             );
             const fields = pivotedResults.titleFields[i];
             const fieldLabels = fields.map((field) =>
-                field ? getFieldLabel(field.fieldId) : '-',
+                field ? getFieldLabel(field.fieldId) : undefinedCharacter,
             );
 
             acc[i] = [...fieldLabels, ...values];
@@ -819,7 +820,8 @@ export const pivotResultsAsCsv = (
             const noIndexPrefix = hasIndex ? [] : [''];
             const formattedRows = fieldIds.map(
                 (fieldId) =>
-                    (row[fieldId]?.value?.[formatField] as string) || '-',
+                    (row[fieldId]?.value?.[formatField] as string) ||
+                    undefinedCharacter,
             );
             return [...noIndexPrefix, ...formattedRows];
         });
