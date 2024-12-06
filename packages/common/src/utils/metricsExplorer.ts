@@ -156,7 +156,7 @@ export const getMetricExplorerDataPoints = (
     const metricId = getItemId(metric);
 
     const groupByMetricRows = groupBy(metricRows, (row) =>
-        new Date(String(row[dimensionId].value.raw)).toString(),
+        new Date(String(row[dimensionId].value.raw)).toISOString(),
     );
 
     return Object.keys(groupByMetricRows).map((date) => ({
@@ -168,6 +168,7 @@ export const getMetricExplorerDataPoints = (
 
 export const getMetricExplorerDataPointsWithCompare = (
     dimension: Dimension,
+    compareDimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
     metricRows: ResultRow[],
     compareMetricRows: ResultRow[],
@@ -177,23 +178,23 @@ export const getMetricExplorerDataPointsWithCompare = (
         throw new Error('Comparison type is required');
     }
 
-    const dimensionId = getItemId(dimension);
     const metricId = getItemId(metric);
 
-    const mapDateField = (row: ResultRow) =>
-        new Date(String(row[dimensionId].value.raw)).toString();
+    const dimensionId = getItemId(dimension);
+    const compareDimensionId = getItemId(compareDimension);
 
-    const groupByMetricRows = groupBy(metricRows, (row) => mapDateField(row));
-
+    const groupByMetricRows = groupBy(metricRows, (row) =>
+        new Date(String(row[dimensionId].value.raw)).toISOString(),
+    );
     const groupByCompareMetricRows = groupBy(compareMetricRows, (row) =>
-        mapDateField(row),
+        new Date(String(row[compareDimensionId].value.raw)).toISOString(),
     );
 
     const offsetGroupByCompareMetricRows = mapKeys(
         groupByCompareMetricRows,
         (_, date) =>
             comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD
-                ? oneYearForward(new Date(date)).toString()
+                ? oneYearForward(new Date(date)).toISOString()
                 : date,
     );
 

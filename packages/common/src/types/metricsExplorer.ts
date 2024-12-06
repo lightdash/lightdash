@@ -32,6 +32,7 @@ export type MetricExploreDataPoint = {
 
 export type MetricsExplorerQueryResults = {
     metric: MetricWithAssociatedTimeDimension;
+    comparisonMetric: MetricWithAssociatedTimeDimension | undefined;
     rows: ResultRow[];
     comparisonRows: ResultRow[] | undefined;
     fields: ItemsMap;

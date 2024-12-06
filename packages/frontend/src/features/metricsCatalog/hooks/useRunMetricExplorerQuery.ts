@@ -1,6 +1,4 @@
 import {
-    assertUnreachable,
-    MetricExplorerComparison,
     type ApiError,
     type ApiMetricsExplorerQueryResults,
     type MetricExplorerComparisonType,
@@ -19,26 +17,8 @@ type RunMetricExplorerQueryArgs = {
     timeDimensionOverride?: TimeDimensionConfig;
 };
 
-const getUrlParams = (
-    dateRange: MetricExplorerDateRange,
-    comparison: MetricExplorerComparisonType,
-) => {
+const getUrlParams = (dateRange: MetricExplorerDateRange) => {
     const params = new URLSearchParams();
-
-    // Add comparison params
-    switch (comparison.type) {
-        case MetricExplorerComparison.NONE:
-            break;
-        case MetricExplorerComparison.PREVIOUS_PERIOD:
-            params.append('compareToPreviousPeriod', 'true');
-            break;
-        case MetricExplorerComparison.DIFFERENT_METRIC:
-            params.append('compareToMetricTableName', comparison.metricTable);
-            params.append('compareToMetricMetricName', comparison.metricName);
-            break;
-        default:
-            return assertUnreachable(comparison, `Unknown comparison type`);
-    }
 
     // Add date range params
     if (dateRange) {
@@ -57,18 +37,17 @@ const postRunMetricExplorerQuery = async ({
     dateRange,
     timeDimensionOverride,
 }: RunMetricExplorerQueryArgs) => {
-    const queryString = getUrlParams(dateRange, comparison);
+    const queryString = getUrlParams(dateRange);
 
     return lightdashApi<ApiMetricsExplorerQueryResults['results']>({
         url: `/projects/${projectUuid}/metricsExplorer/${exploreName}/${metricName}/runMetricExplorerQuery${
             queryString ? `?${queryString}` : ''
         }`,
         method: 'POST',
-        body: timeDimensionOverride
-            ? JSON.stringify({
-                  timeDimensionOverride,
-              })
-            : undefined,
+        body: JSON.stringify({
+            timeDimensionOverride,
+            comparison,
+        }),
     });
 };
 
