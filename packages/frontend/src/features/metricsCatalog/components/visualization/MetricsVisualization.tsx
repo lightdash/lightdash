@@ -127,9 +127,7 @@ const MetricsVisualization: FC<Props> = ({
                 );
             case MetricExplorerComparison.DIFFERENT_METRIC:
                 if (!results.comparisonRows) {
-                    throw new Error(
-                        `Comparison rows are required for comparison type ${comparison.type}`,
-                    );
+                    return null;
                 }
 
                 if (!results.comparisonMetric) {
