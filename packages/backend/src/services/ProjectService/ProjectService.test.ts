@@ -13,6 +13,7 @@ import EmailClient from '../../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
@@ -135,6 +136,7 @@ describe('ProjectService', () => {
         groupsModel: {} as GroupsModel,
         tagsModel: {} as TagsModel,
         catalogModel: {} as CatalogModel,
+        contentModel: {} as ContentModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
