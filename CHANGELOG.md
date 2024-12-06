@@ -1,3 +1,10 @@
+# [0.1404.0](https://github.com/lightdash/lightdash/compare/0.1403.1...0.1404.0) (2024-12-06)
+
+
+### Features
+
+* change layout of date picker, granularity and data zoom ([#12748](https://github.com/lightdash/lightdash/issues/12748)) ([bcc7cc7](https://github.com/lightdash/lightdash/commit/bcc7cc75e49e4d8d1fa2526e76a0b35d95c8f8bf))
+
 ## [0.1403.1](https://github.com/lightdash/lightdash/compare/0.1403.0...0.1403.1) (2024-12-06)
 
 
