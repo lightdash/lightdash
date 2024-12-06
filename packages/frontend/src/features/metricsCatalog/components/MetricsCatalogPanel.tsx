@@ -255,10 +255,12 @@ export const MetricsCatalogPanel = () => {
                 opened={isMetricUsageModalOpen}
                 onClose={onCloseMetricUsageModal}
             />
-            <MetricPeekModal
-                opened={isMetricPeekModalOpen}
-                onClose={onCloseMetricPeekModal}
-            />
+            {isMetricPeekModalOpen && (
+                <MetricPeekModal
+                    opened={isMetricPeekModalOpen}
+                    onClose={onCloseMetricPeekModal}
+                />
+            )}
         </Stack>
     );
 };
