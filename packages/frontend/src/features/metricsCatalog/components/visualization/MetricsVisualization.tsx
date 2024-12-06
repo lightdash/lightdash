@@ -64,7 +64,7 @@ const tickFormatter = (date: Date) => {
 };
 
 type Props = {
-    results: MetricsExplorerQueryResults;
+    results: MetricsExplorerQueryResults | undefined;
     dateRange: MetricExplorerDateRange | undefined;
     comparison: MetricExplorerComparisonType;
     onDateRangeChange: (range: MetricExplorerDateRange) => void;
@@ -72,6 +72,7 @@ type Props = {
     timeDimensionBaseField: TimeDimensionConfig;
     setTimeDimensionOverride: (config: TimeDimensionConfig | undefined) => void;
     onTimeIntervalChange: (interval: TimeFrames) => void;
+    isFetching: boolean;
 };
 
 const MetricsVisualization: FC<Props> = ({
@@ -83,11 +84,12 @@ const MetricsVisualization: FC<Props> = ({
     timeDimensionBaseField,
     setTimeDimensionOverride,
     onTimeIntervalChange,
+    isFetching,
 }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
     const dataPoints = useMemo(() => {
-        if (!results.rows) return null;
+        if (!results?.rows) return null;
 
         const timeDimension = results.metric.timeDimension;
         if (!timeDimension) return null;
@@ -111,6 +113,10 @@ const MetricsVisualization: FC<Props> = ({
                     results.rows,
                 );
             case MetricExplorerComparison.PREVIOUS_PERIOD:
+                if (isFetching) {
+                    return null;
+                }
+
                 if (!results.comparisonRows) {
                     throw new Error(
                         `Comparison rows are required for comparison type ${comparison.type}`,
@@ -126,6 +132,10 @@ const MetricsVisualization: FC<Props> = ({
                     comparison,
                 );
             case MetricExplorerComparison.DIFFERENT_METRIC:
+                if (isFetching) {
+                    return null;
+                }
+
                 if (!results.comparisonRows) {
                     return null;
                 }
@@ -154,6 +164,7 @@ const MetricsVisualization: FC<Props> = ({
                 );
 
                 const compareDimension = results.fields[compareDimensionId];
+
                 if (!compareDimension || !isDimension(compareDimension)) {
                     throw new Error(
                         `Comparison dimension not found for comparison type ${comparison.type}`,
@@ -171,7 +182,7 @@ const MetricsVisualization: FC<Props> = ({
             default:
                 return assertUnreachable(comparison, `Unknown comparison type`);
         }
-    }, [comparison, results]);
+    }, [comparison, results, isFetching]);
 
     const data = useMemo(() => {
         if (!dataPoints) return [];
@@ -225,7 +236,7 @@ const MetricsVisualization: FC<Props> = ({
             sx={{ flexGrow: 1 }}
         >
             <Group spacing="sm" noWrap>
-                {dateRange && results.metric.timeDimension && (
+                {dateRange && results?.metric.timeDimension && (
                     <MetricPeekDatePicker
                         dateRange={dateRange}
                         onChange={onDateRangeChange}
@@ -253,7 +264,7 @@ const MetricsVisualization: FC<Props> = ({
 
             {showEmptyState && <MetricsVisualizationEmptyState />}
 
-            {!showEmptyState && (
+            {!showEmptyState && results && (
                 <ResponsiveContainer width="100%" height="100%">
                     <LineChart
                         data={activeData}
