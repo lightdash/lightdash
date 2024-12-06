@@ -1,3 +1,10 @@
+## [0.1404.2](https://github.com/lightdash/lightdash/compare/0.1404.1...0.1404.2) (2024-12-06)
+
+
+### Bug Fixes
+
+* address time interval overrride on comparison of metrics ([#12765](https://github.com/lightdash/lightdash/issues/12765)) ([4fe874a](https://github.com/lightdash/lightdash/commit/4fe874ad48154b006e65bd5aff90b9eab7757f16))
+
 ## [0.1404.1](https://github.com/lightdash/lightdash/compare/0.1404.0...0.1404.1) (2024-12-06)
 
 
