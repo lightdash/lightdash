@@ -266,7 +266,7 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
                         dataKey="metric"
                         stroke={colors.indigo[6]}
                         strokeWidth={1.6}
-                        dot
+                        dot={false}
                         legendType="plainline"
                     />
 
@@ -278,7 +278,7 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
                             stroke={colors.indigo[4]}
                             strokeDasharray={'3 3'}
                             strokeWidth={1.3}
-                            dot
+                            dot={false}
                             legendType="plainline"
                         />
                     )}
