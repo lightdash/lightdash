@@ -192,6 +192,7 @@ export class MetricsExplorerService<
                         projectUuid,
                         compare.metricTable,
                         compare.metricName,
+                        timeDimensionOverride?.interval,
                     );
 
                     const compareTimeDimension = compareMetric.timeDimension;
@@ -202,8 +203,8 @@ export class MetricsExplorerService<
                         );
                     }
 
-                    const compareMetricDimensionGrain = dateRange
-                        ? getGrainForDateRange(dateRange)
+                    const compareMetricDimensionGrain = timeDimensionOverride
+                        ? timeDimensionOverride.interval
                         : compareTimeDimension.interval;
 
                     const differentDimensionId = getItemId({
