@@ -90,7 +90,7 @@ const MetricsVisualization: FC<Props> = ({
 
     const dataPoints = useMemo(() => {
         if (isFetching) return null;
-        if (!results.rows) return null;
+        if (!results?.rows) return null;
 
         const timeDimension = results.metric.timeDimension;
         if (!timeDimension) return null;
