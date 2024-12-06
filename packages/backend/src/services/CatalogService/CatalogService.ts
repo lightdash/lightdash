@@ -28,6 +28,7 @@ import {
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
+    TimeFrames,
     UserAttributeValueMap,
     type ApiMetricsTreeEdgePayload,
     type ApiSort,
@@ -899,6 +900,7 @@ export class CatalogService<
         projectUuid: string,
         tableName: string,
         metricName: string,
+        timeIntervalOverride?: TimeFrames,
     ): Promise<MetricWithAssociatedTimeDimension> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -975,7 +977,9 @@ export class CatalogService<
 
             timeDimension = {
                 field: firstAvailableTimeDimension.name,
-                interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+                interval:
+                    timeIntervalOverride ??
+                    DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
                 table: firstAvailableTimeDimension.table,
             };
         }
