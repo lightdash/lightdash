@@ -263,8 +263,6 @@ export class MetricsExplorerService<
             }
         }
 
-        console.log({ compareMetric });
-
         return {
             rows: currentResults,
             comparisonRows: comparisonResults,

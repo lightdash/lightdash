@@ -147,6 +147,14 @@ export const getMetricExplorerDateRangeFilters = (
     ];
 };
 
+// TODO: Should we just use the formatted value instead?
+// Parse the metric value to a number, returning null if it's not a number
+const parseMetricValue = (value: unknown): number | null => {
+    if (value === null || value === undefined) return null;
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? null : parsed;
+};
+
 export const getMetricExplorerDataPoints = (
     dimension: Dimension,
     metric: MetricWithAssociatedTimeDimension,
@@ -161,7 +169,9 @@ export const getMetricExplorerDataPoints = (
 
     return Object.keys(groupByMetricRows).map((date) => ({
         date: new Date(date),
-        metric: groupByMetricRows[date]?.[0]?.[metricId]?.value.raw ?? null,
+        metric: parseMetricValue(
+            groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
+        ),
         compareMetric: null,
     }));
 };
@@ -213,10 +223,13 @@ export const getMetricExplorerDataPointsWithCompare = (
 
     return Array.from(dates).map((date) => ({
         date: new Date(date),
-        metric: groupByMetricRows[date]?.[0]?.[metricId]?.value.raw ?? null,
-        compareMetric:
+        metric: parseMetricValue(
+            groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
+        ),
+        compareMetric: parseMetricValue(
             offsetGroupByCompareMetricRows[date]?.[0]?.[compareMetricId]?.value
-                .raw ?? null,
+                .raw,
+        ),
     }));
 };
 
