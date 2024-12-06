@@ -542,9 +542,10 @@ export const MetricsTable = () => {
                                 <SuboptimalState
                                     title="Metrics tree not available"
                                     description={
-                                        isValidMetricsEdgeCount
-                                            ? 'Please narrow your search to display up to 30 metrics'
-                                            : 'There are no connections between the selected metrics'
+                                        !isValidMetricsEdgeCount &&
+                                        isValidMetricsNodeCount
+                                            ? 'There are no connections between the selected metrics'
+                                            : 'Please narrow your search to display up to 30 metrics'
                                     }
                                 />
                             )}
