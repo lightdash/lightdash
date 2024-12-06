@@ -3833,6 +3833,14 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'ResultRow' },
                     required: true,
                 },
+                comparisonMetric: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'MetricWithAssociatedTimeDimension' },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
                 metric: {
                     ref: 'MetricWithAssociatedTimeDimension',
                     required: true,
@@ -20821,6 +20829,7 @@ export function RegisterRoutes(app: express.Router) {
                 },
                 pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
                 page: { in: 'query', name: 'page', dataType: 'double' },
+                search: { in: 'query', name: 'search', dataType: 'string' },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
