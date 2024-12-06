@@ -111,9 +111,15 @@ const traceTasks = (tasks: TaskList) => {
     return tracedTasks;
 };
 
-const workerLogger = new GraphileLogger((scope) => (_, message, meta) => {
-    Logger.debug(message, { meta, scope });
-});
+const workerLogger = new GraphileLogger(
+    (scope) => (logLevel, message, meta) => {
+        if (logLevel === 'error') {
+            return Logger.error(message, { meta, scope });
+        }
+
+        return Logger.debug(message, { meta, scope });
+    },
+);
 
 export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
@@ -156,28 +162,22 @@ export class SchedulerWorker extends SchedulerTask {
     protected getTaskList(): TaskList {
         return {
             generateDailyJobs: async () => {
-                try {
-                    const schedulers =
-                        await this.schedulerService.getAllSchedulers();
+                const schedulers =
+                    await this.schedulerService.getAllSchedulers();
 
-                    const promises = schedulers.map(async (scheduler) => {
-                        const defaultTimezone =
-                            await this.schedulerService.getSchedulerDefaultTimezone(
-                                scheduler.schedulerUuid,
-                            );
-
-                        await this.schedulerClient.generateDailyJobsForScheduler(
-                            scheduler,
-                            defaultTimezone,
+                const promises = schedulers.map(async (scheduler) => {
+                    const defaultTimezone =
+                        await this.schedulerService.getSchedulerDefaultTimezone(
+                            scheduler.schedulerUuid,
                         );
-                    });
 
-                    await Promise.all(promises);
-                } catch (e) {
-                    Logger.error(`generateDailyJobs failed with: ${e.stack}`);
+                    await this.schedulerClient.generateDailyJobsForScheduler(
+                        scheduler,
+                        defaultTimezone,
+                    );
+                });
 
-                    throw e;
-                }
+                await Promise.all(promises);
             },
 
             handleScheduledDelivery: async (
