@@ -451,6 +451,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                     setTimeDimensionOverride
                                 }
                                 onTimeIntervalChange={handleTimeIntervalChange}
+                                isFetching={metricResultsQuery.isFetching}
                             />
                         )}
                     </Box>

@@ -72,6 +72,7 @@ type Props = {
     timeDimensionBaseField: TimeDimensionConfig;
     setTimeDimensionOverride: (config: TimeDimensionConfig | undefined) => void;
     onTimeIntervalChange: (interval: TimeFrames) => void;
+    isFetching: boolean;
 };
 
 const MetricsVisualization: FC<Props> = ({
@@ -83,10 +84,12 @@ const MetricsVisualization: FC<Props> = ({
     timeDimensionBaseField,
     setTimeDimensionOverride,
     onTimeIntervalChange,
+    isFetching,
 }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
     const dataPoints = useMemo(() => {
+        if (isFetching) return null;
         if (!results.rows) return null;
 
         const timeDimension = results.metric.timeDimension;
@@ -171,7 +174,7 @@ const MetricsVisualization: FC<Props> = ({
             default:
                 return assertUnreachable(comparison, `Unknown comparison type`);
         }
-    }, [comparison, results]);
+    }, [comparison, results, isFetching]);
 
     const data = useMemo(() => {
         if (!dataPoints) return [];
