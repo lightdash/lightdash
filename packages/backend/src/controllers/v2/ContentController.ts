@@ -38,9 +38,9 @@ export class ContentController extends BaseController {
         @Query() contentTypes?: ContentType[],
         @Query() pageSize?: number,
         @Query() page?: number,
+        @Query() search?: string,
     ): Promise<ApiContentResponse> {
         this.setStatus(200);
-
         return {
             status: 'ok',
             results: await this.services.getContentService().find(
@@ -49,6 +49,7 @@ export class ContentController extends BaseController {
                     projectUuids,
                     spaceUuids,
                     contentTypes,
+                    search,
                 },
                 {
                     page: page || 1,

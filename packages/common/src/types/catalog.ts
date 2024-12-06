@@ -251,3 +251,8 @@ export type ChartUsageIn = CatalogFieldWhere & {
 };
 
 export const indexCatalogJob = 'indexCatalog';
+
+export type ApiMetricsWithAssociatedTimeDimensionResponse = {
+    status: 'ok';
+    results: MetricWithAssociatedTimeDimension[];
+};

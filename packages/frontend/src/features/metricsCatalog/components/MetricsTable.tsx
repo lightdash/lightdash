@@ -106,32 +106,6 @@ export const MetricsTable = () => {
         }),
     });
 
-    const flatData = useMemo(
-        () => data?.pages.flatMap((page) => page.data) ?? [],
-        [data],
-    );
-
-    // Fetch metric tree data
-    const selectedMetricUuids = useMemo(() => {
-        return flatData.map((metric) => metric.catalogSearchUuid);
-    }, [flatData]);
-
-    const isValidMetricsTree =
-        selectedMetricUuids.length > 0 &&
-        selectedMetricUuids.length <= MAX_METRICS_TREE_NODE_COUNT;
-
-    const { data: metricsTree } = useMetricsTree(
-        projectUuid,
-        selectedMetricUuids,
-        {
-            enabled: !!projectUuid && isValidMetricsTree,
-        },
-    );
-
-    const dataHasCategories = useMemo(() => {
-        return flatData.some((item) => item.categories?.length);
-    }, [flatData]);
-
     // Check if we are mutating any of the icons or categories related mutations
     // TODO: Move this to separate hook and utilise constants so this scales better
     const isMutating = useIsMutating({
@@ -176,18 +150,6 @@ export const MetricsTable = () => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const totalResults = useMemo(() => {
-        if (!data) return 0;
-        // Return total results from the last page, this should be the same but still we want to have the latest value
-        const lastPage = data.pages[data.pages.length - 1];
-        return lastPage.pagination?.totalResults ?? 0;
-    }, [data]);
-
-    const showLoadingOverlay = useMemo(
-        () => isFetching && isPreviousData && !isMutating,
-        [isFetching, isPreviousData, isMutating],
-    );
-
     const handleViewChange = (view: MetricCatalogView) => {
         setMetricCatalogView(view);
     };
@@ -221,6 +183,69 @@ export const MetricsTable = () => {
         }),
         [theme],
     );
+
+    const flatData = useMemo(
+        () => data?.pages.flatMap((page) => page.data) ?? [],
+        [data],
+    );
+
+    // Fetch metric tree data
+    const selectedMetricUuids = useMemo(() => {
+        return flatData.map((metric) => metric.catalogSearchUuid);
+    }, [flatData]);
+
+    const totalResults = useMemo(() => {
+        if (!data) return 0;
+        // Return total results from the last page, this should be the same but still we want to have the latest value
+        const lastPage = data.pages[data.pages.length - 1];
+        return lastPage.pagination?.totalResults ?? 0;
+    }, [data]);
+
+    const showLoadingOverlay = useMemo(
+        () => isFetching && isPreviousData && !isMutating,
+        [isFetching, isPreviousData, isMutating],
+    );
+
+    const isValidMetricsNodeCount =
+        selectedMetricUuids.length > 0 &&
+        selectedMetricUuids.length <= MAX_METRICS_TREE_NODE_COUNT;
+
+    const { data: metricsTree } = useMetricsTree(
+        projectUuid,
+        selectedMetricUuids,
+        {
+            enabled: !!projectUuid && isValidMetricsNodeCount,
+        },
+    );
+
+    // Viewers cannot access metrics tree if there are no edges
+    const isValidMetricsEdgeCount = useMemo(
+        () => canManageMetricsTree || (metricsTree?.edges.length ?? 0) > 0,
+        [canManageMetricsTree, metricsTree],
+    );
+
+    const isValidMetricsTree = useMemo(
+        () => isValidMetricsNodeCount && isValidMetricsEdgeCount,
+        [isValidMetricsNodeCount, isValidMetricsEdgeCount],
+    );
+
+    const segmentedControlTooltipLabel = useMemo(() => {
+        if (totalResults === 0) {
+            return 'There are no metrics to display in the metrics tree';
+        }
+
+        if (!isValidMetricsNodeCount) {
+            return 'You can only select up to 30 metrics for the metrics tree';
+        }
+
+        if (!isValidMetricsEdgeCount) {
+            return 'There are no connections between the selected metrics';
+        }
+    }, [isValidMetricsEdgeCount, isValidMetricsNodeCount, totalResults]);
+
+    const dataHasCategories = useMemo(() => {
+        return flatData.some((item) => item.categories?.length);
+    }, [flatData]);
 
     const table = useMantineReactTable({
         columns: MetricsCatalogColumns,
@@ -396,6 +421,8 @@ export const MetricsTable = () => {
                     showCategoriesFilter={canManageTags || dataHasCategories}
                     onMetricCatalogViewChange={handleViewChange}
                     metricCatalogView={metricCatalogView}
+                    isValidMetricsTree={isValidMetricsTree}
+                    segmentedControlTooltipLabel={segmentedControlTooltipLabel}
                 />
                 <Divider color="gray.2" />
             </Box>
@@ -496,6 +523,10 @@ export const MetricsTable = () => {
                             }
                             onMetricCatalogViewChange={handleViewChange}
                             metricCatalogView={metricCatalogView}
+                            isValidMetricsTree={isValidMetricsTree}
+                            segmentedControlTooltipLabel={
+                                segmentedControlTooltipLabel
+                            }
                         />
                         <Divider color="gray.2" />
                     </Box>
@@ -510,7 +541,12 @@ export const MetricsTable = () => {
                             ) : (
                                 <SuboptimalState
                                     title="Metrics tree not available"
-                                    description="Please narrow your search to display up to 30 metrics"
+                                    description={
+                                        !isValidMetricsEdgeCount &&
+                                        isValidMetricsNodeCount
+                                            ? 'There are no connections between the selected metrics'
+                                            : 'Please narrow your search to display up to 30 metrics'
+                                    }
                                 />
                             )}
                         </ReactFlowProvider>

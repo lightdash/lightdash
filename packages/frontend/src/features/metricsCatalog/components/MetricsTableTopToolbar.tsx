@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    MAX_METRICS_TREE_NODE_COUNT,
-    type CatalogField,
-} from '@lightdash/common';
+import { FeatureFlags, type CatalogField } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -212,7 +208,9 @@ type MetricsTableTopToolbarProps = GroupProps & {
         categories: CatalogField['categories'][number]['tagUuid'][],
     ) => void;
     totalResults: number;
+    segmentedControlTooltipLabel?: string;
     showCategoriesFilter?: boolean;
+    isValidMetricsTree: boolean;
     onMetricCatalogViewChange?: (view: MetricCatalogView) => void;
     metricCatalogView: MetricCatalogView;
 };
@@ -225,18 +223,17 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         selectedCategories,
         setSelectedCategories,
         showCategoriesFilter,
+        isValidMetricsTree,
+        segmentedControlTooltipLabel,
         onMetricCatalogViewChange,
         metricCatalogView,
         ...props
     }) => {
         const clearSearch = useCallback(() => setSearch(''), [setSearch]);
 
-        const isMetricTreesEnabled = useFeatureFlagEnabled(
+        const isMetricTreesFeatureFlagEnabled = useFeatureFlagEnabled(
             FeatureFlags.MetricTrees,
         );
-
-        const isValidMetricsTree =
-            totalResults > 0 && totalResults <= MAX_METRICS_TREE_NODE_COUNT;
 
         return (
             <Group {...props}>
@@ -332,7 +329,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             </Text>
                         </Group>
                     </Badge>
-                    {isMetricTreesEnabled && (
+                    {isMetricTreesFeatureFlagEnabled && (
                         <>
                             <Divider
                                 orientation="vertical"
@@ -346,11 +343,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             <Tooltip
                                 withinPortal
                                 variant="xs"
-                                label={
-                                    totalResults > 0
-                                        ? `You can only select up to ${MAX_METRICS_TREE_NODE_COUNT} metrics for the metrics tree`
-                                        : 'There are no metrics to display in the metrics tree'
-                                }
+                                label={segmentedControlTooltipLabel}
                                 disabled={isValidMetricsTree}
                             >
                                 <SegmentedControl

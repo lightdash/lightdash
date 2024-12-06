@@ -123,6 +123,12 @@ export const semanticViewerChartContentConfiguration: ContentConfiguration<Selec
                             filters.spaceUuids,
                         );
                     }
+                    if (filters.search) {
+                        void builder.whereRaw(
+                            `LOWER(${SavedSemanticViewerChartsTableName}.name) LIKE ?`,
+                            [`%${filters.search.toLowerCase()}%`],
+                        );
+                    }
                 }),
         shouldRowBeConverted: (
             value,

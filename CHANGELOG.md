@@ -1,3 +1,39 @@
+## [0.1404.2](https://github.com/lightdash/lightdash/compare/0.1404.1...0.1404.2) (2024-12-06)
+
+
+### Bug Fixes
+
+* address time interval overrride on comparison of metrics ([#12765](https://github.com/lightdash/lightdash/issues/12765)) ([4fe874a](https://github.com/lightdash/lightdash/commit/4fe874ad48154b006e65bd5aff90b9eab7757f16))
+
+## [0.1404.1](https://github.com/lightdash/lightdash/compare/0.1404.0...0.1404.1) (2024-12-06)
+
+
+### Bug Fixes
+
+* disable tree for viewer when invalid edge count ([#12761](https://github.com/lightdash/lightdash/issues/12761)) ([937da88](https://github.com/lightdash/lightdash/commit/937da884011a36524411ba4bcfa25ccdb45a238f))
+* paginate charts in dashboard modals ([#12764](https://github.com/lightdash/lightdash/issues/12764)) ([4ad3799](https://github.com/lightdash/lightdash/commit/4ad3799c3f9483eb0b9a4856409bbeacbe52fa20))
+
+# [0.1404.0](https://github.com/lightdash/lightdash/compare/0.1403.1...0.1404.0) (2024-12-06)
+
+
+### Features
+
+* change layout of date picker, granularity and data zoom ([#12748](https://github.com/lightdash/lightdash/issues/12748)) ([bcc7cc7](https://github.com/lightdash/lightdash/commit/bcc7cc75e49e4d8d1fa2526e76a0b35d95c8f8bf))
+
+## [0.1403.1](https://github.com/lightdash/lightdash/compare/0.1403.0...0.1403.1) (2024-12-06)
+
+
+### Bug Fixes
+
+* check if project has saved charts ([#12758](https://github.com/lightdash/lightdash/issues/12758)) ([483281e](https://github.com/lightdash/lightdash/commit/483281e236d639b047a44483b6c60522145334ea))
+
+# [0.1403.0](https://github.com/lightdash/lightdash/compare/0.1402.0...0.1403.0) (2024-12-06)
+
+
+### Features
+
+* metrics explorer compare with other metric part 2 ([#12745](https://github.com/lightdash/lightdash/issues/12745)) ([cf98681](https://github.com/lightdash/lightdash/commit/cf98681d24941a44dc3476aa8c8b0cf881d4646d))
+
 # [0.1402.0](https://github.com/lightdash/lightdash/compare/0.1401.0...0.1402.0) (2024-12-05)
 
 

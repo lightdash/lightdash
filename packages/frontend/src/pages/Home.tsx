@@ -13,10 +13,7 @@ import PinnedItemsPanel from '../components/PinnedItemsPanel';
 
 import { subject } from '@casl/ability';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
-import {
-    useOnboardingStatus,
-    useProjectSavedChartStatus,
-} from '../hooks/useOnboardingStatus';
+import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
 import {
     useMostPopularAndRecentlyUpdated,
     useProject,
@@ -27,7 +24,6 @@ import { PinnedItemsProvider } from '../providers/PinnedItemsProvider';
 const Home: FC = () => {
     const params = useParams<{ projectUuid: string }>();
     const selectedProjectUuid = params.projectUuid;
-    const savedChartStatus = useProjectSavedChartStatus(selectedProjectUuid);
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
     const pinnedItems = usePinnedItems(
@@ -45,11 +41,10 @@ const Home: FC = () => {
     const isLoading =
         onboarding.isInitialLoading ||
         project.isInitialLoading ||
-        savedChartStatus.isInitialLoading ||
         isMostPopularAndRecentlyUpdatedLoading ||
         pinnedItems.isInitialLoading;
 
-    const error = onboarding.error || project.error || savedChartStatus.error;
+    const error = onboarding.error || project.error;
 
     useUnmount(() => onboarding.remove());
 

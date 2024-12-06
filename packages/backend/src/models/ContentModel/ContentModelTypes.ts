@@ -8,6 +8,7 @@ export type ContentFilters = {
     chart?: {
         sources?: ChartContent['source'][];
     };
+    search?: string;
 };
 
 export type SummaryContentRow<

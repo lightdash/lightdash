@@ -12,6 +12,7 @@ import {
     type MetricExplorerDateRange,
     type MetricQuery,
     type MetricsExplorerQueryResults,
+    type MetricWithAssociatedTimeDimension,
     type ResultRow,
     type SessionUser,
     type TimeDimensionConfig,
@@ -144,6 +145,8 @@ export class MetricsExplorerService<
         let allFields = fields;
 
         let comparisonResults: ResultRow[] | undefined;
+        let compareMetric: MetricWithAssociatedTimeDimension | undefined;
+
         if (compare) {
             switch (compare.type) {
                 case MetricExplorerComparison.NONE:
@@ -184,51 +187,51 @@ export class MetricsExplorerService<
 
                     break;
                 case MetricExplorerComparison.DIFFERENT_METRIC:
-                    const differentMetric = await this.catalogService.getMetric(
+                    compareMetric = await this.catalogService.getMetric(
                         user,
                         projectUuid,
                         compare.metricTable,
                         compare.metricName,
+                        timeDimensionOverride?.interval,
                     );
 
-                    const differentMetricTimeDimension =
-                        differentMetric.timeDimension;
+                    const compareTimeDimension = compareMetric.timeDimension;
 
-                    if (!differentMetricTimeDimension) {
+                    if (!compareTimeDimension) {
                         throw new Error(
                             `Comparison metric should always have an associated time dimension`,
                         );
                     }
 
-                    const differentMetricDimensionGrain = dateRange
-                        ? getGrainForDateRange(dateRange)
-                        : differentMetricTimeDimension.interval;
+                    const compareMetricDimensionGrain = timeDimensionOverride
+                        ? timeDimensionOverride.interval
+                        : compareTimeDimension.interval;
 
-                    const differentMetricTimeDimensionId = getItemId({
-                        table: differentMetric.table,
+                    const differentDimensionId = getItemId({
+                        table: compareTimeDimension.table,
                         name: getFieldIdForDateDimension(
-                            timeDimensionConfig.field,
-                            differentMetricDimensionGrain,
+                            compareTimeDimension.field,
+                            compareMetricDimensionGrain,
                         ),
                     });
 
                     const differentMetricQuery: MetricQuery = {
                         exploreName: compare.metricTable,
-                        metrics: [getItemId(differentMetric)],
-                        dimensions: [differentMetricTimeDimensionId],
+                        metrics: [getItemId(compareMetric)],
+                        dimensions: [differentDimensionId],
                         filters: {
                             dimensions: {
                                 id: uuidv4(),
                                 and: getMetricExplorerDateRangeFilters(
-                                    compare.metricTable,
-                                    differentMetricTimeDimension.field,
+                                    compareTimeDimension.table,
+                                    compareTimeDimension.field,
                                     dateRange,
                                 ),
                             },
                         },
                         sorts: [
                             {
-                                fieldId: differentMetricTimeDimensionId,
+                                fieldId: differentDimensionId,
                                 descending: false,
                             },
                         ],
@@ -265,6 +268,7 @@ export class MetricsExplorerService<
             comparisonRows: comparisonResults,
             fields: allFields,
             metric: { ...metric, timeDimension: timeDimensionConfig },
+            comparisonMetric: compareMetric,
         };
     }
 }
