@@ -138,7 +138,7 @@ export class SchedulerWorker extends SchedulerTask {
                     pattern: '0 0 * * *',
                     options: {
                         backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
-                        maxAttempts: 1,
+                        maxAttempts: 3,
                     },
                 },
             ]),
@@ -156,21 +156,28 @@ export class SchedulerWorker extends SchedulerTask {
     protected getTaskList(): TaskList {
         return {
             generateDailyJobs: async () => {
-                const schedulers =
-                    await this.schedulerService.getAllSchedulers();
-                const promises = schedulers.map(async (scheduler) => {
-                    const defaultTimezone =
-                        await this.schedulerService.getSchedulerDefaultTimezone(
-                            scheduler.schedulerUuid,
+                try {
+                    const schedulers =
+                        await this.schedulerService.getAllSchedulers();
+
+                    const promises = schedulers.map(async (scheduler) => {
+                        const defaultTimezone =
+                            await this.schedulerService.getSchedulerDefaultTimezone(
+                                scheduler.schedulerUuid,
+                            );
+
+                        await this.schedulerClient.generateDailyJobsForScheduler(
+                            scheduler,
+                            defaultTimezone,
                         );
+                    });
 
-                    await this.schedulerClient.generateDailyJobsForScheduler(
-                        scheduler,
-                        defaultTimezone,
-                    );
-                });
+                    await Promise.all(promises);
+                } catch (e) {
+                    Logger.error(`generateDailyJobs failed with: ${e.stack}`);
 
-                await Promise.all(promises);
+                    throw e;
+                }
             },
 
             handleScheduledDelivery: async (
