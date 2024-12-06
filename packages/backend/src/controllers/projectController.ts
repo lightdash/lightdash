@@ -40,6 +40,7 @@ import {
 import {
     Body,
     Delete,
+    Deprecated,
     Get,
     Hidden,
     Middlewares,
@@ -118,6 +119,7 @@ export class ProjectController extends BaseController {
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/chart-summaries')
+    @Deprecated()
     @OperationId('ListChartSummariesInProject')
     async getChartSummariesInProject(
         @Path() projectUuid: string,
