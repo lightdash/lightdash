@@ -111,9 +111,15 @@ const traceTasks = (tasks: TaskList) => {
     return tracedTasks;
 };
 
-const workerLogger = new GraphileLogger((scope) => (_, message, meta) => {
-    Logger.debug(message, { meta, scope });
-});
+const workerLogger = new GraphileLogger(
+    (scope) => (logLevel, message, meta) => {
+        if (logLevel === 'error') {
+            return Logger.error(message, { meta, scope });
+        }
+
+        return Logger.debug(message, { meta, scope });
+    },
+);
 
 export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
@@ -138,7 +144,7 @@ export class SchedulerWorker extends SchedulerTask {
                     pattern: '0 0 * * *',
                     options: {
                         backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
-                        maxAttempts: 1,
+                        maxAttempts: 3,
                     },
                 },
             ]),
@@ -158,6 +164,7 @@ export class SchedulerWorker extends SchedulerTask {
             generateDailyJobs: async () => {
                 const schedulers =
                     await this.schedulerService.getAllSchedulers();
+
                 const promises = schedulers.map(async (scheduler) => {
                     const defaultTimezone =
                         await this.schedulerService.getSchedulerDefaultTimezone(
