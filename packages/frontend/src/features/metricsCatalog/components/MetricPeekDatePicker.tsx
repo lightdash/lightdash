@@ -1,4 +1,5 @@
 import {
+    formatDate,
     TimeFrames,
     type MetricExplorerDateRange,
     type TimeDimensionConfig,
@@ -9,6 +10,7 @@ import {
     Divider,
     Group,
     Popover,
+    SegmentedControl,
     Stack,
     Text,
     TextInput,
@@ -16,10 +18,9 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
-import { IconCalendar, IconChevronDown } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { useDateRangePicker } from '../hooks/useDateRangePicker';
+import { getMatchingPresetLabel } from '../utils/metricPeekDate';
 import { TimeDimensionIntervalPicker } from './visualization/TimeDimensionIntervalPicker';
 
 type Props = {
@@ -56,57 +57,123 @@ export const MetricPeekDatePicker: FC<Props> = ({
         calendarConfig,
     } = useDateRangePicker({ value: dateRange, onChange, timeInterval });
 
+    const matchingPresetLabel = getMatchingPresetLabel(dateRange, timeInterval);
+
+    const customWithPresets = [
+        {
+            label: matchingPresetLabel ? (
+                'Custom'
+            ) : (
+                <UnstyledButton
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpen(true);
+                    }}
+                >
+                    <Text size="sm" fw={500} c="dark.8">
+                        Custom:{' '}
+                        <Text size="sm" fw={500} c="gray.6" span>
+                            {buttonLabel}
+                        </Text>
+                    </Text>
+                </UnstyledButton>
+            ),
+            value: 'custom',
+        },
+        ...presets.map((preset) => ({
+            label: (
+                <Tooltip
+                    variant="xs"
+                    label={`${formatDate(preset.getValue()[0])} - ${formatDate(
+                        preset.getValue()[1],
+                    )}`}
+                >
+                    <Box>{preset.controlLabel}</Box>
+                </Tooltip>
+            ),
+            value: preset.controlLabel,
+        })),
+    ];
+
     return (
         <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
             <Popover.Target>
-                <Tooltip label={'Select date range'}>
-                    <Button
-                        variant="default"
-                        radius="md"
-                        onClick={() => handleOpen(!isOpen)}
-                        size="sm"
-                        px="xs"
-                        w="100%"
+                <Group position="apart" w="fill-available">
+                    <SegmentedControl
+                        size="xs"
+                        h={32}
+                        data={customWithPresets}
+                        value={
+                            isOpen ||
+                            !timeDimensionBaseField ||
+                            !matchingPresetLabel
+                                ? 'custom'
+                                : matchingPresetLabel
+                        }
+                        onChange={(value) => {
+                            if (value === 'custom') {
+                                handleOpen(true);
+                            } else {
+                                handleOpen(false);
+                                const presetDateRange = presets
+                                    .find(
+                                        (preset) =>
+                                            preset.controlLabel === value,
+                                    )
+                                    ?.getValue();
+                                if (presetDateRange) {
+                                    onChange(
+                                        presetDateRange as MetricExplorerDateRange,
+                                    );
+                                }
+                            }
+                        }}
+                        transitionDuration={300}
+                        transitionTimingFunction="linear"
                         styles={(theme) => ({
                             root: {
                                 border: `1px solid ${theme.colors.gray[2]}`,
-                                boxShadow: theme.shadows.subtle,
+                                borderRadius: theme.radius.md,
+                                backgroundColor: theme.colors.gray[0],
+                                alignItems: 'center',
                             },
                             label: {
-                                width: '100%',
+                                fontSize: theme.fontSizes.sm,
+                                color: theme.colors.gray[6],
                                 fontWeight: 500,
+                                paddingLeft: theme.spacing.sm,
+                                paddingRight: theme.spacing.sm,
+                                '&[data-active]': {
+                                    color: theme.colors.dark[7],
+                                },
+                            },
+                            control: {
+                                '&:not(:first-of-type)': {
+                                    borderLeft: 'none',
+                                },
+                            },
+                            indicator: {
+                                boxShadow: theme.shadows.subtle,
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                                borderRadius: theme.radius.md,
+                                top: 4,
                             },
                         })}
-                    >
-                        <Group position="apart" w="fill-available">
-                            <Group spacing="xs">
-                                <MantineIcon
-                                    color="dark.3"
-                                    icon={IconCalendar}
-                                />
-                                {buttonLabel}
-                            </Group>
-                            {showTimeDimensionIntervalPicker &&
-                            timeDimensionBaseField ? (
-                                <TimeDimensionIntervalPicker
-                                    dimension={timeDimensionBaseField}
-                                    onChange={(value) => {
-                                        setTimeDimensionOverride(value);
-                                        onTimeIntervalChange(
-                                            value?.interval ?? timeInterval,
-                                        );
-                                        reset();
-                                    }}
-                                />
-                            ) : (
-                                <MantineIcon
-                                    color="dark.3"
-                                    icon={IconChevronDown}
-                                />
-                            )}
-                        </Group>
-                    </Button>
-                </Tooltip>
+                    />
+                    {showTimeDimensionIntervalPicker &&
+                        timeDimensionBaseField && (
+                            <TimeDimensionIntervalPicker
+                                dimension={timeDimensionBaseField}
+                                onChange={(value) => {
+                                    setTimeDimensionOverride(value);
+                                    onTimeIntervalChange(
+                                        value?.interval ?? timeInterval,
+                                    );
+                                    reset();
+                                }}
+                            />
+                        )}
+                </Group>
             </Popover.Target>
 
             <Popover.Dropdown p={0}>

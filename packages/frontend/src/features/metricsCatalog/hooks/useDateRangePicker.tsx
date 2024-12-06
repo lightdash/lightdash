@@ -17,6 +17,7 @@ type DateRange = MetricExplorerPartialDateRange;
 
 export interface DateRangePreset {
     label: string;
+    controlLabel: string;
     getValue: () => DateRange;
 }
 
@@ -180,7 +181,6 @@ export const useDateRangePicker = ({
                             const endDate = dates[1]
                                 ? dayjs(dates[1]).endOf('month').toDate()
                                 : null;
-
                             handleDateRangeChange([startDate, endDate]);
                         },
                         numberOfColumns: 2,

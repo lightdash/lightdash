@@ -9,6 +9,8 @@ import {
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
     type MetricsExplorerQueryResults,
+    type TimeDimensionConfig,
+    type TimeFrames,
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, useMantineTheme } from '@mantine/core';
 import { IconZoomReset } from '@tabler/icons-react';
@@ -36,6 +38,8 @@ import {
     YAxis,
 } from 'recharts';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
+import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { FORMATS } from './types';
 import { useChartZoom } from './useChartZoom';
 
@@ -63,12 +67,29 @@ type Props = {
     results: MetricsExplorerQueryResults;
     dateRange: MetricExplorerDateRange | undefined;
     comparison: MetricExplorerComparisonType;
+    onDateRangeChange: (range: MetricExplorerDateRange) => void;
+    showTimeDimensionIntervalPicker: boolean;
+    timeDimensionBaseField: TimeDimensionConfig;
+    setTimeDimensionOverride: (config: TimeDimensionConfig | undefined) => void;
+    onTimeIntervalChange: (interval: TimeFrames) => void;
+    isFetching: boolean;
 };
 
-const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
+const MetricsVisualization: FC<Props> = ({
+    results,
+    dateRange,
+    comparison,
+    onDateRangeChange,
+    showTimeDimensionIntervalPicker,
+    timeDimensionBaseField,
+    setTimeDimensionOverride,
+    onTimeIntervalChange,
+    isFetching,
+}) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
     const dataPoints = useMemo(() => {
+        if (isFetching) return null;
         if (!results.rows) return null;
 
         const timeDimension = results.metric.timeDimension;
@@ -109,9 +130,7 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
                 );
             case MetricExplorerComparison.DIFFERENT_METRIC:
                 if (!results.comparisonRows) {
-                    throw new Error(
-                        `Comparison rows are required for comparison type ${comparison.type}`,
-                    );
+                    return null;
                 }
 
                 if (!results.comparisonMetric) {
@@ -155,7 +174,7 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
             default:
                 return assertUnreachable(comparison, `Unknown comparison type`);
         }
-    }, [comparison, results]);
+    }, [comparison, results, isFetching]);
 
     const data = useMemo(() => {
         if (!dataPoints) return [];
@@ -198,11 +217,30 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
         };
     }, [data, activeData]);
 
-    if (!data) return null;
+    const showEmptyState = dataPoints?.length === 0;
 
     return (
-        <Stack spacing={0} w="100%" h="100%" sx={{ flexGrow: 1 }}>
-            <Group position="right">
+        <Stack
+            spacing={showEmptyState ? 'sm' : 'lg'}
+            pb={showEmptyState ? 'sm' : undefined}
+            w="100%"
+            h="100%"
+            sx={{ flexGrow: 1 }}
+        >
+            <Group spacing="sm" noWrap>
+                {dateRange && results.metric.timeDimension && (
+                    <MetricPeekDatePicker
+                        dateRange={dateRange}
+                        onChange={onDateRangeChange}
+                        showTimeDimensionIntervalPicker={
+                            showTimeDimensionIntervalPicker
+                        }
+                        timeDimensionBaseField={timeDimensionBaseField}
+                        setTimeDimensionOverride={setTimeDimensionOverride}
+                        timeInterval={results.metric.timeDimension.interval}
+                        onTimeIntervalChange={onTimeIntervalChange}
+                    />
+                )}
                 <Button
                     variant="subtle"
                     color="gray"
@@ -216,91 +254,102 @@ const MetricsVisualization: FC<Props> = ({ results, comparison }) => {
                 </Button>
             </Group>
 
-            <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                    data={activeData}
-                    margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                >
-                    <CartesianGrid
-                        horizontal
-                        vertical={false}
-                        stroke={colors.gray[2]}
-                        strokeDasharray="4 3"
-                    />
+            {showEmptyState && <MetricsVisualizationEmptyState />}
 
-                    <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        fontSize={11}
-                        width={4}
-                    />
-
-                    <XAxis
-                        dataKey="dateValue"
-                        {...xAxisConfig}
-                        axisLine={{ stroke: colors.gray[2] }}
-                        tickLine={false}
-                        fontSize={11}
-                    />
-
-                    <RechartsTooltip
-                        formatter={(value) => [value, results.metric.label]}
-                        labelFormatter={(label) =>
-                            dayjs(label).format('MMM D, YYYY')
-                        }
-                        contentStyle={{
-                            fontSize: fontSizes.xs,
-                            backgroundColor: colors.offWhite[0],
-                            borderRadius: radius.md,
-                            border: `1px solid ${colors.gray[2]}`,
-                            boxShadow: shadows.sm,
+            {!showEmptyState && (
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                        data={activeData}
+                        margin={{
+                            top: 40,
+                            right: 40,
+                            bottom: 40,
+                            left: 40,
                         }}
-                    />
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                    >
+                        <CartesianGrid
+                            horizontal
+                            vertical={false}
+                            stroke={colors.gray[2]}
+                            strokeDasharray="4 3"
+                        />
 
-                    <Line
-                        name={results.metric.label}
-                        type="monotone"
-                        dataKey="metric"
-                        stroke={colors.indigo[6]}
-                        strokeWidth={1.6}
-                        dot={false}
-                        legendType="plainline"
-                    />
+                        <YAxis
+                            axisLine={false}
+                            tickLine={false}
+                            fontSize={11}
+                            width={4}
+                            domain={['dataMin - 1', 'dataMax + 1']}
+                            allowDataOverflow={false}
+                        />
 
-                    {results.comparisonRows && (
+                        <XAxis
+                            dataKey="dateValue"
+                            {...xAxisConfig}
+                            axisLine={{ stroke: colors.gray[2] }}
+                            tickLine={false}
+                            fontSize={11}
+                        />
+
+                        <RechartsTooltip
+                            formatter={(value) => [value, results.metric.label]}
+                            labelFormatter={(label) =>
+                                dayjs(label).format('MMM D, YYYY')
+                            }
+                            contentStyle={{
+                                fontSize: fontSizes.xs,
+                                backgroundColor: colors.offWhite[0],
+                                borderRadius: radius.md,
+                                border: `1px solid ${colors.gray[2]}`,
+                                boxShadow: shadows.sm,
+                            }}
+                        />
+
                         <Line
-                            name={`${results.metric.label} (comparison)`}
+                            name={results.metric.label}
                             type="monotone"
-                            dataKey="compareMetric"
-                            stroke={colors.indigo[4]}
-                            strokeDasharray={'3 3'}
-                            strokeWidth={1.3}
+                            dataKey="metric"
+                            stroke={colors.indigo[6]}
+                            strokeWidth={1.6}
                             dot={false}
                             legendType="plainline"
                         />
-                    )}
 
-                    <Legend
-                        formatter={(value) => (
-                            <Text span c="dark.5" size={14} fw={400}>
-                                {value}
-                            </Text>
+                        {results.comparisonRows && (
+                            <Line
+                                name={`${results.metric.label} (comparison)`}
+                                type="monotone"
+                                dataKey="compareMetric"
+                                stroke={colors.indigo[4]}
+                                strokeDasharray={'3 3'}
+                                strokeWidth={1.3}
+                                dot={false}
+                                legendType="plainline"
+                            />
                         )}
-                    />
 
-                    {zoomState.refAreaLeft && zoomState.refAreaRight && (
-                        <ReferenceArea
-                            x1={zoomState.refAreaLeft}
-                            x2={zoomState.refAreaRight}
-                            strokeOpacity={0.3}
-                            fill={colors.gray[3]}
+                        <Legend
+                            formatter={(value) => (
+                                <Text span c="dark.5" size={14} fw={400}>
+                                    {value}
+                                </Text>
+                            )}
                         />
-                    )}
-                </LineChart>
-            </ResponsiveContainer>
+
+                        {zoomState.refAreaLeft && zoomState.refAreaRight && (
+                            <ReferenceArea
+                                x1={zoomState.refAreaLeft}
+                                x2={zoomState.refAreaRight}
+                                strokeOpacity={0.3}
+                                fill={colors.gray[3]}
+                            />
+                        )}
+                    </LineChart>
+                </ResponsiveContainer>
+            )}
         </Stack>
     );
 };
