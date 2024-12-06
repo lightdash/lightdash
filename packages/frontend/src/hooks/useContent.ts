@@ -4,7 +4,12 @@ import {
     type ContentType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import {
+    useInfiniteQuery,
+    useQuery,
+    type UseInfiniteQueryOptions,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
 type ContentArgs = {
@@ -13,6 +18,7 @@ type ContentArgs = {
     contentTypes?: ContentType[];
     pageSize?: number;
     page?: number;
+    search?: string;
 };
 
 function createQueryString(params: Record<string, any>): string {
@@ -53,5 +59,32 @@ export const useContent = (
         queryKey: ['content', JSON.stringify(args)],
         queryFn: () => getContent(args),
         ...useQueryOptions,
+    });
+};
+
+export const useInfiniteContent = (
+    args: ContentArgs,
+    infinityQueryOpts: UseInfiniteQueryOptions<
+        ApiContentResponse['results'],
+        ApiError
+    > = {},
+) => {
+    return useInfiniteQuery<ApiContentResponse['results'], ApiError>({
+        queryKey: ['content', args],
+        queryFn: async ({ pageParam }) => {
+            return getContent({
+                ...args,
+                page: pageParam ?? 1,
+            });
+        },
+        getNextPageParam: (lastPage) => {
+            if (lastPage.pagination) {
+                return lastPage.pagination.page <
+                    lastPage.pagination.totalPageCount
+                    ? lastPage.pagination.page + 1
+                    : undefined;
+            }
+        },
+        ...infinityQueryOpts,
     });
 };
