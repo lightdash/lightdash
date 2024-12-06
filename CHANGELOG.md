@@ -1,3 +1,10 @@
+# [0.1403.0](https://github.com/lightdash/lightdash/compare/0.1402.0...0.1403.0) (2024-12-06)
+
+
+### Features
+
+* metrics explorer compare with other metric part 2 ([#12745](https://github.com/lightdash/lightdash/issues/12745)) ([cf98681](https://github.com/lightdash/lightdash/commit/cf98681d24941a44dc3476aa8c8b0cf881d4646d))
+
 # [0.1402.0](https://github.com/lightdash/lightdash/compare/0.1401.0...0.1402.0) (2024-12-05)
 
 
