@@ -155,6 +155,21 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         }
     }, [comparisonType, selectedMetric]);
 
+    const metricExplorerQueryOptions = {
+        enabled:
+            !!projectUuid &&
+            !!tableName &&
+            !!metricName &&
+            !!comparisonParams &&
+            !!dateRange &&
+            (comparisonParams.type !==
+                MetricExplorerComparison.DIFFERENT_METRIC ||
+                (comparisonParams.type ===
+                    MetricExplorerComparison.DIFFERENT_METRIC &&
+                    !!comparisonParams.metricName &&
+                    !!comparisonParams.metricTable)),
+        keepPreviousData: true,
+    };
     const metricResultsQuery = useRunMetricExplorerQuery({
         projectUuid,
         exploreName: tableName,
@@ -162,6 +177,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         dateRange: dateRange ?? undefined,
         comparison: comparisonParams,
         timeDimensionOverride,
+        options: metricExplorerQueryOptions,
     });
 
     const timeDimensionBaseField: TimeDimensionConfig | undefined =
@@ -242,7 +258,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         [timeDimensionBaseField],
     );
 
-    console.log({ timeDimensionOverride });
     return (
         <Modal.Root
             opened={opened}
