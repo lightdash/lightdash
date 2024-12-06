@@ -1,3 +1,10 @@
+## [0.1403.1](https://github.com/lightdash/lightdash/compare/0.1403.0...0.1403.1) (2024-12-06)
+
+
+### Bug Fixes
+
+* check if project has saved charts ([#12758](https://github.com/lightdash/lightdash/issues/12758)) ([483281e](https://github.com/lightdash/lightdash/commit/483281e236d639b047a44483b6c60522145334ea))
+
 # [0.1403.0](https://github.com/lightdash/lightdash/compare/0.1402.0...0.1403.0) (2024-12-06)
 
 
