@@ -1,4 +1,5 @@
 import {
+    MetricExplorerComparison,
     type ApiError,
     type ApiMetricsExplorerQueryResults,
     type MetricExplorerComparisonType,
@@ -67,7 +68,7 @@ export const useRunMetricExplorerQuery = ({
             metricName,
             dateRange?.[0],
             dateRange?.[1],
-            comparison?.type,
+            comparison,
             timeDimensionOverride,
         ],
         queryFn: () =>
@@ -84,7 +85,12 @@ export const useRunMetricExplorerQuery = ({
             !!exploreName &&
             !!metricName &&
             !!comparison &&
-            !!dateRange,
+            !!dateRange &&
+            (comparison.type !== MetricExplorerComparison.DIFFERENT_METRIC ||
+                (comparison.type ===
+                    MetricExplorerComparison.DIFFERENT_METRIC &&
+                    !!comparison.metricName &&
+                    !!comparison.metricTable)),
         keepPreviousData: true,
     });
 };
