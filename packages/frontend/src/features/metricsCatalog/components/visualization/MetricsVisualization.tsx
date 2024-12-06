@@ -89,7 +89,8 @@ const MetricsVisualization: FC<Props> = ({
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
     const dataPoints = useMemo(() => {
-        if (!results?.rows) return null;
+        if (isFetching) return null;
+        if (!results.rows) return null;
 
         const timeDimension = results.metric.timeDimension;
         if (!timeDimension) return null;
