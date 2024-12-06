@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    capitalize,
     getFieldIdForDateDimension,
     getItemId,
     getMetricExplorerDataPoints,
@@ -12,7 +13,14 @@ import {
     type TimeDimensionConfig,
     type TimeFrames,
 } from '@lightdash/common';
-import { Button, Group, Stack, Text, useMantineTheme } from '@mantine/core';
+import {
+    Button,
+    Flex,
+    Group,
+    Stack,
+    Text,
+    useMantineTheme,
+} from '@mantine/core';
 import { IconZoomReset } from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
 import {
@@ -40,6 +48,7 @@ import {
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
+import { TimeDimensionPicker } from './TimeDimensionPicker';
 import { FORMATS } from './types';
 import { useChartZoom } from './useChartZoom';
 
@@ -229,13 +238,7 @@ const MetricsVisualization: FC<Props> = ({
     const showEmptyState = dataPoints?.length === 0;
 
     return (
-        <Stack
-            spacing={showEmptyState ? 'sm' : 'lg'}
-            pb={showEmptyState ? 'sm' : undefined}
-            w="100%"
-            h="100%"
-            sx={{ flexGrow: 1 }}
-        >
+        <Stack spacing="sm" pb="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
                 {dateRange && results?.metric.timeDimension && (
                     <MetricPeekDatePicker
@@ -266,98 +269,122 @@ const MetricsVisualization: FC<Props> = ({
             {showEmptyState && <MetricsVisualizationEmptyState />}
 
             {!showEmptyState && results && (
-                <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                        data={activeData}
-                        margin={{
-                            top: 40,
-                            right: 40,
-                            bottom: 40,
-                            left: 40,
-                        }}
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                    >
-                        <CartesianGrid
-                            horizontal
-                            vertical={false}
-                            stroke={colors.gray[2]}
-                            strokeDasharray="4 3"
-                        />
-
-                        <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            fontSize={11}
-                            width={4}
-                            domain={['dataMin - 1', 'dataMax + 1']}
-                            allowDataOverflow={false}
-                        />
-
-                        <XAxis
-                            dataKey="dateValue"
-                            {...xAxisConfig}
-                            axisLine={{ stroke: colors.gray[2] }}
-                            tickLine={false}
-                            fontSize={11}
-                        />
-
-                        <RechartsTooltip
-                            formatter={(value) => [value, results.metric.label]}
-                            labelFormatter={(label) =>
-                                dayjs(label).format('MMM D, YYYY')
-                            }
-                            contentStyle={{
-                                fontSize: fontSizes.xs,
-                                backgroundColor: colors.offWhite[0],
-                                borderRadius: radius.md,
-                                border: `1px solid ${colors.gray[2]}`,
-                                boxShadow: shadows.sm,
+                <Flex sx={{ flex: 1 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                            data={activeData}
+                            margin={{
+                                right: 40,
+                                left: 40,
+                                top: 10,
                             }}
-                        />
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                        >
+                            <Legend
+                                verticalAlign="top"
+                                height={50}
+                                margin={{ bottom: 20 }}
+                                formatter={(value) => (
+                                    <Text span c="dark.5" size={14} fw={400}>
+                                        {value}
+                                    </Text>
+                                )}
+                            />
+                            <CartesianGrid
+                                horizontal
+                                vertical={false}
+                                stroke={colors.gray[2]}
+                                strokeDasharray="4 3"
+                            />
 
-                        <Line
-                            name={results.metric.label}
-                            type="linear"
-                            dataKey="metric"
-                            stroke={colors.indigo[6]}
-                            strokeWidth={1.6}
-                            dot={false}
-                            legendType="plainline"
-                        />
+                            <YAxis
+                                axisLine={false}
+                                tickLine={false}
+                                fontSize={11}
+                                width={4}
+                                domain={['dataMin - 1', 'dataMax + 1']}
+                                allowDataOverflow={false}
+                            />
 
-                        {results.comparisonRows && (
+                            <XAxis
+                                dataKey="dateValue"
+                                {...xAxisConfig}
+                                axisLine={{ stroke: colors.gray[2] }}
+                                tickLine={false}
+                                fontSize={11}
+                            />
+
+                            <RechartsTooltip
+                                formatter={(value) => [
+                                    value,
+                                    results.metric.label,
+                                ]}
+                                labelFormatter={(label) =>
+                                    dayjs(label).format('MMM D, YYYY')
+                                }
+                                contentStyle={{
+                                    fontSize: fontSizes.xs,
+                                    backgroundColor: colors.offWhite[0],
+                                    borderRadius: radius.md,
+                                    border: `1px solid ${colors.gray[2]}`,
+                                    boxShadow: shadows.sm,
+                                }}
+                            />
+
                             <Line
-                                name={`${results.metric.label} (comparison)`}
+                                name={results.metric.label}
                                 type="linear"
-                                dataKey="compareMetric"
-                                stroke={colors.indigo[4]}
-                                strokeDasharray={'3 3'}
-                                strokeWidth={1.3}
+                                dataKey="metric"
+                                stroke={colors.indigo[6]}
+                                strokeWidth={1.6}
                                 dot={false}
                                 legendType="plainline"
                             />
-                        )}
 
-                        <Legend
-                            formatter={(value) => (
-                                <Text span c="dark.5" size={14} fw={400}>
-                                    {value}
-                                </Text>
+                            {results.comparisonRows && (
+                                <Line
+                                    name={`${results.metric.label} (comparison)`}
+                                    type="linear"
+                                    dataKey="compareMetric"
+                                    stroke={colors.indigo[4]}
+                                    strokeDasharray={'3 3'}
+                                    strokeWidth={1.3}
+                                    dot={false}
+                                    legendType="plainline"
+                                />
                             )}
-                        />
 
-                        {zoomState.refAreaLeft && zoomState.refAreaRight && (
-                            <ReferenceArea
-                                x1={zoomState.refAreaLeft}
-                                x2={zoomState.refAreaRight}
-                                strokeOpacity={0.3}
-                                fill={colors.gray[3]}
-                            />
-                        )}
-                    </LineChart>
-                </ResponsiveContainer>
+                            {zoomState.refAreaLeft &&
+                                zoomState.refAreaRight && (
+                                    <ReferenceArea
+                                        x1={zoomState.refAreaLeft}
+                                        x2={zoomState.refAreaRight}
+                                        strokeOpacity={0.3}
+                                        fill={colors.gray[3]}
+                                    />
+                                )}
+                        </LineChart>
+                    </ResponsiveContainer>
+                </Flex>
+            )}
+            {results?.metric.availableTimeDimensions && (
+                <Group position="center" mt="auto">
+                    <Group align="center" noWrap>
+                        <Text fw={500} c="gray.7" fz="sm">
+                            Date ({capitalize(timeDimensionBaseField.interval)})
+                        </Text>
+
+                        <TimeDimensionPicker
+                            fields={results.metric.availableTimeDimensions}
+                            dimension={timeDimensionBaseField}
+                            onChange={(config) =>
+                                setTimeDimensionOverride(config)
+                            }
+                        />
+                    </Group>
+                </Group>
             )}
         </Stack>
     );
