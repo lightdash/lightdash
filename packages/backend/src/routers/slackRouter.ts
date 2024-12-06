@@ -10,6 +10,8 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 
+const fs = require('fs');
+
 // TODO: to be removed once this is refactored. https://github.com/lightdash/lightdash/issues/9174
 const analytics = new LightdashAnalytics({
     lightdashConfig,
@@ -54,10 +56,16 @@ slackRouter.get(
             const { path: filePath } = await req.services
                 .getDownloadFileService()
                 .getDownloadFile(nanoId);
-            const normalizedPath = path.normalize(filePath);
+            const filename = path.basename(filePath);
+            const normalizedPath = path.resolve('/tmp/', filename);
             if (!normalizedPath.startsWith('/tmp/')) {
-                throw new NotFoundError(`File not found ${normalizedPath}`);
+                throw new NotFoundError(`File not found ${filename}`);
             }
+            if (!fs.existsSync(normalizedPath)) {
+                throw new NotFoundError(`File not found: ${filename}`);
+            }
+            res.set('Content-Type', 'image/png');
+            res.set('Content-Disposition', `inline; filename="${filename}"`);
             res.sendFile(normalizedPath);
         } catch (error) {
             next(error);
