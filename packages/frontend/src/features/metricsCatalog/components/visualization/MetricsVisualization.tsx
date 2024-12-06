@@ -319,7 +319,7 @@ const MetricsVisualization: FC<Props> = ({
 
                         <Line
                             name={results.metric.label}
-                            type="monotone"
+                            type="linear"
                             dataKey="metric"
                             stroke={colors.indigo[6]}
                             strokeWidth={1.6}
@@ -330,7 +330,7 @@ const MetricsVisualization: FC<Props> = ({
                         {results.comparisonRows && (
                             <Line
                                 name={`${results.metric.label} (comparison)`}
-                                type="monotone"
+                                type="linear"
                                 dataKey="compareMetric"
                                 stroke={colors.indigo[4]}
                                 strokeDasharray={'3 3'}
