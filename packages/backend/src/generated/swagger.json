@@ -4236,25 +4236,46 @@
             },
             "MetricExploreDataPoint": {
                 "properties": {
-                    "compareMetric": {},
-                    "metric": {},
-                    "dateValue": {
+                    "compareMetric": {
                         "type": "number",
-                        "format": "double"
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "metric": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
                     },
                     "date": {
                         "type": "string",
                         "format": "date-time"
                     }
                 },
-                "required": ["compareMetric", "metric", "dateValue", "date"],
+                "required": ["compareMetric", "metric", "date"],
                 "type": "object"
+            },
+            "MetricExploreDataPointWithDateValue": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/MetricExploreDataPoint"
+                    },
+                    {
+                        "properties": {
+                            "dateValue": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["dateValue"],
+                        "type": "object"
+                    }
+                ]
             },
             "MetricsExplorerQueryResults": {
                 "properties": {
                     "results": {
                         "items": {
-                            "$ref": "#/components/schemas/MetricExploreDataPoint"
+                            "$ref": "#/components/schemas/MetricExploreDataPointWithDateValue"
                         },
                         "type": "array"
                     },

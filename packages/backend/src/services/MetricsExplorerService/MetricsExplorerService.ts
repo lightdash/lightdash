@@ -387,10 +387,7 @@ export class MetricsExplorerService<
         }
 
         const results = dataPoints
-            .map((dp) => ({
-                ...dp,
-                dateValue: dp.dateValue ?? dp.date.valueOf(),
-            }))
+            .map((dp) => ({ ...dp, dateValue: dp.date.valueOf() }))
             .sort((a, b) => a.dateValue - b.dateValue);
 
         return {

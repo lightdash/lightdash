@@ -3802,11 +3802,41 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                compareMetric: { dataType: 'any', required: true },
-                metric: { dataType: 'any', required: true },
-                dateValue: { dataType: 'double', required: true },
+                compareMetric: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                metric: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 date: { dataType: 'datetime', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricExploreDataPointWithDateValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'MetricExploreDataPoint' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dateValue: { dataType: 'double', required: true },
+                    },
+                },
+            ],
             validators: {},
         },
     },
@@ -3820,7 +3850,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: {
                         dataType: 'refAlias',
-                        ref: 'MetricExploreDataPoint',
+                        ref: 'MetricExploreDataPointWithDateValue',
                     },
                     required: true,
                 },

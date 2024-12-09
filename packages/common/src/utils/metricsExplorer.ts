@@ -169,7 +169,6 @@ export const getMetricExplorerDataPoints = (
 
     return Object.keys(groupByMetricRows).map((date) => ({
         date: new Date(date),
-        dateValue: new Date(date).valueOf(),
         metric: parseMetricValue(
             groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
         ),
@@ -224,7 +223,6 @@ export const getMetricExplorerDataPointsWithCompare = (
 
     return Array.from(dates).map((date) => ({
         date: new Date(date),
-        dateValue: new Date(date).valueOf(),
         metric: parseMetricValue(
             groupByMetricRows[date]?.[0]?.[metricId]?.value.raw,
         ),

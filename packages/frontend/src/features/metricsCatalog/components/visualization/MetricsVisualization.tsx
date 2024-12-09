@@ -111,15 +111,15 @@ const MetricsVisualization: FC<Props> = ({
     const xAxisConfig = useMemo(() => {
         const timeValues = activeData.map((row) => row.dateValue);
         const timeScale = scaleTime().domain([
-            Math.min(...timeValues),
-            Math.max(...timeValues),
+            new Date(Math.min(...timeValues)),
+            new Date(Math.max(...timeValues)),
         ]);
 
         return {
-            domain: timeScale.domain().map((date) => date.valueOf()),
+            domain: [Math.min(...timeValues), Math.max(...timeValues)],
             scale: timeScale,
             type: 'number' as const,
-            ticks: timeScale.ticks(5).map((date) => date.valueOf()),
+            ticks: timeScale.ticks(5).map((d) => d.valueOf()),
             tickFormatter,
         };
     }, [activeData]);
