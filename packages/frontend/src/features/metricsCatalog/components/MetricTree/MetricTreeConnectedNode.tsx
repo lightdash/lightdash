@@ -126,7 +126,7 @@ const MetricTreeConnectedNode: React.FC<
                     )}
                 </Group>
 
-                {compareString && (
+                {change && (
                     <Text fz="xs" c="dimmed">
                         {compareString}
                     </Text>
