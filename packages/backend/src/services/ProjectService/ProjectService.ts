@@ -2482,7 +2482,7 @@ export class ProjectService extends BaseService {
         search: string,
         limit: number,
         filters: AndFilterGroup | undefined,
-        forceRefresh: boolean,
+        forceRefresh: boolean = false,
     ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
