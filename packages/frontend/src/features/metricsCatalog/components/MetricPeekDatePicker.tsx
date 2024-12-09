@@ -98,7 +98,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
     return (
         <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
             <Popover.Target>
-                <Group position="apart" w="fill-available">
+                <Group position="apart" w="fill-available" noWrap>
                     <SegmentedControl
                         size="xs"
                         h={32}

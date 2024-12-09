@@ -20,7 +20,6 @@ import {
     Paper,
     Radio,
     Select,
-    Skeleton,
     Stack,
     Text,
     Tooltip,
@@ -35,7 +34,6 @@ import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsW
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
 import MetricsVisualization from './visualization/MetricsVisualization';
-import { TimeDimensionPicker } from './visualization/TimeDimensionPicker';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
 
@@ -305,41 +303,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                 >
                     <Stack p="xl" bg="offWhite.0" miw={360}>
                         <Stack spacing="xl">
-                            {metricQuery.data?.availableTimeDimensions && (
-                                <Stack
-                                    w="100%"
-                                    spacing="xs"
-                                    align="flex-start"
-                                    sx={{ flexGrow: 1 }}
-                                >
-                                    <Text fw={500} c="gray.7">
-                                        X-axis
-                                    </Text>
-                                    {metricQuery.isSuccess &&
-                                    timeDimensionBaseField ? (
-                                        <TimeDimensionPicker
-                                            fields={
-                                                metricQuery.data
-                                                    .availableTimeDimensions
-                                            }
-                                            dimension={timeDimensionBaseField}
-                                            onChange={setTimeDimensionOverride}
-                                        />
-                                    ) : (
-                                        <Skeleton w="100%" h={40} />
-                                    )}
-                                </Stack>
-                            )}
-
-                            <Divider
-                                display={
-                                    metricQuery.data?.availableTimeDimensions
-                                        ? 'block'
-                                        : 'none'
-                                }
-                                color="gray.2"
-                            />
-
                             <Stack w="100%" spacing="xs" sx={{ flexGrow: 1 }}>
                                 <Group position="apart">
                                     <Text fw={500} c="gray.7">
@@ -492,7 +455,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Box mih={500} w="100%" pt="sm" px="md">
+                    <Box w="100%" pt="sm" px="md">
                         <MetricsVisualization
                             comparison={comparisonParams}
                             dateRange={dateRange ?? undefined}

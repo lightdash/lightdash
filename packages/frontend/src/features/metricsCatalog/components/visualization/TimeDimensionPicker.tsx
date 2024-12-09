@@ -3,20 +3,14 @@ import {
     type TimeDimensionConfig,
 } from '@lightdash/common';
 import { Box, Group, Select, Text, useMantineTheme } from '@mantine/core';
-import { IconCalendar } from '@tabler/icons-react';
-import {
-    forwardRef,
-    type ComponentPropsWithoutRef,
-    type Dispatch,
-    type FC,
-    type SetStateAction,
-} from 'react';
+import { IconChevronDown, IconTable } from '@tabler/icons-react';
+import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 
 type Props = {
     fields: NonNullable<ApiGetMetricPeek['results']['availableTimeDimensions']>;
     dimension: TimeDimensionConfig;
-    onChange: Dispatch<SetStateAction<TimeDimensionConfig | undefined>>;
+    onChange: (config: TimeDimensionConfig) => void;
 };
 
 const FieldItem = forwardRef<
@@ -29,13 +23,16 @@ const FieldItem = forwardRef<
     }
 >(({ value, label, tableLabel, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Group noWrap spacing="xs">
-            <Text size="xs" fw={500}>
+        <Group noWrap position="apart">
+            <Text fz="sm" c="dark.8" fw={500}>
                 {label}
             </Text>
-            <Text size="xs" color="dimmed" span>
-                {tableLabel}
-            </Text>
+            <Group spacing={4} noWrap>
+                <MantineIcon color="gray.6" size={12} icon={IconTable} />
+                <Text fz="xs" c="gray.6" span>
+                    {tableLabel}
+                </Text>
+            </Group>
         </Group>
     </Box>
 ));
@@ -49,25 +46,27 @@ export const TimeDimensionPicker: FC<Props> = ({
 
     return (
         <Select
+            withinPortal
+            size="xs"
             radius="md"
-            icon={<MantineIcon color="dark.3" icon={IconCalendar} />}
+            dropdownPosition="top"
             data={fields.map((f) => ({
                 value: f.name,
                 label: f.label,
                 tableLabel: f.tableLabel,
             }))}
+            h={32}
             value={dimension?.field}
             onChange={(value) => {
                 if (!value) return;
-                onChange((prev) => ({
+                onChange({
                     field: value,
-                    interval: prev?.interval ?? dimension.interval,
+                    interval: dimension.interval,
                     table:
                         fields.find((f) => f.name === value)?.table ??
                         dimension.table,
-                }));
+                });
             }}
-            w="100%"
             itemComponent={FieldItem}
             styles={{
                 input: {
@@ -75,6 +74,7 @@ export const TimeDimensionPicker: FC<Props> = ({
                     borderColor: theme.colors.gray[2],
                     borderRadius: theme.radius.md,
                     boxShadow: theme.shadows.subtle,
+                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
                     '&:hover': {
                         backgroundColor: theme.colors.gray[0],
                     },
@@ -83,17 +83,23 @@ export const TimeDimensionPicker: FC<Props> = ({
                     '&[data-selected="true"]': {
                         color: theme.colors.gray[7],
                         fontWeight: 500,
-                        backgroundColor: theme.colors.gray[2],
+                        backgroundColor: theme.colors.gray[0],
                     },
                     '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.gray[3],
+                        backgroundColor: theme.colors.gray[0],
                     },
                     '&:hover': {
-                        backgroundColor: theme.colors.gray[1],
+                        backgroundColor: theme.colors.gray[0],
                     },
                 },
+                dropdown: {
+                    minWidth: 'fit-content',
+                },
+                rightSection: { pointerEvents: 'none' },
             }}
-            rightSectionWidth="min-content"
+            rightSection={
+                <MantineIcon color="dark.2" icon={IconChevronDown} size={12} />
+            }
         />
     );
 };
