@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    MetricTotalComparisonType,
     TimeDimensionConfig,
     type ApiMetricsExplorerQueryResults,
     type ApiMetricsExplorerTotalResults,
@@ -9,7 +10,6 @@ import {
 } from '@lightdash/common';
 import {
     Body,
-    Get,
     Middlewares,
     OperationId,
     Path,
@@ -84,7 +84,7 @@ export class MetricsExplorerController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{explore}/{metric}/runMetricTotal')
+    @Post('/{explore}/{metric}/runMetricTotal')
     @OperationId('runMetricTotal')
     async runMetricTotal(
         @Path() projectUuid: string,
@@ -92,12 +92,23 @@ export class MetricsExplorerController extends BaseController {
         @Path() metric: string,
         @Request() req: express.Request,
         @Query() timeFrame: TimeFrames,
+        @Body()
+        body?: {
+            comparisonType?: MetricTotalComparisonType;
+        },
     ): Promise<ApiMetricsExplorerTotalResults> {
         this.setStatus(200);
 
         const results = await this.services
             .getMetricsExplorerService()
-            .getMetricTotal(req.user!, projectUuid, explore, metric, timeFrame);
+            .getMetricTotal(
+                req.user!,
+                projectUuid,
+                explore,
+                metric,
+                timeFrame,
+                body?.comparisonType,
+            );
 
         return {
             status: 'ok',

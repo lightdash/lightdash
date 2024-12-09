@@ -4005,6 +4005,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricTotalComparisonType: {
+        dataType: 'refEnum',
+        enums: ['none', 'previous_period'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     NotificationBase: {
         dataType: 'refAlias',
         type: {
@@ -13787,7 +13792,7 @@ export function RegisterRoutes(app: express.Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    app.get(
+    app.post(
         '/api/v1/projects/:projectUuid/metricsExplorer/:explore/:metric/runMetricTotal',
         ...fetchMiddlewares<RequestHandler>(MetricsExplorerController),
         ...fetchMiddlewares<RequestHandler>(
@@ -13829,6 +13834,14 @@ export function RegisterRoutes(app: express.Router) {
                     name: 'timeFrame',
                     required: true,
                     ref: 'TimeFrames',
+                },
+                body: {
+                    in: 'body',
+                    name: 'body',
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        comparisonType: { ref: 'MetricTotalComparisonType' },
+                    },
                 },
             };
 

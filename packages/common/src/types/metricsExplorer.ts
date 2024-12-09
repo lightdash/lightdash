@@ -60,7 +60,18 @@ export type ApiMetricsExplorerQueryResults = {
     results: MetricsExplorerQueryResults;
 };
 
+export enum MetricTotalComparisonType {
+    NONE = 'none',
+    PREVIOUS_PERIOD = 'previous_period',
+}
+
 export type MetricTotalResults = {
+    value: ResultValue | undefined;
+    comparisonValue: ResultValue | undefined;
+};
+
+export type MetricTotalResultsWithPreviousPeriod = {
+    type: MetricTotalComparisonType.PREVIOUS_PERIOD;
     value: ResultValue | undefined;
     comparisonValue: ResultValue | undefined;
 };

@@ -19,6 +19,7 @@ import {
     isDimension,
     MetricExplorerComparison,
     MetricExplorerComparisonType,
+    MetricTotalComparisonType,
     TimeFrames,
     UnitOfTime,
     type MetricExplorerDateRange,
@@ -407,6 +408,7 @@ export class MetricsExplorerService<
         exploreName: string,
         metricName: string,
         timeFrame: TimeFrames,
+        comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
     ): Promise<MetricTotalResults> {
         const metric = await this.catalogService.getMetric(
             user,
@@ -443,25 +445,6 @@ export class MetricsExplorerService<
             tableCalculations: [],
         };
 
-        const compareDateRange: MetricExplorerDateRange = [
-            getDateCalcUtils(timeFrame).back(dateRange[0]),
-            getDateCalcUtils(timeFrame).back(dateRange[1]),
-        ];
-
-        const compareMetricQuery = {
-            ...metricQuery,
-            filters: {
-                dimensions: {
-                    id: uuidv4(),
-                    and: getMetricExplorerDateRangeFilters(
-                        metric.timeDimension.table,
-                        metric.timeDimension.field,
-                        compareDateRange,
-                    ),
-                },
-            },
-        };
-
         const { rows: currentRows } = await this.projectService.runExploreQuery(
             user,
             metricQuery,
@@ -470,29 +453,42 @@ export class MetricsExplorerService<
             null,
         );
 
-        const { rows: compareRows } = await this.projectService.runExploreQuery(
-            user,
-            compareMetricQuery,
-            projectUuid,
-            exploreName,
-            null,
-        );
+        let compareRows: ResultRow[] | undefined;
 
-        console.log(
-            { dateRange, compareDateRange, timeFrame },
-            JSON.stringify(
-                {
-                    metricQuery,
-                    compareMetricQuery,
+        if (comparisonType === MetricTotalComparisonType.PREVIOUS_PERIOD) {
+            const compareDateRange: MetricExplorerDateRange = [
+                getDateCalcUtils(timeFrame).back(dateRange[0]),
+                getDateCalcUtils(timeFrame).back(dateRange[1]),
+            ];
+
+            const compareMetricQuery = {
+                ...metricQuery,
+                filters: {
+                    dimensions: {
+                        id: uuidv4(),
+                        and: getMetricExplorerDateRangeFilters(
+                            metric.timeDimension.table,
+                            metric.timeDimension.field,
+                            compareDateRange,
+                        ),
+                    },
                 },
-                null,
-                2,
-            ),
-        );
+            };
+
+            compareRows = (
+                await this.projectService.runExploreQuery(
+                    user,
+                    compareMetricQuery,
+                    projectUuid,
+                    exploreName,
+                    null,
+                )
+            ).rows;
+        }
 
         return {
             value: currentRows[0]?.[getItemId(metric)]?.value,
-            comparisonValue: compareRows[0]?.[getItemId(metric)]?.value,
+            comparisonValue: compareRows?.[0]?.[getItemId(metric)]?.value,
         };
     }
 }

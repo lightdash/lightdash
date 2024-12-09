@@ -4,6 +4,7 @@ import {
     CustomFormatType,
     friendlyName,
     getDefaultDateRangeFromInterval,
+    MetricTotalComparisonType,
     type TimeFrames,
 } from '@lightdash/common';
 import { Group, Stack, Text, Title } from '@mantine/core';
@@ -44,6 +45,7 @@ const MetricTreeConnectedNode: React.FC<
         exploreName: data.tableName,
         metricName: data.metricName,
         timeFrame: data.timeFrame,
+        comparisonType: MetricTotalComparisonType.PREVIOUS_PERIOD,
         dateRange,
         options: {
             enabled: Boolean(projectUuid && dateRange),
@@ -61,8 +63,6 @@ const MetricTreeConnectedNode: React.FC<
                 ComparisonFormatTypes.PERCENTAGE,
             );
         }
-
-        return 0;
     }, [totalQuery.data]);
 
     const formattedChange = useMemo(() => {
@@ -112,21 +112,18 @@ const MetricTreeConnectedNode: React.FC<
                     <Text fz="md" fw={700}>
                         {totalQuery.data?.value?.formatted ?? '-'}
                     </Text>
-                    {totalQuery.data?.value &&
-                        totalQuery.data?.comparisonValue && (
-                            <Group spacing={1} c={change > 0 ? 'teal' : 'red'}>
-                                <Text fz="sm" fw={500}>
-                                    <Text span>{formattedChange}</Text>
-                                </Text>
-                                <MantineIcon
-                                    icon={
-                                        change > 0 ? IconArrowUp : IconArrowDown
-                                    }
-                                    size={16}
-                                    stroke={1.5}
-                                />
-                            </Group>
-                        )}
+                    {change && (
+                        <Group spacing={1} c={change > 0 ? 'teal' : 'red'}>
+                            <Text fz="sm" fw={500}>
+                                <Text span>{formattedChange}</Text>
+                            </Text>
+                            <MantineIcon
+                                icon={change > 0 ? IconArrowUp : IconArrowDown}
+                                size={16}
+                                stroke={1.5}
+                            />
+                        </Group>
+                    )}
                 </Group>
 
                 {compareString && (

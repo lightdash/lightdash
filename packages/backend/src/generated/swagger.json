@@ -4406,6 +4406,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "MetricTotalComparisonType": {
+                "enum": ["none", "previous_period"],
+                "type": "string"
+            },
             "NotificationBase": {
                 "properties": {
                     "url": {
@@ -14511,7 +14515,7 @@
             }
         },
         "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricTotal": {
-            "get": {
+            "post": {
                 "operationId": "runMetricTotal",
                 "responses": {
                     "200": {
@@ -14570,7 +14574,22 @@
                             "$ref": "#/components/schemas/TimeFrames"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "comparisonType": {
+                                        "$ref": "#/components/schemas/MetricTotalComparisonType"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/notifications": {

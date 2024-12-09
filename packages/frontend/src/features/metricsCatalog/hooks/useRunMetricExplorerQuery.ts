@@ -4,7 +4,7 @@ import {
     type ApiMetricsExplorerTotalResults,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
-    type MetricsExplorerQueryResults,
+    type MetricTotalComparisonType,
     type TimeDimensionConfig,
     type TimeFrames,
 } from '@lightdash/common';
@@ -115,14 +115,16 @@ type RunMetricTotalArgs = {
     metricName: string;
     dateRange: MetricExplorerDateRange;
     timeFrame: TimeFrames;
+    comparisonType: MetricTotalComparisonType;
 };
 
-const getMetricTotal = async ({
+const postRunMetricTotal = async ({
     projectUuid,
     exploreName,
     metricName,
     dateRange,
     timeFrame,
+    comparisonType,
 }: RunMetricTotalArgs) => {
     const queryString = getUrlParams({
         dateRange,
@@ -133,8 +135,10 @@ const getMetricTotal = async ({
         url: `/projects/${projectUuid}/metricsExplorer/${exploreName}/${metricName}/runMetricTotal${
             queryString ? `?${queryString}` : ''
         }`,
-        method: 'GET',
-        body: undefined,
+        method: 'POST',
+        body: JSON.stringify({
+            comparisonType,
+        }),
     });
 };
 
@@ -144,6 +148,7 @@ export const useRunMetricTotal = ({
     metricName,
     dateRange,
     timeFrame,
+    comparisonType,
     options,
 }: Partial<RunMetricTotalArgs> & {
     options?: UseQueryOptions<ApiMetricsExplorerTotalResults['results']>;
@@ -151,12 +156,13 @@ export const useRunMetricTotal = ({
     return useQuery({
         queryKey: ['runMetricTotal', projectUuid, exploreName, metricName],
         queryFn: () =>
-            getMetricTotal({
+            postRunMetricTotal({
                 projectUuid: projectUuid!,
                 exploreName: exploreName!,
                 metricName: metricName!,
                 dateRange: dateRange!,
                 timeFrame: timeFrame!,
+                comparisonType: comparisonType!,
             }),
         ...options,
     });
