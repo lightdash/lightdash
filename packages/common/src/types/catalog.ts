@@ -208,6 +208,7 @@ export type CatalogFieldMap = {
         fieldName: string;
         tableName: string;
         cachedExploreUuid: string;
+        fieldType: FieldType;
     };
 };
 

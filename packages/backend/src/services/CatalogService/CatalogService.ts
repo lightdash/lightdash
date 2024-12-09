@@ -770,10 +770,12 @@ export class CatalogService<
         const chartUsageUpdates = Object.entries(chartUsagesByFieldId).reduce<
             ChartUsageIn[]
         >((acc, [fieldId, chartSummaries]) => {
-            const { fieldName, cachedExploreUuid } = catalogFieldMap[fieldId];
+            const { fieldName, cachedExploreUuid, fieldType } =
+                catalogFieldMap[fieldId];
 
             acc.push({
                 fieldName,
+                fieldType,
                 chartUsage: chartSummaries.length,
                 cachedExploreUuid,
             });

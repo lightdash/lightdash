@@ -49,6 +49,7 @@ export const convertExploresToCatalog = (
                     fieldName: field.name,
                     tableName: field.table,
                     cachedExploreUuid: explore.cachedExploreUuid,
+                    fieldType: field.fieldType,
                 };
 
                 return {
@@ -153,27 +154,29 @@ export function getChartFieldChanges({
     };
 }
 
-export function getCatalogFieldWhereByFieldIds(
+export function getCatalogFieldWhereStatements(
     fieldIds: string[],
     fieldTableNameMap: Record<string, string | undefined>,
     cachedExploreUuidTableNameMap: Record<string, string>,
     fieldsType: FieldType,
-) {
-    return fieldIds.map((fieldId) => {
-        const tableName = fieldTableNameMap[fieldId];
-        const cachedExploreUuid =
-            tableName && cachedExploreUuidTableNameMap[tableName];
+): Array<CatalogFieldWhere> {
+    return fieldIds
+        .map((fieldId) => {
+            const tableName = fieldTableNameMap[fieldId];
+            const cachedExploreUuid =
+                tableName && cachedExploreUuidTableNameMap[tableName];
 
-        if (!cachedExploreUuid) {
-            return undefined;
-        }
+            if (!cachedExploreUuid) {
+                return undefined;
+            }
 
-        return {
-            cachedExploreUuid,
-            fieldName: fieldId.replace(`${tableName}_`, ''),
-            fieldType: fieldsType,
-        };
-    });
+            return {
+                cachedExploreUuid,
+                fieldName: fieldId.replace(`${tableName}_`, ''),
+                fieldType: fieldsType,
+            };
+        })
+        .filter((fieldWhere): fieldWhere is CatalogFieldWhere => !!fieldWhere);
 }
 
 export async function getChartUsageFieldsToUpdate(
@@ -212,28 +215,28 @@ export async function getChartUsageFieldsToUpdate(
         ),
     );
 
-    const metricsToIncrement = getCatalogFieldWhereByFieldIds(
+    const metricsToIncrement = getCatalogFieldWhereStatements(
         chartFieldChanges.added.metrics,
         metricTableNameMap,
         cachedExploreUuidTableNameMap,
         FieldType.METRIC,
     );
 
-    const metricsToDecrement = getCatalogFieldWhereByFieldIds(
+    const metricsToDecrement = getCatalogFieldWhereStatements(
         chartFieldChanges.removed.metrics,
         metricTableNameMap,
         cachedExploreUuidTableNameMap,
         FieldType.METRIC,
     );
 
-    const dimensionsToIncrement = getCatalogFieldWhereByFieldIds(
+    const dimensionsToIncrement = getCatalogFieldWhereStatements(
         chartFieldChanges.added.dimensions,
         dimensionTableNameMap,
         cachedExploreUuidTableNameMap,
         FieldType.DIMENSION,
     );
 
-    const dimensionsToDecrement = getCatalogFieldWhereByFieldIds(
+    const dimensionsToDecrement = getCatalogFieldWhereStatements(
         chartFieldChanges.removed.dimensions,
         dimensionTableNameMap,
         cachedExploreUuidTableNameMap,
@@ -241,15 +244,8 @@ export async function getChartUsageFieldsToUpdate(
     );
 
     return {
-        fieldsToIncrement: [
-            ...metricsToIncrement,
-            ...dimensionsToIncrement,
-        ].filter((field) => !!field),
-
-        fieldsToDecrement: [
-            ...metricsToDecrement,
-            ...dimensionsToDecrement,
-        ].filter((field) => !!field),
+        fieldsToIncrement: [...metricsToIncrement, ...dimensionsToIncrement],
+        fieldsToDecrement: [...metricsToDecrement, ...dimensionsToDecrement],
     };
 }
 
