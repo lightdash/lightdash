@@ -32,14 +32,13 @@ const MetricTreeConnectedNode: React.FC<
 > = ({ data, isConnectable }) => {
     //TODO: fetch real data for these
     const title = useMemo(() => friendlyName(data.label), [data.label]);
-    const compareString = useMemo(() => 'Compared to previous month', []); // TODO: will it always be prev month?
 
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
 
     const dateRange = useMemo(
-        () => getDefaultDateRangeFromInterval(TimeFrames.YEAR),
+        () => getDefaultDateRangeFromInterval(TimeFrames.MONTH),
         [],
     );
 
@@ -90,6 +89,11 @@ const MetricTreeConnectedNode: React.FC<
         return 0;
     }, [value, compareValue]);
 
+    const compareString = useMemo(
+        () => value && compareValue && 'Compared to previous month',
+        [value, compareValue],
+    ); // TODO: will it always be prev month?
+
     return (
         <div
             style={{
@@ -130,9 +134,11 @@ const MetricTreeConnectedNode: React.FC<
                     )}
                 </Group>
 
-                <Text fz="xs" c="dimmed">
-                    {compareString}
-                </Text>
+                {compareString && (
+                    <Text fz="xs" c="dimmed">
+                        {compareString}
+                    </Text>
+                )}
             </Stack>
             <Handle
                 type="source"
