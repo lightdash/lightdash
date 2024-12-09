@@ -1,17 +1,20 @@
 import {
+    applyCustomFormat,
+    ComparisonFormatTypes,
+    CustomFormatType,
     friendlyName,
     getDefaultDateRangeFromInterval,
     getItemId,
-    // getItemId,
     MetricExplorerComparison,
     TimeFrames,
     type ResultRow,
 } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine/core';
-import { IconArrowUp, IconNumber } from '@tabler/icons-react';
+import { Group, Stack, Text, Title } from '@mantine/core';
+import { IconArrowUp } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useRunMetricExplorerQuery } from '../../hooks/useRunMetricExplorerQuery';
 
@@ -24,7 +27,7 @@ export type MetricTreeConnectedNodeData = Node<{
 }>;
 
 function getValueFromRow(row: ResultRow | undefined, itemId: string) {
-    return row?.[itemId]?.value.formatted;
+    return row?.[itemId]?.value;
 }
 
 const MetricTreeConnectedNode: React.FC<
@@ -75,19 +78,32 @@ const MetricTreeConnectedNode: React.FC<
 
             return getValueFromRow(totalQuery.data.comparisonRows?.[0], itemId);
         }
-        return '-';
     }, [totalQuery.data, data.metricName, data.tableName]);
 
     const change = useMemo(() => {
+        console.log(value, compareValue);
+
         if (value && compareValue) {
-            return (
-                ((Number(value) - Number(compareValue)) /
-                    Number(compareValue)) *
-                100
+            return calculateComparisonValue(
+                Number(value.raw),
+                Number(compareValue.raw),
+                ComparisonFormatTypes.PERCENTAGE,
             );
         }
+
         return 0;
     }, [value, compareValue]);
+
+    const formattedChange = useMemo(() => {
+        if (change) {
+            return applyCustomFormat(change, {
+                round: 2,
+                type: CustomFormatType.PERCENT,
+            });
+        }
+
+        return '-';
+    }, [change]);
 
     const compareString = useMemo(
         () => value && compareValue && 'Compared to previous month',
@@ -109,21 +125,23 @@ const MetricTreeConnectedNode: React.FC<
                 hidden={!isConnectable && !data.isEdgeTarget}
             />
             <Stack spacing="xxs" key={data.label}>
-                <Group>
-                    <Text size="sm" c="dimmed">
-                        {title}
-                    </Text>
-                    <MantineIcon icon={IconNumber} size={22} stroke={1.5} />
-                </Group>
+                <Stack spacing="2xs" align="flex-start">
+                    <Title order={6}>{title}</Title>
+                    {data.tableName && (
+                        <Text fz="xs" c="dimmed">
+                            {data.tableName}
+                        </Text>
+                    )}
+                </Stack>
 
                 <Group align="flex-end" mt="sm">
                     <Text fz="md" fw={700}>
-                        {value ?? '-'}
+                        {value?.formatted ?? '-'}
                     </Text>
                     {value && compareValue && (
                         <Group spacing={1} c={change > 0 ? 'teal' : 'red'}>
                             <Text fz="sm" fw={500}>
-                                <span>{change}%</span>
+                                <span>{formattedChange}</span>
                             </Text>
                             <MantineIcon
                                 icon={IconArrowUp}
