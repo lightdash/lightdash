@@ -145,6 +145,8 @@ export class HealthService extends BaseService {
             hasGroups: await this.hasGroups(user),
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
+            hasCacheAutocompleResults:
+                this.lightdashConfig.cacheAutocompleResults || false,
         };
     }
 

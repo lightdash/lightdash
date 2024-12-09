@@ -292,6 +292,7 @@ export type LightdashConfig = {
         appName: string;
         redirectDomain: string;
     };
+    cacheAutocompleResults?: boolean;
 };
 
 export type SlackConfig = {
@@ -828,5 +829,7 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.GITHUB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
         },
+        cacheAutocompleResults:
+            process.env.CACHE_AUTOCOMPLETE_RESULTS === 'true',
     };
 };

@@ -1,4 +1,5 @@
 import type { MetricExploreDataPoint } from '@lightdash/common';
+import dayjs from 'dayjs';
 import { useCallback, useMemo, useState } from 'react';
 import { type CategoricalChartFunc } from 'recharts/types/chart/generateCategoricalChart';
 
@@ -73,7 +74,8 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
 
         const filteredData = data.filter(
             (item) =>
-                item.date.valueOf() >= start && item.date.valueOf() <= end,
+                dayjs(item.date).isAfter(dayjs(start)) &&
+                dayjs(item.date).isBefore(dayjs(end)),
         );
 
         setZoomState({
@@ -105,7 +107,7 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
         () => ({
             zoomState,
             handlers,
-            activeData: zoomState.zoomedData || data,
+            activeData: zoomState.zoomedData ?? data,
         }),
         [zoomState, handlers, data],
     );

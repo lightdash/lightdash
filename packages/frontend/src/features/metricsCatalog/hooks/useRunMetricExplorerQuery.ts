@@ -1,10 +1,13 @@
 import {
+    metricExploreDataPointWithDateValueSchema,
     type ApiMetricsExplorerQueryResults,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
+    type MetricsExplorerQueryResults,
     type TimeDimensionConfig,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import { z } from 'zod';
 import { lightdashApi } from '../../../api';
 
 type RunMetricExplorerQueryArgs = {
@@ -36,10 +39,12 @@ const postRunMetricExplorerQuery = async ({
     comparison,
     dateRange,
     timeDimensionOverride,
-}: RunMetricExplorerQueryArgs) => {
+}: RunMetricExplorerQueryArgs): Promise<MetricsExplorerQueryResults> => {
     const queryString = getUrlParams(dateRange);
 
-    return lightdashApi<ApiMetricsExplorerQueryResults['results']>({
+    const response = await lightdashApi<
+        ApiMetricsExplorerQueryResults['results']
+    >({
         url: `/projects/${projectUuid}/metricsExplorer/${exploreName}/${metricName}/runMetricExplorerQuery${
             queryString ? `?${queryString}` : ''
         }`,
@@ -49,6 +54,13 @@ const postRunMetricExplorerQuery = async ({
             comparison,
         }),
     });
+
+    return {
+        ...response,
+        results: z
+            .array(metricExploreDataPointWithDateValueSchema)
+            .parse(response.results),
+    };
 };
 
 export const useRunMetricExplorerQuery = ({

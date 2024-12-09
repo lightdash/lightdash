@@ -1,3 +1,24 @@
+# [0.1405.0](https://github.com/lightdash/lightdash/compare/0.1404.4...0.1405.0) (2024-12-09)
+
+
+### Features
+
+* cache results in filters ([#12780](https://github.com/lightdash/lightdash/issues/12780)) ([f959286](https://github.com/lightdash/lightdash/commit/f95928608327295bdc6b24935f280dd8d2ac3386))
+
+## [0.1404.4](https://github.com/lightdash/lightdash/compare/0.1404.3...0.1404.4) (2024-12-09)
+
+
+### Bug Fixes
+
+* get paginated summaries for space modal ([#12770](https://github.com/lightdash/lightdash/issues/12770)) ([f8afbd7](https://github.com/lightdash/lightdash/commit/f8afbd7c223d3ec8c828cadba3bfe600a521027b))
+
+## [0.1404.3](https://github.com/lightdash/lightdash/compare/0.1404.2...0.1404.3) (2024-12-09)
+
+
+### Bug Fixes
+
+* upgrade express from 4.21.0 to 4.21.2 ([#12757](https://github.com/lightdash/lightdash/issues/12757)) ([5ce05a4](https://github.com/lightdash/lightdash/commit/5ce05a437f7b977ccc2e68ae6b5abea9b3cc21e7))
+
 ## [0.1404.2](https://github.com/lightdash/lightdash/compare/0.1404.1...0.1404.2) (2024-12-06)
 
 

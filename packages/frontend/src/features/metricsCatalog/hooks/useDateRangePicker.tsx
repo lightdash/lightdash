@@ -4,6 +4,7 @@ import {
     type MetricExplorerDateRange,
     type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
+import { type MantineTheme } from '@mantine/core';
 import {
     type DatePickerProps,
     type MonthPickerProps,
@@ -58,6 +59,117 @@ type CalendarVisualizationType =
     | MonthPickerConfig
     | YearPickerConfig
     | undefined;
+
+const getCommonCalendarStyles = (theme: MantineTheme) => ({
+    yearLevel: {
+        color: theme.colors.gray[7],
+        padding: theme.spacing.xs,
+        '&[data-year-level]:not(:last-of-type)': {
+            borderRight: `1px solid ${theme.colors.gray[2]}`,
+            marginRight: 0,
+        },
+        '&[data-year-level]:not(:first-of-type)': {
+            paddingRight: 0,
+        },
+    },
+    decadeLevel: {
+        color: theme.colors.gray[7],
+        padding: theme.spacing.xs,
+        '&[data-decade-level]:not(:last-of-type)': {
+            borderRight: `1px solid ${theme.colors.gray[2]}`,
+            marginRight: 0,
+        },
+        '&[data-decade-level]:not(:first-of-type)': {
+            paddingLeft: 0,
+            paddingRight: 0,
+        },
+    },
+    calendarHeaderControlIcon: {
+        color: theme.colors.gray[5],
+    },
+    calendarHeaderLevel: {
+        color: theme.colors.gray[7],
+    },
+    monthLevel: {
+        padding: theme.spacing.xs,
+        '&[data-month-level]:not(:last-of-type)': {
+            borderRight: `1px solid ${theme.colors.gray[2]}`,
+            marginRight: 0,
+        },
+    },
+    pickerControl: {
+        '&[data-selected]': {
+            backgroundColor: theme.colors.dark[7],
+            borderRadius: theme.radius.md,
+        },
+        '&[data-selected]:hover': {
+            backgroundColor: theme.colors.dark[9],
+            borderRadius: theme.radius.md,
+        },
+        '&[data-in-range]': {
+            backgroundColor: theme.colors.gray[1],
+        },
+        '&[data-in-range]:hover': {
+            backgroundColor: theme.colors.gray[1],
+        },
+    },
+    day: {
+        borderRadius: theme.radius.lg,
+        '&[data-weekend="true"]&:not([data-selected])': {
+            color: theme.colors.gray[7],
+        },
+        '&[data-in-range]': {
+            backgroundColor: theme.colors.gray[1],
+        },
+        '&[data-in-range]:hover': {
+            backgroundColor: theme.colors.gray[1],
+        },
+        '&[data-selected]': {
+            backgroundColor: theme.colors.dark[7],
+            borderRadius: theme.radius.lg,
+        },
+        '&[data-selected]:hover': {
+            backgroundColor: theme.colors.dark[9],
+            borderRadius: theme.radius.lg,
+        },
+    },
+    monthsList: {
+        padding: theme.spacing.xs,
+    },
+    monthsListCell: {
+        '&[data-selected]': {
+            backgroundColor: theme.colors.dark[7],
+            borderRadius: theme.radius.lg,
+        },
+        '&[data-selected]:hover': {
+            backgroundColor: theme.colors.dark[9],
+        },
+        '&[data-in-range]': {
+            backgroundColor: theme.colors.gray[1],
+        },
+        '&[data-in-range]:hover': {
+            backgroundColor: theme.colors.gray[1],
+        },
+    },
+    yearsList: {
+        padding: theme.spacing.xs,
+    },
+    yearsListCell: {
+        '&[data-selected]': {
+            backgroundColor: theme.colors.dark[7],
+            borderRadius: theme.radius.lg,
+        },
+        '&[data-selected]:hover': {
+            backgroundColor: theme.colors.dark[9],
+        },
+        '&[data-in-range]': {
+            backgroundColor: theme.colors.gray[1],
+        },
+        '&[data-in-range]:hover': {
+            backgroundColor: theme.colors.gray[1],
+        },
+    },
+});
 
 /**
  * Hook to handle the date range picker for the metric peek
@@ -165,6 +277,7 @@ export const useDateRangePicker = ({
                             handleDateRangeChange([startDate, endDate]);
                         },
                         numberOfColumns: 2,
+                        styles: getCommonCalendarStyles,
                     },
                 } satisfies YearPickerConfig;
             case TimeFrames.MONTH:
@@ -184,6 +297,7 @@ export const useDateRangePicker = ({
                             handleDateRangeChange([startDate, endDate]);
                         },
                         numberOfColumns: 2,
+                        styles: getCommonCalendarStyles,
                     },
                 } satisfies MonthPickerConfig;
             case TimeFrames.WEEK:
@@ -267,12 +381,12 @@ export const useDateRangePicker = ({
                                             .toDate(),
                             );
                             return {
-                                selected: isSelected,
                                 inRange: isSelected,
                                 firstInRange: date.getDay() === 0 && isSelected, // Highlight the first day of the week
                                 lastInRange: date.getDay() === 6 && isSelected, // Highlight the last day of the week
                             };
                         },
+                        styles: getCommonCalendarStyles,
                     },
                 } satisfies WeekPickerConfig;
             case TimeFrames.DAY:
@@ -283,6 +397,7 @@ export const useDateRangePicker = ({
                         value: tempDateRange,
                         onChange: handleDateRangeChange,
                         numberOfColumns: 2,
+                        styles: getCommonCalendarStyles,
                     },
                 } satisfies DayPickerConfig;
             default:

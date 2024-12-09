@@ -2,6 +2,7 @@ import {
     assertUnimplementedTimeframe,
     getDefaultDateRangeFromInterval,
     TimeFrames,
+    type MetricExplorerPartialDateRange,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 import { type DateRangePreset } from '../hooks/useDateRangePicker';
@@ -229,8 +230,8 @@ export const getDateRangePresets = (
  * Checks if two date ranges are equal, handling null values
  */
 const areDateRangesEqual = (
-    range1: [Date | null, Date | null],
-    range2: [Date | null, Date | null],
+    range1: MetricExplorerPartialDateRange,
+    range2: MetricExplorerPartialDateRange,
     timeInterval: TimeFrames,
 ): boolean => {
     if (

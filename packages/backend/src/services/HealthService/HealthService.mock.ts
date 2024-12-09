@@ -75,6 +75,7 @@ export const BaseResponse: HealthState = {
         tracesSampleRate: 0,
         profilesSampleRate: 0,
     },
+    hasCacheAutocompleResults: false,
 };
 
 export const userMock = {

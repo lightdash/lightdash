@@ -3780,20 +3780,6 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Pick_DBProjectGroupAccess.role_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string._value-ResultValue--__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ResultRow: {
-        dataType: 'refAlias',
-        type: { ref: 'Record_string._value-ResultValue--__', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_': {
         dataType: 'refAlias',
         type: {
@@ -3811,29 +3797,65 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricExploreDataPoint: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                compareMetric: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                metric: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                date: { dataType: 'datetime', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricExploreDataPointWithDateValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'MetricExploreDataPoint' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dateValue: { dataType: 'double', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricsExplorerQueryResults: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                fields: { ref: 'ItemsMap', required: true },
-                comparisonRows: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'array',
-                            array: { dataType: 'refAlias', ref: 'ResultRow' },
-                        },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                rows: {
+                results: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ResultRow' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'MetricExploreDataPointWithDateValue',
+                    },
                     required: true,
                 },
-                comparisonMetric: {
+                fields: { ref: 'ItemsMap', required: true },
+                compareMetric: {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'MetricWithAssociatedTimeDimension' },
@@ -13673,6 +13695,7 @@ export function RegisterRoutes(app: express.Router) {
                 body: {
                     in: 'body',
                     name: 'body',
+                    required: true,
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         comparison: {

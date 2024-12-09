@@ -98,7 +98,7 @@ export const MetricPeekDatePicker: FC<Props> = ({
     return (
         <Popover opened={isOpen} onChange={handleOpen} position="bottom-start">
             <Popover.Target>
-                <Group position="apart" w="fill-available">
+                <Group position="apart" w="fill-available" noWrap>
                     <SegmentedControl
                         size="xs"
                         h={32}
@@ -215,30 +215,6 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                     w="100%"
                                     color="dark"
                                     size="xs"
-                                    styles={(theme) => ({
-                                        yearsList: {
-                                            padding: theme.spacing.xs,
-                                        },
-                                        yearsListCell: {
-                                            '&[data-selected]': {
-                                                backgroundColor:
-                                                    theme.colors.dark[7],
-                                                borderRadius: theme.radius.lg,
-                                            },
-                                            '&[data-selected]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.dark[9],
-                                            },
-                                            '&[data-in-range]': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                            '&[data-in-range]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                        },
-                                    })}
                                 />
                             ) : calendarConfig?.type === TimeFrames.MONTH ? (
                                 <MonthPicker
@@ -246,30 +222,6 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                     mih={180}
                                     color="dark"
                                     size="xs"
-                                    styles={(theme) => ({
-                                        monthsList: {
-                                            padding: theme.spacing.xs,
-                                        },
-                                        monthsListCell: {
-                                            '&[data-selected]': {
-                                                backgroundColor:
-                                                    theme.colors.dark[7],
-                                                borderRadius: theme.radius.lg,
-                                            },
-                                            '&[data-selected]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.dark[9],
-                                            },
-                                            '&[data-in-range]': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                            '&[data-in-range]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                        },
-                                    })}
                                 />
                             ) : (
                                 <DatePicker
@@ -278,100 +230,6 @@ export const MetricPeekDatePicker: FC<Props> = ({
                                     color="dark"
                                     size="xs"
                                     withCellSpacing={false}
-                                    styles={(theme) => ({
-                                        yearLevel: {
-                                            color: theme.colors.gray[7],
-                                            padding: theme.spacing.xs,
-                                        },
-                                        decadeLevel: {
-                                            color: theme.colors.gray[7],
-                                            padding: theme.spacing.xs,
-                                        },
-                                        calendarHeaderControlIcon: {
-                                            color: theme.colors.gray[5],
-                                        },
-                                        calendarHeaderLevel: {
-                                            color: theme.colors.gray[7],
-                                        },
-                                        monthLevel: {
-                                            padding: theme.spacing.xs,
-                                            '&[data-month-level]:not(:last-of-type)':
-                                                {
-                                                    borderRight: `1px solid ${theme.colors.gray[2]}`,
-                                                    marginRight: 0,
-                                                },
-                                        },
-                                        day: {
-                                            borderRadius: theme.radius.lg,
-                                            // Revert color for weekends that are not selected
-                                            '&[data-weekend="true"]&:not([data-selected])':
-                                                {
-                                                    color: theme.colors.gray[7],
-                                                },
-                                            '&[data-in-range]': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                            '&[data-in-range]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                            '&[data-selected]': {
-                                                backgroundColor:
-                                                    theme.colors.dark[7],
-                                                borderRadius: theme.radius.lg,
-                                            },
-                                            '&[data-selected]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.dark[9],
-                                                borderRadius: theme.radius.lg,
-                                            },
-                                        },
-                                        monthsList: {
-                                            padding: theme.spacing.xs,
-                                        },
-                                        monthsListCell: {
-                                            '&[data-selected]': {
-                                                backgroundColor:
-                                                    theme.colors.dark[7],
-                                                borderRadius: theme.radius.lg,
-                                            },
-                                            '&[data-selected]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.dark[9],
-                                            },
-                                            '&[data-in-range]': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                            '&[data-in-range]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                        },
-                                        yearsList: {
-                                            padding: theme.spacing.xs,
-                                        },
-                                        yearsListCell: {
-                                            '&[data-selected]': {
-                                                backgroundColor:
-                                                    theme.colors.dark[7],
-                                                borderRadius: theme.radius.lg,
-                                            },
-                                            '&[data-selected]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.dark[9],
-                                            },
-                                            '&[data-in-range]': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                            '&[data-in-range]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.gray[1],
-                                            },
-                                        },
-                                    })}
                                 />
                             )}
                         </Box>

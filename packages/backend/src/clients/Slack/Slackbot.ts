@@ -11,6 +11,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import {
+    ScreenshotContext,
     Unfurl,
     type UnfurlService,
 } from '../../services/UnfurlService/UnfurlService';
@@ -203,6 +204,7 @@ export class SlackBot {
                         lightdashPage: details.pageType,
                         imageId,
                         authUserUuid,
+                        context: ScreenshotContext.SLACK,
                     });
 
                     if (imageUrl) {
