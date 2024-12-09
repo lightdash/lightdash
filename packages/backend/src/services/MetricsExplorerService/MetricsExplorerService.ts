@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import type {
     Dimension,
+    ItemsMap,
     MetricExploreDataPoint,
     MetricsExplorerQueryResults,
 } from '@lightdash/common';
@@ -77,7 +78,7 @@ export class MetricsExplorerService<
         dateRange: MetricExplorerDateRange,
     ): Promise<{
         rows: ResultRow[];
-        fields: Record<string, any>;
+        fields: ItemsMap;
         dimension: Dimension;
     }> {
         const forwardBackDateRange: MetricExplorerDateRange = [
@@ -131,7 +132,7 @@ export class MetricsExplorerService<
         timeDimensionOverride: TimeDimensionConfig | undefined,
     ): Promise<{
         rows: ResultRow[];
-        fields: Record<string, any>;
+        fields: ItemsMap;
         dimension: Dimension;
         metric: MetricWithAssociatedTimeDimension;
     }> {
