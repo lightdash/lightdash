@@ -233,18 +233,18 @@ export class MetricsExplorerService<
             metricName,
         );
 
+        const timeDimensionConfig =
+            timeDimensionOverride ?? metric.timeDimension;
+
         const dimensionGrain =
-            timeDimensionOverride?.interval ?? getGrainForDateRange(dateRange);
+            timeDimensionConfig?.interval ?? getGrainForDateRange(dateRange);
 
         const timeDimensionFieldId = getFieldIdForDateDimension(
-            metric.timeDimension?.field || timeDimensionOverride?.field || '',
+            timeDimensionConfig?.field || '',
             dimensionGrain,
         );
         const timeDimension = getItemId({
-            table:
-                timeDimensionOverride?.table ||
-                metric.timeDimension?.table ||
-                '',
+            table: timeDimensionConfig?.table || '',
             name: timeDimensionFieldId,
         });
 
@@ -256,12 +256,8 @@ export class MetricsExplorerService<
                 dimensions: {
                     id: uuidv4(),
                     and: getMetricExplorerDateRangeFilters(
-                        timeDimensionOverride?.table ||
-                            metric.timeDimension?.table ||
-                            '',
-                        timeDimensionOverride?.field ||
-                            metric.timeDimension?.field ||
-                            '',
+                        timeDimensionConfig?.table || '',
+                        timeDimensionConfig?.field || '',
                         dateRange,
                     ),
                 },
