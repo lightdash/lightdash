@@ -16,6 +16,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { ContentArgs } from '../../models/ContentModel/ContentModelTypes';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
 
@@ -39,6 +40,8 @@ export class ContentController extends BaseController {
         @Query() pageSize?: number,
         @Query() page?: number,
         @Query() search?: string,
+        @Query() sortBy?: ContentArgs['sortBy'],
+        @Query() sortDirection?: ContentArgs['sortDirection'],
     ): Promise<ApiContentResponse> {
         this.setStatus(200);
         return {
@@ -50,6 +53,10 @@ export class ContentController extends BaseController {
                     spaceUuids,
                     contentTypes,
                     search,
+                },
+                {
+                    sortBy,
+                    sortDirection,
                 },
                 {
                     page: page || 1,
