@@ -16,7 +16,6 @@ import {
     type CatalogItemSummary,
     type CatalogItemWithTagUuids,
     type CatalogMetricsTreeEdge,
-    type CatalogMetricsTreeNode,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -48,7 +47,10 @@ import {
     getFullTextSearchQuery,
     getFullTextSearchRankCalcSql,
 } from '../SearchModel/utils/search';
-import { convertExploresToCatalog } from './utils';
+import {
+    convertExploresToCatalog,
+    getUpdatesByCachedExploreUuid,
+} from './utils';
 import { parseCatalog } from './utils/parser';
 
 export type CatalogModelArguments = {
@@ -442,36 +444,78 @@ export class CatalogModel {
             fieldsToDecrement: CatalogFieldWhere[];
         },
     ) {
+        const incrementByCachedExploreUuid =
+            getUpdatesByCachedExploreUuid(fieldsToIncrement);
+
+        const decrementByCachedExploreUuid =
+            getUpdatesByCachedExploreUuid(fieldsToDecrement);
+
         await this.database.transaction(async (trx) => {
-            const incrementPromises = fieldsToIncrement.map(
-                ({ fieldName, cachedExploreUuid }) =>
-                    trx(CatalogTableName)
-                        .where(`${CatalogTableName}.name`, fieldName)
-                        .andWhere(
-                            `${CatalogTableName}.cached_explore_uuid`,
-                            cachedExploreUuid,
-                        )
-                        .andWhere(
-                            `${CatalogTableName}.project_uuid`,
-                            projectUuid,
-                        )
-                        .increment('chart_usage', 1),
+            const incrementPromises = Object.entries(
+                incrementByCachedExploreUuid,
+            ).map(([cachedExploreUuid, fieldNames]) =>
+                trx(CatalogTableName)
+                    .where(function updatesWhere() {
+                        void this.where(function metricsWhere() {
+                            void this.where(
+                                `${CatalogTableName}.name`,
+                                'in',
+                                fieldNames.metric,
+                            ).andWhere(
+                                `${CatalogTableName}.field_type`,
+                                FieldType.METRIC,
+                            );
+                        }).orWhere(function dimensionsWhere() {
+                            void this.where(
+                                `${CatalogTableName}.name`,
+                                'in',
+                                fieldNames.dimension,
+                            ).andWhere(
+                                `${CatalogTableName}.field_type`,
+                                FieldType.DIMENSION,
+                            );
+                        });
+                    })
+                    .andWhere(
+                        `${CatalogTableName}.cached_explore_uuid`,
+                        cachedExploreUuid,
+                    )
+                    .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
+                    .increment('chart_usage', 1),
             );
 
-            const decrementPromises = fieldsToDecrement.map(
-                ({ fieldName, cachedExploreUuid }) =>
-                    trx(CatalogTableName)
-                        .where(`${CatalogTableName}.name`, fieldName)
-                        .andWhere(
-                            `${CatalogTableName}.cached_explore_uuid`,
-                            cachedExploreUuid,
-                        )
-                        .andWhere(
-                            `${CatalogTableName}.project_uuid`,
-                            projectUuid,
-                        )
-                        .where('chart_usage', '>', 0) // Ensure we don't decrement below 0
-                        .decrement('chart_usage', 1),
+            const decrementPromises = Object.entries(
+                decrementByCachedExploreUuid,
+            ).map(([cachedExploreUuid, fieldNames]) =>
+                trx(CatalogTableName)
+                    .where(function updatesWhere() {
+                        void this.where(function metricsWhere() {
+                            void this.where(
+                                `${CatalogTableName}.name`,
+                                'in',
+                                fieldNames.metric,
+                            ).andWhere(
+                                `${CatalogTableName}.field_type`,
+                                FieldType.METRIC,
+                            );
+                        }).orWhere(function dimensionsWhere() {
+                            void this.where(
+                                `${CatalogTableName}.name`,
+                                'in',
+                                fieldNames.dimension,
+                            ).andWhere(
+                                `${CatalogTableName}.field_type`,
+                                FieldType.DIMENSION,
+                            );
+                        });
+                    })
+                    .andWhere(
+                        `${CatalogTableName}.cached_explore_uuid`,
+                        cachedExploreUuid,
+                    )
+                    .andWhere(`${CatalogTableName}.project_uuid`, projectUuid)
+                    .andWhere('chart_usage', '>', 0) // Ensure we don't decrement below 0
+                    .decrement('chart_usage', 1),
             );
 
             await Promise.all([...incrementPromises, ...decrementPromises]);
