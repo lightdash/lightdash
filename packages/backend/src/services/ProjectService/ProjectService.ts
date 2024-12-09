@@ -39,6 +39,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FieldValueSearchResult,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -179,6 +180,11 @@ type RunQueryTags = {
     chart_uuid?: string;
     dashboard_uuid?: string;
 };
+
+const cachedUniqueSearchResults: Record<
+    string,
+    FieldValueSearchResult<string>
+> = {};
 
 type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -2476,7 +2482,8 @@ export class ProjectService extends BaseService {
         search: string,
         limit: number,
         filters: AndFilterGroup | undefined,
-    ): Promise<Array<unknown>> {
+        forceRefresh: boolean,
+    ) {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -2488,6 +2495,16 @@ export class ProjectService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        const cachekey = `${projectUuid}-${table}-${initialFieldId}-${search}-${JSON.stringify(
+            filters,
+        )}`;
+        if (
+            !forceRefresh &&
+            cachedUniqueSearchResults[cachekey] !== undefined
+        ) {
+            return cachedUniqueSearchResults[cachekey];
         }
 
         if (limit > this.lightdashConfig.query.maxLimit) {
@@ -2617,7 +2634,22 @@ export class ProjectService extends BaseService {
             },
         });
 
-        return rows.map((row) => row[getItemId(field)]);
+        const searchResults = {
+            search,
+            results: rows.map((row) => row[getItemId(field)]),
+            refreshedAt: new Date(),
+        };
+        if (forceRefresh || cachedUniqueSearchResults[cachekey] === undefined) {
+            cachedUniqueSearchResults[cachekey] = {
+                ...searchResults,
+                cached: true,
+            };
+        }
+
+        return {
+            ...searchResults,
+            cached: false,
+        };
     }
 
     private async refreshAllTables(

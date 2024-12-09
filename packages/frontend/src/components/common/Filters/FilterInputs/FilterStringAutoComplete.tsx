@@ -1,16 +1,25 @@
 import { type FilterableItem } from '@lightdash/common';
 import {
+    ActionIcon,
     Group,
     Highlight,
     Loader,
     MultiSelect,
     ScrollArea,
     Text,
+    Tooltip,
     type MultiSelectProps,
 } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { IconPlus, IconReload } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
-import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
@@ -50,21 +59,37 @@ const FilterStringAutoComplete: FC<Props> = ({
         string | undefined
     >();
 
+    const [forceRefresh, setForceRefresh] = useState<boolean>(false);
+
     const autocompleteFilterGroup = useMemo(
         () => getAutocompleteFilterGroup(filterId, field),
         [field, filterId, getAutocompleteFilterGroup],
     );
 
-    const { isInitialLoading, results: resultsSet } = useFieldValues(
+    const {
+        isInitialLoading,
+        results: resultsSet,
+        refreshedAt,
+        refetch,
+    } = useFieldValues(
         search,
         initialSuggestionData,
         projectUuid,
         field,
         autocompleteFilterGroup,
         true,
-        { refetchOnMount: 'always' },
+        forceRefresh,
+        {
+            refetchOnMount: 'always',
+        },
     );
 
+    useEffect(() => {
+        if (forceRefresh) {
+            refetch().then().catch(console.error); // This will skip queryKey cache from react query and refetch from backend
+            setForceRefresh(false);
+        }
+    }, [forceRefresh, refetch]);
     const results = useMemo(() => [...resultsSet], [resultsSet]);
 
     const handleResetSearch = useCallback(() => {
@@ -130,6 +155,18 @@ const FilterStringAutoComplete: FC<Props> = ({
     const DropdownComponentOverride = useCallback(
         ({ children, ...props }: { children: ReactNode }) => (
             <ScrollArea {...props}>
+                {refreshedAt ? (
+                    <Text
+                        color="dimmed"
+                        size="xs"
+                        px="sm"
+                        pt="xs"
+                        pb="xxs"
+                        bg="white"
+                    >
+                        Results loaded at {refreshedAt.toLocaleString()}
+                    </Text>
+                ) : null}
                 {searchedMaxResults ? (
                     <Text
                         color="dimmed"
@@ -147,7 +184,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                 {children}
             </ScrollArea>
         ),
-        [searchedMaxResults, search],
+        [searchedMaxResults, search, refreshedAt],
     );
 
     return (
@@ -224,7 +261,23 @@ const FilterStringAutoComplete: FC<Props> = ({
                     isInitialLoading ? 'Loading...' : 'No results found'
                 }
                 rightSection={
-                    isInitialLoading ? <Loader size="xs" color="gray" /> : null
+                    <>
+                        <Tooltip
+                            withinPortal
+                            label={`Results loaded at ${refreshedAt.toLocaleString()}`}
+                        >
+                            <ActionIcon
+                                onClick={() => {
+                                    setForceRefresh(true);
+                                }}
+                            >
+                                <MantineIcon icon={IconReload} />
+                            </ActionIcon>
+                        </Tooltip>
+                        {isInitialLoading ? (
+                            <Loader size="xs" color="gray" />
+                        ) : null}
+                    </>
                 }
                 dropdownComponent={DropdownComponentOverride}
                 itemComponent={({ label, ...others }) =>
