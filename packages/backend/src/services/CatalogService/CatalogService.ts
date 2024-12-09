@@ -1014,7 +1014,9 @@ export class CatalogService<
                     timeDimension,
                 };
             })
-            .filter((m) => m !== undefined);
+            .filter(
+                (m): m is MetricWithAssociatedTimeDimension => m !== undefined,
+            );
 
         return mappedMetrics;
     }
