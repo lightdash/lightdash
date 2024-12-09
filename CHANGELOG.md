@@ -1,3 +1,10 @@
+## [0.1404.3](https://github.com/lightdash/lightdash/compare/0.1404.2...0.1404.3) (2024-12-09)
+
+
+### Bug Fixes
+
+* upgrade express from 4.21.0 to 4.21.2 ([#12757](https://github.com/lightdash/lightdash/issues/12757)) ([5ce05a4](https://github.com/lightdash/lightdash/commit/5ce05a437f7b977ccc2e68ae6b5abea9b3cc21e7))
+
 ## [0.1404.2](https://github.com/lightdash/lightdash/compare/0.1404.1...0.1404.2) (2024-12-06)
 
 
