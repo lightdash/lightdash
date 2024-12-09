@@ -4,7 +4,7 @@ import {
     type OrganizationMemberProfile,
     type SearchFilters,
 } from '@lightdash/common';
-import { Button, Flex, Group, Menu, Select } from '@mantine/core';
+import { Button, Flex, Group, Menu, Select, Text } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -91,7 +91,6 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             filters?.createdByUuid
         );
     }, [filters]);
-
     return (
         <Group px="md" py="sm">
             <Menu
@@ -118,6 +117,29 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 </Menu.Target>
 
                 <Menu.Dropdown>
+                    <Flex
+                        justify="space-between"
+                        align="center"
+                        mb="xs"
+                        px="sm"
+                    >
+                        <Text size="xs">Select Item Type</Text>
+                        {filters?.type && (
+                            <Button
+                                compact
+                                variant="subtle"
+                                size="xs"
+                                onClick={() =>
+                                    onSearchFilterChange({
+                                        ...filters,
+                                        type: undefined,
+                                    })
+                                }
+                            >
+                                Clear
+                            </Button>
+                        )}
+                    </Flex>
                     {allSearchItemTypes.map((type) => (
                         <Menu.Item
                             key={type}
@@ -245,6 +267,24 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                 </Menu.Target>
 
                 <Menu.Dropdown>
+                    <Flex justify="end">
+                        {filters?.createdByUuid && (
+                            <Button
+                                compact
+                                variant="subtle"
+                                size="xs"
+                                onClick={() =>
+                                    onSearchFilterChange({
+                                        ...filters,
+                                        createdByUuid: undefined,
+                                    })
+                                }
+                            >
+                                Clear
+                            </Button>
+                        )}
+                    </Flex>
+
                     <Select
                         placeholder="Select a user"
                         searchable
