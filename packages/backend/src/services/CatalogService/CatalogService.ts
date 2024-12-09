@@ -1024,10 +1024,14 @@ export class CatalogService<
         projectUuid: string,
         tableName: string,
         metricName: string,
+        timeIntervalOverride?: TimeFrames,
     ) {
-        const metrics = await this.getMetrics(user, projectUuid, [
-            { tableName, metricName },
-        ]);
+        const metrics = await this.getMetrics(
+            user,
+            projectUuid,
+            [{ tableName, metricName }],
+            timeIntervalOverride,
+        );
 
         return metrics[0];
     }
