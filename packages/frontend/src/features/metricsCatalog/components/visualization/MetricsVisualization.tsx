@@ -95,7 +95,7 @@ const MetricsVisualization: FC<Props> = ({
     const canManageExplore = useAppSelector(
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
-    const { colors, radius, shadows, fontSizes } = useMantineTheme();
+    const { colors, radius, fontSizes, spacing } = useMantineTheme();
 
     const data = useMemo(() => {
         if (!results?.results) return [];
@@ -259,12 +259,20 @@ const MetricsVisualization: FC<Props> = ({
                                 labelFormatter={(label) =>
                                     dayjs(label).format('MMM D, YYYY')
                                 }
+                                labelStyle={{
+                                    fontWeight: 500,
+                                    color: colors.gray[7],
+                                    fontSize: 13,
+                                }}
                                 contentStyle={{
                                     fontSize: fontSizes.xs,
+                                    fontWeight: 500,
                                     backgroundColor: colors.offWhite[0],
                                     borderRadius: radius.md,
                                     border: `1px solid ${colors.gray[2]}`,
-                                    boxShadow: shadows.sm,
+                                    boxShadow:
+                                        '0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25)',
+                                    padding: spacing.sm,
                                 }}
                             />
 
