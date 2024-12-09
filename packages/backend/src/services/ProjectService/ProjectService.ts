@@ -3680,6 +3680,7 @@ export class ProjectService extends BaseService {
                         sources: [ChartSourceType.DBT_EXPLORE],
                     },
                 },
+                {},
                 {
                     pageSize: 1,
                     page: 1,
