@@ -72,14 +72,6 @@ export const useRunMetricExplorerQuery = ({
     timeDimensionOverride,
     options,
 }: Partial<RunMetricExplorerQueryArgs>) => {
-    console.log('useRunMetricExplorerQuery', {
-        projectUuid,
-        exploreName,
-        metricName,
-        comparison,
-        dateRange,
-        timeDimensionOverride,
-    });
     return useQuery({
         queryKey: [
             'runMetricExplorerQuery',
