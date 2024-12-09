@@ -1,5 +1,6 @@
 import {
     capitalize,
+    MetricExplorerComparison,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
     type MetricsExplorerQueryResults,
@@ -85,6 +86,7 @@ const MetricsVisualization: FC<Props> = ({
     timeDimensionBaseField,
     setTimeDimensionOverride,
     onTimeIntervalChange,
+    comparison,
 }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
@@ -125,6 +127,7 @@ const MetricsVisualization: FC<Props> = ({
     }, [activeData]);
 
     const showEmptyState = activeData.length === 0;
+    const showLegend = comparison?.type !== MetricExplorerComparison.NONE;
 
     return (
         <Stack spacing="sm" pb="sm" w="100%" h="100%">
@@ -164,23 +167,30 @@ const MetricsVisualization: FC<Props> = ({
                             data={activeData}
                             margin={{
                                 right: 40,
-                                left: 40,
+                                left: 50,
                                 top: 10,
                             }}
                             onMouseDown={handleMouseDown}
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
                         >
-                            <Legend
-                                verticalAlign="top"
-                                height={50}
-                                margin={{ bottom: 20 }}
-                                formatter={(value) => (
-                                    <Text span c="dark.5" size={14} fw={400}>
-                                        {value}
-                                    </Text>
-                                )}
-                            />
+                            {showLegend && (
+                                <Legend
+                                    verticalAlign="top"
+                                    height={50}
+                                    margin={{ bottom: 20 }}
+                                    formatter={(value) => (
+                                        <Text
+                                            span
+                                            c="dark.5"
+                                            size={14}
+                                            fw={400}
+                                        >
+                                            {value}
+                                        </Text>
+                                    )}
+                                />
+                            )}
                             <CartesianGrid
                                 horizontal
                                 vertical={false}
