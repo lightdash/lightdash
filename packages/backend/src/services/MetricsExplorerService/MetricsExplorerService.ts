@@ -4,14 +4,15 @@ import type {
     ItemsMap,
     MetricExploreDataPoint,
     MetricsExplorerQueryResults,
+    MetricTotalResults,
 } from '@lightdash/common';
 import {
     assertUnreachable,
-    FilterOperator,
     ForbiddenError,
     getDateCalcUtils,
     getDefaultDateRangeForMetricTotal,
     getFieldIdForDateDimension,
+    getGrainForDateRange,
     getItemId,
     getMetricExplorerDataPoints,
     getMetricExplorerDataPointsWithCompare,
@@ -21,7 +22,6 @@ import {
     MetricExplorerComparisonType,
     MetricTotalComparisonType,
     TimeFrames,
-    UnitOfTime,
     type MetricExplorerDateRange,
     type MetricQuery,
     type MetricWithAssociatedTimeDimension,
@@ -85,6 +85,7 @@ export class MetricsExplorerService<
         fields: ItemsMap;
         dimension: Dimension;
     }> {
+        const oneYearBack = getDateCalcUtils(TimeFrames.YEAR).back;
         const forwardBackDateRange: MetricExplorerDateRange = [
             oneYearBack(dateRange[0]),
             oneYearBack(dateRange[1]),
