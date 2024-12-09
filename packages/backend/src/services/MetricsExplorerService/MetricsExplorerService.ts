@@ -7,9 +7,11 @@ import type {
 } from '@lightdash/common';
 import {
     assertUnreachable,
+    FilterOperator,
     ForbiddenError,
+    getDateCalcUtils,
+    getDefaultDateRangeForMetricTotal,
     getFieldIdForDateDimension,
-    getGrainForDateRange,
     getItemId,
     getMetricExplorerDataPoints,
     getMetricExplorerDataPointsWithCompare,
@@ -17,7 +19,8 @@ import {
     isDimension,
     MetricExplorerComparison,
     MetricExplorerComparisonType,
-    oneYearBack,
+    TimeFrames,
+    UnitOfTime,
     type MetricExplorerDateRange,
     type MetricQuery,
     type MetricWithAssociatedTimeDimension,
@@ -395,6 +398,101 @@ export class MetricsExplorerService<
             fields: allFields,
             metric: metricWithTimeDimension,
             compareMetric,
+        };
+    }
+
+    async getMetricTotal(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricName: string,
+        timeFrame: TimeFrames,
+    ): Promise<MetricTotalResults> {
+        const metric = await this.catalogService.getMetric(
+            user,
+            projectUuid,
+            exploreName,
+            metricName,
+            timeFrame,
+        );
+
+        if (!metric.timeDimension) {
+            throw new Error(
+                `Metric ${metricName} does not have a valid time dimension`,
+            );
+        }
+
+        const dateRange = getDefaultDateRangeForMetricTotal(timeFrame);
+
+        const metricQuery: MetricQuery = {
+            exploreName,
+            dimensions: [],
+            metrics: [getItemId(metric)],
+            filters: {
+                dimensions: {
+                    id: uuidv4(),
+                    and: getMetricExplorerDateRangeFilters(
+                        metric.timeDimension.table,
+                        metric.timeDimension.field,
+                        dateRange,
+                    ),
+                },
+            },
+            sorts: [],
+            limit: 1,
+            tableCalculations: [],
+        };
+
+        const compareDateRange: MetricExplorerDateRange = [
+            getDateCalcUtils(timeFrame).back(dateRange[0]),
+            getDateCalcUtils(timeFrame).back(dateRange[1]),
+        ];
+
+        const compareMetricQuery = {
+            ...metricQuery,
+            filters: {
+                dimensions: {
+                    id: uuidv4(),
+                    and: getMetricExplorerDateRangeFilters(
+                        metric.timeDimension.table,
+                        metric.timeDimension.field,
+                        compareDateRange,
+                    ),
+                },
+            },
+        };
+
+        const { rows: currentRows } = await this.projectService.runExploreQuery(
+            user,
+            metricQuery,
+            projectUuid,
+            exploreName,
+            null,
+        );
+
+        const { rows: compareRows } = await this.projectService.runExploreQuery(
+            user,
+            compareMetricQuery,
+            projectUuid,
+            exploreName,
+            null,
+        );
+
+        console.log(
+            { dateRange, compareDateRange, timeFrame },
+            JSON.stringify(
+                {
+                    metricQuery,
+                    compareMetricQuery,
+                },
+                null,
+                2,
+            ),
+        );
+
+        return {
+            value: currentRows[0]?.[getItemId(metric)]?.value,
+            comparisonValue: compareRows[0]?.[getItemId(metric)]?.value,
         };
     }
 }

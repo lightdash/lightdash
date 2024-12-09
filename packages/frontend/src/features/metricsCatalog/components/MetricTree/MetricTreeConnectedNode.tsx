@@ -4,9 +4,6 @@ import {
     CustomFormatType,
     friendlyName,
     getDefaultDateRangeFromInterval,
-    getItemId,
-    MetricExplorerComparison,
-    type ResultRow,
     type TimeFrames,
 } from '@lightdash/common';
 import { Group, Stack, Text, Title } from '@mantine/core';
@@ -16,7 +13,7 @@ import React, { useMemo } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
-import { useRunMetricExplorerQuery } from '../../hooks/useRunMetricExplorerQuery';
+import { useRunMetricTotal } from '../../hooks/useRunMetricExplorerQuery';
 
 export type MetricTreeConnectedNodeData = Node<{
     label: string;
@@ -26,10 +23,6 @@ export type MetricTreeConnectedNodeData = Node<{
     isEdgeSource?: boolean;
     timeFrame: TimeFrames;
 }>;
-
-function getValueFromRow(row: ResultRow | undefined, itemId: string) {
-    return row?.[itemId]?.value;
-}
 
 const MetricTreeConnectedNode: React.FC<
     NodeProps<MetricTreeConnectedNodeData>
@@ -46,42 +39,21 @@ const MetricTreeConnectedNode: React.FC<
         [data.timeFrame],
     );
 
-    const totalQuery = useRunMetricExplorerQuery({
+    const totalQuery = useRunMetricTotal({
         projectUuid,
         exploreName: data.tableName,
         metricName: data.metricName,
-        comparison: {
-            type: MetricExplorerComparison.PREVIOUS_PERIOD,
-        },
+        timeFrame: data.timeFrame,
         dateRange,
         options: {
-            enabled: !!projectUuid,
+            enabled: Boolean(projectUuid && dateRange),
         },
     });
 
-    const value = useMemo(() => {
-        if (totalQuery.data) {
-            const itemId = getItemId({
-                table: data.tableName,
-                name: data.metricName,
-            });
-
-            return getValueFromRow(totalQuery.data.rows[0], itemId);
-        }
-    }, [totalQuery.data, data.metricName, data.tableName]);
-
-    const compareValue = useMemo(() => {
-        if (totalQuery.data) {
-            const itemId = getItemId({
-                table: data.tableName,
-                name: data.metricName,
-            });
-
-            return getValueFromRow(totalQuery.data.comparisonRows?.[0], itemId);
-        }
-    }, [totalQuery.data, data.metricName, data.tableName]);
-
     const change = useMemo(() => {
+        const value = totalQuery.data?.value;
+        const compareValue = totalQuery.data?.comparisonValue;
+
         if (value && compareValue) {
             return calculateComparisonValue(
                 Number(value.raw),
@@ -91,7 +63,7 @@ const MetricTreeConnectedNode: React.FC<
         }
 
         return 0;
-    }, [value, compareValue]);
+    }, [totalQuery.data]);
 
     const formattedChange = useMemo(() => {
         if (change) {
@@ -106,10 +78,10 @@ const MetricTreeConnectedNode: React.FC<
 
     const compareString = useMemo(
         () =>
-            value &&
-            compareValue &&
+            totalQuery.data?.value &&
+            totalQuery.data?.comparisonValue &&
             `Compared to previous ${data.timeFrame.toLowerCase()}`,
-        [value, compareValue, data.timeFrame],
+        [totalQuery.data, data.timeFrame],
     ); // TODO: will it always be prev month?
 
     return (
@@ -138,20 +110,23 @@ const MetricTreeConnectedNode: React.FC<
 
                 <Group align="flex-end" mt="sm">
                     <Text fz="md" fw={700}>
-                        {value?.formatted ?? '-'}
+                        {totalQuery.data?.value?.formatted ?? '-'}
                     </Text>
-                    {value && compareValue && (
-                        <Group spacing={1} c={change > 0 ? 'teal' : 'red'}>
-                            <Text fz="sm" fw={500}>
-                                <span>{formattedChange}</span>
-                            </Text>
-                            <MantineIcon
-                                icon={change > 0 ? IconArrowUp : IconArrowDown}
-                                size={16}
-                                stroke={1.5}
-                            />
-                        </Group>
-                    )}
+                    {totalQuery.data?.value &&
+                        totalQuery.data?.comparisonValue && (
+                            <Group spacing={1} c={change > 0 ? 'teal' : 'red'}>
+                                <Text fz="sm" fw={500}>
+                                    <Text span>{formattedChange}</Text>
+                                </Text>
+                                <MantineIcon
+                                    icon={
+                                        change > 0 ? IconArrowUp : IconArrowDown
+                                    }
+                                    size={16}
+                                    stroke={1.5}
+                                />
+                            </Group>
+                        )}
                 </Group>
 
                 {compareString && (

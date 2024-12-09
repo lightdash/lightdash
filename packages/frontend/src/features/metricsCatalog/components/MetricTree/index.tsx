@@ -54,7 +54,7 @@ enum STATIC_NODE_TYPES {
     UNCONNECTED = 'UNCONNECTED',
 }
 
-const DEFAULT_TIME_FRAME = TimeFrames.MONTH;
+const DEFAULT_TIME_FRAME = TimeFrames.DAY;
 
 type MetricTreeNode =
     | MetricTreeConnectedNodeData
