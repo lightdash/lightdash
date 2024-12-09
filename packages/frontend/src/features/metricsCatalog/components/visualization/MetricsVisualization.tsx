@@ -134,6 +134,9 @@ const MetricsVisualization: FC<Props> = ({
         if (comparison.type === MetricExplorerComparison.DIFFERENT_METRIC) {
             return [results?.metric.label, results?.compareMetric?.label];
         }
+        if (comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD) {
+            return [results?.metric.label, 'Previous period'];
+        }
         return [results?.metric.label];
     }, [comparison, results]);
 
@@ -224,10 +227,13 @@ const MetricsVisualization: FC<Props> = ({
                             />
 
                             <RechartsTooltip
-                                formatter={(value) => [
-                                    value,
-                                    results.metric.label,
-                                ]}
+                                {...(comparison.type ===
+                                    MetricExplorerComparison.NONE && {
+                                    formatter: (value) => [
+                                        value,
+                                        results?.metric.label,
+                                    ],
+                                })}
                                 labelFormatter={(label) =>
                                     dayjs(label).format('MMM D, YYYY')
                                 }
@@ -244,6 +250,7 @@ const MetricsVisualization: FC<Props> = ({
                                 name={legendConfig?.[0]}
                                 type="linear"
                                 dataKey="metric"
+                                label={legendConfig?.[0]}
                                 stroke={colors.indigo[6]}
                                 strokeWidth={1.6}
                                 dot={false}
@@ -255,6 +262,7 @@ const MetricsVisualization: FC<Props> = ({
                                     name={legendConfig?.[1]}
                                     type="linear"
                                     dataKey="compareMetric"
+                                    label={legendConfig?.[1]}
                                     stroke={colors.indigo[4]}
                                     strokeDasharray={'3 3'}
                                     strokeWidth={1.3}
