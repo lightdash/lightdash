@@ -94,6 +94,7 @@ const MetricsVisualization: FC<Props> = ({
     }, [results]);
 
     const {
+        activeData,
         zoomState,
         handlers: {
             handleMouseDown,
@@ -101,7 +102,6 @@ const MetricsVisualization: FC<Props> = ({
             handleMouseUp,
             resetZoom,
         },
-        activeData,
     } = useChartZoom({ data });
 
     useEffect(() => {
@@ -109,8 +109,6 @@ const MetricsVisualization: FC<Props> = ({
     }, [data, resetZoom]);
 
     const xAxisConfig = useMemo(() => {
-        if (!data) return null;
-
         const timeValues = activeData.map((row) => row.dateValue);
         const timeScale = scaleTime().domain([
             Math.min(...timeValues),
@@ -124,9 +122,9 @@ const MetricsVisualization: FC<Props> = ({
             ticks: timeScale.ticks(5).map((date) => date.valueOf()),
             tickFormatter,
         };
-    }, [data, activeData]);
+    }, [activeData]);
 
-    const showEmptyState = data.length === 0;
+    const showEmptyState = activeData.length === 0;
 
     return (
         <Stack spacing="sm" pb="sm" w="100%" h="100%">

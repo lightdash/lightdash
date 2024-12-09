@@ -72,8 +72,7 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
         const end = Math.max(zoomState.refAreaLeft, zoomState.refAreaRight);
 
         const filteredData = data.filter(
-            (item) =>
-                item.date.valueOf() >= start && item.date.valueOf() <= end,
+            (item) => item.dateValue >= start && item.dateValue <= end,
         );
 
         setZoomState({
@@ -105,7 +104,7 @@ export const useChartZoom = <T extends MetricExploreDataPoint>({
         () => ({
             zoomState,
             handlers,
-            activeData: zoomState.zoomedData || data,
+            activeData: zoomState.zoomedData ?? data,
         }),
         [zoomState, handlers, data],
     );
