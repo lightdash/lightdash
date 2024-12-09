@@ -1,6 +1,5 @@
 import { type MetricWithAssociatedTimeDimension } from './catalog';
 import type { ItemsMap } from './field';
-import type { ResultRow } from './results';
 
 export enum MetricExplorerComparison {
     NONE = 'none',
@@ -26,16 +25,16 @@ export type MetricExplorerComparisonType =
 
 export type MetricExploreDataPoint = {
     date: Date;
+    dateValue: number;
     metric: unknown;
     compareMetric: unknown;
 };
 
 export type MetricsExplorerQueryResults = {
     metric: MetricWithAssociatedTimeDimension;
-    comparisonMetric: MetricWithAssociatedTimeDimension | undefined;
-    rows: ResultRow[];
-    comparisonRows: ResultRow[] | undefined;
+    compareMetric: MetricWithAssociatedTimeDimension | undefined;
     fields: ItemsMap;
+    results: MetricExploreDataPoint[];
 };
 
 export type ApiMetricsExplorerQueryResults = {

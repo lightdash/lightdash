@@ -1,12 +1,5 @@
 import {
-    assertUnreachable,
     capitalize,
-    getFieldIdForDateDimension,
-    getItemId,
-    getMetricExplorerDataPoints,
-    getMetricExplorerDataPointsWithCompare,
-    isDimension,
-    MetricExplorerComparison,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
     type MetricsExplorerQueryResults,
@@ -87,120 +80,18 @@ type Props = {
 const MetricsVisualization: FC<Props> = ({
     results,
     dateRange,
-    comparison,
     onDateRangeChange,
     showTimeDimensionIntervalPicker,
     timeDimensionBaseField,
     setTimeDimensionOverride,
     onTimeIntervalChange,
-    isFetching,
 }) => {
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
-    const dataPoints = useMemo(() => {
-        if (isFetching) return null;
-        if (!results?.rows) return null;
-
-        const timeDimension = results.metric.timeDimension;
-        if (!timeDimension) return null;
-
-        const dimensionId = getFieldIdForDateDimension(
-            getItemId({
-                name: timeDimension.field,
-                table: timeDimension.table,
-            }),
-            timeDimension.interval,
-        );
-
-        const dimension = results.fields[dimensionId];
-        if (!dimension || !isDimension(dimension)) return null;
-
-        switch (comparison.type) {
-            case MetricExplorerComparison.NONE:
-                return getMetricExplorerDataPoints(
-                    dimension,
-                    results.metric,
-                    results.rows,
-                );
-            case MetricExplorerComparison.PREVIOUS_PERIOD:
-                if (isFetching) {
-                    return null;
-                }
-
-                if (!results.comparisonRows) {
-                    throw new Error(
-                        `Comparison rows are required for comparison type ${comparison.type}`,
-                    );
-                }
-
-                return getMetricExplorerDataPointsWithCompare(
-                    dimension,
-                    dimension,
-                    results.metric,
-                    results.rows,
-                    results.comparisonRows,
-                    comparison,
-                );
-            case MetricExplorerComparison.DIFFERENT_METRIC:
-                if (isFetching) {
-                    return null;
-                }
-
-                if (!results.comparisonRows) {
-                    return null;
-                }
-
-                if (!results.comparisonMetric) {
-                    throw new Error(
-                        `Comparison metric not found for comparison type ${comparison.type}`,
-                    );
-                }
-
-                const compareMetric = results.comparisonMetric;
-                const compareTimeDimension = compareMetric.timeDimension;
-
-                if (!compareTimeDimension) {
-                    throw new Error(
-                        `Comparison metric should always have an associated time dimension`,
-                    );
-                }
-
-                const compareDimensionId = getFieldIdForDateDimension(
-                    getItemId({
-                        name: compareTimeDimension.field,
-                        table: compareTimeDimension.table,
-                    }),
-                    timeDimension.interval,
-                );
-
-                const compareDimension = results.fields[compareDimensionId];
-
-                if (!compareDimension || !isDimension(compareDimension)) {
-                    throw new Error(
-                        `Comparison dimension not found for comparison type ${comparison.type}`,
-                    );
-                }
-
-                return getMetricExplorerDataPointsWithCompare(
-                    dimension,
-                    compareDimension,
-                    results.metric,
-                    results.rows,
-                    results.comparisonRows,
-                    comparison,
-                );
-            default:
-                return assertUnreachable(comparison, `Unknown comparison type`);
-        }
-    }, [comparison, results, isFetching]);
-
     const data = useMemo(() => {
-        if (!dataPoints) return [];
-
-        return dataPoints
-            .map((row) => ({ ...row, dateValue: row.date.valueOf() }))
-            .sort((a, b) => a.dateValue - b.dateValue);
-    }, [dataPoints]);
+        if (!results?.results) return [];
+        return results.results;
+    }, [results]);
 
     const {
         zoomState,
@@ -235,7 +126,7 @@ const MetricsVisualization: FC<Props> = ({
         };
     }, [data, activeData]);
 
-    const showEmptyState = dataPoints?.length === 0;
+    const showEmptyState = data.length === 0;
 
     return (
         <Stack spacing="sm" pb="sm" w="100%" h="100%">
@@ -343,7 +234,7 @@ const MetricsVisualization: FC<Props> = ({
                                 legendType="plainline"
                             />
 
-                            {results.comparisonRows && (
+                            {results.compareMetric && (
                                 <Line
                                     name={`${results.metric.label} (comparison)`}
                                     type="linear"
