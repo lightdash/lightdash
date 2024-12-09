@@ -302,7 +302,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     miw={800}
                     mih={600}
                 >
-                    <Stack p="xl" bg="offWhite.0" miw={360}>
+                    <Stack py="md" px="lg" bg="offWhite.0" miw={340}>
                         <Stack spacing="xl">
                             <Stack w="100%" spacing="xs" sx={{ flexGrow: 1 }}>
                                 <Group position="apart">
