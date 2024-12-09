@@ -1,6 +1,5 @@
 import { type FilterableItem } from '@lightdash/common';
 import {
-    ActionIcon,
     Group,
     Highlight,
     Loader,
@@ -10,7 +9,7 @@ import {
     Tooltip,
     type MultiSelectProps,
 } from '@mantine/core';
-import { IconPlus, IconReload } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import {
     useCallback,
@@ -156,16 +155,25 @@ const FilterStringAutoComplete: FC<Props> = ({
         ({ children, ...props }: { children: ReactNode }) => (
             <ScrollArea {...props}>
                 {refreshedAt ? (
-                    <Text
-                        color="dimmed"
-                        size="xs"
-                        px="sm"
-                        pt="xs"
-                        pb="xxs"
-                        bg="white"
+                    <Tooltip
+                        withinPortal
+                        position="left"
+                        label={`Click here to refresh results now`}
                     >
-                        Results loaded at {refreshedAt.toLocaleString()}
-                    </Text>
+                        <Text
+                            color="dimmed"
+                            size="xs"
+                            px="sm"
+                            pt="xs"
+                            pb="xxs"
+                            bg="white"
+                            pr="xs"
+                            sx={{ cursor: 'pointer' }}
+                            onClick={() => setForceRefresh(true)}
+                        >
+                            Results cached at {refreshedAt.toLocaleString()}
+                        </Text>
+                    </Tooltip>
                 ) : null}
                 {searchedMaxResults ? (
                     <Text
@@ -261,23 +269,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                     isInitialLoading ? 'Loading...' : 'No results found'
                 }
                 rightSection={
-                    <>
-                        <Tooltip
-                            withinPortal
-                            label={`Results loaded at ${refreshedAt.toLocaleString()}`}
-                        >
-                            <ActionIcon
-                                onClick={() => {
-                                    setForceRefresh(true);
-                                }}
-                            >
-                                <MantineIcon icon={IconReload} />
-                            </ActionIcon>
-                        </Tooltip>
-                        {isInitialLoading ? (
-                            <Loader size="xs" color="gray" />
-                        ) : null}
-                    </>
+                    isInitialLoading ? <Loader size="xs" color="gray" /> : null
                 }
                 dropdownComponent={DropdownComponentOverride}
                 itemComponent={({ label, ...others }) =>
