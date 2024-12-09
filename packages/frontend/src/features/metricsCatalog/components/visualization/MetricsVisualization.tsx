@@ -1,5 +1,6 @@
 import {
     capitalize,
+    friendlyName,
     MetricExplorerComparison,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
@@ -13,9 +14,10 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconZoomReset } from '@tabler/icons-react';
+import { IconInfoCircle, IconZoomReset } from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
 import {
     timeDay,
@@ -40,6 +42,7 @@ import {
     YAxis,
 } from 'recharts';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
@@ -88,6 +91,9 @@ const MetricsVisualization: FC<Props> = ({
     onTimeIntervalChange,
     comparison,
 }) => {
+    const canManageExplore = useAppSelector(
+        (state) => state.metricsCatalog.abilities.canManageExplore,
+    );
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
     const data = useMemo(() => {
@@ -284,23 +290,46 @@ const MetricsVisualization: FC<Props> = ({
                     </ResponsiveContainer>
                 </Flex>
             )}
-            {results?.metric.availableTimeDimensions && (
-                <Group position="center" mt="auto">
-                    <Group align="center" noWrap>
+            <Group position="center" mt="auto">
+                <Group align="center" noWrap>
+                    <Tooltip
+                        variant="xs"
+                        label={friendlyName(
+                            results?.metric.timeDimension?.field ?? '',
+                        )}
+                        disabled={!!results?.metric.availableTimeDimensions}
+                    >
                         <Text fw={500} c="gray.7" fz="sm">
                             Date ({capitalize(timeDimensionBaseField.interval)})
                         </Text>
+                    </Tooltip>
 
-                        <TimeDimensionPicker
-                            fields={results.metric.availableTimeDimensions}
-                            dimension={timeDimensionBaseField}
-                            onChange={(config) =>
-                                setTimeDimensionOverride(config)
-                            }
-                        />
-                    </Group>
+                    {results?.metric.availableTimeDimensions && (
+                        <Group spacing="xs">
+                            <TimeDimensionPicker
+                                fields={results.metric.availableTimeDimensions}
+                                dimension={timeDimensionBaseField}
+                                onChange={(config) =>
+                                    setTimeDimensionOverride(config)
+                                }
+                            />
+                            <Tooltip
+                                variant="xs"
+                                disabled={!canManageExplore}
+                                label="Define a default x-axis in your .yml file to skip this step and simplify the experience for your users."
+                            >
+                                <MantineIcon
+                                    color="gray.6"
+                                    icon={IconInfoCircle}
+                                    display={
+                                        canManageExplore ? 'block' : 'none'
+                                    }
+                                />
+                            </Tooltip>
+                        </Group>
+                    )}
                 </Group>
-            )}
+            </Group>
         </Stack>
     );
 };
