@@ -1,5 +1,6 @@
 import Dagre from '@dagrejs/dagre';
 import {
+    TimeFrames,
     type CatalogField,
     type CatalogMetricsTreeEdge,
 } from '@lightdash/common';
@@ -52,6 +53,8 @@ type Props = {
 enum STATIC_NODE_TYPES {
     UNCONNECTED = 'UNCONNECTED',
 }
+
+const DEFAULT_TIME_FRAME = TimeFrames.MONTH;
 
 type MetricTreeNode =
     | MetricTreeConnectedNodeData
@@ -237,6 +240,7 @@ const MetricTree: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     label: metric.name,
                     tableName: metric.tableName,
                     metricName: metric.name,
+                    timeFrame: DEFAULT_TIME_FRAME,
                     isEdgeTarget,
                     isEdgeSource,
                 },

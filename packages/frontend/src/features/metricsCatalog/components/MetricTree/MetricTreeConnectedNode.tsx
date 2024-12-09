@@ -6,11 +6,11 @@ import {
     getDefaultDateRangeFromInterval,
     getItemId,
     MetricExplorerComparison,
-    TimeFrames,
     type ResultRow,
+    type TimeFrames,
 } from '@lightdash/common';
 import { Group, Stack, Text, Title } from '@mantine/core';
-import { IconArrowUp } from '@tabler/icons-react';
+import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -24,6 +24,7 @@ export type MetricTreeConnectedNodeData = Node<{
     metricName: string;
     isEdgeTarget?: boolean;
     isEdgeSource?: boolean;
+    timeFrame: TimeFrames;
 }>;
 
 function getValueFromRow(row: ResultRow | undefined, itemId: string) {
@@ -41,8 +42,8 @@ const MetricTreeConnectedNode: React.FC<
     );
 
     const dateRange = useMemo(
-        () => getDefaultDateRangeFromInterval(TimeFrames.MONTH),
-        [],
+        () => getDefaultDateRangeFromInterval(data.timeFrame),
+        [data.timeFrame],
     );
 
     const totalQuery = useRunMetricExplorerQuery({
@@ -81,8 +82,6 @@ const MetricTreeConnectedNode: React.FC<
     }, [totalQuery.data, data.metricName, data.tableName]);
 
     const change = useMemo(() => {
-        console.log(value, compareValue);
-
         if (value && compareValue) {
             return calculateComparisonValue(
                 Number(value.raw),
@@ -106,8 +105,11 @@ const MetricTreeConnectedNode: React.FC<
     }, [change]);
 
     const compareString = useMemo(
-        () => value && compareValue && 'Compared to previous month',
-        [value, compareValue],
+        () =>
+            value &&
+            compareValue &&
+            `Compared to previous ${data.timeFrame.toLowerCase()}`,
+        [value, compareValue, data.timeFrame],
     ); // TODO: will it always be prev month?
 
     return (
@@ -144,7 +146,7 @@ const MetricTreeConnectedNode: React.FC<
                                 <span>{formattedChange}</span>
                             </Text>
                             <MantineIcon
-                                icon={IconArrowUp}
+                                icon={change > 0 ? IconArrowUp : IconArrowDown}
                                 size={16}
                                 stroke={1.5}
                             />
