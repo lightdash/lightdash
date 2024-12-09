@@ -112,6 +112,9 @@ const getCommonCalendarStyles = (theme: MantineTheme) => ({
         '&[data-in-range]:hover': {
             backgroundColor: theme.colors.gray[1],
         },
+        '&[data-last-in-range][data-first-in-range]': {
+            borderRadius: theme.radius.md,
+        },
     },
     day: {
         borderRadius: theme.radius.lg,
