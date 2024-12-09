@@ -127,7 +127,7 @@ const MetricsVisualization: FC<Props> = ({
     const showEmptyState = activeData.length === 0;
 
     return (
-        <Stack spacing="sm" pb="sm" w="100%" h="100%">
+        <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
                 {dateRange && results?.metric.timeDimension && (
                     <MetricPeekDatePicker

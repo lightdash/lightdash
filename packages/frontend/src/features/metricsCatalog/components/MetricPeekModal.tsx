@@ -456,7 +456,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Box w="100%" pt="sm" px="md">
+                    <Box w="100%" py="xl" px="xxl">
                         <MetricsVisualization
                             comparison={comparisonParams}
                             dateRange={dateRange ?? undefined}
