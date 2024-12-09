@@ -271,13 +271,14 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     }
                 />
                 <Modal.Header
+                    h={52}
                     sx={(theme) => ({
                         borderBottom: `1px solid ${theme.colors.gray[2]}`,
                         padding: `${theme.spacing.md} ${theme.spacing.lg}`,
                     })}
                 >
                     <Group spacing="xs">
-                        <Text fw={600} fz="lg" color="dark.7">
+                        <Text fw={600} fz="md" color="gray.8">
                             {metricQuery.data?.label}
                         </Text>
                         <Tooltip
@@ -285,7 +286,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                             disabled={!metricQuery.data?.description}
                         >
                             <MantineIcon
-                                color="dark.3"
+                                color="gray.5"
                                 icon={IconInfoCircle}
                                 size={18}
                             />
