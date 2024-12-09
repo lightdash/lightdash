@@ -2500,9 +2500,11 @@ export class ProjectService extends BaseService {
         const cachekey = `${projectUuid}-${table}-${initialFieldId}-${search}-${JSON.stringify(
             filters,
         )}`;
+        const cacheEnabled = this.lightdashConfig.cacheAutocompleResults;
         if (
             !forceRefresh &&
-            cachedUniqueSearchResults[cachekey] !== undefined
+            cachedUniqueSearchResults[cachekey] !== undefined &&
+            cacheEnabled
         ) {
             return cachedUniqueSearchResults[cachekey];
         }
@@ -2639,7 +2641,10 @@ export class ProjectService extends BaseService {
             results: rows.map((row) => row[getItemId(field)]),
             refreshedAt: new Date(),
         };
-        if (forceRefresh || cachedUniqueSearchResults[cachekey] === undefined) {
+        if (
+            cacheEnabled &&
+            (forceRefresh || cachedUniqueSearchResults[cachekey] === undefined)
+        ) {
             cachedUniqueSearchResults[cachekey] = {
                 ...searchResults,
                 cached: true,

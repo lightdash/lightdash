@@ -19,6 +19,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
@@ -51,6 +52,8 @@ const FilterStringAutoComplete: FC<Props> = ({
     if (!projectUuid) {
         throw new Error('projectUuid is required in FiltersProvider');
     }
+
+    const { data: healthData } = useHealth();
 
     const [search, setSearch] = useState('');
     const [pastePopUpOpened, setPastePopUpOpened] = useState(false);
@@ -154,11 +157,11 @@ const FilterStringAutoComplete: FC<Props> = ({
     const DropdownComponentOverride = useCallback(
         ({ children, ...props }: { children: ReactNode }) => (
             <ScrollArea {...props}>
-                {refreshedAt ? (
+                {refreshedAt && healthData?.hasCacheAutocompleResults ? (
                     <Tooltip
                         withinPortal
                         position="left"
-                        label={`Click here to refresh results now`}
+                        label={`Click here to cache results now`}
                     >
                         <Text
                             color="dimmed"
@@ -171,7 +174,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                             sx={{ cursor: 'pointer' }}
                             onClick={() => setForceRefresh(true)}
                         >
-                            Results cached at {refreshedAt.toLocaleString()}
+                            Results loaded at {refreshedAt.toLocaleString()}
                         </Text>
                     </Tooltip>
                 ) : null}
@@ -192,7 +195,12 @@ const FilterStringAutoComplete: FC<Props> = ({
                 {children}
             </ScrollArea>
         ),
-        [searchedMaxResults, search, refreshedAt],
+        [
+            searchedMaxResults,
+            search,
+            refreshedAt,
+            healthData?.hasCacheAutocompleResults,
+        ],
     );
 
     return (
