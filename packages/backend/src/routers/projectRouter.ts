@@ -104,20 +104,18 @@ projectRouter.post(
     isAuthenticated,
     async (req, res, next) => {
         try {
-            const results = {
-                search: req.body.search,
-                results: await req.services
-                    .getProjectService()
-                    .searchFieldUniqueValues(
-                        req.user!,
-                        req.params.projectUuid,
-                        req.body.table,
-                        req.params.fieldId,
-                        req.body.search,
-                        req.body.limit,
-                        req.body.filters,
-                    ),
-            };
+            const results = await req.services
+                .getProjectService()
+                .searchFieldUniqueValues(
+                    req.user!,
+                    req.params.projectUuid,
+                    req.body.table,
+                    req.params.fieldId,
+                    req.body.search,
+                    req.body.limit,
+                    req.body.filters,
+                    req.body.forceRefresh,
+                );
 
             res.json({
                 status: 'ok',
