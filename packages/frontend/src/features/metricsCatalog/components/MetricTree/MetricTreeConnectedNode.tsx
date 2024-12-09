@@ -56,7 +56,7 @@ const MetricTreeConnectedNode: React.FC<
         const value = totalQuery.data?.value;
         const compareValue = totalQuery.data?.comparisonValue;
 
-        if (value && compareValue) {
+        if (value?.raw && compareValue?.raw) {
             return calculateComparisonValue(
                 Number(value.raw),
                 Number(compareValue.raw),
