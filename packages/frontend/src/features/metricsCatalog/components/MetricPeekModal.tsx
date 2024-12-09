@@ -264,20 +264,21 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
             size="auto"
         >
             <Modal.Overlay />
-            <Modal.Content sx={{ overflow: 'hidden' }} radius="lg" w="100%">
+            <Modal.Content sx={{ overflow: 'hidden' }} radius={12} w="100%">
                 <LoadingOverlay
                     visible={
                         metricQuery.isLoading || metricResultsQuery.isLoading
                     }
                 />
                 <Modal.Header
+                    h={52}
                     sx={(theme) => ({
                         borderBottom: `1px solid ${theme.colors.gray[2]}`,
                         padding: `${theme.spacing.md} ${theme.spacing.lg}`,
                     })}
                 >
                     <Group spacing="xs">
-                        <Text fw={600} fz="lg" color="dark.7">
+                        <Text fw={600} fz="md" color="gray.8">
                             {metricQuery.data?.label}
                         </Text>
                         <Tooltip
@@ -285,7 +286,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                             disabled={!metricQuery.data?.description}
                         >
                             <MantineIcon
-                                color="dark.3"
+                                color="gray.5"
                                 icon={IconInfoCircle}
                                 size={18}
                             />
@@ -301,7 +302,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     miw={800}
                     mih={600}
                 >
-                    <Stack p="xl" bg="offWhite.0" miw={360}>
+                    <Stack py="md" px="lg" bg="offWhite.0" miw={340}>
                         <Stack spacing="xl">
                             <Stack w="100%" spacing="xs" sx={{ flexGrow: 1 }}>
                                 <Group position="apart">
@@ -455,7 +456,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Box w="100%" pt="sm" px="md">
+                    <Box w="100%" py="xl" px="xxl">
                         <MetricsVisualization
                             comparison={comparisonParams}
                             dateRange={dateRange ?? undefined}
