@@ -5,6 +5,7 @@ import './sentry'; // Sentry has to be initialized before anything else
 import {
     LightdashError,
     LightdashMode,
+    LightdashVersionHeader,
     SessionUser,
     UnexpectedServerError,
 } from '@lightdash/common';
@@ -388,9 +389,10 @@ export default class App {
             }),
         );
 
-        // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
         expressApp.use((req, res, next) => {
+            // Permissions-Policy header that is not yet supported by helmet. More details here: https://github.com/helmetjs/helmet/issues/234
             res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
+            res.setHeader(LightdashVersionHeader, VERSION);
             next();
         });
 
