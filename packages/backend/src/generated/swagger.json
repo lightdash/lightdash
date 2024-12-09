@@ -11121,6 +11121,10 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentSortByColumns": {
+                "enum": ["name", "space_name", "last_updated_at"],
+                "type": "string"
+            },
             "SemanticLayerClientInfo": {
                 "properties": {
                     "name": {

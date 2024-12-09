@@ -10031,6 +10031,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentSortByColumns: {
+        dataType: 'refEnum',
+        enums: ['name', 'space_name', 'last_updated_at'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SemanticLayerClientInfo: {
         dataType: 'refObject',
         properties: {
@@ -20853,6 +20858,20 @@ export function RegisterRoutes(app: express.Router) {
                 pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
                 page: { in: 'query', name: 'page', dataType: 'double' },
                 search: { in: 'query', name: 'search', dataType: 'string' },
+                sortBy: {
+                    in: 'query',
+                    name: 'sortBy',
+                    ref: 'ContentSortByColumns',
+                },
+                sortDirection: {
+                    in: 'query',
+                    name: 'sortDirection',
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['asc'] },
+                        { dataType: 'enum', enums: ['desc'] },
+                    ],
+                },
             };
 
             // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa

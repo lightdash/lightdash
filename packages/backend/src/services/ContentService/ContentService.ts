@@ -11,7 +11,10 @@ import {
 import { intersection } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
-import { ContentFilters } from '../../models/ContentModel/ContentModelTypes';
+import {
+    ContentArgs,
+    ContentFilters,
+} from '../../models/ContentModel/ContentModelTypes';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
@@ -44,6 +47,7 @@ export class ContentService extends BaseService {
     async find(
         user: SessionUser,
         filters: ContentFilters,
+        queryArgs: ContentArgs,
         paginateArgs: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<SummaryContent[]>> {
         const { organizationUuid } = user;
@@ -91,6 +95,7 @@ export class ContentService extends BaseService {
                 projectUuids: allowedProjectUuids,
                 spaceUuids: allowedSpaceUuids,
             },
+            queryArgs,
             paginateArgs,
         );
     }
