@@ -21,7 +21,7 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-const calculateComparisonValue = (
+export const calculateComparisonValue = (
     a: number,
     b: number,
     format: ComparisonFormatTypes | undefined,

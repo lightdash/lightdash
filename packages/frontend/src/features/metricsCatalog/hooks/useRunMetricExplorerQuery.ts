@@ -1,10 +1,12 @@
 import {
     metricExploreDataPointWithDateValueSchema,
     type ApiMetricsExplorerQueryResults,
+    type ApiMetricsExplorerTotalResults,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
-    type MetricsExplorerQueryResults,
+    type MetricTotalComparisonType,
     type TimeDimensionConfig,
+    type TimeFrames,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -20,13 +22,24 @@ type RunMetricExplorerQueryArgs = {
     options?: UseQueryOptions<ApiMetricsExplorerQueryResults['results']>;
 };
 
-const getUrlParams = (dateRange: MetricExplorerDateRange) => {
+const getUrlParams = ({
+    dateRange,
+    timeFrame,
+}: {
+    dateRange: MetricExplorerDateRange;
+    timeFrame?: TimeFrames;
+}) => {
     const params = new URLSearchParams();
 
     // Add date range params
     if (dateRange) {
         params.append('startDate', dateRange[0].toString());
         params.append('endDate', dateRange[1].toString());
+    }
+
+    // Add time frame param
+    if (timeFrame) {
+        params.append('timeFrame', timeFrame);
     }
 
     return params.toString();
@@ -39,8 +52,8 @@ const postRunMetricExplorerQuery = async ({
     comparison,
     dateRange,
     timeDimensionOverride,
-}: RunMetricExplorerQueryArgs): Promise<MetricsExplorerQueryResults> => {
-    const queryString = getUrlParams(dateRange);
+}: RunMetricExplorerQueryArgs) => {
+    const queryString = getUrlParams({ dateRange });
 
     const response = await lightdashApi<
         ApiMetricsExplorerQueryResults['results']
@@ -91,6 +104,65 @@ export const useRunMetricExplorerQuery = ({
                 comparison: comparison!,
                 dateRange: dateRange!,
                 timeDimensionOverride,
+            }),
+        ...options,
+    });
+};
+
+type RunMetricTotalArgs = {
+    projectUuid: string;
+    exploreName: string;
+    metricName: string;
+    dateRange: MetricExplorerDateRange;
+    timeFrame: TimeFrames;
+    comparisonType: MetricTotalComparisonType;
+};
+
+const postRunMetricTotal = async ({
+    projectUuid,
+    exploreName,
+    metricName,
+    dateRange,
+    timeFrame,
+    comparisonType,
+}: RunMetricTotalArgs) => {
+    const queryString = getUrlParams({
+        dateRange,
+        timeFrame,
+    });
+
+    return lightdashApi<ApiMetricsExplorerTotalResults['results']>({
+        url: `/projects/${projectUuid}/metricsExplorer/${exploreName}/${metricName}/runMetricTotal${
+            queryString ? `?${queryString}` : ''
+        }`,
+        method: 'POST',
+        body: JSON.stringify({
+            comparisonType,
+        }),
+    });
+};
+
+export const useRunMetricTotal = ({
+    projectUuid,
+    exploreName,
+    metricName,
+    dateRange,
+    timeFrame,
+    comparisonType,
+    options,
+}: Partial<RunMetricTotalArgs> & {
+    options?: UseQueryOptions<ApiMetricsExplorerTotalResults['results']>;
+}) => {
+    return useQuery({
+        queryKey: ['runMetricTotal', projectUuid, exploreName, metricName],
+        queryFn: () =>
+            postRunMetricTotal({
+                projectUuid: projectUuid!,
+                exploreName: exploreName!,
+                metricName: metricName!,
+                dateRange: dateRange!,
+                timeFrame: timeFrame!,
+                comparisonType: comparisonType!,
             }),
         ...options,
     });

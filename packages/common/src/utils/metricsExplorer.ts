@@ -92,15 +92,32 @@ export const getFieldIdForDateDimension = (
     }
 };
 
-export const oneYearBack = (date: Date) =>
-    dayjs(date)
-        .set('year', dayjs(date).get('year') - 1)
-        .toDate();
-
-export const oneYearForward = (date: Date) =>
-    dayjs(date)
-        .set('year', dayjs(date).get('year') + 1)
-        .toDate();
+export const getDateCalcUtils = (timeFrame: TimeFrames) => {
+    switch (timeFrame) {
+        case TimeFrames.DAY:
+            return {
+                forward: (date: Date) => dayjs(date).add(1, 'day').toDate(),
+                back: (date: Date) => dayjs(date).subtract(1, 'day').toDate(),
+            };
+        case TimeFrames.WEEK:
+            return {
+                forward: (date: Date) => dayjs(date).add(1, 'week').toDate(),
+                back: (date: Date) => dayjs(date).subtract(1, 'week').toDate(),
+            };
+        case TimeFrames.MONTH:
+            return {
+                forward: (date: Date) => dayjs(date).add(1, 'month').toDate(),
+                back: (date: Date) => dayjs(date).subtract(1, 'month').toDate(),
+            };
+        case TimeFrames.YEAR:
+            return {
+                forward: (date: Date) => dayjs(date).add(1, 'year').toDate(),
+                back: (date: Date) => dayjs(date).subtract(1, 'year').toDate(),
+            };
+        default:
+            return assertUnimplementedTimeframe(timeFrame);
+    }
+};
 
 // TODO: refine the time grain for each time frame
 //   Time grain Year: -> past 5 years (i.e. 5 completed years + this uncompleted year)
@@ -204,7 +221,9 @@ export const getMetricExplorerDataPointsWithCompare = (
         groupByCompareMetricRows,
         (_, date) =>
             comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD
-                ? oneYearForward(new Date(date)).toISOString()
+                ? getDateCalcUtils(TimeFrames.YEAR)
+                      .back(new Date(date))
+                      .toISOString()
                 : date,
     );
 
@@ -270,6 +289,25 @@ export const getDefaultDateRangeFromInterval = (
             ];
         default:
             return assertUnimplementedTimeframe(timeInterval);
+    }
+};
+
+export const getDefaultDateRangeForMetricTotal = (
+    timeFrame: TimeFrames,
+): MetricExplorerDateRange => {
+    const now = dayjs();
+
+    switch (timeFrame) {
+        case TimeFrames.DAY:
+            return [now.startOf('day').toDate(), now.endOf('day').toDate()];
+        case TimeFrames.WEEK:
+            return [now.startOf('week').toDate(), now.endOf('week').toDate()];
+        case TimeFrames.MONTH:
+            return [now.startOf('month').toDate(), now.endOf('month').toDate()];
+        case TimeFrames.YEAR:
+            return [now.startOf('year').toDate(), now.endOf('year').toDate()];
+        default:
+            return assertUnimplementedTimeframe(timeFrame);
     }
 };
 
