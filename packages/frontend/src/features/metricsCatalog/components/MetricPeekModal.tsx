@@ -232,17 +232,8 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         [timeDimensionOverride, timeDimensionBaseField, dateRange],
     );
 
-    const handleClose = useCallback(() => {
-        history.push(`/projects/${projectUuid}/metrics`);
-        setComparisonType(MetricExplorerComparison.NONE);
-        setDateRange(null);
-        setTimeDimensionOverride(undefined);
-        setSelectedMetric(null);
-        onClose();
-    }, [history, onClose, projectUuid]);
-
     const handleTimeIntervalChange = useCallback(
-        (timeInterval: TimeFrames) => {
+        function handleTimeIntervalChange(timeInterval: TimeFrames) {
             // Always reset the date range to the default range for the new interval
             setDateRange(getDefaultDateRangeFromInterval(timeInterval));
 
@@ -255,6 +246,15 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         },
         [timeDimensionBaseField],
     );
+
+    const handleClose = useCallback(() => {
+        history.push(`/projects/${projectUuid}/metrics`);
+        setComparisonType(MetricExplorerComparison.NONE);
+        setDateRange(null);
+        setTimeDimensionOverride(undefined);
+        setSelectedMetric(null);
+        onClose();
+    }, [history, onClose, projectUuid]);
 
     return (
         <Modal.Root

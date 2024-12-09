@@ -46,7 +46,7 @@ export class MetricsExplorerController extends BaseController {
         @Query() startDate: string,
         @Query() endDate: string,
         @Body()
-        body?: {
+        body: {
             timeDimensionOverride?: TimeDimensionConfig;
             comparison: MetricExplorerComparisonType;
         },
@@ -70,7 +70,7 @@ export class MetricsExplorerController extends BaseController {
                 explore,
                 metric,
                 dateRange,
-                body?.comparison,
+                body.comparison,
                 body?.timeDimensionOverride,
             );
 

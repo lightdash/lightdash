@@ -4226,14 +4226,6 @@
             "UpdateDBProjectGroupAccess": {
                 "$ref": "#/components/schemas/Pick_DBProjectGroupAccess.role_"
             },
-            "Record_string._value-ResultValue--__": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ResultRow": {
-                "$ref": "#/components/schemas/Record_string._value-ResultValue--__"
-            },
             "Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_": {
                 "properties": {},
                 "type": "object",
@@ -4242,31 +4234,62 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
+            "MetricExploreDataPoint": {
+                "properties": {
+                    "compareMetric": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "metric": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "date": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": ["compareMetric", "metric", "date"],
+                "type": "object"
+            },
+            "MetricExploreDataPointWithDateValue": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/MetricExploreDataPoint"
+                    },
+                    {
+                        "properties": {
+                            "dateValue": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["dateValue"],
+                        "type": "object"
+                    }
+                ]
+            },
             "MetricsExplorerQueryResults": {
                 "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricExploreDataPointWithDateValue"
+                        },
+                        "type": "array"
+                    },
                     "fields": {
                         "$ref": "#/components/schemas/ItemsMap"
                     },
-                    "comparisonRows": {
-                        "items": {
-                            "$ref": "#/components/schemas/ResultRow"
-                        },
-                        "type": "array"
-                    },
-                    "rows": {
-                        "items": {
-                            "$ref": "#/components/schemas/ResultRow"
-                        },
-                        "type": "array"
-                    },
-                    "comparisonMetric": {
+                    "compareMetric": {
                         "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
                     },
                     "metric": {
                         "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
                     }
                 },
-                "required": ["fields", "rows", "metric"],
+                "required": ["results", "fields", "metric"],
                 "type": "object"
             },
             "ApiMetricsExplorerQueryResults": {
@@ -14432,7 +14455,7 @@
                     }
                 ],
                 "requestBody": {
-                    "required": false,
+                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
