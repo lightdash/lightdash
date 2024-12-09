@@ -264,7 +264,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
             size="auto"
         >
             <Modal.Overlay />
-            <Modal.Content sx={{ overflow: 'hidden' }} radius="lg" w="100%">
+            <Modal.Content sx={{ overflow: 'hidden' }} radius={12} w="100%">
                 <LoadingOverlay
                     visible={
                         metricQuery.isLoading || metricResultsQuery.isLoading
