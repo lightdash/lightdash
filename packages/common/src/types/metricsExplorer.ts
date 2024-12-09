@@ -70,12 +70,6 @@ export type MetricTotalResults = {
     comparisonValue: ResultValue | undefined;
 };
 
-export type MetricTotalResultsWithPreviousPeriod = {
-    type: MetricTotalComparisonType.PREVIOUS_PERIOD;
-    value: ResultValue | undefined;
-    comparisonValue: ResultValue | undefined;
-};
-
 export type ApiMetricsExplorerTotalResults = {
     status: 'ok';
     results: MetricTotalResults;
