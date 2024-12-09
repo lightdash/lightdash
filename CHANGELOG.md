@@ -1,3 +1,10 @@
+# [0.1405.0](https://github.com/lightdash/lightdash/compare/0.1404.4...0.1405.0) (2024-12-09)
+
+
+### Features
+
+* cache results in filters ([#12780](https://github.com/lightdash/lightdash/issues/12780)) ([f959286](https://github.com/lightdash/lightdash/commit/f95928608327295bdc6b24935f280dd8d2ac3386))
+
 ## [0.1404.4](https://github.com/lightdash/lightdash/compare/0.1404.3...0.1404.4) (2024-12-09)
 
 
