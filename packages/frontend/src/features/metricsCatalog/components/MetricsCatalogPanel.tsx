@@ -3,6 +3,7 @@ import {
     ActionIcon,
     Anchor,
     Avatar,
+    Badge,
     Box,
     Group,
     Popover,
@@ -97,8 +98,6 @@ const InfoPopover: FC = () => {
         </Popover>
     );
 };
-
-// ... rest of the existing code ...
 
 export const MetricsCatalogPanel = () => {
     const dispatch = useAppDispatch();
@@ -213,9 +212,29 @@ export const MetricsCatalogPanel = () => {
                         size={48}
                     />
                     <Box>
-                        <Text color="gray.8" weight={600} size="xl">
-                            Metrics Catalog
-                        </Text>
+                        <Group spacing="xs">
+                            <Text color="gray.8" weight={600} size="xl">
+                                Metrics Catalog
+                            </Text>
+                            <Tooltip
+                                variant="xs"
+                                label="This feature is in active development, so we expect some bugs and rough edges"
+                                position="top"
+                            >
+                                <Badge
+                                    variant="filled"
+                                    color="indigo.5"
+                                    radius="sm"
+                                    size="xs"
+                                    sx={{
+                                        border: `1px solid ${theme.colors.indigo[2]}`,
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    Alpha
+                                </Badge>
+                            </Tooltip>
+                        </Group>
                         <Text color="gray.6" size="sm" weight={400}>
                             Browse all Metrics & KPIs across this project
                         </Text>
