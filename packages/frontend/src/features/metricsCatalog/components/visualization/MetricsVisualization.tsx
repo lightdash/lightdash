@@ -129,6 +129,14 @@ const MetricsVisualization: FC<Props> = ({
     const showEmptyState = activeData.length === 0;
     const showLegend = comparison?.type !== MetricExplorerComparison.NONE;
 
+    const legendConfig = useMemo(() => {
+        if (comparison.type === MetricExplorerComparison.NONE) return null;
+        if (comparison.type === MetricExplorerComparison.DIFFERENT_METRIC) {
+            return [results?.metric.label, results?.compareMetric?.label];
+        }
+        return [results?.metric.label];
+    }, [comparison, results]);
+
     return (
         <Stack spacing="sm" pb="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
@@ -233,7 +241,7 @@ const MetricsVisualization: FC<Props> = ({
                             />
 
                             <Line
-                                name={results.metric.label}
+                                name={legendConfig?.[0]}
                                 type="linear"
                                 dataKey="metric"
                                 stroke={colors.indigo[6]}
@@ -244,7 +252,7 @@ const MetricsVisualization: FC<Props> = ({
 
                             {results.compareMetric && (
                                 <Line
-                                    name={`${results.metric.label} (comparison)`}
+                                    name={legendConfig?.[1]}
                                     type="linear"
                                     dataKey="compareMetric"
                                     stroke={colors.indigo[4]}
