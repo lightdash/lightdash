@@ -148,7 +148,7 @@ const MetricsVisualization: FC<Props> = ({
     }, [comparison, results]);
 
     return (
-        <Stack spacing="sm" pb="sm" w="100%" h="100%">
+        <Stack spacing="sm" w="100%" h="100%">
             <Group spacing="sm" noWrap>
                 {dateRange && results?.metric.timeDimension && (
                     <MetricPeekDatePicker
