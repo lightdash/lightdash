@@ -9,6 +9,7 @@ import {
     type TimeFrames,
 } from '@lightdash/common';
 import {
+    Badge,
     Button,
     Flex,
     Group,
@@ -123,9 +124,17 @@ const CustomTooltip = ({
                                 : null}
                         </Text>
                     </Group>
-                    <Text c="dark.3" fz={13} fw={400}>
-                        {entry.name ? entry.payload[entry.name].value : null}
-                    </Text>
+
+                    <Badge
+                        variant="light"
+                        color="indigo"
+                        radius="md"
+                        sx={(theme) => ({
+                            border: `1px solid ${theme.colors.indigo[1]}`,
+                        })}
+                    >
+                        {entry.name ? entry.payload[entry.name].value : null}{' '}
+                    </Badge>
                 </Group>
             ))}
         </Stack>
@@ -202,12 +211,24 @@ const MetricsVisualization: FC<Props> = ({
     const legendConfig = useMemo(() => {
         if (comparison.type === MetricExplorerComparison.NONE) return null;
         if (comparison.type === MetricExplorerComparison.DIFFERENT_METRIC) {
-            return [results?.metric.label, results?.compareMetric?.label];
+            return {
+                metric: { name: 'metric', label: results?.metric.label },
+                compareMetric: {
+                    name: 'compareMetric',
+                    label: results?.compareMetric?.label,
+                },
+            };
         }
         if (comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD) {
-            return [results?.metric.label, 'Previous period'];
+            return {
+                metric: { name: 'metric', label: results?.metric.label },
+                compareMetric: {
+                    name: 'compareMetric',
+                    label: 'Previous period',
+                },
+            };
         }
-        return [results?.metric.label];
+        return { metric: { name: 'metric', label: results?.metric.label } };
     }, [comparison, results]);
 
     return (
@@ -282,14 +303,17 @@ const MetricsVisualization: FC<Props> = ({
                                     verticalAlign="top"
                                     height={50}
                                     margin={{ bottom: 20 }}
-                                    formatter={(value) => (
+                                    formatter={(
+                                        value: 'metric' | 'compareMetric',
+                                    ) => (
                                         <Text
                                             span
                                             c="dark.5"
                                             size={14}
                                             fw={400}
                                         >
-                                            {value}
+                                            {legendConfig?.[value]?.label ||
+                                                value}
                                         </Text>
                                     )}
                                 />
@@ -344,7 +368,6 @@ const MetricsVisualization: FC<Props> = ({
                                 name="metric"
                                 type="linear"
                                 dataKey="metric.value"
-                                label={legendConfig?.[0]}
                                 stroke={colors.indigo[6]}
                                 strokeWidth={1.6}
                                 dot={false}
@@ -357,7 +380,6 @@ const MetricsVisualization: FC<Props> = ({
                                     name="compareMetric"
                                     type="linear"
                                     dataKey="compareMetric.value"
-                                    label={legendConfig?.[1]}
                                     stroke={colors.indigo[4]}
                                     strokeDasharray={'3 3'}
                                     strokeWidth={1.3}
