@@ -1,6 +1,7 @@
 import {
     type ApiContentResponse,
     type ApiError,
+    type ContentSortByColumns,
     type ContentType,
     type ResourceViewItem,
 } from '@lightdash/common';
@@ -12,13 +13,15 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
-type ContentArgs = {
+export type ContentArgs = {
     projectUuid: string;
     spaceUuids?: string[];
     contentTypes?: ContentType[];
     pageSize?: number;
     page?: number;
     search?: string;
+    sortBy?: ContentSortByColumns;
+    sortDirection?: 'asc' | 'desc';
 };
 
 function createQueryString(params: Record<string, any>): string {
