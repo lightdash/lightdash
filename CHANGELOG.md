@@ -1,3 +1,10 @@
+# [0.1406.0](https://github.com/lightdash/lightdash/compare/0.1405.0...0.1406.0) (2024-12-10)
+
+
+### Features
+
+* add pagination, sorting and search to charts page ([#12778](https://github.com/lightdash/lightdash/issues/12778)) ([dd9c2ef](https://github.com/lightdash/lightdash/commit/dd9c2ef7dd0a6904a4151f92db858b87d93a5fb6))
+
 # [0.1405.0](https://github.com/lightdash/lightdash/compare/0.1404.4...0.1405.0) (2024-12-09)
 
 
