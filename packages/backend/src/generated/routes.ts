@@ -1729,6 +1729,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                isDateZoomDisabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__': {
         dataType: 'refAlias',
         type: {
@@ -1782,6 +1793,7 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'DashboardTab' },
                     required: true,
                 },
+                config: { ref: 'DashboardConfig' },
             },
             validators: {},
         },
@@ -6413,6 +6425,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                config: { ref: 'DashboardConfig' },
                 slug: { dataType: 'string', required: true },
                 access: {
                     dataType: 'union',
@@ -6609,6 +6622,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                config: { ref: 'DashboardConfig' },
                 tabs: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'DashboardTab' },

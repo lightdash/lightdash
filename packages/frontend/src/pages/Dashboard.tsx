@@ -112,6 +112,7 @@ const Dashboard: FC = () => {
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
+
     const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -125,6 +126,14 @@ const Dashboard: FC = () => {
     const setDashboardTemporaryFilters = useDashboardContext(
         (c) => c.setDashboardTemporaryFilters,
     );
+    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+
+    const hasDateZoomDisabledChanged = useMemo(() => {
+        return (
+            (dashboard?.config?.isDateZoomDisabled || false) !==
+            isDateZoomDisabled
+        );
+    }, [dashboard, isDateZoomDisabled]);
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
 
     const { isFullscreen, toggleFullscreen } = useApp();
@@ -638,7 +647,8 @@ const Dashboard: FC = () => {
                             haveTilesChanged ||
                             haveFiltersChanged ||
                             hasTemporaryFilters ||
-                            haveTabsChanged
+                            haveTabsChanged ||
+                            hasDateZoomDisabledChanged
                         }
                         hasNewSemanticLayerChart={hasNewSemanticLayerChart}
                         onAddTiles={handleAddTiles}
@@ -675,6 +685,9 @@ const Dashboard: FC = () => {
                                 },
                                 name: dashboard.name,
                                 tabs: dashboardTabs,
+                                config: {
+                                    isDateZoomDisabled,
+                                },
                             });
                         }}
                         onCancel={handleCancel}

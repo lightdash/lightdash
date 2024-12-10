@@ -1815,6 +1815,15 @@
                 "required": ["order", "name", "uuid"],
                 "type": "object"
             },
+            "DashboardConfig": {
+                "properties": {
+                    "isDateZoomDisabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["isDateZoomDisabled"],
+                "type": "object"
+            },
             "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-access__": {
                 "properties": {
                     "name": {
@@ -1891,6 +1900,9 @@
                             "$ref": "#/components/schemas/DashboardTab"
                         },
                         "type": "array"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
                     }
                 },
                 "required": [
@@ -7108,6 +7120,9 @@
             },
             "Dashboard": {
                 "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    },
                     "slug": {
                         "type": "string"
                     },
@@ -7336,6 +7351,9 @@
             },
             "CreateDashboard": {
                 "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
@@ -12095,7 +12113,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.1404.2",
+        "version": "0.1405.0",
         "description": "Open API documentation for all public Lightdash API endpoints.  # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
