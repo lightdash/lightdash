@@ -3,7 +3,6 @@ import {
     CreateDashboard,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
-    DashboardBasicDetails,
     DashboardDAO,
     DashboardTab,
     DashboardTileTypes,
@@ -25,12 +24,14 @@ import {
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
+    type ChartFieldUpdates,
     type DashboardBasicDetailsWithTileTypes,
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { uniq } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import {
     CreateDashboardOrVersionEvent,
@@ -41,7 +42,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
-import { getChartUsageFieldsToUpdate } from '../../models/CatalogModel/utils';
+import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -277,12 +278,9 @@ export class DashboardService extends BaseService {
     private async updateChartFieldUsage(
         projectUuid: string,
         chartExplore: Explore | ExploreError,
-        chartFields: {
-            oldChartFields: string[];
-            newChartFields: string[];
-        },
+        chartFields: ChartFieldUpdates,
     ) {
-        const fieldsToUpdate = await getChartUsageFieldsToUpdate(
+        const fieldUsageChanges = await getChartFieldUsageChanges(
             projectUuid,
             chartExplore,
             chartFields,
@@ -291,7 +289,10 @@ export class DashboardService extends BaseService {
             ),
         );
 
-        await this.catalogModel.updateChartUsages(projectUuid, fieldsToUpdate);
+        await this.catalogModel.updateFieldsChartUsage(
+            projectUuid,
+            fieldUsageChanges,
+        );
     }
 
     async create(
@@ -461,12 +462,17 @@ export class DashboardService extends BaseService {
                                 projectUuid,
                                 cachedExplore,
                                 {
-                                    oldChartFields: [],
-                                    newChartFields: [
-                                        ...duplicatedChart.metricQuery.metrics,
-                                        ...duplicatedChart.metricQuery
-                                            .dimensions,
-                                    ],
+                                    oldChartFields: {
+                                        metrics: [],
+                                        dimensions: [],
+                                    },
+                                    newChartFields: {
+                                        metrics:
+                                            duplicatedChart.metricQuery.metrics,
+                                        dimensions:
+                                            duplicatedChart.metricQuery
+                                                .dimensions,
+                                    },
                                 },
                             );
                         } catch (error) {
@@ -901,12 +907,18 @@ export class DashboardService extends BaseService {
                                 projectUuid,
                                 cachedExplore,
                                 {
-                                    oldChartFields: [
-                                        ...chartInDashboard.metricQuery.metrics,
-                                        ...chartInDashboard.metricQuery
-                                            .dimensions,
-                                    ],
-                                    newChartFields: [],
+                                    oldChartFields: {
+                                        metrics:
+                                            chartInDashboard.metricQuery
+                                                .metrics,
+                                        dimensions:
+                                            chartInDashboard.metricQuery
+                                                .dimensions,
+                                    },
+                                    newChartFields: {
+                                        metrics: [],
+                                        dimensions: [],
+                                    },
                                 },
                             );
                         }

@@ -15,17 +15,13 @@ import {
     Button,
     Divider,
     Group,
-    LoadingOverlay,
     Modal,
-    Paper,
-    Radio,
-    Select,
     Stack,
     Text,
     Tooltip,
     type ModalProps,
 } from '@mantine/core';
-import { IconCalendar, IconInfoCircle, IconStack } from '@tabler/icons-react';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -33,6 +29,7 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
+import { MetricPeekComparison } from './MetricPeekComparison';
 import MetricsVisualization from './visualization/MetricsVisualization';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
@@ -264,20 +261,16 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
             size="auto"
         >
             <Modal.Overlay />
-            <Modal.Content sx={{ overflow: 'hidden' }} radius="lg" w="100%">
-                <LoadingOverlay
-                    visible={
-                        metricQuery.isLoading || metricResultsQuery.isLoading
-                    }
-                />
+            <Modal.Content sx={{ overflow: 'hidden' }} radius={12} w="100%">
                 <Modal.Header
+                    h={52}
                     sx={(theme) => ({
                         borderBottom: `1px solid ${theme.colors.gray[2]}`,
                         padding: `${theme.spacing.md} ${theme.spacing.lg}`,
                     })}
                 >
                     <Group spacing="xs">
-                        <Text fw={600} fz="lg" color="dark.7">
+                        <Text fw={600} fz="md" color="gray.8">
                             {metricQuery.data?.label}
                         </Text>
                         <Tooltip
@@ -285,7 +278,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                             disabled={!metricQuery.data?.description}
                         >
                             <MantineIcon
-                                color="dark.3"
+                                color="gray.5"
                                 icon={IconInfoCircle}
                                 size={18}
                             />
@@ -301,7 +294,7 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                     miw={800}
                     mih={600}
                 >
-                    <Stack p="xl" bg="offWhite.0" miw={360}>
+                    <Stack py="md" px="lg" bg="offWhite.0" miw={340}>
                         <Stack spacing="xl">
                             <Stack w="100%" spacing="xs" sx={{ flexGrow: 1 }}>
                                 <Group position="apart">
@@ -315,13 +308,17 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                         color="dark"
                                         size="xs"
                                         radius="md"
-                                        sx={{
+                                        sx={(theme) => ({
                                             visibility:
                                                 comparisonType ===
                                                 MetricExplorerComparison.NONE
                                                     ? 'hidden'
                                                     : 'visible',
-                                        }}
+                                            '&:hover': {
+                                                backgroundColor:
+                                                    theme.colors.gray[1],
+                                            },
+                                        })}
                                         onClick={() =>
                                             setComparisonType(
                                                 MetricExplorerComparison.NONE,
@@ -332,130 +329,25 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                     </Button>
                                 </Group>
 
-                                <Radio.Group
-                                    value={comparisonType}
-                                    onChange={handleComparisonTypeChange}
-                                >
-                                    <Stack spacing="sm">
-                                        {[
-                                            {
-                                                type: MetricExplorerComparison.PREVIOUS_PERIOD,
-                                                icon: IconCalendar,
-                                                label: 'Compare to previous year',
-                                            },
-                                            {
-                                                type: MetricExplorerComparison.DIFFERENT_METRIC,
-                                                icon: IconStack,
-                                                label: 'Compare to another metric',
-                                            },
-                                        ].map((comparison) => (
-                                            <Paper
-                                                key={comparison.type}
-                                                px="md"
-                                                py="sm"
-                                                sx={(theme) => ({
-                                                    cursor: 'pointer',
-                                                    '&[data-with-border="true"]':
-                                                        {
-                                                            border:
-                                                                comparisonType ===
-                                                                comparison.type
-                                                                    ? `1px solid ${theme.colors.indigo[5]}`
-                                                                    : `1px solid ${theme.colors.gray[2]}`,
-                                                        },
-                                                })}
-                                                onClick={() =>
-                                                    setComparisonType(
-                                                        comparison.type,
-                                                    )
-                                                }
-                                            >
-                                                <Stack>
-                                                    <Group
-                                                        align="center"
-                                                        noWrap
-                                                    >
-                                                        <Paper p="xs">
-                                                            <MantineIcon
-                                                                icon={
-                                                                    comparison.icon
-                                                                }
-                                                            />
-                                                        </Paper>
-
-                                                        <Stack
-                                                            spacing={4}
-                                                            style={{
-                                                                flexGrow: 1,
-                                                            }}
-                                                        >
-                                                            <Text
-                                                                color="dark.8"
-                                                                fw={500}
-                                                            >
-                                                                {
-                                                                    comparison.label
-                                                                }
-                                                            </Text>
-                                                        </Stack>
-
-                                                        <Radio
-                                                            value={
-                                                                comparison.type
-                                                            }
-                                                            size="xs"
-                                                            color="indigo"
-                                                        />
-                                                    </Group>
-
-                                                    {metricsWithTimeDimensionsQuery.isSuccess &&
-                                                        comparison.type ===
-                                                            MetricExplorerComparison.DIFFERENT_METRIC &&
-                                                        comparisonType ===
-                                                            MetricExplorerComparison.DIFFERENT_METRIC && (
-                                                            <Select
-                                                                placeholder="Select metric"
-                                                                radius="md"
-                                                                size="xs"
-                                                                data={
-                                                                    metricsWithTimeDimensionsQuery.data?.map(
-                                                                        (
-                                                                            metric,
-                                                                        ) => ({
-                                                                            value: getItemId(
-                                                                                metric,
-                                                                            ),
-                                                                            label: metric.label,
-                                                                        }),
-                                                                    ) ?? []
-                                                                }
-                                                                value={
-                                                                    selectedMetric
-                                                                        ? getItemId(
-                                                                              selectedMetric,
-                                                                          )
-                                                                        : null
-                                                                }
-                                                                onChange={
-                                                                    handleMetricChange
-                                                                }
-                                                                disabled={
-                                                                    !metricsWithTimeDimensionsQuery.isSuccess
-                                                                }
-                                                            />
-                                                        )}
-                                                </Stack>
-                                            </Paper>
-                                        ))}
-                                    </Stack>
-                                </Radio.Group>
+                                <MetricPeekComparison
+                                    comparisonType={comparisonType}
+                                    setComparisonType={setComparisonType}
+                                    handleComparisonTypeChange={
+                                        handleComparisonTypeChange
+                                    }
+                                    handleMetricChange={handleMetricChange}
+                                    metricsWithTimeDimensionsQuery={
+                                        metricsWithTimeDimensionsQuery
+                                    }
+                                    selectedMetric={selectedMetric}
+                                />
                             </Stack>
                         </Stack>
                     </Stack>
 
                     <Divider orientation="vertical" color="gray.2" />
 
-                    <Box w="100%" pt="sm" px="md">
+                    <Box w="100%" py="xl" px="xxl">
                         <MetricsVisualization
                             comparison={comparisonParams}
                             dateRange={dateRange ?? undefined}
@@ -470,7 +362,10 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                             }
                             setTimeDimensionOverride={setTimeDimensionOverride}
                             onTimeIntervalChange={handleTimeIntervalChange}
-                            isFetching={metricResultsQuery.isFetching}
+                            isFetching={
+                                metricResultsQuery.isFetching ||
+                                metricResultsQuery.isLoading
+                            }
                         />
                     </Box>
                 </Modal.Body>

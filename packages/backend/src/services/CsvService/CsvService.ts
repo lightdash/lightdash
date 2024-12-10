@@ -20,6 +20,7 @@ import {
     getItemLabel,
     getItemLabelWithoutTableName,
     getItemMap,
+    getPivotConfig,
     isCustomSqlDimension,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
@@ -30,18 +31,13 @@ import {
     ItemsMap,
     MetricQuery,
     MissingConfigError,
-    ParameterError,
     PivotConfig,
-    pivotQueryResults,
     pivotResultsAsCsv,
     QueryExecutionContext,
-    SavedChart,
-    SavedChartDAO,
     SchedulerCsvOptions,
     SchedulerFilterRule,
     SchedulerFormat,
     SessionUser,
-    TableChartConfig,
 } from '@lightdash/common';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
@@ -479,15 +475,16 @@ This method can be memory intensive
                 // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
                 const formattedRows = formatRows(rows, itemMap);
 
-                const csvResults = pivotResultsAsCsv(
+                const csvResults = pivotResultsAsCsv({
                     pivotConfig,
-                    formattedRows,
+                    rows: formattedRows,
                     itemMap,
                     metricQuery,
                     customLabels,
                     onlyRaw,
-                    this.lightdashConfig.pivotTable.maxColumnLimit,
-                );
+                    maxColumnLimit:
+                        this.lightdashConfig.pivotTable.maxColumnLimit,
+                });
 
                 const csvContent = await new Promise<string>(
                     (resolve, reject) => {
@@ -611,8 +608,7 @@ This method can be memory intensive
 
         const truncated = this.couldBeTruncated(rows);
 
-        const { pivotConfig } = chart;
-
+        const pivotConfig = getPivotConfig(chart);
         if (pivotConfig && isTableChartConfig(config)) {
             const itemMap = getItemMap(
                 explore,
@@ -621,17 +617,9 @@ This method can be memory intensive
                 metricQuery.customDimensions,
             );
             const customLabels = getCustomLabelsFromTableConfig(config);
-            const hiddenFields = getHiddenTableFields(chart.chartConfig);
-
-            const csvPivotConfig: PivotConfig | undefined = {
-                pivotDimensions: pivotConfig.columns,
-                metricsAsRows: false,
-                hiddenMetricFieldIds: hiddenFields,
-                columnOrder: chart.tableConfig.columnOrder,
-            };
 
             const downloadUrl = this.downloadPivotTableCsv({
-                pivotConfig: csvPivotConfig,
+                pivotConfig,
                 name: chart.name,
                 projectUuid: chart.projectUuid,
                 customLabels,
@@ -650,7 +638,7 @@ This method can be memory intensive
                     userId: user.userUuid,
                     properties: {
                         ...analyticProperties,
-                        numPivotDimensions: pivotConfig.columns.length,
+                        numPivotDimensions: pivotConfig.pivotDimensions.length,
                         numRows: numberRows,
                     },
                 });

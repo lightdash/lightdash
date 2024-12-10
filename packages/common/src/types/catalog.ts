@@ -208,6 +208,7 @@ export type CatalogFieldMap = {
         fieldName: string;
         tableName: string;
         cachedExploreUuid: string;
+        fieldType: FieldType;
     };
 };
 
@@ -241,9 +242,37 @@ export type SchedulerIndexCatalogJobPayload = {
     prevMetricTreeEdges: CatalogMetricsTreeEdge[];
 };
 
+export type ChartFieldUpdates = {
+    oldChartFields: {
+        metrics: string[];
+        dimensions: string[];
+    };
+    newChartFields: {
+        metrics: string[];
+        dimensions: string[];
+    };
+};
+
+export type ChartFieldChanges = {
+    added: {
+        dimensions: string[];
+        metrics: string[];
+    };
+    removed: {
+        dimensions: string[];
+        metrics: string[];
+    };
+};
+
 export type CatalogFieldWhere = {
     fieldName: string;
+    fieldType: FieldType;
     cachedExploreUuid: string;
+};
+
+export type ChartFieldUsageChanges = {
+    fieldsToIncrement: CatalogFieldWhere[];
+    fieldsToDecrement: CatalogFieldWhere[];
 };
 
 export type ChartUsageIn = CatalogFieldWhere & {

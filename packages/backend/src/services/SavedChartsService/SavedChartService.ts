@@ -13,13 +13,11 @@ import {
     ExploreType,
     ForbiddenError,
     generateSlug,
-    getItemId,
     getTimezoneLabel,
     isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
-    isExploreError,
     isUserWithOrg,
     isValidFrequency,
     ParameterError,
@@ -34,7 +32,7 @@ import {
     UpdateMultipleSavedChart,
     UpdateSavedChart,
     ViewStatistics,
-    type CatalogFieldWhere,
+    type ChartFieldUpdates,
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
@@ -49,7 +47,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
-import { getChartUsageFieldsToUpdate } from '../../models/CatalogModel/utils';
+import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -320,12 +318,9 @@ export class SavedChartService extends BaseService {
     private async updateChartFieldUsage(
         projectUuid: string,
         chartExplore: Explore | ExploreError,
-        chartFields: {
-            oldChartFields: string[];
-            newChartFields: string[];
-        },
+        chartFields: ChartFieldUpdates,
     ) {
-        const fieldsToUpdate = await getChartUsageFieldsToUpdate(
+        const fieldUsageChanges = await getChartFieldUsageChanges(
             projectUuid,
             chartExplore,
             chartFields,
@@ -334,7 +329,10 @@ export class SavedChartService extends BaseService {
             ),
         );
 
-        await this.catalogModel.updateChartUsages(projectUuid, fieldsToUpdate);
+        await this.catalogModel.updateFieldsChartUsage(
+            projectUuid,
+            fieldUsageChanges,
+        );
     }
 
     async createVersion(
@@ -413,11 +411,14 @@ export class SavedChartService extends BaseService {
             );
 
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartFields: [...oldChartMetrics, ...oldChartDimensions],
-                newChartFields: [
-                    ...data.metricQuery.metrics,
-                    ...data.metricQuery.dimensions,
-                ],
+                oldChartFields: {
+                    metrics: oldChartMetrics,
+                    dimensions: oldChartDimensions,
+                },
+                newChartFields: {
+                    metrics: data.metricQuery.metrics,
+                    dimensions: data.metricQuery.dimensions,
+                },
             });
         } catch (error) {
             this.logger.error(
@@ -662,8 +663,14 @@ export class SavedChartService extends BaseService {
             );
 
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartFields: [...metrics, ...dimensions],
-                newChartFields: [],
+                oldChartFields: {
+                    metrics,
+                    dimensions,
+                },
+                newChartFields: {
+                    metrics: [],
+                    dimensions: [],
+                },
             });
         } catch (error) {
             this.logger.error(
@@ -847,11 +854,14 @@ export class SavedChartService extends BaseService {
 
         try {
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartFields: [],
-                newChartFields: [
-                    ...newSavedChart.metricQuery.metrics,
-                    ...newSavedChart.metricQuery.dimensions,
-                ],
+                oldChartFields: {
+                    metrics: [],
+                    dimensions: [],
+                },
+                newChartFields: {
+                    metrics: newSavedChart.metricQuery.metrics,
+                    dimensions: newSavedChart.metricQuery.dimensions,
+                },
             });
         } catch (error) {
             this.logger.error(
@@ -953,11 +963,14 @@ export class SavedChartService extends BaseService {
 
         try {
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartFields: [],
-                newChartFields: [
-                    ...newSavedChart.metricQuery.metrics,
-                    ...newSavedChart.metricQuery.dimensions,
-                ],
+                oldChartFields: {
+                    metrics: [],
+                    dimensions: [],
+                },
+                newChartFields: {
+                    metrics: newSavedChart.metricQuery.metrics,
+                    dimensions: newSavedChart.metricQuery.dimensions,
+                },
             });
         } catch (error) {
             this.logger.error(
@@ -1175,14 +1188,14 @@ export class SavedChartService extends BaseService {
                 newChartVersion.projectUuid,
                 cachedExplore,
                 {
-                    oldChartFields: [
-                        ...currentChartVersion.metricQuery.metrics,
-                        ...currentChartVersion.metricQuery.dimensions,
-                    ],
-                    newChartFields: [
-                        ...newChartVersion.metricQuery.metrics,
-                        ...newChartVersion.metricQuery.dimensions,
-                    ],
+                    oldChartFields: {
+                        metrics: currentChartVersion.metricQuery.metrics,
+                        dimensions: currentChartVersion.metricQuery.dimensions,
+                    },
+                    newChartFields: {
+                        metrics: newChartVersion.metricQuery.metrics,
+                        dimensions: newChartVersion.metricQuery.dimensions,
+                    },
                 },
             );
         } catch (error) {

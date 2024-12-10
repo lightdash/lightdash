@@ -3,7 +3,7 @@ import { Group, Stack, Text } from '@mantine/core';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo } from 'react';
 
-type MetricTreeUnconnectedNodeData = Node<{
+export type MetricTreeUnconnectedNodeData = Node<{
     label: string;
 }>;
 

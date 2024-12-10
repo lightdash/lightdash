@@ -2,6 +2,7 @@ import {
     ChartType,
     ECHARTS_DEFAULT_COLORS,
     getHiddenTableFields,
+    getPivotConfig,
     NotFoundError,
 } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
@@ -155,6 +156,7 @@ const VisualizationCard: FC<{
                 hiddenFields: getHiddenTableFields(
                     unsavedChartVersion.chartConfig,
                 ),
+                pivotConfig: getPivotConfig(unsavedChartVersion),
             });
             return gsheetResponse;
         }
