@@ -72,8 +72,6 @@ const MinimalSavedExplorer: FC = () => {
     }>();
     const context = useSearchParams('context') || undefined;
 
-    const { health } = useApp();
-
     const { data, isInitialLoading, isError, error } = useSavedQuery({
         id: savedQueryUuid,
     });
@@ -122,7 +120,6 @@ const MinimalSavedExplorer: FC = () => {
                       }
                     : undefined
             }
-            defaultLimit={health.data?.query.defaultLimit}
         >
             <MantineProvider inherit theme={themeOverride}>
                 <MinimalExplorer />
