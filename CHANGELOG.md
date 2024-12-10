@@ -1,3 +1,15 @@
+# [0.1407.0](https://github.com/lightdash/lightdash/compare/0.1406.0...0.1407.0) (2024-12-10)
+
+
+### Features
+
+* fetch big number data for metrics tree ([#12793](https://github.com/lightdash/lightdash/issues/12793)) ([5e39c83](https://github.com/lightdash/lightdash/commit/5e39c83d7060c0d27c9e62b3de17ead54aa5059c))
+
+
+### Performance Improvements
+
+* get metrics with batched attribute-filter ([#12792](https://github.com/lightdash/lightdash/issues/12792)) ([113c29d](https://github.com/lightdash/lightdash/commit/113c29dce968b176b39eda4cc18bed8389cd14aa))
+
 # [0.1406.0](https://github.com/lightdash/lightdash/compare/0.1405.0...0.1406.0) (2024-12-10)
 
 
