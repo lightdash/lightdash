@@ -265,6 +265,8 @@ export const MetricsTable = () => {
         onGlobalFilterChange: (s: string) => {
             setSearch(s);
         },
+        manualFiltering: true,
+        enableFilterMatchHighlighting: true,
         enableSorting: true,
         manualSorting: true,
         onSortingChange: setSorting,
@@ -492,7 +494,6 @@ export const MetricsTable = () => {
                 header: '',
             },
         },
-        enableFilterMatchHighlighting: true,
         enableEditing: true,
         editDisplayMode: 'cell',
     });
