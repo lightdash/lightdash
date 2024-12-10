@@ -123,7 +123,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         Header: ({ column }) => (
             <HeaderCell
                 Icon={Tag}
-                tooltipLabel="Click to add or edit a category, if you have the required permissions."
+                tooltipLabel="Categories help you organize your metrics and KPIs. Click on the cell to add or edit a category, if you have the required permissions."
             >
                 {column.columnDef.header}
             </HeaderCell>
@@ -272,7 +272,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         Header: ({ column }) => (
             <HeaderCell
                 Icon={Popularity}
-                tooltipLabel="Shows how many charts use this metric."
+                tooltipLabel="Shows how many charts use this metric"
             >
                 {column.columnDef.header}
             </HeaderCell>

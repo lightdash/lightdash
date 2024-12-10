@@ -73,7 +73,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                     <Tooltip
                         withinPortal
                         variant="xs"
-                        label="Easily filter metrics by category to find what you're looking for."
+                        label="Filter metrics by category"
                     >
                         <Button
                             h={32}
@@ -238,62 +238,57 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         return (
             <Group {...props}>
                 <Group spacing="xs">
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label="Search by metric name or description"
-                    >
-                        {/* Search input */}
-                        <TextInput
-                            size="xs"
-                            radius="md"
-                            styles={(theme) => ({
-                                input: {
-                                    height: 32,
-                                    width: 309,
-                                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                                    textOverflow: 'ellipsis',
-                                    fontSize: theme.fontSizes.sm,
-                                    fontWeight: 400,
-                                    color: search
-                                        ? theme.colors.gray[8]
-                                        : theme.colors.gray[5],
-                                    boxShadow: theme.shadows.subtle,
-                                    border: `1px solid ${theme.colors.gray[3]}`,
-                                    '&:hover': {
-                                        border: `1px solid ${theme.colors.gray[4]}`,
-                                    },
-                                    '&:focus': {
-                                        border: `1px solid ${theme.colors.blue[5]}`,
-                                    },
+                    {/* Search input */}
+                    <TextInput
+                        size="xs"
+                        radius="md"
+                        styles={(theme) => ({
+                            input: {
+                                height: 32,
+                                width: 309,
+                                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                                textOverflow: 'ellipsis',
+                                fontSize: theme.fontSizes.sm,
+                                fontWeight: 400,
+                                color: search
+                                    ? theme.colors.gray[8]
+                                    : theme.colors.gray[5],
+                                boxShadow: theme.shadows.subtle,
+                                border: `1px solid ${theme.colors.gray[3]}`,
+                                '&:hover': {
+                                    border: `1px solid ${theme.colors.gray[4]}`,
                                 },
-                            })}
-                            type="search"
-                            variant="default"
-                            placeholder="Search by name or description"
-                            value={search ?? ''}
-                            icon={
-                                <MantineIcon
-                                    size="md"
-                                    color="gray.6"
-                                    icon={IconSearch}
-                                />
-                            }
-                            onChange={(e) => setSearch(e.target.value)}
-                            rightSection={
-                                search && (
-                                    <ActionIcon
-                                        onClick={clearSearch}
-                                        variant="transparent"
-                                        size="xs"
-                                        color="gray.5"
-                                    >
-                                        <MantineIcon icon={IconX} />
-                                    </ActionIcon>
-                                )
-                            }
-                        />
-                    </Tooltip>
+                                '&:focus': {
+                                    border: `1px solid ${theme.colors.blue[5]}`,
+                                },
+                            },
+                        })}
+                        type="search"
+                        variant="default"
+                        placeholder="Search by name or description"
+                        value={search ?? ''}
+                        icon={
+                            <MantineIcon
+                                size="md"
+                                color="gray.6"
+                                icon={IconSearch}
+                            />
+                        }
+                        onChange={(e) => setSearch(e.target.value)}
+                        rightSection={
+                            search && (
+                                <ActionIcon
+                                    onClick={clearSearch}
+                                    variant="transparent"
+                                    size="xs"
+                                    color="gray.5"
+                                >
+                                    <MantineIcon icon={IconX} />
+                                </ActionIcon>
+                            )
+                        }
+                    />
+
                     {/* Categories filter */}
                     {showCategoriesFilter && (
                         <Divider
