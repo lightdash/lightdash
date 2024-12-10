@@ -3,12 +3,10 @@ import {
     CreateDashboard,
     CreateSchedulerAndTargetsWithoutIds,
     Dashboard,
-    DashboardBasicDetails,
     DashboardDAO,
     DashboardTab,
     DashboardTileTypes,
     ExploreType,
-    FieldType,
     ForbiddenError,
     generateSlug,
     hasChartsInDashboard,
@@ -44,11 +42,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
-import {
-    getChartFieldChanges,
-    getChartUsageFieldsToUpdate,
-    getTableNamesByFieldIds,
-} from '../../models/CatalogModel/utils';
+import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -286,7 +280,7 @@ export class DashboardService extends BaseService {
         chartExplore: Explore | ExploreError,
         chartFields: ChartFieldUpdates,
     ) {
-        const fieldUpdates = await getChartUsageFieldsToUpdate(
+        const fieldUsageChanges = await getChartFieldUsageChanges(
             projectUuid,
             chartExplore,
             chartFields,
@@ -295,7 +289,10 @@ export class DashboardService extends BaseService {
             ),
         );
 
-        await this.catalogModel.updateChartUsages(projectUuid, fieldUpdates);
+        await this.catalogModel.updateFieldsChartUsage(
+            projectUuid,
+            fieldUsageChanges,
+        );
     }
 
     async create(

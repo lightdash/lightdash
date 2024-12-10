@@ -47,7 +47,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
-import { getChartUsageFieldsToUpdate } from '../../models/CatalogModel/utils';
+import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -320,7 +320,7 @@ export class SavedChartService extends BaseService {
         chartExplore: Explore | ExploreError,
         chartFields: ChartFieldUpdates,
     ) {
-        const fieldsToUpdate = await getChartUsageFieldsToUpdate(
+        const fieldUsageChanges = await getChartFieldUsageChanges(
             projectUuid,
             chartExplore,
             chartFields,
@@ -329,7 +329,10 @@ export class SavedChartService extends BaseService {
             ),
         );
 
-        await this.catalogModel.updateChartUsages(projectUuid, fieldsToUpdate);
+        await this.catalogModel.updateFieldsChartUsage(
+            projectUuid,
+            fieldUsageChanges,
+        );
     }
 
     async createVersion(

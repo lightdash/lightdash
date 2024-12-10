@@ -270,6 +270,11 @@ export type CatalogFieldWhere = {
     cachedExploreUuid: string;
 };
 
+export type ChartFieldUsageChanges = {
+    fieldsToIncrement: CatalogFieldWhere[];
+    fieldsToDecrement: CatalogFieldWhere[];
+};
+
 export type ChartUsageIn = CatalogFieldWhere & {
     chartUsage: number;
 };

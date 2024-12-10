@@ -16,6 +16,7 @@ import {
     type CatalogItemSummary,
     type CatalogItemWithTagUuids,
     type CatalogMetricsTreeEdge,
+    type ChartFieldUsageChanges,
     type ChartUsageIn,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -434,15 +435,9 @@ export class CatalogModel {
         });
     }
 
-    async updateChartUsages(
+    async updateFieldsChartUsage(
         projectUuid: string,
-        {
-            fieldsToIncrement,
-            fieldsToDecrement,
-        }: {
-            fieldsToIncrement: CatalogFieldWhere[];
-            fieldsToDecrement: CatalogFieldWhere[];
-        },
+        { fieldsToIncrement, fieldsToDecrement }: ChartFieldUsageChanges,
     ) {
         const incrementByCachedExploreUuid =
             getUpdatesByCachedExploreUuid(fieldsToIncrement);

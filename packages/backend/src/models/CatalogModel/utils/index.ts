@@ -8,6 +8,7 @@ import {
     type CatalogFieldWhere,
     type ChartFieldChanges,
     type ChartFieldUpdates,
+    type ChartFieldUsageChanges,
     type ExploreError,
 } from '@lightdash/common';
 import { uniq } from 'lodash';
@@ -179,7 +180,7 @@ export function getCatalogFieldWhereStatements(
         .filter((fieldWhere): fieldWhere is CatalogFieldWhere => !!fieldWhere);
 }
 
-export async function getChartUsageFieldsToUpdate(
+export async function getChartFieldUsageChanges(
     projectUuid: string,
     chartExplore: Explore | ExploreError,
     chartFields: ChartFieldUpdates,
@@ -187,7 +188,7 @@ export async function getChartUsageFieldsToUpdate(
         projectUuid: string,
         tableNames: string[],
     ) => Promise<Record<string, string>>,
-) {
+): Promise<ChartFieldUsageChanges> {
     const chartFieldChanges = getChartFieldChanges(chartFields);
     const { added, removed } = chartFieldChanges;
 
