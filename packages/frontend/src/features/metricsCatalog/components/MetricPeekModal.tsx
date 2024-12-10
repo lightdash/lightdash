@@ -15,7 +15,6 @@ import {
     Button,
     Divider,
     Group,
-    LoadingOverlay,
     Modal,
     Stack,
     Text,
@@ -263,11 +262,6 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
         >
             <Modal.Overlay />
             <Modal.Content sx={{ overflow: 'hidden' }} radius={12} w="100%">
-                <LoadingOverlay
-                    visible={
-                        metricQuery.isLoading || metricResultsQuery.isLoading
-                    }
-                />
                 <Modal.Header
                     h={52}
                     sx={(theme) => ({
@@ -314,13 +308,17 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                         color="dark"
                                         size="xs"
                                         radius="md"
-                                        sx={{
+                                        sx={(theme) => ({
                                             visibility:
                                                 comparisonType ===
                                                 MetricExplorerComparison.NONE
                                                     ? 'hidden'
                                                     : 'visible',
-                                        }}
+                                            '&:hover': {
+                                                backgroundColor:
+                                                    theme.colors.gray[1],
+                                            },
+                                        })}
                                         onClick={() =>
                                             setComparisonType(
                                                 MetricExplorerComparison.NONE,

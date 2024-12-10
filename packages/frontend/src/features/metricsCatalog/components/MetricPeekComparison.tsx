@@ -3,13 +3,17 @@ import {
     MetricExplorerComparison,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
-import { Box, Group, Paper, Radio, Select, Stack, Text } from '@mantine/core';
 import {
-    IconCalendar,
-    IconChevronDown,
-    IconStack,
-    IconTable,
-} from '@tabler/icons-react';
+    Box,
+    Group,
+    Loader,
+    Paper,
+    Radio,
+    Select,
+    Stack,
+    Text,
+} from '@mantine/core';
+import { IconCalendar, IconChevronDown, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import {
     forwardRef,
@@ -18,6 +22,7 @@ import {
     type FC,
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useSelectStyles } from '../styles/useSelectStyles';
 
 type Props = {
     comparisonType: MetricExplorerComparison;
@@ -36,22 +41,13 @@ const FieldItem = forwardRef<
     ComponentPropsWithoutRef<'div'> & {
         value: string;
         label: string;
-        tableLabel: string;
         selected: boolean;
     }
->(({ value, label, tableLabel, ...others }, ref) => (
+>(({ value, label, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Group noWrap position="apart">
-            <Text fz="sm" c="dark.8" fw={500}>
-                {label}
-            </Text>
-            <Group spacing={4} noWrap>
-                <MantineIcon color="gray.6" size={12} icon={IconTable} />
-                <Text fz="xs" c="gray.6" span>
-                    {tableLabel}
-                </Text>
-            </Group>
-        </Group>
+        <Text fz="sm" c="dark.8" fw={500}>
+            {label}
+        </Text>
     </Box>
 ));
 
@@ -63,15 +59,15 @@ export const MetricPeekComparison: FC<Props> = ({
     selectedMetric,
     handleMetricChange,
 }) => {
+    const { classes } = useSelectStyles();
     const showMetricSelect = useCallback(
         (ct: MetricExplorerComparison) => {
             return (
-                metricsWithTimeDimensionsQuery.isSuccess &&
                 comparisonType === MetricExplorerComparison.DIFFERENT_METRIC &&
                 ct === MetricExplorerComparison.DIFFERENT_METRIC
             );
         },
-        [metricsWithTimeDimensionsQuery, comparisonType],
+        [comparisonType],
     );
 
     return (
@@ -118,15 +114,16 @@ export const MetricPeekComparison: FC<Props> = ({
                         onClick={() => setComparisonType(comparison.type)}
                     >
                         <Stack>
-                            <Group align="center" noWrap>
-                                <Paper p="xs">
-                                    <MantineIcon icon={comparison.icon} />
-                                </Paper>
+                            <Group align="center" noWrap position="apart">
+                                <Group>
+                                    <Paper p="xs">
+                                        <MantineIcon icon={comparison.icon} />
+                                    </Paper>
 
-                                <Text color="dark.8" fw={500}>
-                                    {comparison.label}
-                                </Text>
-
+                                    <Text color="dark.8" fw={500}>
+                                        {comparison.label}
+                                    </Text>
+                                </Group>
                                 <Radio
                                     value={comparison.type}
                                     size="xs"
@@ -144,7 +141,6 @@ export const MetricPeekComparison: FC<Props> = ({
                                             (metric) => ({
                                                 value: getItemId(metric),
                                                 label: metric.label,
-                                                tableLabel: metric.tableLabel,
                                             }),
                                         ) ?? []
                                     }
@@ -159,54 +155,21 @@ export const MetricPeekComparison: FC<Props> = ({
                                     }
                                     itemComponent={FieldItem}
                                     rightSection={
-                                        <MantineIcon
-                                            color="dark.2"
-                                            icon={IconChevronDown}
-                                            size={12}
-                                        />
+                                        metricsWithTimeDimensionsQuery.isLoading ? (
+                                            <Loader size="xs" />
+                                        ) : (
+                                            <MantineIcon
+                                                color="dark.2"
+                                                icon={IconChevronDown}
+                                                size={12}
+                                            />
+                                        )
                                     }
-                                    styles={(theme) => ({
-                                        input: {
-                                            fontWeight: 500,
-                                            fontSize: 14,
-                                            borderColor: theme.colors.gray[2],
-                                            borderRadius: theme.radius.md,
-                                            boxShadow: theme.shadows.subtle,
-                                            padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                                            backgroundColor: 'white',
-                                            '&:hover': {
-                                                backgroundColor:
-                                                    theme.fn.lighten(
-                                                        theme.colors.gray[0],
-                                                        0.5,
-                                                    ),
-                                            },
-                                            height: 36,
-                                            '&[value=""]': {
-                                                border: `1px dashed ${theme.colors.gray[4]}`,
-                                            },
-                                        },
-                                        item: {
-                                            '&[data-selected="true"]': {
-                                                color: theme.colors.gray[7],
-                                                fontWeight: 500,
-                                                backgroundColor:
-                                                    theme.colors.gray[0],
-                                            },
-                                            '&[data-selected="true"]:hover': {
-                                                backgroundColor:
-                                                    theme.colors.gray[0],
-                                            },
-                                            '&:hover': {
-                                                backgroundColor:
-                                                    theme.colors.gray[0],
-                                            },
-                                        },
-                                        dropdown: {
-                                            minWidth: 'fit-content',
-                                        },
-                                        rightSection: { pointerEvents: 'none' },
-                                    })}
+                                    classNames={{
+                                        input: classes.input,
+                                        item: classes.item,
+                                        rightSection: classes.rightSection,
+                                    }}
                                 />
                             )}
                         </Stack>
