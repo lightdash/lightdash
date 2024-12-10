@@ -64,6 +64,7 @@ type GenericEvent = {
         | EventName.DASHBOARD_AUTO_REFRESH_UPDATED
         | EventName.METRICS_CATALOG_CHART_USAGE_CLICKED
         | EventName.METRICS_CATALOG_EXPLORE_CLICKED
+        | EventName.METRICS_CATALOG_METRIC_NAME_CLICKED
         | EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED
         | EventName.METRICS_CATALOG_CATEGORY_CLICKED
         | EventName.METRICS_CATALOG_CATEGORY_FILTER_APPLIED
@@ -200,6 +201,16 @@ type MetricsCatalogExploreClickedEvent = {
     };
 };
 
+type MetricsCatalogMetricNameClickedEvent = {
+    name: EventName.METRICS_CATALOG_METRIC_NAME_CLICKED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        metricName: string;
+        tableName: string;
+    };
+};
+
 type MetricsCatalogChartUsageChartClickedEvent = {
     name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED;
     properties: {
@@ -255,7 +266,8 @@ export type EventData =
     | MetricsCatalogChartUsageChartClickedEvent
     | MetricsCatalogCategoryClickedEvent
     | MetricsCatalogCategoryFilterAppliedEvent
-    | MetricsCatalogIconAppliedEvent;
+    | MetricsCatalogIconAppliedEvent
+    | MetricsCatalogMetricNameClickedEvent;
 
 type IdentifyData = {
     id: string;
