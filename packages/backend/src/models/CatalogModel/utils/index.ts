@@ -82,7 +82,7 @@ export const convertExploresToCatalog = (
 
 export function getTableNamesByFieldIds(
     fieldIds: string[],
-    fieldsType: FieldType,
+    fieldType: FieldType,
     explore: Explore | ExploreError,
 ) {
     if (isExploreError(explore)) {
@@ -93,7 +93,7 @@ export function getTableNamesByFieldIds(
         [string, string | undefined]
     >((fieldId) => {
         const table = Object.values(explore.tables).find((exploreTable) => {
-            if (fieldsType === FieldType.DIMENSION) {
+            if (fieldType === FieldType.DIMENSION) {
                 return Object.values(exploreTable.dimensions).some(
                     (dimension) =>
                         getItemId({
@@ -159,7 +159,7 @@ export function getCatalogFieldWhereStatements(
     fieldIds: string[],
     fieldTableNameMap: Record<string, string | undefined>,
     cachedExploreUuidTableNameMap: Record<string, string>,
-    fieldsType: FieldType,
+    fieldType: FieldType,
 ): Array<CatalogFieldWhere> {
     return fieldIds
         .map((fieldId) => {
@@ -174,7 +174,7 @@ export function getCatalogFieldWhereStatements(
             return {
                 cachedExploreUuid,
                 fieldName: fieldId.replace(`${tableName}_`, ''),
-                fieldType: fieldsType,
+                fieldType,
             };
         })
         .filter((fieldWhere): fieldWhere is CatalogFieldWhere => !!fieldWhere);
