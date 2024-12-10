@@ -14,7 +14,7 @@ import {
 import { lightdashApi } from '../api';
 
 export type ContentArgs = {
-    projectUuid: string;
+    projectUuids: string[];
     spaceUuids?: string[];
     contentTypes?: ContentType[];
     pageSize?: number;
