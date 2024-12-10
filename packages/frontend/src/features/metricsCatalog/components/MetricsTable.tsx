@@ -400,6 +400,7 @@ export const MetricsTable = () => {
                         : `1px solid ${theme.colors.gray[2]}`,
                     borderBottom: `1px solid ${theme.colors.gray[2]}`,
                     borderTop: 'none',
+                    borderLeft: 'none',
                 },
                 sx: {
                     display: 'inline-flex',
