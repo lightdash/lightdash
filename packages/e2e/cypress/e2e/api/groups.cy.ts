@@ -193,7 +193,7 @@ describe('Groups API', () => {
                 },
                 failOnStatusCode: false,
             }).then((response2) => {
-                expect(response2.status).to.eq(500);
+                expect(response2.status).to.eq(400);
             });
         });
     });
