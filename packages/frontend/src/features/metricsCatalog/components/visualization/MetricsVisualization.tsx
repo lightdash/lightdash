@@ -1,5 +1,7 @@
 import {
     capitalize,
+    friendlyName,
+    MetricExplorerComparison,
     type MetricExplorerComparisonType,
     type MetricExplorerDateRange,
     type MetricsExplorerQueryResults,
@@ -12,9 +14,10 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
     useMantineTheme,
 } from '@mantine/core';
-import { IconZoomReset } from '@tabler/icons-react';
+import { IconInfoCircle, IconZoomReset } from '@tabler/icons-react';
 import { scaleTime } from 'd3-scale';
 import {
     timeDay,
@@ -39,6 +42,7 @@ import {
     YAxis,
 } from 'recharts';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { MetricPeekDatePicker } from '../MetricPeekDatePicker';
 import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
 import { TimeDimensionPicker } from './TimeDimensionPicker';
@@ -85,7 +89,12 @@ const MetricsVisualization: FC<Props> = ({
     timeDimensionBaseField,
     setTimeDimensionOverride,
     onTimeIntervalChange,
+    comparison,
+    isFetching,
 }) => {
+    const canManageExplore = useAppSelector(
+        (state) => state.metricsCatalog.abilities.canManageExplore,
+    );
     const { colors, radius, shadows, fontSizes } = useMantineTheme();
 
     const data = useMemo(() => {
@@ -125,6 +134,18 @@ const MetricsVisualization: FC<Props> = ({
     }, [activeData]);
 
     const showEmptyState = activeData.length === 0;
+    const showLegend = comparison?.type !== MetricExplorerComparison.NONE;
+
+    const legendConfig = useMemo(() => {
+        if (comparison.type === MetricExplorerComparison.NONE) return null;
+        if (comparison.type === MetricExplorerComparison.DIFFERENT_METRIC) {
+            return [results?.metric.label, results?.compareMetric?.label];
+        }
+        if (comparison.type === MetricExplorerComparison.PREVIOUS_PERIOD) {
+            return [results?.metric.label, 'Previous period'];
+        }
+        return [results?.metric.label];
+    }, [comparison, results]);
 
     return (
         <Stack spacing="sm" pb="sm" w="100%" h="100%">
@@ -164,23 +185,30 @@ const MetricsVisualization: FC<Props> = ({
                             data={activeData}
                             margin={{
                                 right: 40,
-                                left: 40,
+                                left: 50,
                                 top: 10,
                             }}
                             onMouseDown={handleMouseDown}
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
                         >
-                            <Legend
-                                verticalAlign="top"
-                                height={50}
-                                margin={{ bottom: 20 }}
-                                formatter={(value) => (
-                                    <Text span c="dark.5" size={14} fw={400}>
-                                        {value}
-                                    </Text>
-                                )}
-                            />
+                            {showLegend && (
+                                <Legend
+                                    verticalAlign="top"
+                                    height={50}
+                                    margin={{ bottom: 20 }}
+                                    formatter={(value) => (
+                                        <Text
+                                            span
+                                            c="dark.5"
+                                            size={14}
+                                            fw={400}
+                                        >
+                                            {value}
+                                        </Text>
+                                    )}
+                                />
+                            )}
                             <CartesianGrid
                                 horizontal
                                 vertical={false}
@@ -195,6 +223,21 @@ const MetricsVisualization: FC<Props> = ({
                                 width={4}
                                 domain={['dataMin - 1', 'dataMax + 1']}
                                 allowDataOverflow={false}
+                                label={
+                                    !showLegend
+                                        ? {
+                                              value: results?.metric.label,
+                                              angle: -90,
+                                              position: 'left',
+                                              offset: 40,
+                                              style: {
+                                                  fontSize: 13,
+                                                  fill: colors.dark[5],
+                                                  fontWeight: 500,
+                                              },
+                                          }
+                                        : undefined
+                                }
                             />
 
                             <XAxis
@@ -206,10 +249,13 @@ const MetricsVisualization: FC<Props> = ({
                             />
 
                             <RechartsTooltip
-                                formatter={(value) => [
-                                    value,
-                                    results.metric.label,
-                                ]}
+                                {...(comparison.type ===
+                                    MetricExplorerComparison.NONE && {
+                                    formatter: (value) => [
+                                        value,
+                                        results?.metric.label,
+                                    ],
+                                })}
                                 labelFormatter={(label) =>
                                     dayjs(label).format('MMM D, YYYY')
                                 }
@@ -223,9 +269,10 @@ const MetricsVisualization: FC<Props> = ({
                             />
 
                             <Line
-                                name={results.metric.label}
+                                name={legendConfig?.[0]}
                                 type="linear"
                                 dataKey="metric"
+                                label={legendConfig?.[0]}
                                 stroke={colors.indigo[6]}
                                 strokeWidth={1.6}
                                 dot={false}
@@ -234,9 +281,10 @@ const MetricsVisualization: FC<Props> = ({
 
                             {results.compareMetric && (
                                 <Line
-                                    name={`${results.metric.label} (comparison)`}
+                                    name={legendConfig?.[1]}
                                     type="linear"
                                     dataKey="compareMetric"
+                                    label={legendConfig?.[1]}
                                     stroke={colors.indigo[4]}
                                     strokeDasharray={'3 3'}
                                     strokeWidth={1.3}
@@ -258,23 +306,52 @@ const MetricsVisualization: FC<Props> = ({
                     </ResponsiveContainer>
                 </Flex>
             )}
-            {results?.metric.availableTimeDimensions && (
-                <Group position="center" mt="auto">
-                    <Group align="center" noWrap>
+            <Group
+                position="center"
+                mt="auto"
+                sx={{
+                    visibility: isFetching ? 'hidden' : 'visible',
+                }}
+            >
+                <Group align="center" noWrap>
+                    <Tooltip
+                        variant="xs"
+                        label={friendlyName(
+                            results?.metric.timeDimension?.field ?? '',
+                        )}
+                        disabled={!!results?.metric.availableTimeDimensions}
+                    >
                         <Text fw={500} c="gray.7" fz="sm">
                             Date ({capitalize(timeDimensionBaseField.interval)})
                         </Text>
+                    </Tooltip>
 
-                        <TimeDimensionPicker
-                            fields={results.metric.availableTimeDimensions}
-                            dimension={timeDimensionBaseField}
-                            onChange={(config) =>
-                                setTimeDimensionOverride(config)
-                            }
-                        />
-                    </Group>
+                    {results?.metric.availableTimeDimensions && (
+                        <Group spacing="xs">
+                            <TimeDimensionPicker
+                                fields={results.metric.availableTimeDimensions}
+                                dimension={timeDimensionBaseField}
+                                onChange={(config) =>
+                                    setTimeDimensionOverride(config)
+                                }
+                            />
+                            <Tooltip
+                                variant="xs"
+                                disabled={!canManageExplore}
+                                label="Define a default x-axis in your .yml file to skip this step and simplify the experience for your users."
+                            >
+                                <MantineIcon
+                                    color="gray.6"
+                                    icon={IconInfoCircle}
+                                    display={
+                                        canManageExplore ? 'block' : 'none'
+                                    }
+                                />
+                            </Tooltip>
+                        </Group>
+                    )}
                 </Group>
-            )}
+            </Group>
         </Stack>
     );
 };
