@@ -17,15 +17,12 @@ import {
     Group,
     LoadingOverlay,
     Modal,
-    Paper,
-    Radio,
-    Select,
     Stack,
     Text,
     Tooltip,
     type ModalProps,
 } from '@mantine/core';
-import { IconCalendar, IconInfoCircle, IconStack } from '@tabler/icons-react';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -33,6 +30,7 @@ import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useRunMetricExplorerQuery } from '../hooks/useRunMetricExplorerQuery';
+import { MetricPeekComparison } from './MetricPeekComparison';
 import MetricsVisualization from './visualization/MetricsVisualization';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'>;
@@ -333,123 +331,18 @@ export const MetricPeekModal: FC<Props> = ({ opened, onClose }) => {
                                     </Button>
                                 </Group>
 
-                                <Radio.Group
-                                    value={comparisonType}
-                                    onChange={handleComparisonTypeChange}
-                                >
-                                    <Stack spacing="sm">
-                                        {[
-                                            {
-                                                type: MetricExplorerComparison.PREVIOUS_PERIOD,
-                                                icon: IconCalendar,
-                                                label: 'Compare to previous year',
-                                            },
-                                            {
-                                                type: MetricExplorerComparison.DIFFERENT_METRIC,
-                                                icon: IconStack,
-                                                label: 'Compare to another metric',
-                                            },
-                                        ].map((comparison) => (
-                                            <Paper
-                                                key={comparison.type}
-                                                px="md"
-                                                py="sm"
-                                                sx={(theme) => ({
-                                                    cursor: 'pointer',
-                                                    '&[data-with-border="true"]':
-                                                        {
-                                                            border:
-                                                                comparisonType ===
-                                                                comparison.type
-                                                                    ? `1px solid ${theme.colors.indigo[5]}`
-                                                                    : `1px solid ${theme.colors.gray[2]}`,
-                                                        },
-                                                })}
-                                                onClick={() =>
-                                                    setComparisonType(
-                                                        comparison.type,
-                                                    )
-                                                }
-                                            >
-                                                <Stack>
-                                                    <Group
-                                                        align="center"
-                                                        noWrap
-                                                    >
-                                                        <Paper p="xs">
-                                                            <MantineIcon
-                                                                icon={
-                                                                    comparison.icon
-                                                                }
-                                                            />
-                                                        </Paper>
-
-                                                        <Stack
-                                                            spacing={4}
-                                                            style={{
-                                                                flexGrow: 1,
-                                                            }}
-                                                        >
-                                                            <Text
-                                                                color="dark.8"
-                                                                fw={500}
-                                                            >
-                                                                {
-                                                                    comparison.label
-                                                                }
-                                                            </Text>
-                                                        </Stack>
-
-                                                        <Radio
-                                                            value={
-                                                                comparison.type
-                                                            }
-                                                            size="xs"
-                                                            color="indigo"
-                                                        />
-                                                    </Group>
-
-                                                    {metricsWithTimeDimensionsQuery.isSuccess &&
-                                                        comparison.type ===
-                                                            MetricExplorerComparison.DIFFERENT_METRIC &&
-                                                        comparisonType ===
-                                                            MetricExplorerComparison.DIFFERENT_METRIC && (
-                                                            <Select
-                                                                placeholder="Select metric"
-                                                                radius="md"
-                                                                size="xs"
-                                                                data={
-                                                                    metricsWithTimeDimensionsQuery.data?.map(
-                                                                        (
-                                                                            metric,
-                                                                        ) => ({
-                                                                            value: getItemId(
-                                                                                metric,
-                                                                            ),
-                                                                            label: metric.label,
-                                                                        }),
-                                                                    ) ?? []
-                                                                }
-                                                                value={
-                                                                    selectedMetric
-                                                                        ? getItemId(
-                                                                              selectedMetric,
-                                                                          )
-                                                                        : null
-                                                                }
-                                                                onChange={
-                                                                    handleMetricChange
-                                                                }
-                                                                disabled={
-                                                                    !metricsWithTimeDimensionsQuery.isSuccess
-                                                                }
-                                                            />
-                                                        )}
-                                                </Stack>
-                                            </Paper>
-                                        ))}
-                                    </Stack>
-                                </Radio.Group>
+                                <MetricPeekComparison
+                                    comparisonType={comparisonType}
+                                    setComparisonType={setComparisonType}
+                                    handleComparisonTypeChange={
+                                        handleComparisonTypeChange
+                                    }
+                                    handleMetricChange={handleMetricChange}
+                                    metricsWithTimeDimensionsQuery={
+                                        metricsWithTimeDimensionsQuery
+                                    }
+                                    selectedMetric={selectedMetric}
+                                />
                             </Stack>
                         </Stack>
                     </Stack>
