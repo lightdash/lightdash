@@ -315,16 +315,15 @@ export class GoogleDriveClient {
             throw new Error('Google Drive is not enabled');
         }
 
+        if (results.length === 0) {
+            Logger.info('No data to write to the sheet');
+            return;
+        }
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
 
         // Clear first sheet before writting
         await GoogleDriveClient.clearTabName(sheets, fileId, tabName);
-
-        if (results.length === 0) {
-            Logger.info('No data to write to the sheet');
-            return;
-        }
 
         Logger.info(
             `Writing ${results.length} rows and ${results[0].length} columns to Google sheets`,

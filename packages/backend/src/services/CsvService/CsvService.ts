@@ -475,15 +475,16 @@ This method can be memory intensive
                 // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
                 const formattedRows = formatRows(rows, itemMap);
 
-                const csvResults = pivotResultsAsCsv(
+                const csvResults = pivotResultsAsCsv({
                     pivotConfig,
-                    formattedRows,
+                    rows: formattedRows,
                     itemMap,
                     metricQuery,
                     customLabels,
                     onlyRaw,
-                    this.lightdashConfig.pivotTable.maxColumnLimit,
-                );
+                    maxColumnLimit:
+                        this.lightdashConfig.pivotTable.maxColumnLimit,
+                });
 
                 const csvContent = await new Promise<string>(
                     (resolve, reject) => {

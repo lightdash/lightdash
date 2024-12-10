@@ -1149,15 +1149,16 @@ export default class SchedulerTask {
                 // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
                 const formattedRows = formatRows(rows, itemMap);
 
-                const pivotedResults = pivotResultsAsCsv(
-                    payload.pivotConfig,
-                    formattedRows,
+                const pivotedResults = pivotResultsAsCsv({
+                    pivotConfig: payload.pivotConfig,
+                    rows: formattedRows,
                     itemMap,
-                    payload.metricQuery,
-                    payload.customLabels,
-                    true, // onlyRaw
-                    this.lightdashConfig.pivotTable.maxColumnLimit,
-                );
+                    metricQuery: payload.metricQuery,
+                    customLabels: payload.customLabels,
+                    onlyRaw: true,
+                    maxColumnLimit:
+                        this.lightdashConfig.pivotTable.maxColumnLimit,
+                });
 
                 await this.googleDriveClient.appendCsvToSheet(
                     refreshToken,
@@ -1648,15 +1649,16 @@ export default class SchedulerTask {
                     // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
                     const formattedRows = formatRows(rows, itemMap);
 
-                    const pivotedResults = pivotResultsAsCsv(
+                    const pivotedResults = pivotResultsAsCsv({
                         pivotConfig,
-                        formattedRows,
+                        rows: formattedRows,
                         itemMap,
-                        chart.metricQuery,
+                        metricQuery: chart.metricQuery,
                         customLabels,
-                        true, // onlyRaw
-                        this.lightdashConfig.pivotTable.maxColumnLimit,
-                    );
+                        onlyRaw: true,
+                        maxColumnLimit:
+                            this.lightdashConfig.pivotTable.maxColumnLimit,
+                    });
 
                     await this.googleDriveClient.appendCsvToSheet(
                         refreshToken,
@@ -1787,15 +1789,17 @@ export default class SchedulerTask {
                             // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
                             const formattedRows = formatRows(rows, itemMap);
 
-                            const pivotedResults = pivotResultsAsCsv(
+                            const pivotedResults = pivotResultsAsCsv({
                                 pivotConfig,
-                                formattedRows,
+                                rows: formattedRows,
                                 itemMap,
-                                chart.metricQuery,
+                                metricQuery: chart.metricQuery,
                                 customLabels,
-                                true, // onlyRaw
-                                this.lightdashConfig.pivotTable.maxColumnLimit,
-                            );
+                                onlyRaw: true,
+                                maxColumnLimit:
+                                    this.lightdashConfig.pivotTable
+                                        .maxColumnLimit,
+                            });
 
                             await this.googleDriveClient.appendCsvToSheet(
                                 refreshToken,
