@@ -7,6 +7,7 @@ import {
     GroupWithMembers,
     NotExistsError,
     NotFoundError,
+    ParameterError,
     ProjectGroupAccess,
     UnexpectedDatabaseError,
     UpdateGroupWithMembers,
@@ -401,6 +402,9 @@ export class GroupsModel {
         groupUuid: string;
         update: UpdateGroupWithMembers;
     }): Promise<GroupWithMembers> {
+        if (!groupUuid || !update) {
+            throw new ParameterError('Invalid parameters for updating group');
+        }
         const existingGroup = await this.getGroupWithMembers(groupUuid, 10000);
         if (existingGroup === undefined) {
             throw new NotFoundError(`No group found`);
@@ -423,7 +427,9 @@ export class GroupsModel {
                             `Group name already exists`,
                         );
                     }
-                    throw error; // Re-throw other errors
+                    throw new UnexpectedDatabaseError(
+                        'Failed to update group name',
+                    );
                 }
             }
 
@@ -462,9 +468,10 @@ export class GroupsModel {
                         )
                         .andWhere('groups.group_uuid', groupUuid);
 
-                    // Check if the initial and resulting counts match
                     if (newMembers.length !== membersToAdd.length) {
-                        throw new Error(`Some provided user UUIDs are invalid`);
+                        throw new ParameterError(
+                            'Some provided user UUIDs are invalid',
+                        );
                     }
 
                     await trx('group_memberships')
