@@ -3950,8 +3950,50 @@
                 },
                 "type": "object"
             },
+            "PivotConfig": {
+                "properties": {
+                    "rowTotals": {
+                        "type": "boolean"
+                    },
+                    "columnTotals": {
+                        "type": "boolean"
+                    },
+                    "summableMetricFieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "hiddenMetricFieldIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "columnOrder": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "metricsAsRows": {
+                        "type": "boolean"
+                    },
+                    "pivotDimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["metricsAsRows", "pivotDimensions"],
+                "type": "object"
+            },
             "UploadMetricGsheet": {
                 "properties": {
+                    "pivotConfig": {
+                        "$ref": "#/components/schemas/PivotConfig"
+                    },
                     "hiddenFields": {
                         "items": {
                             "type": "string"

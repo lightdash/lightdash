@@ -1,5 +1,10 @@
 import { type FieldType } from './field';
 import { type ResultRow, type ResultValue } from './results';
+import {
+    ChartType,
+    getHiddenTableFields,
+    type CreateSavedChartVersion,
+} from './savedCharts';
 
 export type PivotConfig = {
     pivotDimensions: string[];
@@ -65,3 +70,18 @@ export type PivotData = {
         pivotColumnInfo: PivotColumn[];
     };
 };
+
+export const getPivotConfig = (
+    savedChart: CreateSavedChartVersion,
+): PivotConfig | undefined =>
+    savedChart.chartConfig.type === ChartType.TABLE &&
+    savedChart.pivotConfig !== undefined
+        ? {
+              pivotDimensions: savedChart.pivotConfig.columns,
+              metricsAsRows: false,
+              hiddenMetricFieldIds: getHiddenTableFields(
+                  savedChart.chartConfig,
+              ),
+              columnOrder: savedChart.tableConfig.columnOrder,
+          }
+        : undefined;

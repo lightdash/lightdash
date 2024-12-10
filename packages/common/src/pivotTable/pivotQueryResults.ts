@@ -764,15 +764,25 @@ export const pivotQueryResults = ({
     return combinedRetrofit(pivotData, getField, getFieldLabel);
 };
 
-export const pivotResultsAsCsv = (
-    pivotConfig: PivotConfig,
-    rows: ResultRow[],
-    itemMap: ItemsMap,
-    metricQuery: MetricQuery,
-    customLabels: Record<string, string> | undefined,
-    onlyRaw: boolean,
-    maxColumnLimit: number,
-) => {
+export const pivotResultsAsCsv = ({
+    pivotConfig,
+    rows,
+    itemMap,
+    metricQuery,
+    customLabels,
+    onlyRaw,
+    maxColumnLimit,
+    undefinedCharacter = '',
+}: {
+    pivotConfig: PivotConfig;
+    rows: ResultRow[];
+    itemMap: ItemsMap;
+    metricQuery: MetricQuery;
+    customLabels: Record<string, string> | undefined;
+    onlyRaw: boolean;
+    maxColumnLimit: number;
+    undefinedCharacter?: string;
+}) => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
         if (customLabel !== undefined) return customLabel;
@@ -799,7 +809,7 @@ export const pivotResultsAsCsv = (
             );
             const fields = pivotedResults.titleFields[i];
             const fieldLabels = fields.map((field) =>
-                field ? getFieldLabel(field.fieldId) : '-',
+                field ? getFieldLabel(field.fieldId) : undefinedCharacter,
             );
 
             acc[i] = [...fieldLabels, ...values];
@@ -819,7 +829,8 @@ export const pivotResultsAsCsv = (
             const noIndexPrefix = hasIndex ? [] : [''];
             const formattedRows = fieldIds.map(
                 (fieldId) =>
-                    (row[fieldId]?.value?.[formatField] as string) || '-',
+                    (row[fieldId]?.value?.[formatField] as string) ||
+                    undefinedCharacter,
             );
             return [...noIndexPrefix, ...formattedRows];
         });
