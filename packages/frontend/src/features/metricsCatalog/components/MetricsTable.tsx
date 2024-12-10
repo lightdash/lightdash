@@ -359,9 +359,10 @@ export const MetricsTable = () => {
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
+                // This is needed to remove the bottom border of the last row when there are no rows (cell props are not used)
+                // It doesn't work when there are rows because they more specific selectors for default styles, so TableBodyCellProps are used instead
                 'tr:last-of-type > td': {
                     borderBottom: 'none',
-                    borderLeft: 'none !important',
                 },
             },
         },
@@ -390,6 +391,8 @@ export const MetricsTable = () => {
                 props.table.getAllColumns().indexOf(props.column) ===
                 props.table.getAllColumns().length - 1;
 
+            const isLastRow = flatData.length === props.row.index + 1;
+
             return {
                 h: 72,
                 // Adding to inline styles to override the default ones which can't be overridden with sx
@@ -398,7 +401,10 @@ export const MetricsTable = () => {
                     borderRight: isLastColumn
                         ? 'none'
                         : `1px solid ${theme.colors.gray[2]}`,
-                    borderBottom: `1px solid ${theme.colors.gray[2]}`,
+                    // This is needed to remove the bottom border of the last row when there are rows
+                    borderBottom: isLastRow
+                        ? 'none'
+                        : `1px solid ${theme.colors.gray[2]}`,
                     borderTop: 'none',
                     borderLeft: 'none',
                 },
